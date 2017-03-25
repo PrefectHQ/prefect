@@ -1,5 +1,6 @@
 import datetime
 import prefect.flow
+import prefect.triggers
 
 
 class Task:
@@ -45,8 +46,10 @@ class Task:
                     type(retry_delay)))
         self.retry_delay = retry_delay
 
-        #TODO Add triggers
+        if trigger is None:
+            trigger = prefect.triggers.all_success
         self.trigger = trigger
+
         #TODO params come from Flow
         self.params = params
 
@@ -54,6 +57,9 @@ class Task:
 
     def run(self):
         return self.fn()
+
+    def id(self):
+        return '{}:{}'.format(self.flow.id, self.name)
 
     def run_before(self, *tasks):
         """
