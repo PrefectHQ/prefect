@@ -1,5 +1,6 @@
 class State:
-    PENDING = 'pending'
-    RUNNING = 'running'
-    SUCCESS = 'success'
-    FAILED = 'failed'
+    PENDING = 'PENDING'
+    PENDING_RETRY = 'PENDING_RETRY'
+    RUNNING = 'RUNNING'
+    SUCCESS = 'SUCCESS'
+    FAILED = 'FAILED'
