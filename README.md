@@ -29,7 +29,7 @@ It also happens to be the name of a roving researcher for that wholly remarkable
 
 ## Requirements
 
-Prefect requires Python 3.5+
+Prefect requires Python 3.3+
 
 ## Installation
 
