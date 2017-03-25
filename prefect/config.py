@@ -47,9 +47,11 @@ class PrefectConfigParser(configparser.ConfigParser):
 PREFECT_DIR = expand(os.getenv('PREFECT_DIR', '~/.prefect'))
 PREFECT_CONFIG = expand(
     os.getenv('PREFECT_CONFIG', os.path.join(PREFECT_DIR, 'prefect.cfg')))
-
-DEFAULT_CONFIG = os.path.join(
+_default_config_file = os.path.join(
     os.path.dirname(__file__), 'config_templates', 'prefect.cfg')
+
+with open(_default_config_file, 'r') as f:
+    DEFAULT_CONFIG = f.read()
 
 os.makedirs(PREFECT_DIR, exist_ok=True)
 if not os.path.isfile(PREFECT_CONFIG):
@@ -57,5 +59,5 @@ if not os.path.isfile(PREFECT_CONFIG):
         f.write(DEFAULT_CONFIG)
 
 config = PrefectConfigParser()
-config.read_file(open(DEFAULT_CONFIG, 'r'))
+config.read_string(DEFAULT_CONFIG)
 config.read_file(open(PREFECT_CONFIG, 'r'))
