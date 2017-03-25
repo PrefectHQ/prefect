@@ -80,3 +80,34 @@ def test_task_relationships():
     assert after in f.graph
     assert before in f.graph[after]
     assert before2 in f.graph[after]
+
+
+def test_shift_relationship_sugar():
+    """Test task relationships with | and >> and << sugar"""
+    with Flow('test') as f:
+        before = Task(fn=fn, name='before')
+        after = Task(fn=fn, name='after')
+
+    before | after
+    assert before in f.graph
+    assert after in f.graph
+    assert before in f.graph[after]
+
+    with Flow('test') as f:
+        before = Task(fn=fn, name='before')
+        after = Task(fn=fn, name='after')
+
+    before >> after
+    assert before in f.graph
+    assert after in f.graph
+    assert before in f.graph[after]
+
+    # same test, calling `run_after`
+    with Flow('test') as f:
+        before = Task(fn=fn, name='before')
+        after = Task(fn=fn, name='after')
+
+    after << before
+    assert before in f.graph
+    assert after in f.graph
+    assert before in f.graph[after]

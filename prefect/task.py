@@ -35,8 +35,6 @@ class Task:
         for t in tasks:
             self.flow.add_task_relationship(before=self, after=t)
 
-    def __rshift__(self, other):
-        self.run_before(other)
 
     def run_after(self, *tasks):
         """
@@ -46,5 +44,16 @@ class Task:
         for t in tasks:
             self.flow.add_task_relationship(before=t, after=self)
 
-    def __rshift__(self, other):
-        self.run_before(other)
+    # Sugar ---------------------------------------------------------
+
+    def __or__(self, task):
+        """ self | task -> self.run_before(task)"""
+        self.run_before(task)
+
+    def __rshift__(self, task):
+        """ self >> task -> self.run_before(task)"""
+        self.run_before(task)
+
+    def __lshift__(self, task):
+        """ self << task -> self.run_after(task)"""
+        self.run_after(task)
