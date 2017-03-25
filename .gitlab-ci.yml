@@ -1,0 +1,10 @@
+image: "python:3.5"
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - pip install ".[test]"
+    - pytest
