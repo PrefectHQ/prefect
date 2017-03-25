@@ -1,3 +1,4 @@
+import prefect.exceptions
 from prefect.flow import Flow
 from prefect.task import Task
 import pytest
@@ -88,6 +89,18 @@ def test_task_relationships():
     assert after in f.graph
     assert before in f.graph[after]
     assert before2 in f.graph[after]
+
+def test_detect_cycle():
+    with Flow('test') as f:
+        t1 = Task(fn=fn, name='t1')
+        t2 = Task(fn=fn, name='t2')
+        t3 = Task(fn=fn, name='t3')
+
+    t1.run_before(t2)
+    t2.run_before(t3)
+
+    with pytest.raises(prefect.exceptions.PrefectError) as e:
+        t3.run_before(t1)
 
 
 def test_shift_relationship_sugar():

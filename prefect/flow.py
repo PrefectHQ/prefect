@@ -1,3 +1,5 @@
+import prefect.exceptions
+
 _CONTEXT_MANAGER_FLOW = None
 
 
@@ -44,6 +46,41 @@ class Flow:
         if after not in self.graph:
             self.add_task(after)
         self.graph[after].add(before)
+
+        # try sorting tasks to make sure there are no cycles (an error is
+        # raised otherwise)
+        self.sorted_tasks()
+
+
+    def sorted_tasks(self):
+        """
+        Returns a topological sort of this Flow's tasks.
+
+        Note that the resulting sort will not always be in the same order!
+        """
+
+        graph = self.graph.copy()
+        sorted_graph = []
+
+        while graph:
+            acyclic = False
+            for node in list(graph):
+                for preceding_node in graph[node]:
+                    if preceding_node in graph:
+                        # the previous node hasn't been sorted yet, so
+                        # this node can't be sorted either
+                        break
+                else:
+                    # all previous nodes are sorted, so this one can be
+                    # sorted as well
+                    acyclic = True
+                    del graph[node]
+                    sorted_graph.append(node)
+            if not acyclic:
+                # no nodes matched
+                raise prefect.exceptions.PrefectError(
+                    'Cycle detected in graph!')
+
 
     # Context Manager -----------------------------------------------
 
