@@ -1,8 +1,21 @@
+import datetime
 import prefect.flow
 
-class Task:
 
-    def __init__(self, fn, flow=None, name=None, params=None):
+class Task:
+    """
+    Tasks are basic units of work. Each task performs a specific funtion.
+    """
+
+    def __init__(
+            self,
+            fn,
+            flow=None,
+            name=None,
+            params=None,
+            retries=0,
+            retry_delay=datetime.timedelta(minutes=5),
+            trigger=None):
         self.fn = fn
 
         if flow is None:
@@ -20,6 +33,21 @@ class Task:
             raise TypeError(
                 'Name must be a string; received {}'.format(type(name)))
         self.name = name
+
+        if not isinstance(retries, int):
+            raise TypeError(
+                'Retries must be an int; received {}'.format(retries))
+        self.retries = retries
+
+        if not isinstance(retry_delay, datetime.timedelta):
+            raise TypeError(
+                'Retry delay must be a timedelta; received {}'.format(
+                    type(retry_delay)))
+        self.retry_delay = retry_delay
+
+        #TODO Add triggers
+        self.trigger = trigger
+        #TODO params come from Flow
         self.params = params
 
         self.flow.add_task(self)
@@ -34,7 +62,6 @@ class Task:
         """
         for t in tasks:
             self.flow.add_task_relationship(before=self, after=t)
-
 
     def run_after(self, *tasks):
         """
