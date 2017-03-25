@@ -4,3 +4,4 @@ class State:
     RUNNING = 'RUNNING'
     SUCCESS = 'SUCCESS'
     FAILED = 'FAILED'
+    SKIPPED = 'SKIPPED'
