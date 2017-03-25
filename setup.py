@@ -5,7 +5,9 @@ install_requires = [
     'mongoengine',
 ]
 
-extras = {}
+extras = {
+    'test': ['pytest']
+}
 
 setup(
     name='prefect',
@@ -17,7 +19,6 @@ setup(
     author_email='jlowin@apache.org',
     install_requires=install_requires,
     extras_require=extras,
-    tests_require=['pytest'],
     scripts=[],
     packages=find_packages(),
     include_package_data=True,)
