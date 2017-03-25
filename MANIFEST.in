@@ -1,2 +1,2 @@
 include README.md
-include prefect/config_templates
+graft prefect/config_templates
