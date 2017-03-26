@@ -48,3 +48,14 @@ def test_get_task_by_name():
     assert f.get_task('t1') is t1
     with pytest.raises(PrefectError):
         f.get_task('some task')
+
+def test_serialize():
+    with Flow('test') as f:
+        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
+        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1.run_before(t2)
+
+    serialized = f.serialize()
+    f2 = Flow.from_serialized(**serialized)
+    assert set(t.name for t in f.graph) == set(t.name for t in f2.graph)
+    assert f2.graph[f2.get_task('t2')] == set([f2.get_task('t1')])

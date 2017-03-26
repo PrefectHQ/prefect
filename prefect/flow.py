@@ -114,4 +114,15 @@ class Flow:
         global _CONTEXT_MANAGER_FLOW
         _CONTEXT_MANAGER_FLOW = self._old_context_manager_flow
 
-    # /Context Manager ----------------------------------------------
+    # Methods -------------------------------------------------------
+
+    def serialize(self):
+        header, frames = distributed.protocol.serialize(self)
+        frames = [base64.b64encode(b).decode('utf-8') for b in frames]
+        return dict(header=header, frames=frames)
+
+    @staticmethod
+    def from_serialized(header, frames):
+        frames = [base64.b64decode(b.encode('utf-8')) for b in frames]
+        return distributed.protocol.deserialize(header, frames)
+
