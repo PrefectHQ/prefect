@@ -50,7 +50,10 @@ class Flow:
 
     def __getitem__(self, item):
         return self.graph[item]
-        
+
+    def __iter__(self):
+        yield from self.sorted_tasks()
+
     def add_task(self, task):
         if task.flow.id != self.id:
             raise ValueError('Task {} is already in another Flow'.format(task))
@@ -110,6 +113,7 @@ class Flow:
                 # no nodes matched
                 raise prefect.exceptions.PrefectError(
                     'Cycle detected in graph!')
+        return sorted_graph
 
     # Context Manager -----------------------------------------------
 
