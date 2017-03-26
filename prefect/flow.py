@@ -52,6 +52,16 @@ class Flow:
                     task.name))
         self.graph[task] = set()
 
+    def get_task(self, name):
+        """
+        Retrieve a task by name
+        """
+        try:
+            return next(t for t in self.graph if t.name == name)
+        except StopIteration:
+            raise PrefectError('Task {} was not found in the Flow'.format(name))
+
+
     def add_task_relationship(self, before, after):
         if before not in self.graph:
             self.add_task(before)
@@ -62,7 +72,6 @@ class Flow:
         # try sorting tasks to make sure there are no cycles (an error is
         # raised otherwise)
         self.sorted_tasks()
-
 
     def sorted_tasks(self):
         """
@@ -92,7 +101,6 @@ class Flow:
                 # no nodes matched
                 raise prefect.exceptions.PrefectError(
                     'Cycle detected in graph!')
-
 
     # Context Manager -----------------------------------------------
 
