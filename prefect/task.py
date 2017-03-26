@@ -17,6 +17,11 @@ class Task:
             retries=0,
             retry_delay=datetime.timedelta(minutes=5),
             trigger=None):
+        """
+        retries: the number of times this task can be retried. -1 indicates
+            an infinite number of times.
+        """
+
         self.fn = fn
 
         if flow is None:
@@ -55,11 +60,9 @@ class Task:
 
         self.flow.add_task(self)
 
-    def run(self):
-        return self.fn()
-
+    @property
     def id(self):
-        return '{}:{}'.format(self.flow.id, self.name)
+        return '{}/{}'.format(self.flow.id, self.name)
 
     def run_before(self, *tasks):
         """
