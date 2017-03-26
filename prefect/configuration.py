@@ -51,7 +51,7 @@ PREFECT_CONFIG = expand(
 _default_config_file = os.path.join(
     os.path.dirname(__file__), 'config_templates', 'prefect.cfg')
 _test_config_file = os.path.join(
-    os.path.dirname(__file__), 'config_templates', 'test.cfg')
+    os.path.dirname(__file__), 'config_templates', 'tests.cfg')
 
 with open(_default_config_file, 'r') as f:
     DEFAULT_CONFIG = f.read()
@@ -67,7 +67,7 @@ def load_config(test_config=False):
     config.read_string(DEFAULT_CONFIG)
     # If we're in test mode, read test config. Otherwise read user config.
     if test_config:
-        config.read_file(_test_config_file)
+        config.read_file(open(_test_config_file, 'r'))
     else:
         config.read_file(open(PREFECT_CONFIG, 'r'))
     return config
@@ -87,6 +87,7 @@ mongoengine.register_connection(
 
 
 def use_mock_db():
+    mongoengine.connection.disconnect()
     mongoengine.register_connection(
         alias='default', host='mongomock://localhost')
 
