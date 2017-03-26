@@ -1,4 +1,7 @@
-import prefect.exceptions
+import base64
+import distributed
+from prefect.exceptions import PrefectError
+import prefect.models
 
 _CONTEXT_MANAGER_FLOW = None
 
@@ -126,3 +129,12 @@ class Flow:
         frames = [base64.b64decode(b.encode('utf-8')) for b in frames]
         return distributed.protocol.deserialize(header, frames)
 
+    def save(self, active=True):
+        flow_model = prefect.models.Flow(
+            _id=self.id,
+            name=self.name,
+            version=str(self.version),
+            namespace=self.namespace,
+            active=self.active,
+            serialized_flow=prefect.models.SerializedFlow(**self.serialize()))
+        return flow_model.save()

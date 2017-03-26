@@ -1,8 +1,8 @@
+import mongoengine
 import pytest
-import prefect.exceptions
+from prefect.exceptions import PrefectError
 import prefect
 from prefect.flow import Flow
-
 
 
 def test_create_flow():
@@ -34,7 +34,7 @@ def test_cycle_detection():
 
     # introduce a cycle
     f.graph[2].add(3)
-    with pytest.raises(prefect.exceptions.PrefectError) as e:
+    with pytest.raises(PrefectError) as e:
         tasks = f.sorted_tasks()
     assert 'Cycle detected' in str(e)
 
@@ -49,6 +49,7 @@ def test_get_task_by_name():
     with pytest.raises(PrefectError):
         f.get_task('some task')
 
+
 def test_serialize():
     with Flow('test') as f:
         t1 = prefect.task.Task(fn=lambda: 1, name='t1')
@@ -59,3 +60,14 @@ def test_serialize():
     f2 = Flow.from_serialized(**serialized)
     assert set(t.name for t in f.graph) == set(t.name for t in f2.graph)
     assert f2.graph[f2.get_task('t2')] == set([f2.get_task('t1')])
+
+
+def test_save():
+    name = 'test-save-flow'
+    with Flow(name) as f:
+        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
+        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1.run_before(t2)
+    f.save()
+    c = mongoengine.connection.get_connection()
+    assert c['prefect']['flows'].find_one(f.id)['name'] == name
