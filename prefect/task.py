@@ -10,14 +10,15 @@ class Task:
 
     def __init__(
             self,
-            fn,
-            flow=None,
             name=None,
+            flow=None,
+            fn=None,
             params=None,
             retries=0,
             retry_delay=datetime.timedelta(minutes=5),
             trigger=None):
         """
+        fn: By default, the Task's run() method calls this function.
         retries: the number of times this task can be retried. -1 indicates
             an infinite number of times.
         """
@@ -79,6 +80,10 @@ class Task:
         """
         for t in tasks:
             self.flow.add_task_relationship(before=t, after=self)
+
+    def run(self, *args, **kwargs):
+        if self.fn is not None:
+            return self.fn(*args, **kwargs)
 
     # Sugar ---------------------------------------------------------
 
