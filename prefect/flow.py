@@ -2,6 +2,7 @@ import base64
 import distributed
 from prefect.exceptions import PrefectError
 import prefect.models
+from prefect.utilities.schedules import (NoSchedule, DateSchedule, CronSchedule, IntervalSchedule)
 
 _CONTEXT_MANAGER_FLOW = None
 
@@ -11,6 +12,7 @@ class Flow:
     def __init__(
             self,
             name,
+            schedule=NoSchedule(),
             params=None,
             namespace=prefect.config.get('flows', 'default_namespace'),
             version=1,
@@ -27,6 +29,7 @@ class Flow:
         self.namespace = namespace
         self.version = version
         self.params = params
+        self.schedule = schedule
         self.active = active
 
         # a graph of task relationships keyed by the `after` task
@@ -130,11 +133,12 @@ class Flow:
         return distributed.protocol.deserialize(header, frames)
 
     def save(self, active=True):
-        flow_model = prefect.models.Flow(
+        flow_model = prefect.models.Flows(
             _id=self.id,
             name=self.name,
             version=str(self.version),
             namespace=self.namespace,
             active=self.active,
+            schedule=self.schedule,
             serialized_flow=prefect.models.SerializedFlow(**self.serialize()))
         return flow_model.save()

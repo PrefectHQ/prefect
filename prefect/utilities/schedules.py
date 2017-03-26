@@ -11,11 +11,16 @@ from mongoengine.fields import (
 from prefect.state import State
 
 
-class Schedule(Document):
+class Schedule(EmbeddedDocument):
     meta = {'allow_inheritance': True}
 
     def next_n(self, n=1, on_or_after=None):
         raise NotImplemented('Must be implemented on Schedule subclasses')
+
+
+class NoSchedule(Schedule):
+    def next_n(self, n=1, on_or_after=None):
+        return []
 
 
 class DateSchedule(Schedule):

@@ -71,3 +71,8 @@ def test_save():
     f.save()
     c = mongoengine.connection.get_connection()
     assert c['prefect']['flows'].find_one(f.id)['name'] == name
+
+    new_name = 'new name'
+    f.name = new_name
+    f.save()
+    assert c['prefect']['flows'].find_one(f.id)['name'] == new_name

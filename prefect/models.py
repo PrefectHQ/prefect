@@ -1,7 +1,7 @@
 import croniter
 import datetime
 import itertools
-from mongoengine import Document, EmbeddedDocument
+from mongoengine import Document, EmbeddedDocument, queryset_manager
 from mongoengine.fields import (
     BooleanField,
     DateTimeField,
@@ -21,37 +21,47 @@ class SerializedFlow(EmbeddedDocument):
     frames = ListField(StringField(), required=True)
 
 
-class Flow(Document):
+class Flows(Document):
     _id = StringField(primary_key=True)
     name = StringField(required=True, unique_with='namespace')
     namespace = StringField(
         default=prefect.config.get('flows', 'default_namespace'))
     version = StringField(default='1')
-    schedule = ReferenceField(Schedule)
+    schedule = EmbeddedDocumentField(Schedule)
     serialized_flow = EmbeddedDocumentField(SerializedFlow)
     active = BooleanField(
         default=prefect.config.getboolean('flows', 'default_active'))
-    meta = {'collection': 'flows'}
 
 
-class FlowRun(Document):
-    flow = ReferenceField(Flow, required=True)
+    @queryset_manager
+    def get_active(doc_cls, queryset):
+        return [
+            prefect.flow.Flow.from_serialized(**f['serialized_flow'])
+            for f in queryset.filter(active=True)]
+
+
+
+    # @queryset_manager
+    # def scheduled(doc_cls, queryset):
+    #     return queryset.filter(schedule)
+
+
+
+class FlowRuns(Document):
+    flow = ReferenceField(Flows, required=True)
     state = StringField(default=State.PENDING)
     start = DateTimeField()
     end = DateTimeField()
-    meta = {'collection': 'flowruns'}
 
 
-class Task(Document):
+class Tasks(Document):
     name = StringField(required=True, unique_with='flow')
-    flow = ReferenceField(Flow, required=True)
-    meta = {'collection': 'tasks'}
+    flow = ReferenceField(Flows, required=True)
 
 
-class TaskRun(Document):
-    task = ReferenceField(Task, required=True)
-    run = ReferenceField(FlowRun, unique_with='task')
+class TaskRuns(Document):
+    task = ReferenceField(Tasks, required=True)
+    run = ReferenceField(FlowRuns, unique_with='task')
     state = StringField(default=State.PENDING)
     attempt = IntField(default=0)
     scheduled = DateTimeField()
-    meta = {'collection': 'taskruns'}
