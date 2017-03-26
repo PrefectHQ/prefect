@@ -2,7 +2,8 @@ import base64
 import distributed
 from prefect.exceptions import PrefectError
 import prefect.models
-from prefect.utilities.schedules import (NoSchedule, DateSchedule, CronSchedule, IntervalSchedule)
+from prefect.utilities.schedules import (
+    NoSchedule, DateSchedule, CronSchedule, IntervalSchedule)
 
 _CONTEXT_MANAGER_FLOW = None
 
@@ -47,6 +48,9 @@ class Flow:
 
     # Tasks ---------------------------------------------------------
 
+    def __getitem__(self, item):
+        return self.graph[item]
+        
     def add_task(self, task):
         if task.flow.id != self.id:
             raise ValueError('Task {} is already in another Flow'.format(task))
@@ -66,7 +70,6 @@ class Flow:
             return next(t for t in self.graph if t.name == name)
         except StopIteration:
             raise PrefectError('Task {} was not found in the Flow'.format(name))
-
 
     def add_task_relationship(self, before, after):
         if before not in self.graph:

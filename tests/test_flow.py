@@ -38,6 +38,13 @@ def test_cycle_detection():
         tasks = f.sorted_tasks()
     assert 'Cycle detected' in str(e)
 
+def test_getitem():
+    with Flow('test') as f:
+        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
+        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1.run_before(t2)
+    assert f[t2] == set([t1])
+
 
 def test_get_task_by_name():
     with Flow('test') as f:
