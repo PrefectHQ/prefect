@@ -1,12 +1,14 @@
 from setuptools import setup, find_packages
 
 install_requires = [
+    'croniter',
+    'dateutil',
     'hug',
     'mongoengine',
 ]
 
 extras = {
-    'test': ['pytest']
+    'test': ['mongomock', 'pytest', 'pytest-env']
 }
 
 setup(
