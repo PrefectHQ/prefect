@@ -5,7 +5,13 @@ _CONTEXT_MANAGER_FLOW = None
 
 class Flow:
 
-    def __init__(self, name, params=None, version=1):
+    def __init__(
+            self,
+            name,
+            params=None,
+            namespace=prefect.config.get('flows', 'default_namespace'),
+            version=1,
+            active=prefect.config.getboolean('flows', 'default_active')):
 
         if not isinstance(name, str):
             raise TypeError(
@@ -15,8 +21,10 @@ class Flow:
             params = {}
 
         self.name = name
+        self.namespace = namespace
         self.version = version
         self.params = params
+        self.active = active
 
         # a graph of task relationships keyed by the `after` task
         # and containing all the `before` tasks as values
@@ -25,7 +33,11 @@ class Flow:
 
     @property
     def id(self):
-        return '{}:{}'.format(self.name, self.version)
+        if self.namespace:
+            namespace = '{}.'.format(self.namespace)
+        else:
+            namespace = ''
+        return '{}{}:{}'.format(namespace, self.name, self.version)
 
     # Tasks ---------------------------------------------------------
 
