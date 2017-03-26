@@ -79,6 +79,8 @@ def load_config(test_mode=False, config_file=None, home=None):
                 option=match.groupdict()['option'].lower(),
                 value=os.environ[ev])
 
+    os.makedirs(expand(config.get('core', 'flows')), exist_ok=True)
+
     return config
 
 
@@ -90,7 +92,7 @@ mongoengine.register_connection(
     alias='default',
     name=config.get('mongo', 'db'),
     host=config.get('mongo', 'host'),
-    port=int(config.get('mongo', 'port')),
+    port=config.getint('mongo', 'port'),
     username=config.get('mongo', 'username') or None,
     password=config.get('mongo', 'password') or None)
 
