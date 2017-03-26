@@ -1,4 +1,4 @@
-from prefect.config import config
+from prefect.configuration import config
 
 import prefect.exceptions
 import prefect.state

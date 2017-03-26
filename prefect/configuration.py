@@ -1,5 +1,6 @@
 import configparser
 import os
+import mongoengine
 
 
 def expand(env_var):
@@ -49,6 +50,8 @@ PREFECT_CONFIG = expand(
     os.getenv('PREFECT_CONFIG', os.path.join(PREFECT_DIR, 'prefect.cfg')))
 _default_config_file = os.path.join(
     os.path.dirname(__file__), 'config_templates', 'prefect.cfg')
+_test_config_file = os.path.join(
+    os.path.dirname(__file__), 'config_templates', 'test.cfg')
 
 with open(_default_config_file, 'r') as f:
     DEFAULT_CONFIG = f.read()
@@ -58,6 +61,35 @@ if not os.path.isfile(PREFECT_CONFIG):
     with open(PREFECT_CONFIG, 'w') as f:
         f.write(DEFAULT_CONFIG)
 
-config = PrefectConfigParser()
-config.read_string(DEFAULT_CONFIG)
-config.read_file(open(PREFECT_CONFIG, 'r'))
+
+def load_config(test_config=False):
+    config = PrefectConfigParser()
+    config.read_string(DEFAULT_CONFIG)
+    # If we're in test mode, read test config. Otherwise read user config.
+    if test_config:
+        config.read_file(_test_config_file)
+    else:
+        config.read_file(open(PREFECT_CONFIG, 'r'))
+    return config
+
+
+config = load_config()
+if config.get('core', 'test_mode'):
+    config = load_config(test_config=True)
+
+mongoengine.register_connection(
+    alias='default',
+    name=config.get('mongo', 'db'),
+    host=config.get('mongo', 'host'),
+    port=int(config.get('mongo', 'port')),
+    username=config.get('mongo', 'username') or None,
+    password=config.get('mongo', 'password') or None)
+
+
+def use_mock_db():
+    mongoengine.register_connection(
+        alias='default', host='mongomock://localhost')
+
+
+if config.get('mongo', 'use_mock_db'):
+    use_mock_db()
