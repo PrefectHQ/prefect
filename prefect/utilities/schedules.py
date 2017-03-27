@@ -29,7 +29,7 @@ class DateSchedule(Schedule):
 
     def next_n(self, n=1, on_or_after=None):
         if on_or_after is None:
-            on_or_after = datetime.datetime.utc_now()
+            on_or_after = datetime.datetime.utcnow()
         on_or_after = DateTimeField().to_mongo(on_or_after)
         dates = sorted([d for d in self.dates if d >= on_or_after])
         return dates[:n]
@@ -40,7 +40,7 @@ class CronSchedule(Schedule):
 
     def next_n(self, n=1, on_or_after=None):
         if on_or_after is None:
-            on_or_after = datetime.datetime.utc_now()
+            on_or_after = datetime.datetime.utcnow()
         on_or_after = DateTimeField().to_mongo(on_or_after)
         cron = croniter.croniter(self.cron, on_or_after)
         return list(itertools.islice(cron.all_next(datetime.datetime), n))
@@ -87,6 +87,6 @@ class IntervalSchedule(Schedule):
 
     def next_n(self, n=1, on_or_after=None):
         if on_or_after is None:
-            on_or_after = datetime.datetime.utc_now()
+            on_or_after = datetime.datetime.utcnow()
         on_or_after = DateTimeField().to_mongo(on_or_after)
         return list(itertools.islice(self._generator(start=on_or_after), n))

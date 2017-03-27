@@ -66,7 +66,7 @@ class FlowRunModel(Document):
     params = MapField(EmbeddedDocumentField(Serialized), default=lambda: dict())
     generated_by = ReferenceField('TaskRunModel')
     state = StringField(default=State.PENDING, choices=list(State.all_states()))
-    created = DateTimeField(default=lambda: datetime.datetime.utc_now())
+    created = DateTimeField(default=lambda: datetime.datetime.utcnow())
     started = DateTimeField()
     finished = DateTimeField()
 
@@ -80,7 +80,7 @@ class TaskRunModel(EmbeddedDocument):
     state = StringField(default=State.NONE)
     run_count = IntField(default=0)
     scheduled_start = DateTimeField()
-    created = DateTimeField(default=lambda: datetime.datetime.utc_now())
+    created = DateTimeField(default=lambda: datetime.datetime.utcnow())
     started = DateTimeField()
     finished = DateTimeField()
 
