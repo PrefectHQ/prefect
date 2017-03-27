@@ -147,3 +147,29 @@ class Task:
         model = self.to_model()
         model.save()
         return model
+
+
+def task(fn=None, **kwargs):
+    """
+    A decorator for creating Tasks from functions.
+
+    Usage:
+
+    with Flow('flow') as f:
+
+        @task
+        def myfn():
+            time.sleep(10)
+            return 1
+
+        @task(name='hello', retries=3)
+        def hello():
+            print('hello')
+
+    """
+    if callable(fn):
+        return Task(fn=fn)
+    else:
+        def wrapper(fn):
+            return Task(fn=fn, **kwargs)
+        return wrapper
