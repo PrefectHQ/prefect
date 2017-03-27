@@ -91,6 +91,7 @@ def test_task_relationships():
     assert before in f.graph[after]
     assert before2 in f.graph[after]
 
+
 def test_detect_cycle():
     with Flow('test') as f:
         t1 = Task(fn=fn, name='t1')
@@ -134,6 +135,7 @@ def test_shift_relationship_sugar():
     assert after in f.graph
     assert before in f.graph[after]
 
+
 def test_serialize():
     with Flow('test') as f:
         t1 = prefect.task.Task(fn=lambda: 1, name='t1')
@@ -141,6 +143,7 @@ def test_serialize():
     serialized = t1.serialize()
     t2 = Task.from_serialized(serialized)
     assert t1.id == t2.id
+
 
 def test_save():
     name = 'test-save-task'

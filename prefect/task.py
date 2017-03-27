@@ -128,9 +128,7 @@ class Task:
 
     def as_orm(self):
         return prefect.models.TaskModel(
-            _id=self.id,
-            name=self.name,
-            flow=self.flow.as_orm())
+            _id=self.id, name=self.name, flow=self.flow.as_orm())
 
     def save(self):
         model = self.as_orm()

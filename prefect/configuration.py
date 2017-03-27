@@ -84,6 +84,7 @@ def load_config(test_mode=False, config_file=None, home=None):
 
     return config
 
+
 config = load_config()
 if config.get('core', 'test_mode'):
     config = load_config(test_mode=True)
@@ -91,7 +92,10 @@ if config.get('core', 'test_mode'):
 if config.get('core', 'test_mode'):
     logging.info('TEST MODE: Using MongoMock database')
     mongoengine.connect(
-        alias='default', db=config.get('mongo', 'db'), host='mongomock://localhost', port=27017)
+        alias='default',
+        db=config.get('mongo', 'db'),
+        host='mongomock://localhost',
+        port=27017)
 else:
     mongoengine.connect(
         alias='default',
