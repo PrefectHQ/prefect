@@ -85,9 +85,12 @@ class Task:
         for t in tasks:
             self.flow.add_task_relationship(before=t, after=self)
 
-    def run(self, *args, **kwargs):
+    def run(self, **params):
         if self.fn is not None:
-            return self.fn(*args, **kwargs)
+            kwargs = {}
+            if self.pass_params:
+                kwargs.update(params)
+            return self.fn(**kwargs)
 
     # Serialization  ------------------------------------------------
 
