@@ -52,8 +52,9 @@ class Flow:
             namespace = ''
         return '{}{}:{}'.format(namespace, self.name, self.version)
 
-    # def graph(self):
-    #     return {k: set(v) for k, v in self.}
+    def __repr__(self):
+        return '{}({})'.format(type(self).__name__, self.id)
+
     # Tasks ---------------------------------------------------------
 
     def __getitem__(self, item):

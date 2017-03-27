@@ -2,7 +2,6 @@ import copy
 import datetime
 from mongoengine import DoesNotExist
 import prefect
-import prefect.triggers
 
 
 class Task:
@@ -66,6 +65,9 @@ class Task:
     @property
     def id(self):
         return '{}/{}'.format(self.flow.id, self.name)
+
+    def __repr__(self):
+        return '{}({})'.format(type(self).__name__, self.id)
 
     def run_before(self, *tasks):
         """
