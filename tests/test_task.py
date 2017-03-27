@@ -4,10 +4,9 @@ from prefect.flow import Flow
 from prefect.task import Task
 import pytest
 
-
 def fn():
+    """ a test function for tasks"""
     pass
-
 
 def test_create_task():
     """Test task creation"""
@@ -153,7 +152,7 @@ def test_save():
     c = mongoengine.connection.get_connection()
     collection = c[prefect.config.get('mongo', 'db')][model._collection.name]
     assert collection.find_one(t1.id)['name'] == name
-    assert collection.find_one(t1.id)['flow'] == t1.flow.as_orm()._id
+    assert collection.find_one(t1.id)['flow_id'] == t1.flow.to_model()._id
 
     new_name = 'new name'
     t1.name = new_name

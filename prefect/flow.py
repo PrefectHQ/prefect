@@ -215,3 +215,33 @@ class Flow:
         self.active = model.active
         self.schedule = model.schedule
         self.graph = model.recreate_full_graph()
+
+    # Decorator ----------------------------------------------------
+
+    def task(self, fn=None, **kwargs):
+        """
+        A decorator for creating Tasks from functions.
+
+        Usage:
+
+        with Flow('flow') as f:
+
+            @f.task
+            def myfn():
+                time.sleep(10)
+                return 1
+
+            @f.task(name='hello', retries=3)
+            def hello():
+                print('hello')
+
+        """
+        if 'flow' in kwargs:
+            raise ValueError('Flow can not be passed to task decorator')
+
+        if callable(fn):
+            return Task(fn=fn, flow=self)
+        else:
+            def wrapper(fn):
+                return Task(fn=fn, flow=self, **kwargs)
+            return wrapper

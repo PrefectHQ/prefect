@@ -4,6 +4,9 @@ from prefect.exceptions import PrefectError
 import prefect
 from prefect.flow import Flow
 
+def fn():
+    """ a test function for tasks"""
+    pass
 
 def test_create_flow():
 
@@ -39,9 +42,9 @@ def test_inverted_graph():
     Tests that the inverted_graph() is created properly
     """
     with Flow('test') as f:
-        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
-        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
-        t3 = prefect.task.Task(fn=lambda: 1, name='t3')
+        t1 = prefect.task.Task(fn=fn, name='t1')
+        t2 = prefect.task.Task(fn=fn, name='t2')
+        t3 = prefect.task.Task(fn=fn, name='t3')
         t1.run_before(t2)
         t1.run_before(t3)
     assert f.inverted_graph() == {t1: set([t2, t3]), t2: set(), t3: set()}
@@ -52,8 +55,8 @@ def test_getitem():
     Test that accessing a flow as flow[task] returns the preceding tasks
     """
     with Flow('test') as f:
-        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
-        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1 = prefect.task.Task(fn=fn, name='t1')
+        t2 = prefect.task.Task(fn=fn, name='t2')
         t1.run_before(t2)
     assert f[t2] == set([t1])
 
@@ -63,8 +66,8 @@ def test_iter():
     Tests that iterating over a Flow yields the tasks in order
     """
     with Flow('test') as f:
-        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
-        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1 = prefect.task.Task(fn=fn, name='t1')
+        t2 = prefect.task.Task(fn=fn, name='t2')
         t1.run_before(t2)
     assert list(f) == f.sorted_tasks()
 
@@ -74,8 +77,8 @@ def test_get_task_by_name():
     Tests flow.get_task()
     """
     with Flow('test') as f:
-        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
-        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1 = prefect.task.Task(fn=fn, name='t1')
+        t2 = prefect.task.Task(fn=fn, name='t2')
         t1.run_before(t2)
 
     assert f.get_task('t1') is t1
@@ -85,8 +88,8 @@ def test_get_task_by_name():
 
 def test_serialize():
     with Flow('test') as f:
-        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
-        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1 = prefect.task.Task(fn=fn, name='t1')
+        t2 = prefect.task.Task(fn=fn, name='t2')
         t1.run_before(t2)
 
     serialized = f.serialize()
@@ -98,8 +101,8 @@ def test_serialize():
 def test_save():
     name = 'test-save-flow'
     with Flow(name) as f:
-        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
-        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1 = prefect.task.Task(fn=fn, name='t1')
+        t2 = prefect.task.Task(fn=fn, name='t2')
         t1.run_before(t2)
     model = f.save()
     c = mongoengine.connection.get_connection()
@@ -113,8 +116,8 @@ def test_save():
 
 def test_from_model_and_from_id():
     with Flow('test') as f:
-        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
-        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1 = prefect.task.Task(fn=fn, name='t1')
+        t2 = prefect.task.Task(fn=fn, name='t2')
         t1.run_before(t2)
     model = f.save()
     f2 = Flow.from_model(model)
@@ -124,10 +127,27 @@ def test_from_model_and_from_id():
 
 def test_reload():
     with Flow('test') as f:
-        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
-        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1 = prefect.task.Task(fn=fn, name='t1')
+        t2 = prefect.task.Task(fn=fn, name='t2')
         t1.run_before(t2)
     model = f.save()
     f.graph = {}
     f.reload()
     assert f.graph != {}
+
+def test_task_decorator():
+    with Flow('test') as f:
+        @f.task
+        def t1(**k):
+            return 1
+
+    @f.task(name='test_name')
+    def t2(**k):
+        return 2
+
+    t1.run_before(t2)
+
+    assert isinstance(t1, prefect.task.Task)
+    assert t1.name == 't1'
+    assert isinstance(t2, prefect.task.Task)
+    assert t2.name == 'test_name'
