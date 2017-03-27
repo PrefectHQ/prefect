@@ -1,5 +1,5 @@
-import croniter
 import datetime
+import inspect
 import itertools
 from mongoengine import Document, EmbeddedDocument, queryset_manager
 from mongoengine.fields import (
@@ -24,9 +24,11 @@ class FlowModel(Document):
     name = StringField(required=True, unique_with='namespace')
     version = StringField(default='1')
     schedule = EmbeddedDocumentField(Schedule)
-    serialized = EmbeddedDocumentField(prefect.utilities.serialize.Serialized)
+    params = ListField(StringField, default=tuple())
     active = BooleanField(
         default=prefect.config.getboolean('flows', 'default_active'))
+    serialized = EmbeddedDocumentField(prefect.utilities.serialize.Serialized)
+    graph = MapField(ListField(StringField(), default=tuple()))
 
     meta = {'collection': 'flowModels'}
 
@@ -37,9 +39,25 @@ class FlowModel(Document):
             for f in queryset.filter(active=True)
         ]
 
-    # @queryset_manager
-    # def scheduled(doc_cls, queryset):
-    #     return queryset.filter(schedule)
+    def recreate_full_graph(self):
+        """
+        The graph is stored as a dict of {task_id: [task_id, task_id...]} pairs.
+        This method looks up the tasks to recreate a graph of Task objects.
+        """
+        return {
+            prefect.task.Task.from_id(t_id):
+            set([prefect.task.Task.from_id(p) for p in pt_ids])
+            for t_id, pt_ids in self.graph.items()
+        }
+
+
+class TaskModel(Document):
+    _id = StringField(primary_key=True)
+    name = StringField(required=True, unique_with='flow_id')
+    flow_id = StringField(required=True)
+    serialized = EmbeddedDocumentField(prefect.utilities.serialize.Serialized)
+
+    meta = {'collection': 'taskModels'}  #, 'indexes': ['flow']}
 
 
 class FlowRunModel(Document):
@@ -52,15 +70,6 @@ class FlowRunModel(Document):
     finished = DateTimeField()
 
     meta = {'collection': 'flowRuns', 'indexes': ['state', 'created']}
-
-
-class TaskModel(Document):
-    _id = StringField(primary_key=True)
-    name = StringField(required=True, unique_with='flow')
-    flow = ReferenceField(FlowModel, required=True)
-    serialized = EmbeddedDocumentField(prefect.utilities.serialize.Serialized)
-
-    meta = {'collection': 'taskModels', 'indexes': ['flow']}
 
 
 class TaskRunModel(EmbeddedDocument):
@@ -82,3 +91,29 @@ class TaskRunModel(EmbeddedDocument):
     @classmethod
     def from_task_and_flowrun(cls, task, flowrun):
         return cls.objects(task=task, flowrun=flowrun).first()
+
+
+#
+#
+# class Test(PrefectDocument):
+#     _id = StringField(primary_key=True)
+#     a=IntField()
+#     b=IntField()
+#     c=IntField()
+#     d=IntField()
+#     def __init__(self, a, b, **_mongo_kwargs):
+#         id = str(a + b)
+#         c = a + b
+#         super().__init__(id=id, a=a, b=b, **_mongo_kwargs)
+#
+# class Test(Document):
+#     _id = StringField(primary_key=True)
+#     a=IntField()
+#     b=IntField()
+#
+#     def __init__(self, a, b, **k):
+#         super().__init__(a=a, b=b, **k)
+#
+#     @property
+#     def id(self):
+#         return str(self.a + self.b)

@@ -13,11 +13,6 @@ def test_create_flow():
     err = "__init__() missing 1 required positional argument: 'name'"
     assert err in str(e)
 
-    # name must be a string
-    with pytest.raises(TypeError) as e:
-        f = Flow(name=1)
-    assert 'Name must be a string' in str(e)
-
     f = Flow('test')
 
 
@@ -115,3 +110,24 @@ def test_save():
     f.name = new_name
     f.save()
     assert collection.find_one(f.id)['name'] == new_name
+
+def test_from_model_and_from_id():
+    with Flow('test') as f:
+        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
+        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1.run_before(t2)
+    model = f.save()
+    f2 = Flow.from_model(model)
+    assert f2.id == f.id
+    f3 = Flow.from_id(model.id)
+    assert f3.id == f.id
+
+def test_reload():
+    with Flow('test') as f:
+        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
+        t2 = prefect.task.Task(fn=lambda: 1, name='t2')
+        t1.run_before(t2)
+    model = f.save()
+    f.graph = {}
+    f.reload()
+    assert f.graph != {}

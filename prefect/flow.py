@@ -1,9 +1,14 @@
 import base64
 import distributed
 import prefect
+from prefect.task import Task
 from prefect.exceptions import PrefectError
 from prefect.utilities.schedules import (
-    NoSchedule, DateSchedule, CronSchedule, IntervalSchedule)
+    Schedule,
+    NoSchedule,
+    DateSchedule,
+    CronSchedule,
+    IntervalSchedule,)
 
 _CONTEXT_MANAGER_FLOW = None
 
@@ -13,18 +18,19 @@ class Flow:
     def __init__(
             self,
             name,
-            schedule=NoSchedule(),
             params=None,
+            schedule=NoSchedule(),
             namespace=prefect.config.get('flows', 'default_namespace'),
             version=1,
-            active=prefect.config.getboolean('flows', 'default_active')):
-
-        if not isinstance(name, str):
-            raise TypeError(
-                'Name must be a string; received {}'.format(type(name)))
+            active=prefect.config.getboolean('flows', 'default_active'),
+            **_kw):
+        """
+        params: a collection of parameter names that can be provided when
+            the Flow is run and passed to Tasks.
+        """
 
         if params is None:
-            params = {}
+            params = set()
 
         self.name = name
         self.namespace = namespace
@@ -46,6 +52,8 @@ class Flow:
             namespace = ''
         return '{}{}:{}'.format(namespace, self.name, self.version)
 
+    # def graph(self):
+    #     return {k: set(v) for k, v in self.}
     # Tasks ---------------------------------------------------------
 
     def __getitem__(self, item):
@@ -157,7 +165,7 @@ class Flow:
 
     # ORM ----------------------------------------------------------
 
-    def as_orm(self):
+    def to_model(self):
         return prefect.models.FlowModel(
             _id=self.id,
             namespace=self.namespace,
@@ -165,18 +173,44 @@ class Flow:
             version=str(self.version),
             serialized=self.serialize(),
             active=self.active,
-            schedule=self.schedule,)
+            schedule=self.schedule,
+            graph={
+                t.id: sorted(pt.id for pt in preceding)
+                for t, preceding in self.graph.items()
+            })
+
+    @classmethod
+    def from_model(cls, model):
+        instance = cls(
+            name=model.name,
+            schedule=model.schedule,
+            params=model.params,
+            namespace=model.namespace,
+            version=model.version,
+            active=model.active)
+
+        instance.graph = model.recreate_full_graph()
+        return instance
+
+    @classmethod
+    def from_id(cls, flow_id):
+        model = prefect.models.FlowModel.objects.get(_id=flow_id)
+        if model:
+            return cls.from_model(model)
 
     def save(self):
-        model = self.as_orm()
+        for task in self:
+            task.save()
+        model = self.to_model()
         model.save()
         return model
 
     def reload(self):
-        model = self.as_orm()
+        model = self.to_model()
         model.reload()
         self.namespace = model.namespace
         self.name = model.name
         self.version = model.version
         self.active = model.active
         self.schedule = model.schedule
+        self.graph = model.recreate_full_graph()

@@ -1,5 +1,6 @@
 import copy
 import datetime
+from mongoengine import DoesNotExist
 import prefect
 import prefect.triggers
 
@@ -119,23 +120,28 @@ class Task:
 
     @staticmethod
     def from_serialized(serialized_obj):
-        deserialized = prefect.utilities.serialize.deserialize(serialized_obj)
-        if not isinstance(deserialized, Task):
+        task = prefect.utilities.serialize.deserialize(serialized_obj)
+        if not isinstance(task, Task):
             raise TypeError('Deserialized object is not a Task!')
-        return deserialized
+        return task
 
     # ORM ----------------------------------------------------------
 
-    def as_orm(self):
+    def to_model(self):
         return prefect.models.TaskModel(
-            _id=self.id, name=self.name, flow=self.flow.as_orm())
+            _id=self.id, name=self.name, flow_id=self.flow.id, serialized=self.serialize())
+
+    @classmethod
+    def from_model(cls, model):
+        return cls.from_serialized(model.serialized)
+
+    @classmethod
+    def from_id(cls, task_id):
+        model = prefect.models.TaskModel.objects.get(_id=task_id)
+        if model:
+            return cls.from_model(model)
 
     def save(self):
-        model = self.as_orm()
+        model = self.to_model()
         model.save()
         return model
-
-    def reload(self):
-        model = self.as_orm()
-        model.reload()
-        self.name = model.name
