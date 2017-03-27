@@ -6,6 +6,7 @@ install_requires = [
     'hug',
     'mongoengine',
     'python-dateutil',
+    'transitions',
 ]
 
 extras = {
