@@ -2,17 +2,17 @@ import transitions
 
 
 class State:
-    NONE = 'none'
-    SCHEDULED = 'scheduled'
-    PENDING = 'pending'
-    PENDING_RETRY = 'pending_retry'
-    RUNNING = 'running'
-    SUCCESS = 'success'
-    FAILED = 'failed'
-    SKIPPED = 'skipped'
+    NONE = 'NONE'
+    SCHEDULED = 'SCHEDULED'
+    PENDING = 'PENDING'
+    PENDING_RETRY = 'PENDING_RETRY'
+    RUNNING = 'RUNNING'
+    SUCCESS = 'SUCCESS'
+    FAILED = 'FAILED'
+    SKIPPED = 'SKIPPED'
 
     @classmethod
-    def all(cls):
+    def all_states(cls):
         return set(
             [
                 cls.NONE,
@@ -26,16 +26,28 @@ class State:
             ])
 
     @classmethod
-    def pending(cls):
+    def started_states(cls):
+        return cls.all_states().difference([cls.NONE])
+
+    @classmethod
+    def pending_states(cls):
         return set([cls.NONE, cls.PENDING, cls.PENDING_RETRY, cls.SCHEDULED])
 
     @classmethod
-    def running(cls):
+    def running_states(cls):
         return set([cls.RUNNING])
 
     @classmethod
-    def finished(cls):
+    def finished_states(cls):
         return set([cls.SUCCESS, cls.FAILED, cls.SKIPPED])
+
+    @classmethod
+    def successful_states(cls):
+        return set([cls.SUCCESS, cls.SKIPPED])
+
+    @classmethod
+    def failed_states(cls):
+        return set([cls.FAILED])
 
     def __init__(self, initial_state=None):
         if initial_state is None:
@@ -43,42 +55,42 @@ class State:
 
         self._fsm = transitions.Machine(
             model=self,
-            states=list(self.all()),
+            states=list(self.all_states()),
             initial=initial_state,)
 
         self._fsm.add_transition(
             trigger='succeed',
-            source=list(self.pending()) + list(self.running()),
+            source=list(self.pending_states()) + list(self.running_states()),
             dest=self.SUCCESS,)
 
         self._fsm.add_transition(
             trigger='fail',
-            source=list(self.pending()) + list(self.running()),
+            source=list(self.pending_states()) + list(self.running_states()),
             dest=self.FAILED,)
 
         self._fsm.add_transition(
             trigger='skip',
-            source=list(self.pending()),
+            source=list(self.pending_states()),
             dest=self.SKIPPED,)
 
         self._fsm.add_transition(
             trigger='retry',
-            source=list(self.finished()),
+            source=list(self.finished_states()),
             dest=self.PENDING_RETRY,)
 
         self._fsm.add_transition(
             trigger='schedule',
-            source=list(self.pending()),
+            source=list(self.pending_states()),
             dest=self.SCHEDULED,)
 
         self._fsm.add_transition(
             trigger='start',
-            source=list(self.pending()),
+            source=list(self.pending_states()),
             dest=self.RUNNING,)
 
         self._fsm.add_transition(
             trigger='clear',
-            source=list(self.all()),
+            source=list(self.all_states()),
             dest=self.NONE
         )
 
@@ -87,3 +99,24 @@ class State:
 
     def __str__(self):
         return self.state
+
+    def __repr__(self):
+        return 'State({})'.format(self.state)
+
+    def is_started(self):
+        return str(self) in self.started_states()
+
+    def is_pending(self):
+        return str(self) in self.pending_states()
+
+    def is_running(self):
+        return str(self) in self.running_states()
+
+    def is_finished(self):
+        return str(self) in self.finished_states()
+
+    def is_successful(self):
+        return str(self) in self.successful_states()
+
+    def is_failed(self):
+        return str(self) in self.failed_states()

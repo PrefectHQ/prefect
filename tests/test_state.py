@@ -4,7 +4,7 @@ import transitions
 
 
 def test_all_count():
-    assert len(State.all()) == 8
+    assert len(State.all_states()) == 8
 
 
 def test_equals():
@@ -15,12 +15,15 @@ def test_equals():
 def test_transitions():
     s = State()
     assert s == State.NONE
+    assert s.is_pending()
 
     s.start()
     assert s == State.RUNNING
+    assert s.is_running()
 
     s.succeed()
     assert s == State.SUCCESS
+    assert s.is_successful()
 
     with pytest.raises(transitions.MachineError):
         s.fail()
