@@ -42,6 +42,10 @@ class State:
         return set([cls.SUCCESS, cls.FAILED, cls.SKIPPED])
 
     @classmethod
+    def skipped_states(cls):
+        return set([cls.SKIPPED])
+
+    @classmethod
     def successful_states(cls):
         return set([cls.SUCCESS, cls.SKIPPED])
 
@@ -117,6 +121,9 @@ class State:
 
     def is_successful(self):
         return str(self) in self.successful_states()
+
+    def is_skipped(self):
+        return str(self) in self.skipped_states()
 
     def is_failed(self):
         return str(self) in self.failed_states()
