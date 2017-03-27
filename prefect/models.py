@@ -23,7 +23,7 @@ class FlowModel(Document):
         default=prefect.config.get('flows', 'default_namespace'))
     version = StringField(default='1')
     schedule = EmbeddedDocumentField(Schedule)
-    serialized = EmbeddedDocumentField(prefect.utilities.serialize.SerializedFlow)
+    serialized = EmbeddedDocumentField(prefect.utilities.serialize.Serialized)
     active = BooleanField(
         default=prefect.config.getboolean('flows', 'default_active'))
 
@@ -32,7 +32,7 @@ class FlowModel(Document):
     @queryset_manager
     def get_active(doc_cls, queryset):
         return [
-            prefect.flow.Flow.from_serialized(**f['serialized_flow'])
+            prefect.flow.Flow.from_serialized(**f['serialized'])
             for f in queryset.filter(active=True)
         ]
 

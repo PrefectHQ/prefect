@@ -97,23 +97,39 @@ class Flow:
 
         while graph:
             acyclic = False
-            for node in list(graph):
-                for preceding_node in graph[node]:
-                    if preceding_node in graph:
-                        # the previous node hasn't been sorted yet, so
-                        # this node can't be sorted either
+            for task in list(graph):
+                for preceding_task in graph[task]:
+                    if preceding_task in graph:
+                        # the previous task hasn't been sorted yet, so
+                        # this task can't be sorted either
                         break
                 else:
-                    # all previous nodes are sorted, so this one can be
+                    # all previous tasks are sorted, so this one can be
                     # sorted as well
                     acyclic = True
-                    del graph[node]
-                    sorted_graph.append(node)
+                    del graph[task]
+                    sorted_graph.append(task)
             if not acyclic:
-                # no nodes matched
+                # no tasks matched
                 raise prefect.exceptions.PrefectError(
                     'Cycle detected in graph!')
         return sorted_graph
+
+    def inverted_graph(self):
+        """
+        The Flow graph is stored as {task: set(preceding_tasks)} to make it
+        easy to look up a task's immediate predecessors.
+
+        Sometimes we want to find a task's immediate descendents. This method
+        returns a graph of {task: set(following_nodes)}.
+        """
+        inverted_graph = {t: set() for t in self.graph}
+
+        for task, preceding_tasks in self.graph.items():
+            for t in preceding_tasks:
+                inverted_graph[t].add(task)
+
+        return inverted_graph
 
     # Context Manager -----------------------------------------------
 
@@ -149,4 +165,4 @@ class Flow:
             schedule=self.schedule,
             serialized=self.serialize())
         flow_model.save()
-        return flow_model.id
+        return flow_model

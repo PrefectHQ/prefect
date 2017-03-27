@@ -1,4 +1,5 @@
 from configparser import ConfigParser
+import logging
 import mongoengine
 import os
 import re
@@ -83,25 +84,19 @@ def load_config(test_mode=False, config_file=None, home=None):
 
     return config
 
-
 config = load_config()
 if config.get('core', 'test_mode'):
     config = load_config(test_mode=True)
 
-mongoengine.register_connection(
-    alias='default',
-    name=config.get('mongo', 'db'),
-    host=config.get('mongo', 'host'),
-    port=config.getint('mongo', 'port'),
-    username=config.get('mongo', 'username') or None,
-    password=config.get('mongo', 'password') or None)
-
-
-def use_mock_db():
-    mongoengine.connection.disconnect()
-    mongoengine.register_connection(
-        alias='default', host='mongomock://localhost')
-
-
-if config.get('mongo', 'use_mock_db'):
-    use_mock_db()
+if config.get('core', 'test_mode'):
+    logging.info('TEST MODE: Using MongoMock database')
+    mongoengine.connect(
+        alias='default', db=config.get('mongo', 'db'), host='mongomock://localhost', port=27017)
+else:
+    mongoengine.connect(
+        alias='default',
+        db=config.get('mongo', 'db'),
+        host=config.get('mongo', 'url') or config.get('mongo', 'host'),
+        port=config.getint('mongo', 'port'),
+        username=config.get('mongo', 'username') or None,
+        password=config.get('mongo', 'password') or None)
