@@ -155,14 +155,28 @@ class Flow:
             raise TypeError('Deserialized object is not a Flow!')
         return deserialized
 
-    def save(self):
-        flow_model = prefect.models.FlowModel(
+    # ORM ----------------------------------------------------------
+
+    def as_orm(self):
+        return prefect.models.FlowModel(
             _id=self.id,
+            namespace=self.namespace,
             name=self.name,
             version=str(self.version),
-            namespace=self.namespace,
+            serialized=self.serialize(),
             active=self.active,
-            schedule=self.schedule,
-            serialized=self.serialize())
-        flow_model.save()
-        return flow_model
+            schedule=self.schedule,)
+
+    def save(self):
+        model = self.as_orm()
+        model.save()
+        return model
+
+    def reload(self):
+        model = self.as_orm()
+        model.reload()
+        self.namespace = model.namespace
+        self.name = model.name
+        self.version = model.version
+        self.active = model.active
+        self.schedule = model.schedule
