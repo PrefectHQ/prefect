@@ -2,9 +2,10 @@ from setuptools import setup, find_packages
 
 install_requires = [
     'croniter',
-    'python-dateutil',
+    'distributed',
     'hug',
     'mongoengine',
+    'python-dateutil',
 ]
 
 extras = {
