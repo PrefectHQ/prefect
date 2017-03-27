@@ -1,6 +1,10 @@
-import mongoengine
+import datetime
+import inspect
+from mongoengine import Document, DoesNotExist
+from mongoengine.fields import DateTimeField
+import prefect
 
-def reload_or_save(model):
+def save_or_reload(model):
     """
     Given a model with the primary key set, attempts to reload all
     values from the database. If the model isn't in the database, saves it
@@ -10,12 +14,12 @@ def reload_or_save(model):
 
     def __init__(self, *args, **kwargs):
         self.orm = ORMModel(_id=orm_id)
-        reload_or_create(model)
+        save_or_reload(model)
 
     If the model already exists, the ORM model is loaded with the latest
     information from the database. If it doesn't exist, it is created.
     """
     try:
         model.reload()
-    except mongoengine.DoesNotExist:
+    except DoesNotExist:
         model.save()

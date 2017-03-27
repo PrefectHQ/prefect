@@ -15,7 +15,7 @@ from mongoengine.fields import (
 import prefect
 from prefect.state import State
 from prefect.utilities.schedules import Schedule
-
+from prefect.utilities.serialize import Serialized
 
 class FlowModel(Document):
     _id = StringField(primary_key=True)
@@ -27,7 +27,7 @@ class FlowModel(Document):
     params = ListField(StringField, default=tuple())
     active = BooleanField(
         default=prefect.config.getboolean('flows', 'default_active'))
-    serialized = EmbeddedDocumentField(prefect.utilities.serialize.Serialized)
+    serialized = EmbeddedDocumentField(Serialized)
     graph = MapField(ListField(StringField(), default=tuple()))
 
     meta = {'collection': 'flowModels'}
@@ -55,7 +55,7 @@ class TaskModel(Document):
     _id = StringField(primary_key=True)
     name = StringField(required=True, unique_with='flow_id')
     flow_id = StringField(required=True)
-    serialized = EmbeddedDocumentField(prefect.utilities.serialize.Serialized)
+    serialized = EmbeddedDocumentField(Serialized)
 
     meta = {'collection': 'taskModels'}  #, 'indexes': ['flow']}
 
@@ -63,9 +63,10 @@ class TaskModel(Document):
 class FlowRunModel(Document):
     _id = StringField(primary_key=True)
     flow = ReferenceField(FlowModel, required=True)
-    # task_runs = MapField(ReferenceField('TaskRunModel'))
-    state = StringField(default=State.PENDING, choices=list(State.all()))
-    created = DateTimeField(default=lambda: datetime.datetime.now())
+    params = MapField(EmbeddedDocumentField(Serialized), default=lambda: dict())
+    generated_by = ReferenceField('TaskRunModel')
+    state = StringField(default=State.PENDING, choices=list(State.all_states()))
+    created = DateTimeField(default=lambda: datetime.datetime.utc_now())
     started = DateTimeField()
     finished = DateTimeField()
 
@@ -79,7 +80,7 @@ class TaskRunModel(EmbeddedDocument):
     state = StringField(default=State.NONE)
     run_count = IntField(default=0)
     scheduled_start = DateTimeField()
-    created = DateTimeField(default=lambda: datetime.datetime.now())
+    created = DateTimeField(default=lambda: datetime.datetime.utc_now())
     started = DateTimeField()
     finished = DateTimeField()
 
