@@ -1,3 +1,4 @@
+import mongoengine
 import prefect.exceptions
 from prefect.flow import Flow
 from prefect.task import Task
@@ -132,3 +133,26 @@ def test_shift_relationship_sugar():
     assert before in f.graph
     assert after in f.graph
     assert before in f.graph[after]
+
+def test_serialize():
+    with Flow('test') as f:
+        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
+
+    serialized = t1.serialize()
+    t2 = Task.from_serialized(serialized)
+    assert t1.id == t2.id
+
+def test_save():
+    name = 'test-save-task'
+    with Flow(name) as f:
+        t1 = prefect.task.Task(fn=lambda: 1, name=name)
+    model = t1.save()
+    c = mongoengine.connection.get_connection()
+    collection = c[prefect.config.get('mongo', 'db')][model._collection.name]
+    assert collection.find_one(t1.id)['name'] == name
+    assert collection.find_one(t1.id)['flow'] == t1.flow.as_orm()._id
+
+    new_name = 'new name'
+    t1.name = new_name
+    t1.save()
+    assert collection.find_one(t1.id)['name'] == new_name

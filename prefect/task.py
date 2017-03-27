@@ -1,5 +1,6 @@
+import copy
 import datetime
-import prefect.flow
+import prefect
 import prefect.triggers
 
 
@@ -85,6 +86,18 @@ class Task:
         if self.fn is not None:
             return self.fn(*args, **kwargs)
 
+    # Serialization  ------------------------------------------------
+
+    def serialize(self):
+        return prefect.utilities.serialize.serialize(self)
+
+    @staticmethod
+    def from_serialized(serialized_obj):
+        deserialized = prefect.utilities.serialize.deserialize(serialized_obj)
+        if not isinstance(deserialized, Task):
+            raise TypeError('Deserialized object is not a Task!')
+        return deserialized
+
     # Sugar ---------------------------------------------------------
 
     def __or__(self, task):
@@ -98,3 +111,33 @@ class Task:
     def __lshift__(self, task):
         """ self << task -> self.run_after(task)"""
         self.run_after(task)
+
+    # Serialization  ------------------------------------------------
+
+    def serialize(self):
+        return prefect.utilities.serialize.serialize(self)
+
+    @staticmethod
+    def from_serialized(serialized_obj):
+        deserialized = prefect.utilities.serialize.deserialize(serialized_obj)
+        if not isinstance(deserialized, Task):
+            raise TypeError('Deserialized object is not a Task!')
+        return deserialized
+
+    # ORM ----------------------------------------------------------
+
+    def as_orm(self):
+        return prefect.models.TaskModel(
+            _id=self.id,
+            name=self.name,
+            flow=self.flow.as_orm())
+
+    def save(self):
+        model = self.as_orm()
+        model.save()
+        return model
+
+    def reload(self):
+        model = self.as_orm()
+        model.reload()
+        self.name = model.name
