@@ -1,7 +1,7 @@
 import base64
 import distributed
+import prefect
 from prefect.exceptions import PrefectError
-import prefect.models
 from prefect.utilities.schedules import (
     NoSchedule, DateSchedule, CronSchedule, IntervalSchedule)
 
@@ -127,25 +127,26 @@ class Flow:
         global _CONTEXT_MANAGER_FLOW
         _CONTEXT_MANAGER_FLOW = self._old_context_manager_flow
 
-    # Methods -------------------------------------------------------
+    # Serialization  ------------------------------------------------
 
     def serialize(self):
-        header, frames = distributed.protocol.serialize(self)
-        frames = [base64.b64encode(b).decode('utf-8') for b in frames]
-        return dict(header=header, frames=frames)
+        return prefect.utilities.serialize.serialize(self)
 
     @staticmethod
-    def from_serialized(header, frames):
-        frames = [base64.b64decode(b.encode('utf-8')) for b in frames]
-        return distributed.protocol.deserialize(header, frames)
+    def from_serialized(serialized_obj):
+        deserialized = prefect.utilities.serialize.deserialize(serialized_obj)
+        if not isinstance(deserialized, Flow):
+            raise TypeError('Deserialized object is not a Flow!')
+        return deserialized
 
-    def save(self, active=True):
-        flow_model = prefect.models.Flows(
+    def save(self):
+        flow_model = prefect.models.FlowModel(
             _id=self.id,
             name=self.name,
             version=str(self.version),
             namespace=self.namespace,
             active=self.active,
             schedule=self.schedule,
-            serialized_flow=prefect.models.SerializedFlow(**self.serialize()))
-        return flow_model.save()
+            serialized=self.serialize())
+        flow_model.save()
+        return flow_model.id

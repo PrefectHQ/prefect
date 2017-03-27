@@ -12,13 +12,14 @@ from prefect.state import State
 
 
 class Schedule(EmbeddedDocument):
-    meta = {'allow_inheritance': True}
+    meta = {'allow_inheritance': True, 'collection': 'schedules'}
 
     def next_n(self, n=1, on_or_after=None):
         raise NotImplemented('Must be implemented on Schedule subclasses')
 
 
 class NoSchedule(Schedule):
+
     def next_n(self, n=1, on_or_after=None):
         return []
 
