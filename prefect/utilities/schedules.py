@@ -12,7 +12,7 @@ from prefect.state import State
 
 
 class Schedule(EmbeddedDocument):
-    meta = {'allow_inheritance': True, 'collection': 'schedules'}
+    meta = {'allow_inheritance': True}
 
     def next_n(self, n=1, on_or_after=None):
         raise NotImplemented('Must be implemented on Schedule subclasses')
