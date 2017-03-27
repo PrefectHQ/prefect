@@ -4,7 +4,7 @@ import transitions
 
 
 def test_all_count():
-    assert len(State.all_states()) == 8
+    assert len(State.all_states()) == 9
 
 
 def test_equals():
@@ -30,6 +30,9 @@ def test_transitions():
     with pytest.raises(transitions.MachineError):
         s.fail()
 
+    with pytest.raises(transitions.MachineError):
+        s.wait_for_subtasks()
+
     s.retry()
     assert s == State.PENDING_RETRY
     assert s.is_pending()
@@ -42,7 +45,7 @@ def test_transitions():
     assert s == State.SKIPPED
     assert s.is_skipped()
     assert s.is_finished()
-    
+
     with pytest.raises(transitions.MachineError):
         s.start()
 
@@ -55,3 +58,8 @@ def test_transitions():
     assert s == State.FAILED
     assert s.is_finished()
     assert s.is_failed()
+
+    s.clear()
+    s.start()
+    s.wait_for_subtasks()
+    s.resume()

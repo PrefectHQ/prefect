@@ -10,6 +10,7 @@ class State:
     SUCCESS = 'SUCCESS'
     FAILED = 'FAILED'
     SKIPPED = 'SKIPPED'
+    WAITING_FOR_SUBTASKS = 'WAITING_FOR_SUBTASKS'
 
     @classmethod
     def all_states(cls):
@@ -23,6 +24,7 @@ class State:
                 cls.SUCCESS,
                 cls.FAILED,
                 cls.SKIPPED,
+                cls.WAITING_FOR_SUBTASKS,
             ])
 
     @classmethod
@@ -35,7 +37,7 @@ class State:
 
     @classmethod
     def running_states(cls):
-        return set([cls.RUNNING])
+        return set([cls.RUNNING, cls.WAITING_FOR_SUBTASKS])
 
     @classmethod
     def finished_states(cls):
@@ -90,6 +92,16 @@ class State:
         self._fsm.add_transition(
             trigger='start',
             source=list(self.pending_states()),
+            dest=self.RUNNING,)
+
+        self._fsm.add_transition(
+            trigger='wait_for_subtasks',
+            source=list(self.running_states()),
+            dest=self.WAITING_FOR_SUBTASKS,)
+
+        self._fsm.add_transition(
+            trigger='resume',
+            source=self.WAITING_FOR_SUBTASKS,
             dest=self.RUNNING,)
 
         self._fsm.add_transition(
