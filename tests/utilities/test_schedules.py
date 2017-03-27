@@ -17,9 +17,7 @@ def test_calendar_schedule():
     ]
 
     s = schedules.DateSchedule(dates)
-    # save and reload to convert strings to dates
-    s.save()
-    s.reload()
+    s.dates = s.to_mongo()['dates']
     assert expected_dates == s.next_n(2, on_or_after=after)
 
 
@@ -43,7 +41,5 @@ def test_interval_schedule():
     ]
     s = schedules.IntervalSchedule(
         first_date='2017-01-01', timedelta=datetime.timedelta(days=10))
-    # save and reload to convert strings to dates
-    s.save()
-    s.reload()
+    s.first_date = s.to_mongo()['first_date']
     assert expected_dates == s.next_n(2, on_or_after=after)
