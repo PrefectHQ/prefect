@@ -1,4 +1,6 @@
+import logging
 import transitions
+transitions.logger.setLevel(logging.WARNING)
 
 
 class State:
@@ -105,10 +107,7 @@ class State:
             dest=self.RUNNING,)
 
         self._fsm.add_transition(
-            trigger='clear',
-            source=list(self.all_states()),
-            dest=self.NONE
-        )
+            trigger='clear', source=list(self.all_states()), dest=self.NONE)
 
     def __eq__(self, other):
         return getattr(self, 'state', None) == other

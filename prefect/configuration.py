@@ -80,14 +80,26 @@ def load_config(test_mode=False, config_file=None, home=None):
                 option=match.groupdict()['option'].lower(),
                 value=os.environ[ev])
 
-    os.makedirs(expand(config.get('core', 'flows')), exist_ok=True)
-
     return config
 
 
 config = load_config()
+
+# Test Mode --------------------------------------------------------------------
+
 if config.get('core', 'test_mode'):
     config = load_config(test_mode=True)
+
+# Logging ----------------------------------------------------------------------
+
+root_logger = logging.getLogger()
+handler = logging.StreamHandler()
+formatter = logging.Formatter(config.get('logging', 'format'))
+handler.setFormatter(formatter)
+root_logger.addHandler(handler)
+root_logger.setLevel(getattr(logging, config.get('logging', 'level')))
+
+# Mongo Connection -------------------------------------------------------------
 
 if config.get('core', 'test_mode'):
     logging.info('TEST MODE: Using MongoMock database')

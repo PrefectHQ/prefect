@@ -2,9 +2,10 @@ import copy
 import datetime
 from mongoengine import DoesNotExist
 import prefect
+from prefect.utilities.logging import LoggingMixin
 
 
-class Task:
+class Task(LoggingMixin):
     """
     Tasks are basic units of work. Each task performs a specific funtion.
     """
