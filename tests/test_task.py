@@ -23,10 +23,6 @@ def test_create_task():
         Task(fn=fn, flow=f, retries=None)
     assert 'Retries must be an int' in str(e)
 
-    with pytest.raises(TypeError) as e:
-        Task(fn=fn, flow=f, retry_delay=5)
-    assert 'Retry delay must be a timedelta' in str(e)
-
 
 def test_flow_context_manager():
     """Tests that flows can be used as context managers"""

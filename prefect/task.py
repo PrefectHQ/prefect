@@ -15,14 +15,18 @@ class Task(LoggingMixin):
             name=None,
             flow=None,
             fn=None,
-            params=None,
             retries=0,
             retry_delay=datetime.timedelta(minutes=5),
+            pass_params=False,
             trigger=None):
         """
         fn: By default, the Task's run() method calls this function.
+
         retries: the number of times this task can be retried. -1 indicates
             an infinite number of times.
+
+        pass_params: Whether to pass the parameters to the Task function. If
+            True, the function must accept **kwargs.
         """
 
         self.fn = fn
@@ -48,18 +52,13 @@ class Task(LoggingMixin):
                 'Retries must be an int; received {}'.format(retries))
         self.retries = retries
 
-        if not isinstance(retry_delay, datetime.timedelta):
-            raise TypeError(
-                'Retry delay must be a timedelta; received {}'.format(
-                    type(retry_delay)))
         self.retry_delay = retry_delay
 
         if trigger is None:
-            trigger = prefect.triggers.all_success
+            trigger = prefect.utilities.triggers.all_success
         self.trigger = trigger
 
-        #TODO params come from Flow
-        self.params = params
+        self.pass_params = pass_params
 
         self.flow.add_task(self)
 
@@ -135,7 +134,10 @@ class Task(LoggingMixin):
 
     def to_model(self):
         return prefect.models.TaskModel(
-            _id=self.id, name=self.name, flow_id=self.flow.id, serialized=self.serialize())
+            _id=self.id,
+            name=self.name,
+            flow_id=self.flow.id,
+            serialized=self.serialize())
 
     @classmethod
     def from_model(cls, model):

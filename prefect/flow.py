@@ -1,8 +1,10 @@
 import base64
 import distributed
 import prefect
+from prefect.models import FlowModel
 from prefect.task import Task
 from prefect.exceptions import PrefectError
+from prefect.utilities.logging import LoggingMixin
 from prefect.utilities.schedules import (
     Schedule,
     NoSchedule,
@@ -13,7 +15,7 @@ from prefect.utilities.schedules import (
 _CONTEXT_MANAGER_FLOW = None
 
 
-class Flow:
+class Flow(LoggingMixin):
 
     def __init__(
             self,
@@ -167,7 +169,10 @@ class Flow:
     # ORM ----------------------------------------------------------
 
     def to_model(self):
-        return prefect.models.FlowModel(
+        """
+        Create a database-compatible version of this Flow
+        """
+        return FlowModel(
             _id=self.id,
             namespace=self.namespace,
             name=self.name,
@@ -178,26 +183,14 @@ class Flow:
             graph={
                 t.id: sorted(pt.id for pt in preceding)
                 for t, preceding in self.graph.items()
-            })
-
-    @classmethod
-    def from_model(cls, model):
-        instance = cls(
-            name=model.name,
-            schedule=model.schedule,
-            params=model.params,
-            namespace=model.namespace,
-            version=model.version,
-            active=model.active)
-
-        instance.graph = model.recreate_full_graph()
-        return instance
+            },
+            tasks={task.id: task.to_model() for task in self})
 
     @classmethod
     def from_id(cls, flow_id):
-        model = prefect.models.FlowModel.objects.get(_id=flow_id)
-        if model:
-            return cls.from_model(model)
+        return cls.from_serialized(
+            FlowModel.objects.only('serialized').get(
+                _id=flow_id))
 
     def save(self):
         for task in self:
@@ -242,6 +235,8 @@ class Flow:
         if callable(fn):
             return Task(fn=fn, flow=self)
         else:
+
             def wrapper(fn):
                 return Task(fn=fn, flow=self, **kwargs)
+
             return wrapper
