@@ -109,6 +109,11 @@ class State:
         self._fsm.add_transition(
             trigger='clear', source=list(self.all_states()), dest=self.NONE)
 
+        self._fsm.add_transition(
+            trigger='pending',
+            source=[self.NONE],
+            dest=self.PENDING,)
+        
     def __eq__(self, other):
         return getattr(self, 'state', None) == other
 
