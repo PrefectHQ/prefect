@@ -168,16 +168,25 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
         """
         Tasks can be generators, yielding new Flows and Tasks. If so, we
         iterate over the generator and submit each new task to the cluster.
+
+        Tasks can also yield numbers. By convention, numbers between 0 and 1
+        are treated as percentage complete and numbers > 1 as a count.
         """
         futures = set()
         with worker_client() as client:
-            # iterate over the generator
-            for subtasks in generator:
-                # treat each subtask as a collection of subtasks
-                if isinstance(subtasks, (prefect.task.Task, prefect.flow.Flow)):
-                    subtasks = [subtasks]
-                for subtask in subtasks:
 
+            generated_futures = client.channel('generated_futures')
+
+            # iterate over the generator
+            for result in generator:
+                #
+                if isinstance(result, (float, int)):
+                    self.progress = result
+                    self.save()
+                    continue
+                if isinstance(result, (prefect.task.Task, prefect.flow.Flow)):
+                    result = [result]
+                for subtask in result:
                     # the subtask is a Flow
                     #   - create a Flow Runner and execute the Flow
                     if isinstance(subtask, prefect.flow.Flow):
@@ -186,13 +195,17 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
                             run_id=self.id,
                             params=self.params,
                             generated_by=self.to_model())
-                        futures.add(client.submit(runner.run, pure=False))
+                        future = client.submit(runner.run, pure=False)
+                        futures.add(future)
+                        generated_futures.append(future)
 
                     # the subtask is a Flow
                     #   - create a Flow Runner and execute the Flow
                     elif isinstance(subtask, prefect.task.Task):
                         runner = TaskRunner(task=subtask, run_id=self.id)
-                        futures.add(client.submit(runner.run, {}, pure=False))
+                        future = client.submit(runner.run, {}, pure=False)
+                        futures.add(future)
+                        generated_futures.append(future)
 
                     # raise an error if something unexpected happens
                     else:
@@ -215,6 +228,7 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
             state=str(self.state),
             run_number=self.run_number,
             scheduled_start=self.scheduled_start,
+            progress=self.progress,
             created=self.created,
             started=self.started,
             finished=self.finished)
