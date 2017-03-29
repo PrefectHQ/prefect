@@ -5,7 +5,7 @@ from prefect.models import FlowModel
 from prefect.task import Task
 from prefect.exceptions import PrefectError
 from prefect.utilities.logging import LoggingMixin
-from prefect.utilities.schedules import (
+from prefect.schedules import (
     Schedule,
     NoSchedule,
     DateSchedule,
