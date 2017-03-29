@@ -70,19 +70,23 @@ class Task(LoggingMixin):
     def __repr__(self):
         return '{}({})'.format(type(self).__name__, self.id)
 
-    def run_before(self, *tasks):
+    def run_before(self, tasks):
         """
         Adds a relationship to the Flow so that this task runs before another
         task.
         """
+        if isinstance(tasks, Task):
+            tasks = [tasks]
         for t in tasks:
             self.flow.add_task_relationship(before=self, after=t)
 
-    def run_after(self, *tasks):
+    def run_after(self, tasks):
         """
         Adds a relationship to the Flow so that this task runs after another
         task.
         """
+        if isinstance(tasks, Task):
+            tasks = [tasks]
         for t in tasks:
             self.flow.add_task_relationship(before=t, after=self)
 
@@ -118,14 +122,34 @@ class Task(LoggingMixin):
     def __or__(self, task):
         """ self | task -> self.run_before(task)"""
         self.run_before(task)
+        return task
+
+    def __ror__(self, obj):
+        """
+        obj | self -> self.run_after(obj)
+        """
+        self.run_after(obj)
+        return self
 
     def __rshift__(self, task):
         """ self >> task -> self.run_before(task)"""
         self.run_before(task)
+        return task
+
+    def __rrshift__(self, obj):
+        """ obj >> self -> self.run_after(obj)"""
+        self.run_after(obj)
+        return obj
 
     def __lshift__(self, task):
         """ self << task -> self.run_after(task)"""
         self.run_after(task)
+        return task
+
+    def __rlshift__(self, obj):
+        """ obj << self -> self.run_before(obj)"""
+        self.run_before(obj)
+        return obj
 
     # Serialization  ------------------------------------------------
 

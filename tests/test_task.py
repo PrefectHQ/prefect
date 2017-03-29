@@ -83,7 +83,7 @@ class TestTaskRelationships:
             before2 = Task(fn=fn, name='before_2')
             after = Task(fn=fn, name='after')
 
-        after.run_after(before, before2)
+        after.run_after([before, before2])
         assert before in f.graph
         assert before2 in f.graph
         assert after in f.graph
@@ -106,31 +106,51 @@ class TestTaskRelationships:
         """Test task relationships with | and >> and << sugar"""
         with Flow('test') as f:
             before = Task(fn=fn, name='before')
+            mid1 = Task(fn=fn, name='mid1')
+            mid2 = Task(fn=fn, name='mid2')
             after = Task(fn=fn, name='after')
 
-        before | after
+        (before
+         | (mid1, mid2)
+         | after)
         assert before in f.graph
+        assert mid1 in f.graph
+        assert mid2 in f.graph
         assert after in f.graph
-        assert before in f.graph[after]
+        assert before in f.graph[mid1]
+        assert before in f.graph[mid2]
+        assert set([mid1, mid2]) == f.graph[after]
 
         with Flow('test') as f:
             before = Task(fn=fn, name='before')
+            mid1 = Task(fn=fn, name='mid1')
+            mid2 = Task(fn=fn, name='mid2')
             after = Task(fn=fn, name='after')
 
-        before >> after
+        before >> (mid1, mid2) >> after
         assert before in f.graph
+        assert mid1 in f.graph
+        assert mid2 in f.graph
         assert after in f.graph
-        assert before in f.graph[after]
+        assert before in f.graph[mid1]
+        assert before in f.graph[mid2]
+        assert set([mid1, mid2]) == f.graph[after]
 
         # same test, calling `run_after`
         with Flow('test') as f:
             before = Task(fn=fn, name='before')
+            mid1 = Task(fn=fn, name='mid1')
+            mid2 = Task(fn=fn, name='mid2')
             after = Task(fn=fn, name='after')
 
-        after << before
+        after << (mid1, mid2) << before
         assert before in f.graph
+        assert mid1 in f.graph
+        assert mid2 in f.graph
         assert after in f.graph
-        assert before in f.graph[after]
+        assert before in f.graph[mid1]
+        assert before in f.graph[mid2]
+        assert set([mid1, mid2]) == f.graph[after]
 
 
 class TestSerialization:
