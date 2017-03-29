@@ -23,7 +23,7 @@ class FlowModel(Document):
         default=prefect.config.get('flows', 'default_namespace'))
     name = fields.StringField(required=True, unique_with='namespace')
     version = fields.StringField(default='1')
-    params = fields.ListField(fields.StringField, default=tuple())
+    required_params = fields.ListField(fields.StringField, default=tuple())
     active = fields.BooleanField(
         default=prefect.config.getboolean('flows', 'default_active'))
     serialized = fields.EmbeddedDocumentField(Serialized)

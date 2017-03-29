@@ -20,29 +20,29 @@ class Flow(LoggingMixin):
     def __init__(
             self,
             name,
-            params=None,
+            required_params=None,
             schedule=NoSchedule(),
             namespace=prefect.config.get('flows', 'default_namespace'),
             version=1,
             active=prefect.config.getboolean('flows', 'default_active'),
             **_kw):
         """
-        params: a collection of parameter names that can be provided when
-            the Flow is run and passed to Tasks. Any other keywords will be
-            rejected.
+        required_params: a collection of parameter names that must be provided
+            when the Flow is run. Flows can be called with any params, but an
+            error will be raised if these are missing.
         """
 
-        if params is None:
-            params = set()
-        elif isinstance(params, str):
-            params = set([params])
+        if required_params is None:
+            required_params = set()
+        elif isinstance(required_params, str):
+            required_params = set([required_params])
         else:
-            params = set(params)
+            required_params = set(required_params)
 
         self.name = name
         self.namespace = namespace
         self.version = version
-        self.params = params
+        self.required_params = required_params
         self.schedule = schedule
         self.active = active
 
@@ -191,7 +191,7 @@ class Flow(LoggingMixin):
             name=self.name,
             version=str(self.version),
             active=self.active,
-            params=sorted(self.params),
+            required_params=sorted(self.required_params),
             graph={
                 t.id: sorted(pt.id for pt in preceding)
                 for t, preceding in self.graph.items()
