@@ -4,8 +4,17 @@ import itertools
 from mongoengine import Document, EmbeddedDocument, queryset_manager, fields
 import prefect
 from prefect.state import State
-from prefect.utilities.schedules import Schedule
 from prefect.utilities.serialize import Serialized
+
+
+class TaskModel(Document):
+    _id = fields.StringField(primary_key=True)
+    name = fields.StringField(required=True, unique_with='flow_id')
+    flow_id = fields.StringField(required=True)
+    type = fields.StringField()
+    max_retries = fields.IntField()
+
+    meta = {'collection': 'taskModels', 'indexes': ['flow_id']}
 
 
 class FlowModel(Document):
@@ -14,13 +23,13 @@ class FlowModel(Document):
         default=prefect.config.get('flows', 'default_namespace'))
     name = fields.StringField(required=True, unique_with='namespace')
     version = fields.StringField(default='1')
-    schedule = fields.EmbeddedDocumentField(Schedule)
     params = fields.ListField(fields.StringField, default=tuple())
     active = fields.BooleanField(
         default=prefect.config.getboolean('flows', 'default_active'))
     serialized = fields.EmbeddedDocumentField(Serialized)
     graph = fields.MapField(
         fields.ListField(fields.StringField(), default=tuple()))
+    tasks = fields.MapField(fields.ReferenceField(TaskModel))
 
     meta = {'collection': 'flowModels'}
 
@@ -41,15 +50,6 @@ class FlowModel(Document):
             set([prefect.task.Task.from_id(p) for p in pt_ids])
             for t_id, pt_ids in self.graph.items()
         }
-
-
-class TaskModel(Document):
-    _id = fields.StringField(primary_key=True)
-    name = fields.StringField(required=True, unique_with='flow_id')
-    flow_id = fields.StringField(required=True)
-    serialized = fields.EmbeddedDocumentField(Serialized)
-
-    meta = {'collection': 'taskModels', 'indexes': ['flow_id']}
 
 
 class FlowRunModel(Document):
@@ -77,12 +77,12 @@ class FlowRunModel(Document):
     }
 
 
-class TaskRunModel(EmbeddedDocument):
+class TaskRunModel(Document):
     _id = fields.StringField(primary_key=True)
     task = fields.ReferenceField(TaskModel, required=True)
     run_id = fields.StringField(required=True)
     state = fields.StringField(default=State.NONE)
-    run_count = fields.IntField(default=0)
+    run_number = fields.IntField(default=1)
     scheduled_start = fields.DateTimeField()
     created = fields.DateTimeField(default=lambda: datetime.datetime.utcnow())
     started = fields.DateTimeField()

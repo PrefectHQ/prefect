@@ -12,7 +12,7 @@ from prefect.utilities.schedules import (
     CronSchedule,
     IntervalSchedule,)
 
-_CONTEXT_MANAGER_FLOW = None
+_CONTEXT_FLOW = None
 
 
 class Flow(LoggingMixin):
@@ -28,11 +28,16 @@ class Flow(LoggingMixin):
             **_kw):
         """
         params: a collection of parameter names that can be provided when
-            the Flow is run and passed to Tasks.
+            the Flow is run and passed to Tasks. Any other keywords will be
+            rejected.
         """
 
         if params is None:
             params = set()
+        elif isinstance(params, str):
+            params = set([params])
+        else:
+            params = set(params)
 
         self.name = name
         self.namespace = namespace
@@ -76,14 +81,22 @@ class Flow(LoggingMixin):
                     task.name))
         self.graph[task] = set()
 
-    def get_task(self, name):
+    def get_task(self, name=None, id=None):
         """
         Retrieve a task by name
         """
+        if (name is None and id is None) or (
+                name is not None and id is not None):
+            raise ValueError('Provide either name or id, but not both.')
+
         try:
-            return next(t for t in self.graph if t.name == name)
+            if name is not None:
+                return next(t for t in self.graph if t.name == name)
+            else:
+                return next(t for t in self.graph if t.id == id)
         except StopIteration:
-            raise PrefectError('Task {} was not found in the Flow'.format(name))
+            raise PrefectError(
+                'Task {} was not found in the Flow'.format(name or id))
 
     def add_task_relationship(self, before, after):
         if before not in self.graph:
@@ -145,14 +158,14 @@ class Flow(LoggingMixin):
     # Context Manager -----------------------------------------------
 
     def __enter__(self):
-        global _CONTEXT_MANAGER_FLOW
-        self._old_context_manager_flow = _CONTEXT_MANAGER_FLOW
-        _CONTEXT_MANAGER_FLOW = self
+        global _CONTEXT_FLOW
+        self._old_context_manager_flow = _CONTEXT_FLOW
+        _CONTEXT_FLOW = self
         return self
 
     def __exit__(self, _type, _value, _tb):
-        global _CONTEXT_MANAGER_FLOW
-        _CONTEXT_MANAGER_FLOW = self._old_context_manager_flow
+        global _CONTEXT_FLOW
+        _CONTEXT_FLOW = self._old_context_manager_flow
 
     # Serialization  ------------------------------------------------
 
@@ -161,10 +174,10 @@ class Flow(LoggingMixin):
 
     @staticmethod
     def from_serialized(serialized_obj):
-        deserialized = prefect.utilities.serialize.deserialize(serialized_obj)
-        if not isinstance(deserialized, Flow):
+        flow = prefect.utilities.serialize.deserialize(serialized_obj)
+        if not isinstance(flow, Flow):
             raise TypeError('Deserialized object is not a Flow!')
-        return deserialized
+        return flow
 
     # ORM ----------------------------------------------------------
 
@@ -177,37 +190,26 @@ class Flow(LoggingMixin):
             namespace=self.namespace,
             name=self.name,
             version=str(self.version),
-            serialized=self.serialize(),
             active=self.active,
-            schedule=self.schedule,
+            params=sorted(self.params),
             graph={
                 t.id: sorted(pt.id for pt in preceding)
                 for t, preceding in self.graph.items()
             },
-            tasks={task.id: task.to_model() for task in self})
+            tasks={task.id: task.to_model()
+                   for task in self},
+            serialized=self.serialize(),)
 
     @classmethod
     def from_id(cls, flow_id):
         return cls.from_serialized(
-            FlowModel.objects.only('serialized').get(
-                _id=flow_id))
+            FlowModel.objects.only('serialized').get(_id=flow_id)['serialized'])
 
     def save(self):
         for task in self:
             task.save()
         model = self.to_model()
         model.save()
-        return model
-
-    def reload(self):
-        model = self.to_model()
-        model.reload()
-        self.namespace = model.namespace
-        self.name = model.name
-        self.version = model.version
-        self.active = model.active
-        self.schedule = model.schedule
-        self.graph = model.recreate_full_graph()
 
     # Decorator ----------------------------------------------------
 

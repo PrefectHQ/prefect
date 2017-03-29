@@ -2,6 +2,7 @@ import copy
 import datetime
 from mongoengine import DoesNotExist
 import prefect
+from prefect.models import TaskModel, FlowModel
 from prefect.utilities.logging import LoggingMixin
 
 
@@ -15,14 +16,14 @@ class Task(LoggingMixin):
             name=None,
             flow=None,
             fn=None,
-            retries=0,
+            max_retries=0,
             retry_delay=datetime.timedelta(minutes=5),
             pass_params=False,
             trigger=None):
         """
         fn: By default, the Task's run() method calls this function.
 
-        retries: the number of times this task can be retried. -1 indicates
+        max_retries: the number of times this task can be retried. -1 indicates
             an infinite number of times.
 
         pass_params: Whether to pass the parameters to the Task function. If
@@ -32,7 +33,7 @@ class Task(LoggingMixin):
         self.fn = fn
 
         if flow is None:
-            flow = prefect.flow._CONTEXT_MANAGER_FLOW
+            flow = prefect.flow._CONTEXT_FLOW
             if flow is None:
                 raise ValueError(
                     'Tasks must be created with a Flow or inside '
@@ -47,10 +48,10 @@ class Task(LoggingMixin):
                 'Name must be a string; received {}'.format(type(name)))
         self.name = name
 
-        if not isinstance(retries, int):
+        if not isinstance(max_retries, int):
             raise TypeError(
-                'Retries must be an int; received {}'.format(retries))
-        self.retries = retries
+                'Retries must be an int; received {}'.format(max_retries))
+        self.max_retries = max_retries
 
         self.retry_delay = retry_delay
 
@@ -91,6 +92,14 @@ class Task(LoggingMixin):
             if self.pass_params:
                 kwargs.update(params)
             return self.fn(**kwargs)
+
+    # Results  ------------------------------------------------------
+
+    def __iter__(self):
+        raise NotImplementedError('Tasks can not be iterated.')
+
+    def __getitem__(self, item):
+        return TaskResult(self, item)
 
     # Serialization  ------------------------------------------------
 
@@ -133,23 +142,33 @@ class Task(LoggingMixin):
     # ORM ----------------------------------------------------------
 
     def to_model(self):
-        return prefect.models.TaskModel(
+        return TaskModel(
             _id=self.id,
             name=self.name,
+            type=type(self).__name__,
             flow_id=self.flow.id,
-            serialized=self.serialize())
-
-    @classmethod
-    def from_model(cls, model):
-        return cls.from_serialized(model.serialized)
+            max_retries=self.max_retries)
 
     @classmethod
     def from_id(cls, task_id):
-        model = prefect.models.TaskModel.objects.get(_id=task_id)
-        if model:
-            return cls.from_model(model)
+        flow_id = TaskModel.objects.only('flow_id').get(_id=task_id)['flow_id']
+        flow = prefect.utilities.serialize.deserialize(
+            FlowModel.objects.only('serialized').get(_id=flow_id)['serialized'])
+        return flow.get_task(id=task_id)
 
     def save(self):
         model = self.to_model()
         model.save()
-        return model
+
+
+class TaskResult:
+
+    def __init__(self, task, index=None):
+        self.task = task
+        self.index = index
+
+    def __repr__(self):
+        if self.index is not None:
+            return 'TaskResult({}/{})'.format(self.task.id, self.index)
+        else:
+            return 'TaskResult({})'.format(self.task.id)

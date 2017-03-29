@@ -21,25 +21,34 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
     state.
     """
 
-    def __init__(self, run_id, task, params, run_number=1, force=False):
+    def __init__(
+            self,
+            run_id,
+            task,
+            params,
+            run_number=1,
+            force=False,
+            scheduled_start=None):
         self.task = task
         self.run_id = run_id
         self.params = params.copy()
-        self.params.update({
-            'task_id': task.id,
-            'task_name': task.name,
-            'run_number': run_number
-        })
+        self.params.update(
+            {
+                'task_id': task.id,
+                'task_name': task.name,
+                'run_number': run_number
+            })
         self.force = force
         self.state = State()
         self.run_number = run_number
-        self.scheduled_start = None
+        self.scheduled_start = scheduled_start
 
         self._logger = logging.root.getChild(repr(self))
 
         self.created = datetime.datetime.utcnow()
         self.started = None
         self.finished = None
+        self.heartbeat = None
 
     @property
     def id(self):
@@ -74,14 +83,20 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
             l.debug('Task {} failed: {}'.format(t, e))
             self.state.fail()
 
-        self.run_number += 1
-        if self.state.is_failed() and self.run_number <= self.task.retries:
+        if self.state.is_failed() and self.run_number < self.task.max_retries:
             self.state.retry()
             retry_delay = self.task.retry_delay
             if callable(retry_delay):
                 retry_delay = self.task.retry_delay(
-                    self.run_number, self.task.retries)
-            self.scheduled_start = datetime.datetime.utcnow() + retry_delay
+                    self.run_number, self.task.max_retries)
+            scheduled_start = datetime.datetime.utcnow() + retry_delay
+            next_taskrun = TaskRunner(
+                run_id=self.run_id,
+                task=self.task,
+                params=self.params,
+                run_number=self.run_number + 1,
+                scheduled_start=datetime.datetime.utcnow() + retry_delay)
+            next_taskrun.save()
 
         self.save()
         return self.state
@@ -159,8 +174,7 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
             # iterate over the generator
             for subtasks in generator:
                 # treat each subtask as a collection of subtasks
-                if isinstance(
-                        subtasks, (prefect.task.Task, prefect.flow.Flow)):
+                if isinstance(subtasks, (prefect.task.Task, prefect.flow.Flow)):
                     subtasks = [subtasks]
                 for subtask in subtasks:
 
@@ -178,8 +192,7 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
                     #   - create a Flow Runner and execute the Flow
                     elif isinstance(subtask, prefect.task.Task):
                         runner = TaskRunner(task=subtask, run_id=self.id)
-                        futures.add(
-                            client.submit(runner.run, {}, pure=False))
+                        futures.add(client.submit(runner.run, {}, pure=False))
 
                     # raise an error if something unexpected happens
                     else:
@@ -240,12 +253,12 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
 #
 #
 # class PrefectRunContext:
-#     def __init__(self, fn, retries=0)
+#     def __init__(self, fn, max_retries=0)
 #
 #     def __enter__(self):
 #         state = None
 #         with concurrent.futures.ThreadPoolExecutor(1) as e:
-#             for r in range(1 + self.retries):
+#             for r in range(1 + self.max_retries):
 #                 try:
 #                     result = self.fn()
 #                     state = prefect.state.SUCCESS
