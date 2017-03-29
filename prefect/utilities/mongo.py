@@ -1,5 +1,6 @@
 import datetime
 import inspect
+import mongoengine
 import pymongo
 import threading
 import time
@@ -22,7 +23,7 @@ def save_or_reload(model):
     """
     try:
         model.reload()
-    except DoesNotExist:
+    except mongoengine.DoesNotExist:
         model.save()
 
 
