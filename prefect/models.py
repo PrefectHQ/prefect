@@ -60,10 +60,12 @@ class FlowRunModel(Document):
     generated_by = fields.ReferenceField('TaskRunModel')
     state = fields.StringField(
         default=State.PENDING, choices=list(State.all_states()))
+
     scheduled_start = fields.DateTimeField()
     created = fields.DateTimeField(default=lambda: datetime.datetime.utcnow())
     started = fields.DateTimeField()
     finished = fields.DateTimeField()
+    heartbeat = fields.DateTimeField()
 
     meta = {
         'collection': 'flowRuns',
@@ -79,14 +81,18 @@ class FlowRunModel(Document):
 
 class TaskRunModel(Document):
     _id = fields.StringField(primary_key=True)
+
     task = fields.ReferenceField(TaskModel, required=True)
     run_id = fields.StringField(required=True)
     state = fields.StringField(default=State.NONE)
     run_number = fields.IntField(default=1)
+
     scheduled_start = fields.DateTimeField()
+
     created = fields.DateTimeField(default=lambda: datetime.datetime.utcnow())
     started = fields.DateTimeField()
     finished = fields.DateTimeField()
+    heartbeat = fields.DateTimeField()
 
     meta = {
         'collection': 'taskRuns',
