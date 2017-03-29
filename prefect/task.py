@@ -39,6 +39,7 @@ class Task(LoggingMixin):
                     'Tasks must be created with a Flow or inside '
                     'a Flow context manager.')
         self.flow = flow
+        self.flow_id = flow.id
 
         if name is None:
             name = self.fn.__name__
@@ -65,7 +66,7 @@ class Task(LoggingMixin):
 
     @property
     def id(self):
-        return '{}/{}'.format(self.flow.id, self.name)
+        return '{}/{}'.format(self.flow_id, self.name)
 
     def __repr__(self):
         return '{}({})'.format(type(self).__name__, self.id)
@@ -170,7 +171,7 @@ class Task(LoggingMixin):
             _id=self.id,
             name=self.name,
             type=type(self).__name__,
-            flow_id=self.flow.id,
+            flow_id=self.flow_id,
             max_retries=self.max_retries)
 
     @classmethod

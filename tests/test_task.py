@@ -21,11 +21,7 @@ class TestBasics:
 
         f = Flow('test_flow')
         t = Task(fn=fn, name='test', flow=f)
-        assert t.flow is f
-
-        with pytest.raises(TypeError) as e:
-            Task(fn=fn, flow=f, max_retries=None)
-        assert 'Retries must be an int' in str(e)
+        assert t.flow_id == f.id
 
     def test_flow_context_manager(self):
         """Tests that flows can be used as context managers"""
@@ -40,15 +36,15 @@ class TestBasics:
             # return to original context manager
             t3 = Task(fn=fn, name='test1')
 
-        assert t.flow is f
-        assert t in f.graph
+            assert t.flow_id == f.id
+            assert t in f.graph
 
-        assert t2.flow is f2
-        assert t2 in f2.graph
-        assert t2 not in f.graph
+            assert t2.flow_id == f2.id
+            assert t2 in f2.graph
+            assert t2 not in f.graph
 
-        assert t3.flow is f
-        assert t3 in f.graph
+            assert t3.flow is f
+            assert t3 in f.graph
 
     def test_add_task_to_flow_after_flow_assigned(self):
         with Flow('test_flow') as f:

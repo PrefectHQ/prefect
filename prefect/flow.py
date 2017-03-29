@@ -71,7 +71,7 @@ class Flow(LoggingMixin):
         yield from self.sorted_tasks()
 
     def add_task(self, task):
-        if task.flow.id != self.id:
+        if task.flow_id != self.id:
             raise ValueError('Task {} is already in another Flow'.format(task))
 
         task_names = set(t.name for t in self.graph)
