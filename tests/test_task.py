@@ -1,7 +1,8 @@
 import mongoengine
 import prefect.exceptions
 from prefect.flow import Flow
-from prefect.task import Task, TaskResult
+from prefect.task import Task
+from prefect.pipes import Pipe
 import pytest
 
 
@@ -71,7 +72,7 @@ class TestTaskRelationships:
         before.run_before(after)
         assert before in f.graph
         assert after in f.graph
-        assert before in f.graph[after]
+        assert before in f.upstream_tasks(after)
 
         # same test, calling `run_after`
         with Flow('test') as f:
@@ -83,8 +84,8 @@ class TestTaskRelationships:
         assert before in f.graph
         assert before2 in f.graph
         assert after in f.graph
-        assert before in f.graph[after]
-        assert before2 in f.graph[after]
+        assert before in f.upstream_tasks(after)
+        assert before2 in f.upstream_tasks(after)
 
     def test_detect_cycle(self):
         with Flow('test') as f:
@@ -113,9 +114,8 @@ class TestTaskRelationships:
         assert mid1 in f.graph
         assert mid2 in f.graph
         assert after in f.graph
-        assert before in f.graph[mid1]
-        assert before in f.graph[mid2]
-        assert set([mid1, mid2]) == f.graph[after]
+        assert set([mid1, mid2]) == f.downstream_tasks(before)
+        assert set([mid1, mid2]) == f.upstream_tasks(after)
 
         with Flow('test') as f:
             before = Task(fn=fn, name='before')
@@ -128,9 +128,8 @@ class TestTaskRelationships:
         assert mid1 in f.graph
         assert mid2 in f.graph
         assert after in f.graph
-        assert before in f.graph[mid1]
-        assert before in f.graph[mid2]
-        assert set([mid1, mid2]) == f.graph[after]
+        assert set([mid1, mid2]) == f.downstream_tasks(before)
+        assert set([mid1, mid2]) == f.upstream_tasks(after)
 
         # same test, calling `run_after`
         with Flow('test') as f:
@@ -144,20 +143,12 @@ class TestTaskRelationships:
         assert mid1 in f.graph
         assert mid2 in f.graph
         assert after in f.graph
-        assert before in f.graph[mid1]
-        assert before in f.graph[mid2]
-        assert set([mid1, mid2]) == f.graph[after]
+        assert set([mid1, mid2]) == f.downstream_tasks(before)
+        assert set([mid1, mid2]) == f.upstream_tasks(after)
 
 
 class TestSerialization:
 
-    def test_serialize(self):
-        with Flow('test') as f:
-            t1 = Task(fn=fn, name='t1')
-
-        serialized = t1.serialize()
-        t2 = Task.from_serialized(serialized)
-        assert t1.id == t2.id
 
     def test_save(self):
         name = 'test-save-task'
@@ -179,19 +170,20 @@ class TestSerialization:
     def test_from_id(self):
         with Flow('test') as f:
             t1 = Task(fn=fn, name='test')
-        t1.save()
+
         with pytest.raises(mongoengine.DoesNotExist):
             t2 = Task.from_id(t1.id)
+        
 
         f.save()
         t2 = Task.from_id(t1.id)
         assert t2.id == t1.id
 
 
-class TestTaskResults:
+class TestPipes:
 
-    def test_task_results(self):
+    def test_pipes(self):
         with Flow('test') as f:
             t1 = Task(fn=fn, name='t1')
-        assert isinstance(t1['a'], TaskResult)
+        assert isinstance(t1['a'], Pipe)
         assert t1['a'].task is t1 and t1['a'].index == 'a'
