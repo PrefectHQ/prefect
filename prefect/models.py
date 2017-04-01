@@ -96,6 +96,8 @@ class TaskRunModel(JobModel):
 
 deferred_taskrun.set_model(TaskRunModel)
 
-
-if db.database.is_in_memory:
+# if the database is in memory, it needs to be initialized
+# but if this script is being run directly, we don't want to run this code
+# since it will have already run during the import of this module
+if db.database.is_in_memory and not __name__ == '__main__':
     db.initialize()
