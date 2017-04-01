@@ -1,11 +1,20 @@
 from configparser import ConfigParser
+import hashlib
 import logging
-import mongoengine
 import os
 import re
 
 env_var_re = re.compile(
     '^PREFECT__(?P<section>\S+)__(?P<option>\S+)', re.IGNORECASE)
+
+
+def call_fn(fn):
+    """
+    Simple decorate that calls a function automatically, allowing configuration
+    variables to be placed inside functions instead of polluting the namespace
+    """
+    fn()
+    return fn
 
 
 def expand(env_var):
@@ -85,34 +94,30 @@ def load_config(test_mode=False, config_file=None, home=None):
 
 config = load_config()
 
-# Test Mode --------------------------------------------------------------------
+# Test Mode -------------------------------------------------------------------
 
 if config.get('core', 'test_mode'):
     config = load_config(test_mode=True)
 
-# Logging ----------------------------------------------------------------------
+# Logging ---------------------------------------------------------------------
 
-root_logger = logging.getLogger()
-handler = logging.StreamHandler()
-formatter = logging.Formatter(config.get('logging', 'format'))
-handler.setFormatter(formatter)
-root_logger.addHandler(handler)
-root_logger.setLevel(getattr(logging, config.get('logging', 'level')))
+@call_fn
+def configure_logging():
+    root_logger = logging.getLogger()
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(config.get('logging', 'format'))
+    handler.setFormatter(formatter)
+    root_logger.addHandler(handler)
+    root_logger.setLevel(getattr(logging, config.get('logging', 'level')))
 
-# Mongo Connection -------------------------------------------------------------
 
-if config.get('core', 'test_mode'):
-    logging.info('TEST MODE: Using MongoMock database')
-    mongoengine.connect(
-        alias='default',
-        db=config.get('mongo', 'db'),
-        host='mongomock://localhost',
-        port=27017)
-else:
-    mongoengine.connect(
-        alias='default',
-        db=config.get('mongo', 'db'),
-        host=config.get('mongo', 'url') or config.get('mongo', 'host'),
-        port=config.getint('mongo', 'port'),
-        username=config.get('mongo', 'username') or None,
-        password=config.get('mongo', 'password') or None)
+# Database --------------------------------------------------------------------
+
+@call_fn
+def configure_database():
+    # hash the secret key
+    key = config.get(section='db', option='secret_key')
+    config.set(
+        section='db',
+        option='secret_key',
+        value=hashlib.sha256(key.encode()).hexdigest())

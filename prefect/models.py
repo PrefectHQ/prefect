@@ -1,104 +1,101 @@
-import datetime
-import inspect
-import itertools
-from mongoengine import Document, EmbeddedDocument, queryset_manager, fields
-import prefect
-from prefect.state import State
-from prefect.utilities.serialize import Serialized
+import peewee as pw
+from playhouse import fields, kv
+
+from prefect.configuration import config
+import prefect.utilities.database as db
 
 
-class TaskModel(Document):
-    _id = fields.StringField(primary_key=True)
-    name = fields.StringField(required=True, unique_with='flow_id')
-    flow_id = fields.StringField(required=True)
-    type = fields.StringField()
-    max_retries = fields.IntField()
+class PrefectModel(pw.Model):
 
-    meta = {'collection': 'taskModels', 'indexes': ['flow_id']}
+    class Meta:
+        database = db.database
 
-
-class FlowModel(Document):
-    _id = fields.StringField(primary_key=True)
-    namespace = fields.StringField(
-        default=prefect.config.get('flows', 'default_namespace'))
-    name = fields.StringField(required=True, unique_with='namespace')
-    version = fields.StringField(default='1')
-    required_params = fields.ListField(fields.StringField, default=tuple())
-    active = fields.BooleanField(
-        default=prefect.config.getboolean('flows', 'default_active'))
-    serialized = fields.EmbeddedDocumentField(Serialized)
-    graph = fields.MapField(
-        fields.ListField(fields.StringField(), default=tuple()))
-    tasks = fields.MapField(fields.ReferenceField(TaskModel))
-
-    meta = {'collection': 'flowModels'}
-
-    @queryset_manager
-    def get_active(doc_cls, queryset):
-        return [
-            prefect.flow.Flow.from_serialized(**f['serialized'])
-            for f in queryset.filter(active=True)
-        ]
-
-    def recreate_full_graph(self):
-        """
-        The graph is stored as a dict of {task_id: [task_id, task_id...]} pairs.
-        This method looks up the tasks to recreate a graph of Task objects.
-        """
-        return {
-            prefect.task.Task.from_id(t_id):
-            set([prefect.task.Task.from_id(p) for p in pt_ids])
-            for t_id, pt_ids in self.graph.items()
-        }
+    def __repr__(self):
+        return '<{}({})>'.format(type(self).__name__, self.id)
 
 
-class FlowRunModel(Document):
-    _id = fields.StringField(primary_key=True)
-    flow = fields.ReferenceField(FlowModel, required=True)
-    params = fields.MapField(
-        fields.EmbeddedDocumentField(Serialized), default=lambda: dict())
-    generated_by = fields.ReferenceField('TaskRunModel')
-    state = fields.StringField(
-        default=State.PENDING, choices=list(State.all_states()))
+class FlowModel(PrefectModel):
+    name = pw.CharField(index=True)
+    namespace = pw.CharField(
+        default=config.get('flows', 'default_namespace'), index=True)
+    version = pw.CharField(
+        default=config.get('flows', 'default_version'), index=True)
+    active = pw.BooleanField(
+        default=config.getboolean('flows', 'default_active'))
+    serialized = fields.AESEncryptedField(
+        key=config.get('db', 'secret_key'), null=True)
 
-    scheduled_start = fields.DateTimeField()
-    created = fields.DateTimeField(default=lambda: datetime.datetime.utcnow())
-    started = fields.DateTimeField()
-    finished = fields.DateTimeField()
-    heartbeat = fields.DateTimeField()
+    # tasks = pw.Set
 
-    meta = {
-        'collection': 'flowRuns',
-        'indexes': [
-            'state',
-            'created',
-            'flow',
-            'generated_by',
-            'scheduled_start',
-        ]
-    }
+    class Meta:
+        db_table = 'flows'
+        indexes = (
+            # unique index on namespace / name / version
+            (('namespace', 'name', 'version'), True),)
 
 
-class TaskRunModel(Document):
-    _id = fields.StringField(primary_key=True)
+class TaskModel(PrefectModel):
+    name = pw.CharField()
+    flow = pw.ForeignKeyField(FlowModel, related_name='tasks', index=True)
 
-    task = fields.ReferenceField(TaskModel, required=True)
-    run_id = fields.StringField(required=True)
-    state = fields.StringField(default=State.NONE)
-    run_number = fields.IntField(default=1)
+    class Meta:
+        db_table = 'tasks'
+        indexes = (
+            # unique index on name / flow
+            (('name', 'flow'), True),)
 
-    scheduled_start = fields.DateTimeField()
 
-    created = fields.DateTimeField(default=lambda: datetime.datetime.utcnow())
-    started = fields.DateTimeField()
-    finished = fields.DateTimeField()
-    heartbeat = fields.DateTimeField()
+class EdgeModel(PrefectModel):
+    upstream_task = pw.ForeignKeyField(TaskModel, related_name='out_edges')
+    downstream_task = pw.ForeignKeyField(TaskModel, related_name='in_edges')
+    type = pw.CharField()
 
-    meta = {
-        'collection': 'taskRuns',
-        'indexes': ['task', 'run_id', 'state', 'scheduled_start']
-    }
+    class Meta:
+        db_table = 'edges'
 
-    @classmethod
-    def from_task_and_flowrun(cls, task, flowrun):
-        return cls.objects(task=task, flowrun=flowrun).first()
+
+deferred_taskrun = pw.DeferredRelation()
+
+
+class JobModel(PrefectModel):
+    created = pw.DateTimeField()
+    scheduled_start = pw.DateTimeField(null=True)
+    started = pw.DateTimeField(null=True)
+    finished = pw.DateTimeField(null=True)
+    heartbeat = pw.DateTimeField(null=True)
+
+    progress = pw.FloatField(default=0)
+
+    generated_by = pw.ForeignKeyField(deferred_taskrun, null=True)
+
+    state = pw.IntegerField(default=0)
+
+
+class FlowRunModel(JobModel):
+
+    flow = pw.ForeignKeyField(FlowModel, related_name='flowruns')
+    params = kv.JSONKeyStore(database=db.database)
+    scheduled = pw.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'flowruns'
+
+
+class TaskRunModel(JobModel):
+
+    flowrun = pw.ForeignKeyField(FlowRunModel, related_name='taskruns')
+    task = pw.ForeignKeyField(TaskModel, related_name='taskruns')
+    run_number = fields.IntegerField(default=1)
+
+    class Meta:
+        db_table = 'taskruns'
+        indexes = (
+            # unique index on flowrun / task / run #
+            (('flowrun', 'task', 'run_number'), True),)
+
+
+deferred_taskrun.set_model(TaskRunModel)
+
+
+if db.database.is_in_memory:
+    db.initialize()

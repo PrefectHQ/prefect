@@ -2,15 +2,19 @@ from setuptools import setup, find_packages
 
 install_requires = [
     'croniter',
+    'dask',
     'distributed',
     'hug',
-    'mongoengine',
+    'peewee',
+    'pycrypto',
     'python-dateutil',
     'transitions',
 ]
 
 extras = {
-    'test': ['mongomock', 'pytest', 'pytest-env']
+    's3': ['awsfs'],
+    'gcs': ['https://github.com/martindurant/gcsfs.git'],
+    'test': ['pytest', 'pytest-env', 'pytest-xdist'],
 }
 
 setup(
