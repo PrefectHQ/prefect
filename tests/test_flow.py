@@ -60,7 +60,7 @@ class TestGraph:
             g.add_edge(3, 1)
 
 
-class TestBasics:
+class TestFlow:
 
     def test_create_flow(self):
         # name is required
@@ -70,6 +70,10 @@ class TestBasics:
         assert err in str(e)
 
         f = Flow('test')
+        assert f.namespace == prefect.config.get('flows', 'default_namespace')
+        assert f.name == 'test'
+        assert f.version == prefect.config.get('flows', 'default_version')
+        assert f.id is None
 
     def test_add_task(self):
         f = Flow('test')
@@ -136,11 +140,10 @@ class TestPersistence:
             t2 = Task(fn=fn, name='t2')
             t1.run_before(t2)
 
-        serialized = f.serialize()
-        f2 = Flow.from_serialized(serialized)
+        serialized = prefect.utilities.serialize.serialize(f, encryption_key='abc')
+        f2 = prefect.utilities.serialize.deserialize(serialized, decryption_key='abc')
         assert isinstance(f2, Flow)
         assert [t.name for t in f] == [t.name for t in f2]
-
 
     def test_save(self):
         with Flow('test') as f:
@@ -160,20 +163,22 @@ class TestPersistence:
         f.reload()
         assert f.active
 
-
-    def test_from_name(self):
+    def test_from_id(self):
         with Flow('test') as f:
             t1 = Task(fn=fn, name='t1')
             t2 = Task(fn=fn, name='t2')
             t1.run_before(t2)
         f.save()
-        f2 = Flow.from_name(namespace=f.namespace, name=f.name, version=f.version)
+
+        f2 = Flow.from_id(f.id)
         assert f2.id == f.id
 
 
 class TestSugar:
+
     def test_task_decorator(self):
         with Flow('test') as f:
+
             @f.task
             def t1(**k):
                 return 1

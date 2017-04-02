@@ -113,13 +113,3 @@ def configure_logging():
 
 
 # Database --------------------------------------------------------------------
-
-@call_fn
-def configure_database():
-    # hash the secret key
-    key = config.get(section='db', option='secret_key').encode()
-    hashed_key = hashlib.sha256(key).digest()
-    config.set(
-        section='db',
-        option='secret_key',
-        value=base64.b64encode(hashed_key).decode())

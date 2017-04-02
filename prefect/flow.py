@@ -2,7 +2,7 @@ import base64
 import distributed
 import ujson
 import prefect
-from prefect.models import FlowModel
+from prefect.models import Namespace, FlowModel
 from prefect.task import Task
 from prefect.exceptions import PrefectError
 from prefect.utilities.logging import LoggingMixin
@@ -127,14 +127,17 @@ class Flow(LoggingMixin):
         self.active = active
         self.graph = Graph()
         self.pipes = Graph()
+        self.flow_id = '{namespace}.{name}:{version}'.format(
+            namespace=self.namespace, name=self.name, version=self.version)
+        self._id = None
 
     @property
     def id(self):
-        return '{namespace}.{name}:{version}'.format(
-            namespace=self.namespace, name=self.name, version=self.version)
+        """ The ID of this Flow's FlowModel, if known """
+        return self._id
 
     def __repr__(self):
-        return '{}({})'.format(type(self).__name__, self.id)
+        return '{}({})'.format(type(self).__name__, self.flow_id)
 
     # Graph -------------------------------------------------------------------
 
@@ -162,7 +165,7 @@ class Flow(LoggingMixin):
         if not isinstance(task, Task):
             raise TypeError(
                 'Expected a Task; received {}'.format(type(task).__name__))
-        if task.flow_id != self.id:
+        if task.flow_id != self.flow_id:
             raise ValueError('Task {} is already in another Flow'.format(task))
 
         task_names = set(t.name for t in self.graph)
@@ -224,64 +227,42 @@ class Flow(LoggingMixin):
 
     # Persistence  ------------------------------------------------
 
-    def serialize(self):
-        """
-        Serialize a Flow into the database.
-        """
-        header, frames = distributed.protocol.serialize(self)
-        return ujson.dumps(
-            dict(
-                header=header,
-                frames=[base64.b64encode(b).decode('utf-8') for b in frames]))
-
     @staticmethod
-    def from_serialized(serialized):
-        serialized = ujson.loads(serialized)
-        header, frames = serialized['header'], serialized['frames']
-        frames = [base64.b64decode(b.encode('utf-8')) for b in frames]
-        return distributed.protocol.deserialize(header, frames)
-
-    @classmethod
-    def from_id(cls, id):
-        model = (
-            FlowModel
-            .select(FlowModel.serialized)
-            .where(FlowModel.id == id)
-            .get())  # yapf: disable
-        return cls.from_serizlied(model.serialized)
-
-    @classmethod
-    def from_name(cls, namespace, name, version):
+    def from_id(id):
         """
         Load a serialized Flow from the database
         """
         model = (
             FlowModel
             .select(FlowModel.serialized)
-            .where(
-                (FlowModel.namespace == namespace)
-                & (FlowModel.name == name)
-                & (FlowModel.version == version))
+            .where(FlowModel.id == id)
             .get())  # yapf: disable
-        return cls.from_serialized(model.serialized)
+        flow = prefect.utilities.serialize.deserialize(
+            model.serialized,
+            decryption_key=prefect.config.get('db', 'encryption_key'))
+        flow._id = id
+        return flow
 
     def reload(self):
-        model = FlowModel.from_id(
+        model = FlowModel.from_flow_id(
             name=self.name,
             namespace=self.namespace,
             version=self.version,)
         if model.id:
             self.active = model.active
+            self._id = model.id
 
     def save(self):
-        model = FlowModel.from_id(
+        model = FlowModel.from_flow_id(
             name=self.name,
             namespace=self.namespace,
-            version=self.version,)
+            version=self.version,
+            create_if_not_found=True)
         model.active = self.active
-        model.serialized = self.serialize()
-
+        model.serialized = prefect.utilities.serialize.serialize(
+            self, encryption_key=prefect.config.get('db', 'encryption_key'))
         model.save()
+        self._id = model.id
 
     # Decorator ----------------------------------------------------
 
