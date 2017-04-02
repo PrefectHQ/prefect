@@ -1,3 +1,4 @@
+import base64
 from configparser import ConfigParser
 import hashlib
 import logging
@@ -116,8 +117,9 @@ def configure_logging():
 @call_fn
 def configure_database():
     # hash the secret key
-    key = config.get(section='db', option='secret_key')
+    key = config.get(section='db', option='secret_key').encode()
+    hashed_key = hashlib.sha256(key).digest()
     config.set(
         section='db',
         option='secret_key',
-        value=hashlib.sha256(key.encode()).hexdigest())
+        value=base64.b64encode(hashed_key).decode())

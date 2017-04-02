@@ -1,3 +1,6 @@
+import base64
+import distributed
+import json
 import peewee as pw
 from playhouse import fields, kv
 
@@ -6,6 +9,9 @@ import prefect.utilities.database as db
 
 
 class PrefectModel(pw.Model):
+    """
+    Base class for Prefect PeeWee models
+    """
 
     class Meta:
         database = db.database
@@ -15,6 +21,9 @@ class PrefectModel(pw.Model):
 
 
 class FlowModel(PrefectModel):
+    """
+    Database model for a Prefect Flow
+    """
     namespace = pw.CharField(
         default=config.get('flows', 'default_namespace'), index=True)
     name = pw.CharField(index=True)
@@ -22,8 +31,8 @@ class FlowModel(PrefectModel):
         default=config.get('flows', 'default_version'), index=True)
     active = pw.BooleanField(
         default=config.getboolean('flows', 'default_active'))
-    serialized = fields.AESEncryptedField(
-        key=config.get('db', 'secret_key'), null=True)
+    serialized = db.AESEncryptedField(
+        key=base64.b64decode(config.get('db', 'secret_key').encode()))
 
     # tasks = pw.Set
 
@@ -34,24 +43,25 @@ class FlowModel(PrefectModel):
             (('namespace', 'name', 'version'), True),)
 
     @classmethod
-    def from_id(cls, namespace, name, version=None):
-
+    def from_id(cls, namespace, name, version):
         """
         Returns a FlowModel corresponding to the provided Flow parameters,
         if one exists in the database. If not, a new FlowModel is created
         (but not saved).
         """
-
         try:
             return cls.get(
                 (cls.namespace == namespace)
                 & (cls.name == name)
-                & (cls.version == version))
+                & (cls.version == version))  # yapf: disable
         except pw.DoesNotExist:
             return cls(namespace=namespace, name=name, version=version)
 
 
 class TaskModel(PrefectModel):
+    """
+    Database model for a Prefect Task
+    """
     name = pw.CharField()
     flow = pw.ForeignKeyField(FlowModel, related_name='tasks', index=True)
 
@@ -63,6 +73,9 @@ class TaskModel(PrefectModel):
 
 
 class EdgeModel(PrefectModel):
+    """
+    Database model for a Prefect Edge
+    """
     upstream_task = pw.ForeignKeyField(TaskModel, related_name='out_edges')
     downstream_task = pw.ForeignKeyField(TaskModel, related_name='in_edges')
     type = pw.CharField()
@@ -75,6 +88,9 @@ deferred_taskrun = pw.DeferredRelation()
 
 
 class JobModel(PrefectModel):
+    """
+    Database model for a Prefect Job
+    """
     created = pw.DateTimeField()
     scheduled_start = pw.DateTimeField(null=True)
     started = pw.DateTimeField(null=True)
@@ -89,6 +105,9 @@ class JobModel(PrefectModel):
 
 
 class FlowRunModel(JobModel):
+    """
+    Database model for a Prefect FlowRun
+    """
 
     flow = pw.ForeignKeyField(FlowModel, related_name='flowruns')
     params = kv.JSONKeyStore(database=db.database)
@@ -99,6 +118,9 @@ class FlowRunModel(JobModel):
 
 
 class TaskRunModel(JobModel):
+    """
+    Database model for a Prefect TaskRun
+    """
 
     flowrun = pw.ForeignKeyField(FlowRunModel, related_name='taskruns')
     task = pw.ForeignKeyField(TaskModel, related_name='taskruns')

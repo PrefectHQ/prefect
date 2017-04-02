@@ -1,5 +1,6 @@
 import base64
 import distributed
+import ujson
 import prefect
 from prefect.models import FlowModel
 from prefect.task import Task
@@ -15,6 +16,85 @@ from prefect.schedules import (
 _CONTEXT_FLOW = None
 
 
+class Graph:
+
+    def __init__(self):
+        """
+        A Directed Acyclic Graph
+        """
+        self._nodes = set()
+        self._edges_to_node = {}
+        self._edges_from_node = {}
+        self._pipes = {}
+
+    def __repr__(self):
+        return '<Directed Acyclic Graph>'.format(
+            num=len(self._nodes), plural='' if len(self._nodes) == 1 else 's')
+
+    def __iter__(self):
+        yield from self.sort_nodes()
+
+    @property
+    def nodes(self):
+        return set(self._nodes)
+
+    def edges_to(self, node):
+        """
+        Set of all nodes with edges leading TO the specified node
+        """
+        return set(self._edges_to_node[node])
+
+    def edges_from(self, node):
+        """
+        Set of all nodes with edges leading FROM the specified node
+        """
+        return set(self._edges_from_node[node])
+
+    # def pipes(self, node):
+    #     return dict(self._pipes[node])
+
+    def sort_nodes(self):
+
+        nodes = set(self.nodes)
+        sort_nodes = []
+
+        while nodes:
+            acyclic = False
+            for node in list(nodes):
+                for upstream_node in self.edges_to(node):
+                    if upstream_node in nodes:
+                        # the previous node hasn't been sorted yet, so
+                        # this node can't be sorted either
+                        break
+                else:
+                    # all previous nodes are sorted, so this one can be
+                    # sorted as well
+                    acyclic = True
+                    nodes.remove(node)
+                    sort_nodes.append(node)
+            if not acyclic:
+                # no nodes matched
+                raise ValueError('Cycle detected in graph!')
+        return tuple(sort_nodes)
+
+    def add_node(self, node):
+        if node not in self._nodes:
+            self._nodes.add(node)
+            self._edges_to_node[node] = set()
+            self._edges_from_node[node] = set()
+            self._pipes[node] = {}
+
+    def add_edge(self, from_obj, to_obj):
+        self.add_node(from_obj)
+        self.add_node(to_obj)
+        self._edges_to_node[to_obj].update([from_obj])
+        self._edges_from_node[from_obj].update([to_obj])
+
+        # try sorting nodes to make sure there are no cycles (an error is
+        # raised otherwise)
+        self.sort_nodes()
+
+
 class Flow(LoggingMixin):
 
     def __init__(
@@ -23,7 +103,7 @@ class Flow(LoggingMixin):
             required_params=None,
             schedule=NoSchedule(),
             namespace=prefect.config.get('flows', 'default_namespace'),
-            version=1,
+            version=prefect.config.get('flows', 'default_version'),
             active=prefect.config.getboolean('flows', 'default_active'),
             **_kw):
         """
@@ -45,41 +125,21 @@ class Flow(LoggingMixin):
         self.required_params = required_params
         self.schedule = schedule
         self.active = active
-
-        # a graph of task relationships keyed by the `after` task
-        # and containing all the `before` tasks as values
-        # { after : set(before, ...)}
-        self.graph = {}
+        self.graph = Graph()
+        self.pipes = Graph()
 
     @property
     def id(self):
-        if self.namespace:
-            namespace = '{}.'.format(self.namespace)
-        else:
-            namespace = ''
-        return '{}{}:{}'.format(namespace, self.name, self.version)
+        return '{namespace}.{name}:{version}'.format(
+            namespace=self.namespace, name=self.name, version=self.version)
 
     def __repr__(self):
         return '{}({})'.format(type(self).__name__, self.id)
 
-    # Tasks ---------------------------------------------------------
-
-    def __getitem__(self, item):
-        return self.graph[item]
+    # Graph -------------------------------------------------------------------
 
     def __iter__(self):
-        yield from self.sorted_tasks()
-
-    def add_task(self, task):
-        if task.flow_id != self.id:
-            raise ValueError('Task {} is already in another Flow'.format(task))
-
-        task_names = set(t.name for t in self.graph)
-        if task.name in task_names:
-            raise ValueError(
-                'A task named {} already exists in this Flow.'.format(
-                    task.name))
-        self.graph[task] = set()
+        yield from self.sort_tasks()
 
     def get_task(self, name=None, id=None):
         """
@@ -98,62 +158,57 @@ class Flow(LoggingMixin):
             raise PrefectError(
                 'Task {} was not found in the Flow'.format(name or id))
 
-    def add_task_relationship(self, before, after):
-        if before not in self.graph:
-            self.add_task(before)
-        if after not in self.graph:
-            self.add_task(after)
-        self.graph[after].add(before)
+    def add_task(self, task):
+        if not isinstance(task, Task):
+            raise TypeError(
+                'Expected a Task; received {}'.format(type(task).__name__))
+        if task.flow_id != self.id:
+            raise ValueError('Task {} is already in another Flow'.format(task))
 
-        # try sorting tasks to make sure there are no cycles (an error is
-        # raised otherwise)
-        self.sorted_tasks()
+        task_names = set(t.name for t in self.graph)
+        if task.name in task_names:
+            raise ValueError(
+                'A task named {} already exists in this Flow.'.format(
+                    task.name))
 
-    def sorted_tasks(self):
+        self.graph.add_node(task)
+
+    def add_dependency(self, upstream_task, downstream_task):
+        """
+        Create a dependent relationship between the upstream task and the
+        downstream_task. The downstream_task will not run until its trigger is
+        met by the upstream task.
+        """
+        self.graph.add_edge(upstream_task, downstream_task)
+
+    def add_pipe(self, task, upstream_task_result, key):
+        """
+        Create a data pipe between the upstream task result
+        and the downstream task. The upstream task result will be passed to
+        the downstream task as a parameter under `key`.
+        """
+        self.graph.add_pipe(
+            task=task, upstream_task_result=upstream_task_result, key=key)
+
+    def upstream_tasks(self, task):
+        """
+        Set of all tasks immediately upstream from a task
+        """
+        return self.graph.edges_to(task)
+
+    def downstream_tasks(self, task):
+        """
+        Set of all tasks immediately downstream from a task
+        """
+        return self.graph.edges_from(task)
+
+    def sort_tasks(self):
         """
         Returns a topological sort of this Flow's tasks.
 
         Note that the resulting sort will not always be in the same order!
         """
-
-        graph = self.graph.copy()
-        sorted_graph = []
-
-        while graph:
-            acyclic = False
-            for task in list(graph):
-                for preceding_task in graph[task]:
-                    if preceding_task in graph:
-                        # the previous task hasn't been sorted yet, so
-                        # this task can't be sorted either
-                        break
-                else:
-                    # all previous tasks are sorted, so this one can be
-                    # sorted as well
-                    acyclic = True
-                    del graph[task]
-                    sorted_graph.append(task)
-            if not acyclic:
-                # no tasks matched
-                raise prefect.exceptions.PrefectError(
-                    'Cycle detected in graph!')
-        return sorted_graph
-
-    def inverted_graph(self):
-        """
-        The Flow graph is stored as {task: set(preceding_tasks)} to make it
-        easy to look up a task's immediate predecessors.
-
-        Sometimes we want to find a task's immediate descendents. This method
-        returns a graph of {task: set(following_nodes)}.
-        """
-        inverted_graph = {t: set() for t in self.graph}
-
-        for task, preceding_tasks in self.graph.items():
-            for t in preceding_tasks:
-                inverted_graph[t].add(task)
-
-        return inverted_graph
+        return self.graph.sort_nodes()
 
     # Context Manager -----------------------------------------------
 
@@ -167,48 +222,65 @@ class Flow(LoggingMixin):
         global _CONTEXT_FLOW
         _CONTEXT_FLOW = self._old_context_manager_flow
 
-    # Serialization  ------------------------------------------------
+    # Persistence  ------------------------------------------------
 
     def serialize(self):
-        return prefect.utilities.serialize.serialize(self)
+        """
+        Serialize a Flow into the database.
+        """
+        header, frames = distributed.protocol.serialize(self)
+        return ujson.dumps(
+            dict(
+                header=header,
+                frames=[base64.b64encode(b).decode('utf-8') for b in frames]))
 
     @staticmethod
-    def from_serialized(serialized_obj):
-        flow = prefect.utilities.serialize.deserialize(serialized_obj)
-        if not isinstance(flow, Flow):
-            raise TypeError('Deserialized object is not a Flow!')
-        return flow
-
-    # ORM ----------------------------------------------------------
-
-    def to_model(self):
-        """
-        Create a database-compatible version of this Flow
-        """
-        return FlowModel(
-            _id=self.id,
-            namespace=self.namespace,
-            name=self.name,
-            version=str(self.version),
-            active=self.active,
-            required_params=sorted(self.required_params),
-            graph={
-                t.id: sorted(pt.id for pt in preceding)
-                for t, preceding in self.graph.items()
-            },
-            tasks={task.id: task.to_model()
-                   for task in self},
-            serialized=self.serialize(),)
+    def from_serialized(serialized):
+        serialized = ujson.loads(serialized)
+        header, frames = serialized['header'], serialized['frames']
+        frames = [base64.b64decode(b.encode('utf-8')) for b in frames]
+        return distributed.protocol.deserialize(header, frames)
 
     @classmethod
-    def from_id(cls, flow_id):
-        return cls.from_serialized(
-            FlowModel.objects.only('serialized').get(_id=flow_id)['serialized'])
+    def from_id(cls, id):
+        model = (
+            FlowModel
+            .select(FlowModel.serialized)
+            .where(FlowModel.id == id)
+            .get())  # yapf: disable
+        return cls.from_serizlied(model.serialized)
+
+    @classmethod
+    def from_name(cls, namespace, name, version):
+        """
+        Load a serialized Flow from the database
+        """
+        model = (
+            FlowModel
+            .select(FlowModel.serialized)
+            .where(
+                (FlowModel.namespace == namespace)
+                & (FlowModel.name == name)
+                & (FlowModel.version == version))
+            .get())  # yapf: disable
+        return cls.from_serialized(model.serialized)
+
+    def reload(self):
+        model = FlowModel.from_id(
+            name=self.name,
+            namespace=self.namespace,
+            version=self.version,)
+        if model.id:
+            self.active = model.active
 
     def save(self):
-        for task in self:
-            task.save()
-        model = self.to_model()
+        model = FlowModel.from_id(
+            name=self.name,
+            namespace=self.namespace,
+            version=self.version,)
+        model.active = self.active
+        model.serialized = self.serialize()
+
         model.save()
 
     # Decorator ----------------------------------------------------
