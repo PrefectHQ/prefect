@@ -15,9 +15,9 @@ class PrefectModel(pw.Model):
 
 
 class FlowModel(PrefectModel):
-    name = pw.CharField(index=True)
     namespace = pw.CharField(
         default=config.get('flows', 'default_namespace'), index=True)
+    name = pw.CharField(index=True)
     version = pw.CharField(
         default=config.get('flows', 'default_version'), index=True)
     active = pw.BooleanField(
@@ -32,6 +32,23 @@ class FlowModel(PrefectModel):
         indexes = (
             # unique index on namespace / name / version
             (('namespace', 'name', 'version'), True),)
+
+    @classmethod
+    def from_id(cls, namespace, name, version=None):
+
+        """
+        Returns a FlowModel corresponding to the provided Flow parameters,
+        if one exists in the database. If not, a new FlowModel is created
+        (but not saved).
+        """
+
+        try:
+            return cls.get(
+                (cls.namespace == namespace)
+                & (cls.name == name)
+                & (cls.version == version))
+        except pw.DoesNotExist:
+            return cls(namespace=namespace, name=name, version=version)
 
 
 class TaskModel(PrefectModel):
