@@ -78,12 +78,16 @@ class FlowModel(PrefectModel):
                 raise
         return model
 
-    def delete_instance(self, delete_runs=False):
-        """
-        Deletes the FlowModel as well as any associated Tasks and
-        Serialized values.
-        """
-        pass
+    def archive(self):
+        self.archived = True
+        self.save()
+
+    # def delete_instance(self, delete_runs=False):
+    #     """
+    #     Deletes the FlowModel as well as any associated Tasks and
+    #     Serialized values.
+    #     """
+    #     pass
 
 
 class TaskModel(PrefectModel):
@@ -100,44 +104,38 @@ class TaskModel(PrefectModel):
             (('name', 'flow'), True),)
 
 
-# class EdgeModel(PrefectModel):
-#     """
-#     Database model for a Prefect Edge
-#     """
-#     upstream_task = pw.ForeignKeyField(TaskModel, related_name='out_edges')
-#     downstream_task = pw.ForeignKeyField(TaskModel, related_name='in_edges')
-#     type = pw.CharField()
-#
-#     class Meta:
-#         db_table = 'edges'
+class EdgeModel(PrefectModel):
+    """
+    Database model for a Prefect Edge
+    """
+    upstream_task = pw.ForeignKeyField(TaskModel, related_name='downstream_tasks')
+    downstream_task = pw.ForeignKeyField(TaskModel, related_name='upstream_tasks')
+
+    class Meta:
+        db_table = 'edges'
 
 deferred_taskrun = pw.DeferredRelation()
 
 
-class JobModel(PrefectModel):
-    """
-    Database model for a Prefect Job
-    """
-    created = pw.DateTimeField(default=datetime.datetime.now)
-    scheduled_start = pw.DateTimeField(null=True, index=True)
-    started = pw.DateTimeField(null=True)
-    finished = pw.DateTimeField(null=True)
-    heartbeat = pw.DateTimeField(null=True, index=True)
-
-    progress = pw.FloatField(default=0)
-
-    generated_by = pw.ForeignKeyField(
-        deferred_taskrun, null=True, index=True, related_name='generated')
-
-    state = pw.IntegerField(default=0, index=True)
-
-
-class FlowRunModel(JobModel):
+class FlowRunModel(PrefectModel):
     """
     Database model for a Prefect FlowRun
     """
 
     flow = pw.ForeignKeyField(FlowModel, related_name='flow_runs', index=True)
+
+    created = pw.DateTimeField(default=datetime.datetime.now)
+    scheduled_start = pw.DateTimeField(null=True, index=True)
+    started = pw.DateTimeField(null=True)
+    finished = pw.DateTimeField(null=True)
+    heartbeat = pw.DateTimeField(null=True)
+
+    progress = pw.FloatField(default=0)
+
+    generated_by = pw.ForeignKeyField(
+        deferred_taskrun, null=True, index=True, related_name='generated_flow_runs')
+
+    state = pw.IntegerField(default=0, index=True)
     params = kv.JSONKeyStore(database=db.database)
     scheduled = pw.BooleanField(default=False)
 
@@ -145,7 +143,7 @@ class FlowRunModel(JobModel):
         db_table = 'flow_runs'
 
 
-class TaskRunModel(JobModel):
+class TaskRunModel(PrefectModel):
     """
     Database model for a Prefect TaskRun
     """
@@ -154,6 +152,19 @@ class TaskRunModel(JobModel):
         FlowRunModel, related_name='task_runs', index=True)
     task = pw.ForeignKeyField(TaskModel, related_name='task_runs', index=True)
     run_number = fields.IntegerField(default=1, index=True)
+
+    created = pw.DateTimeField(default=datetime.datetime.now)
+    scheduled_start = pw.DateTimeField(null=True, index=True)
+    started = pw.DateTimeField(null=True)
+    finished = pw.DateTimeField(null=True)
+    heartbeat = pw.DateTimeField(null=True)
+
+    progress = pw.FloatField(default=0)
+
+    generated_by = pw.ForeignKeyField(
+        deferred_taskrun, null=True, index=True, related_name='generated_task_runs')
+
+    state = pw.IntegerField(default=0, index=True)
 
     class Meta:
         db_table = 'task_runs'

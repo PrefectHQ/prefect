@@ -86,3 +86,6 @@ def test_relationships(env):
 
     # walk taskresult -> taskrun -> flowrun -> flow -> namespace
     assert r.taskrun.flowrun.flow.namespace.namespace == 'test'
+
+def test(env):
+    pass

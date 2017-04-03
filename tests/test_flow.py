@@ -1,64 +1,17 @@
-import mongoengine
-import pytest
+import peewee
 from prefect.exceptions import PrefectError
 import prefect
-from prefect.models import FlowModel
-from prefect.flow import Flow, Graph
+from prefect.models import FlowModel, TaskModel
+from prefect.flow import Flow
 from prefect.task import Task
+from prefect.edges import Edge, Pipe
+import pytest
+import uuid
 
 
 def fn():
     """ a test function for tasks"""
     pass
-
-
-class TestGraph:
-
-    def test_add_nodes(self):
-        g = Graph()
-        for i in range(3):
-            g.add_node(i)
-            assert i in g
-        assert g.nodes == set(range(3))
-
-        # re-add node
-        g.add_node(0)
-
-    def test_add_edge(self):
-        g = Graph()
-        g.add_edge(0, 1)
-        g.add_edge(1, 2)
-        g.add_edge(0, 2)
-        assert g.nodes == set(range(3))
-        assert g.edges_to(2) == set([0, 1])
-        assert g.edges_from(0) == set([1, 2])
-
-        # re-add edge
-        g.add_edge(0, 1)
-
-    def test_sort_nodes(self):
-        g = Graph()
-        g.add_edge(9, 5)
-        g.add_edge(5, 3)
-        g.add_edge(3, 1)
-        g.add_edge(5, 1)
-        assert g.sort_nodes() == (9, 5, 3, 1)
-
-    def test_add_cycle(self):
-        g = Graph()
-        with pytest.raises(ValueError):
-            g.add_edge(0, 0)
-
-        with pytest.raises(ValueError):
-            g.add_edge(0, 1)
-            g.add_edge(1, 0)
-
-        with pytest.raises(ValueError):
-            g.add_edge(0, 1)
-            g.add_edge(1, 2)
-            g.add_edge(3, 2)
-            g.add_edge(3, 1)
-
 
 class TestFlow:
 
@@ -73,7 +26,6 @@ class TestFlow:
         assert f.namespace == prefect.config.get('flows', 'default_namespace')
         assert f.name == 'test'
         assert f.version == prefect.config.get('flows', 'default_version')
-        assert f.id is None
 
     def test_add_task(self):
         f = Flow('test')
@@ -82,18 +34,18 @@ class TestFlow:
             f.add_task(1)
 
         # can't add task from another flow
-        t2 = Task(fn=fn, name='t2', flow=f2)
+        t2 = Task(flow=f2)
         with pytest.raises(ValueError):
             f.add_task(t2)
 
         # can't add task already in the flow
-        t3 = Task(fn=fn, name='t3', flow=f)
+        t3 = Task(flow=f)
         with pytest.raises(ValueError):
             f.add_task(t3)
 
     def test_context_manager(self):
         with Flow('test') as f:
-            t1 = Task(fn=fn, name='t1')
+            t1 = Task()
 
         assert t1.flow is f
         assert t1 in f
@@ -103,76 +55,117 @@ class TestFlow:
         Tests that iterating over a Flow yields the tasks in order
         """
         with Flow('test') as f:
-            t1 = Task(fn=fn, name='t1')
-            t2 = Task(fn=fn, name='t2')
-            t1.run_after(t2)
-        assert tuple(f) == f.sort_tasks() == (t2, t1)
+            t1 = Task()
+            t2 = Task()
+            f.add_edge(Edge(upstream_task=t1, downstream_task=t2))
+        assert tuple(f) == f.sort_tasks() == (t1, t2)
 
-    def test_relationship(self):
+    def test_edge(self):
         with Flow('test') as f:
-            t1 = Task(fn=fn, name='t1')
-            t2 = Task(fn=fn, name='t2')
-            t1.run_after(t2)
-        assert f.upstream_tasks(t1) == set([t2])
-        assert f.upstream_tasks(t2) == set()
-        assert f.downstream_tasks(t1) == set()
-        assert f.downstream_tasks(t2) == set([t1])
+            t1 = Task()
+            t2 = Task()
+            f.add_edge(Edge(upstream_task=t1, downstream_task=t2))
+        assert f.upstream_tasks(t2) == set([t1])
+        assert f.upstream_tasks(t1) == set()
+        assert f.downstream_tasks(t2) == set()
+        assert f.downstream_tasks(t1) == set([t2])
+
+    def test_pipes(self):
+        with Flow('test') as f:
+            t1 = Task()
+            t2 = Task()
+            f.add_edge(Edge(upstream_task=t1, downstream_task=t2))
+        assert f.upstream_tasks(t2) == set([t1])
+        assert f.upstream_tasks(t1) == set()
+        assert f.downstream_tasks(t2) == set()
+        assert f.downstream_tasks(t1) == set([t2])
 
     def test_get_task_by_name(self):
         """
         Tests flow.get_task()
         """
         with Flow('test') as f:
-            t1 = Task(fn=fn, name='t1')
-            t2 = Task(fn=fn, name='t2')
-            t1.run_before(t2)
+            t1 = Task()
+            t2 = Task()
+            f.add_edge(Edge(upstream_task=t1, downstream_task=t2))
 
-        assert f.get_task('t1') is t1
+        assert f.get_task('Task-1') is t1
         with pytest.raises(PrefectError):
             f.get_task('some task')
 
+    def test_detect_cycle(self):
+        with Flow('test') as f:
+            t1 = Task()
+            t2 = Task()
+            t3 = Task()
+
+        t1.then(t2).then(t3)
+
+        with pytest.raises(ValueError) as e:
+            t3.run_before(t1)
 
 class TestPersistence:
 
     def test_serialize(self):
         with Flow('test') as f:
-            t1 = Task(fn=fn, name='t1')
-            t2 = Task(fn=fn, name='t2')
+            t1 = Task()
+            t2 = Task()
             t1.run_before(t2)
 
         serialized = prefect.utilities.serialize.serialize(f, encryption_key='abc')
         f2 = prefect.utilities.serialize.deserialize(serialized, decryption_key='abc')
         assert isinstance(f2, Flow)
-        assert [t.name for t in f] == [t.name for t in f2]
+        assert set(f) == set(f2)
+
 
     def test_save(self):
-        with Flow('test') as f:
-            t1 = Task(fn=fn, name='t1')
-            t2 = Task(fn=fn, name='t2')
+        with Flow(uuid.uuid4().hex) as f:
+            t1 = Task()
+            t2 = Task()
             t1.run_before(t2)
         assert len(list(FlowModel)) == 0
         f.save()
         assert len(list(FlowModel)) == 1
 
+    def test_flow_id(self):
+        with Flow(uuid.uuid4().hex) as f:
+            t1 = Task()
+        with pytest.raises(PrefectError):
+            f.id
+        f.save()
+        assert f.id > 0
+
     def test_reload(self):
-        with Flow('test') as f:
-            t1 = Task(fn=fn, name='t1')
-            t2 = Task(fn=fn, name='t2')
+        with Flow(uuid.uuid4().hex) as f:
+            t1 = Task()
+            t2 = Task()
             t1.run_before(t2)
+        f.save()
         f.active = False
         f.reload()
         assert f.active
 
     def test_from_id(self):
-        with Flow('test') as f:
-            t1 = Task(fn=fn, name='t1')
-            t2 = Task(fn=fn, name='t2')
+        with Flow(uuid.uuid4().hex) as f:
+            t1 = Task()
+            t2 = Task()
             t1.run_before(t2)
         f.save()
 
         f2 = Flow.from_id(f.id)
         assert f2.id == f.id
 
+    def test_delete(self):
+        with Flow(uuid.uuid4().hex) as f:
+            t1 = Task()
+            t2 = Task()
+            t1.run_before(t2)
+        f.save()
+
+        TaskModel.get(id=t1.id)
+        f.delete(confirm=True)
+        with pytest.raises(peewee.DoesNotExist):
+            TaskModel.get(id=t1.id)
 
 class TestSugar:
 
@@ -190,6 +183,6 @@ class TestSugar:
         t1.run_before(t2)
 
         assert isinstance(t1, Task)
-        assert t1.name == 't1'
+        assert t1.name == 't1-1'
         assert isinstance(t2, Task)
         assert t2.name == 'test_name'

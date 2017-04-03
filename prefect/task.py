@@ -1,17 +1,18 @@
 import copy
 import datetime
-from mongoengine import DoesNotExist
+import peewee
 import prefect
+from prefect.exceptions import PrefectError
+from prefect.edges import Edge, Pipe
 from prefect.models import TaskModel, FlowModel
 from prefect.utilities.logging import LoggingMixin
+from prefect.utilities.strings import name_with_suffix
 
 
 class Task(LoggingMixin):
     """
     Tasks are basic units of work. Each task performs a specific funtion.
     """
-
-    default_pipe = prefect.pipes.Pipe
 
     def __init__(
             self,
@@ -20,7 +21,6 @@ class Task(LoggingMixin):
             fn=None,
             max_retries=0,
             retry_delay=datetime.timedelta(minutes=5),
-            pass_params=False,
             trigger=None):
         """
         fn: By default, the Task's run() method calls this function.
@@ -28,10 +28,7 @@ class Task(LoggingMixin):
         max_retries: the number of times this task can be retried. -1 indicates
             an infinite number of times.
 
-        pass_params: Whether to pass the parameters to the Task function. If
-            True, the function must accept **kwargs.
         """
-
         self.fn = fn
 
         if flow is None:
@@ -41,37 +38,41 @@ class Task(LoggingMixin):
                     'Tasks must be created with a Flow or inside '
                     'a Flow context manager.')
         self.flow = flow
-        self.flow_id = flow.id
+        self.flow_id = flow.flow_id
 
         if name is None:
-            name = self.fn.__name__
+            name = name_with_suffix(
+                name=getattr(self.fn, '__name__', type(self).__name__),
+                predicate=lambda n: n not in [t.name for t in flow.tasks])
 
-        if not isinstance(name, str):
-            raise TypeError(
-                'Name must be a string; received {}'.format(type(name)))
         self.name = name
+        self.task_id = '{}/{}'.format(self.flow_id, self.name)
 
-        if not isinstance(max_retries, int):
-            raise TypeError(
-                'Retries must be an int; received {}'.format(max_retries))
         self.max_retries = max_retries
-
         self.retry_delay = retry_delay
 
         if trigger is None:
             trigger = prefect.triggers.all_success
         self.trigger = trigger
 
-        self.pass_params = pass_params
-
         self.flow.add_task(self)
+        self._id = None
 
     @property
     def id(self):
-        return '{}/{}'.format(self.flow_id, self.name)
+        """ The ID of this Task's TaskModel, if known """
+        return self._id
 
     def __repr__(self):
-        return '{}({})'.format(type(self).__name__, self.id)
+        return '{}({})'.format(type(self).__name__, self.task_id)
+
+    # Comparison --------------------------------------------------------------
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.task_id == other.task_id
+
+    def __hash__(self):
+        return hash(self.task_id)
 
     # Relationships  ----------------------------------------------------------
 
@@ -79,65 +80,79 @@ class Task(LoggingMixin):
         """
         Adds a relationship to the Flow so that this task runs before another
         task.
+
+        Args:
+            Tasks (Task or collection of Tasks): Tasks that this task should
+                run before.
         """
         if isinstance(tasks, Task):
             tasks = [tasks]
         for t in tasks:
-            self.flow.add_dependency(upstream_task=self, downstream_task=t)
+            self.flow.add_edge(Edge(upstream_task=self, downstream_task=t))
 
     def run_after(self, tasks):
         """
         Adds a relationship to the Flow so that this task runs after another
         task.
+
+        Args:
+            Tasks (Task or collection of Tasks): Tasks that this task should
+                run after.
         """
         if isinstance(tasks, Task):
             tasks = [tasks]
         for t in tasks:
-            self.flow.add_dependency(upstream_task=t, downstream_task=self)
+            self.flow.add_edge(Edge(upstream_task=t, downstream_task=self))
 
-    def pipe_from(self, **kwargs):
+    def then(self, task):
+        """
+        Create simple dependency chains by linking tasks:
+            task1.then(task2).then(task3)
+
+        Args:
+            task (Task): the task that should run after this one
+
+        Returns:
+            The downstream task (`task`)
+
+        """
+        self.flow.add_edge(Edge(upstream_task=self, downstream_task=task))
+        return task
+
+    def add_pipes(self, **kwargs):
         """
         Adds a data pipe to the Flow so this task receives the results
         of upstream tasks.
+
+        Args:
+            **kwargs (Tasks or TaskResults): The provided Tasks / TaskResults
+                will be piped into this Task under the key corresponding to
+                that task / taskresult's kwarg.
         """
-        for key, task_result in kwargs:
+        for key, task_result in kwargs.items():
             if isinstance(task_result, Task):
-                task_result = Pipe(task_result)
-            self.flow.add_pipe(
-                key=key,
-                upstream_task_result=task_result,
-                downstream_task=self,)
-
-    def setup(self, run_before=None, run_after=None, **pipes):
-        if run_before:
-            self.run_before(run_before)
-        if run_after:
-            self.run_after(run_after)
-        if pipes:
-            self.pipe_from(**pipes)
-
+                task_result = TaskResult(task_result)
+            self.flow.add_edge(
+                Pipe(
+                    upstream_task_result=task_result,
+                    downstream_task=self,
+                    key=key))
 
     # Run  --------------------------------------------------------------------
 
-    def run(self, **params):
+    def run(self):
         if self.fn is not None:
-            kwargs = {}
-            if self.pass_params:
-                kwargs.update(params)
-            return self.fn(**kwargs)
+            return self.fn()
+        else:
+            raise NotImplementedError('No `fn` was passed to this task!')
 
     # Results  ----------------------------------------------------------------
-
-    def result(self, index=None, pipe_class=None):
-        if pipe_class is None:
-            pipe_class = self.default_pipe
-        return pipe_class(task=self, index=index)
 
     def __iter__(self):
         raise NotImplementedError('Tasks can not be iterated.')
 
     def __getitem__(self, index):
-        return self.result(index=index)
+        return TaskResult(task=self, index=index)
 
     # Sugar -------------------------------------------------------------------
 
@@ -173,25 +188,41 @@ class Task(LoggingMixin):
         self.run_before(obj)
         return obj
 
-    # ORM --------------------------------------------------------------------
-
-    def to_model(self):
-        return TaskModel(
-            _id=self.id,
-            name=self.name,
-            type=type(self).__name__,
-            flow_id=self.flow_id,
-            max_retries=self.max_retries)
-
-    @staticmethod
-    def from_id(task_id):
-        flow_id = TaskModel.objects.only('flow_id').get(_id=task_id)['flow_id']
-        flow = prefect.flow.Flow.from_id(flow_id)
-        return flow.get_task(id=task_id)
+    # Persistence -------------------------------------------------------------
 
     def save(self):
-        model = self.to_model()
+        model = self._get_model()
         model.save()
+        self._id = model.id
 
-    def serialize(self):
-        return prefect.utilities.serialize.Serialized.serialize(self)
+    def _get_model(self):
+        try:
+            model = TaskModel.get(name=self.name, flow=self.flow.id)
+        except peewee.DoesNotExist:
+            model = TaskModel(name=self.name, flow=self.flow.id)
+        return model
+
+
+class TaskResult:
+    """
+    An object that represents the result (output) of a Task.
+
+    TaskResults are primarily used to pipe data from one task to another.
+    """
+
+    class NoIndex:
+        pass
+
+    def __init__(self, task, index=NoIndex):
+        if not isinstance(task, Task):
+            raise TypeError(
+                'task must be a Task; received {}'.format(type(task).__name__))
+        self.task = task
+        self.index = index
+
+    def _repr_index(self):
+        return '[{}]'.format(
+            self.index if self.index is not self.NoIndex else ':')
+
+    def __repr__(self):
+        return 'TaskResult({}{})'.format(self.task.task_id, self._repr_index())

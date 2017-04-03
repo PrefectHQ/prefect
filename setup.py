@@ -7,7 +7,7 @@ install_requires = [
     'hug',
     'peewee',
     'pycrypto',
-    'python-dateutil',
+    'pendulum',
     'transitions',
 ]
 

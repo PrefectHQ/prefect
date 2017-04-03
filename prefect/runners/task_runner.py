@@ -1,7 +1,6 @@
 import datetime
 from distributed import worker_client
 import logging
-import mongoengine
 import prefect.flow
 from prefect import exceptions as ex
 from prefect.state import State
