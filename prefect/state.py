@@ -4,15 +4,15 @@ transitions.logger.setLevel(logging.WARNING)
 
 
 class State:
-    NONE = 'NONE'
-    SCHEDULED = 'SCHEDULED'
-    PENDING = 'PENDING'
-    PENDING_RETRY = 'PENDING_RETRY'
-    RUNNING = 'RUNNING'
-    SUCCESS = 'SUCCESS'
-    FAILED = 'FAILED'
-    SKIPPED = 'SKIPPED'
-    WAITING_FOR_SUBTASKS = 'WAITING_FOR_SUBTASKS'
+    NONE = 0
+    SCHEDULED = 1
+    PENDING = 2
+    PENDING_RETRY = 3
+    RUNNING = 4
+    SUCCESS = 5
+    FAILED = 6
+    SKIPPED = 7
+    WAITING_FOR_SUBTASKS = 8
 
     @classmethod
     def all_states(cls):
@@ -113,7 +113,7 @@ class State:
             trigger='pending',
             source=[self.NONE],
             dest=self.PENDING,)
-        
+
     def __eq__(self, other):
         return getattr(self, 'state', None) == other
 
