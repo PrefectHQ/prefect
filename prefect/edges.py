@@ -78,6 +78,14 @@ class Edge:
             model = EdgeModel(**kwargs)
         return model
 
+    def __eq__(self, other):
+        return (
+            type(self) == type(other)
+            and (self.upstream_task, self.downstream_task) ==
+                (other.upstream_task, other.downstream_task))  #yapf: disable
+
+    def __hash__(self):
+        return id(self)
 
 class Pipe(Edge):
     """

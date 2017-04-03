@@ -67,6 +67,14 @@ class Flow(LoggingMixin):
     def __repr__(self):
         return '{}({})'.format(type(self).__name__, self.flow_id)
 
+    def __eq__(self, other):
+        return (
+            type(self) == type(other) and self.flow_id == other.flow_id
+            and self.tasks == other.tasks and self.edges == other.edges)
+
+    def __hash__(self):
+        return id(self)
+
     # Graph -------------------------------------------------------------------
 
     def __iter__(self):
