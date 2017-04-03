@@ -175,6 +175,24 @@ class Flow(LoggingMixin):
                 raise ValueError('Flows must be acyclic!')
         return tuple(sort_tasks)
 
+    def edges_to(self, task):
+        """
+        Set of all Edges leading to this Task
+
+        Args:
+            task (Task)
+        """
+        return set(e for e in self.edges if e.downstream_task == task)
+
+    def edges_from(self, task):
+        """
+        Set of all Edges leading from this Task
+
+        Args:
+            task (Task)
+        """
+        return set(e for e in self.edges if e.upstream_task == task)
+
     # Context Manager -----------------------------------------------
 
     def __enter__(self):

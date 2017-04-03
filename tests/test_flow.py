@@ -9,10 +9,6 @@ import pytest
 import uuid
 
 
-def fn():
-    """ a test function for tasks"""
-    pass
-
 class TestFlow:
 
     def test_create_flow(self):
@@ -69,6 +65,7 @@ class TestFlow:
         assert f.upstream_tasks(t1) == set()
         assert f.downstream_tasks(t2) == set()
         assert f.downstream_tasks(t1) == set([t2])
+        assert f.edges_to(t2) == f.edges_from(t1)
 
     def test_pipes(self):
         with Flow('test') as f:
