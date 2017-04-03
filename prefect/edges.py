@@ -87,6 +87,7 @@ class Edge:
     def __hash__(self):
         return id(self)
 
+
 class Pipe(Edge):
     """
     Pipes move results from upstream tasks to downstream tasks.
@@ -163,4 +164,4 @@ class Pipe(Edge):
         result = PipeResultModel.objects.only('serialized_result').get(
             _id=_id)['serialized_result']
         result = prefect.utilities.serialize.deserialize(result)
-        return self.deserialize(result, run_id)
+        return {self.key: self.deserialize(result, run_id)}

@@ -6,6 +6,7 @@ import prefect.utilities
 import prefect.triggers
 import prefect.schedules
 import prefect.edges
+from prefect.runners.context import context
 
 from prefect.flow import Flow
 from prefect.task import Task

@@ -72,7 +72,7 @@ class Task(LoggingMixin):
         return type(self) == type(other) and self.task_id == other.task_id
 
     def __hash__(self):
-        return hash(self.task_id)
+        return id(self)
 
     # Relationships  ----------------------------------------------------------
 
@@ -140,9 +140,9 @@ class Task(LoggingMixin):
 
     # Run  --------------------------------------------------------------------
 
-    def run(self):
+    def run(self, **inputs):
         if self.fn is not None:
-            return self.fn()
+            return self.fn(**inputs)
         else:
             raise NotImplementedError('No `fn` was passed to this task!')
 

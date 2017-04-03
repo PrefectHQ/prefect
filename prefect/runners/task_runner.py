@@ -3,6 +3,7 @@ from distributed import worker_client
 import logging
 import prefect.flow
 from prefect import exceptions as ex
+from prefect.runners.context import prefect_context
 from prefect.state import State
 import types
 import uuid
@@ -21,22 +22,10 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
     """
 
     def __init__(
-            self,
-            run_id,
-            task,
-            params,
-            run_number=1,
-            force=False,
+            self, run_id, task, run_number=1, force=False,
             scheduled_start=None):
         self.task = task
         self.run_id = run_id
-        self.params = params.copy()
-        self.params.update(
-            {
-                'task_id': task.id,
-                'task_name': task.name,
-                'run_number': run_number
-            })
         self.force = force
         self.state = State()
         self.run_number = run_number
@@ -49,15 +38,20 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
         self.finished = None
         self.heartbeat = None
 
+        self._id = None
+
     @property
     def id(self):
-        return '{}/{}#{}'.format(self.run_id, self.task.id, self.run_number)
+        if self._id is None:
+            raise ValueError(
+                "This TaskRun hasn't been saved to the database yet.")
+        return self._id
 
     def __repr__(self):
         return '{}(run_id={}, task={}, run={})'.format(
             type(self).__name__, self.run_id, self.task.id, self.run_number)
 
-    def run(self, preceding_states, force=False):
+    def run(self, preceding_states, context, force=False):
 
         if self.state.is_successful():
             if force:
@@ -68,7 +62,8 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
 
         l, t = self.logger, self.task
         try:
-            self._run(preceding_states=preceding_states, force=force)
+            self._run(
+                preceding_states=preceding_states, context=context, force=force)
         except ex.SUCCESS as e:
             l.debug('Task {} completed successfully: {}'.format(t, e))
             self.state.succeed()
@@ -92,15 +87,20 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
             next_taskrun = TaskRunner(
                 run_id=self.run_id,
                 task=self.task,
-                params=self.params,
                 run_number=self.run_number + 1,
                 scheduled_start=datetime.datetime.utcnow() + retry_delay)
             next_taskrun.save()
+            run(preceding_states)
+            # TODO
+            # finish this by submitting the taskrun inside a worker thread
+            # we can't exit this taskrun until we know its final state,
+            # so we wait for the new taskrun (and possibly its descendents),
+            # refreshing state when it finishes to find out what happened.
 
         self.save()
         return self.state
 
-    def _run(self, preceding_states, force=False):
+    def _run(self, preceding_states, context, force=False):
         """
         Run the task and return its state.
 
@@ -108,6 +108,9 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
             immediately preceding this one
         """
 
+        # -------------------------------------------------------------------
+        # TODO: take a lock on the TaskRunModel
+        # -------------------------------------------------------------------
         self.save_or_reload()
         self.started = datetime.datetime.utcnow()
         self.finished = None
@@ -149,13 +152,22 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
             self.task.trigger(preceding_states)
 
         # -------------------------------------------------------------------
+        # run downstream phase of any incoming edges
+        # -------------------------------------------------------------------
+        for edge in self.task.flow.edges_to(self.task):
+            edge_result = edge.run_downstream(run_id=self.run_id)
+            if edge_result:
+                context['edges'].update(edge_result)
+
+        # -------------------------------------------------------------------
         # run task
         # -------------------------------------------------------------------
-        result = self.task.run(**self.params)
-        # if the task returns a generator, it means it generates
-        # subtasks that require special handling
-        if isinstance(result, types.GeneratorType):
-            self._run_generator_task(result)
+        with prefect_context(**context):
+            result = self.task.run(**context['edges'])
+            # if the task returns a generator, it means it generates
+            # subtasks that require special handling
+            if isinstance(result, types.GeneratorType):
+                self._run_generator_task(result)
 
         # -------------------------------------------------------------------
         # Finished!
@@ -176,41 +188,48 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
 
             generated_futures = client.channel('generated_futures')
 
-            # iterate over the generator
-            for result in generator:
-                #
-                if isinstance(result, (float, int)):
-                    self.progress = result
-                    self.save()
-                    continue
-                if isinstance(result, (prefect.task.Task, prefect.flow.Flow)):
-                    result = [result]
-                for subtask in result:
-                    # the subtask is a Flow
-                    #   - create a Flow Runner and execute the Flow
-                    if isinstance(subtask, prefect.flow.Flow):
-                        runner = prefect.runners.FlowRunner(
-                            flow=subtask,
-                            run_id=self.id,
-                            params=self.params,
-                            generated_by=self.to_model())
-                        future = client.submit(runner.run, pure=False)
-                        futures.add(future)
-                        generated_futures.append(future)
+            # create a context for yielding tasks
+            with self.task.flow:
+                # iterate over the generator
+                for result in generator:
+                    #
+                    if isinstance(result, (float, int)):
+                        self.progress = result
+                        self.save()
+                        continue
+                    if isinstance(
+                            result, (prefect.task.Task, prefect.flow.Flow)):
+                        result = [result]
+                    for subtask in result:
+                        # the subtask is a Flow
+                        #   - create a Flow Runner and execute the Flow
+                        if isinstance(subtask, prefect.flow.Flow):
+                            runner = prefect.runners.FlowRunner(
+                                flow=subtask,
+                                run_id=self.id,
+                                params=self.params,
+                                generated_by=self.to_model())
+                            future = client.submit(runner.run, pure=False)
+                            futures.add(future)
+                            generated_futures.append(future)
 
-                    # the subtask is a Flow
-                    #   - create a Flow Runner and execute the Flow
-                    elif isinstance(subtask, prefect.task.Task):
-                        runner = TaskRunner(task=subtask, run_id=self.id)
-                        future = client.submit(runner.run, {}, pure=False)
-                        futures.add(future)
-                        generated_futures.append(future)
+                        # the subtask is a Flow
+                        #   - create a Flow Runner and execute the Flow
+                        elif isinstance(subtask, prefect.task.Task):
+                            runner = TaskRunner(task=subtask, run_id=self.id)
+                            future = client.submit(
+                                runner.run,
+                                preceding_states={},
+                                context=context,
+                                pure=False)
+                            futures.add(future)
+                            generated_futures.append(future)
 
-                    # raise an error if something unexpected happens
-                    else:
-                        raise ex.PrefectError(
-                            'Tasks should only yield Flows and Tasks; '
-                            'received {}'.format(type(subtask).__name__))
+                        # raise an error if something unexpected happens
+                        else:
+                            raise ex.PrefectError(
+                                'Tasks should only yield Flows and Tasks; '
+                                'received {}'.format(type(subtask).__name__))
             self.state.wait_for_subtasks()
             self.save()
             client.gather(futures)
@@ -218,6 +237,9 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
             self.save()
 
     # ORM ----------------------------------------------------------
+
+    def _get_model(self):
+        kwargs = dict()
 
     def to_model(self):
         return prefect.models.TaskRunModel(
