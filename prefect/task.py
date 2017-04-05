@@ -56,12 +56,6 @@ class Task(LoggingMixin):
         self.trigger = trigger
 
         self.flow.add_task(self)
-        self._id = None
-
-    @property
-    def id(self):
-        """ The ID of this Task's TaskModel, if known """
-        return self._id
 
     def __repr__(self):
         return '{}({})'.format(type(self).__name__, self.task_id)
@@ -149,7 +143,7 @@ class Task(LoggingMixin):
     # Results  ----------------------------------------------------------------
 
     def __iter__(self):
-        raise NotImplementedError('Tasks can not be iterated.')
+        raise NotImplementedError('Tasks are not iterable.')
 
     def __getitem__(self, index):
         return TaskResult(task=self, index=index)
@@ -187,20 +181,6 @@ class Task(LoggingMixin):
         """ obj << self -> self.run_before(obj)"""
         self.run_before(obj)
         return obj
-
-    # Persistence -------------------------------------------------------------
-
-    def save(self):
-        model = self._get_model()
-        model.save()
-        self._id = model.id
-
-    def _get_model(self):
-        try:
-            model = TaskModel.get(name=self.name, flow=self.flow.id)
-        except peewee.DoesNotExist:
-            model = TaskModel(name=self.name, flow=self.flow.id)
-        return model
 
 
 class TaskResult:

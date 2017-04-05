@@ -1,196 +1,425 @@
-import base64
-import datetime
-import distributed
-import json
-import peewee as pw
-from playhouse import fields, kv
-
-from prefect.configuration import config
-import prefect.utilities.database as db
+import pendulum
+import prefect
+from prefect.utilities import database, serialize, state
+import sqlalchemy as sa
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import reconstructor, relationship, backref
+import ujson
 
 
-class PrefectModel(pw.Model):
+class EncryptedStringType(sa.TypeDecorator):
     """
-    Base class for Prefect PeeWee models
+    A String column that automatically encrypts its contents.
+    """
+    impl = sa.String
+
+    def __init__(self, encryption_key, *args, **kwargs):
+        self.encryption_key = encryption_key
+        super().__init__(*args, **kwargs)
+
+    def process_bind_param(self, value, dialect):
+        cipher = serialize.AESCipher(key=self.encryption_key)
+        return cipher.encrypt(value)
+
+    def process_result_value(self, value, dialect):
+        cipher = serialize.AESCipher(key=self.encryption_key)
+        return cipher.decrypt(value)
+
+
+class SerializedType(sa.TypeDecorator):
+    """
+    A LargeBinary column that automatically serializes Python objects.
+
+    NOTE: this column executes code when objects are serialized and
+        deserialized (via the pickle module). Only trusted objects should
+        be stored! To mitigate the risk slightly, serialized objects are
+        encrypted prior to being stored in the database.
     """
 
-    class Meta:
-        database = db.database
+    impl = sa.LargeBinary
+
+    def __init__(self, encryption_key, *args, **kwargs):
+        self.encryption_key = encryption_key
+        super().__init__(*args, **kwargs)
+
+    def process_bind_param(self, value, dialect):
+        serialized = serialize.serialize(
+            value, encryption_key=self.encryption_key)
+        cipher = serialize.AESCipher(key=self.encryption_key)
+        return cipher.encrypt(serialized)
+
+    def process_result_value(self, value, dialect):
+        cipher = serialize.AESCipher(key=self.encryption_key)
+        serialized = cipher.decrypt(value)
+        return serialize.deserialize(
+            serialized, decryption_key=self.encryption_key)
+
+
+class StateType(sa.TypeDecorator):
+    """
+    A String column that automatically takes its value from, and is read as,
+    a State variable.
+    """
+
+    impl = sa.String
+
+    def __init__(self, state_class, *args, **kwargs):
+        self.state_class = state_class
+        super().__init__(*args, **kwargs)
+
+    def process_bind_param(self, value, dialect):
+        """
+        On the way in, store the string value of the state class's state
+        """
+        if isinstance(value, str):
+            return value
+        elif isinstance(value, self.state_class):
+            return value.state
+        else:
+            raise TypeError(
+                'Expected string or {}; received {}'.format(
+                    self.state_class.__name__, type(value).__name__))
+
+    def process_result_value(self, value, dialect):
+        """
+        On the way in, recreate the state variable from the integer state
+        """
+        return self.state_class(value)
+
+
+class BaseModel:
+
+    __abstract__ = True
+    __repr_attrs__ = ['id']
+    __repr_delimiter__ = '/'
+
+    # -------------------------------------------------------------------------
+    # id Column
+    # -------------------------------------------------------------------------
+
+    id = sa.Column(sa.Integer, primary_key=True)
+
+    # -------------------------------------------------------------------------
+    # Friendly __repr__
+    # -------------------------------------------------------------------------
 
     def __repr__(self):
-        return '<{}({})>'.format(type(self).__name__, self.id)
+        return '{}({})'.format(type(self).__name__, str(self))
 
+    def __str__(self):
+        attrs = [str(getattr(self, i)) for i in self.__repr_attrs__]
+        return self.__repr_delimiter__.join(attrs)
 
-class Namespace(PrefectModel):
-    namespace = pw.CharField(index=True, unique=True)
-
-    class Meta:
-        db_table = 'namespaces'
+    # -------------------------------------------------------------------------
+    # Helper methods
+    # -------------------------------------------------------------------------
 
     @classmethod
-    def ensure_exists(cls, namespace):
+    def _kwargs_to_where_clause(cls, **kwargs):
+        where_clauses = []
+        for key, value in kwargs.items():
+            where_clauses.append(getattr(cls, key) == value)
+        return where_clauses
+
+    # -------------------------------------------------------------------------
+    # CRUD methods
+    # -------------------------------------------------------------------------
+
+    def save(self):
         """
-        Ensures that a namespace with the given name exists by creating it
-        if it does not. Returns the Namespace.
+        Saves the current model to the database.
         """
-        if not cls.select().where(cls.namespace == namespace).exists():
-            cls.create(namespace=namespace)
-        return cls.get(cls.namespace == namespace)
+        with database.transaction() as s:
+            s.add(self)
+
+    @classmethod
+    def create(cls, **kwargs):
+        """
+        Creates and saves a new model.
+        """
+        model = cls()
+        model.update(**kwargs)
+        model.save()
+        return model
+
+    @classmethod
+    def get_or_build(cls, **kwargs):
+        """
+        Attempts to retrieve the first model matching the provided filters,
+        and builds it if it doesn't exist (but does not add it to the database).
+        """
+        with database.transaction() as s:
+            count = (
+                s.query(cls).filter(*cls._kwargs_to_where_clause(**kwargs))
+                .count())
+            if count == 1:
+                return (
+                    s.query(cls).filter(*cls._kwargs_to_where_clause(**kwargs))
+                    .first())
+            elif count > 1:
+                raise ValueError(
+                    'More than one model matches those critiera (found {})'.
+                    format(count))
+            else:
+                return cls(**kwargs)
+
+    @classmethod
+    def get_or_create(cls, **kwargs):
+        """
+        Attempts to retrieve the first model matching the provided filters,
+        and creates it if it doesn't exist.
+        """
+        model = cls.get_or_build(**kwargs)
+        if not model.id:
+            with database.transaction() as s:
+                s.add(model)
+        return model
+
+    def update(self, **kwargs):
+        """
+        Updates the model with new attributes and saves it to the database
+        """
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def delete(self):
+        """
+        Delete this model from the database.
+        """
+        with database.transaction() as s:
+            s.delete(self)
+
+    # -------------------------------------------------------------------------
+    # Simple queries
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def find(cls, id, error_if_missing=False):
+        """
+        Return the model corresponding to the provided id.
+
+        Returns None if
+        """
+        if id is None:
+            result = None
+        else:
+            with database.transaction() as s:
+                result = s.query(cls).get(id)
+        if error_if_missing and not result:
+            raise ValueError(
+                'No {} found with id {}'.format(type(cls).__name__, id))
+        return result
+
+    @classmethod
+    def first(cls, *where_clauses, order_by=None, **kwargs):
+        """
+        Issues a select command with the provided filters and returns the first
+        matching result.
+        """
+        where = list(where_clauses) + cls._kwargs_to_where_clause(**kwargs)
+
+        with database.transaction() as s:
+            return (
+                s.query(cls)
+                .filter(*where)
+                .order_by(order_by)
+                .first())  # yapf: disable
+
+    @classmethod
+    def where(cls, *where_clauses, **kwargs):
+        """
+        Issues a select command with the provided filters (implicity joined)
+        by "AND").
+        """
+        where = list(where_clauses) + cls._kwargs_to_where_clause(**kwargs)
+        with database.transaction() as s:
+            return s.query(cls).filter(*where).all()
+
+    @classmethod
+    def count(cls, *where_clauses, **kwargs):
+        """
+        Issues a count(*) command with the provided filters (implicity joined)
+        by "AND").
+        """
+        where = list(where_clauses) + cls._kwargs_to_where_clause(**kwargs)
+        with database.transaction() as s:
+            return s.query(cls).filter(*where).count()
 
 
-class FlowModel(PrefectModel):
+Base = declarative_base(cls=BaseModel)
+
+
+class Namespace(Base):
+    __tablename__ = 'namespaces'
+    __repr_attrs__ = ['name']
+
+    name = sa.Column(sa.String, index=True, unique=True, nullable=False)
+    flows = relationship('FlowModel', back_populates='namespace', cascade='all')
+
+
+class FlowModel(Base):
     """
     Database model for a Prefect Flow
     """
-    namespace = pw.ForeignKeyField(Namespace, index=True, related_name='flows')
-    name = pw.CharField(index=True)
-    version = pw.CharField(
-        default=config.get('flows', 'default_version'), index=True)
-    active = pw.BooleanField(
-        default=config.getboolean('flows', 'default_active'))
-    archived = pw.BooleanField(default=False)
-    serialized = pw.BlobField(null=True)
+    __tablename__ = 'flows'
+    __repr_attrs__ = ['namespace', 'name', 'version']
 
-    # tasks = pw.Set
+    namespace_id = sa.Column(
+        sa.Integer, sa.ForeignKey(Namespace.id), index=True)
+    namespace = relationship(Namespace, back_populates='flows')
+    name = sa.Column(sa.String, nullable=False, index=True)
+    version = sa.Column(sa.String, nullable=False, index=True)
 
-    class Meta:
-        db_table = 'flows'
-        indexes = (
-            # unique index on namespace / name / version
-            (('namespace', 'name', 'version'), True),)
+    # Active / inactive / archived
+    state = sa.Column(
+        StateType(state.FlowState),
+        nullable=False,
+        default=state.FlowState._default_state,
+        index=True)
 
-    @classmethod
-    def from_flow_id(cls, namespace, name, version, create_if_not_found=False):
-        """
-        Returns a FlowModel corresponding to the provided Flow parameters,
-        if one exists in the database. If not, a new FlowModel is created
-        (but not saved).
-        """
-        try:
-            model = cls.get(
-                (cls.namespace == Namespace.get(Namespace.namespace == namespace))
-                & (cls.name == name)
-                & (cls.version == version))  # yapf: disable
-        except pw.DoesNotExist:
-            if create_if_not_found:
-                model = cls(namespace=Namespace.ensure_exists(namespace), name=name, version=version)
-            else:
-                raise
-        return model
+    # Serialized Flow
+    serialized = sa.Column(
+        SerializedType(
+            encryption_key=prefect.config.get('db', 'encryption_key')),
+        nullable=True)
 
-    def archive(self):
-        self.archived = True
-        self.save()
+    # tasks
+    tasks = relationship('TaskModel', back_populates='flow', cascade='all')
+    flow_runs = relationship(
+        'FlowRunModel', back_populates='flow', cascade='all')
 
-    # def delete_instance(self, delete_runs=False):
-    #     """
-    #     Deletes the FlowModel as well as any associated Tasks and
-    #     Serialized values.
-    #     """
-    #     pass
+    __tableargs__ = (sa.UniqueConstraint(namespace_id, name, version),)
 
 
-class TaskModel(PrefectModel):
+class TaskModel(Base):
     """
     Database model for a Prefect Task
     """
-    name = pw.CharField()
-    flow = pw.ForeignKeyField(FlowModel, related_name='tasks', index=True)
+    __tablename__ = 'tasks'
+    __repr_attrs__ = ['flow', 'name']
 
-    class Meta:
-        db_table = 'tasks'
-        indexes = (
-            # unique index on name / flow
-            (('name', 'flow'), True),)
+    flow_id = sa.Column(sa.ForeignKey(FlowModel.id), index=True)
+    name = sa.Column(sa.String)
 
+    flow = relationship(FlowModel, back_populates='tasks')
+    task_runs = relationship(
+        'TaskRunModel', back_populates='task', cascade='all')
 
-class EdgeModel(PrefectModel):
-    """
-    Database model for a Prefect Edge
-    """
-    upstream_task = pw.ForeignKeyField(TaskModel, related_name='downstream_tasks')
-    downstream_task = pw.ForeignKeyField(TaskModel, related_name='upstream_tasks')
-
-    class Meta:
-        db_table = 'edges'
-
-deferred_taskrun = pw.DeferredRelation()
+    __tableargs__ = (sa.UniqueConstraint(name, flow_id),)
 
 
-class FlowRunModel(PrefectModel):
+# class EdgeModel(Base):
+#     """
+#     Database model for a Prefect Edge
+#     """
+#     __tablename__ = 'edges'
+#     upstream_task = pw.ForeignKeyField(TaskModel, related_name='downstream_tasks')
+#     downstream_task = pw.ForeignKeyField(TaskModel, related_name='upstream_tasks')
+
+
+class RunnerModel:
+
+    created = sa.Column(sa.DateTime, default=pendulum.now)
+    scheduled = sa.Column(sa.DateTime, nullable=True, index=True)
+    started = sa.Column(sa.DateTime, nullable=True)
+    finished = sa.Column(sa.DateTime, nullable=True)
+    heartbeat = sa.Column(sa.DateTime, nullable=True)
+    progress = sa.Column(sa.Float, default=0.0)
+    state = sa.Column(sa.String, default='', index=True)
+
+
+class FlowRunModel(Base, RunnerModel):
     """
     Database model for a Prefect FlowRun
     """
 
-    flow = pw.ForeignKeyField(FlowModel, related_name='flow_runs', index=True)
+    __tablename__ = 'flow_runs'
+    __repr_attrs__ = ['flow']
 
-    created = pw.DateTimeField(default=datetime.datetime.now)
-    scheduled_start = pw.DateTimeField(null=True, index=True)
-    started = pw.DateTimeField(null=True)
-    finished = pw.DateTimeField(null=True)
-    heartbeat = pw.DateTimeField(null=True)
+    state = sa.Column(
+        StateType(state.FlowRunState),
+        nullable=False,
+        default=state.FlowRunState._default_state,
+        index=True)
 
-    progress = pw.FloatField(default=0)
+    flow_id = sa.Column(sa.ForeignKey(FlowModel.id), index=True)
 
-    generated_by = pw.ForeignKeyField(
-        deferred_taskrun, null=True, index=True, related_name='generated_flow_runs')
+    flow = relationship(FlowModel, back_populates='flow_runs')
+    task_runs = relationship(
+        'TaskRunModel',
+        back_populates='flow_run',
+        foreign_keys='TaskRunModel.flow_run_id',
+        cascade='all')
+    generating_task_run_id = sa.Column(
+        sa.ForeignKey('task_runs.id'), index=True, nullable=True)
+    generating_task_run = relationship(
+        'TaskRunModel',
+        back_populates='generated_flow_runs',
+        foreign_keys=generating_task_run_id)
 
-    state = pw.IntegerField(default=0, index=True)
-    params = kv.JSONKeyStore(database=db.database)
-    scheduled = pw.BooleanField(default=False)
 
-    class Meta:
-        db_table = 'flow_runs'
-
-
-class TaskRunModel(PrefectModel):
+class TaskRunModel(Base, RunnerModel):
     """
     Database model for a Prefect TaskRun
     """
+    __tablename__ = 'task_runs'
+    __repr_attrs__ = ['task']
 
-    flowrun = pw.ForeignKeyField(
-        FlowRunModel, related_name='task_runs', index=True)
-    task = pw.ForeignKeyField(TaskModel, related_name='task_runs', index=True)
-    run_number = fields.IntegerField(default=1, index=True)
+    state = sa.Column(
+        StateType(state.TaskRunState),
+        nullable=False,
+        default=state.TaskRunState._default_state,
+        index=True)
+    flow_run_id = sa.Column(sa.ForeignKey(FlowRunModel.id), index=True)
+    task_id = sa.Column(sa.ForeignKey(TaskModel.id), index=True)
+    run_number = sa.Column(sa.Integer, default=1)
 
-    created = pw.DateTimeField(default=datetime.datetime.now)
-    scheduled_start = pw.DateTimeField(null=True, index=True)
-    started = pw.DateTimeField(null=True)
-    finished = pw.DateTimeField(null=True)
-    heartbeat = pw.DateTimeField(null=True)
+    generating_task_run_id = sa.Column(
+        sa.ForeignKey('task_runs.id'), index=True, nullable=True)
 
-    progress = pw.FloatField(default=0)
+    flow_run = relationship(
+        FlowRunModel, back_populates='task_runs', foreign_keys=flow_run_id)
+    flow = relationship(
+        FlowModel,
+        secondary=FlowRunModel.__table__,
+        primaryjoin='TaskRunModel.flow_run_id == FlowRunModel.id',
+        secondaryjoin='FlowRunModel.flow_id == FlowModel.id',
+        viewonly=True)
+    task = relationship(TaskModel, back_populates='task_runs')
+    task_results = relationship(
+        'TaskResultModel', back_populates='task_run', cascade='all')
+    generated_task_runs = relationship(
+        'TaskRunModel',
+        backref=backref('generating_task_run', remote_side='TaskRunModel.id'),)
+    generated_flow_runs = relationship(
+        FlowRunModel,
+        back_populates='generating_task_run',
+        foreign_keys=FlowRunModel.generating_task_run_id,)
 
-    generated_by = pw.ForeignKeyField(
-        deferred_taskrun, null=True, index=True, related_name='generated_task_runs')
-
-    state = pw.IntegerField(default=0, index=True)
-
-    class Meta:
-        db_table = 'task_runs'
-        indexes = (
-            # unique index on flowrun / task / run #
-            (('flowrun', 'task', 'run_number'), True),)
+    __table_args__ = (sa.UniqueConstraint(flow_run_id, task_id, run_number),)
 
 
-deferred_taskrun.set_model(TaskRunModel)
-
-
-class TaskResultModel(PrefectModel):
+class TaskResultModel(Base):
     """
     Database model for the serialized result of a Prefect task
     """
-    taskrun = pw.ForeignKeyField(
-        TaskRunModel, related_name='results', index=True)
-    index = pw.CharField(index=True)
-    serialized = pw.BlobField()
+    __tablename__ = 'task_results'
+    __repr_attrs__ = ['task', 'index']
 
-    class Meta:
-        db_table = 'task_results'
+    task_run_id = sa.Column(sa.ForeignKey(TaskRunModel.id), index=True)
+    index = sa.Column(sa.String)
+    serialized = sa.Column(
+        SerializedType(
+            encryption_key=prefect.config.get('db', 'encryption_key')),
+        nullable=True)
 
+    task_run = relationship(
+        TaskRunModel, back_populates='task_results', foreign_keys=[task_run_id])
+    task = relationship(
+        TaskModel,
+        secondary=TaskRunModel.__table__,
+        primaryjoin='TaskResultModel.task_run_id == TaskRunModel.id',
+        secondaryjoin='TaskRunModel.task_id==TaskModel.id',
+        viewonly=True,)
 
-# if the database is in memory, it needs to be initialized
-# but if this script is being run directly, we don't want to run this code
-# since it will have already run during the import of this module
-if db.database.is_in_memory and not __name__ == '__main__':
-    db.initialize()
+    __table_args__ = (sa.UniqueConstraint(task_run_id, index),)

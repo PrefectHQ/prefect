@@ -102,6 +102,17 @@ class TestFlow:
             t3.run_before(t1)
 
 class TestPersistence:
+    def test_expunge_session(self):
+        """
+        Getting a flow's model involves loading a namespace model. That dirties
+        the session and subsequent queries flush the namespace (and flows!)
+        even if the flow hasn't been saved yet.
+        """
+        count = FlowModel.count()
+        with Flow(name=uuid.uuid4().hex) as f:
+            pass
+        assert count == FlowModel.count()
+
 
     def test_serialize(self):
         with Flow('test') as f:
@@ -109,38 +120,26 @@ class TestPersistence:
             t2 = Task()
             t1.run_before(t2)
 
-        serialized = prefect.utilities.serialize.serialize(f, encryption_key='abc')
-        f2 = prefect.utilities.serialize.deserialize(serialized, decryption_key='abc')
+        f.save()
+        f2 = Flow.from_id(f.id)
         assert isinstance(f2, Flow)
-        assert set(f) == set(f2)
-
+        assert [t.task_id for t in f] == [t.task_id for t in f2]
 
     def test_save(self):
         with Flow(uuid.uuid4().hex) as f:
             t1 = Task()
             t2 = Task()
             t1.run_before(t2)
-        assert len(list(FlowModel)) == 0
+        count = FlowModel.count()
         f.save()
-        assert len(list(FlowModel)) == 1
+        assert FlowModel.count() == count + 1
 
     def test_flow_id(self):
         with Flow(uuid.uuid4().hex) as f:
             t1 = Task()
-        with pytest.raises(PrefectError):
-            f.id
+        assert f.id is None
         f.save()
         assert f.id > 0
-
-    def test_reload(self):
-        with Flow(uuid.uuid4().hex) as f:
-            t1 = Task()
-            t2 = Task()
-            t1.run_before(t2)
-        f.save()
-        f.active = False
-        f.reload()
-        assert f.active
 
     def test_from_id(self):
         with Flow(uuid.uuid4().hex) as f:
@@ -152,17 +151,6 @@ class TestPersistence:
         f2 = Flow.from_id(f.id)
         assert f2.id == f.id
 
-    def test_delete(self):
-        with Flow(uuid.uuid4().hex) as f:
-            t1 = Task()
-            t2 = Task()
-            t1.run_before(t2)
-        f.save()
-
-        TaskModel.get(id=t1.id)
-        f.delete(confirm=True)
-        with pytest.raises(peewee.DoesNotExist):
-            TaskModel.get(id=t1.id)
 
 class TestSugar:
 

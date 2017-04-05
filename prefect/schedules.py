@@ -2,7 +2,6 @@ import croniter
 import datetime
 import dateutil
 import itertools
-from prefect.state import State
 
 
 class Schedule:

@@ -5,9 +5,9 @@ install_requires = [
     'dask',
     'distributed',
     'hug',
-    'peewee',
     'pycrypto',
     'pendulum',
+    'sqlalchemy',
     'transitions',
 ]
 

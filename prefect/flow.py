@@ -1,13 +1,12 @@
 import base64
 import distributed
 import ujson
-import peewee
 import prefect
 from prefect.models import Namespace, FlowModel
 from prefect.edges import Edge
 from prefect.task import Task
 from prefect.exceptions import PrefectError
-from prefect.utilities.logging import LoggingMixin
+import prefect.utilities
 from prefect.schedules import (
     Schedule,
     NoSchedule,
@@ -18,17 +17,15 @@ from prefect.schedules import (
 _CONTEXT_FLOW = None
 
 
-class Flow(LoggingMixin):
+class Flow(prefect.utilities.logging.LoggingMixin):
 
     def __init__(
             self,
             name,
-            required_params=None,
-            schedule=NoSchedule(),
             namespace=prefect.config.get('flows', 'default_namespace'),
             version=prefect.config.get('flows', 'default_version'),
-            active=prefect.config.getboolean('flows', 'default_active'),
-            **_kw):
+            required_params=None,
+            schedule=NoSchedule()):
         """
         required_params: a collection of parameter names that must be provided
             when the Flow is run. Flows can be called with any params, but an
@@ -47,22 +44,11 @@ class Flow(LoggingMixin):
         self.version = version
         self.required_params = required_params
         self.schedule = schedule
-        self.active = active
         self.tasks = set()
         self.edges = set()
         self.flow_id = '{namespace}.{name}:{version}'.format(
             namespace=self.namespace, name=self.name, version=self.version)
-        self._id = None
-        self.reload()
-
-    @property
-    def id(self):
-        """ The ID of this Flow's FlowModel, if known """
-        if self._id is not None:
-            return self._id
-        else:
-            raise PrefectError(
-                '{} has no id because it has not been saved!'.format(self))
+        self.id = None
 
     def __repr__(self):
         return '{}({})'.format(type(self).__name__, self.flow_id)
@@ -212,81 +198,37 @@ class Flow(LoggingMixin):
         """
         Load a serialized Flow from the database
         """
-        model = (
-            FlowModel
-            .select(FlowModel.serialized)
-            .where(FlowModel.id == id)
-            .get())  # yapf: disable
-        flow = prefect.utilities.serialize.deserialize(
-            model.serialized,
-            decryption_key=prefect.config.get('db', 'encryption_key'))
-        flow._id = id
+        model = FlowModel.find(id)
+        if not model:
+            raise PrefectError('No Flow found with id {}'.format(id))
+        flow = model.serialized
+        flow.id = id
         return flow
 
-    def _get_model(self):
+    def save(self):
         """
         Retreives the ORM model corresponding to this Flow, but does not
         create it in the database if it does not exist already.
         """
-        try:
-            namespace = Namespace.get(namespace=self.namespace)
-        except peewee.DoesNotExist:
-            namespace = Namespace(namespace=self.namespace)
-        kwargs = dict(
+        # import ipdb; ipdb.set_trace()
+
+        namespace = Namespace.get_or_create(name=self.namespace)
+        model = FlowModel.first(
             namespace=namespace,
             name=self.name,
-            version=self.version,)
-        try:
-            model = FlowModel.get(**kwargs)
-        except peewee.DoesNotExist:
-            model = FlowModel(**kwargs)
-        return model
-
-    def reload(self):
-        model = self._get_model()
-        if model.id:
-            self.active = model.active
-            self._id = model.id
-
-    def save(self):
-        model = self._get_model()
-        model.namespace = Namespace.ensure_exists(self.namespace)
-        model.active = self.active
-        model.serialized = prefect.utilities.serialize.serialize(
-            self, encryption_key=prefect.config.get('db', 'encryption_key'))
+            version=self.version)
+        if not model:
+            model = FlowModel.create(
+                namespace=namespace,
+                name=self.name,
+                version=self.version)
+        model.serialized = self
         model.save()
-        self._id = model.id
+        self.id = model.id
+
+        # save the tasks
         for t in self.tasks:
-            t.save()
-        for e in self.edges:
-            e.save()
-
-    def archive(self):
-        model = self._get_model()
-        if model.id:
-            model.archived = True
-            model.save()
-        else:
-            raise PrefectError('{} has not been saved yet.'.format(self))
-
-    def unarchive(self):
-        model = self._get_model()
-        if model.id:
-            model.archived = False
-            model.save()
-        else:
-            raise PrefectError('{} has not been saved yet.'.format(self))
-
-    def delete(self, confirm=False):
-        if not confirm:
-            raise ValueError(
-                'You must confirm that you want to delete this '
-                'Flow and all related data.')
-        model = self._get_model()
-        if model.id:
-            model.delete_instance(recursive=True)
-        else:
-            raise PrefectError('{} has not been saved yet.'.format(self))
+            TaskModel.get_or_create(name=t.name, flow_id=model.id)
 
     # Decorator ----------------------------------------------------
 

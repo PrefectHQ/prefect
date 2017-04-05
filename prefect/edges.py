@@ -1,10 +1,6 @@
 import peewee
 import prefect
-from prefect.models import EdgeModel
 import prefect.utilities.serialize
-
-# from prefect.models import PipeResultModel, PipeModel
-
 
 class Edge:
     """
@@ -29,18 +25,10 @@ class Edge:
                     type(downstream_task).__name__))
         self.upstream_task = upstream_task
         self.downstream_task = downstream_task
-        self.id = None
 
     def __repr__(self):
         return '{}({} -> {})'.format(
             type(self).__name__, self.upstream_task, self.downstream_task)
-
-    def to_json(self):
-        return dict(
-            description=repr(self),
-            type=type(self).__name__,
-            upstream_task=self.upstream_task.id,
-            downstream_task=self.downstream_task.id,)
 
     def run_upstream(self, result):
         """
@@ -56,27 +44,6 @@ class Edge:
         Called after the upstream task runs.
         """
         pass
-
-    def save(self):
-        model = self._get_model()
-        model.save()
-        if model.id:
-            self.id = model.id
-
-    def _get_model(self):
-        if self.upstream_task.id is None or self.downstream_task.id is None:
-            raise PrefectError(
-                'EdgeModels can only be generated after their Tasks have been'
-                'saved to the database.')
-
-        kwargs = dict(
-            upstream_task=self.upstream_task.id,
-            downstream_task=self.downstream_task.id)
-        try:
-            model = EdgeModel.get(**kwargs)
-        except peewee.DoesNotExist:
-            model = EdgeModel(**kwargs)
-        return model
 
     def __eq__(self, other):
         return (
@@ -112,10 +79,10 @@ class Pipe(Edge):
         self.task_result = upstream_task_result
         self.key = key
         self.index = upstream_task_result.index
+        self._repr_index = upstream_task_result._repr_index()
 
     def id(self, run_id):
-        return '{}/{}/{}'.format(
-            run_id, self.task.id, self.task_result._repr_index())
+        return '{}/{}/{}'.format(run_id, self.task.id, self._repr_index)
 
     def __repr__(self):
         return '{}({} -> {})'.format(
@@ -142,14 +109,9 @@ class Pipe(Edge):
         """
         if self.index is not None:
             result = result[self.index]
-        serialized = prefect.utilities.serialize.serialize(
-            result, encryption_key=prefect.config.get('db', 'secret_key'))
-        model = prefect.models.TaskResultModel()
-        model = PipeResultModel(
-            _id=_id,
-            run_id=run_id,
-            pipe=PipeModel(index=str(self.index), task=self.task.to_model()),
-            serialized_result=prefect.utilities.serialize.serialize(serialized))
+        model = prefect.models.TaskResultModel.get_or_build(
+            task_run_id=run_id, index=self._repr_index)
+        model.result = result
         model.save()
 
     def run_downstream(self, run_id):
@@ -161,7 +123,6 @@ class Pipe(Edge):
         else:
             _id = '{}/{}'.format(run_id, self.task.id)
 
-        result = PipeResultModel.objects.only('serialized_result').get(
-            _id=_id)['serialized_result']
-        result = prefect.utilities.serialize.deserialize(result)
+        result = prefect.models.TaskResultModel.first(
+            task_run_id=run_id, index=self._repr_index).result
         return {self.key: self.deserialize(result, run_id)}

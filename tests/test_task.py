@@ -166,16 +166,6 @@ class TestTaskRelationships:
         assert set([mid1, mid2]) == f.downstream_tasks(before)
         assert set([mid1, mid2]) == f.upstream_tasks(after)
 
-    def test_save(self):
-        name = 'test-save-task'
-        with Flow(name) as f:
-            t1 = Task()
-        with pytest.raises(PrefectError):
-            t1.save()
-        f.save()
-        t1.save()
-        assert t1.id is not None
-
 
 class TestTaskResult:
 

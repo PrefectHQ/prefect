@@ -4,7 +4,7 @@ import logging
 import prefect.flow
 from prefect import exceptions as ex
 from prefect.runners.context import prefect_context
-from prefect.state import State
+from prefect.utilities.state import TaskRunState
 import types
 import uuid
 
@@ -27,7 +27,7 @@ class TaskRunner(prefect.utilities.logging.LoggingMixin):
         self.task = task
         self.run_id = run_id
         self.force = force
-        self.state = State()
+        self.state = TaskState()
         self.run_number = run_number
         self.scheduled_start = scheduled_start
 
