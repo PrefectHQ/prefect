@@ -13,16 +13,16 @@ install_requires = [
 
 extras = {
     's3': ['awsfs'],
-    'gcs': ['https://github.com/martindurant/gcsfs.git'],
+    # 'gcs': ['https://github.com/martindurant/gcsfs.git'],
     'test': ['pytest', 'pytest-env', 'pytest-xdist'],
 }
 
 setup(
-    name='prefect',
+    name='prefect-flow',
     version='0.0',
     description='',
     long_description=open('README.md').read(),
-    url='https://gitlab.com/jlowin/prefect',
+    url='https://gitlab.com/prefect/prefect',
     author='jlowin',
     author_email='jlowin@apache.org',
     install_requires=install_requires,

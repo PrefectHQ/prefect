@@ -2,7 +2,6 @@ import base64
 import distributed
 import ujson
 import prefect
-from prefect.models import Namespace, FlowModel
 from prefect.edges import Edge
 from prefect.task import Task
 from prefect.exceptions import PrefectError

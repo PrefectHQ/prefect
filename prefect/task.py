@@ -1,12 +1,53 @@
 import copy
 import datetime
+import keyword
 import peewee
 import prefect
 from prefect.exceptions import PrefectError
 from prefect.edges import Edge, Pipe
-from prefect.models import TaskModel, FlowModel
-from prefect.utilities.logging import LoggingMixin
-from prefect.utilities.strings import name_with_suffix
+
+
+def is_valid_identifier(string):
+    """
+    Determines whether a string is a valid Python identifier (meaning it can
+    be used as a variable name or keyword argument).
+    """
+    return string.isidentifier() and not keyword.iskeyword(string)
+
+
+def name_with_suffix(
+        name,
+        predicate,
+        first_suffix=1,
+        delimiter='_',
+        max_iters=1000,):
+    """
+    Automatically adds a number suffix to a name until it becomes valid.
+
+    Example:
+        >>> name_with_suffix('name', predicate=lambda n: True)
+        name-1
+        >>> name_with_suffix('name', predicate=lambda n: int(n[-1]) > 2)
+        name-3
+
+    Args:
+        name (string): the desired name
+        predicate (callable): a function that takes the current name and
+            returns whether it is valid. The numerical suffix will be
+            incremented as long as the predicate returns False.
+        first_suffix (int): the first suffix number that will be tried
+        delimiter (string): a delimiter placed between the name and the suffix
+        max_iters (int): evaluation will stop after this many iterations. An
+            error will be raised.
+    """
+    i = 1
+    new_name = '{}{}{}'.format(name, delimiter, first_suffix)
+    while not predicate(new_name) and i <= max_iters:
+        new_name = '{}{}{}'.format(name, delimiter, first_suffix + i)
+        i = i + 1
+    if i > max_iters:
+        raise ValueError('Maximum iterations reached.')
+    return new_name
 
 
 class Task(LoggingMixin):
@@ -44,6 +85,10 @@ class Task(LoggingMixin):
             name = name_with_suffix(
                 name=getattr(self.fn, '__name__', type(self).__name__),
                 predicate=lambda n: n not in [t.name for t in flow.tasks])
+        if not is_valid_identifier(name):
+            raise ValueError(
+                'Task names must be valid Python identifiers '
+                '(received {})'.format(name))
 
         self.name = name
         self.task_id = '{}/{}'.format(self.flow_id, self.name)
@@ -131,6 +176,14 @@ class Task(LoggingMixin):
                     upstream_task_result=task_result,
                     downstream_task=self,
                     key=key))
+
+    # Serialize ---------------------------------------------------------------
+
+    def to_json(self):
+        return json.dumps(dict(
+            name=self.name,
+            flow_id=self.flow.id,
+            serialized=cloudpickle.dumps(self)))
 
     # Run  --------------------------------------------------------------------
 
