@@ -1,3 +1,4 @@
+import prefect.configuration
 import base64
 from configparser import ConfigParser
 import hashlib
@@ -6,6 +7,8 @@ import os
 import re
 
 SYSTEM_NAMESPACE = 'prefect'
+
+_config_files = []
 
 env_var_re = re.compile(
     '^PREFECT__(?P<section>\S+)__(?P<option>\S+)', re.IGNORECASE)
@@ -47,14 +50,14 @@ def load_config(test_mode=False, config_file=None, home=None):
     at the specified location.
     """
 
-    test_mode = os.getenv('PREFECT__CORE__TEST_MODE', test_mode)
+    test_mode = os.getenv('PREFECT_TEST_MODE', test_mode)
 
-    home = os.getenv('PREFECT__CORE__HOME', home)
+    home = os.getenv('PREFECT_HOME', home)
     if home is None:
         home = '~/.prefect'
     home = expand(home)
 
-    config_file = os.getenv('PREFECT__CORE__CONFIG', config_file)
+    config_file = os.getenv('PREFECT_CONFIG', config_file)
     if config_file is None:
         config_file = os.path.join(home, 'prefect.cfg')
     config_file = expand(config_file)
@@ -62,7 +65,7 @@ def load_config(test_mode=False, config_file=None, home=None):
     default_config_file = os.path.join(
         os.path.dirname(__file__), 'config_templates', 'prefect.cfg')
     test_config_file = os.path.join(
-        os.path.dirname(__file__), 'config_templates', 'tests.cfg')
+        os.path.dirname(__file__), 'config_templates', 'prefect-tests.cfg')
 
     os.makedirs(home, exist_ok=True)
 

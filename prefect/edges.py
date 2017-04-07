@@ -100,12 +100,12 @@ class Pipe(Edge):
         super().__init__(
             upstream_task=upstream_task_result.task,
             downstream_task=downstream_task)
-        self.id = '{}/{}/{}'.format(
-            upstream_task.id, downstream_task.id, self._repr_index)
         self.task_result = upstream_task_result
         self.key = key
         self.index = upstream_task_result.index
         self._repr_index = upstream_task_result._repr_index()
+        self.id = '{}/{}/{}'.format(
+            self.upstream_task.id, self.downstream_task.id, self._repr_index)
 
     def __repr__(self):
         return '{}({} -> {})'.format(
