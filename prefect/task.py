@@ -7,7 +7,7 @@ from prefect.exceptions import PrefectError
 from prefect.edges import Edge, Pipe
 
 def retry_delay(
-        interval=None, *, exponential_backoff=False, max_delay=None, **kwargs):
+        interval=None, *, exponential_backoff=False, max_delay=pendulum.interval(hours=2), **kwargs):
     """
     A helper function for generating task retry delays.
 
@@ -29,12 +29,16 @@ def retry_delay(
                 - fourth retry starts after 4 minutes
                 - etc.
         max_delay (pendulum.interval): If exponential_backoff is supplied,
-            delays will be capped by this amount. Defaults to 8 times the
-            original delay.
+            delays will be capped by this amount.
     """
-    interval = pendulum.interval(**kwargs)
-    if max_delay is None:
-        max_delay = pendulum.interval(seconds=interval.total_seconds() * 8)
+    if interval is not None and kwargs:
+        raise ValueError(
+            'Provide an interval or interval keywords, but not both.')
+    elif interval is None and not kwargs:
+        raise ValueError(
+            'Provide either an interval or interval keywords.')
+    elif kwargs:
+        interval = pendulum.interval(**kwargs)
 
     def retry_delay(run_number):
         if exponential_backoff:

@@ -1,4 +1,5 @@
 import copy
+import pendulum
 import prefect
 from prefect.exceptions import PrefectError
 from prefect.flow import Flow
@@ -17,7 +18,7 @@ class TestBasics:
 
         f = Flow('test_flow')
         t = Task(name='test', flow=f)
-        assert t.flow_id == f.flow_id
+        assert t.flow.id == f.id
 
     def test_task_names(self):
         """
@@ -37,10 +38,16 @@ class TestBasics:
             t4 = MyTask()
             t5 = Task('hi')
 
-        assert t1.name == 'Task-1'
-        assert t2.name == 'Task-2'
-        assert t3.name == 'myfn-1'
-        assert t4.name == 'MyTask-1'
+            # tasks must be valid identifiers
+            with pytest.raises(ValueError):
+                Task('1two')
+            with pytest.raises(ValueError):
+                Task('while')
+
+        assert t1.name == 'Task_1'
+        assert t2.name == 'Task_2'
+        assert t3.name == 'myfn_1'
+        assert t4.name == 'MyTask_1'
         assert t5.name == 'hi'
 
     def test_task_equality(self):
@@ -51,8 +58,22 @@ class TestBasics:
             t1 = Task()
 
         f2 = copy.deepcopy(f)
-        assert f.get_task('Task-1') is not f2.get_task('Task-1')
-        assert f.get_task('Task-1') == f2.get_task('Task-1')
+        assert f.get_task('Task_1') is not f2.get_task('Task_1')
+        assert f.get_task('Task_1') == f2.get_task('Task_1')
+
+    def test_task_comparisons(self):
+        """
+        Comparisons are based on flow order, with ties broken by task id.
+        """
+        with Flow('1') as f:
+            t1 = Task()
+            t2 = Task()
+
+        assert t1 < t2
+        assert t2 > t1
+        t2.run_before(t1)
+        assert t2 < t1
+        assert t1 > t2
 
     def test_flow_context_manager(self):
         """Tests that flows can be used as context managers"""
@@ -67,10 +88,10 @@ class TestBasics:
             # return to original context manager
             t3 = Task(name='test1')
 
-            assert t.flow_id == f.flow_id
+            assert t.flow.id == f.id
             assert t in f
 
-            assert t2.flow_id == f2.flow_id
+            assert t2.flow.id == f2.id
             assert t2 in f2
             assert t2 not in f
 
@@ -90,9 +111,41 @@ class TestBasics:
             f2.add_task(t)
         assert 'already in another Flow' in str(e)
 
-    def test_task_equality(self):
-        with Flow('test') as f:
-            t = Task(name='test')
+
+class TestRetryDelay:
+
+    def test_retry_delay_errors(self):
+        with pytest.raises(ValueError):
+            prefect.task.retry_delay()
+
+        with pytest.raises(ValueError):
+            prefect.task.retry_delay(pendulum.interval(days=1), minutes=1)
+
+    def test_retry_delay_args(self):
+        delay_passed = prefect.task.retry_delay(pendulum.interval(seconds=1))
+        delay_constructed = prefect.task.retry_delay(seconds=1)
+
+        assert delay_passed(1) == delay_constructed(1)
+        assert delay_passed(2) == delay_constructed(2)
+
+    def test_constant_retry_delay(self):
+        delay = prefect.task.retry_delay(seconds=1)
+        assert delay(1) == delay(2) == pendulum.interval(seconds=1)
+
+    def test_exponential_retry_delay(self):
+        delay = prefect.task.retry_delay(seconds=1, exponential_backoff=True)
+        assert delay(1) == delay(2) == pendulum.interval(seconds=1)
+        assert delay(3) == pendulum.interval(seconds=2)
+        assert delay(4) == pendulum.interval(seconds=4)
+
+        # test max value
+        delay = prefect.task.retry_delay(days=1, exponential_backoff=True)
+        assert delay(10) == pendulum.interval(hours=2)
+        delay = prefect.task.retry_delay(
+            days=1,
+            exponential_backoff=True,
+            max_delay=pendulum.interval(days=10))
+        assert delay(10) == pendulum.interval(days=10)
 
 
 class TestTaskRelationships:
