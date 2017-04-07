@@ -1,22 +1,14 @@
-import base64
-import distributed
-import ujson
+import cloudpickle
+import msgpack
 import prefect
 from prefect.edges import Edge
 from prefect.task import Task
 from prefect.exceptions import PrefectError
-import prefect.utilities
-from prefect.schedules import (
-    Schedule,
-    NoSchedule,
-    DateSchedule,
-    CronSchedule,
-    IntervalSchedule,)
-
-_CONTEXT_FLOW = None
+import prefect.context
+from prefect.schedules import NoSchedule
 
 
-class Flow(prefect.utilities.logging.LoggingMixin):
+class Flow:
 
     def __init__(
             self,
@@ -45,20 +37,32 @@ class Flow(prefect.utilities.logging.LoggingMixin):
         self.schedule = schedule
         self.tasks = set()
         self.edges = set()
-        self.flow_id = '{namespace}.{name}:{version}'.format(
+        self.id = '{namespace}.{name}:{version}'.format(
             namespace=self.namespace, name=self.name, version=self.version)
-        self.id = None
+
+        self._cache = {}
+        self.check_cache()
 
     def __repr__(self):
-        return '{}({})'.format(type(self).__name__, self.flow_id)
+        return '{}({})'.format(type(self).__name__, self.id)
 
     def __eq__(self, other):
         return (
-            type(self) == type(other) and self.flow_id == other.flow_id
+            type(self) == type(other) and self.id == other.id
             and self.tasks == other.tasks and self.edges == other.edges)
 
     def __hash__(self):
         return id(self)
+
+    def check_cache(self):
+        """
+        Check if the cache is still valid by comparing it to the flow,
+        and reset it if it isn't.
+        """
+        if (
+                self._cache.get('tasks', None) != self.tasks
+                or self._cache.get('edges', None) != self.edges):
+            self._cache = {'tasks': self.tasks, 'edges': self.edges}
 
     # Graph -------------------------------------------------------------------
 
@@ -86,7 +90,7 @@ class Flow(prefect.utilities.logging.LoggingMixin):
         if not isinstance(task, Task):
             raise TypeError(
                 'Expected a Task; received {}'.format(type(task).__name__))
-        if task.flow_id != self.flow_id:
+        if task.flow.id != self.id:
             raise ValueError('Task {} is already in another Flow'.format(task))
         if task.name in set(t.name for t in self.tasks):
             raise ValueError(
@@ -135,30 +139,33 @@ class Flow(prefect.utilities.logging.LoggingMixin):
         """
         Returns a topological sort of this Flow's tasks.
 
-        Note that the resulting sort will not always be in the same order!
+        The result will be cached when possible.
         """
 
-        tasks = set(self.tasks)
-        sort_tasks = []
+        self.check_cache()
+        if 'sorted tasks' not in self._cache:
+            tasks = set(self.tasks)
+            sorted_tasks = []
+            while tasks:
+                acyclic = False
+                for task in sorted(tasks, key=lambda t: t.id):
+                    for upstream_task in self.upstream_tasks(task):
+                        if upstream_task in tasks:
+                            # the previous task hasn't been sorted yet, so
+                            # this task can't be sorted either
+                            break
+                    else:
+                        # all previous tasks are sorted, so this one can be
+                        # sorted as well
+                        acyclic = True
+                        tasks.remove(task)
+                        sorted_tasks.append(task)
+                if not acyclic:
+                    # no tasks matched
+                    raise ValueError('Flows must be acyclic!')
+            self._cache['sorted tasks'] = tuple(sorted_tasks)
 
-        while tasks:
-            acyclic = False
-            for task in list(tasks):
-                for upstream_task in self.upstream_tasks(task):
-                    if upstream_task in tasks:
-                        # the previous task hasn't been sorted yet, so
-                        # this task can't be sorted either
-                        break
-                else:
-                    # all previous tasks are sorted, so this one can be
-                    # sorted as well
-                    acyclic = True
-                    tasks.remove(task)
-                    sort_tasks.append(task)
-            if not acyclic:
-                # no tasks matched
-                raise ValueError('Flows must be acyclic!')
-        return tuple(sort_tasks)
+        return self._cache['sorted tasks']
 
     def edges_to(self, task):
         """
@@ -181,14 +188,16 @@ class Flow(prefect.utilities.logging.LoggingMixin):
     # Context Manager -----------------------------------------------
 
     def __enter__(self):
-        global _CONTEXT_FLOW
-        self._old_context_manager_flow = _CONTEXT_FLOW
-        _CONTEXT_FLOW = self
+        self._previous_context = prefect.context.set_context(flow=self)
         return self
+        # global _CONTEXT_FLOW
+        # self._old_context_manager_flow = _CONTEXT_FLOW
+        # _CONTEXT_FLOW = self
+        # return self
 
     def __exit__(self, _type, _value, _tb):
-        global _CONTEXT_FLOW
-        _CONTEXT_FLOW = self._old_context_manager_flow
+        prefect.context.reset_context(self._previous_context)
+        del self._previous_context
 
     # Persistence  ------------------------------------------------
 
@@ -204,30 +213,18 @@ class Flow(prefect.utilities.logging.LoggingMixin):
         flow.id = id
         return flow
 
-    def save(self):
-        """
-        Retreives the ORM model corresponding to this Flow, but does not
-        create it in the database if it does not exist already.
-        """
-        # import ipdb; ipdb.set_trace()
-
-        namespace = Namespace.get_or_create(name=self.namespace)
-        model = FlowModel.first(
-            namespace=namespace,
-            name=self.name,
-            version=self.version)
-        if not model:
-            model = FlowModel.create(
-                namespace=namespace,
+    def serialize(self):
+        return msgpack.dumps(
+            dict(
+                id=self.id,
+                namespace=self.namespace,
                 name=self.name,
-                version=self.version)
-        model.serialized = self
-        model.save()
-        self.id = model.id
-
-        # save the tasks
-        for t in self.tasks:
-            TaskModel.get_or_create(name=t.name, flow_id=model.id)
+                version=self.version,
+                tasks=[t.to_json() for t in self.sort_tasks()],
+                edges=[e.to_json() for e in self.edges],
+                required_params=sorted(self.required_params),
+                schedule=cloudpickle.dumps(self.schedule),
+                serialized=cloudpickle.dumps(self)))
 
     # Decorator ----------------------------------------------------
 
