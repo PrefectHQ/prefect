@@ -1,56 +1,56 @@
 import copy
 import datetime
-import keyword
-import peewee
+import functools
+import pendulum
 import prefect
 from prefect.exceptions import PrefectError
 from prefect.edges import Edge, Pipe
 
-
-def is_valid_identifier(string):
+def retry_delay(
+        interval=None, *, exponential_backoff=False, max_delay=None, **kwargs):
     """
-    Determines whether a string is a valid Python identifier (meaning it can
-    be used as a variable name or keyword argument).
-    """
-    return string.isidentifier() and not keyword.iskeyword(string)
-
-
-def name_with_suffix(
-        name,
-        predicate,
-        first_suffix=1,
-        delimiter='_',
-        max_iters=1000,):
-    """
-    Automatically adds a number suffix to a name until it becomes valid.
-
-    Example:
-        >>> name_with_suffix('name', predicate=lambda n: True)
-        name-1
-        >>> name_with_suffix('name', predicate=lambda n: int(n[-1]) > 2)
-        name-3
+    A helper function for generating task retry delays.
 
     Args:
-        name (string): the desired name
-        predicate (callable): a function that takes the current name and
-            returns whether it is valid. The numerical suffix will be
-            incremented as long as the predicate returns False.
-        first_suffix (int): the first suffix number that will be tried
-        delimiter (string): a delimiter placed between the name and the suffix
-        max_iters (int): evaluation will stop after this many iterations. An
-            error will be raised.
+        interval (pendulum.interval or timedelta): The amount of time to wait.
+            This value is optional; users can also instantiate a new interval
+            by passing keyword arguments directly to retry_delay. So:
+                retry_delay(interval=pendulum.interval(days=1))
+            is equivalent to:
+                retry_delay(days=1)
+        **kwargs: Keyword arguments are passed to pendulum.interval and
+            are compatible with the datetime.timedelta API.
+        exponential_backoff: if True, each retry delay will be exponentially
+            longer than the last, starting with the second retry. For example,
+            if the retry delay is 1 minute, then:
+                - first retry starts after 1 minute
+                - second retry also starts after 1 minute (no backoff applied)
+                - third retry starts after 2 minutes
+                - fourth retry starts after 4 minutes
+                - etc.
+        max_delay (pendulum.interval): If exponential_backoff is supplied,
+            delays will be capped by this amount. Defaults to 8 times the
+            original delay.
     """
-    i = 1
-    new_name = '{}{}{}'.format(name, delimiter, first_suffix)
-    while not predicate(new_name) and i <= max_iters:
-        new_name = '{}{}{}'.format(name, delimiter, first_suffix + i)
-        i = i + 1
-    if i > max_iters:
-        raise ValueError('Maximum iterations reached.')
-    return new_name
+    interval = pendulum.interval(**kwargs)
+    if max_delay is None:
+        max_delay = pendulum.interval(seconds=interval.total_seconds() * 8)
+
+    def retry_delay(run_number):
+        if exponential_backoff:
+            scale = 2 ** (max(0, run_number - 2))
+        else:
+            scale = 1
+        if max_delay is not None:
+            return min(interval * scale, max_delay)
+        else:
+            return interval * scale
+
+    return retry_delay
 
 
-class Task(LoggingMixin):
+@functools.total_ordering
+class Task:
     """
     Tasks are basic units of work. Each task performs a specific funtion.
     """
@@ -61,39 +61,54 @@ class Task(LoggingMixin):
             flow=None,
             fn=None,
             max_retries=0,
-            retry_delay=datetime.timedelta(minutes=5),
+            retry_delay=retry_delay(minutes=5),
             trigger=None):
         """
-        fn: By default, the Task's run() method calls this function.
 
-        max_retries: the number of times this task can be retried. -1 indicates
-            an infinite number of times.
+        Args:
+            fn (callable): By default, the Task's run() method calls this
+                function. Task subclasses can also override run() instead of
+                passing a function.
+
+            retry_delay (pendulum.interval or callable): a function that
+                is passed the most recent run number and returns an amount of
+                time to wait before retrying the task. It is recommended to
+                build the function with the retry_delay() helper function in
+                this module. If a pendulum interval is passed, retry_delay is
+                called on the interval automatically.
+
+            max_retries: the number of times this task can be retried. -1 indicates
+                an infinite number of times.
 
         """
-        self.fn = fn
+        if fn is not None:
+            self.run = fn
 
         if flow is None:
-            flow = prefect.flow._CONTEXT_FLOW
+            flow = prefect.context.flow
             if flow is None:
                 raise ValueError(
                     'Tasks must be created with a Flow or inside '
                     'a Flow context manager.')
         self.flow = flow
-        self.flow_id = flow.flow_id
 
         if name is None:
-            name = name_with_suffix(
-                name=getattr(self.fn, '__name__', type(self).__name__),
+            name = prefect.utilities.strings.name_with_suffix(
+                name=getattr(fn, '__name__', type(self).__name__),
                 predicate=lambda n: n not in [t.name for t in flow.tasks])
-        if not is_valid_identifier(name):
+        if not prefect.utilities.strings.is_valid_identifier(name):
             raise ValueError(
                 'Task names must be valid Python identifiers '
                 '(received {})'.format(name))
 
         self.name = name
-        self.task_id = '{}/{}'.format(self.flow_id, self.name)
+        self.id = '{}/{}'.format(self.flow.id, self.name)
 
         self.max_retries = max_retries
+
+        if not callable(retry_delay):
+            retry_delay = prefect.tasks.retry_delay(retry_delay)
+
         self.retry_delay = retry_delay
 
         if trigger is None:
@@ -103,12 +118,19 @@ class Task(LoggingMixin):
         self.flow.add_task(self)
 
     def __repr__(self):
-        return '{}({})'.format(type(self).__name__, self.task_id)
+        return '{}({})'.format(type(self).__name__, self.id)
 
     # Comparison --------------------------------------------------------------
 
     def __eq__(self, other):
-        return type(self) == type(other) and self.task_id == other.task_id
+        return type(self) == type(other) and self.id == other.id
+
+    def __lt__(self, other):
+        if not isinstance(other, Task):
+            return super().__lt__(other)
+        self_order = (self.flow.id, self.flow.sort_tasks().index(self))
+        other_order = (other.flow.id, other.flow.sort_tasks().index(other))
+        return self_order < other_order
 
     def __hash__(self):
         return id(self)
@@ -181,17 +203,17 @@ class Task(LoggingMixin):
 
     def to_json(self):
         return json.dumps(dict(
+            id=self.id,
             name=self.name,
-            flow_id=self.flow.id,
+            flow=self.flow.id,
+            rety_delay=cloudpickle.dumps(self.retry_delay),
             serialized=cloudpickle.dumps(self)))
 
     # Run  --------------------------------------------------------------------
 
     def run(self, **inputs):
-        if self.fn is not None:
-            return self.fn(**inputs)
-        else:
-            raise NotImplementedError('No `fn` was passed to this task!')
+        raise NotImplementedError(
+            'Pass a `fn` to this task or override this method!')
 
     # Results  ----------------------------------------------------------------
 
@@ -258,4 +280,4 @@ class TaskResult:
             self.index if self.index is not self.NoIndex else ':')
 
     def __repr__(self):
-        return 'TaskResult({}{})'.format(self.task.task_id, self._repr_index())
+        return 'TaskResult({}{})'.format(self.task.id, self._repr_index())
