@@ -1,11 +1,11 @@
-import peewee
+import datetime
 from prefect.exceptions import PrefectError
 import prefect
 from prefect.flow import Flow
 from prefect.task import Task
 from prefect.edges import Edge, Pipe
 import pytest
-import uuid
+import ujson
 
 
 class TestFlow:
@@ -100,16 +100,35 @@ class TestFlow:
         with pytest.raises(ValueError) as e:
             t3.run_before(t1)
 
+
 class TestPersistence:
-    def test_serialize_flow(self):
-        with Flow('test') as f:
+
+    @pytest.fixture
+    def flow(self):
+        with Flow(
+                'test',
+                schedule=prefect.schedules.IntervalSchedule(
+                    start_date=datetime.datetime(2017, 1, 1),
+                    interval=datetime.timedelta(days=1))) as f:
             t1 = Task()
             t2 = Task()
             t1.run_before(t2)
+        return f
 
-        f2 = Flow.deserialize(f.serialize())
-        assert f2.id == f.id
-        assert [t.id for t in f] == [t.id for t in f2]
+    def test_serialize_deserialize_flow(self, flow):
+        f2 = Flow.deserialize(flow.serialize())
+        assert f2.id == flow.id
+        assert [t.id for t in flow] == [t.id for t in f2]
+
+    def test_access_schedule_from_serialized(self, flow):
+        s = flow.serialize()
+        schedule = prefect.utilities.serialize.deserialize(
+            ujson.loads(s)['schedule'])
+        next_date = schedule.next_n(
+            on_or_after=datetime.datetime(2017, 1, 1, 1))[0]
+        assert next_date == datetime.datetime(2017, 1, 2)
+
+
 #     def test_expunge_session(self):
 #         """
 #         Getting a flow's model involves loading a namespace model. That dirties

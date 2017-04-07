@@ -1,6 +1,6 @@
 import functools
 import ujson
-import pendulum
+import datetime
 import prefect
 from prefect.exceptions import PrefectError
 from prefect.edges import Edge, Pipe
@@ -10,20 +10,22 @@ def retry_delay(
         interval=None,
         *,
         exponential_backoff=False,
-        max_delay=pendulum.interval(hours=2),
+        max_delay=datetime.timedelta(hours=2),
         **kwargs):
     """
     A helper function for generating task retry delays.
 
     Args:
-        interval (pendulum.interval or timedelta): The amount of time to wait.
+        interval (timedelta): The amount of time to wait.
             This value is optional; users can also instantiate a new interval
             by passing keyword arguments directly to retry_delay. So:
-                retry_delay(interval=pendulum.interval(days=1))
+                retry_delay(interval=timedelta(days=1))
             is equivalent to:
                 retry_delay(days=1)
-        **kwargs: Keyword arguments are passed to pendulum.interval and
+
+        **kwargs: Keyword arguments are passed to timedelta and
             are compatible with the datetime.timedelta API.
+
         exponential_backoff: if True, each retry delay will be exponentially
             longer than the last, starting with the second retry. For example,
             if the retry delay is 1 minute, then:
@@ -32,7 +34,8 @@ def retry_delay(
                 - third retry starts after 2 minutes
                 - fourth retry starts after 4 minutes
                 - etc.
-        max_delay (pendulum.interval): If exponential_backoff is supplied,
+
+        max_delay (timedelta): If exponential_backoff is supplied,
             delays will be capped by this amount.
     """
     if interval is not None and kwargs:
@@ -41,7 +44,7 @@ def retry_delay(
     elif interval is None and not kwargs:
         raise ValueError('Provide either an interval or interval keywords.')
     elif kwargs:
-        interval = pendulum.interval(**kwargs)
+        interval = datetime.timedelta(**kwargs)
 
     def retry_delay(run_number):
         if exponential_backoff:
@@ -77,15 +80,15 @@ class Task:
                 function. Task subclasses can also override run() instead of
                 passing a function.
 
-            retry_delay (pendulum.interval or callable): a function that
+            retry_delay (timedelta or callable): a function that
                 is passed the most recent run number and returns an amount of
                 time to wait before retrying the task. It is recommended to
                 build the function with the retry_delay() helper function in
-                this module. If a pendulum interval is passed, retry_delay is
+                this module. If a timedelta is passed, retry_delay is
                 called on the interval automatically.
 
-            max_retries: the number of times this task can be retried. -1 indicates
-                an infinite number of times.
+            max_retries: the number of times this task can be retried. -1
+                indicates an infinite number of times.
 
         """
         if fn is not None:

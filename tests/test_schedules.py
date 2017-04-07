@@ -40,5 +40,5 @@ def test_interval_schedule():
         datetime.datetime(2017, 9, 28), datetime.datetime(2017, 10, 8)
     ]
     s = schedules.IntervalSchedule(
-        start_date='2017-01-01', timedelta=datetime.timedelta(days=10))
+        start_date='2017-01-01', interval=datetime.timedelta(days=10))
     assert expected_dates == s.next_n(2, on_or_after=after)

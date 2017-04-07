@@ -1,5 +1,5 @@
 import copy
-import pendulum
+import datetime
 import prefect
 from prefect.exceptions import PrefectError
 from prefect.flow import Flow
@@ -119,10 +119,10 @@ class TestRetryDelay:
             prefect.task.retry_delay()
 
         with pytest.raises(ValueError):
-            prefect.task.retry_delay(pendulum.interval(days=1), minutes=1)
+            prefect.task.retry_delay(datetime.timedelta(days=1), minutes=1)
 
     def test_retry_delay_args(self):
-        delay_passed = prefect.task.retry_delay(pendulum.interval(seconds=1))
+        delay_passed = prefect.task.retry_delay(datetime.timedelta(seconds=1))
         delay_constructed = prefect.task.retry_delay(seconds=1)
 
         assert delay_passed(1) == delay_constructed(1)
@@ -130,22 +130,22 @@ class TestRetryDelay:
 
     def test_constant_retry_delay(self):
         delay = prefect.task.retry_delay(seconds=1)
-        assert delay(1) == delay(2) == pendulum.interval(seconds=1)
+        assert delay(1) == delay(2) == datetime.timedelta(seconds=1)
 
     def test_exponential_retry_delay(self):
         delay = prefect.task.retry_delay(seconds=1, exponential_backoff=True)
-        assert delay(1) == delay(2) == pendulum.interval(seconds=1)
-        assert delay(3) == pendulum.interval(seconds=2)
-        assert delay(4) == pendulum.interval(seconds=4)
+        assert delay(1) == delay(2) == datetime.timedelta(seconds=1)
+        assert delay(3) == datetime.timedelta(seconds=2)
+        assert delay(4) == datetime.timedelta(seconds=4)
 
         # test max value
         delay = prefect.task.retry_delay(days=1, exponential_backoff=True)
-        assert delay(10) == pendulum.interval(hours=2)
+        assert delay(10) == datetime.timedelta(hours=2)
         delay = prefect.task.retry_delay(
             days=1,
             exponential_backoff=True,
-            max_delay=pendulum.interval(days=10))
-        assert delay(10) == pendulum.interval(days=10)
+            max_delay=datetime.timedelta(days=10))
+        assert delay(10) == datetime.timedelta(days=10)
 
 
 class TestTaskRelationships:
