@@ -1,11 +1,26 @@
+import prefect.configuration
+import base64
 from configparser import ConfigParser
+import hashlib
 import logging
-import mongoengine
 import os
 import re
 
+SYSTEM_NAMESPACE = 'prefect'
+
+_config_files = []
+
 env_var_re = re.compile(
     '^PREFECT__(?P<section>\S+)__(?P<option>\S+)', re.IGNORECASE)
+
+
+def call_fn(fn):
+    """
+    Simple decorate that calls a function automatically, allowing configuration
+    variables to be placed inside functions instead of polluting the namespace
+    """
+    fn()
+    return fn
 
 
 def expand(env_var):
@@ -35,14 +50,14 @@ def load_config(test_mode=False, config_file=None, home=None):
     at the specified location.
     """
 
-    test_mode = os.getenv('PREFECT__CORE__TEST_MODE', test_mode)
+    test_mode = os.getenv('PREFECT_TEST_MODE', test_mode)
 
-    home = os.getenv('PREFECT__CORE__HOME', home)
+    home = os.getenv('PREFECT_HOME', home)
     if home is None:
         home = '~/.prefect'
     home = expand(home)
 
-    config_file = os.getenv('PREFECT__CORE__CONFIG', config_file)
+    config_file = os.getenv('PREFECT_CONFIG', config_file)
     if config_file is None:
         config_file = os.path.join(home, 'prefect.cfg')
     config_file = expand(config_file)
@@ -50,7 +65,7 @@ def load_config(test_mode=False, config_file=None, home=None):
     default_config_file = os.path.join(
         os.path.dirname(__file__), 'config_templates', 'prefect.cfg')
     test_config_file = os.path.join(
-        os.path.dirname(__file__), 'config_templates', 'tests.cfg')
+        os.path.dirname(__file__), 'config_templates', 'prefect-tests.cfg')
 
     os.makedirs(home, exist_ok=True)
 
@@ -80,27 +95,36 @@ def load_config(test_mode=False, config_file=None, home=None):
                 option=match.groupdict()['option'].lower(),
                 value=os.environ[ev])
 
-    os.makedirs(expand(config.get('core', 'flows')), exist_ok=True)
-
     return config
 
 
 config = load_config()
+
+# Test Mode -------------------------------------------------------------------
+
 if config.get('core', 'test_mode'):
     config = load_config(test_mode=True)
 
-if config.get('core', 'test_mode'):
-    logging.info('TEST MODE: Using MongoMock database')
-    mongoengine.connect(
-        alias='default',
-        db=config.get('mongo', 'db'),
-        host='mongomock://localhost',
-        port=27017)
-else:
-    mongoengine.connect(
-        alias='default',
-        db=config.get('mongo', 'db'),
-        host=config.get('mongo', 'url') or config.get('mongo', 'host'),
-        port=config.getint('mongo', 'port'),
-        username=config.get('mongo', 'username') or None,
-        password=config.get('mongo', 'password') or None)
+# Logging ---------------------------------------------------------------------
+
+@call_fn
+def configure_logging():
+    root_logger = logging.getLogger()
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(config.get('logging', 'format'))
+    handler.setFormatter(formatter)
+    root_logger.addHandler(handler)
+    root_logger.setLevel(getattr(logging, config.get('logging', 'level')))
+
+
+# Database --------------------------------------------------------------------
+
+@call_fn
+def validate():
+    if not config.get('flows', 'default_namespace'):
+        raise ValueError(
+            'No default namespace set! (config.flows.default_namespace)')
+    if SYSTEM_NAMESPACE == config.get('flows', 'default_namespace'):
+        raise ValueError(
+            'The default namespace can not be the system namespace ("{}") '
+            ' (config.flows.default_namespace)'.format(SYSTEM_NAMESPACE))

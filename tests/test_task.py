@@ -1,161 +1,238 @@
-import mongoengine
-import prefect.exceptions
+import copy
+import datetime
+import prefect
+from prefect.exceptions import PrefectError
 from prefect.flow import Flow
-from prefect.task import Task
+from prefect.task import Task, TaskResult
 import pytest
 
 
-def fn():
-    pass
+class TestBasics:
+
+    def test_create_task(self):
+        """Test task creation"""
+
+        # tasks require Flows
+        with pytest.raises(ValueError) as e:
+            t = Task()
+
+        f = Flow('test_flow')
+        t = Task(name='test', flow=f)
+        assert t.flow.id == f.id
+
+    def test_task_names(self):
+        """
+        Test auto-assignment of Task names
+        """
+
+        def myfn():
+            pass
+
+        class MyTask(Task):
+            pass
+
+        with Flow('test') as flow:
+            t1 = Task()
+            t2 = Task()
+            t3 = Task(fn=myfn)
+            t4 = MyTask()
+            t5 = Task('hi')
+
+            # tasks must be valid identifiers
+            with pytest.raises(ValueError):
+                Task('1two')
+            with pytest.raises(ValueError):
+                Task('while')
+
+        assert t1.name == 'Task_1'
+        assert t2.name == 'Task_2'
+        assert t3.name == 'myfn_1'
+        assert t4.name == 'MyTask_1'
+        assert t5.name == 'hi'
+
+    def test_task_equality(self):
+        """
+        Task equality holds if task ids match.
+        """
+        with Flow('1') as f:
+            t1 = Task()
+
+        f2 = copy.deepcopy(f)
+        assert f.get_task('Task_1') is not f2.get_task('Task_1')
+        assert f.get_task('Task_1') == f2.get_task('Task_1')
+
+    def test_task_comparisons(self):
+        """
+        Comparisons are based on flow order, with ties broken by task id.
+        """
+        with Flow('1') as f:
+            t1 = Task()
+            t2 = Task()
+
+        assert t1 < t2
+        assert t2 > t1
+        t2.run_before(t1)
+        assert t2 < t1
+        assert t1 > t2
+
+    def test_flow_context_manager(self):
+        """Tests that flows can be used as context managers"""
+
+        with Flow('test_flow') as f:
+            t = Task(name='test')
+
+            # nested context manager
+            with Flow('test_flow_2') as f2:
+                t2 = Task(name='test')
+
+            # return to original context manager
+            t3 = Task(name='test1')
+
+            assert t.flow.id == f.id
+            assert t in f
+
+            assert t2.flow.id == f2.id
+            assert t2 in f2
+            assert t2 not in f
+
+            assert t3.flow is f
+            assert t3 in f
+
+    def test_add_task_to_flow_after_flow_assigned(self):
+        with Flow('test_flow') as f:
+            t = Task(name='test')
+
+        with pytest.raises(ValueError) as e:
+            t2 = Task(name='test', flow=f)
+        assert 'already exists in this Flow' in str(e)
+
+        with pytest.raises(ValueError) as e:
+            f2 = Flow('test_flow_2')
+            f2.add_task(t)
+        assert 'already in another Flow' in str(e)
 
 
-def test_create_task():
-    """Test task creation"""
+class TestRetryDelay:
 
-    # tasks require Flows
-    with pytest.raises(ValueError) as e:
-        t = Task(fn=fn)
+    def test_retry_delay_errors(self):
+        with pytest.raises(ValueError):
+            prefect.task.retry_delay()
 
-    f = Flow('test_flow')
-    t = Task(fn=fn, name='test', flow=f)
-    assert t.flow is f
+        with pytest.raises(ValueError):
+            prefect.task.retry_delay(datetime.timedelta(days=1), minutes=1)
 
-    with pytest.raises(TypeError) as e:
-        Task(fn=fn, flow=f, retries=None)
-    assert 'Retries must be an int' in str(e)
+    def test_retry_delay_args(self):
+        delay_passed = prefect.task.retry_delay(datetime.timedelta(seconds=1))
+        delay_constructed = prefect.task.retry_delay(seconds=1)
 
-    with pytest.raises(TypeError) as e:
-        Task(fn=fn, flow=f, retry_delay=5)
-    assert 'Retry delay must be a timedelta' in str(e)
+        assert delay_passed(1) == delay_constructed(1)
+        assert delay_passed(2) == delay_constructed(2)
 
+    def test_constant_retry_delay(self):
+        delay = prefect.task.retry_delay(seconds=1)
+        assert delay(1) == delay(2) == datetime.timedelta(seconds=1)
 
-def test_flow_context_manager():
-    """Tests that flows can be used as context managers"""
+    def test_exponential_retry_delay(self):
+        delay = prefect.task.retry_delay(seconds=1, exponential_backoff=True)
+        assert delay(1) == delay(2) == datetime.timedelta(seconds=1)
+        assert delay(3) == datetime.timedelta(seconds=2)
+        assert delay(4) == datetime.timedelta(seconds=4)
 
-    with Flow('test_flow') as f:
-        t = Task(fn=fn, name='test')
-
-        # nested context manager
-        with Flow('test_flow_2') as f2:
-            t2 = Task(fn=fn, name='test')
-
-        # return to original context manager
-        t3 = Task(fn=fn, name='test1')
-
-    assert t.flow is f
-    assert t in f.graph
-
-    assert t2.flow is f2
-    assert t2 in f2.graph
-    assert t2 not in f.graph
-
-    assert t3.flow is f
-    assert t3 in f.graph
+        # test max value
+        delay = prefect.task.retry_delay(days=1, exponential_backoff=True)
+        assert delay(10) == datetime.timedelta(hours=2)
+        delay = prefect.task.retry_delay(
+            days=1,
+            exponential_backoff=True,
+            max_delay=datetime.timedelta(days=10))
+        assert delay(10) == datetime.timedelta(days=10)
 
 
-def test_add_task_to_flow_after_flow_assigned():
-    with Flow('test_flow') as f:
-        t = Task(fn=fn, name='test')
+class TestTaskRelationships:
 
-    with pytest.raises(ValueError) as e:
-        t2 = Task(fn=fn, name='test', flow=f)
-    assert 'already exists in this Flow' in str(e)
+    def test_task_relationships(self):
+        """Test task relationships"""
+        with Flow('test') as f:
+            before = Task(name='before')
+            after = Task(name='after')
 
-    with pytest.raises(ValueError) as e:
-        f2 = Flow('test_flow_2')
-        f2.add_task(t)
-    assert 'already in another Flow' in str(e)
+        before.run_before(after)
+        assert before in f
+        assert after in f
+        assert before in f.upstream_tasks(after)
 
+        # same test, calling `run_after`
+        with Flow('test') as f:
+            before = Task(name='before')
+            before2 = Task(name='before_2')
+            after = Task(name='after')
 
-def test_task_relationships():
-    """Test task relationships"""
-    with Flow('test') as f:
-        before = Task(fn=fn, name='before')
-        after = Task(fn=fn, name='after')
+        after.run_after([before, before2])
+        assert before in f
+        assert before2 in f
+        assert after in f
+        assert before in f.upstream_tasks(after)
+        assert before2 in f.upstream_tasks(after)
 
-    before.run_before(after)
-    assert before in f.graph
-    assert after in f.graph
-    assert before in f.graph[after]
+    def test_shift_relationship_sugar(self):
+        """Test task relationships with | and >> and << sugar"""
+        with Flow('test') as f:
+            before = Task()
+            mid1 = Task()
+            mid2 = Task()
+            after = Task()
 
-    # same test, calling `run_after`
-    with Flow('test') as f:
-        before = Task(fn=fn, name='before')
-        before2 = Task(fn=fn, name='before_2')
-        after = Task(fn=fn, name='after')
+        (before | (mid1, mid2) | after)
+        assert before in f
+        assert mid1 in f
+        assert mid2 in f
+        assert after in f
+        assert set([mid1, mid2]) == f.downstream_tasks(before)
+        assert set([mid1, mid2]) == f.upstream_tasks(after)
 
-    after.run_after(before, before2)
-    assert before in f.graph
-    assert before2 in f.graph
-    assert after in f.graph
-    assert before in f.graph[after]
-    assert before2 in f.graph[after]
+        with Flow('test') as f:
+            before = Task()
+            mid1 = Task()
+            mid2 = Task()
+            after = Task()
 
+        before >> (mid1, mid2) >> after
+        assert before in f
+        assert mid1 in f
+        assert mid2 in f
+        assert after in f
+        assert set([mid1, mid2]) == f.downstream_tasks(before)
+        assert set([mid1, mid2]) == f.upstream_tasks(after)
 
-def test_detect_cycle():
-    with Flow('test') as f:
-        t1 = Task(fn=fn, name='t1')
-        t2 = Task(fn=fn, name='t2')
-        t3 = Task(fn=fn, name='t3')
+        # same test, calling `run_after`
+        with Flow('test') as f:
+            before = Task()
+            mid1 = Task()
+            mid2 = Task()
+            after = Task()
 
-    t1.run_before(t2)
-    t2.run_before(t3)
-
-    with pytest.raises(prefect.exceptions.PrefectError) as e:
-        t3.run_before(t1)
-
-
-def test_shift_relationship_sugar():
-    """Test task relationships with | and >> and << sugar"""
-    with Flow('test') as f:
-        before = Task(fn=fn, name='before')
-        after = Task(fn=fn, name='after')
-
-    before | after
-    assert before in f.graph
-    assert after in f.graph
-    assert before in f.graph[after]
-
-    with Flow('test') as f:
-        before = Task(fn=fn, name='before')
-        after = Task(fn=fn, name='after')
-
-    before >> after
-    assert before in f.graph
-    assert after in f.graph
-    assert before in f.graph[after]
-
-    # same test, calling `run_after`
-    with Flow('test') as f:
-        before = Task(fn=fn, name='before')
-        after = Task(fn=fn, name='after')
-
-    after << before
-    assert before in f.graph
-    assert after in f.graph
-    assert before in f.graph[after]
+        after << (mid1, mid2) << before
+        assert before in f
+        assert mid1 in f
+        assert mid2 in f
+        assert after in f
+        assert set([mid1, mid2]) == f.downstream_tasks(before)
+        assert set([mid1, mid2]) == f.upstream_tasks(after)
 
 
-def test_serialize():
-    with Flow('test') as f:
-        t1 = prefect.task.Task(fn=lambda: 1, name='t1')
+class TestTaskResult:
 
-    serialized = t1.serialize()
-    t2 = Task.from_serialized(serialized)
-    assert t1.id == t2.id
+    def test_getitem(self):
+        with Flow('test') as f:
+            t1 = Task()
+        assert isinstance(t1['a'], TaskResult)
+        assert t1['a'].task is t1 and t1['a'].index == 'a'
 
+    def test_create_pipe(self):
+        with Flow('test') as f:
+            t1 = Task()
+            t2 = Task()
 
-def test_save():
-    name = 'test-save-task'
-    with Flow(name) as f:
-        t1 = prefect.task.Task(fn=lambda: 1, name=name)
-    model = t1.save()
-    c = mongoengine.connection.get_connection()
-    collection = c[prefect.config.get('mongo', 'db')][model._collection.name]
-    assert collection.find_one(t1.id)['name'] == name
-    assert collection.find_one(t1.id)['flow'] == t1.flow.as_orm()._id
-
-    new_name = 'new name'
-    t1.name = new_name
-    t1.save()
-    assert collection.find_one(t1.id)['name'] == new_name
+        t2.add_pipes(x=t1)
+        assert t1 in f.upstream_tasks(t2)
+        assert isinstance(list(f.edges)[0], prefect.edges.Pipe)

@@ -1,23 +1,24 @@
 class PrefectError(Exception):
     pass
 
-class Retry(PrefectError):
+# ------------------------------------------------------------------------------
+# These classes are used to signal state changes to TaskRunners
+# ------------------------------------------------------------------------------
+
+class DONOTHING(PrefectError):
+    pass
+
+class RETRY(PrefectError):
     """
     Used to indicate that a task should be retried
     """
     pass
 
-class Skip(PrefectError):
+class SKIP(PrefectError):
     pass
 
-class Fail(PrefectError):
+class FAIL(PrefectError):
     pass
 
-class Success(PrefectError):
-    pass
-
-class TriggerFailed(PrefectError):
-    """
-    Used to indicate that a task's trigger condition was not met
-    """
+class SUCCESS(PrefectError):
     pass

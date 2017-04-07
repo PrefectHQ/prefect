@@ -2,14 +2,15 @@ from setuptools import setup, find_packages
 
 install_requires = [
     'croniter',
-    'distributed',
-    'hug',
-    'mongoengine',
-    'python-dateutil',
+    'pycrypto',
+    'transitions',
+    'ujson',
 ]
 
 extras = {
-    'test': ['mongomock', 'pytest', 'pytest-env']
+    # 's3': ['awsfs'],
+    # 'gcs': ['https://github.com/martindurant/gcsfs.git'],
+    'test': ['pytest', 'pytest-env', 'pytest-xdist'],
 }
 
 setup(
@@ -17,7 +18,7 @@ setup(
     version='0.0',
     description='',
     long_description=open('README.md').read(),
-    url='https://gitlab.com/jlowin/prefect',
+    url='https://gitlab.com/prefect/prefect',
     author='jlowin',
     author_email='jlowin@apache.org',
     install_requires=install_requires,
