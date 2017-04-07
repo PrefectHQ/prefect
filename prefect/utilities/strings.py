@@ -1,17 +1,37 @@
+import keyword
+
+def is_valid_identifier(string):
+    """
+    Determines whether a string is a valid Python identifier (meaning it can
+    be used as a variable name or keyword argument).
+
+    Example:
+        >>> is_valid_identifier('hi5')
+        True
+        >>> is_valid_identifier('5hi')
+        False
+        >>> is_valid_identifier('from')
+        False
+        >>> is_valid_identifier('hi.5')
+        False
+    """
+    return string.isidentifier() and not keyword.iskeyword(string)
+
+
 def name_with_suffix(
         name,
         predicate,
         first_suffix=1,
-        delimiter='-',
+        delimiter='_',
         max_iters=1000,):
     """
     Automatically adds a number suffix to a name until it becomes valid.
 
     Example:
         >>> name_with_suffix('name', predicate=lambda n: True)
-        name-1
+        name_1
         >>> name_with_suffix('name', predicate=lambda n: int(n[-1]) > 2)
-        name-3
+        name_3
 
     Args:
         name (string): the desired name
