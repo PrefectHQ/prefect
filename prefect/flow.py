@@ -62,7 +62,7 @@ class Flow:
         if (
                 self._cache.get('tasks', None) != self.tasks
                 or self._cache.get('edges', None) != self.edges):
-            self._cache = {'tasks': self.tasks, 'edges': self.edges}
+            self._cache = {'tasks': set(self.tasks), 'edges': set(self.edges)}
 
     # Graph -------------------------------------------------------------------
 
@@ -113,6 +113,8 @@ class Flow:
             raise TypeError(
                 'Expected an Edge; received {}'.format(type(edge).__name__))
         self.edges.add(edge)
+
+        # check that the edge doesn't add a cycle
         self.sort_tasks()
 
     def upstream_tasks(self, task):
