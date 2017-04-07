@@ -1,13 +1,17 @@
-import copy
-import datetime
 import functools
+import ujson
 import pendulum
 import prefect
 from prefect.exceptions import PrefectError
 from prefect.edges import Edge, Pipe
 
+
 def retry_delay(
-        interval=None, *, exponential_backoff=False, max_delay=pendulum.interval(hours=2), **kwargs):
+        interval=None,
+        *,
+        exponential_backoff=False,
+        max_delay=pendulum.interval(hours=2),
+        **kwargs):
     """
     A helper function for generating task retry delays.
 
@@ -35,8 +39,7 @@ def retry_delay(
         raise ValueError(
             'Provide an interval or interval keywords, but not both.')
     elif interval is None and not kwargs:
-        raise ValueError(
-            'Provide either an interval or interval keywords.')
+        raise ValueError('Provide either an interval or interval keywords.')
     elif kwargs:
         interval = pendulum.interval(**kwargs)
 
@@ -205,13 +208,30 @@ class Task:
 
     # Serialize ---------------------------------------------------------------
 
-    def to_json(self):
-        return json.dumps(dict(
+    def serialize(self, as_dict=False):
+        serialized = dict(
             id=self.id,
             name=self.name,
             flow=self.flow.id,
-            rety_delay=cloudpickle.dumps(self.retry_delay),
-            serialized=cloudpickle.dumps(self)))
+            max_retries=self.max_retries,
+            retry_delay=prefect.utilities.serialize.serialize(self.retry_delay),
+            serialized=prefect.utilities.serialize.serialize(self))
+
+        if as_dict:
+            return serialized
+        else:
+            return ujson.dumps(serialized)
+
+    @classmethod
+    def deserialize(cls, serialized):
+        if not isinstance(serialized, dict):
+            serialized = ujson.loads(serialized)
+        obj = prefect.utilities.serialize.deserialize(serialized['serialized'])
+        if not isinstance(obj, cls):
+            raise TypeError(
+                'Expected {}; received {}'.format(
+                    cls.__name__, type(obj).__name__))
+        return obj
 
     # Run  --------------------------------------------------------------------
 

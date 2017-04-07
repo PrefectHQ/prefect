@@ -100,7 +100,16 @@ class TestFlow:
         with pytest.raises(ValueError) as e:
             t3.run_before(t1)
 
-# class TestPersistence:
+class TestPersistence:
+    def test_serialize_flow(self):
+        with Flow('test') as f:
+            t1 = Task()
+            t2 = Task()
+            t1.run_before(t2)
+
+        f2 = Flow.deserialize(f.serialize())
+        assert f2.id == f.id
+        assert [t.id for t in f] == [t.id for t in f2]
 #     def test_expunge_session(self):
 #         """
 #         Getting a flow's model involves loading a namespace model. That dirties

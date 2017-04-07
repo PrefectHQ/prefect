@@ -1,11 +1,8 @@
 import base64
-from collections import namedtuple
 from Crypto.Cipher import AES
 from Crypto import Random
-import distributed
+import cloudpickle
 import hashlib
-import prefect
-import ujson
 
 
 class AESCipher(object):
@@ -33,7 +30,7 @@ class AESCipher(object):
         if isinstance(s, bytes):
             pad_chr = pad_chr.encode()
         return s + (self.bs - len(s) % self.bs) * pad_chr
-        
+
     @staticmethod
     def _unpad(s):
         return s[:-ord(s[len(s)-1:])]
@@ -47,11 +44,7 @@ def serialize(obj, encryption_key=None):
         obj (object): The object to serialize
         encryption_key (str): If provided, used to encrypt the serialization
     """
-    header, frames = distributed.protocol.serialize(obj)
-    serialized = ujson.dumps(
-        dict(
-            header=header,
-            frames=[base64.b64encode(b).decode('utf-8') for b in frames]))
+    serialized = base64.b64encode(cloudpickle.dumps(obj))
     if encryption_key is not None:
         cipher = AESCipher(key=encryption_key)
         serialized = cipher.encrypt(serialized)
@@ -69,7 +62,4 @@ def deserialize(serialized, decryption_key=None):
     if decryption_key is not None:
         cipher = AESCipher(key=decryption_key)
         serialized = cipher.decrypt(serialized)
-    serialized = ujson.loads(serialized)
-    header, frames = serialized['header'], serialized['frames']
-    frames = [base64.b64decode(b.encode('utf-8')) for b in frames]
-    return distributed.protocol.deserialize(header, frames)
+    return cloudpickle.loads(base64.b64decode(serialized))

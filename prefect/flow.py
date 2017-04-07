@@ -1,11 +1,11 @@
-import cloudpickle
-import msgpack
+import copy
 import prefect
 from prefect.edges import Edge
 from prefect.task import Task
 from prefect.exceptions import PrefectError
 import prefect.context
 from prefect.schedules import NoSchedule
+import ujson
 
 
 class Flow:
@@ -215,18 +215,39 @@ class Flow:
         flow.id = id
         return flow
 
-    def serialize(self):
-        return msgpack.dumps(
-            dict(
-                id=self.id,
-                namespace=self.namespace,
-                name=self.name,
-                version=self.version,
-                tasks=[t.to_json() for t in self.sort_tasks()],
-                edges=[e.to_json() for e in self.edges],
-                required_params=sorted(self.required_params),
-                schedule=cloudpickle.dumps(self.schedule),
-                serialized=cloudpickle.dumps(self)))
+    def serialize(self, as_dict=False):
+        flow = copy.copy(self)
+        del flow.tasks
+        del flow.edges
+
+        serialized = dict(
+            id=self.id,
+            namespace=self.namespace,
+            name=self.name,
+            version=self.version,
+            tasks=[ujson.loads(t.serialize()) for t in self.sort_tasks()],
+            edges=[ujson.loads(e.serialize()) for e in self.edges],
+            required_params=sorted(self.required_params),
+            schedule=prefect.utilities.serialize.serialize(self.schedule),
+            serialized=prefect.utilities.serialize.serialize(flow))
+        if as_dict:
+            return serialized
+        else:
+            return ujson.dumps(serialized)
+
+    @classmethod
+    def deserialize(cls, serialized):
+        if not isinstance(serialized, dict):
+            serialized = ujson.loads(serialized)
+        obj = prefect.utilities.serialize.deserialize(serialized['serialized'])
+        if not isinstance(obj, cls):
+            raise TypeError(
+                'Expected {}; received {}'.format(
+                    cls.__name__, type(obj).__name__))
+        obj.tasks = set([Task.deserialize(t) for t in serialized['tasks']])
+        obj.edges = set([Edge.deserialize(e) for e in serialized['edges']])
+        obj._cache.clear()
+        return obj
 
     # Decorator ----------------------------------------------------
 

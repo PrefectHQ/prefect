@@ -1,6 +1,7 @@
-import peewee
+import ujson
 import prefect
 import prefect.utilities.serialize
+
 
 class Edge:
     """
@@ -23,6 +24,7 @@ class Edge:
             raise TypeError(
                 'downstream_task must be a Task; received {}'.format(
                     type(downstream_task).__name__))
+        self.id = '{}/{}'.format(upstream_task.id, downstream_task.id)
         self.upstream_task = upstream_task
         self.downstream_task = downstream_task
 
@@ -54,6 +56,28 @@ class Edge:
     def __hash__(self):
         return id(self)
 
+    def serialize(self, as_dict=False):
+        serialized = dict(
+            id=self.id,
+            upstream_task=self.upstream_task.id,
+            downstream_task=self.downstream_task.id,
+            serialized=prefect.utilities.serialize.serialize(self))
+        if as_dict:
+            return serialized
+        else:
+            return ujson.dumps(serialized)
+
+    @classmethod
+    def deserialize(cls, serialized):
+        if not isinstance(serialized, dict):
+            serialized = ujson.loads(serialized)
+        obj = prefect.utilities.serialize.deserialize(serialized['serialized'])
+        if not isinstance(obj, cls):
+            raise TypeError(
+                'Expected {}; received {}'.format(
+                    cls.__name__, type(obj).__name__))
+        return obj
+
 
 class Pipe(Edge):
     """
@@ -76,13 +100,12 @@ class Pipe(Edge):
         super().__init__(
             upstream_task=upstream_task_result.task,
             downstream_task=downstream_task)
+        self.id = '{}/{}/{}'.format(
+            upstream_task.id, downstream_task.id, self._repr_index)
         self.task_result = upstream_task_result
         self.key = key
         self.index = upstream_task_result.index
         self._repr_index = upstream_task_result._repr_index()
-
-    def id(self, run_id):
-        return '{}/{}/{}'.format(run_id, self.task.id, self._repr_index)
 
     def __repr__(self):
         return '{}({} -> {})'.format(
@@ -118,10 +141,6 @@ class Pipe(Edge):
         """
         Retrieves the result from the database and deserializes it
         """
-        if self.index is not None:
-            _id = '{}/{}/{}'.format(run_id, self.task.id, self.index)
-        else:
-            _id = '{}/{}'.format(run_id, self.task.id)
 
         result = prefect.models.TaskResultModel.first(
             task_run_id=run_id, index=self._repr_index).result
