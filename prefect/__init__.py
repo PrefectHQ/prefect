@@ -15,11 +15,4 @@ from prefect.task import Task
 
 # Prefect Submodules ----------------------------------------------------------
 # (Submodules will not be available on all systems)
-
-# discover submodules
 __path__ = __import__('pkgutil').extend_path(__path__, __name__)
-
-try:
-    import prefect.server
-except ImportError:
-    pass

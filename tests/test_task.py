@@ -7,7 +7,7 @@ from prefect.task import Task, TaskResult
 import pytest
 
 
-class TestBasics:
+class TestTask:
 
     def test_create_task(self):
         """Test task creation"""
