@@ -1,7 +1,9 @@
 from setuptools import setup, find_packages
 
 install_requires = [
+    'click',
     'croniter',
+    'pyjwt',
     'pycrypto',
     'transitions',
     'ujson',

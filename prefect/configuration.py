@@ -8,33 +8,8 @@ import re
 
 SYSTEM_NAMESPACE = 'prefect'
 
-config = ConfigParser()
-
-_default_config_files = [
-    os.path.join(
-        os.path.dirname(__file__), 'default_configuration', 'prefect.cfg'),
-]
-_test_config_files = [
-    os.path.join(
-        os.path.dirname(__file__), 'default_configuration', 'prefect.cfg'),
-]
-
 env_var_re = re.compile(
     '^PREFECT__(?P<section>\S+)__(?P<option>\S+)', re.IGNORECASE)
-
-
-def _add_default_config_file(config_file):
-    """
-    Adds a new default configuration file
-    """
-    _default_config_files.append(config_file)
-
-
-def _add_test_config_file(config_file):
-    """
-    Adds a new test configuration file
-    """
-    _test_config_files.append(config_file)
 
 
 def expand(env_var):
@@ -96,13 +71,12 @@ def validate_config(config):
 # Load configuration ----------------------------------------------------------
 
 
-def load_config_files(config_files=None, append=False):
+def load_config_file(config_file, config=None):
     """
     Loads a new Prefect configuration.
 
-    Prefect configurations are loaded in the following sequence:
-        - any files in the _config_file list
-        - any file passed to this method
+    The supplied config file is loaded on top of an existing config (
+    if provided); otherwise a new config is returned.
 
     Any configuration options set by environment variables take precedance over
     all loaded files.
@@ -110,30 +84,13 @@ def load_config_files(config_files=None, append=False):
     Args:
         config_file (str): the path to a Prefect configuration file
 
-        append (bool): if True, the passed file will be loaded on top of
-            the existing configuration; if False the default configuration
-            will be loaded first, followed by the passed file.
+        config (ConfigParser): an existing config that should be modified
 
     """
-    global config
-    all_config_files = []
+    if config is None:
+        config = ConfigParser()
 
-    if not append:
-        all_config_files.extend(_default_config_files)
-        if os.getenv('PREFECT_CONFIG'):
-            all_config_files.append(os.getenv('PREFECT_CONFIG'))
-
-    if config_files is not None:
-        if isinstance(config_files, str):
-            config_files = [config_files]
-        all_config_files.extend(config_files)
-
-    all_config_files = [expand(c) for c in all_config_files]
-
-    if not append:
-        config.clear()
-
-    config.read(all_config_files)
+    config.read(expand(config_file))
 
     # overwrite environment variables
     for ev in os.environ:
@@ -146,24 +103,25 @@ def load_config_files(config_files=None, append=False):
 
     configure_logging(config)
     validate_config(config)
+    return config
 
 
-def load_test_config():
-    return load_config_files(config_files=_test_config_files)
+def load_configuration(default_config, user_config, env_var=None, config=None):
+    """
+    Loads a prefect configuration by first loading the default_config file
+    and then loading a user configuration. If an env_var is supplied, it is
+    checked for the location of a configuration file; otherwise the user_config
+    argument is used.
+    """
+    default_config = load_config_file(default_config, config=config)
+    user_config_file = os.getenv(env_var or '', user_config)
+    config = load_config_file(user_config_file, config=default_config)
+    return config
 
 
-def load_user_config():
-    load_config_files(config_files='~/.prefect/config', append=True)
-
-
-def load_configuration():
-    load_config_files()
-
-    # Test Mode
-    if os.getenv('PREFECT_TEST_MODE', '').upper() in ('1', 'YES', 'TRUE', 'ON'):
-        load_test_config()
-    else:
-        load_user_config()
-
-
-load_configuration()
+config = load_configuration(
+    default_config=os.path.join(
+            os.path.dirname(__file__), 'default_configuration', 'prefect.cfg'),
+    user_config='~/.prefect/prefect.cfg',
+    env_var='PREFECT_CONFIG',
+)

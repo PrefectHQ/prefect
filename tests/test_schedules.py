@@ -1,5 +1,5 @@
 import datetime
-import dateutil
+import dateutil.parser
 from prefect import schedules
 
 
