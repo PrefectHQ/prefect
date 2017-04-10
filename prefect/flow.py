@@ -203,18 +203,6 @@ class Flow:
 
     # Persistence  ------------------------------------------------
 
-    @staticmethod
-    def from_id(id):
-        """
-        Load a serialized Flow from the database
-        """
-        model = FlowModel.find(id)
-        if not model:
-            raise PrefectError('No Flow found with id {}'.format(id))
-        flow = model.serialized
-        flow.id = id
-        return flow
-
     def serialize(self, as_dict=False):
         flow = copy.copy(self)
         del flow.tasks

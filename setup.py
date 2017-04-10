@@ -27,4 +27,7 @@ setup(
     extras_require=extras,
     scripts=[],
     packages=find_packages(),
-    include_package_data=True,)
+    include_package_data=True,
+    entry_points={'console_scripts': [
+        'prefect=prefect.cli:cli',
+    ]})
