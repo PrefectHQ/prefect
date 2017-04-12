@@ -1,3 +1,5 @@
+# TODO this module is not threadsafe. Consider using threading.local
+
 """
 This module handles context for Prefect objects in two ways:
 
