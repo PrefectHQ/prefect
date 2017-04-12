@@ -1,8 +1,8 @@
 import click
 import requests
 import prefect
-server = prefect.config.get('prefect', 'server_address')
-api_url = server + '/namespace'
+# server = prefect.config.get('prefect', 'server_address')
+# api_url = server + '/namespace'
 
 @click.group()
 def namespaces():
