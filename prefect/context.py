@@ -1,5 +1,4 @@
 # TODO this module is not threadsafe. Consider using threading.local
-
 """
 This module handles context for Prefect objects in two ways:
 
@@ -12,47 +11,50 @@ exist!) when tasks are defined, but tasks are run inside a context manager that 
 
 """
 from contextlib import contextmanager as _contextmanager
+import threading
 
 # context dictionary
-context = {}
+class context(threading.local):
+    """
+    A context store for Prefect data.
+    """
 
-# global placeholders
-run_dt = None
-as_of_dt = None
-flow = None
-flow_id = None
-flow_namespace = None
-flow_name = None
-flow_version = None
-task_id = None
-task_name = None
-run_number = None
-pipes = None
-params = None
+    def __init__(self, **kwargs):
+        self.reset(**kwargs)
 
-def set_context(**kwargs):
-    """
-    Sets global context and returns the original global context, so it can
-    be restored later.
-    """
-    # store the current context
-    previous_context = globals().copy()
-    # update the context dict with new variables
-    context.update(kwargs)
-    # add the context variables to the global namespace
-    globals().update(context)
-    # return the previous context
-    return previous_context
+    def __repr__(self):
+        return '<PrefectContext>'
 
-def reset_context(previous_context):
-    """
-    Reset the global context to a previous state
-    """
-    # clear the context dict
-    context.clear()
-    # restore the previous context
-    globals().clear()
-    globals().update(previous_context)
+    def __iter__(self):
+        return iter(self.__dict__.keys())
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def to_dict(self):
+        return self.__dict__.copy()
+
+    def update(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+    def reset(self, **kwargs):
+        self.__dict__.clear()
+        self.run_dt = None
+        self.as_of_dt = None
+        self.flow = None
+        self.flow_id = None
+        self.flow_namespace = None
+        self.flow_name = None
+        self.flow_version = None
+        self.task_id = None
+        self.task_name = None
+        self.run_number = None
+        self.upstream_edges = None
+        self.downstream_edges = None
+        self.params = None
+        self.update(**kwargs)
+
+context = context()
 
 
 @_contextmanager
@@ -61,16 +63,18 @@ def prefect_context(**kwargs):
     This context manager adds any keyword arguments to both
     the context dictionary and the global namespace.
     """
-    previous_context = _set_context(**kwargs)
+    previous_context = context.to_dict()
     try:
+        context.update(**kwargs)
         yield context
     finally:
-        _reset_context(previous_context)
+        context.reset(**previous_context)
 
 
 def task_context(
-        run_dt, as_of_dt, flow_id, flow_namespace, flow_name, flow_version, task_id,
-        task_name, run_number, pipes, params, **kwargs):
+        run_dt, as_of_dt, flow_id, flow_namespace, flow_name, flow_version,
+        task_id, task_name, run_number, upstream_edges, downstream_edges,
+        params, **kwargs):
     """
     Helper function for updating the Prefect context with items expected
     by tasks.

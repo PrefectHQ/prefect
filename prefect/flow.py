@@ -190,15 +190,12 @@ class Flow:
     # Context Manager -----------------------------------------------
 
     def __enter__(self):
-        self._previous_context = prefect.context.set_context(flow=self)
+        self._previous_context = prefect.context.to_dict()
+        prefect.context.update(flow=self)
         return self
-        # global _CONTEXT_FLOW
-        # self._old_context_manager_flow = _CONTEXT_FLOW
-        # _CONTEXT_FLOW = self
-        # return self
 
     def __exit__(self, _type, _value, _tb):
-        prefect.context.reset_context(self._previous_context)
+        prefect.context.reset(**self._previous_context)
         del self._previous_context
 
     # Persistence  ------------------------------------------------
