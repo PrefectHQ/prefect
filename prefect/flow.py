@@ -16,11 +16,20 @@ class Flow:
             namespace=prefect.config.get('flows', 'default_namespace'),
             version=prefect.config.get('flows', 'default_version'),
             required_params=None,
-            schedule=NoSchedule()):
+            schedule=NoSchedule(),
+            concurrent_runs=None, #TODO
+            cluster=None):
         """
-        required_params: a collection of parameter names that must be provided
-            when the Flow is run. Flows can be called with any params, but an
-            error will be raised if these are missing.
+        Args:
+            required_params: a collection of parameter names that must be
+                provided when the Flow is run. Flows can be called with any
+                params, but an error will be raised if these are missing.
+            schedule (prefect.Schedule): a Schedule object that returns the
+                Flow's schedule
+            cluster (str): The address of a specific cluster that this Flow
+                should run in. If not provided, the default cluster will be
+                used.
+
         """
 
         if required_params is None:
@@ -39,6 +48,8 @@ class Flow:
         self.edges = set()
         self.id = '{namespace}.{name}:{version}'.format(
             namespace=self.namespace, name=self.name, version=self.version)
+        self.concurrent_runs = concurrent_runs
+        self.cluster = cluster
 
         self._cache = {}
         self.check_cache()
@@ -212,8 +223,9 @@ class Flow:
             version=self.version,
             tasks=[ujson.loads(t.serialize()) for t in self.sort_tasks()],
             edges=[ujson.loads(e.serialize()) for e in self.edges],
-            required_params=sorted(self.required_params),
-            schedule=prefect.utilities.serialize.serialize(self.schedule),
+            required_params=sorted(str(p) for p in self.required_params),
+            schedule=ujson.dumps(self.schedule.serialize()),
+            cluster=self.cluster,
             serialized=prefect.utilities.serialize.serialize(flow))
         if as_dict:
             return serialized
