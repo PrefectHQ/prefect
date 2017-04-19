@@ -103,8 +103,10 @@ class Task:
         self.flow = flow
 
         if name is None:
+            name = getattr(fn, '__name__', type(self).__name__)
+            name = name.replace('<lambda>', '__lambda__'),
             name = prefect.utilities.strings.name_with_suffix(
-                name=getattr(fn, '__name__', type(self).__name__),
+                name=name,
                 predicate=lambda n: n not in [t.name for t in flow.tasks])
         if not prefect.utilities.strings.is_valid_identifier(name):
             raise ValueError(
