@@ -198,6 +198,36 @@ class Flow:
         """
         return set(e for e in self.edges if e.upstream_task == task)
 
+    def root_tasks(self):
+        """
+        Returns the root tasks of the Flow -- tasks that have no upstream
+        dependencies.
+        """
+        self.check_cache()
+        if 'root tasks' not in self._cache:
+            root_tasks = set()
+            for task in self.tasks:
+                if not self.edges_to(task):
+                    root_tasks.add(task)
+            self._cache['root tasks'] = root_tasks
+
+        return self._cache['root tasks']
+
+    def terminal_tasks(self):
+        """
+        Returns the terminal tasks of the Flow -- tasks that have no downstream
+        dependencies.
+        """
+        self.check_cache()
+        if 'terminal tasks' not in self._cache:
+            terminal_tasks = set()
+            for task in self.tasks:
+                if not self.edges_from(task):
+                    terminal_tasks.add(task)
+            self._cache['terminal tasks'] = terminal_tasks
+
+        return self._cache['terminal tasks']
+
     # Context Manager -----------------------------------------------
 
     def __enter__(self):
