@@ -6,6 +6,7 @@ import prefect.exceptions
 import prefect.utilities
 import prefect.triggers
 import prefect.schedules
+import prefect.state
 import prefect.edges
 from prefect.context import context
 from prefect.flow import Flow

@@ -5,7 +5,6 @@ install_requires = [
     'croniter',
     'pyjwt',
     'pycrypto',
-    'transitions',
     'ujson',
 ]
 
