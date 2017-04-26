@@ -90,6 +90,7 @@ class Task:
             max_retries: the number of times this task can be retried. -1
                 indicates an infinite number of times.
 
+
         """
         if fn is not None:
             self.run = fn
@@ -104,7 +105,7 @@ class Task:
 
         if name is None:
             name = getattr(fn, '__name__', type(self).__name__)
-            name = name.replace('<lambda>', '__lambda__'),
+            name = name.replace('<lambda>', '__lambda__')
             name = prefect.utilities.strings.name_with_suffix(
                 name=name,
                 predicate=lambda n: n not in [t.name for t in flow.tasks])
