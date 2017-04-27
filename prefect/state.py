@@ -108,6 +108,8 @@ class TaskRunState(State):
     SUCCESS = 'SUCCESS'
     FAILED = 'FAILED'
     SKIPPED = 'SKIPPED'
+    WAITING = 'WAITING'
+    RESUMING = 'RESUMING'
     SHUTDOWN = 'SHUTDOWN'
 
     _all_states = set(
@@ -119,15 +121,18 @@ class TaskRunState(State):
             SUCCESS,
             FAILED,
             SKIPPED,
+            WAITING,
+            WAITING_FOR_UPSTREAM,
             SHUTDOWN,
         ])
     _started_states = set([RUNNING, SUCCESS, FAILED])
-    _pending_states = set([PENDING, PENDING_RETRY, SCHEDULED])
-    _running_states = set([RUNNING])
+    _pending_states = set([PENDING, PENDING_RETRY, SCHEDULED, WAITING, WAITING_FOR_UPSTREAM])
+    _running_states = set([RUNNING, RESUMING])
     _finished_states = set([SUCCESS, FAILED, SKIPPED, SHUTDOWN])
     _skipped_states = set([SKIPPED])
     _successful_states = set([SUCCESS, SKIPPED])
     _failed_states = set([FAILED])
+    _waiting_states = set([WAITING, WAITING_FOR_UPSTREAM])
 
     @set_state_from(_pending_states)
     def start(self):
@@ -157,6 +162,14 @@ class TaskRunState(State):
     def shutdown(self):
         return self.SHUTDOWN
 
+    @set_state_from(_running_states)
+    def wait(self):
+        return self.WAITING
+
+    @set_state_from(_pending_states)
+    def wait_for_upstream(self):
+        return self.WAITING_FOR_UPSTREAM
+
     def is_started(self):
         return str(self) in self._started_states
 
@@ -178,14 +191,17 @@ class TaskRunState(State):
     def is_failed(self):
         return str(self) in self._failed_states
 
+    def is_waiting(self):
+        return str(self) in self._waiting_states
+
 
 class FlowRunState(State):
-    _default_state = 'CREATED'
     SCHEDULED = 'SCHEDULED'
     PENDING = _default_state = 'PENDING'
     RUNNING = 'RUNNING'
     SUCCESS = 'SUCCESS'
     FAILED = 'FAILED'
+    WAITING = 'WAITING'
     SHUTDOWN = 'SHUTDOWN'
 
     _all_states = set(
@@ -195,10 +211,11 @@ class FlowRunState(State):
             RUNNING,
             SUCCESS,
             FAILED,
+            WAITING,
             SHUTDOWN,
         ])
 
-    _pending_states = set([SCHEDULED, PENDING])
+    _pending_states = set([SCHEDULED, PENDING, WAITING])
 
     @set_state_from(_pending_states)
     def start(self):
@@ -215,6 +232,10 @@ class FlowRunState(State):
     @set_state_from(_pending_states.union([RUNNING]))
     def fail(self):
         return self.FAILED
+
+    @set_state_from(RUNNING)
+    def wait(self):
+        return self.WAITING
 
     @set_state_from(_all_states)
     def shutdown(self):

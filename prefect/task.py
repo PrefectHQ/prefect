@@ -2,7 +2,7 @@ import functools
 import ujson
 import datetime
 import prefect
-from prefect.exceptions import PrefectError
+from prefect.signals import PrefectError
 from prefect.edges import Edge, Pipe
 
 
@@ -214,24 +214,19 @@ class Task:
 
     # Serialize ---------------------------------------------------------------
 
-    def serialize(self, as_dict=False):
-        serialized = dict(
-            id=self.id,
-            name=self.name,
-            flow=self.flow.id,
-            max_retries=self.max_retries,
-            retry_delay=prefect.utilities.serialize.serialize(self.retry_delay),
-            serialized=prefect.utilities.serialize.serialize(self))
-
-        if as_dict:
-            return serialized
-        else:
-            return ujson.dumps(serialized)
+    def serialize(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'flow': self.flow.id,
+            'max_retries': self.max_retries,
+            'retry_delay':
+            prefect.utilities.serialize.serialize(self.retry_delay),
+            'serialized': prefect.utilities.serialize.serialize(self)
+        }
 
     @classmethod
     def deserialize(cls, serialized):
-        if not isinstance(serialized, dict):
-            serialized = ujson.loads(serialized)
         obj = prefect.utilities.serialize.deserialize(serialized['serialized'])
         if not isinstance(obj, cls):
             raise TypeError(
@@ -242,6 +237,27 @@ class Task:
     # Run  --------------------------------------------------------------------
 
     def run(self, **inputs):
+        """
+        The main entrypoint for tasks.
+
+        In addition to running arbitrary functions, tasks can interact with
+        Prefect in a few ways:
+            1. Return an optional result. When this function runs successfully,
+                the task is considered successful and the result (if any) is
+                made available to downstream edges.
+            2. Raise an error. Errors are interpreted as failure.
+            3. Raise a signal. Signals can include FAIL, SUCCESS, WAIT, etc.
+                and indicate that the task should be put in the indicated
+                state.
+                - FAIL will lead to retries if appropriate
+                - WAIT will end execution and skip all downstream tasks with
+                    state WAITING_FOR_UPSTREAM (unless appropriate triggers
+                    are set). The task can be run again and should check
+                    context.is_waiting to see if it was placed in a WAIT.
+            4. Yield new tasks or flows. If a task yields tasks or flows,
+                they are submitted for execution. Execution should be treated
+                as asynchronous; the task does not stop after yielding.
+        """
         raise NotImplementedError(
             'Pass a `fn` to this task or override this method!')
 

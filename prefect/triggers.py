@@ -3,56 +3,60 @@ Triggers are functions that determine if task state should change based on
 the state of preceding tasks.
 """
 
-from prefect import exceptions
+from prefect import signals
 
 
 def all_success(preceding_states):
     """
-    any skipped -> skip
+    any waiting -> wait
     any unsuccessful -> fail
+    * skipped tasks count as successes
     """
-    if any(s.is_skipped() for s in preceding_states):
-        raise exceptions.SKIP(
-            'Trigger failed: at least one preceding task was skipped.')
+    if any(s.is_waiting() for s in preceding_states):
+        raise signals.WAIT_FOR_UPSTREAM(
+            'An upstream task is waiting to continue.')
     elif not all(s.is_successful() for s in preceding_states):
-        raise exceptions.FAIL(
+        raise signals.FAIL(
             'Trigger failed: not all preceding tasks were successful')
 
 
 def all_failed(preceding_states):
     """
-    any skipped -> skip
+    any waiting -> wait
     any successful -> fail
+    * skipped tasks count as successes
     """
-    if any(s.is_skipped() for s in preceding_states):
-        raise exceptions.SKIP(
-            'Trigger failed: at least one preceding task was skipped.')
-    elif not all(s.is_failed() for s in preceding_states):
-        raise exceptions.FAIL(
+    if any(s.is_waiting() for s in preceding_states):
+        raise signals.WAIT_FOR_UPSTREAM(
+            'An upstream task is waiting to continue.')
+    if not all(s.is_failed() for s in preceding_states):
+        raise signals.FAIL(
             'Trigger failed: not all preceding tasks failed.')
 
 
 def any_success(preceding_states):
     """
-    all skipped -> skip
     none successful -> fail
+    any waiting -> wait
+    * skipped tasks count as successes
     """
-    if all(s.is_skipped() for s in preceding_states):
-        raise exceptions.SKIP(
-            'Trigger failed: all preceding tasks were skipped.')
     if not any(s.is_successful() for s in preceding_states):
-        raise exceptions.FAIL(
+        if any(s.is_waiting() for s in preceding_states):
+            raise signals.WAIT_FOR_UPSTREAM(
+                'An upstream task is waiting to continue.')
+        raise signals.FAIL(
             'Trigger failed: all preceding tasks failed.')
 
 
 def any_failed(preceding_states):
     """
-    all skipped -> skip
     none failed -> fail
+    any waiting -> wait
+    * skipped tasks count as successes
     """
-    if all(s.is_skipped() for s in preceding_states):
-        raise exceptions.SKIP(
-            'Trigger failed: all preceding tasks were skipped.')
     if not any(s.is_failed() for s in preceding_states):
-        raise exceptions.FAIL(
+        if any(s.is_waiting() for s in preceding_states):
+            raise signals.WAIT_FOR_UPSTREAM(
+                'An upstream task is waiting to continue.')
+        raise signals.FAIL(
             'Trigger failed: all preceding tasks were successful.')
