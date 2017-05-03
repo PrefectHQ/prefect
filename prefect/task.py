@@ -4,6 +4,90 @@ import datetime
 import prefect
 from prefect.signals import PrefectError
 from prefect.edges import Edge, Pipe
+from prefect.utilities.strings import is_valid_identifier
+
+class TaskResult:
+    """
+    An object that represents the result (output) of a Task.
+
+    TaskResults are primarily used to pipe data from one task to another.
+    """
+
+
+    def __init__(self, task, index=None):
+        if not isinstance(task, Task):
+            raise TypeError(
+                'task must be a Task; received {}'.format(type(task).__name__))
+        self.task = task
+        self.index = index
+
+    def _repr_index(self):
+        return '[{}]'.format(self.index if self.index is not None else ':')
+
+    def __repr__(self):
+        return 'TaskResult({}{})'.format(self.task.id, self._repr_index())
+
+class Edge:
+
+    def __init__(
+            self,
+            upstream_task,
+            downstream_task,
+            key=None,
+            upstream_index=None):
+        """
+        Edges represent connections between Tasks.
+
+        At a minimum, edges link an upstream_task and a downstream_task
+        indicating that the downstream task shouldn't run until the upstream
+        task is complete.
+
+        In addition, edges can specify a key and upstream_index that
+        describe how upstream results are passed to the downstream task.
+
+        Args:
+            upstream_task (Task): a task that must run before the
+                downstream_task
+
+            downstream_task (Task): a task that will be run after the
+                upstream_task. The upstream task state is passed to the
+                downstream task's trigger function to determine whether the
+                downstream task should run.
+
+            key (str): Optional. Passing a key indicates
+                that the upstream result should be passed to the downstream
+                task as a keyword argument.
+
+            upstream_index (obj): Optional, but a key must also be
+                passed. The upstream key is used to index the upstream result
+                prior to passing it to the downstream task.
+
+        The key indicates that the result of the upstream task
+        should be passed to the downstream task under the key.
+
+        If a key is provided, an upstream_index can also be provided
+        """
+        self.upstream_task = upstream_task
+        self.downstream_task = downstream_task
+
+        if key is not None:
+            if not is_valid_identifier(key):
+                raise ValueError(
+                    'Downstream key ("{}") must be a valid identifier'.format(
+                        key))
+        elif upstream_index is not None:
+            raise ValueError(
+                'Downstream key must be supplied to use an upstream key')
+        self.key = key
+        self.upstream_index = upstream_index
+
+    def as_dict(self):
+        return {
+            'upstream_task': self.upstream_task.name,
+            'downstream_task': self.downstream_task.name,
+            'key': self.key,
+            'upstream_index': self.upstream_index
+        }
 
 
 def retry_delay(
@@ -72,7 +156,9 @@ class Task:
             fn=None,
             max_retries=0,
             retry_delay=retry_delay(minutes=5),
-            trigger=None):
+            trigger=None,
+            serializer=None,
+            resources=None):
         """
 
         Args:
@@ -90,11 +176,20 @@ class Task:
             max_retries: the number of times this task can be retried. -1
                 indicates an infinite number of times.
 
+            serializer (Serializer): the class used to serialize and
+                deserialize the task result.
+
+            resources (dict): a dictionary of resources that the Dask scheduler
+                can use to allocate the task (requires cluster configuration)
+                See https://distributed.readthedocs.io/en/latest/resources.html
+
 
         """
+        # override self.run if a function was passed
         if fn is not None:
             self.run = fn
 
+        # set the flow
         if flow is None:
             flow = prefect.context.flow
             if flow is None:
@@ -103,31 +198,40 @@ class Task:
                     'a Flow context manager.')
         self.flow = flow
 
+        # set the name and id
         if name is None:
             name = getattr(fn, '__name__', type(self).__name__)
             name = name.replace('<lambda>', '__lambda__')
             name = prefect.utilities.strings.name_with_suffix(
                 name=name,
                 predicate=lambda n: n not in [t.name for t in flow.tasks])
-        if not prefect.utilities.strings.is_valid_identifier(name):
+        if not is_valid_identifier(name):
             raise ValueError(
                 'Task names must be valid Python identifiers '
                 '(received {})'.format(name))
-
         self.name = name
         self.id = '{}/{}'.format(self.flow.id, self.name)
 
-        self.max_retries = max_retries
-
+        # set up retries
         if not callable(retry_delay):
             retry_delay = prefect.tasks.retry_delay(retry_delay)
-
         self.retry_delay = retry_delay
+        self.max_retries = max_retries
 
+        # set up up trigger
         if trigger is None:
-            trigger = prefect.triggers.all_success
+            trigger = prefect.triggers.all_successful
         self.trigger = trigger
 
+        # set up result serialization
+        if serializer is None:
+            serializer = prefect.serializers.JSONSerializer()
+        self.serializer = serializer
+
+        # misc
+        self.resources = resources or {}
+
+        # add the task to the flow
         self.flow.add_task(self)
 
     def __repr__(self):
@@ -193,24 +297,31 @@ class Task:
         self.flow.add_edge(Edge(upstream_task=self, downstream_task=task))
         return task
 
-    def add_pipes(self, **kwargs):
+    def run_with(self, *tasks, **results):
         """
         Adds a data pipe to the Flow so this task receives the results
         of upstream tasks.
 
         Args:
-            **kwargs (Tasks or TaskResults): The provided Tasks / TaskResults
-                will be piped into this Task under the key corresponding to
-                that task / taskresult's kwarg.
+            *tasks (Tasks): The provided Tasks will be set as upstream
+                dependencies of this task
+
+            **results (Tasks or TaskResults): The provided Tasks / TaskResults
+                will be made upstream dependencies of this task AND their
+                results will passed to the task under the provided keyword.
         """
-        for key, task_result in kwargs.items():
+
+        self.run_after(tasks)
+
+        for key, task_result in results.items():
             if isinstance(task_result, Task):
                 task_result = TaskResult(task_result)
             self.flow.add_edge(
-                Pipe(
-                    upstream_task_result=task_result,
+                Edge(
+                    upstream_task=task_result.task,
                     downstream_task=self,
-                    key=key))
+                    key=key,
+                    upstream_index=task_result.index))
 
     # Serialize ---------------------------------------------------------------
 
@@ -302,28 +413,3 @@ class Task:
         """ obj << self -> self.run_before(obj)"""
         self.run_before(obj)
         return obj
-
-
-class TaskResult:
-    """
-    An object that represents the result (output) of a Task.
-
-    TaskResults are primarily used to pipe data from one task to another.
-    """
-
-    class NoIndex:
-        pass
-
-    def __init__(self, task, index=NoIndex):
-        if not isinstance(task, Task):
-            raise TypeError(
-                'task must be a Task; received {}'.format(type(task).__name__))
-        self.task = task
-        self.index = index
-
-    def _repr_index(self):
-        return '[{}]'.format(
-            self.index if self.index is not self.NoIndex else ':')
-
-    def __repr__(self):
-        return 'TaskResult({}{})'.format(self.task.id, self._repr_index())

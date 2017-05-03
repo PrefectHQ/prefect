@@ -1,5 +1,5 @@
 import datetime
-from prefect.exceptions import PrefectError
+from prefect.signals import PrefectError
 import prefect
 from prefect.flow import Flow
 from prefect.task import Task
@@ -127,57 +127,6 @@ class TestPersistence:
         next_date = schedule.next_n(
             on_or_after=datetime.datetime(2017, 1, 1, 1))[0]
         assert next_date == datetime.datetime(2017, 1, 2)
-
-
-#     def test_expunge_session(self):
-#         """
-#         Getting a flow's model involves loading a namespace model. That dirties
-#         the session and subsequent queries flush the namespace (and flows!)
-#         even if the flow hasn't been saved yet.
-#         """
-#         count = FlowModel.count()
-#         with Flow(name=uuid.uuid4().hex) as f:
-#             pass
-#         assert count == FlowModel.count()
-#
-#
-#     def test_serialize(self):
-#         with Flow('test') as f:
-#             t1 = Task()
-#             t2 = Task()
-#             t1.run_before(t2)
-#
-#         f.save()
-#         f2 = Flow.from_id(f.id)
-#         assert isinstance(f2, Flow)
-#         assert [t.task_id for t in f] == [t.task_id for t in f2]
-#
-#     def test_save(self):
-#         with Flow(uuid.uuid4().hex) as f:
-#             t1 = Task()
-#             t2 = Task()
-#             t1.run_before(t2)
-#         count = FlowModel.count()
-#         f.save()
-#         assert FlowModel.count() == count + 1
-#
-#     def test_flow_id(self):
-#         with Flow(uuid.uuid4().hex) as f:
-#             t1 = Task()
-#         assert f.id is None
-#         f.save()
-#         assert f.id > 0
-#
-#     def test_from_id(self):
-#         with Flow(uuid.uuid4().hex) as f:
-#             t1 = Task()
-#             t2 = Task()
-#             t1.run_before(t2)
-#         f.save()
-#
-#         f2 = Flow.from_id(f.id)
-#         assert f2.id == f.id
-
 
 class TestSugar:
 

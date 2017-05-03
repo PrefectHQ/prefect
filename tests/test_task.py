@@ -1,7 +1,7 @@
 import copy
 import datetime
 import prefect
-from prefect.exceptions import PrefectError
+from prefect.signals import PrefectError
 from prefect.flow import Flow
 from prefect.task import Task, TaskResult
 import pytest
@@ -36,13 +36,13 @@ class TestTask:
             t2 = Task()
             t3 = Task(fn=myfn)
             t4 = MyTask()
-            t5 = Task('hi')
+            t5 = Task(name='hi')
 
             # tasks must be valid identifiers
             with pytest.raises(ValueError):
-                Task('1two')
+                Task(name='1two')
             with pytest.raises(ValueError):
-                Task('while')
+                Task(name='while')
 
         assert t1.name == 'Task_1'
         assert t2.name == 'Task_2'

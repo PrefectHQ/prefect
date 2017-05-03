@@ -1,8 +1,7 @@
 import copy
 import prefect
-from prefect.edges import Edge
-from prefect.task import Task
-from prefect.exceptions import PrefectError
+from prefect.task import Task, Edge
+from prefect.signals import PrefectError
 import prefect.context
 from prefect.schedules import NoSchedule
 import ujson
@@ -17,7 +16,7 @@ class Flow:
             version=prefect.config.get('flows', 'default_version'),
             required_params=None,
             schedule=NoSchedule(),
-            concurrent_runs=None, #TODO
+            concurrent_runs=None,  #TODO
             cluster=None):
         """
         Args:
@@ -50,6 +49,7 @@ class Flow:
             namespace=self.namespace, name=self.name, version=self.version)
         self.concurrent_runs = concurrent_runs
         self.cluster = cluster
+        self._terminal_tasks = set()
 
         self._cache = {}
         self.check_cache()
@@ -78,7 +78,7 @@ class Flow:
     # Graph -------------------------------------------------------------------
 
     def __iter__(self):
-        yield from self.sort_tasks()
+        yield from self.sorted_tasks()
 
     def get_task(self, name=None, id=None):
         """
@@ -123,10 +123,21 @@ class Flow:
         if not isinstance(edge, Edge):
             raise TypeError(
                 'Expected an Edge; received {}'.format(type(edge).__name__))
+        if edge.key is not None:
+            existing_edges = [
+                e for e in self.edges
+                if e.downstream_task == edge.downstream_task
+                and e.key == edge.key
+            ]
+            if existing_edges:
+                raise ValueError(
+                    'An edge to task {} with key {} already exists!'.format(
+                        edge.downstream_task, edge.key))
+
         self.edges.add(edge)
 
         # check that the edge doesn't add a cycle
-        self.sort_tasks()
+        self.sorted_tasks()
 
     def upstream_tasks(self, task):
         """
@@ -148,7 +159,7 @@ class Flow:
         return set(
             e.downstream_task for e in self.edges if e.upstream_task == task)
 
-    def sort_tasks(self):
+    def sorted_tasks(self):
         """
         Returns a topological sort of this Flow's tasks.
 
@@ -180,12 +191,14 @@ class Flow:
 
         return self._cache['sorted tasks']
 
-    def edges_to(self, task):
+    def edges_to(self, task, only_with_keys=False):
         """
         Set of all Edges leading to this Task
 
         Args:
             task (Task)
+            only_with_keys (bool): if True, only edges that have keys
+                (indicating that data is transmitted) are included
         """
         return set(e for e in self.edges if e.downstream_task == task)
 
@@ -217,7 +230,13 @@ class Flow:
         """
         Returns the terminal tasks of the Flow -- tasks that have no downstream
         dependencies.
+
+        Terminal task states are used to determine the state of a Flow.
+        To override the default, call set_terminal_tasks()
         """
+        if self._terminal_tasks:
+            return self._terminal_tasks
+
         self.check_cache()
         if 'terminal tasks' not in self._cache:
             terminal_tasks = set()
@@ -227,6 +246,15 @@ class Flow:
             self._cache['terminal tasks'] = terminal_tasks
 
         return self._cache['terminal tasks']
+
+    def set_terminal_tasks(self, tasks):
+        """
+        Override the default terminal tasks. The state of these tasks is used
+        to determine the state of the Flow.
+        """
+        if set(tasks).difference(self.tasks):
+            raise ValueError('Terminal tasks must be part of the Flow')
+        self._terminal_tasks = set(tasks)
 
     # Context Manager -----------------------------------------------
 
@@ -241,31 +269,26 @@ class Flow:
 
     # Persistence  ------------------------------------------------
 
-    def serialize(self, as_dict=False):
+    def serialize(self):
         flow = copy.copy(self)
         del flow.tasks
         del flow.edges
 
-        serialized = dict(
-            id=self.id,
-            namespace=self.namespace,
-            name=self.name,
-            version=self.version,
-            tasks=[ujson.loads(t.serialize()) for t in self.sort_tasks()],
-            edges=[ujson.loads(e.serialize()) for e in self.edges],
-            required_params=sorted(str(p) for p in self.required_params),
-            schedule=ujson.dumps(self.schedule.serialize()),
-            cluster=self.cluster,
-            serialized=prefect.utilities.serialize.serialize(flow))
-        if as_dict:
-            return serialized
-        else:
-            return ujson.dumps(serialized)
+        return {
+            'id': self.id,
+            'namespace': self.namespace,
+            'name': self.name,
+            'version': self.version,
+            'tasks': [ujson.loads(t.serialize()) for t in self.sorted_tasks()],
+            'edges': [ujson.loads(e.serialize()) for e in self.edges],
+            'required_params': sorted(str(p) for p in self.required_params),
+            'schedule': ujson.dumps(self.schedule.serialize()),
+            'cluster': self.cluster,
+            'serialized': prefect.utilities.serialize.serialize(flow)
+        }
 
     @classmethod
     def deserialize(cls, serialized):
-        if not isinstance(serialized, dict):
-            serialized = ujson.loads(serialized)
         obj = prefect.utilities.serialize.deserialize(serialized['serialized'])
         if not isinstance(obj, cls):
             raise TypeError(

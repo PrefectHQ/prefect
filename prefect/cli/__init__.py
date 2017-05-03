@@ -33,6 +33,11 @@ try:
 except ImportError:
     raise
 
+try:
+    from prefect.engine.cli import cluster
+    cli.add_command(cluster)
+except ImportError:
+    raise
 @cli.command()
 @click.argument('email')
 @click.argument('password')

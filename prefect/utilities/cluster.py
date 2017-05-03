@@ -1,8 +1,10 @@
+from concurrent.futures import Future
 from contextlib import contextmanager
 import distributed
 import prefect
 
 _LOCAL_CLUSTER = None
+
 
 def running_in_cluster():
     """
@@ -11,12 +13,13 @@ def running_in_cluster():
     """
     return hasattr(distributed.worker.thread_state, 'execution_state')
 
+
 @contextmanager
-def client():
+def client(debug=False):
     """
     Context manager that returns a Distributed client.
 
-    There are three types of clients that can be returned:
+    There are a few types of clients that can be returned:
         1. If the context is entered from an existing cluster worker,
             a worker_client is returned and closed when the context exits.
         2. If the context is entered outside the cluster a standard Client is
@@ -29,13 +32,14 @@ def client():
     If the context is entered from inside the cluster, a worker_client is
     yielded; otherwise a standard Client is yielded.
     """
+
     global _LOCAL_CLUSTER
+    address = prefect.config.get('cluster', 'address')
 
     if running_in_cluster():
         with distributed.worker_client() as client:
             yield client
     else:
-        address = prefect.config.get('cluster', 'address')
         if address.lower() in ('none', 'local', '', 'localcluster'):
             if _LOCAL_CLUSTER is None:
                 _LOCAL_CLUSTER = distributed.LocalCluster()

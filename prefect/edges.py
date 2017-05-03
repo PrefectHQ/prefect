@@ -32,7 +32,7 @@ class Edge:
         return '{}({} -> {})'.format(
             type(self).__name__, self.upstream_task, self.downstream_task)
 
-    def run_upstream(self, result):
+    def run_after_upstream(self, edge_id, result):
         """
         Called after the upstream task runs.
 
@@ -41,11 +41,14 @@ class Edge:
         """
         pass
 
-    def run_downstream(self):
+    def run_before_downstream(self, edge_id):
         """
-        Called after the upstream task runs.
+        Called before the downstream task runs.
+
+        Returns a dictionary that will be passed to the task as keyword
+        arguments.
         """
-        pass
+        return {}
 
     def __eq__(self, other):
         return (
@@ -56,21 +59,16 @@ class Edge:
     def __hash__(self):
         return id(self)
 
-    def serialize(self, as_dict=False):
-        serialized = dict(
-            id=self.id,
-            upstream_task=self.upstream_task.id,
-            downstream_task=self.downstream_task.id,
-            serialized=prefect.utilities.serialize.serialize(self))
-        if as_dict:
-            return serialized
-        else:
-            return ujson.dumps(serialized)
+    def serialize(self):
+        return {
+            'id': self.id,
+            'upstream_task': self.upstream_task.id,
+            'downstream_task': self.downstream_task.id,
+            'serialized': prefect.utilities.serialize.serialize(self)
+        }
 
     @classmethod
     def deserialize(cls, serialized):
-        if not isinstance(serialized, dict):
-            serialized = ujson.loads(serialized)
         obj = prefect.utilities.serialize.deserialize(serialized['serialized'])
         if not isinstance(obj, cls):
             raise TypeError(
@@ -111,37 +109,49 @@ class Pipe(Edge):
         return '{}({} -> {})'.format(
             type(self).__name__, self.task_result, self.downstream_task)
 
-    def serialize(self, result, run_id):
+    def serialize(self, edge_id: str, result) -> bytes:
         """
-        Given a task result and run_id, returns a value that should be
+        Given a task result and id, returns a value that should be
         serialized to store the task result.
+
+        Args:
+            edge_id (str): a unique id that identifies this edge in this run
+            result (obj): the result of the upstream task
         """
         return result
 
-    def deserialize(self, result, run_id):
+    def deserialize(self, edge_id: str, serialized_result: bytes):
         """
         Given a serialized representation of a task result, returns the
         original result
+
+        Args:
+            edge_id (str): a unique id that identifies this edge in this run
+            serialized_result (bytes): the serialized task result
         """
         return result
 
-    def run_upstream(self, result, run_id):
+    def run_after_upstream(self, edge_id: str, result) -> bytes:
         """
         Takes the (optionally indexed) result, applies the serialization,
-        and stores the result in the database.
+        and returns a serialized version of the result that can be stored in
+        the database.
+
+        Args:
+            edge_id (str): a unique id that identifies this edge in this run
+            result (obj): the result of the upstream task
         """
         if self.index is not None:
             result = result[self.index]
-        model = prefect.models.TaskResultModel.get_or_build(
-            task_run_id=run_id, index=self._repr_index)
-        model.result = result
-        model.save()
+        return self.serialize(edge_id, result)
 
-    def run_downstream(self, run_id):
+    def run_before_downstream(self, edge_id: str, serialized_result: bytes):
         """
-        Retrieves the result from the database and deserializes it
-        """
+        Deserializes the result and returns a dictionary that will be passed
+        to the downstream task as keyword arguments.
 
-        result = prefect.models.TaskResultModel.first(
-            task_run_id=run_id, index=self._repr_index).result
-        return {self.key: self.deserialize(result, run_id)}
+        Args:
+            edge_id (str): a unique id that identifies this edge in this run
+            result (bytes): the serialized task result
+        """
+        return {self.key: self.deserialize(edge_id, serialized_result)}
