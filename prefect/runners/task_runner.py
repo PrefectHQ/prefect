@@ -16,7 +16,7 @@ def maybe_index(obj, index=None):
 
 class TaskRunner:
 
-    def __init__(self, task, run_id, executor=None):
+    def __init__(self, task, run_id=None, executor=None):
         """
         Args:
 
@@ -31,9 +31,11 @@ class TaskRunner:
 
         if executor is None:
             executor = getattr(
-                prefect.executors,
+                prefect.runners.executors,
                 prefect.config.get('prefect', 'default_executor'))()
         self.executor = executor
+        if run_id is None:
+            run_id = uuid.uuid4().hex
         self.run_id = run_id
         self.id = run_id + task.id
 

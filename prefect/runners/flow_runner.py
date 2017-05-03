@@ -22,7 +22,7 @@ class FlowRunner:
 
         if executor is None:
             executor = getattr(
-                prefect.executors,
+                prefect.runners.executors,
                 prefect.config.get('prefect', 'default_executor'))()
         self.executor = executor
 
@@ -68,7 +68,7 @@ class FlowRunner:
                     upstream_edges=upstream_edges,
                     context=context)
 
-            task_results = executor.gather(task_results)
+            task_results = executor.gather_task_results(task_results)
 
         try:
             terminal_results = {

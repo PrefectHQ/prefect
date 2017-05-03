@@ -5,7 +5,6 @@ from prefect.configuration import config
 import prefect.utilities
 import prefect.signals
 
-import prefect.executors
 import prefect.schedules
 import prefect.serializers
 import prefect.state

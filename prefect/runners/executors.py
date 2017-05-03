@@ -47,9 +47,9 @@ class Executor(metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    def gather(self, results):
+    def gather_task_results(self, results):
         """
-        Called to run any final steps on the results of run_flow and run_task.
+        Called to run any final steps on the results of run_task.
 
         Should block and return actual results, if the executor runs async.
         """
@@ -125,7 +125,7 @@ class ThreadPoolExecutor(Executor):
         """
         Runs a task in the executor.
         """
-        concurrent.futures.wait(e['state'] for e in upstream_edges)
+        concurrent.futures.wait([e['state'] for e in upstream_edges])
         for e in upstream_edges:
             e['state'] = e['state'].result()
         return self.executor.submit(
@@ -133,9 +133,9 @@ class ThreadPoolExecutor(Executor):
             upstream_edges=upstream_edges,
             context=context)
 
-    def gather(self, results):
+    def gather_task_results(self, results):
         # block until results are complete
-        concurrent.futures.wait(results)
+        concurrent.futures.wait(results.values())
         return {k: v.result() for k, v in results.items()}
 
 
@@ -177,5 +177,5 @@ class DistributedExecutor(Executor):
             resources=task_runner.task.resources,
             pure=False)
 
-    def gather(self, results):
+    def gather_task_results(self, results):
         return self.client.gather(results)
