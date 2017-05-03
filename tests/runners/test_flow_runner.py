@@ -1,6 +1,7 @@
 import pytest
 import prefect
 
+
 def test_simple_flowrunner_success():
     with prefect.Flow('flow') as f:
         t1 = prefect.Task(fn=lambda: 1)
