@@ -29,7 +29,7 @@ def progress(n, total=1):
     """
     Simple progress function.
     """
-    raise NotImplementedError('Must be implemented by executor')
+    pass
 
 
 def submit_task(task, block=False):
@@ -43,7 +43,7 @@ def submit_task(task, block=False):
             run asynchronously. Note that some executors do not support
             asynchronous execution.
     """
-    raise NotImplementedError('Must be implemented by executor')
+    pass
 
 
 def submit_flow(flow, block=False):
@@ -55,7 +55,7 @@ def submit_flow(flow, block=False):
             run asynchronously. Note that some executors do not support
             asynchronous execution.
     """
-    raise NotImplementedError('Must be implemented by executor')
+    pass
 
 
 # context dictionary

@@ -82,6 +82,7 @@ class FlowRunner:
             'dt': None,  #TODO
             'as_of_dt': None,  # TODO
             'last_dt': None,  # TODO
+            'flow': self.flow,
             'flow_id': self.flow.id,
             'flow_namespace': self.flow.namespace,
             'flow_name': self.flow.name,

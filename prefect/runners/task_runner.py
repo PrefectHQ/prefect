@@ -72,11 +72,56 @@ class TaskRunner:
             logger = logging.getLogger(type(self).__name__)
             logger.info('{}: {}'.format(msg.format(task=self.task), err))
 
-        # run the task
+        # ---------------------------------------------------------------------
+        # Run the task
+        # ---------------------------------------------------------------------
         try:
             result = None
             with self.executor.context(**context):
-                result = self._run_task(state=state, upstream_states=upstream_states, inputs=inputs)
+
+                # -------------------------------------------------------------
+                # check that Task is runnable
+                # -------------------------------------------------------------
+
+                # any of the upstream tasks are not finished
+                if not all(s.is_finished() for s in upstream_states.values()):
+                    raise signals.DONTRUN('Upstream tasks are not finished')
+
+                # this task is already finished
+                elif state.is_finished():
+                    raise signals.DONTRUN('Task is already finished')
+
+                # this task is not pending (meaning already running or stopped)
+                elif not state.is_pending():
+                    raise signals.DONTRUN(
+                        'Task is not ready to run (state {})'.format(state))
+
+                # -------------------------------------------------------------
+                # TODO check that FlowRun is active
+                # -------------------------------------------------------------
+
+                # -------------------------------------------------------------
+                # start!
+                # -------------------------------------------------------------
+
+                state.start()
+
+                # -------------------------------------------------------------
+                # check task trigger
+                # -------------------------------------------------------------
+
+                if not self.task.trigger(upstream_states):
+                    raise signals.FAIL('Trigger failed')
+
+                # -------------------------------------------------------------
+                # run the task
+                # -------------------------------------------------------------
+
+                result = self.executor._execute_task(
+                        execute_fn=self._execute_task,
+                        inputs=inputs,
+                        context=context)
+
             state.succeed(value=result)
         except signals.SKIP as e:
             log_task_state('{task} was skipped', e)
@@ -98,88 +143,44 @@ class TaskRunner:
 
         return prefect.state.TaskRunState(state, value=result)
 
-    def _run_task(self, state, upstream_states, inputs):
+    def _execute_task(self, inputs, context):
 
-        # ---------------------------------------------------------------------
-        # check that Task is runnable
-        # ---------------------------------------------------------------------
+        with prefect.context(**context):
 
-        # any of the upstream tasks are not finished
-        if not all(s.is_finished() for s in upstream_states.values()):
-            raise signals.DONTRUN('Upstream tasks are not finished')
+            result = self.task.run(**inputs)
 
-        # this task is already finished
-        elif state.is_finished():
-            raise signals.DONTRUN('Task is already finished')
+            # handle tasks that generate new tasks
+            if isinstance(result, types.GeneratorType):
 
-        # this task is not pending (meaning already running or stopped)
-        elif not state.is_pending():
-            raise signals.DONTRUN(
-                'Task is not ready to run (state {})'.format(state))
+                sentinel = uuid.uuid4().hex
 
-        # ---------------------------------------------------------------------
-        # TODO check that FlowRun is active
-        # ---------------------------------------------------------------------
+                def generator_task_wrapper(result):
+                    task_result = yield from result
+                    yield {sentinel: task_result}
 
-        # ---------------------------------------------------------------------
-        # start!
-        # ---------------------------------------------------------------------
+                for subtask in generator_task_wrapper(result):
 
-        state.start()
+                    # if we see the sentinel, this is the task's return value
+                    if isinstance(subtask, dict) and sentinel in subtask:
+                        result = subtask[sentinel]
+                        break
+                    # submit flows
+                    elif isinstance(subtask, Flow):
+                        prefect.context.run_flow(subtask)
+                    # submit tasks
+                    elif isinstance(subtask, Task):
+                        prefect.context.run_task(subtask)
+                    # bad yield
+                    else:
+                        raise TypeError(
+                            'Task yielded an unexpected subtask '
+                            'type: {}'.format(type(subtask).__name__))
 
-        # ---------------------------------------------------------------------
-        # check task trigger
-        # ---------------------------------------------------------------------
+            serialized = False
+            result_size = sys.getsizeof(result)
+            serialize_size = prefect.config.get('tasks', 'serialize_if_over')
+            if result is not None and result_size >= int(serialize_size):
+                result = self.task.serializer.encode(self.id, result)
+                serialized = True
 
-        if not self.task.trigger(upstream_states):
-            raise signals.FAIL('Trigger failed')
-
-        # ---------------------------------------------------------------------
-        # run the task
-        # ---------------------------------------------------------------------
-
-        result = self.task.run(**inputs)
-
-        # ---------------------------------------------------------------------
-        # handle tasks that generate new tasks
-        # ---------------------------------------------------------------------
-
-        if isinstance(result, types.GeneratorType):
-
-            sentinel = uuid.uuid4().hex
-            def generator_task_wrapper(result):
-                task_result = yield from result
-                yield {sentinel: task_result}
-
-            for subtask in generator_task_wrapper(result):
-
-                # if we see the sentinel, this is the task's return value
-                if isinstance(subtask, dict) and sentinel in subtask:
-                    result = subtask[sentinel]
-                    break
-                # submit flows
-                elif isinstance(subtask, Flow):
-                    prefect.context.submit_flow(subtask)
-                # submit tasks
-                elif isinstance(subtask, Task):
-                    prefect.context.submit_task(subtask)
-                # bad yield
-                else:
-                    raise TypeError(
-                        'Task yielded an unexpected subtask '
-                        'type: {}'.format(type(subtask).__name__))
-
-        # ---------------------------------------------------------------------
-        # serialize the result
-        # ---------------------------------------------------------------------
-
-        serialized = False
-        result_size = sys.getsizeof(result)
-        serialize_size = prefect.config.get('tasks', 'serialize_if_over')
-        if result is not None and result_size >= int(serialize_size):
-            result = self.task.serializer.encode(self.id, result)
-            serialized = True
-
-        result = {'value': result, 'serialized': serialized}
-
-        return result
+            return {'value': result, 'serialized': serialized}
