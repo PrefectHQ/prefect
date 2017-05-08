@@ -14,7 +14,7 @@ from .namespaces import namespaces
 # from .run import run
 
 
-server = config.get('server', 'address')
+server = config.get('prefect', 'server')
 
 @click.group()
 def cli():
@@ -33,11 +33,6 @@ try:
 except ImportError:
     raise
 
-try:
-    from prefect.engine.cli import cluster
-    cli.add_command(cluster)
-except ImportError:
-    raise
 @cli.command()
 @click.argument('email')
 @click.argument('password')

@@ -282,7 +282,7 @@ class Flow:
             'tasks': [ujson.loads(t.serialize()) for t in self.sorted_tasks()],
             'edges': [ujson.loads(e.serialize()) for e in self.edges],
             'required_params': sorted(str(p) for p in self.required_params),
-            'schedule': ujson.dumps(self.schedule.serialize()),
+            'schedule': self.schedule.serialize(),
             'cluster': self.cluster,
             'serialized': prefect.utilities.serialize.serialize(flow)
         }

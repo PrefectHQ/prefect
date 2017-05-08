@@ -18,7 +18,9 @@ class Schedule:
         raise NotImplementedError('Must be implemented on Schedule subclasses')
 
     def serialize(self):
-        raise NotImplementedError('Schedules must implement a serialize() function.')
+        raise NotImplementedError(
+            'Schedules must implement a serialize() function yielding '
+            '{"type": "", "kwargs": ""}')
 
 
 class NoSchedule(Schedule):

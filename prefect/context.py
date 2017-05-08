@@ -1,20 +1,65 @@
-# TODO this module is not threadsafe. Consider using threading.local
 """
-This module handles context for Prefect objects in two ways:
+This module implements the Prefect context that is available when tasks run.
 
-1. a `context` dictionary (`prefect.context.context`)
-2. injecting variables in to this module's global namespace
+Tasks can import prefect.context and access attributes that will be overwritten
+when the task is run.
 
-Therefore, tasks can use context variables by importing them from this module or
-accessing the context dictionary. Variables may have no value (or not even
-exist!) when tasks are defined, but tasks are run inside a context manager that assigns them at runtime.
+>>> Example
+
+Example:
+    import prefect.context
+    with prefect.context(a=1, b=2):
+        print(prefect.context.a) # 1
+    print (prefect.context.a) # undefined
+
+
 
 """
 from contextlib import contextmanager as _contextmanager
 import threading
 
+# ---------------------------------------------------------------------
+# Context Functions
+#
+# These functions should be overwritten by executor-specific versions
+# ---------------------------------------------------------------------
+
+
+def progress(n, total=1):
+    """
+    Simple progress function.
+    """
+    raise NotImplementedError('Must be implemented by executor')
+
+
+def submit_task(task, block=False):
+    """
+    Submit a task for execution.
+
+    Args:
+        task (Task): a task to run
+        block (bool): if True, the call will block until the task is
+            complete and return its state. Otherwise the task will be
+            run asynchronously. Note that some executors do not support
+            asynchronous execution.
+    """
+    raise NotImplementedError('Must be implemented by executor')
+
+
+def submit_flow(flow, block=False):
+    """
+    Args:
+        flow (Flow): a flow to run
+        block (bool): if True, the call will block until the flow is
+            complete and return its state. Otherwise the flow will be
+            run asynchronously. Note that some executors do not support
+            asynchronous execution.
+    """
+    raise NotImplementedError('Must be implemented by executor')
+
+
 # context dictionary
-class context(threading.local):
+class Context(threading.local):
     """
     A context store for Prefect data.
     """
@@ -38,45 +83,50 @@ class context(threading.local):
         self.__dict__.update(kwargs)
 
     def reset(self, **kwargs):
+
         self.__dict__.clear()
+
+        # set the following properties to assist with autocomplete tools
+        # -- they don't actually do anything until context is set
+
         self.run_dt = None
         self.as_of_dt = None
+
         self.flow = None
         self.flow_id = None
         self.flow_namespace = None
         self.flow_name = None
         self.flow_version = None
+        self.flow_state = None
+        self.params = None
+
         self.task_id = None
         self.task_name = None
+        self.task_state = None
+
         self.run_number = None
-        self.upstream_edges = None
-        self.downstream_edges = None
-        self.params = None
+        self.progress = progress
+        self.submit_task = submit_task
+        self.submit_flow = submit_flow
+
         self.update(**kwargs)
 
-context = context()
+    @_contextmanager
+    def __call__(self, **context):
+        """
+        A context manager for setting / resetting the Prefect context
+
+        Example:
+            import prefect.context
+            with prefect.context(a=1, b=2):
+                print(prefect.context.a) # 1
+        """
+        previous_context = self.to_dict()
+        try:
+            self.update(**context)
+            yield self
+        finally:
+            self.reset(**previous_context)
 
 
-@_contextmanager
-def prefect_context(**kwargs):
-    """
-    This context manager adds any keyword arguments to both
-    the context dictionary and the global namespace.
-    """
-    previous_context = context.to_dict()
-    try:
-        context.update(**kwargs)
-        yield context
-    finally:
-        context.reset(**previous_context)
-
-
-def task_context(
-        run_dt, as_of_dt, flow_id, flow_namespace, flow_name, flow_version,
-        task_id, task_name, run_number, upstream_edges, downstream_edges,
-        params, **kwargs):
-    """
-    Helper function for updating the Prefect context with items expected
-    by tasks.
-    """
-    return prefect_context(**kwargs)
+context = Context()

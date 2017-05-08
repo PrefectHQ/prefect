@@ -7,4 +7,4 @@ def test_simple_taskrunner():
     tr = prefect.runners.TaskRunner(task=t1)
     result = tr.run()
     assert result.is_successful()
-    assert result.result == 1
+    assert result.value['value'] == 1

@@ -6,13 +6,13 @@ from prefect.signals import PrefectError
 from prefect.edges import Edge, Pipe
 from prefect.utilities.strings import is_valid_identifier
 
+
 class TaskResult:
     """
     An object that represents the result (output) of a Task.
 
     TaskResults are primarily used to pipe data from one task to another.
     """
-
 
     def __init__(self, task, index=None):
         if not isinstance(task, Task):
@@ -27,13 +27,11 @@ class TaskResult:
     def __repr__(self):
         return 'TaskResult({}{})'.format(self.task.id, self._repr_index())
 
+
 class Edge:
 
     def __init__(
-            self,
-            upstream_task,
-            downstream_task,
-            key=None,
+            self, upstream_task, downstream_task, key=None,
             upstream_index=None):
         """
         Edges represent connections between Tasks.
@@ -81,7 +79,10 @@ class Edge:
         self.key = key
         self.upstream_index = upstream_index
 
-    def as_dict(self):
+    def to_dict(self):
+        """
+        Returns a serialized version of the edge
+        """
         return {
             'upstream_task': self.upstream_task.name,
             'downstream_task': self.downstream_task.name,
@@ -158,7 +159,8 @@ class Task:
             retry_delay=retry_delay(minutes=5),
             trigger=None,
             serializer=None,
-            resources=None):
+            resources=None,
+            image=None):
         """
 
         Args:
@@ -182,6 +184,9 @@ class Task:
             resources (dict): a dictionary of resources that the Dask scheduler
                 can use to allocate the task (requires cluster configuration)
                 See https://distributed.readthedocs.io/en/latest/resources.html
+
+            image (str): the Docker image the task should be run in (requires
+                cluster configuration)
 
 
         """
@@ -230,6 +235,7 @@ class Task:
 
         # misc
         self.resources = resources or {}
+        self.image = image
 
         # add the task to the flow
         self.flow.add_task(self)

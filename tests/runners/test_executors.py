@@ -35,4 +35,4 @@ def test_threadpool_executor():
     result = runner.run()
     end_time = time.time()
     assert result.is_successful()
-    assert 0.1 <= end_time - start_time <= 0.15
+    assert 0.1 <= end_time - start_time <= 0.2

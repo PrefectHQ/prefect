@@ -1,12 +1,23 @@
 import abc
+import collections
 from contextlib import contextmanager
 import concurrent.futures
 import copy
 import distributed
+from functools import partial
 import prefect
 
 
-class Executor(metaclass=abc.ABCMeta):
+class DistributedExecutor:
+    """
+    Executes flows and tasks in a Distributed cluster
+    """
+
+    def __new__(obj, *args, **kwargs):
+        instance = super().__new__(obj)
+        instance._init_args = args
+        instance._init_kwargs = kwargs
+        return instance
 
     def __init__(self):
         pass
@@ -14,79 +25,109 @@ class Executor(metaclass=abc.ABCMeta):
     def __repr__(self):
         return '<{}>'.format(type(self).__name__)
 
-    @contextmanager
-    def __call__(self):
-        # create a copy so that the original can be serialized without worrying
-        # about any attributes created by the context
-        executor_copy = copy.copy(self)
-        with executor_copy.executor_context():
-            yield executor_copy
+    def copy(self):
+        return type(self)(*self._init_args, **self._init_kwargs)
 
     @contextmanager
-    def executor_context(self):
-        """
-        Returns an "executor" context manager.
-
-        run_flow and run_task are always called inside the context,
-        but other methods (like before_flow_run) can be called
-        any time.
-        """
-        yield None
-
-    @abc.abstractmethod
-    def run_flow(self, flow_runner, *args, **kwargs):
-        """
-        Runs a flow.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def run_task(self, task_runner, upstream_edges, context):
-        """
-        Runs a task.
-        """
-        raise NotImplementedError()
-
-    def gather_task_results(self, results):
-        """
-        Called to run any final steps on the results of run_task.
-
-        Should block and return actual results, if the executor runs async.
-        """
-        return results
-
-
-class LocalExecutor(Executor):
-    """
-    Executes Flows and Tasks in the local process.
-    """
+    def client(self):
+        with prefect.utilities.cluster.client() as client:
+            yield client
 
     @contextmanager
-    def executor_context(self):
-        yield None
+    def __call__(self, **context):
+        with self.context(**context):
+            with self.client() as client:
+                client.run_task = partial(self.run_task, client=client)
+                client.run_flow = partial(self.run_flow, client=client)
+                yield client
 
-    def run_flow(self, flow_runner, *args, **kwargs):
+    @contextmanager
+    def context(self, **context):
         """
-        Runs a flow in the executor.
+        Context manager that creates a Prefect context including functions
+        for running tasks and flows in this executor.
         """
-        return flow_runner.run(*args, **kwargs)
+
+        def run_task(task, block=False, **inputs):
+            with self.client() as client:
+                future = self.run_task(
+                    client=client,
+                    task=task,
+                    upstream_states={},
+                    inputs=inputs,
+                    context=prefect.context.to_dict())
+                if block:
+                    return client.gather(future)
+
+        def run_flow(flow, block=False, **params):
+            with self.client() as client:
+                future = self.run_flow(
+                    client=client,
+                    flow=flow,
+                    params=params,
+                    context=prefect.context.to_dict())
+                if block:
+                    return client.gather(future)
+
+        def update_progress(n, total=None):
+            pass
+
+        context.update(
+            {
+                'run_task': run_task,
+                'run_flow': run_flow,
+                'update_progress': update_progress,
+            })
+
+        with prefect.context(**context) as context:
+            yield context
 
     def run_task(
-            self,
-            task_runner,
-            upstream_edges,
-            context):
-        """
-        Runs a task in the executor.
-        """
-        return task_runner.run(
-            upstream_edges=upstream_edges,
-            context=context)
+            self, client, task, upstream_states, inputs, context=None,
+            run_id=None):
+
+        prefect_context = prefect.context.to_dict()
+        if context is not None:
+            prefect_context.update(context)
+
+        if run_id is None:
+            run_id = prefect_context.get('run_id')
+
+        task_runner = prefect.runners.TaskRunner(
+            task=task, run_id=run_id, executor=self.copy())
+
+        print('submitting!')
+        return client.submit(
+            task_runner.run,
+            state=None,
+            upstream_states=upstream_states,
+            inputs=inputs,
+            context=prefect_context,
+            resources=task.resources,
+            pure=False)
+
+    def run_flow(self, client, flow, params, context=None, run_id=None):
+
+        prefect_context = prefect.context.to_dict()
+        if context is not None:
+            prefect_context.update(context)
+
+        flow_runner = prefect.runners.FlowRunner(
+            flow=flow, run_id=run_id, executor=self.copy())
+
+        return client.submit(
+            flow_runner.run,
+            state=None,
+            context=context,
+            **params,)
+
+    def run_isolated(self):
+        pass
 
 
-class ThreadPoolExecutor(Executor):
+class ThreadPoolExecutor(DistributedExecutor):
     """
-    Executes flows and tasks in a ThreadPool
+    Executes flows and tasks in a LocalCluster ThreadPool
     """
 
     def __init__(self, threads=10):
@@ -94,88 +135,30 @@ class ThreadPoolExecutor(Executor):
         super().__init__()
 
     @contextmanager
-    def executor_context(self):
-        try:
-            with concurrent.futures.ThreadPoolExecutor(self.threads) as executor:
-                self.executor = executor
-                yield
-        finally:
-            self.executor = None
-
-    @property
-    def executor(self):
-        if getattr(self, '_executor', None):
-            return self._executor
-        else:
-            raise ValueError(
-                'Executor can only be accessed inside the executor_context()')
-
-    @executor.setter
-    def executor(self, val):
-        self._executor = val
-
-    def run_flow(self, flow_runner, **params):
-        """
-        Runs a flow in the executor.
-        """
-        return self.executor.submit(flow_runner.run, **params)
-
-    def run_task(
-            self, task_runner, upstream_edges, context):
-        """
-        Runs a task in the executor.
-        """
-        concurrent.futures.wait([e['state'] for e in upstream_edges])
-        for e in upstream_edges:
-            e['state'] = e['state'].result()
-        return self.executor.submit(
-            task_runner.run,
-            upstream_edges=upstream_edges,
-            context=context)
-
-    def gather_task_results(self, results):
-        # block until results are complete
-        concurrent.futures.wait(results.values())
-        return {k: v.result() for k, v in results.items()}
-
-
-class DistributedExecutor(Executor):
-    """
-    Executes flows and tasks in a Distributed cluster
-    """
-
-    @property
     def client(self):
-        if getattr(self, '_client', None):
-            return self._client
-        else:
-            raise ValueError(
-                'Client can only be accessed inside the executor_context()')
+        lc_args = dict(
+            n_workers=1, threads_per_worker=self.threads, nanny=False,)
+        with distributed.LocalCluster(**lc_args) as cluster:
+            address = cluster.scheduler_address
+            with prefect.utilities.cluster.client(address=address) as client:
+                yield client
 
-    @client.setter
-    def client(self, val):
-        self._client = val
+class _LocalClient:
+    """
+    A mock Distributed client that executes all functions synchronously
+    """
+
+    def submit(self, fn, *args, pure=False, resources=None, **kwargs):
+        return fn(*args, **kwargs)
+
+    def gather(self, futures):
+        return futures
+
+class LocalExecutor(DistributedExecutor):
+    """
+    An executor that runs all tasks / flows synchronously
+    """
 
     @contextmanager
-    def executor_context(self, state):
-        try:
-            with prefect.utilties.cluster.client() as client:
-                self.client = client
-                yield
-        finally:
-            self.client = None
-
-    def run_flow(self, flow_runner, **params):
-        return self.client.submit(flow_runner.run, **params)
-
-    def run_task(
-            self, task_runner, upstream_edges, context):
-        return self.client.submit(
-            task_runner.run,
-            upstream_edges=upstream_edges,
-            context=context,
-            resources=task_runner.task.resources,
-            pure=False)
-
-    def gather_task_results(self, results):
-        return self.client.gather(results)
+    def client(self):
+        yield _LocalClient()

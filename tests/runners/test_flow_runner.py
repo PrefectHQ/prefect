@@ -11,7 +11,7 @@ def test_simple_flowrunner_success():
 
     result = prefect.runners.FlowRunner(flow=f).run()
     assert result.is_successful()
-    assert all(s.is_successful() for s in result.result.values())
+    assert all(s.is_successful() for s in result.value.values())
 
 def test_simple_flowrunner_fail():
     with prefect.Flow('flow') as f:
@@ -22,8 +22,8 @@ def test_simple_flowrunner_fail():
 
     result = prefect.runners.FlowRunner(flow=f).run()
     assert result.is_failed()
-    assert result.result['t1'].is_successful()
-    assert result.result['t2'].is_failed()
+    assert result.value['t1'].is_successful()
+    assert result.value['t2'].is_failed()
 
 def test_piped_flowrunner():
     with prefect.Flow('flow') as f:
@@ -33,4 +33,4 @@ def test_piped_flowrunner():
         z.run_with(x=x, y=y)
     result = prefect.runners.FlowRunner(flow=f).run()
     assert result.is_successful()
-    assert result.result['z'].result == 3
+    assert result.value['z'].value['value'] == 3

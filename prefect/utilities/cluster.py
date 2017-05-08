@@ -15,7 +15,7 @@ def running_in_cluster():
 
 
 @contextmanager
-def client(debug=False):
+def client(address=None):
     """
     Context manager that returns a Distributed client.
 
@@ -34,7 +34,8 @@ def client(debug=False):
     """
 
     global _LOCAL_CLUSTER
-    address = prefect.config.get('cluster', 'address')
+    if address is None:
+        address = prefect.config.get('cluster', 'address')
 
     if running_in_cluster():
         with distributed.worker_client() as client:
