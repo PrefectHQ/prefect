@@ -7,7 +7,7 @@ import prefect.signals
 
 import prefect.schedules
 import prefect.serializers
-import prefect.state
+import prefect.runners.state
 import prefect.triggers
 # import prefect.edges
 

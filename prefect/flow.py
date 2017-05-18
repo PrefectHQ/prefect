@@ -1,4 +1,6 @@
+import base64
 import copy
+import hashlib
 import prefect
 from prefect.task import Task, Edge
 from prefect.signals import PrefectError
@@ -41,12 +43,14 @@ class Flow:
         self.name = name
         self.namespace = namespace
         self.version = version
+
+        h = hashlib.sha1(f'{self.namespace}{self.name}{self.version}'.encode())
+        self.id = base64.b32encode(h.digest()).decode()
+
         self.required_params = required_params
         self.schedule = schedule
         self.tasks = set()
         self.edges = set()
-        self.id = '{namespace}.{name}:{version}'.format(
-            namespace=self.namespace, name=self.name, version=self.version)
         self.concurrent_runs = concurrent_runs
         self.cluster = cluster
         self._terminal_tasks = set()
@@ -55,7 +59,8 @@ class Flow:
         self.check_cache()
 
     def __repr__(self):
-        return '{}({})'.format(type(self).__name__, self.id)
+        flow_type = type(self).__name__
+        return f'{flow_type}({self.namespace}.{self.name}:{self.version})'
 
     def __eq__(self, other):
         return (
@@ -64,6 +69,9 @@ class Flow:
 
     def __hash__(self):
         return id(self)
+
+    def __json__(self):
+        return self.serialize()
 
     def check_cache(self):
         """
@@ -271,6 +279,7 @@ class Flow:
 
     def serialize(self):
         flow = copy.copy(self)
+        del flow.schedule
         del flow.tasks
         del flow.edges
 
@@ -279,8 +288,8 @@ class Flow:
             'namespace': self.namespace,
             'name': self.name,
             'version': self.version,
-            'tasks': [ujson.loads(t.serialize()) for t in self.sorted_tasks()],
-            'edges': [ujson.loads(e.serialize()) for e in self.edges],
+            'tasks': [t.serialize() for t in self.sorted_tasks()],
+            'edges': [e.serialize() for e in self.edges],
             'required_params': sorted(str(p) for p in self.required_params),
             'schedule': self.schedule.serialize(),
             'cluster': self.cluster,
@@ -296,6 +305,8 @@ class Flow:
                     cls.__name__, type(obj).__name__))
         obj.tasks = set([Task.deserialize(t) for t in serialized['tasks']])
         obj.edges = set([Edge.deserialize(e) for e in serialized['edges']])
+        obj.schedule = prefect.schedules.Schedule.deserialize(
+            serialized['schedule'])
         obj._cache.clear()
         return obj
 

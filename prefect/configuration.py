@@ -120,7 +120,7 @@ def load_configuration(default_config, user_config, env_var=None, config=None):
 
 
 config = load_configuration(
-    default_config=os.path.join(os.path.dirname(prefect.__file__), 'prefect.cfg'),
+    default_config=os.path.join(
+        os.path.dirname(prefect.__file__), 'prefect.cfg'),
     user_config='~/.prefect/prefect.cfg',
-    env_var='PREFECT_CONFIG',
-)
+    env_var='PREFECT_CONFIG',)

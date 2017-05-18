@@ -83,27 +83,23 @@ class Executor:
                 if block:
                     return client.gather(future)
 
-        def update_progress(n, total=None):
-            pass
-
         context.update(
             {
                 'run_task': run_task,
                 'run_flow': run_flow,
-                'update_progress': update_progress,
             })
 
         with prefect.context(**context) as context:
             yield context
 
-    def run_flow(self, client, flow, params, context=None, run_id=None,):
+    def run_flow(self, client, flow, params, context=None, id=None,):
 
         prefect_context = prefect.context.to_dict()
         if context is not None:
             prefect_context.update(context)
 
         flow_runner = prefect.runners.FlowRunner(
-            flow=flow, run_id=run_id, executor=self.copy())
+            flow=flow, id=id, executor=self.copy())
 
         return client.submit(
             flow_runner.run,
@@ -112,23 +108,31 @@ class Executor:
             **params,)
 
     def run_task(
-            self, client, task, upstream_states, inputs, context=None,
-            run_id=None,):
+            self,
+            client,
+            task,
+            upstream_results,
+            inputs,
+            state=None,
+            context=None,
+            flowrun_id=None,):
+        """
+        Runs a task.
+        """
 
         prefect_context = prefect.context.to_dict()
-        if context is not None:
-            prefect_context.update(context)
+        prefect_context.update(context or {})
 
-        if run_id is None:
-            run_id = prefect_context.get('run_id')
+        if flowrun_id is None:
+            flowrun_id = prefect_context.get('flowrun_id')
 
         task_runner = prefect.runners.TaskRunner(
-            task=task, run_id=run_id, executor=self.copy())
+            task=task, flowrun_id=flowrun_id, executor=self.copy())
 
         return client.submit(
             task_runner.run,
-            state=None,
-            upstream_states=upstream_states,
+            state=state,
+            upstream_states={k: v.state for k, v in upstream_results.items()},
             inputs=inputs,
             context=prefect_context,
             resources=task.resources,
@@ -144,6 +148,8 @@ class Executor:
         if context is not None:
             prefect_context.update(context)
         return execute_fn(inputs=inputs, context=prefect_context)
+
+
 
 class ThreadPoolExecutor(Executor):
     """
@@ -185,3 +191,9 @@ class LocalExecutor(Executor):
     @contextmanager
     def client(self, separate_thread=True):
         yield self.LocalClient()
+
+
+def default_executor():
+    option = prefect.config.get('executor', 'default_executor') or 'Executor'
+    executor = getattr(prefect.runners.executors, option)
+    return executor()

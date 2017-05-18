@@ -1,28 +1,23 @@
+from collections import namedtuple
 import logging
 import prefect
-from prefect import Flow, Task, signals
-# from prefect.context import prefect_context
+from prefect import signals
+from prefect.runners.state import TaskRunState
+from prefect.runners.results import RunResult, Progress
 import sys
 import types
 import uuid
 
 
-def maybe_index(obj, index=None):
-    if index is None:
-        return obj
-    else:
-        return obj[index]
-
-
 class TaskRunner:
 
-    def __init__(self, task, run_id=None, executor=None):
+    def __init__(self, task, flowrun_id=None, executor=None):
         """
         Args:
 
             task (Task): the Task to run
 
-            run_id (str): the flow run id
+            flowrun_id (str): the flow run id
 
             executor (Executor)
 
@@ -30,14 +25,13 @@ class TaskRunner:
         self.task = task
 
         if executor is None:
-            executor = getattr(
-                prefect.runners.executors,
-                prefect.config.get('prefect', 'default_executor'))()
+            executor = prefect.runners.executors.default_executor()
         self.executor = executor
-        if run_id is None:
-            run_id = uuid.uuid4().hex
-        self.run_id = run_id
-        self.id = run_id + task.id
+
+        if flowrun_id is None:
+            flowrun_id = uuid.uuid4().hex
+        self.flowrun_id = flowrun_id
+        self.id = flowrun_id + task.id
 
     def run(self, state=None, upstream_states=None, inputs=None, context=None):
         """
@@ -54,19 +48,22 @@ class TaskRunner:
                 indicating the inputs to the task's run() function.
 
             context (dict): the Prefect context
+
+            progress (Progress): the initial Progress of the task
         """
 
         if state is None:
-            state = prefect.state.TaskRunState()
+            state = TaskRunState()
 
         upstream_states = upstream_states or {}
         inputs = inputs or {}
 
-        context = {} if context is None else context.copy()
-        context.update({
+        prefect_context = {
             'task_id': self.task.id,
             'task_name': self.task.name,
-        })
+            'update_progress': lambda p: print(f'Task Progress: {p}'),
+        }
+        prefect_context.update(context or {})
 
         def log_task_state(msg, err):
             logger = logging.getLogger(type(self).__name__)
@@ -75,9 +72,10 @@ class TaskRunner:
         # ---------------------------------------------------------------------
         # Run the task
         # ---------------------------------------------------------------------
+
+        result = None
         try:
-            result = None
-            with self.executor.context(**context):
+            with self.executor.context(**prefect_context):
 
                 # -------------------------------------------------------------
                 # check that Task is runnable
@@ -118,11 +116,17 @@ class TaskRunner:
                 # -------------------------------------------------------------
 
                 result = self.executor._execute_task(
-                        execute_fn=self._execute_task,
-                        inputs=inputs,
-                        context=context)
+                    execute_fn=self._execute_task,
+                    inputs=inputs,
+                    context=prefect_context)
 
-            state.succeed(value=result)
+                size = sys.getsizeof(result)
+                if size > prefect.config.getint('tasks', 'max_result_size'):
+                    raise signals.FAIL(
+                        f'Task result is too large ({size}b); consider '
+                        'serializing it.')
+
+            state.succeed()
         except signals.SKIP as e:
             log_task_state('{task} was skipped', e)
             state.skip()
@@ -141,7 +145,7 @@ class TaskRunner:
             log_task_state('{task} failed', e)
             state.fail()
 
-        return prefect.state.TaskRunState(state, value=result)
+        return RunResult(state=state, result=result)
 
     def _execute_task(self, inputs, context):
 
@@ -165,22 +169,15 @@ class TaskRunner:
                         result = subtask[sentinel]
                         break
                     # submit flows
-                    elif isinstance(subtask, Flow):
+                    elif isinstance(subtask, prefect.Flow):
                         prefect.context.run_flow(subtask)
                     # submit tasks
-                    elif isinstance(subtask, Task):
+                    elif isinstance(subtask, prefect.Task):
                         prefect.context.run_task(subtask)
-                    # bad yield
+                    # update progress
                     else:
-                        raise TypeError(
-                            'Task yielded an unexpected subtask '
-                            'type: {}'.format(type(subtask).__name__))
+                        prefect.context.update_progress(subtask)
 
-            serialized = False
-            result_size = sys.getsizeof(result)
-            serialize_size = prefect.config.get('tasks', 'serialize_if_over')
-            if result is not None and result_size >= int(serialize_size):
-                result = self.task.serializer.encode(self.id, result)
-                serialized = True
+            result = self.task.serializer.encode(self.id, result)
 
-            return {'value': result, 'serialized': serialized}
+        return result

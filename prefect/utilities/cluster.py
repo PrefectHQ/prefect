@@ -66,7 +66,7 @@ def client(address=None, separate_thread=False):
 
     # otherwise connect to the supplied address
     if address is None:
-        address = prefect.config.get('cluster', 'address')
+        address = prefect.config.get('dask', 'cluster_address')
     elif address.lower() in ('local', '', 'localcluster'):
         if _LOCAL_CLUSTER is None:
             _LOCAL_CLUSTER = distributed.LocalCluster()

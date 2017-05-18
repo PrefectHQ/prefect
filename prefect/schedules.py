@@ -37,6 +37,9 @@ class NoSchedule(Schedule):
             'kwargs': {},
         }
 
+    def __json__(self):
+        return self.serialize()
+
 
 class IntervalSchedule(Schedule):
     """

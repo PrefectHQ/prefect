@@ -1,41 +1,23 @@
 import datetime
 import prefect
 from prefect.runners.task_runner import TaskRunner
+from prefect.runners.state import TaskRunState, FlowRunState
+from prefect.runners.results import RunResult
 import uuid
 
 
-def _deserialize_result(task, state):
+def _deserialize_result(task, result):
     """
     Given a task and corresponding state, returns the state's
     deserialized result. If the state is anything but successful,
     None is returned.
     """
-    try:
-        if not state.is_successful():
-            return None
-        else:
-            result = state.value['value']
-            if state.value['serialized'] is True:
-                result = task.serializer.decode(result)
-            return result
-    except Exception as e:
-        raise signals.FAIL(
-            'Could not deserialize result of {}: {}'.format(task, e))
-
-
-def _maybe_index_result(edge, result):
-    """
-    Given an edge and corresponding task result, attempts to properly
-    index the result.
-    """
-    try:
-        if edge.upstream_index is not None:
-            return result[edge.upstream_index]
-        else:
-            return result
-    except Exception as e:
-        raise signals.FAIL(
-            'Could not index result of {}: {}'.format(edge.upstream_task, e))
+    if result is not None:
+        try:
+            return task.serializer.decode(result.result)
+        except Exception as e:
+            raise prefect.signals.FAIL(
+                f'Could not deserialize result of {task}: {e}')
 
 
 class FlowRunner:
@@ -47,31 +29,21 @@ class FlowRunner:
     the flow and waits for them to complete. It returns the flow's state.
     """
 
-    def __init__(self, flow, run_id=None, executor=None):
+    def __init__(self, flow, id=None, executor=None):
 
         self.flow = flow
-        if run_id is None:
-            run_id = uuid.uuid4().hex
-        self.run_id = run_id
+        if id is None:
+            id = uuid.uuid4().hex
+        self.id = id
 
         if executor is None:
-            executor = getattr(
-                prefect.runners.executors,
-                prefect.config.get('prefect', 'default_executor'))()
+            executor = prefect.runners.executors.default_executor()
         self.executor = executor
-
-    # def run(self, state=None, block=False, **params):
-    #     with self.executor() as executor:
-    #         future = executor.submit(self._run, state=state, **params)
-    #         if block:
-    #             return executor.gather(future)
-    #         else:
-    #             return executor.ensure(future)
 
     def run(self, state=None, context=None, **params):
 
         if state is None:
-            state = prefect.state.FlowRunState()
+            state = prefect.runners.state.FlowRunState()
 
         for req in self.flow.required_params:
             if req not in params:
@@ -87,72 +59,85 @@ class FlowRunner:
             'flow_namespace': self.flow.namespace,
             'flow_name': self.flow.name,
             'flow_version': self.flow.version,
-            'run_id': self.run_id,
+            'flowrun_id': self.id,
             'params': params,
         }
         if context is not None:
             prefect_context.update(context)
 
-        task_states = {}
+        # task_results contains a RunResult(state, result) for each task
         task_results = {}
 
+        # deserialized holds futures representing deserialized task results
+        # (to avoid deserializing the same result multiple times)
+        deserialized = {}
+
         try:
+
             with self.executor(**prefect_context) as client:
+
                 for task in self.flow.sorted_tasks():
 
-                    upstream_states = {}
+                    upstream_results = {}
                     upstream_inputs = {}
 
-                    # collect the states of tasks immediately upstream from
-                    # this task
-                    for u_task in self.flow.upstream_tasks(task):
-                        upstream_states[u_task.name] = task_states[u_task.name]
+                    # collect upstream results
+                    for t in self.flow.upstream_tasks(task):
+                        upstream_results[t.name] = task_results[t.name]
 
-                    # collect the results of tasks immediately upstream from
-                    # this task, if required
+                    # check incoming edges to see if we need to deserialize
+                    # any upstream inputs
                     for e in self.flow.edges_to(task):
 
+                        # if the edge has no key, it's not an input
                         if e.key is None:
                             continue
 
-                        # check if the task result has already been deserialized
+                        u_task = e.upstream_task.name
+
+                        # check if the task result is already deserialized
                         # (we only want to do this once)
-                        if e.upstream_task.name not in task_results:
-                            task_results[e.upstream_task.name] = client.submit(
+                        if u_task not in deserialized:
+                            deserialized[u_task] = client.submit(
                                 _deserialize_result,
                                 task=e.upstream_task,
-                                state=task_states[e.upstream_task.name],
+                                result=task_results[u_task],
                                 pure=False)
 
                         # get the (indexed) task result and store it under the
                         # appropriate input key
-                        upstream_inputs[e.key] = client.submit(
-                            _maybe_index_result,
-                            edge=e,
-                            result=task_results[e.upstream_task.name],
-                            pure=False)
+                        if e.upstream_index is not None:
+                            upstream_inputs[e.key] = client.submit(
+                                lambda result: result[e.upstream_index],
+                                result=deserialized[u_task],
+                                pure=False)
+                        else:
+                            upstream_inputs[e.key] = deserialized[u_task]
 
                     # run the task
-                    task_states[task.name] = client.run_task(
+                    # returns a RunResult(state, result)
+                    task_results[task.name] = client.run_task(
                         task=task,
-                        run_id=self.run_id,
-                        upstream_states=upstream_states,
+                        flowrun_id=self.id,
+                        upstream_results=upstream_results,
                         inputs=upstream_inputs)
 
-                task_states = client.gather(task_states)
+                # gather all task results from the cluster
+                task_results = client.gather(task_results)
 
             terminal_results = {
-                t.name: task_states[t.name]
+                t.name: task_results[t.name]
                 for t in self.flow.terminal_tasks()
             }
-            if any(r.is_waiting() for r in task_states.values()):
-                state.wait(value=task_states)
-            elif any(r.is_failed() for r in terminal_results.values()):
-                state.fail(value=task_states)
-            elif all(r.is_successful() for r in terminal_results.values()):
-                state.succeed(value=task_states)
+
+            if any(s.state.is_waiting() for s in task_results.values()):
+                state.wait()
+            elif any(s.state.is_failed() for s in terminal_results.values()):
+                state.fail()
+            elif all(s.state.is_successful() for s in terminal_results.values()):
+                state.succeed()
+
         except Exception as e:
             state.fail(value='{}'.format(e))
-            raise
 
-        return state
+        return RunResult(state=state, result=task_results)

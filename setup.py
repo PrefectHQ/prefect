@@ -3,7 +3,8 @@ from setuptools import setup, find_packages
 install_requires = [
     'click',
     'croniter',
-    'distributed >= 1.16.1'
+    'distributed >= 1.16.1',
+    'pycrypto',
     'requests',
     'ujson',
 ]

@@ -24,7 +24,7 @@ class Serializer(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def encode(key, result):
+    def encode(self, key, result):
         """
         Serialize a task run result.
 
@@ -35,7 +35,7 @@ class Serializer(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def decode(encoded_result):
+    def decode(self, encoded_result):
         raise NotImplementedError()
 
 
@@ -44,8 +44,8 @@ class JSONSerializer(Serializer):
     Serializes task results to JSON
     """
 
-    def encode(key, result):
+    def encode(self, key, result):
         return ujson.dumps(result)
 
-    def decode(encoded_result):
+    def decode(self, encoded_result):
         return ujson.loads(encoded_result)

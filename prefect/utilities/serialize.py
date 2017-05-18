@@ -2,13 +2,38 @@ import base64
 from Crypto.Cipher import AES
 from Crypto import Random
 import cloudpickle
+import datetime
 import hashlib
+import json
+import prefect
+
+# -----------------------------------------------------------------------------
+# monkey patch json.JSONEncoder to support:
+# - datetime to timestamp
+# - objects with __json__ methods
+
+_original_default = json.JSONEncoder.default
+
+
+def _default(obj):
+    if isinstance(obj, datetime.datetime):
+        return obj.timestamp()
+    elif hasattr(obj, '__json__'):
+        return obj.__json__()
+    else:
+        return _original_default(obj)
+
+
+json.JSONEncoder.default = _default
+
+# -----------------------------------------------------------------------------
 
 
 class AESCipher(object):
     """
     http://stackoverflow.com/a/21928790
     """
+
     def __init__(self, key):
         self.bs = 32
         self.key = hashlib.sha256(key.encode()).digest()
@@ -33,7 +58,7 @@ class AESCipher(object):
 
     @staticmethod
     def _unpad(s):
-        return s[:-ord(s[len(s)-1:])]
+        return s[:-ord(s[len(s) - 1:])]
 
 
 def serialize(obj, encryption_key=None):
@@ -42,24 +67,32 @@ def serialize(obj, encryption_key=None):
 
     Args:
         obj (object): The object to serialize
-        encryption_key (str): If provided, used to encrypt the serialization
+        encryption_key (str): key used to encrypt the serialization
     """
+    if encryption_key is None:
+        encryption_key = prefect.config.get('prefect', 'encryption_key')
     serialized = base64.b64encode(cloudpickle.dumps(obj))
-    if encryption_key is not None:
+    if encryption_key:
         cipher = AESCipher(key=encryption_key)
         serialized = cipher.encrypt(serialized)
-
+    if isinstance(serialized, bytes):
+        serialized = serialized.decode()
     return serialized
 
 
-def deserialize(serialized, decryption_key=None):
+def deserialize(serialized, encryption_key=None):
     """
     Deserialized a Python object.
 
     Args:
-        decryption_key (str): If provided, used to decrypt the serialization.
+        serialized (bytes): serialized Prefect object
+        encryption_key (str): key used to decrypt the serialization
     """
-    if decryption_key is not None:
-        cipher = AESCipher(key=decryption_key)
+    if encryption_key is None:
+        encryption_key = prefect.config.get('prefect', 'encryption_key')
+    if isinstance(serialized, str):
+        serialized = serialized.encode()
+    if encryption_key:
+        cipher = AESCipher(key=encryption_key)
         serialized = cipher.decrypt(serialized)
     return cloudpickle.loads(base64.b64decode(serialized))

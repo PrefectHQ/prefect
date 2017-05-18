@@ -1,14 +1,15 @@
+from collections import namedtuple
 import functools
 import prefect
 
 
-def set_state_from(source_states):
+def set_from(source_states):
     """
     Method decorator that indicates valid source states for a state transition
 
-    @set_state_from(['A'])
+    @set_from(['A'])
     def to_b(self):
-        return 'B'
+        self.set_state('B')
 
     assert obj.state == 'A'
     obj.to_b()  # works
@@ -20,20 +21,13 @@ def set_state_from(source_states):
         source_states = [source_states]
 
     def decorator(method):
-
         @functools.wraps(method)
         def inner(self, *args, **kwargs):
-            old_state = self.state
-            new_state = method(self, *args, **kwargs)
-            if old_state not in source_states:
+            if self.state not in source_states:
                 raise ValueError(
-                    "Can't change state from {} to {}".format(
-                        old_state, new_state))
-            self.state = new_state
-            self.after_state_change(old_state, new_state, self.value)
-
+                    f"Can't call '{method.__name__}()' when '{self.state}'")
+            method(self, *args, **kwargs)
         return inner
-
     return decorator
 
 
@@ -41,23 +35,25 @@ class State:
 
     _default_state = ''
 
-    def __init__(
-            self, initial_state=None, after_state_change=None, value=None):
+    def __init__(self, state=None):
+
         if not hasattr(type(self), '_default_state'):
             'State classes require a `_default_state` state class attribute.'
 
-        if initial_state is None:
-            initial_state = self._default_state
-        elif isinstance(initial_state, State):
-            initial_state = initial_state.state
-        self.state = initial_state
-        self.value = value
-        self.after_state_change = after_state_change or (lambda *args: True)
+        if state is None:
+            state = self._default_state
+        elif isinstance(state, State):
+            state = state.state
+        self.set_state(state)
+
+    def set_state(self, state):
+        self.state = state
 
     def __eq__(self, other):
+
         return (
             # match other State types
-            (type(self) == type(other) and self.state == other.state)
+            (type(self) == type(other) and (self.state == other.state))
             # match strings directly
             or (isinstance(other, str) and str(self) == other))
 
@@ -70,6 +66,7 @@ class State:
 
 class FlowState(State):
     ACTIVE = 'ACTIVE'
+    TESTING = 'TESTING'
     PAUSED = 'PAUSED'
     ARCHIVED = 'ARCHIVED'
 
@@ -80,27 +77,32 @@ class FlowState(State):
 
     _all_states = set([
         ACTIVE,
+        TESTING,
         PAUSED,
         ARCHIVED,
     ])
 
-    _unarchived_states = set([ACTIVE, PAUSED])
+    _unarchived_states = set([ACTIVE, PAUSED, TESTING])
 
-    @set_state_from(PAUSED)
+    @set_from([PAUSED, TESTING])
     def activate(self):
-        return self.ACTIVE
+        self.set_state(self.ACTIVE)
 
-    @set_state_from(ACTIVE)
+    @set_from([PAUSED, ACTIVE])
+    def test(self):
+        self.set_state(self.TESTING)
+
+    @set_from([ACTIVE, TESTING])
     def pause(self):
-        return self.PAUSED
+        self.set_state(self.PAUSED)
 
-    @set_state_from(_unarchived_states)
+    @set_from(_unarchived_states)
     def archive(self):
-        return self.ARCHIVED
+        self.set_state(self.ARCHIVED)
 
-    @set_state_from(ARCHIVED)
+    @set_from(ARCHIVED)
     def unarchive(self):
-        return self.PAUSED
+        self.set_state(self.PAUSED)
 
 
 class FlowRunState(State):
@@ -126,35 +128,29 @@ class FlowRunState(State):
     _pending_states = set([SCHEDULED, PENDING, WAITING])
     _finished_states = set([SUCCESS, FAILED])
 
-    @set_state_from(_pending_states)
-    def start(self, value=None):
-        self.value = value
-        return self.RUNNING
+    @set_from(_pending_states)
+    def start(self):
+        self.set_state(self.RUNNING)
 
-    @set_state_from(_pending_states)
-    def schedule(self, value=None):
-        self.value = value
-        return self.SCHEDULED
+    @set_from(_pending_states)
+    def schedule(self):
+        self.set_state(self.SCHEDULED)
 
-    @set_state_from(_pending_states.union([RUNNING]))
-    def succeed(self, value=None):
-        self.value = value
-        return self.SUCCESS
+    @set_from(_pending_states.union([RUNNING]))
+    def succeed(self):
+        self.set_state(self.SUCCESS)
 
-    @set_state_from(_pending_states.union([RUNNING]))
-    def fail(self, value=None):
-        self.value = value
-        return self.FAILED
+    @set_from(_pending_states.union([RUNNING]))
+    def fail(self):
+        self.set_state(self.FAILED)
 
-    @set_state_from(RUNNING)
-    def wait(self, value=None):
-        self.value = value
-        return self.WAITING
+    @set_from(RUNNING)
+    def wait(self):
+        self.set_state(self.WAITING)
 
-    @set_state_from(_all_states)
-    def shutdown(self, value=None):
-        self.value = value
-        return self.SHUTDOWN
+    @set_from(_all_states)
+    def shutdown(self):
+        self.set_state(self.SHUTDOWN)
 
     def is_pending(self):
         return str(self) in self._pending_states
@@ -206,45 +202,37 @@ class TaskRunState(State):
     _failed_states = set([FAILED])
     _waiting_states = set([WAITING])
 
-    @set_state_from(_pending_states)
-    def start(self, value=None):
-        self.value = value
-        return self.RUNNING
+    @set_from(_pending_states)
+    def start(self):
+        self.set_state(self.RUNNING)
 
-    @set_state_from(_pending_states.union(_running_states))
-    def succeed(self, value=None):
-        self.value = value
-        return self.SUCCESS
+    @set_from(_pending_states.union(_running_states))
+    def succeed(self):
+        self.set_state(self.SUCCESS)
 
-    @set_state_from(_pending_states.union(_running_states))
-    def fail(self, value=None):
-        self.value = value
-        return self.FAILED
+    @set_from(_pending_states.union(_running_states))
+    def fail(self):
+        self.set_state(self.FAILED)
 
-    @set_state_from(_pending_states)
-    def skip(self, value=None):
-        self.value = value
-        return self.SKIPPED
+    @set_from(_pending_states)
+    def skip(self):
+        self.set_state(self.SKIPPED)
 
-    @set_state_from(FAILED)
-    def retry(self, value=None):
-        self.value = value
-        return self.PENDING_RETRY
+    @set_from(FAILED)
+    def retry(self):
+        self.set_state(self.PENDING_RETRY)
 
-    @set_state_from(_pending_states)
-    def schedule(self, value=None):
-        self.value = value
-        return self.SCHEDULED
+    @set_from(_pending_states)
+    def schedule(self):
+        self.set_state(self.SCHEDULED)
 
-    @set_state_from(_all_states)
-    def shutdown(self, value=None):
-        self.value = value
-        return self.SHUTDOWN
+    @set_from(_all_states)
+    def shutdown(self):
+        self.set_state(self.SHUTDOWN)
 
-    @set_state_from(_running_states)
-    def wait(self, value=None):
-        self.value = value
-        return self.WAITING
+    @set_from(_running_states)
+    def wait(self):
+        self.set_state(self.WAITING)
 
     def is_started(self):
         return str(self) in self._started_states

@@ -1,17 +1,23 @@
-import functools
-import ujson
+import base64
 import datetime
+import functools
+import hashlib
+import importlib
 import prefect
 from prefect.signals import PrefectError
 from prefect.edges import Edge, Pipe
 from prefect.utilities.strings import is_valid_identifier
+import ujson
 
 
 class TaskResult:
     """
-    An object that represents the result (output) of a Task.
+    An object that represents the symbolic result (output) of a Task.
 
     TaskResults are primarily used to pipe data from one task to another.
+
+    Note that TaskResults are stand-ins for task results, but don't hold
+    the actual results.
     """
 
     def __init__(self, task, index=None):
@@ -79,7 +85,7 @@ class Edge:
         self.key = key
         self.upstream_index = upstream_index
 
-    def to_dict(self):
+    def serialize(self):
         """
         Returns a serialized version of the edge
         """
@@ -87,8 +93,17 @@ class Edge:
             'upstream_task': self.upstream_task.name,
             'downstream_task': self.downstream_task.name,
             'key': self.key,
-            'upstream_index': self.upstream_index
+            'upstream_index': prefect.utilities.serialize.serialize(
+                self.upstream_index)
         }
+
+    @classmethod
+    def from_serialized(cls, serialized):
+        if 'upstream_index' in serialized:
+            upstream_index = prefect.utilities.serialize.deserialize(
+                serialized['upstream_index'])
+        else:
+            upstream_index = None
 
 
 def retry_delay(
@@ -215,7 +230,9 @@ class Task:
                 'Task names must be valid Python identifiers '
                 '(received {})'.format(name))
         self.name = name
-        self.id = '{}/{}'.format(self.flow.id, self.name)
+
+        h = hashlib.sha1(f'{self.flow}{self.name}'.encode())
+        self.id = base64.b32encode(h.digest()).decode().lower()
 
         # set up retries
         if not callable(retry_delay):
@@ -230,7 +247,12 @@ class Task:
 
         # set up result serialization
         if serializer is None:
-            serializer = prefect.serializers.JSONSerializer()
+            default = prefect.config.get('tasks', 'default_serializer')
+            default_module, default_class = default.rsplit('.', 1)
+            serializer_class = getattr(
+                importlib.import_module(default_module),
+                default_class)
+            serializer = serializer_class()
         self.serializer = serializer
 
         # misc
@@ -241,7 +263,7 @@ class Task:
         self.flow.add_task(self)
 
     def __repr__(self):
-        return '{}({})'.format(type(self).__name__, self.id)
+        return f'{type(self).__name__}({self.flow.name}/{self.name})'
 
     # Comparison --------------------------------------------------------------
 
@@ -336,9 +358,8 @@ class Task:
             'id': self.id,
             'name': self.name,
             'flow': self.flow.id,
+            'type': type(self).__name__,
             'max_retries': self.max_retries,
-            'retry_delay':
-            prefect.utilities.serialize.serialize(self.retry_delay),
             'serialized': prefect.utilities.serialize.serialize(self)
         }
 
