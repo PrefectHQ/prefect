@@ -128,5 +128,8 @@ class Context(threading.local):
         finally:
             self.reset(**previous_context)
 
+    def get(self, key, missing_value=None):
+        return getattr(self, key, missing_value)
+
 
 context = Context()

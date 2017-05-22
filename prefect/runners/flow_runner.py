@@ -54,7 +54,6 @@ class FlowRunner:
             'dt': None,  #TODO
             'as_of_dt': None,  # TODO
             'last_dt': None,  # TODO
-            'flow': self.flow,
             'flow_id': self.flow.id,
             'flow_namespace': self.flow.namespace,
             'flow_name': self.flow.name,
@@ -93,15 +92,13 @@ class FlowRunner:
                         if e.key is None:
                             continue
 
-                        u_task = e.upstream_task.name
-
                         # check if the task result is already deserialized
                         # (we only want to do this once)
-                        if u_task not in deserialized:
-                            deserialized[u_task] = client.submit(
+                        if e.upstream_task not in deserialized:
+                            deserialized[e.upstream_task] = client.submit(
                                 _deserialize_result,
-                                task=e.upstream_task,
-                                result=task_results[u_task],
+                                task=self.flow.get_task(e.upstream_task),
+                                result=task_results[e.upstream_task],
                                 pure=False)
 
                         # get the (indexed) task result and store it under the
@@ -109,10 +106,10 @@ class FlowRunner:
                         if e.upstream_index is not None:
                             upstream_inputs[e.key] = client.submit(
                                 lambda result: result[e.upstream_index],
-                                result=deserialized[u_task],
+                                result=deserialized[e.upstream_task],
                                 pure=False)
                         else:
-                            upstream_inputs[e.key] = deserialized[u_task]
+                            upstream_inputs[e.key] = deserialized[e.upstream_task]
 
                     # run the task
                     # returns a RunResult(state, result)

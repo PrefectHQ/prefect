@@ -2,11 +2,83 @@ import base64
 import copy
 import hashlib
 import prefect
-from prefect.task import Task, Edge
+from prefect.task import Task
 from prefect.signals import PrefectError
 import prefect.context
 from prefect.schedules import NoSchedule
-import ujson
+from prefect.utilities.strings import is_valid_identifier
+
+
+class Edge:
+
+    def __init__(
+            self, upstream_task, downstream_task, key=None,
+            upstream_index=None):
+        """
+        Edges represent connections between Tasks.
+
+        At a minimum, edges link an upstream_task and a downstream_task
+        indicating that the downstream task shouldn't run until the upstream
+        task is complete.
+
+        In addition, edges can specify a key and upstream_index that
+        describe how upstream results are passed to the downstream task.
+
+        Args:
+            upstream_task (Task): a task that must run before the
+                downstream_task
+
+            downstream_task (Task): a task that will be run after the
+                upstream_task. The upstream task state is passed to the
+                downstream task's trigger function to determine whether the
+                downstream task should run.
+
+            key (str): Optional. Passing a key indicates
+                that the upstream result should be passed to the downstream
+                task as a keyword argument.
+
+            upstream_index (obj): Optional, but a key must also be
+                passed. The upstream key is used to index the upstream result
+                prior to passing it to the downstream task.
+
+        The key indicates that the result of the upstream task
+        should be passed to the downstream task under the key.
+
+        If a key is provided, an upstream_index can also be provided
+        """
+        self.upstream_task = upstream_task
+        self.downstream_task = downstream_task
+
+        if key is not None:
+            if not is_valid_identifier(key):
+                raise ValueError(
+                    'Downstream key ("{}") must be a valid identifier'.format(
+                        key))
+        elif upstream_index is not None:
+            raise ValueError(
+                'Downstream key must be supplied to use an upstream key')
+        self.key = key
+        self.upstream_index = upstream_index
+
+    def serialize(self):
+        """
+        Returns a serialized version of the edge
+        """
+        return {
+            'upstream_task': self.upstream_task.name,
+            'downstream_task': self.downstream_task.name,
+            'key': self.key,
+            'upstream_index': prefect.utilities.serialize.serialize(
+                self.upstream_index)
+        }
+
+    @classmethod
+    def from_serialized(cls, serialized):
+        if 'upstream_index' in serialized:
+            upstream_index = prefect.utilities.serialize.deserialize(
+                serialized['upstream_index'])
+        else:
+            upstream_index = None
 
 
 class Flow:
@@ -49,7 +121,7 @@ class Flow:
 
         self.required_params = required_params
         self.schedule = schedule
-        self.tasks = set()
+        self.tasks = dict()
         self.edges = set()
         self.concurrent_runs = concurrent_runs
         self.cluster = cluster
@@ -81,71 +153,92 @@ class Flow:
         if (
                 self._cache.get('tasks', None) != self.tasks
                 or self._cache.get('edges', None) != self.edges):
-            self._cache = {'tasks': set(self.tasks), 'edges': set(self.edges)}
+            self._cache = {'tasks': dict(self.tasks), 'edges': set(self.edges)}
 
     # Graph -------------------------------------------------------------------
 
     def __iter__(self):
         yield from self.sorted_tasks()
 
-    def get_task(self, name=None, id=None):
+    def get_task(self, name):
         """
         Retrieve a task by name
         """
-        if (name is None and id is None) or (
-                name is not None and id is not None):
-            raise ValueError('Provide either name or id, but not both.')
-
-        try:
-            if name is not None:
-                return next(t for t in self.tasks if t.name == name)
-            else:
-                return next(t for t in self.tasks if t.id == id)
-        except StopIteration:
-            raise PrefectError(
-                'Task {} was not found in the Flow'.format(name or id))
+        if name in self.tasks:
+            return self.tasks[name]
+        else:
+            raise ValueError(
+                'Task {} was not found in the Flow'.format(name))
 
     def add_task(self, task):
         if not isinstance(task, Task):
             raise TypeError(
-                'Expected a Task; received {}'.format(type(task).__name__))
-        if task.flow.id != self.id:
-            raise ValueError('Task {} is already in another Flow'.format(task))
-        if task.name in set(t.name for t in self.tasks):
+                f'Expected a Task; received {type(task).__name__}')
+        if task.name in self.tasks:
             raise ValueError(
-                'A task named {} already exists in this Flow.'.format(
-                    task.name))
-        self.tasks.add(task)
+                f'A task named "{task.name}" already exists in this Flow.')
+        self.tasks[task.name] = task
 
-    def add_edge(self, edge):
+    def add_edge(self, upstream_task, downstream_task, key=None, upstream_index=None):
         """
         Adds an Edge to the Flow. Edges create dependencies between tasks.
         The simplest edge simply enforcces an ordering so that the upstream
         task runs before the downstream task, but edges can introduce more
         complex behaviors as well.
-
-        Args:
-            edge (Edge): An Edge object representing a relationship between
-                an upstream task and a downstream task.
         """
-        if not isinstance(edge, Edge):
-            raise TypeError(
-                'Expected an Edge; received {}'.format(type(edge).__name__))
+
+        if isinstance(upstream_task, TaskResult):
+            upstream_task = upstream_task.task
+            upstream_index = upstream_task.index
+
+        edge = Edge(
+            upstream_task=upstream_task.name,
+            downstream_task=downstream_task.name,
+            upstream_index=upstream_index,
+            key=key,
+        )
+
+        if upstream_task.name not in self.tasks:
+            self.add_task(upstream_task)
+        if downstream_task.name not in self.tasks:
+            self.add_task(downstream_task)
+
         if edge.key is not None:
             existing_edges = [
                 e for e in self.edges
-                if e.downstream_task == edge.downstream_task
+                if e.downstream_task == downstream_task.name
                 and e.key == edge.key
             ]
             if existing_edges:
                 raise ValueError(
-                    'An edge to task {} with key {} already exists!'.format(
-                        edge.downstream_task, edge.key))
+                    f'An edge to task {edge.downstream_task} with '
+                    f'key "{edge.key}" already exists!')
 
         self.edges.add(edge)
 
         # check that the edge doesn't add a cycle
         self.sorted_tasks()
+
+    def run_task_with(self, task, *upstream_tasks, **results):
+        """
+        Convenience function for adding task relationships.
+
+        Args:
+            task (Task): a Task that will become part of the Flow
+
+            upstream_tasks ([Task]): Tasks that will run before the task runs
+
+            results ({key: Task or TaskResult}): Tasks that will run
+                before the task runs and pass their output to the task under
+                the key
+        """
+        self.add_task(task)
+
+        for t in upstream_tasks:
+            self.add_edge(upstream_task=t, downstream_task=task)
+
+        for key, t in results.items():
+            self.add_edge(upstream_task=t, downstream_task=task, key=key)
 
     def upstream_tasks(self, task):
         """
@@ -176,7 +269,7 @@ class Flow:
 
         self.check_cache()
         if 'sorted tasks' not in self._cache:
-            tasks = set(self.tasks)
+            tasks = set(self.tasks.values())
             sorted_tasks = []
             while tasks:
                 acyclic = False
@@ -199,25 +292,31 @@ class Flow:
 
         return self._cache['sorted tasks']
 
-    def edges_to(self, task, only_with_keys=False):
+    def edges_to(self, task):
         """
         Set of all Edges leading to this Task
 
         Args:
-            task (Task)
-            only_with_keys (bool): if True, only edges that have keys
-                (indicating that data is transmitted) are included
+            task (Task or str)
         """
-        return set(e for e in self.edges if e.downstream_task == task)
+        if isinstance(task, str):
+            name = task
+        else:
+            name = task.name
+        return set(e for e in self.edges if e.downstream_task == name)
 
     def edges_from(self, task):
         """
         Set of all Edges leading from this Task
 
         Args:
-            task (Task)
+            task (Task or str)
         """
-        return set(e for e in self.edges if e.upstream_task == task)
+        if isinstance(task, str):
+            name = task
+        else:
+            name = task.name
+        return set(e for e in self.edges if e.upstream_task == name)
 
     def root_tasks(self):
         """
@@ -227,7 +326,7 @@ class Flow:
         self.check_cache()
         if 'root tasks' not in self._cache:
             root_tasks = set()
-            for task in self.tasks:
+            for task in self.tasks.values():
                 if not self.edges_to(task):
                     root_tasks.add(task)
             self._cache['root tasks'] = root_tasks
@@ -248,7 +347,7 @@ class Flow:
         self.check_cache()
         if 'terminal tasks' not in self._cache:
             terminal_tasks = set()
-            for task in self.tasks:
+            for task in self.tasks.values():
                 if not self.edges_from(task):
                     terminal_tasks.add(task)
             self._cache['terminal tasks'] = terminal_tasks
@@ -260,7 +359,7 @@ class Flow:
         Override the default terminal tasks. The state of these tasks is used
         to determine the state of the Flow.
         """
-        if set(tasks).difference(self.tasks):
+        if set(tasks).difference(self.tasks.values()):
             raise ValueError('Terminal tasks must be part of the Flow')
         self._terminal_tasks = set(tasks)
 
@@ -309,35 +408,3 @@ class Flow:
             serialized['schedule'])
         obj._cache.clear()
         return obj
-
-    # Decorator ----------------------------------------------------
-
-    def task(self, fn=None, **kwargs):
-        """
-        A decorator for creating Tasks from functions.
-
-        Usage:
-
-        with Flow('flow') as f:
-
-            @f.task
-            def myfn():
-                time.sleep(10)
-                return 1
-
-            @f.task(name='hello', retries=3)
-            def hello():
-                print('hello')
-
-        """
-        if 'flow' in kwargs:
-            raise ValueError('Flow can not be passed to task decorator')
-
-        if callable(fn):
-            return Task(fn=fn, flow=self)
-        else:
-
-            def wrapper(fn):
-                return Task(fn=fn, flow=self, **kwargs)
-
-            return wrapper

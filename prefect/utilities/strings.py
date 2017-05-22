@@ -43,8 +43,8 @@ def name_with_suffix(
         max_iters (int): evaluation will stop after this many iterations. An
             error will be raised.
     """
-    i = 1
-    new_name = '{}{}{}'.format(name, delimiter, first_suffix)
+    i = 0
+    new_name = name
     while not predicate(new_name) and i <= max_iters:
         new_name = '{}{}{}'.format(name, delimiter, first_suffix + i)
         i = i + 1

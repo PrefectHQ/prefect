@@ -5,7 +5,6 @@ import hashlib
 import importlib
 import prefect
 from prefect.signals import PrefectError
-from prefect.edges import Edge, Pipe
 from prefect.utilities.strings import is_valid_identifier
 import ujson
 
@@ -25,85 +24,14 @@ class TaskResult:
             raise TypeError(
                 'task must be a Task; received {}'.format(type(task).__name__))
         self.task = task
+        self.name = task.name
         self.index = index
 
     def _repr_index(self):
         return '[{}]'.format(self.index if self.index is not None else ':')
 
     def __repr__(self):
-        return 'TaskResult({}{})'.format(self.task.id, self._repr_index())
-
-
-class Edge:
-
-    def __init__(
-            self, upstream_task, downstream_task, key=None,
-            upstream_index=None):
-        """
-        Edges represent connections between Tasks.
-
-        At a minimum, edges link an upstream_task and a downstream_task
-        indicating that the downstream task shouldn't run until the upstream
-        task is complete.
-
-        In addition, edges can specify a key and upstream_index that
-        describe how upstream results are passed to the downstream task.
-
-        Args:
-            upstream_task (Task): a task that must run before the
-                downstream_task
-
-            downstream_task (Task): a task that will be run after the
-                upstream_task. The upstream task state is passed to the
-                downstream task's trigger function to determine whether the
-                downstream task should run.
-
-            key (str): Optional. Passing a key indicates
-                that the upstream result should be passed to the downstream
-                task as a keyword argument.
-
-            upstream_index (obj): Optional, but a key must also be
-                passed. The upstream key is used to index the upstream result
-                prior to passing it to the downstream task.
-
-        The key indicates that the result of the upstream task
-        should be passed to the downstream task under the key.
-
-        If a key is provided, an upstream_index can also be provided
-        """
-        self.upstream_task = upstream_task
-        self.downstream_task = downstream_task
-
-        if key is not None:
-            if not is_valid_identifier(key):
-                raise ValueError(
-                    'Downstream key ("{}") must be a valid identifier'.format(
-                        key))
-        elif upstream_index is not None:
-            raise ValueError(
-                'Downstream key must be supplied to use an upstream key')
-        self.key = key
-        self.upstream_index = upstream_index
-
-    def serialize(self):
-        """
-        Returns a serialized version of the edge
-        """
-        return {
-            'upstream_task': self.upstream_task.name,
-            'downstream_task': self.downstream_task.name,
-            'key': self.key,
-            'upstream_index': prefect.utilities.serialize.serialize(
-                self.upstream_index)
-        }
-
-    @classmethod
-    def from_serialized(cls, serialized):
-        if 'upstream_index' in serialized:
-            upstream_index = prefect.utilities.serialize.deserialize(
-                serialized['upstream_index'])
-        else:
-            upstream_index = None
+        return 'TaskResult({}{})'.format(self.task.name, self._repr_index())
 
 
 def retry_delay(
@@ -159,7 +87,6 @@ def retry_delay(
     return retry_delay
 
 
-@functools.total_ordering
 class Task:
     """
     Tasks are basic units of work. Each task performs a specific funtion.
@@ -168,7 +95,6 @@ class Task:
     def __init__(
             self,
             name=None,
-            flow=None,
             fn=None,
             max_retries=0,
             retry_delay=retry_delay(minutes=5),
@@ -209,30 +135,22 @@ class Task:
         if fn is not None:
             self.run = fn
 
-        # set the flow
-        if flow is None:
-            flow = prefect.context.flow
-            if flow is None:
-                raise ValueError(
-                    'Tasks must be created with a Flow or inside '
-                    'a Flow context manager.')
-        self.flow = flow
+        # see if this task was created inside a flow context
+        flow = prefect.context.get('flow')
 
         # set the name and id
         if name is None:
             name = getattr(fn, '__name__', type(self).__name__)
             name = name.replace('<lambda>', '__lambda__')
-            name = prefect.utilities.strings.name_with_suffix(
-                name=name,
-                predicate=lambda n: n not in [t.name for t in flow.tasks])
+            if flow:
+                name = prefect.utilities.strings.name_with_suffix(
+                    name=name,
+                    predicate=lambda n: n not in [t.name for t in flow.tasks])
         if not is_valid_identifier(name):
             raise ValueError(
                 'Task names must be valid Python identifiers '
                 '(received {})'.format(name))
         self.name = name
-
-        h = hashlib.sha1(f'{self.flow}{self.name}'.encode())
-        self.id = base64.b32encode(h.digest()).decode().lower()
 
         # set up retries
         if not callable(retry_delay):
@@ -260,22 +178,16 @@ class Task:
         self.image = image
 
         # add the task to the flow
-        self.flow.add_task(self)
+        if flow:
+            flow.add_task(self)
 
     def __repr__(self):
-        return f'{type(self).__name__}({self.flow.name}/{self.name})'
+        return f'{type(self).__name__}({self.name})'
 
     # Comparison --------------------------------------------------------------
 
     def __eq__(self, other):
-        return type(self) == type(other) and self.id == other.id
-
-    def __lt__(self, other):
-        if not isinstance(other, Task):
-            return super().__lt__(other)
-        self_order = (self.flow.id, self.flow.sort_tasks().index(self))
-        other_order = (other.flow.id, other.flow.sort_tasks().index(other))
-        return self_order < other_order
+        return type(self) == type(other) and self.name == other.name
 
     def __hash__(self):
         return id(self)
@@ -291,10 +203,11 @@ class Task:
             Tasks (Task or collection of Tasks): Tasks that this task should
                 run before.
         """
-        if isinstance(tasks, Task):
-            tasks = [tasks]
-        for t in tasks:
-            self.flow.add_edge(Edge(upstream_task=self, downstream_task=t))
+        flow = prefect.context.get('flow')
+        if not flow:
+            raise ValueError(
+                'This function can only be called inside a Flow context')
+        flow.run_task_with(task=self, upstream_tasks=tasks)
 
     def run_after(self, tasks):
         """
@@ -305,10 +218,14 @@ class Task:
             Tasks (Task or collection of Tasks): Tasks that this task should
                 run after.
         """
+        flow = prefect.context.get('flow')
+        if not flow:
+            raise ValueError(
+                'This function can only be called inside a Flow context')
         if isinstance(tasks, Task):
             tasks = [tasks]
         for t in tasks:
-            self.flow.add_edge(Edge(upstream_task=t, downstream_task=self))
+            flow.run_task_with(task=t, upstream_tasks=[self])
 
     def then(self, task):
         """
@@ -322,42 +239,33 @@ class Task:
             The downstream task (`task`)
 
         """
-        self.flow.add_edge(Edge(upstream_task=self, downstream_task=task))
+        self.run_before(task)
         return task
 
-    def run_with(self, *tasks, **results):
+    def run_with(self, *upstream_tasks, **results):
         """
         Adds a data pipe to the Flow so this task receives the results
         of upstream tasks.
 
         Args:
-            *tasks (Tasks): The provided Tasks will be set as upstream
+            *upstream_tasks (Tasks): The provided Tasks will be set as upstream
                 dependencies of this task
 
             **results (Tasks or TaskResults): The provided Tasks / TaskResults
                 will be made upstream dependencies of this task AND their
                 results will passed to the task under the provided keyword.
         """
-
-        self.run_after(tasks)
-
-        for key, task_result in results.items():
-            if isinstance(task_result, Task):
-                task_result = TaskResult(task_result)
-            self.flow.add_edge(
-                Edge(
-                    upstream_task=task_result.task,
-                    downstream_task=self,
-                    key=key,
-                    upstream_index=task_result.index))
+        flow = prefect.context.get('flow')
+        if not flow:
+            raise ValueError(
+                'This function can only be called inside a Flow context')
+        flow.run_task_with(task=self, *upstream_tasks, **results)
 
     # Serialize ---------------------------------------------------------------
 
     def serialize(self):
         return {
-            'id': self.id,
             'name': self.name,
-            'flow': self.flow.id,
             'type': type(self).__name__,
             'max_retries': self.max_retries,
             'serialized': prefect.utilities.serialize.serialize(self)
@@ -440,3 +348,31 @@ class Task:
         """ obj << self -> self.run_before(obj)"""
         self.run_before(obj)
         return obj
+
+
+def task(self, fn=None, **kwargs):
+    """
+    A decorator for creating Tasks from functions.
+
+    Usage:
+
+    with Flow('flow') as f:
+
+        @task
+        def myfn():
+            time.sleep(10)
+            return 1
+
+        @task(name='hello', retries=3)
+        def hello():
+            print('hello')
+
+    """
+    if callable(fn):
+        return Task(fn=fn, flow=self)
+    else:
+
+        def wrapper(fn):
+            return Task(fn=fn, flow=self, **kwargs)
+
+        return wrapper
