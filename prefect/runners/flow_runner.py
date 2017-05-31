@@ -1,7 +1,7 @@
 import datetime
 import prefect
 from prefect.runners.task_runner import TaskRunner
-from prefect.runners.state import TaskRunState, FlowRunState
+from prefect.state import TaskRunState, FlowRunState
 from prefect.runners.results import RunResult
 import uuid
 
@@ -40,10 +40,17 @@ class FlowRunner:
             executor = prefect.runners.executors.default_executor()
         self.executor = executor
 
-    def run(self, state=None, context=None, **params):
+    def run(self, state=None, context=None, resume_tasks=None, **params):
 
         if state is None:
-            state = prefect.runners.state.FlowRunState()
+            state = prefect.state.FlowRunState()
+
+        if resume_tasks is True:
+            resume_tasks = list(self.flow.tasks.keys())
+        elif isinstance(resume_tasks, str):
+            resume_tasks = [resume_tasks]
+        elif resume_tasks is None:
+            resume_tasks = []
 
         for req in self.flow.required_params:
             if req not in params:
@@ -54,12 +61,12 @@ class FlowRunner:
             'dt': None,  #TODO
             'as_of_dt': None,  # TODO
             'last_dt': None,  # TODO
-            'flow_id': self.flow.id,
             'flow_namespace': self.flow.namespace,
             'flow_name': self.flow.name,
             'flow_version': self.flow.version,
             'flowrun_id': self.id,
             'params': params,
+            'resume_tasks': resume_tasks,
         }
         if context is not None:
             prefect_context.update(context)
@@ -72,6 +79,7 @@ class FlowRunner:
         deserialized = {}
 
         try:
+            # import ipdb; ipdb.set_trace()
 
             with self.executor(**prefect_context) as client:
 
@@ -82,7 +90,7 @@ class FlowRunner:
 
                     # collect upstream results
                     for t in self.flow.upstream_tasks(task):
-                        upstream_results[t.name] = task_results[t.name]
+                        upstream_results[t] = task_results[t]
 
                     # check incoming edges to see if we need to deserialize
                     # any upstream inputs
@@ -135,6 +143,6 @@ class FlowRunner:
                 state.succeed()
 
         except Exception as e:
-            state.fail(value='{}'.format(e))
+            state.fail()
 
         return RunResult(state=state, result=task_results)

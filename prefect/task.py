@@ -101,7 +101,8 @@ class Task:
             trigger=None,
             serializer=None,
             resources=None,
-            image=None):
+            image=None,
+            cluster=None):
         """
 
         Args:
@@ -141,15 +142,14 @@ class Task:
         # set the name and id
         if name is None:
             name = getattr(fn, '__name__', type(self).__name__)
-            name = name.replace('<lambda>', '__lambda__')
             if flow:
                 name = prefect.utilities.strings.name_with_suffix(
                     name=name,
-                    predicate=lambda n: n not in [t.name for t in flow.tasks])
-        if not is_valid_identifier(name):
-            raise ValueError(
-                'Task names must be valid Python identifiers '
-                '(received {})'.format(name))
+                    delimiter='-',
+                    first_suffix=2,
+                    predicate=lambda n: n not in [t for t in flow.tasks])
+        if not isinstance(name, str):
+            raise ValueError(f'Invalid name provided: {name}')
         self.name = name
 
         # set up retries
@@ -176,6 +176,7 @@ class Task:
         # misc
         self.resources = resources or {}
         self.image = image
+        self.cluster = cluster
 
         # add the task to the flow
         if flow:
@@ -207,7 +208,10 @@ class Task:
         if not flow:
             raise ValueError(
                 'This function can only be called inside a Flow context')
-        flow.run_task_with(task=self, upstream_tasks=tasks)
+        if isinstance(tasks, Task):
+            tasks = [tasks]
+        for t in tasks:
+            flow.set_up_task(task=t, upstream_tasks=[self])
 
     def run_after(self, tasks):
         """
@@ -224,8 +228,7 @@ class Task:
                 'This function can only be called inside a Flow context')
         if isinstance(tasks, Task):
             tasks = [tasks]
-        for t in tasks:
-            flow.run_task_with(task=t, upstream_tasks=[self])
+        flow.set_up_task(task=self, upstream_tasks=tasks)
 
     def then(self, task):
         """
@@ -242,7 +245,7 @@ class Task:
         self.run_before(task)
         return task
 
-    def run_with(self, *upstream_tasks, **results):
+    def run_with(self, upstream_tasks=None, **results):
         """
         Adds a data pipe to the Flow so this task receives the results
         of upstream tasks.
@@ -259,7 +262,7 @@ class Task:
         if not flow:
             raise ValueError(
                 'This function can only be called inside a Flow context')
-        flow.run_task_with(task=self, *upstream_tasks, **results)
+        flow.set_up_task(task=self, upstream_tasks=upstream_tasks or [], **results)
 
     # Serialize ---------------------------------------------------------------
 
@@ -268,7 +271,12 @@ class Task:
             'name': self.name,
             'type': type(self).__name__,
             'max_retries': self.max_retries,
-            'serialized': prefect.utilities.serialize.serialize(self)
+            'serialized': prefect.utilities.serialize.serialize(self),
+            'executor_args': {
+                'cluster': self.cluster,
+                'image': self.image,
+                'resources': self.resources,
+            }
         }
 
     @classmethod

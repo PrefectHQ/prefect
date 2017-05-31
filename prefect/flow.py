@@ -2,11 +2,12 @@ import base64
 import copy
 import hashlib
 import prefect
-from prefect.task import Task
+from prefect.task import Task, TaskResult
 from prefect.signals import PrefectError
 import prefect.context
 from prefect.schedules import NoSchedule
 from prefect.utilities.strings import is_valid_identifier
+import ujson
 
 
 class Edge:
@@ -25,10 +26,10 @@ class Edge:
         describe how upstream results are passed to the downstream task.
 
         Args:
-            upstream_task (Task): a task that must run before the
+            upstream_task (str): the name of a task that must run before the
                 downstream_task
 
-            downstream_task (Task): a task that will be run after the
+            downstream_task (str): the name of a task that will be run after the
                 upstream_task. The upstream task state is passed to the
                 downstream task's trigger function to determine whether the
                 downstream task should run.
@@ -46,6 +47,10 @@ class Edge:
 
         If a key is provided, an upstream_index can also be provided
         """
+        if isinstance(upstream_task, Task):
+            upstream_task = upstream_task.name
+        if isinstance(downstream_task, Task):
+            downstream_task = downstream_task.name
         self.upstream_task = upstream_task
         self.downstream_task = downstream_task
 
@@ -58,27 +63,32 @@ class Edge:
             raise ValueError(
                 'Downstream key must be supplied to use an upstream key')
         self.key = key
-        self.upstream_index = upstream_index
+
+        try:
+            ujson.loads(ujson.dumps(upstream_index))
+            self.upstream_index = upstream_index
+        except TypeError:
+            raise ValueError('upstream_index must be JSON-encodable')
 
     def serialize(self):
         """
         Returns a serialized version of the edge
         """
         return {
-            'upstream_task': self.upstream_task.name,
-            'downstream_task': self.downstream_task.name,
+            'upstream_task': self.upstream_task,
+            'downstream_task': self.downstream_task,
             'key': self.key,
-            'upstream_index': prefect.utilities.serialize.serialize(
-                self.upstream_index)
+            'upstream_index': self.upstream_index
         }
 
     @classmethod
-    def from_serialized(cls, serialized):
-        if 'upstream_index' in serialized:
-            upstream_index = prefect.utilities.serialize.deserialize(
+    def deserialize(cls, serialized):
+        serialized = serialized.copy()
+        if serialized['upstream_index'] is not None:
+            serialized['upstream_index'] = ujson.loads(
                 serialized['upstream_index'])
-        else:
-            upstream_index = None
+        return cls(**serialized)
+
 
 
 class Flow:
@@ -115,9 +125,9 @@ class Flow:
         self.name = name
         self.namespace = namespace
         self.version = version
-
-        h = hashlib.sha1(f'{self.namespace}{self.name}{self.version}'.encode())
-        self.id = base64.b32encode(h.digest()).decode()
+        #
+        # h = hashlib.sha1(f'{self.namespace}{self.name}{self.version}'.encode())
+        # self.id = base64.b32encode(h.digest()).decode()
 
         self.required_params = required_params
         self.schedule = schedule
@@ -136,8 +146,12 @@ class Flow:
 
     def __eq__(self, other):
         return (
-            type(self) == type(other) and self.id == other.id
-            and self.tasks == other.tasks and self.edges == other.edges)
+            type(self) == type(other)
+            and self.namespace == other.namespace
+            and self.name == other.name
+            and self.version == other.version
+            and self.tasks == other.tasks
+            and self.edges == other.edges)
 
     def __hash__(self):
         return id(self)
@@ -219,7 +233,7 @@ class Flow:
         # check that the edge doesn't add a cycle
         self.sorted_tasks()
 
-    def run_task_with(self, task, *upstream_tasks, **results):
+    def set_up_task(self, task, upstream_tasks, **results):
         """
         Convenience function for adding task relationships.
 
@@ -232,7 +246,8 @@ class Flow:
                 before the task runs and pass their output to the task under
                 the key
         """
-        self.add_task(task)
+        if task.name not in self.tasks:
+            self.add_task(task)
 
         for t in upstream_tasks:
             self.add_edge(upstream_task=t, downstream_task=task)
@@ -247,6 +262,10 @@ class Flow:
         Args:
             task (Task): tasks upstream from this task will be returned.
         """
+        if isinstance(task, str):
+            name = task
+        else:
+            name = task.name
         return set(
             e.upstream_task for e in self.edges if e.downstream_task == task)
 
@@ -257,6 +276,11 @@ class Flow:
         Args:
             task (Task): tasks downstream from this task will be returned.
         """
+        if isinstance(task, str):
+            name = task
+        else:
+            name = task.name
+
         return set(
             e.downstream_task for e in self.edges if e.upstream_task == task)
 
@@ -273,7 +297,7 @@ class Flow:
             sorted_tasks = []
             while tasks:
                 acyclic = False
-                for task in sorted(tasks, key=lambda t: t.id):
+                for task in list(tasks):
                     for upstream_task in self.upstream_tasks(task):
                         if upstream_task in tasks:
                             # the previous task hasn't been sorted yet, so
@@ -383,7 +407,6 @@ class Flow:
         del flow.edges
 
         return {
-            'id': self.id,
             'namespace': self.namespace,
             'name': self.name,
             'version': self.version,
@@ -391,8 +414,10 @@ class Flow:
             'edges': [e.serialize() for e in self.edges],
             'required_params': sorted(str(p) for p in self.required_params),
             'schedule': self.schedule.serialize(),
-            'cluster': self.cluster,
-            'serialized': prefect.utilities.serialize.serialize(flow)
+            'serialized': prefect.utilities.serialize.serialize(flow),
+            'executor_args': {
+                'cluster': self.cluster,
+                },
         }
 
     @classmethod
@@ -402,7 +427,8 @@ class Flow:
             raise TypeError(
                 'Expected {}; received {}'.format(
                     cls.__name__, type(obj).__name__))
-        obj.tasks = set([Task.deserialize(t) for t in serialized['tasks']])
+        for task in serialized['tasks']:
+            obj.add_task(Task.deserialize(task))
         obj.edges = set([Edge.deserialize(e) for e in serialized['edges']])
         obj.schedule = prefect.schedules.Schedule.deserialize(
             serialized['schedule'])
