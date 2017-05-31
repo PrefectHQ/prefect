@@ -1,4 +1,4 @@
-from prefect.runners.state import (FlowState, FlowRunState, TaskRunState)
+from prefect.state import (FlowState, FlowRunState, TaskRunState)
 import pytest
 
 

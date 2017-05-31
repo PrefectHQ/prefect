@@ -2,7 +2,7 @@ from collections import namedtuple
 import logging
 import prefect
 from prefect import signals
-from prefect.runners.state import TaskRunState
+from prefect.state import TaskRunState
 from prefect.runners.results import RunResult, Progress
 import sys
 import types
@@ -11,7 +11,7 @@ import uuid
 
 class TaskRunner:
 
-    def __init__(self, task, flowrun_id=None, executor=None):
+    def __init__(self, task, flowrun_id=None, executor=None, run_number=1):
         """
         Args:
 
@@ -31,7 +31,8 @@ class TaskRunner:
         if flowrun_id is None:
             flowrun_id = uuid.uuid4().hex
         self.flowrun_id = flowrun_id
-        self.id = flowrun_id + task.id
+        self.id = f'{flowrun_id}/{task.name}'
+        self.run_number = run_number
 
     def run(self, state=None, upstream_states=None, inputs=None, context=None):
         """
@@ -59,7 +60,6 @@ class TaskRunner:
         inputs = inputs or {}
 
         prefect_context = {
-            'task_id': self.task.id,
             'task_name': self.task.name,
             'update_progress': lambda p: print(f'Task Progress: {p}'),
         }
@@ -89,10 +89,15 @@ class TaskRunner:
                 elif state.is_finished():
                     raise signals.DONTRUN('Task is already finished')
 
+                # this task is waiting
+                elif state.is_waiting():
+                    if self.task.name not in prefect.context.resume_tasks:
+                        raise signals.DONTRUN('Task is waiting.')
+
                 # this task is not pending (meaning already running or stopped)
                 elif not state.is_pending():
                     raise signals.DONTRUN(
-                        'Task is not ready to run (state {})'.format(state))
+                        f'Task is not ready to run (state {state})')
 
                 # -------------------------------------------------------------
                 # TODO check that FlowRun is active

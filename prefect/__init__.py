@@ -7,13 +7,14 @@ import prefect.signals
 
 import prefect.schedules
 import prefect.serializers
-import prefect.runners.state
+import prefect.state
 import prefect.triggers
 # import prefect.edges
 
 from prefect.context import context
 from prefect.flow import Flow
 from prefect.task import Task
+import prefect.state
 import prefect.runners
 
 # Prefect Submodules ----------------------------------------------------------
