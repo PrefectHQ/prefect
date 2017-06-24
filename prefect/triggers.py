@@ -3,8 +3,15 @@ Triggers are functions that determine if task state should change based on
 the state of preceding tasks.
 """
 
-from prefect import signals
+from prefect import context, signals
 
+
+def dont_run(preceding_states):
+    """
+    the task never runs unless it appears in context.run_tasks
+    """
+    if context.task_name in context.flowrun_start_tasks:
+        return True
 
 def all_successful(preceding_states):
     """
@@ -33,7 +40,8 @@ def all_done(preceding_states):
     """
     if not all(s.is_finished() for s in preceding_states.values()):
         raise signals.FAIL(
-            'Trigger failed: some preceding tasks did not finish')
+            "Trigger failed: some preceding tasks did not finish. "
+            "(This shouldn't happen.)")
     return True
 
 

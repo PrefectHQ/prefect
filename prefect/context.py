@@ -100,6 +100,8 @@ class Context(threading.local):
         self.flow_state = None
         self.params = None
 
+        self.flowrun_start_tasks = set()
+
         self.task_id = None
         self.task_name = None
         self.task_state = None

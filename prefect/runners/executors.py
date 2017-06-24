@@ -19,6 +19,84 @@ from functools import partial
 import prefect
 from prefect.utilities.cluster import client as prefect_client
 
+# def context_client
+
+class Executor:
+
+    def __init__(self, distributed_client):
+        if prefect_server is None:
+            prefect_server = prefect.config.get('prefect', 'server')
+        self.distributed_client = distributed_client
+        self.prefect_client = prefect.Client(
+            server=prefect_server,
+            token=prefect_token)
+        self.futures_store = self.distributed_client.channel(
+            'futures-store',
+            max_len=1000000)
+
+    def submit(fn, *args, pure_=False, **kwargs):
+        future = self.distributed_client.submit(
+            fn, *args, **kwargs, pure=pure_)
+        self.futures_store.append(future)
+        return future
+
+    def safe_submit(fn, *args, **kwargs):
+        return self.submit(fn, *args, **kwargs)
+
+    def run_flow(self, flow, params, context=None, flowrun_id=None):
+
+        self.prefect_client.ensure_flow_exists(flow)
+
+        flow_runner = prefect.runners.FlowRunner(
+            flow=flow,
+            id=flowrun_id,
+            executor_class=type(self))
+
+        flowrun_state = self.prefect_client.get_flowrun_state(
+            flow_runner.flowrun_id)
+
+        current_context = prefect.context.to_dict()
+        current_context.update(context or {})
+
+        return self.submit(
+            flow_runner.run,
+            state=flowrun_state,
+            context=current_context)
+
+
+    def run_task(self, task, upstream_results, inputs, state, flowrun_id=None):
+        self.prefect_client.ensure_task_exists(task)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class Executor:
     """
     Executes flows and tasks in a Distributed cluster
@@ -150,30 +228,12 @@ class Executor:
         return execute_fn(inputs=inputs, context=prefect_context)
 
 
-
-class ThreadPoolExecutor(Executor):
-    """
-    Executes flows and tasks in a LocalCluster ThreadPool
-    """
-
-    def __init__(self, threads=10):
-        self.threads = threads
-        super().__init__()
-
-    @contextmanager
-    def client(self, separate_thread=True):
-        lc_args = dict(
-            n_workers=1, threads_per_worker=self.threads, nanny=False,)
-        with distributed.LocalCluster(**lc_args) as cluster:
-            address = cluster.scheduler_address
-            with prefect_client(
-                    address=address,
-                    separate_thread=separate_thread) as client:
-                yield client
-
 class LocalExecutor(Executor):
+    pass
+
+class DebugExecutor(Executor):
     """
-    An executor that runs all tasks / flows synchronously
+    An executor that runs all tasks / flows in the local process for debugging
     """
 
     class LocalClient:

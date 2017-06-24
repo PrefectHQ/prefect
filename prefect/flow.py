@@ -97,7 +97,7 @@ class Flow:
             self,
             name,
             namespace=prefect.config.get('flows', 'default_namespace'),
-            version=prefect.config.get('flows', 'default_version'),
+            version=None,
             required_params=None,
             schedule=NoSchedule(),
             concurrent_runs=None,  #TODO
@@ -107,8 +107,10 @@ class Flow:
             required_params: a collection of parameter names that must be
                 provided when the Flow is run. Flows can be called with any
                 params, but an error will be raised if these are missing.
+
             schedule (prefect.Schedule): a Schedule object that returns the
                 Flow's schedule
+
             cluster (str): The address of a specific cluster that this Flow
                 should run in. If not provided, the default cluster will be
                 used.
@@ -125,9 +127,6 @@ class Flow:
         self.name = name
         self.namespace = namespace
         self.version = version
-        #
-        # h = hashlib.sha1(f'{self.namespace}{self.name}{self.version}'.encode())
-        # self.id = base64.b32encode(h.digest()).decode()
 
         self.required_params = required_params
         self.schedule = schedule
@@ -135,14 +134,11 @@ class Flow:
         self.edges = set()
         self.concurrent_runs = concurrent_runs
         self.cluster = cluster
-        self._terminal_tasks = set()
-
-        self._cache = {}
-        self.check_cache()
 
     def __repr__(self):
         flow_type = type(self).__name__
-        return f'{flow_type}({self.namespace}.{self.name}:{self.version})'
+        version = f':{self.version}' if self.version is not None else ''
+        return f'{flow_type}({self.namespace}.{self.name}{version})'
 
     def __eq__(self, other):
         return (
@@ -158,16 +154,6 @@ class Flow:
 
     def __json__(self):
         return self.serialize()
-
-    def check_cache(self):
-        """
-        Check if the cache is still valid by comparing it to the flow,
-        and reset it if it isn't.
-        """
-        if (
-                self._cache.get('tasks', None) != self.tasks
-                or self._cache.get('edges', None) != self.edges):
-            self._cache = {'tasks': dict(self.tasks), 'edges': set(self.edges)}
 
     # Graph -------------------------------------------------------------------
 
@@ -266,8 +252,11 @@ class Flow:
             name = task
         else:
             name = task.name
+
         return set(
-            e.upstream_task for e in self.edges if e.downstream_task == task)
+            self.get_task(e.upstream_task)
+            for e in self.edges
+            if e.downstream_task == name)
 
     def downstream_tasks(self, task):
         """
@@ -282,39 +271,70 @@ class Flow:
             name = task.name
 
         return set(
-            e.downstream_task for e in self.edges if e.upstream_task == task)
+            self.get_task(e.downstream_task)
+            for e in self.edges
+            if e.upstream_task == name)
 
-    def sorted_tasks(self):
+    def sorted_tasks(self, root_tasks=None):
         """
         Returns a topological sort of this Flow's tasks.
-
-        The result will be cached when possible.
         """
 
-        self.check_cache()
-        if 'sorted tasks' not in self._cache:
-            tasks = set(self.tasks.values())
-            sorted_tasks = []
-            while tasks:
-                acyclic = False
-                for task in list(tasks):
-                    for upstream_task in self.upstream_tasks(task):
-                        if upstream_task in tasks:
-                            # the previous task hasn't been sorted yet, so
-                            # this task can't be sorted either
-                            break
-                    else:
-                        # all previous tasks are sorted, so this one can be
-                        # sorted as well
-                        acyclic = True
-                        tasks.remove(task)
-                        sorted_tasks.append(task)
-                if not acyclic:
-                    # no tasks matched
-                    raise ValueError('Flows must be acyclic!')
-            self._cache['sorted tasks'] = tuple(sorted_tasks)
+        # generate a list of all tasks downstream from root_tasks
+        if root_tasks is not None:
+            seen = set()
+            tasks = set(root_tasks or [])
 
-        return self._cache['sorted tasks']
+            while seen != tasks:
+                # for each task we haven't seen yet...
+                for t in list(tasks.difference(seen)):
+                    # add its downstream tasks to the list
+                    tasks.update(self.downstream_tasks(t))
+                    # mark it as seen
+                    seen.add(t)
+        else:
+            tasks = set(self.tasks.values())
+
+        sorted_tasks = []
+        while tasks:
+            acyclic = False
+            for task in list(tasks):
+                for upstream_task in self.upstream_tasks(task):
+                    if upstream_task in tasks:
+                        # the previous task hasn't been sorted yet, so
+                        # this task can't be sorted either
+                        break
+                else:
+                    # all previous tasks are sorted, so this one can be
+                    # sorted as well
+                    acyclic = True
+                    tasks.remove(task)
+                    sorted_tasks.append(task)
+            if not acyclic:
+                # no tasks matched
+                raise ValueError('Flows must be acyclic!')
+
+        return tuple(sorted_tasks)
+
+    def sub_flow(self, root_tasks=None):
+        """
+        Returns a Flow consisting of a subgraph of this graph including only
+        tasks between the supplied root_tasks and ending_tasks.
+        """
+
+        sub_flow = copy.copy(self)
+        sub_flow.tasks = dict()
+        sub_flow.edges = set()
+
+        for t in self.sorted_tasks(root_tasks=root_tasks):
+            sub_flow.add_task(t)
+
+        for e in self.edges:
+            if e.upstream_task in sub_flow.tasks:
+                if e.downstream_task in sub_flow.tasks:
+                    sub_flow.edges.add(e)
+
+        return sub_flow
 
     def edges_to(self, task):
         """
@@ -347,45 +367,14 @@ class Flow:
         Returns the root tasks of the Flow -- tasks that have no upstream
         dependencies.
         """
-        self.check_cache()
-        if 'root tasks' not in self._cache:
-            root_tasks = set()
-            for task in self.tasks.values():
-                if not self.edges_to(task):
-                    root_tasks.add(task)
-            self._cache['root tasks'] = root_tasks
-
-        return self._cache['root tasks']
+        return set(t for t in self.tasks.values() if not self.edges_to(t))
 
     def terminal_tasks(self):
         """
         Returns the terminal tasks of the Flow -- tasks that have no downstream
         dependencies.
-
-        Terminal task states are used to determine the state of a Flow.
-        To override the default, call set_terminal_tasks()
         """
-        if self._terminal_tasks:
-            return self._terminal_tasks
-
-        self.check_cache()
-        if 'terminal tasks' not in self._cache:
-            terminal_tasks = set()
-            for task in self.tasks.values():
-                if not self.edges_from(task):
-                    terminal_tasks.add(task)
-            self._cache['terminal tasks'] = terminal_tasks
-
-        return self._cache['terminal tasks']
-
-    def set_terminal_tasks(self, tasks):
-        """
-        Override the default terminal tasks. The state of these tasks is used
-        to determine the state of the Flow.
-        """
-        if set(tasks).difference(self.tasks.values()):
-            raise ValueError('Terminal tasks must be part of the Flow')
-        self._terminal_tasks = set(tasks)
+        return set(t for t in self.tasks.values() if not self.edges_from(t))
 
     # Context Manager -----------------------------------------------
 
@@ -432,5 +421,4 @@ class Flow:
         obj.edges = set([Edge.deserialize(e) for e in serialized['edges']])
         obj.schedule = prefect.schedules.Schedule.deserialize(
             serialized['schedule'])
-        obj._cache.clear()
         return obj

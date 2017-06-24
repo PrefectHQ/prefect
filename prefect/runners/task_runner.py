@@ -89,11 +89,6 @@ class TaskRunner:
                 elif state.is_finished():
                     raise signals.DONTRUN('Task is already finished')
 
-                # this task is waiting
-                elif state.is_waiting():
-                    if self.task.name not in prefect.context.resume_tasks:
-                        raise signals.DONTRUN('Task is waiting.')
-
                 # this task is not pending (meaning already running or stopped)
                 elif not state.is_pending():
                     raise signals.DONTRUN(
@@ -104,18 +99,17 @@ class TaskRunner:
                 # -------------------------------------------------------------
 
                 # -------------------------------------------------------------
-                # start!
-                # -------------------------------------------------------------
-
-                state.start()
-
-                # -------------------------------------------------------------
                 # check task trigger
                 # -------------------------------------------------------------
 
                 if not self.task.trigger(upstream_states):
-                    raise signals.FAIL('Trigger failed')
+                    raise signals.DONTRUN('Trigger failed')
 
+                # -------------------------------------------------------------
+                # start!
+                # -------------------------------------------------------------
+
+                state.start()
                 # -------------------------------------------------------------
                 # run the task
                 # -------------------------------------------------------------
