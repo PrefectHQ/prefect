@@ -94,8 +94,7 @@ class Task:
 
     def __init__(
             self,
-            name=None,
-            fn=None,
+            name,
             max_retries=0,
             retry_delay=retry_delay(minutes=5),
             trigger=None,
@@ -106,9 +105,6 @@ class Task:
         """
 
         Args:
-            fn (callable): By default, the Task's run() method calls this
-                function. Task subclasses can also override run() instead of
-                passing a function.
 
             retry_delay (timedelta or callable): a function that
                 is passed the most recent run number and returns an amount of
@@ -132,22 +128,10 @@ class Task:
 
 
         """
-        # override self.run if a function was passed
-        if fn is not None:
-            self.run = fn
 
         # see if this task was created inside a flow context
         flow = prefect.context.get('flow')
 
-        # set the name and id
-        if name is None:
-            name = getattr(fn, '__name__', type(self).__name__)
-            if flow:
-                name = prefect.utilities.strings.name_with_suffix(
-                    name=name,
-                    delimiter='-',
-                    first_suffix=2,
-                    predicate=lambda n: n not in [t for t in flow.tasks])
         if not isinstance(name, str):
             raise ValueError(f'Invalid name provided: {name}')
         self.name = name
@@ -308,12 +292,8 @@ class Task:
                     state WAITING_FOR_UPSTREAM (unless appropriate triggers
                     are set). The task can be run again and should check
                     context.is_waiting to see if it was placed in a WAIT.
-            4. Yield new tasks or flows. If a task yields tasks or flows,
-                they are submitted for execution. Execution should be treated
-                as asynchronous; the task does not stop after yielding.
         """
-        raise NotImplementedError(
-            'Pass a `fn` to this task or override this method!')
+        raise NotImplementedError()
 
     # Results  ----------------------------------------------------------------
 
@@ -356,31 +336,3 @@ class Task:
         """ obj << self -> self.run_before(obj)"""
         self.run_before(obj)
         return obj
-
-
-def task(self, fn=None, **kwargs):
-    """
-    A decorator for creating Tasks from functions.
-
-    Usage:
-
-    with Flow('flow') as f:
-
-        @task
-        def myfn():
-            time.sleep(10)
-            return 1
-
-        @task(name='hello', retries=3)
-        def hello():
-            print('hello')
-
-    """
-    if callable(fn):
-        return Task(fn=fn, flow=self)
-    else:
-
-        def wrapper(fn):
-            return Task(fn=fn, flow=self, **kwargs)
-
-        return wrapper

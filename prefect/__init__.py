@@ -12,7 +12,7 @@ import prefect.triggers
 
 from prefect.context import context
 from prefect.flow import Flow
-from prefect.task import Task
+from prefect.tasks import Task, task
 import prefect.state
 import prefect.runners
 from prefect.secret import Secret
