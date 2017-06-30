@@ -7,15 +7,9 @@ class PrefectSignal(Exception):
 
 
 # ------------------------------------------------------------------------------
-# These classes are used to signal state changes to TaskRunners
+# These classes are used to signal state changes to Runners
 # ------------------------------------------------------------------------------
 
-
-class TaskError(PrefectSignal):
-
-    def __init__(self, result=None, msg=''):
-        self.result = result
-        super.__init__(msg)
 
 
 class RETRY(PrefectSignal):
@@ -43,24 +37,6 @@ class FAIL(PrefectSignal):
 class SUCCESS(PrefectSignal):
     """
     Indicates that a task succeeded.
-    """
-
-    def __init__(self, result=None):
-        self.result = result
-        super().__init__()
-
-
-class WAIT(PrefectSignal):
-    """
-    Indicates that a Task is waiting to proceed. Task execution will halt
-    and the task / flow will need to be rerun to resume.
-    """
-    pass
-
-
-class WAIT_FOR_UPSTREAM(PrefectSignal):
-    """
-    Indicates that an upstream task is in a WAITING state.
     """
     pass
 

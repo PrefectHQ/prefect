@@ -98,13 +98,13 @@ class Flow:
             name,
             namespace=prefect.config.get('flows', 'default_namespace'),
             version=None,
-            required_params=None,
+            required_parameters=None,
             schedule=NoSchedule(),
             concurrent_runs=None,  #TODO
             cluster=None):
         """
         Args:
-            required_params: a collection of parameter names that must be
+            required_parameters: a collection of parameter names that must be
                 provided when the Flow is run. Flows can be called with any
                 params, but an error will be raised if these are missing.
 
@@ -117,18 +117,18 @@ class Flow:
 
         """
 
-        if required_params is None:
-            required_params = set()
-        elif isinstance(required_params, str):
-            required_params = set([required_params])
+        if required_parameters is None:
+            required_parameters = set()
+        elif isinstance(required_parameters, str):
+            required_parameters = set([required_parameters])
         else:
-            required_params = set(required_params)
+            required_parameters = set(required_parameters)
 
-        self.name = name
-        self.namespace = namespace
-        self.version = version
+        self.name = str(name)
+        self.namespace = str(namespace)
+        self.version = str(version)
 
-        self.required_params = required_params
+        self.required_parameters = required_parameters
         self.schedule = schedule
         self.tasks = dict()
         self.edges = set()
@@ -138,7 +138,7 @@ class Flow:
     def __repr__(self):
         flow_type = type(self).__name__
         version = f':{self.version}' if self.version is not None else ''
-        return f'{flow_type}({self.namespace}.{self.name}{version})'
+        return f'{flow_type}("{self.namespace}.{self.name}{version}")'
 
     def __eq__(self, other):
         return (
@@ -399,11 +399,13 @@ class Flow:
             'namespace': self.namespace,
             'name': self.name,
             'version': self.version,
+            'repr': repr(self),
             'tasks': [t.serialize() for t in self.sorted_tasks()],
             'edges': [e.serialize() for e in self.edges],
-            'required_params': sorted(str(p) for p in self.required_params),
+            'required_parameters': sorted(str(p) for p in self.required_parameters),
             'schedule': self.schedule.serialize(),
             'serialized': prefect.utilities.serialize.serialize(flow),
+            'concurrent_runs': self.concurrent_runs,
             'executor_args': {
                 'cluster': self.cluster,
                 },
@@ -411,14 +413,52 @@ class Flow:
 
     @classmethod
     def deserialize(cls, serialized):
+        """
+        Creates a Flow from a serialized Flow object.
+
+        NOTE this method is unsafe and should not be executed on untrusted
+        serialiations. See Flow.safe_deserialize() instead.
+        """
         obj = prefect.utilities.serialize.deserialize(serialized['serialized'])
+
         if not isinstance(obj, cls):
             raise TypeError(
                 'Expected {}; received {}'.format(
                     cls.__name__, type(obj).__name__))
+
+        obj.tasks = dict()
         for task in serialized['tasks']:
             obj.add_task(Task.deserialize(task))
         obj.edges = set([Edge.deserialize(e) for e in serialized['edges']])
-        obj.schedule = prefect.schedules.Schedule.deserialize(
-            serialized['schedule'])
+        obj.schedule = prefect.schedules.deserialize(serialized['schedule'])
         return obj
+
+    @classmethod
+    def safe_deserialize(cls, serialized):
+        """
+        This method uses a serialized Flow to create a new Flow that has the
+        same graph as the serialized Flow, but doesn't execute any potentially
+        untrusted code. The resulting "safe" Flow can be used to analyze
+        relationships between Tasks but can not actually run those tasks.
+        """
+        flow = Flow(
+            name=serialized['name'],
+            namespace=serialized['namespace'],
+            version=serialized['version'],
+            schedule=prefect.schedules.deserialize(
+                serialized['schedule']),
+            required_parameters=serialized['required_parameters'],
+            concurrent_runs=serialized['concurrent_runs'],
+            # executor_args
+        )
+        for task in serialized['tasks']:
+            flow.add_task(prefect.Task.safe_deserialize(task))
+
+        for edge in serialized['edges']:
+            flow.add_edge(
+                upstream_task=flow.get_task(edge.upstream_task),
+                downstream_task=flow.get_task(edge.downstream_task),
+                upstream_index=edge.upstream_index,
+                key=edge.key)
+
+        return flow

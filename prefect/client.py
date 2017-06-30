@@ -27,7 +27,7 @@ class Client:
     # -------------------------------------------------------------------------
     # Utilities
 
-    def _get(self, path, **params):
+    def _get(self, path, *, _json=True, **params):
         """
         Convenience function for calling the Prefect API with token auth.
 
@@ -36,18 +36,36 @@ class Client:
                 http://prefect-server/v1/login, path would be 'login'.
             params: GET parameters
         """
-        return self._request(method='GET', path=path, params=params)
+        response = self._request(method='GET', path=path, params=params)
+        if _json:
+            response = response.json()
+        return response
 
-    def _post(self, path, **data):
+    def _post(self, path, *, _json=True, **params):
         """
         Convenience function for calling the Prefect API with token auth.
 
         Args:
             path: the path of the API url. For example, to POST
                 http://prefect-server/v1/login, path would be 'login'.
-            data: POST data
+            params: POST params
         """
-        return self._request(method='POST', path=path, params=data)
+        response = self._request(method='POST', path=path, params=params)
+        if _json:
+            response = response.json()
+        return response
+
+    def _delete(self, path, *, _json=True):
+        """
+        Convenience function for calling the Prefect API with token auth.
+
+        Args:
+            path: the path of the API url
+        """
+        response = self._request(method='delete', path=path)
+        if _json:
+            response = response.json()
+        return response
 
     def _request(self, method, path, params):
         path = path.lstrip('/')
@@ -67,23 +85,24 @@ class Client:
                     url,
                     headers={'Authorization': self._token},
                     data=params)
+            elif method.upper() == 'DELETE':
+                response = requests.delete(
+                    url,
+                    headers={'Authorization': self._token})
             else:
                 raise ValueError(f'Invalid method: {method}')
 
-            if not response.ok:
-                err = f'ERROR {response.status_code}: {response.content}'
-                if int(response.status_code) == 401:
-                    raise AuthorizationError(err)
-                else:
-                    raise ValueError(err)
+            response.raise_for_status()
 
             return response
 
         try:
             return request_fn()
-        except AuthorizationError:
-            self.refresh_token()
-            return request_fn()
+        except requests.HTTPError as err:
+            if err.response.status_code == 401:
+                self.refresh_token()
+                return request_fn()
+            raise
 
     # -------------------------------------------------------------------------
     # Auth
@@ -97,7 +116,7 @@ class Client:
         self._token = response.json()['token']
 
     def refresh_token(self):
-        response = self._get(path='refresh_token', token=self._token)
+        response = self._post(path='refresh_token', token=self._token)
         self._token = response.json()['token']
 
 
@@ -110,76 +129,158 @@ class ClientModule:
         self._client = client
 
     def __repr__(self):
-        return f'<Client Module: {self.name}>'
+        return f'<Client Module: {self._name}>'
 
+    def _get(self, path, **params):
+        return self._client._get(path, **params)
+
+    def _post(self, path, **data):
+        return self._client._post(path, **data)
+
+    def _delete(self, path, **params):
+        return self._client._delete(path, **params)
 
 
 class Namespaces(ClientModule):
 
-    def list(self):
+    def list(self, per_page=100, page=1):
         """
         Lists all available namespaces
         """
-        return self._client._get(path='namespaces').json()
+        return self._get(
+            path='namespaces', per_page=per_page, page=page)
 
-    def get(self, namespace_id):
+    def get_flows(self, namespace_id):
         """
-        Returns a JSON object describing the specified Namespace
+        Returns the Flows for the specified namespace
         """
-        return self._client._get(path=f'namespaces/{namespace_id}').json()
+        return self._get(path=f'namespaces/{namespace_id}/flows')
 
 
 class Flows(ClientModule):
 
-    def get(self, flow_id):
+    def get(self, flow_id, serialized=False):
         """
-        Returns a JSON object describing the specified Flow
-        """
-        return self._client._get(path=f'flows/{flow_id}').json()
+        Retrieve information about a Flow.
 
-    def submit(self, flow):
+        Arguments:
+            flow_id (int): the Flow's id
+            serialized (bool): if True, the result will include the
+                serialized Flow
+        """
+        return self._get(path=f'flows/{flow_id}', serialized=serialized)
+
+    def get_flowruns(self, flow_id, status=None, per_page=100, page=1):
+        """
+        Retrieve the Flow's FlowRuns.
+        """
+        return self._get(
+            path=f'flows/{flow_id}/flowruns',
+            status=status,
+            per_page=per_page,
+            page=page)
+
+    def get_tasks(self, flow_id, status=None, per_page=500, page=1):
+        """
+        Retrieve the Flow's tasks and edges connecting them.
+        """
+        return self._get(
+            path=f'flows/{flow_id}/tasks',
+            per_page=per_page,
+            page=page)
+
+    def create(self, flow):
         """
         Submit a Flow to the server.
         """
-        return self._client._post(
-            path='flows/submit',
+        return self._post(
+            path='flows/create',
             serialized_flow=ujson.dumps(flow.serialize()))
 
-    def search_flows(
+    def search(
             self,
             namespace=None,
             name=None,
             version=None,
             per_page=100,
             page=1):
-        return self._client._post(
+        return self._post(
             path='flows/search',
             namespace=namespace,
             name=name,
             version=version,
             per_page=per_page,
             page=page
-        ).json()
+        )
 
-    def run_flow(
-            self,
-            flow_id,
-            scheduled_start=None,
-            parameters=None,
-            resume_tasks=None,
-            generating_taskrun_id=None):
-        """
-        Start (or schedule) a FlowRun on the server
-        """
-        return self._client._post(
-            path='flows/run',
-            flow_id=flow_id,
-            scheduled_start=scheduled_start,
-            parameters=parameters,
-            resume_tasks=resume_tasks,
-            generating_taskrun_id=generating_taskrun_id)
+    # def run_flow(
+    #         self,
+    #         flow_id,
+    #         scheduled_start=None,
+    #         parameters=None,
+    #         resume_tasks=None,
+    #         generating_taskrun_id=None):
+    #     """
+    #     Start (or schedule) a FlowRun on the server
+    #     """
+    #     result = self._post(
+    #         path='flows/run',
+    #         flow_id=flow_id,
+    #         scheduled_start=scheduled_start,
+    #         parameters=parameters,
+    #         resume_tasks=resume_tasks,
+    #         generating_taskrun_id=generating_taskrun_id)
+    #     return result
+
 
 class FlowRuns(ClientModule):
 
     def get(self, flowrun_id):
-        return self._client._get(path=f'flowruns/{flowrun_id}').json()
+        """
+        Describe a FlowRun
+        """
+        return self._get(path=f'flowruns/{flowrun_id}')
+
+    def get_taskruns(self, flowrun_id, status=None, per_page=100, page=1):
+        """
+        Retrieve the FlowRun's TaskRuns
+        """
+        return self._get(
+            path=f'flowruns/{flowrun_id}/taskruns',
+            status=status,
+            per_page=per_page,
+            page=page)
+
+    def get_state(self, flowrun_id):
+        """
+        Retrieve a FlowRun's state
+        """
+        return self._get(path=f'flowruns/{flowrun_id}/state')
+
+    def set_state(self, flowrun_id, state, expected_state=None):
+        """
+        Retrieve a FlowRun's state
+        """
+        return self._post(
+            path=f'flowruns/{flowrun_id}/state',
+            state=state,
+            expected_state=expected_state)
+
+    def create(self, flow_id, parameters=None, parent_taskrun_id=None):
+        return self._post(
+            path='flowruns',
+            flow_id=flow_id,
+            parameters=parameters,
+            parent_taskrun_id=parent_taskrun_id)
+
+    def queue(self, flowrun_id, start_at=None, start_tasks=None):
+        """
+        Queue a FlowRun to be run
+        """
+        return self._post(
+            path=f'flowruns/{flowrun_id}/queue',
+            start_at=start_at,
+            start_tasks=start_tasks)
+
+
+    # def run(self, flow_id, scheduled_start=None):
