@@ -4,13 +4,13 @@ import itertools
 import prefect.utilities.dates
 
 
-
 def deserialize(serialized):
     cls = getattr(prefect.schedules, serialized['type'], None)
     if not cls:
         raise TypeError(
             'Unrecognized Schedule: {}'.format(serialized['type']))
     return cls(**serialized['kwargs'])
+
 
 class Schedule:
 

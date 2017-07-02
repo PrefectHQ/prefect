@@ -26,12 +26,6 @@ def cli():
 cli.add_command(users)
 cli.add_command(namespaces)
 
-try:
-    from prefect.server.cli import database, server
-    cli.add_command(database)
-    cli.add_command(server)
-except ImportError:
-    raise
 
 @cli.command()
 @click.argument('email')

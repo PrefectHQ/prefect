@@ -1,58 +1,42 @@
 import pytest
 import prefect
+from prefect.state import TaskRunState
 
 def test_simple_taskrunner():
-    with prefect.Flow('flow') as f:
-        t1 = prefect.Task(fn=lambda: 1)
+    t1 = prefect.task.FunctionTask(fn=lambda: 1)
     tr = prefect.runners.TaskRunner(task=t1)
     result = tr.run()
-    assert result.is_successful()
-    assert result.value['value'] == 1
+    assert result['state'].is_successful()
+    assert result['result'] == 1
 
-
-
-def test_yielding_taskrunner():
-    """
-    Tests that TaskRunner properly runs yielded tasks
-    """
-    yielded = []
-
-    with prefect.Flow('flow') as f:
-
-        def yield_tasks():
-            for i in range(5):
-                yield prefect.Task(fn=lambda: yielded.append(i), flow=f)
-            return 'done'
-
-        t1 = prefect.Task(fn=yield_tasks)
+def test_simple_taskrunner_error():
+    t1 = prefect.task.FunctionTask(fn=lambda: 1/0)
     tr = prefect.runners.TaskRunner(task=t1)
     result = tr.run()
-    assert result.is_successful()
-    assert result.value['value'] == 'done'
-    assert yielded == list(range(5))
+    assert result['state'].is_failed()
+    assert result['result'] is None
 
 
-def test_subtask_taskrunner():
+def test_run_finished_task():
     """
-    Tests that TaskRunner properly runs tasks that explicitly run themselves,
-    both blocking and non-blocking
+    Test running tasks that are given finished states.
+
+    They shouldn't run and the state should be returned.
     """
-    yielded = []
+    t1 = prefect.task.FunctionTask(fn=lambda: 1)
+    tr1 = prefect.runners.TaskRunner(task=t1)
+    result1 = tr1.run(state=TaskRunState.FAILED, success_result=99)
+    assert result1['state'].is_failed()
+    assert result1['result'] is None
 
-    with prefect.Flow('flow') as f:
+    t2 = prefect.task.FunctionTask(fn=lambda: 1/0)
+    tr2 = prefect.runners.TaskRunner(task=t2)
+    result2 = tr2.run(state=TaskRunState.SUCCESS, success_result=99)
+    assert result2['state'].is_successful()
+    assert result2['result'] == 99
 
-        def yield_tasks():
-            for i in range(5):
-                task = prefect.Task(fn=lambda: i, flow=f)
-                result_i = prefect.context.run_task(task, block=True)
-                assert result_i.value['value'] == i
-                task = prefect.Task(fn=lambda: yielded.append(i), flow=f)
-                prefect.context.run_task(task, block=False)
-            return 'done'
-
-        t1 = prefect.Task(fn=yield_tasks)
-    tr = prefect.runners.TaskRunner(task=t1)
-    result = tr.run()
-    assert result.is_successful()
-    assert result.value['value'] == 'done'
-    assert yielded == list(range(5))
+    t2 = prefect.task.FunctionTask(fn=lambda: 1/0)
+    tr2 = prefect.runners.TaskRunner(task=t2)
+    result2 = tr2.run(state=TaskRunState.SUCCESS)
+    assert result2['state'].is_successful()
+    assert result2['result'] is None
