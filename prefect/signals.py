@@ -38,7 +38,10 @@ class SUCCESS(PrefectSignal):
     """
     Indicates that a task succeeded.
     """
-    pass
+
+    def __init__(self, *args, result=None, **kwargs):
+        self.result = result
+        super().__init__(*args, **kwargs)
 
 
 class DONTRUN(PrefectSignal):

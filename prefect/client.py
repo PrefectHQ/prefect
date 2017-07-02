@@ -163,7 +163,7 @@ class Flows(ClientModule):
         """
         Retrieve information about a Flow.
 
-        Arguments:
+        Args:
             flow_id (int): the Flow's id
             serialized (bool): if True, the result will include the
                 serialized Flow

@@ -142,6 +142,8 @@ class Task:
         # set up up trigger
         if trigger is None:
             trigger = prefect.triggers.all_successful
+        elif isinstance(trigger, str):
+            trigger = getattr(prefect.triggers, trigger)
         self.trigger = trigger
 
         # set up result serialization
@@ -232,10 +234,10 @@ class Task:
         self.run_before(task)
         return task
 
-    def run_with(self, upstream_tasks=None, **results):
+    def __call__(self, *upstream_tasks, **results):
         """
-        Adds a data pipe to the Flow so this task receives the results
-        of upstream tasks.
+        Dynamically create relationships between this task and upstream
+        tasks.
 
         Args:
             *upstream_tasks (Tasks): The provided Tasks will be set as upstream
@@ -249,7 +251,8 @@ class Task:
         if not flow:
             raise ValueError(
                 'This function can only be called inside a Flow context')
-        flow.set_up_task(task=self, upstream_tasks=upstream_tasks or [], **results)
+        flow.set_up_task(task=self, *upstream_tasks, **results)
+        return self
 
     # Serialize ---------------------------------------------------------------
 
@@ -410,18 +413,18 @@ class FunctionTask(Task):
         return self.fn(**inputs)
 
 
-def task(fn=None, **kwargs):
+def as_task(fn=None, **kwargs):
     """
     A decorator for creating Tasks from functions.
 
     Usage:
 
-    @task
+    @as_task
     def myfn():
         time.sleep(10)
         return 1
 
-    @task(name='hello', retries=3)
+    @as_task(name='hello', retries=3)
     def hello():
         print('hello')
 

@@ -3,7 +3,6 @@ from prefect.signals import PrefectError
 import prefect
 from prefect.flow import Flow
 from prefect.task import Task
-from prefect.edges import Edge, Pipe
 import pytest
 import ujson
 

@@ -12,51 +12,9 @@ Example:
         print(prefect.context.a) # 1
     print (prefect.context.a) # undefined
 
-
-
 """
 from contextlib import contextmanager as _contextmanager
 import threading
-
-# ---------------------------------------------------------------------
-# Context Functions
-#
-# These functions should be overwritten by executor-specific versions
-# ---------------------------------------------------------------------
-
-
-def progress(n, total=1):
-    """
-    Simple progress function.
-    """
-    pass
-
-
-def submit_task(task, block=False):
-    """
-    Submit a task for execution.
-
-    Args:
-        task (Task): a task to run
-        block (bool): if True, the call will block until the task is
-            complete and return its state. Otherwise the task will be
-            run asynchronously. Note that some executors do not support
-            asynchronous execution.
-    """
-    pass
-
-
-def submit_flow(flow, block=False):
-    """
-    Args:
-        flow (Flow): a flow to run
-        block (bool): if True, the call will block until the flow is
-            complete and return its state. Otherwise the flow will be
-            run asynchronously. Note that some executors do not support
-            asynchronous execution.
-    """
-    pass
-
 
 # context dictionary
 class Context(threading.local):
@@ -64,8 +22,8 @@ class Context(threading.local):
     A context store for Prefect data.
     """
 
-    def __init__(self, **kwargs):
-        self.reset(**kwargs)
+    def __init__(self, *args, **kwargs):
+        self.reset(*args, **kwargs)
 
     def __repr__(self):
         return '<PrefectContext>'
@@ -79,10 +37,12 @@ class Context(threading.local):
     def to_dict(self):
         return self.__dict__.copy()
 
-    def update(self, **kwargs):
-        self.__dict__.update(kwargs)
+    def update(self, *args, **kwargs):
+        if args == (None,):
+            args = ()
+        self.__dict__.update(*args, **kwargs)
 
-    def reset(self, **kwargs):
+    def reset(self, *args, **kwargs):
 
         self.__dict__.clear()
 
@@ -107,28 +67,25 @@ class Context(threading.local):
         self.task_state = None
 
         self.run_number = None
-        self.progress = progress
-        self.submit_task = submit_task
-        self.submit_flow = submit_flow
 
-        self.update(**kwargs)
+        self.update(*args, **kwargs)
 
     @_contextmanager
-    def __call__(self, **context):
+    def __call__(self, *context_args, **context_kwargs):
         """
         A context manager for setting / resetting the Prefect context
 
         Example:
             import prefect.context
-            with prefect.context(a=1, b=2):
+            with prefect.context(dict(a=1, b=2), c=3):
                 print(prefect.context.a) # 1
         """
         previous_context = self.to_dict()
         try:
-            self.update(**context)
+            self.update(*context_args, **context_kwargs)
             yield self
         finally:
-            self.reset(**previous_context)
+            self.reset(previous_context)
 
     def get(self, key, missing_value=None):
         return getattr(self, key, missing_value)

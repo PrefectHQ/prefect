@@ -3,11 +3,14 @@ import pytest
 
 
 def test_equals():
-    s = TaskRunState(initial_state=TaskRunState.RUNNING)
+    s = TaskRunState(state=TaskRunState.RUNNING)
     assert s == TaskRunState.RUNNING
 
 def test_flowstate():
     s = FlowState()
+    assert s == FlowState.PAUSED
+
+    s.activate()
     assert s == FlowState.ACTIVE
 
     s.pause()
@@ -18,9 +21,6 @@ def test_flowstate():
 
     with pytest.raises(ValueError):
         s.activate()
-
-    with pytest.raises(ValueError):
-        s.pause()
 
     s.unarchive()
     assert s == FlowState.PAUSED
@@ -44,6 +44,7 @@ def test_flowrunstate():
         s.fail()
 
     s = FlowRunState()
+    s.start()
     s.fail()
     assert s == FlowRunState.FAILED
 
@@ -87,6 +88,7 @@ def test_taskrunstate():
     assert s.is_pending()
     assert not s.is_started()
 
+    s.start()
     s.fail()
     assert s == TaskRunState.FAILED
     assert s.is_finished()

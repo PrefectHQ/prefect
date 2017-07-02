@@ -11,7 +11,7 @@ import prefect.state
 import prefect.triggers
 
 from prefect.context import context
-from prefect.task import Task, task
+from prefect.task import Task, as_task
 import prefect.tasks
 from prefect.flow import Flow
 import prefect.state

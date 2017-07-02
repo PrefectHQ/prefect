@@ -219,7 +219,7 @@ class Flow:
         # check that the edge doesn't add a cycle
         self.sorted_tasks()
 
-    def set_up_task(self, task, upstream_tasks, **results):
+    def set_up_task(self, task, *upstream_tasks, **results):
         """
         Convenience function for adding task relationships.
 
@@ -380,11 +380,11 @@ class Flow:
 
     def __enter__(self):
         self._previous_context = prefect.context.to_dict()
-        prefect.context.update(flow=self)
+        prefect.context.update(dict(flow=self))
         return self
 
     def __exit__(self, _type, _value, _tb):
-        prefect.context.reset(**self._previous_context)
+        prefect.context.reset(self._previous_context)
         del self._previous_context
 
     # Persistence  ------------------------------------------------

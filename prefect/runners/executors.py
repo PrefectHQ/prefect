@@ -20,7 +20,17 @@ import prefect
 from prefect.utilities.cluster import client as prefect_client
 
 
-class LocalExecutor:
+def default_executor():
+    option = prefect.config.get('executor', 'default_executor') or 'Executor'
+    executor_cls = getattr(prefect.runners.executors, option)
+    return executor_cls()
+
+class Executor:
+
+    def __init__(self, serializer=None):
+        if serializer is None:
+            serializer = prefect.serializers.IdentitySerializer()
+        self.serializer = serializer
 
     def run_flow(self, flow, state, start_tasks=None):
         flow_runner = prefect.runners.FlowRunner(flow, executor=self)
@@ -28,17 +38,15 @@ class LocalExecutor:
             state=state,
             start_tasks=start_tasks)
 
-    def run_task(self, task, state, upstream_results, inputs, context=None):
+    def run_task(self, task, state, upstream_states, inputs, context=None):
         """
         Arguments
             task: a Prefect Task
             state: a Prefect TaskState
-            upstream_results (dict): a dict of { task.name: RunResult(state, result) }
-                pairs.
+            upstream_states (dict): a dict of { task.name: TaskRunState } pairs
             inputs (dict): a dict of { key: input } pairs
             context (dict): a context dictionary
         """
-        upstream_states = {k: v.state for k, v in upstream_results.items()}
         task_runner = prefect.runners.TaskRunner(task, executor=self)
         return task_runner.run(
             state=state,
@@ -46,43 +54,54 @@ class LocalExecutor:
             inputs=inputs,
             context=context)
 
-    def deserialize_result(self, task, result, context=None):
+    def serialize_result(self, result, context=None):
+        with prefect.context(context):
+            return self.serializer.encode(result)
+
+    def deserialize_result(self, result, context=None):
         """
         task: a Prefect task
         result: the task's serialized result
         context: a Prefect context dictionary
         """
-        return task.serializer.decode(result)
+        if result is None:
+            return None
+        else:
+            with prefect.context(context):
+                return self.serializer.decode(result)
 
-class Executor:
+    @contextmanager
+    def client(self, context=None, **kwargs):
+        with prefect.context(context):
+            with distributed.worker_client(**kwargs) as client:
+                yield client
 
-    def submit(fn, *args, secede=True, submit_kwargs=None, **kwargs):
-        with worker_client(seperate_thread=secede) as client:
-            future = client.submit(fn, *args, **kwargs, **submit_kwargs)
-            return client.gather(future)
+class LocalClient:
+    """
+    A mock Distributed client that executes all functions locally and
+    synchronously
+    """
 
-    def run_flow(self, flow, state, start_tasks=None):
-        flow_runner = prefect.runners.FlowRunner(flow, executor=self)
-        with worker_client() as client:
-            future = client.submit(
-                flow_runner.run,
-                state=state,
-                start_tasks=start_tasks)
-            return client.gather(future)
+    def submit(self, fn, *args, **kwargs):
+        for kw in ['pure', 'resources', 'key']:
+            kwargs.pop(kw, None)
+        return fn(*args, **kwargs)
 
-    def run_task(self, task, state, upstream_states, inputs, context=None):
-        task_runner = prefect.runners.TaskRunner(task, executor=self)
-        with worker_client() as client:
-            future = client.submit(
-                task_runner.run,
-                state=state,
-                upstream_states=upstream_states,
-                inputs=inputs,
-                context=context)
-            return client.gather(future)
+    def gather(self, futures):
+        return futures
 
 
+class LocalExecutor(Executor):
+    """
+    An executor that runs all tasks / flows in the local process for debugging.
 
+    This Executor uses a dummy client that has minimal functionality
+    """
+
+    @contextmanager
+    def client(self, context=None, **kwargs):
+        with prefect.context(context):
+            yield LocalClient()
 # def context_client
 
 # class Executor:
@@ -317,7 +336,3 @@ class Executor:
 #         yield self.LocalClient()
 #
 #
-# def default_executor():
-#     option = prefect.config.get('executor', 'default_executor') or 'Executor'
-#     executor = getattr(prefect.runners.executors, option)
-#     return executor()

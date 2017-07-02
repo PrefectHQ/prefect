@@ -121,6 +121,9 @@ class FlowRunState(State):
     def is_pending(self):
         return str(self) in self._pending_states
 
+    def is_running(self):
+        return str(self) in self._running_states
+
     def is_finished(self):
         return str(self) in self._finished_states
 
@@ -158,8 +161,8 @@ class TaskRunState(State):
         SCHEDULED: _pending_states,
         PENDING: _pending_states,
         RUNNING: _pending_states,
-        SUCCESS: _running_states,
-        FAILED: _running_states,
+        SUCCESS: _pending_states.union(_running_states),
+        FAILED: _pending_states.union(_running_states),
         PENDING_RETRY: _failed_states,
         SKIPPED: _pending_states.union(_running_states),
         SHUTDOWN: _pending_states.union(_running_states),
