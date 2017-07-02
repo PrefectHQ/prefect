@@ -101,32 +101,32 @@ class TestRetryDelay:
 
     def test_retry_delay_errors(self):
         with pytest.raises(ValueError):
-            prefect.tasks.retry_delay()
+            prefect.task.retry_delay()
 
         with pytest.raises(ValueError):
-            prefect.tasks.retry_delay(datetime.timedelta(days=1), minutes=1)
+            prefect.task.retry_delay(datetime.timedelta(days=1), minutes=1)
 
     def test_retry_delay_args(self):
-        delay_passed = prefect.tasks.retry_delay(datetime.timedelta(seconds=1))
-        delay_constructed = prefect.tasks.retry_delay(seconds=1)
+        delay_passed = prefect.task.retry_delay(datetime.timedelta(seconds=1))
+        delay_constructed = prefect.task.retry_delay(seconds=1)
 
         assert delay_passed(1) == delay_constructed(1)
         assert delay_passed(2) == delay_constructed(2)
 
     def test_constant_retry_delay(self):
-        delay = prefect.tasks.retry_delay(seconds=1)
+        delay = prefect.task.retry_delay(seconds=1)
         assert delay(1) == delay(2) == datetime.timedelta(seconds=1)
 
     def test_exponential_retry_delay(self):
-        delay = prefect.tasks.retry_delay(seconds=1, exponential_backoff=True)
+        delay = prefect.task.retry_delay(seconds=1, exponential_backoff=True)
         assert delay(1) == delay(2) == datetime.timedelta(seconds=1)
         assert delay(3) == datetime.timedelta(seconds=2)
         assert delay(4) == datetime.timedelta(seconds=4)
 
         # test max value
-        delay = prefect.tasks.retry_delay(days=1, exponential_backoff=True)
+        delay = prefect.task.retry_delay(days=1, exponential_backoff=True)
         assert delay(10) == datetime.timedelta(hours=2)
-        delay = prefect.tasks.retry_delay(
+        delay = prefect.task.retry_delay(
             days=1,
             exponential_backoff=True,
             max_delay=datetime.timedelta(days=10))
