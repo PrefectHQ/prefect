@@ -251,7 +251,7 @@ class Task:
         if not flow:
             raise ValueError(
                 'This function can only be called inside a Flow context')
-        flow.set_up_task(task=self, *upstream_tasks, **results)
+        flow.set_up_task(task=self, upstream_tasks=upstream_tasks, upstream_results=results)
         return self
 
     # Serialize ---------------------------------------------------------------

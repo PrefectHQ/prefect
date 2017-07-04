@@ -33,7 +33,7 @@ class Client:
 
         Args:
             path: the path of the API url. For example, to GET
-                http://prefect-server/v1/login, path would be 'login'.
+                http://prefect-server/v1/auth/login, path would be 'login'.
             params: GET parameters
         """
         response = self._request(method='GET', path=path, params=params)
@@ -109,14 +109,14 @@ class Client:
 
     def login(self, email, password):
         url = os.path.join(
-            self._server, f'v{self._api_version}', 'login')
+            self._server, f'v{self._api_version}', 'auth/login')
         response = requests.post(url, auth=(email, password))
         if not response.ok:
             raise ValueError('Could not log in.')
         self._token = response.json()['token']
 
     def refresh_token(self):
-        response = self._post(path='refresh_token', token=self._token)
+        response = self._post(path='auth/refresh_token', token=self._token)
         self._token = response.json()['token']
 
 
@@ -154,7 +154,7 @@ class Namespaces(ClientModule):
         """
         Returns the Flows for the specified namespace
         """
-        return self._get(path=f'namespaces/{namespace_id}/flows')
+        return self._get(path=f'namespaces/{namespace_id}')
 
 
 class Flows(ClientModule):

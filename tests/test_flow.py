@@ -16,10 +16,10 @@ class TestFlow:
         err = "__init__() missing 1 required positional argument: 'name'"
         assert err in str(e)
 
-        f = Flow('test')
+        f = Flow('test', version='3')
         assert f.namespace == prefect.config.get('flows', 'default_namespace')
         assert f.name == 'test'
-        assert f.version == prefect.config.get('flows', 'default_version')
+        assert f.version == '3'
 
     def test_add_task(self):
         f = Flow('test')

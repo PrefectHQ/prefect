@@ -126,7 +126,9 @@ class Flow:
 
         self.name = str(name)
         self.namespace = str(namespace)
-        self.version = str(version)
+        if version and not isinstance(version, str):
+            raise TypeError('Version must be a string')
+        self.version = version
 
         self.required_parameters = required_parameters
         self.schedule = schedule
@@ -198,9 +200,9 @@ class Flow:
             key=key,
         )
 
-        if upstream_task.name not in self.tasks:
+        if upstream_task not in self.tasks.values():
             self.add_task(upstream_task)
-        if downstream_task.name not in self.tasks:
+        if downstream_task not in self.tasks.values():
             self.add_task(downstream_task)
 
         if edge.key is not None:
@@ -219,7 +221,7 @@ class Flow:
         # check that the edge doesn't add a cycle
         self.sorted_tasks()
 
-    def set_up_task(self, task, *upstream_tasks, **results):
+    def set_up_task(self, task, upstream_tasks=None, upstream_results=None):
         """
         Convenience function for adding task relationships.
 
@@ -228,17 +230,17 @@ class Flow:
 
             upstream_tasks ([Task]): Tasks that will run before the task runs
 
-            results ({key: Task or TaskResult}): Tasks that will run
+            upstream_results ({key: Task or TaskResult}): Tasks that will run
                 before the task runs and pass their output to the task under
                 the key
         """
-        if task.name not in self.tasks:
+        if task not in self.tasks.values():
             self.add_task(task)
 
-        for t in upstream_tasks:
+        for t in upstream_tasks or []:
             self.add_edge(upstream_task=t, downstream_task=task)
 
-        for key, t in results.items():
+        for key, t in (upstream_results or {}).items():
             self.add_edge(upstream_task=t, downstream_task=task, key=key)
 
     def upstream_tasks(self, task):
