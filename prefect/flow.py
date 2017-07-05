@@ -126,8 +126,6 @@ class Flow:
 
         self.name = str(name)
         self.namespace = str(namespace)
-        if version and not isinstance(version, str):
-            raise TypeError('Version must be a string')
         self.version = version
 
         self.required_parameters = required_parameters
@@ -400,7 +398,7 @@ class Flow:
         return {
             'namespace': self.namespace,
             'name': self.name,
-            'version': self.version,
+            'version': str(self.version),
             'repr': repr(self),
             'tasks': [t.serialize() for t in self.sorted_tasks()],
             'edges': [e.serialize() for e in self.edges],

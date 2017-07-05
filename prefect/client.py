@@ -170,17 +170,23 @@ class Flows(ClientModule):
         """
         return self._get(path=f'flows/{flow_id}', serialized=serialized)
 
-    def get_flowruns(self, flow_id, status=None, per_page=100, page=1):
+    def get_flowruns(self, flow_id, state=None, per_page=100, page=1):
         """
         Retrieve the Flow's FlowRuns.
         """
         return self._get(
             path=f'flows/{flow_id}/flowruns',
-            status=status,
+            state=state,
             per_page=per_page,
             page=page)
 
-    def get_tasks(self, flow_id, status=None, per_page=500, page=1):
+    def set_state(self, flow_id, state):
+        """
+        Update a Flow's state
+        """
+        return self._post(path=f'flows/{flow_id}/state', state=state)
+
+    def get_tasks(self, flow_id, state=None, per_page=500, page=1):
         """
         Retrieve the Flow's tasks and edges connecting them.
         """
@@ -194,7 +200,7 @@ class Flows(ClientModule):
         Submit a Flow to the server.
         """
         return self._post(
-            path='flows/create',
+            path='flows',
             serialized_flow=ujson.dumps(flow.serialize()))
 
     def search(
