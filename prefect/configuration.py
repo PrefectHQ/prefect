@@ -101,7 +101,6 @@ def load_config_file(config_file, config=None):
                 option=match.groupdict()['option'].lower(),
                 value=os.environ[ev])
 
-    configure_logging(config)
     validate_config(config)
     return config
 
@@ -124,3 +123,4 @@ config = load_configuration(
         os.path.dirname(prefect.__file__), 'prefect.cfg'),
     user_config='~/.prefect/prefect.cfg',
     env_var='PREFECT_CONFIG',)
+configure_logging(config)
