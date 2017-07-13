@@ -400,7 +400,9 @@ class Flow:
             'name': self.name,
             'version': str(self.version),
             'repr': repr(self),
-            'tasks': [t.serialize() for t in self.sorted_tasks()],
+            'tasks': [
+                t.serialize(sort_order=i)
+                for i, t in enumerate(self.sorted_tasks())],
             'edges': [e.serialize() for e in self.edges],
             'required_parameters': sorted(str(p) for p in self.required_parameters),
             'schedule': self.schedule.serialize(),

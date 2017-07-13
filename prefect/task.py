@@ -203,13 +203,14 @@ class Task:
 
     # Serialize ---------------------------------------------------------------
 
-    def serialize(self):
+    def serialize(self, sort_order=None):
         return {
             'name': self.name,
             'type': type(self).__name__,
             'max_retries': self.max_retries,
             'serialized': prefect.utilities.serialize.serialize(self),
             'trigger': self.trigger.__name__,
+            'sort_order': sort_order,
             'executor_args': {
                 'cluster': self.cluster,
                 'image': self.image,
