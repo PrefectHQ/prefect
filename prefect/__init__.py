@@ -11,8 +11,10 @@ import prefect.state
 import prefect.triggers
 
 from prefect.context import context
-from prefect.task import Task, as_task
-import prefect.tasks
+
+from prefect.task import Task
+from prefect.tasks.function_task import as_task
+
 from prefect.flow import Flow
 import prefect.state
 import prefect.runners
