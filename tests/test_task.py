@@ -3,7 +3,9 @@ import datetime
 import prefect
 from prefect.signals import PrefectError
 from prefect.flow import Flow
-from prefect.task import Task, TaskResult, as_task, retry_delay
+from prefect.task import Task, TaskResult
+from prefect import as_task
+from prefect.utilities.datetimes import retry_delay
 import pytest
 
 
