@@ -398,7 +398,7 @@ class Flow:
         return {
             'namespace': self.namespace,
             'name': self.name,
-            'version': str(self.version),
+            'version': str(self.version) if self.version is not None else None,
             'repr': repr(self),
             'tasks': [
                 t.serialize(sort_order=i)
