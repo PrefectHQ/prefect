@@ -101,7 +101,8 @@ class Flow:
             required_parameters=None,
             schedule=NoSchedule(),
             concurrent_runs=None,  #TODO
-            cluster=None):
+            cluster=None,
+            description=None):
         """
         Args:
             required_parameters: a collection of parameter names that must be
@@ -127,6 +128,7 @@ class Flow:
         self.name = str(name)
         self.namespace = str(namespace)
         self.version = version
+        self.description = description
 
         self.required_parameters = required_parameters
         self.schedule = schedule
@@ -134,6 +136,7 @@ class Flow:
         self.edges = set()
         self.concurrent_runs = concurrent_runs
         self.cluster = cluster
+
 
     def __repr__(self):
         flow_type = type(self).__name__
@@ -405,6 +408,7 @@ class Flow:
                 for i, t in enumerate(self.sorted_tasks())],
             'edges': [e.serialize() for e in self.edges],
             'required_parameters': sorted(str(p) for p in self.required_parameters),
+            'description': self.description,
             'schedule': self.schedule.serialize(),
             'serialized': prefect.utilities.serialize.serialize(flow),
             'concurrent_runs': self.concurrent_runs,
