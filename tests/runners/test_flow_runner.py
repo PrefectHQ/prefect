@@ -1,13 +1,13 @@
 import distributed
 import pytest
 import prefect
-from prefect.state import FlowRunState, TaskRunState
+from prefect.state import FlowState, TaskState
 
 
 def test_flowrunner():
     with prefect.Flow('flow') as f:
-        t1 = prefect.task.FunctionTask(fn=lambda: 1, name='t1')
-        t2 = prefect.task.FunctionTask(fn=lambda: 2, name='t2')
+        t1 = prefect.tasks.FunctionTask(fn=lambda: 1, name='t1')
+        t2 = prefect.tasks.FunctionTask(fn=lambda: 2, name='t2')
         t1.run_before(t2)
 
     result = prefect.runners.FlowRunner(flow=f).run()
@@ -26,8 +26,8 @@ def test_flowrunner_fail():
     runs
     """
     with prefect.Flow('flow') as f:
-        t1 = prefect.task.FunctionTask(fn=lambda: 1, name='t1')
-        t2 = prefect.task.FunctionTask(fn=lambda: 1 / 0, name='t2')
+        t1 = prefect.tasks.FunctionTask(fn=lambda: 1, name='t1')
+        t2 = prefect.tasks.FunctionTask(fn=lambda: 1 / 0, name='t2')
         t1.run_before(t2)
 
     result = prefect.runners.FlowRunner(flow=f).run()
@@ -45,9 +45,9 @@ def test_flowrunner_fail_early():
     the rest of the tasks
     """
     with prefect.Flow('flow') as f:
-        t1 = prefect.task.FunctionTask(fn=lambda: 1 / 0, name='t1')
-        t2 = prefect.task.FunctionTask(fn=lambda: 2, name='t2')
-        t3 = prefect.task.FunctionTask(fn=lambda: 3, name='t3', trigger='all_failed')
+        t1 = prefect.tasks.FunctionTask(fn=lambda: 1 / 0, name='t1')
+        t2 = prefect.tasks.FunctionTask(fn=lambda: 2, name='t2')
+        t3 = prefect.tasks.FunctionTask(fn=lambda: 3, name='t3', trigger='all_failed')
         t1.then(t2).then(t3)
 
     result = prefect.runners.FlowRunner(flow=f).run()

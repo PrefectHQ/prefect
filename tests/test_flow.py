@@ -17,7 +17,7 @@ class TestFlow:
         assert err in str(e)
 
         f = Flow('test', version='3')
-        assert f.namespace == prefect.config.get('flows', 'default_namespace')
+        assert f.project == prefect.config.get('flows', 'default_project')
         assert f.name == 'test'
         assert f.version == '3'
 
@@ -51,14 +51,14 @@ class TestFlow:
         with Flow('test') as f:
             t1 = Task()
             t2 = Task()
-            f.add_edge(Edge(upstream_task=t1, downstream_task=t2))
+            f.add_edge(upstream_task=t1, downstream_task=t2)
         assert tuple(f) == f.sort_tasks() == (t1, t2)
 
     def test_edge(self):
         with Flow('test') as f:
             t1 = Task()
             t2 = Task()
-            f.add_edge(Edge(upstream_task=t1, downstream_task=t2))
+            f.add_edge(upstream_task=t1, downstream_task=t2)
         assert f.upstream_tasks(t2) == set([t1])
         assert f.upstream_tasks(t1) == set()
         assert f.downstream_tasks(t2) == set()
@@ -69,7 +69,7 @@ class TestFlow:
         with Flow('test') as f:
             t1 = Task()
             t2 = Task()
-            f.add_edge(Edge(upstream_task=t1, downstream_task=t2))
+            f.add_edge(upstream_task=t1, downstream_task=t2)
         assert f.upstream_tasks(t2) == set([t1])
         assert f.upstream_tasks(t1) == set()
         assert f.downstream_tasks(t2) == set()
@@ -82,7 +82,7 @@ class TestFlow:
         with Flow('test') as f:
             t1 = Task()
             t2 = Task()
-            f.add_edge(Edge(upstream_task=t1, downstream_task=t2))
+            f.add_edge(upstream_task=t1, downstream_task=t2)
 
         assert f.get_task('Task_1') is t1
         with pytest.raises(PrefectError):

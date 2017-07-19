@@ -2,17 +2,17 @@ import click
 import requests
 import prefect
 # server = prefect.config.get('prefect', 'server_address')
-# api_url = server + '/namespace'
+# api_url = server + '/project'
 
 @click.group()
-def namespaces():
+def projects():
     """
-    Interact with Prefect namespaces
+    Interact with Prefect projects
     """
     pass
 
 
-@namespaces.command()
+@projects.command()
 def list():
     response = requests.get(api_url, headers=prefect.cli.auth.token_header())
     click.echo({'status': response.status_code, 'result': response.json()})

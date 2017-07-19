@@ -43,7 +43,7 @@ class Executor:
         Arguments
             task: a Prefect Task
             state: a Prefect TaskState
-            upstream_states (dict): a dict of { task.name: TaskRunState } pairs
+            upstream_states (dict): a dict of { task.name: TaskState } pairs
             inputs (dict): a dict of { key: input } pairs
             context (dict): a context dictionary
         """

@@ -96,7 +96,7 @@ class Flow:
     def __init__(
             self,
             name,
-            namespace=prefect.config.get('flows', 'default_namespace'),
+            project=prefect.config.get('flows', 'default_project'),
             version=None,
             required_parameters=None,
             schedule=NoSchedule(),
@@ -126,7 +126,7 @@ class Flow:
             required_parameters = set(required_parameters)
 
         self.name = str(name)
-        self.namespace = str(namespace)
+        self.project = str(project)
         self.version = version
         self.description = description
 
@@ -141,12 +141,12 @@ class Flow:
     def __repr__(self):
         flow_type = type(self).__name__
         version = f':{self.version}' if self.version is not None else ''
-        return f'{flow_type}("{self.namespace}.{self.name}{version}")'
+        return f'{flow_type}("{self.project}.{self.name}{version}")'
 
     def __eq__(self, other):
         return (
             type(self) == type(other)
-            and self.namespace == other.namespace
+            and self.project == other.project
             and self.name == other.name
             and self.version == other.version
             and self.tasks == other.tasks
@@ -399,7 +399,7 @@ class Flow:
         del flow.edges
 
         return {
-            'namespace': self.namespace,
+            'project': self.project,
             'name': self.name,
             'version': str(self.version) if self.version is not None else None,
             'repr': repr(self),
@@ -449,7 +449,7 @@ class Flow:
         """
         flow = Flow(
             name=serialized['name'],
-            namespace=serialized['namespace'],
+            project=serialized['project'],
             version=serialized['version'],
             schedule=prefect.schedules.deserialize(
                 serialized['schedule']),

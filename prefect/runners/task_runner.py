@@ -66,25 +66,25 @@ class TaskRunner(Runner):
             yield
 
         except signals.SUCCESS as s:
-            self.logger.info(f'TaskRun {type(s).__name__}: {s}')
+            self.logger.info(f'Task {type(s).__name__}: {s}')
             state.succeed()
         except signals.SKIP as s:
-            self.logger.info(f'TaskRun {type(s).__name__}: {s}')
+            self.logger.info(f'Task {type(s).__name__}: {s}')
             state.skip()
         except signals.RETRY as s:
-            self.logger.info(f'TaskRun {type(s).__name__}: {s}')
+            self.logger.info(f'Task {type(s).__name__}: {s}')
             state.fail()
         except signals.SHUTDOWN as s:
-            self.logger.info(f'TaskRun {type(s).__name__}: {s}')
+            self.logger.info(f'Task {type(s).__name__}: {s}')
             state.shutdown()
         except signals.DONTRUN as s:
-            self.logger.info(f'TaskRun {type(s).__name__}: {s}')
+            self.logger.info(f'Task {type(s).__name__}: {s}')
         except signals.FAIL as s:
-            self.logger.info(f'TaskRun {type(s).__name__}: {s}')
+            self.logger.info(f'Task {type(s).__name__}: {s}')
             state.fail()
         except Exception as e:
             self.logger.error(
-                'TaskRun: An unexpected error occurred', exc_info=1)
+                'Task: An unexpected error occurred', exc_info=1)
             if prefect.context.get('debug'):
                 raise
             state.fail()
@@ -114,16 +114,16 @@ class TaskRunner(Runner):
 
             # this task is already running
             if state.is_running():
-                raise signals.DONTRUN('TaskRun is already running.')
+                raise signals.DONTRUN('Task is already running.')
 
             # this task is already finished
             elif state.is_finished():
-                raise signals.DONTRUN('TaskRun is already finished.')
+                raise signals.DONTRUN('Task is already finished.')
 
             # this task is not pending
             elif not state.is_pending():
                 raise signals.DONTRUN(
-                    f'TaskRun is not ready to run (state {state}).')
+                    f'Task is not ready to run (state {state}).')
 
             # -------------------------------------------------------------
             # start!
@@ -169,7 +169,6 @@ class TaskRunner(Runner):
                 raise
             except Exception as e:
                 raise signals.FAIL(traceback.format_exc())
-
 
         return result
 

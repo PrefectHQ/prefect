@@ -25,24 +25,24 @@ class FlowRunner(Runner):
             yield
 
         except prefect.signals.SUCCESS as s:
-            self.logger.info(f'FlowRun {type(s).__name__}: {s}')
+            self.logger.info(f'Flow {type(s).__name__}: {s}')
             state.succeed()
         except prefect.signals.SKIP as s:
-            self.logger.info(f'FlowRun {type(s).__name__}: {s}')
+            self.logger.info(f'Flow {type(s).__name__}: {s}')
             state.skip()
         except prefect.signals.SHUTDOWN as s:
-            self.logger.info(f'FlowRun {type(s).__name__}: {s}')
+            self.logger.info(f'Flow {type(s).__name__}: {s}')
             state.shutdown()
         except prefect.signals.DONTRUN as s:
-            self.logger.info(f'FlowRun {type(s).__name__}: {s}')
+            self.logger.info(f'Flow {type(s).__name__}: {s}')
         except prefect.signals.FAIL as s:
-            self.logger.info(f'FlowRun {type(s).__name__}: {s}', exc_info=True)
+            self.logger.info(f'Flow {type(s).__name__}: {s}', exc_info=True)
             state.fail()
         except Exception:
             if prefect.context.get('debug'):
                 raise
             self.logger.error(
-                'FlowRun: An unexpected error occurred', exc_info=True)
+                'Flow: An unexpected error occurred', exc_info=True)
             state.fail()
 
     def run(
@@ -74,13 +74,13 @@ class FlowRunner(Runner):
 
         # this task is already finished
         if state.is_finished():
-            raise prefect.signals.DONTRUN('FlowRun is already finished.')
+            raise prefect.signals.DONTRUN('FlowStatus is already finished.')
 
         # this task is not pending or already running
         # Note: we allow multiple flowruns at the same time (state = RUNNING)
         elif not (state.is_pending() or state.is_running()):
             raise prefect.signals.DONTRUN(
-                f'FlowRun is not ready to run (state {state}).')
+                f'Flow is not ready to run (state {state}).')
 
         # -------------------------------------------------------------
         # start!
@@ -100,11 +100,11 @@ class FlowRunner(Runner):
         Arguments
 
             task_states (dict): a dictionary of { task.name: TaskState } pairs
-                representing the initial states of the FlowRun.
+                representing the initial states of the Flow.
 
             task_results (dict): a dictionary of { task.name: result } pairs
-                representing the initial results of the FlowRun. These results
-                should be serialized in a format that the FlowRun Executor
+                representing the initial results of the Flow. These results
+                should be serialized in a format that the Flow Executor
                 understands.
         """
 
@@ -203,10 +203,10 @@ class FlowRunner(Runner):
         }
 
         if any(s.is_failed() for s in terminal_states.values()):
-            self.logger.info('FlowRun FAIL: Some terminal tasks failed.')
+            self.logger.info('Flow FAIL: Some terminal tasks failed.')
             state.fail()
         elif all(s.is_successful() for s in terminal_states.values()):
-            self.logger.info('FlowRun SUCCESS: All terminal tasks succeeded.')
+            self.logger.info('Flow SUCCESS: All terminal tasks succeeded.')
             state.succeed()
 
         return dict(state=state, **flowrun_result)
