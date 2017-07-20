@@ -97,7 +97,6 @@ class Flow:
             self,
             name,
             project=prefect.config.get('flows', 'default_project'),
-            version=None,
             required_parameters=None,
             schedule=NoSchedule(),
             concurrent_runs=None,  #TODO
@@ -127,7 +126,6 @@ class Flow:
 
         self.name = str(name)
         self.project = str(project)
-        self.version = version
         self.description = description
 
         self.required_parameters = required_parameters
@@ -139,16 +137,13 @@ class Flow:
 
 
     def __repr__(self):
-        flow_type = type(self).__name__
-        version = f':{self.version}' if self.version is not None else ''
-        return f'{flow_type}("{self.project}.{self.name}{version}")'
+        return f'{type(self).__name__}("{self.project}.{self.name}")'
 
     def __eq__(self, other):
         return (
             type(self) == type(other)
             and self.project == other.project
             and self.name == other.name
-            and self.version == other.version
             and self.tasks == other.tasks
             and self.edges == other.edges)
 
@@ -401,7 +396,6 @@ class Flow:
         return {
             'project': self.project,
             'name': self.name,
-            'version': str(self.version) if self.version is not None else None,
             'repr': repr(self),
             'tasks': [
                 t.serialize(sort_order=i)
@@ -450,7 +444,6 @@ class Flow:
         flow = Flow(
             name=serialized['name'],
             project=serialized['project'],
-            version=serialized['version'],
             schedule=prefect.schedules.deserialize(
                 serialized['schedule']),
             required_parameters=serialized['required_parameters'],
