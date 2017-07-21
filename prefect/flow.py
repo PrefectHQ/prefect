@@ -13,8 +13,11 @@ import ujson
 class Edge:
 
     def __init__(
-            self, upstream_task, downstream_task, key=None,
-            upstream_index=None):
+            self,
+            upstream_task,
+            downstream_task,
+            key=None,
+            upstream_index=None,):
         """
         Edges represent connections between Tasks.
 
@@ -90,14 +93,12 @@ class Edge:
         return cls(**serialized)
 
 
-
 class Flow:
 
     def __init__(
             self,
             name,
-            namespace=prefect.config.get('flows', 'default_namespace'),
-            version=None,
+            project=prefect.config.get('flows', 'default_project'),
             required_parameters=None,
             schedule=NoSchedule(),
             concurrent_runs=None,  #TODO
@@ -126,8 +127,7 @@ class Flow:
             required_parameters = set(required_parameters)
 
         self.name = str(name)
-        self.namespace = str(namespace)
-        self.version = version
+        self.project = str(project)
         self.description = description
 
         self.required_parameters = required_parameters
@@ -137,19 +137,13 @@ class Flow:
         self.concurrent_runs = concurrent_runs
         self.cluster = cluster
 
-
     def __repr__(self):
-        flow_type = type(self).__name__
-        version = f':{self.version}' if self.version is not None else ''
-        return f'{flow_type}("{self.namespace}.{self.name}{version}")'
+        return f'{type(self).__name__}("{self.project}.{self.name}")'
 
     def __eq__(self, other):
         return (
-            type(self) == type(other)
-            and self.namespace == other.namespace
-            and self.name == other.name
-            and self.version == other.version
-            and self.tasks == other.tasks
+            type(self) == type(other) and self.project == other.project
+            and self.name == other.name and self.tasks == other.tasks
             and self.edges == other.edges)
 
     def __hash__(self):
@@ -170,19 +164,22 @@ class Flow:
         if name in self.tasks:
             return self.tasks[name]
         else:
-            raise ValueError(
-                'Task {} was not found in the Flow'.format(name))
+            raise ValueError('Task {} was not found in the Flow'.format(name))
 
     def add_task(self, task):
         if not isinstance(task, Task):
-            raise TypeError(
-                f'Expected a Task; received {type(task).__name__}')
+            raise TypeError(f'Expected a Task; received {type(task).__name__}')
         if task.name in self.tasks:
             raise ValueError(
                 f'A task named "{task.name}" already exists in this Flow.')
         self.tasks[task.name] = task
 
-    def add_edge(self, upstream_task, downstream_task, key=None, upstream_index=None):
+    def add_edge(
+            self,
+            upstream_task,
+            downstream_task,
+            key=None,
+            upstream_index=None,):
         """
         Adds an Edge to the Flow. Edges create dependencies between tasks.
         The simplest edge simply enforcces an ordering so that the upstream
@@ -198,8 +195,7 @@ class Flow:
             upstream_task=upstream_task.name,
             downstream_task=downstream_task.name,
             upstream_index=upstream_index,
-            key=key,
-        )
+            key=key,)
 
         if upstream_task not in self.tasks.values():
             self.add_task(upstream_task)
@@ -257,8 +253,7 @@ class Flow:
             name = task.name
 
         return set(
-            self.get_task(e.upstream_task)
-            for e in self.edges
+            self.get_task(e.upstream_task) for e in self.edges
             if e.downstream_task == name)
 
     def downstream_tasks(self, task):
@@ -274,8 +269,7 @@ class Flow:
             name = task.name
 
         return set(
-            self.get_task(e.downstream_task)
-            for e in self.edges
+            self.get_task(e.downstream_task) for e in self.edges
             if e.upstream_task == name)
 
     def sorted_tasks(self, root_tasks=None):
@@ -398,23 +392,26 @@ class Flow:
         del flow.tasks
         del flow.edges
 
+        tasks = [
+            t.serialize(sort_order=i)
+            for i, t in enumerate(self.sorted_tasks())
+        ]
+        required_parametres = sorted(str(p) for p in self.required_parameters)
+
         return {
-            'namespace': self.namespace,
+            'project': self.project,
             'name': self.name,
-            'version': str(self.version) if self.version is not None else None,
             'repr': repr(self),
-            'tasks': [
-                t.serialize(sort_order=i)
-                for i, t in enumerate(self.sorted_tasks())],
+            'tasks': tasks,
             'edges': [e.serialize() for e in self.edges],
-            'required_parameters': sorted(str(p) for p in self.required_parameters),
+            'required_parameters': required_parameters,
             'description': self.description,
             'schedule': self.schedule.serialize(),
             'serialized': prefect.utilities.serialize.serialize(flow),
             'concurrent_runs': self.concurrent_runs,
             'executor_args': {
                 'cluster': self.cluster,
-                },
+            }
         }
 
     @classmethod
@@ -449,10 +446,8 @@ class Flow:
         """
         flow = Flow(
             name=serialized['name'],
-            namespace=serialized['namespace'],
-            version=serialized['version'],
-            schedule=prefect.schedules.deserialize(
-                serialized['schedule']),
+            project=serialized['project'],
+            schedule=prefect.schedules.deserialize(serialized['schedule']),
             required_parameters=serialized['required_parameters'],
             concurrent_runs=serialized['concurrent_runs'],
             # executor_args

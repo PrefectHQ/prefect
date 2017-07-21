@@ -6,6 +6,7 @@ import prefect.signals
 # from prefect.runners.task_runner import TaskRunner
 from prefect.state import FlowRunState
 from prefect.runners.runner import Runner
+
 # from prefect.runners.results import RunResult
 # import uuid
 
@@ -15,9 +16,7 @@ class FlowRunner(Runner):
     def __init__(self, flow, executor=None, progress_fn=None):
         self.flow = flow
         super().__init__(
-            executor=executor,
-            logger_name=repr(flow),
-            progress_fn=progress_fn)
+            executor=executor, logger_name=repr(flow), progress_fn=progress_fn)
 
     @contextmanager
     def catch_signals(self, state):
@@ -25,24 +24,24 @@ class FlowRunner(Runner):
             yield
 
         except prefect.signals.SUCCESS as s:
-            self.logger.info(f'FlowRun {type(s).__name__}: {s}')
+            self.logger.info(f'Flow {type(s).__name__}: {s}')
             state.succeed()
         except prefect.signals.SKIP as s:
-            self.logger.info(f'FlowRun {type(s).__name__}: {s}')
+            self.logger.info(f'Flow {type(s).__name__}: {s}')
             state.skip()
         except prefect.signals.SHUTDOWN as s:
-            self.logger.info(f'FlowRun {type(s).__name__}: {s}')
+            self.logger.info(f'Flow {type(s).__name__}: {s}')
             state.shutdown()
         except prefect.signals.DONTRUN as s:
-            self.logger.info(f'FlowRun {type(s).__name__}: {s}')
+            self.logger.info(f'Flow {type(s).__name__}: {s}')
         except prefect.signals.FAIL as s:
-            self.logger.info(f'FlowRun {type(s).__name__}: {s}', exc_info=True)
+            self.logger.info(f'Flow {type(s).__name__}: {s}', exc_info=True)
             state.fail()
         except Exception:
             if prefect.context.get('debug'):
                 raise
             self.logger.error(
-                'FlowRun: An unexpected error occurred', exc_info=True)
+                'Flow: An unexpected error occurred', exc_info=True)
             state.fail()
 
     def run(
@@ -74,13 +73,13 @@ class FlowRunner(Runner):
 
         # this task is already finished
         if state.is_finished():
-            raise prefect.signals.DONTRUN('FlowRun is already finished.')
+            raise prefect.signals.DONTRUN('FlowStatus is already finished.')
 
         # this task is not pending or already running
         # Note: we allow multiple flowruns at the same time (state = RUNNING)
         elif not (state.is_pending() or state.is_running()):
             raise prefect.signals.DONTRUN(
-                f'FlowRun is not ready to run (state {state}).')
+                f'Flow is not ready to run (state {state}).')
 
         # -------------------------------------------------------------
         # start!
@@ -100,11 +99,11 @@ class FlowRunner(Runner):
         Arguments
 
             task_states (dict): a dictionary of { task.name: TaskState } pairs
-                representing the initial states of the FlowRun.
+                representing the initial states of the Flow.
 
             task_results (dict): a dictionary of { task.name: result } pairs
-                representing the initial results of the FlowRun. These results
-                should be serialized in a format that the FlowRun Executor
+                representing the initial results of the Flow. These results
+                should be serialized in a format that the Flow Executor
                 understands.
         """
 
@@ -170,27 +169,24 @@ class FlowRunner(Runner):
 
                 # store the task's state
                 task_states[task.name] = client.submit(
-                    lambda future: future['state'],
-                    future=future,
-                    pure=False)
+                    lambda future: future['state'], future=future, pure=False)
 
                 # store the task's result
                 task_results[task.name] = client.submit(
-                    lambda future: future['result'],
-                    future=future,
-                    pure=False)
+                    lambda future: future['result'], future=future, pure=False)
 
             # once all tasks are done, collect their states
             # and collect their serialized results
             task_states = client.gather(task_states)
-            serialized_results = client.gather({
-                task_name: client.submit(
-                    self.executor.serialize_result,
-                    result=result,
-                    context=context,
-                    pure=False)
-                for task_name, result in task_results.items()
-            })
+            serialized_results = client.gather(
+                {
+                    task_name: client.submit(
+                        self.executor.serialize_result,
+                        result=result,
+                        context=context,
+                        pure=False)
+                    for task_name, result in task_results.items()
+                })
 
         return dict(task_states=task_states, task_results=serialized_results)
 
@@ -203,10 +199,10 @@ class FlowRunner(Runner):
         }
 
         if any(s.is_failed() for s in terminal_states.values()):
-            self.logger.info('FlowRun FAIL: Some terminal tasks failed.')
+            self.logger.info('Flow FAIL: Some terminal tasks failed.')
             state.fail()
         elif all(s.is_successful() for s in terminal_states.values()):
-            self.logger.info('FlowRun SUCCESS: All terminal tasks succeeded.')
+            self.logger.info('Flow SUCCESS: All terminal tasks succeeded.')
             state.succeed()
 
         return dict(state=state, **flowrun_result)

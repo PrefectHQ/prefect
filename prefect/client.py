@@ -20,7 +20,7 @@ class Client:
         self._api_version = api_version
         self._token = token
 
-        self.namespaces = Namespaces(client=self)
+        self.projects = Projects(client=self)
         self.flows = Flows(client=self)
         self.flowruns = FlowRuns(client=self)
 
@@ -75,20 +75,19 @@ class Client:
                 raise ValueError('Call Client.login() to set the client token.')
             url = os.path.join(self._server, f'v{self._api_version}', path)
 
-            if method.upper() == 'GET':
+            if method == 'GET':
                 response = requests.get(
                     url,
-                    headers={'Authorization': self._token},
+                    headers={'Authorization': 'Bearer ' + self._token},
                     params=params)
-            elif method.upper() == 'POST':
+            elif method == 'POST':
                 response = requests.post(
                     url,
-                    headers={'Authorization': self._token},
+                    headers={'Authorization': 'Bearer ' + self._token},
                     data=params)
-            elif method.upper() == 'DELETE':
+            elif method == 'DELETE':
                 response = requests.delete(
-                    url,
-                    headers={'Authorization': self._token})
+                    url, headers={'Authorization': 'Bearer ' + self._token})
             else:
                 raise ValueError(f'Invalid method: {method}')
 
@@ -108,8 +107,7 @@ class Client:
     # Auth
 
     def login(self, email, password):
-        url = os.path.join(
-            self._server, f'v{self._api_version}', 'auth/login')
+        url = os.path.join(self._server, f'v{self._api_version}', 'auth/login')
         response = requests.post(url, auth=(email, password))
         if not response.ok:
             raise ValueError('Could not log in.')
@@ -122,6 +120,8 @@ class Client:
 
 class ClientModule:
 
+    path = ''
+
     def __init__(self, client, name=None):
         if name is None:
             name = type(self).__name__
@@ -132,32 +132,38 @@ class ClientModule:
         return f'<Client Module: {self._name}>'
 
     def _get(self, path, **params):
-        return self._client._get(path, **params)
+        path = path.lstrip('/')
+        return self._client._get(os.path.join(self.path, path), **params)
 
     def _post(self, path, **data):
-        return self._client._post(path, **data)
+        path = path.lstrip('/')
+        return self._client._post(os.path.join(self.path, path), **data)
 
     def _delete(self, path, **params):
-        return self._client._delete(path, **params)
+        path = path.lstrip('/')
+        return self._client._delete(os.path.join(self.path, path), **params)
 
 
-class Namespaces(ClientModule):
+class Projects(ClientModule):
+
+    path = '/projects'
 
     def list(self, per_page=100, page=1):
         """
-        Lists all available namespaces
+        Lists all available projects
         """
-        return self._get(
-            path='namespaces', per_page=per_page, page=page)
+        return self._get(path='/', per_page=per_page, page=page)
 
-    def get_flows(self, namespace_id):
+    def get_flows(self, project_id):
         """
-        Returns the Flows for the specified namespace
+        Returns the Flows for the specified project
         """
-        return self._get(path=f'namespaces/{namespace_id}')
+        return self._get(path=f'/{project_id}')
 
 
 class Flows(ClientModule):
+
+    path = '/flows'
 
     def get(self, flow_id, serialized=False):
         """
@@ -168,14 +174,14 @@ class Flows(ClientModule):
             serialized (bool): if True, the result will include the
                 serialized Flow
         """
-        return self._get(path=f'flows/{flow_id}', serialized=serialized)
+        return self._get(path=f'/{flow_id}', serialized=serialized)
 
     def get_flowruns(self, flow_id, state=None, per_page=100, page=1):
         """
         Retrieve the Flow's FlowRuns.
         """
         return self._get(
-            path=f'flows/{flow_id}/flowruns',
+            path=f'/{flow_id}/flowruns',
             state=state,
             per_page=per_page,
             page=page)
@@ -184,40 +190,30 @@ class Flows(ClientModule):
         """
         Update a Flow's state
         """
-        return self._post(path=f'flows/{flow_id}/state', state=state)
+        return self._post(path=f'/{flow_id}/state', state=state)
 
     def get_tasks(self, flow_id, state=None, per_page=500, page=1):
         """
         Retrieve the Flow's tasks and edges connecting them.
         """
-        return self._get(
-            path=f'flows/{flow_id}/tasks',
-            per_page=per_page,
-            page=page)
+        return self._get(path=f'/{flow_id}/tasks', per_page=per_page, page=page)
 
     def create(self, flow):
         """
         Submit a Flow to the server.
         """
         return self._post(
-            path='flows',
-            serialized_flow=ujson.dumps(flow.serialize()))
+            path='/', serialized_flow=ujson.dumps(flow.serialize()))
 
     def search(
-            self,
-            namespace=None,
-            name=None,
-            version=None,
-            per_page=100,
-            page=1):
+            self, project=None, name=None, version=None, per_page=100, page=1):
         return self._post(
-            path='flows/search',
-            namespace=namespace,
+            path='/search',
+            project=project,
             name=name,
             version=version,
             per_page=per_page,
-            page=page
-        )
+            page=page)
 
     # def run_flow(
     #         self,
@@ -241,18 +237,20 @@ class Flows(ClientModule):
 
 class FlowRuns(ClientModule):
 
+    path = '/flowruns'
+
     def get(self, flowrun_id):
         """
         Describe a FlowRun
         """
-        return self._get(path=f'flowruns/{flowrun_id}')
+        return self._get(path=f'/{flowrun_id}')
 
     def get_taskruns(self, flowrun_id, status=None, per_page=100, page=1):
         """
         Retrieve the FlowRun's TaskRuns
         """
         return self._get(
-            path=f'flowruns/{flowrun_id}/taskruns',
+            path=f'/{flowrun_id}/taskruns',
             status=status,
             per_page=per_page,
             page=page)
@@ -261,14 +259,14 @@ class FlowRuns(ClientModule):
         """
         Retrieve a FlowRun's state
         """
-        return self._get(path=f'flowruns/{flowrun_id}/state')
+        return self._get(path=f'/{flowrun_id}/state')
 
     def set_state(self, flowrun_id, state, expected_state=None):
         """
         Retrieve a FlowRun's state
         """
         return self._post(
-            path=f'flowruns/{flowrun_id}/state',
+            path=f'/{flowrun_id}/state',
             state=state,
             expected_state=expected_state)
 
@@ -284,9 +282,8 @@ class FlowRuns(ClientModule):
         Queue a FlowRun to be run
         """
         return self._post(
-            path=f'flowruns/{flowrun_id}/queue',
+            path=f'/{flowrun_id}/queue',
             start_at=start_at,
             start_tasks=start_tasks)
-
 
     # def run(self, flow_id, scheduled_start=None):

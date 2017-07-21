@@ -9,7 +9,7 @@ from prefect import config
 from .auth import token_header
 
 from .users import users
-from .namespaces import namespaces
+from .projects import projects
 # from .data import data
 # from .run import run
 
@@ -24,7 +24,7 @@ def cli():
     pass
 
 cli.add_command(users)
-cli.add_command(namespaces)
+cli.add_command(projects)
 
 
 @cli.command()

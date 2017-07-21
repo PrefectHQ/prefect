@@ -7,8 +7,7 @@ import prefect.utilities.datetimes
 def deserialize(serialized):
     cls = getattr(prefect.schedules, serialized['type'], None)
     if not cls:
-        raise TypeError(
-            'Unrecognized Schedule: {}'.format(serialized['type']))
+        raise TypeError('Unrecognized Schedule: {}'.format(serialized['type']))
     return cls(**serialized['kwargs'])
 
 
@@ -76,7 +75,8 @@ class IntervalSchedule(Schedule):
         if on_or_after is None:
             on_or_after = datetime.datetime.utcnow()
         elif isinstance(on_or_after, (str, bytes)):
-            on_or_after = prefect.utilities.datetimes.parse_datetime(on_or_after)
+            on_or_after = prefect.utilities.datetimes.parse_datetime(
+                on_or_after)
         return list(itertools.islice(self._generator(start=on_or_after), n))
 
 
@@ -89,7 +89,8 @@ class CronSchedule(Schedule):
         if on_or_after is None:
             on_or_after = datetime.datetime.utcnow()
         elif isinstance(on_or_after, (str, bytes)):
-            on_or_after = prefect.utilities.datetimes.parse_datetime(on_or_after)
+            on_or_after = prefect.utilities.datetimes.parse_datetime(
+                on_or_after)
         cron = croniter.croniter(self.cron, on_or_after)
         return list(itertools.islice(cron.all_next(datetime.datetime), n))
 
@@ -100,13 +101,16 @@ class CronSchedule(Schedule):
 class DateSchedule(Schedule):
 
     def __init__(self, dates):
-        self.dates = [prefect.utilities.datetimes.parse_datetime(d) for d in dates]
+        self.dates = [
+            prefect.utilities.datetimes.parse_datetime(d) for d in dates
+        ]
 
     def next_n(self, n=1, on_or_after=None):
         if on_or_after is None:
             on_or_after = datetime.datetime.utcnow()
         elif isinstance(on_or_after, (str, bytes)):
-            on_or_after = prefect.utilities.datetimes.parse_datetime(on_or_after)
+            on_or_after = prefect.utilities.datetimes.parse_datetime(
+                on_or_after)
         dates = sorted([d for d in self.dates if d >= on_or_after])
         return dates[:n]
 

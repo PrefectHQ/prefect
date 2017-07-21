@@ -16,6 +16,7 @@ Example:
 from contextlib import contextmanager as _contextmanager
 import threading
 
+
 # context dictionary
 class Context(threading.local):
     """
@@ -54,7 +55,7 @@ class Context(threading.local):
 
         self.flow = None
         self.flow_id = None
-        self.flow_namespace = None
+        self.flow_project = None
         self.flow_name = None
         self.flow_version = None
         self.flow_state = None

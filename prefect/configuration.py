@@ -6,8 +6,6 @@ import logging
 import os
 import re
 
-SYSTEM_NAMESPACE = 'prefect'
-
 env_var_re = re.compile(
     '^PREFECT__(?P<section>\S+)__(?P<option>\S+)', re.IGNORECASE)
 
@@ -59,13 +57,7 @@ def configure_logging(config):
 
 
 def validate_config(config):
-    if not config.get('flows', 'default_namespace'):
-        raise ValueError(
-            'No default namespace set! (config.flows.default_namespace)')
-    if SYSTEM_NAMESPACE == config.get('flows', 'default_namespace'):
-        raise ValueError(
-            'The default namespace can not be the system namespace ("{}") '
-            ' (config.flows.default_namespace)'.format(SYSTEM_NAMESPACE))
+    pass
 
 
 # Load configuration ----------------------------------------------------------

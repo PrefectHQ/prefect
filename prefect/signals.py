@@ -11,7 +11,6 @@ class PrefectSignal(Exception):
 # ------------------------------------------------------------------------------
 
 
-
 class RETRY(PrefectSignal):
     """
     Used to indicate that a task should be retried

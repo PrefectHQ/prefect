@@ -149,8 +149,7 @@ class TaskRunState(State):
     SHUTDOWN = 'SHUTDOWN'
 
     _started_states = set([RUNNING, SUCCESS, FAILED])
-    _pending_states = set(
-        [PENDING, PENDING_RETRY, SCHEDULED, SHUTDOWN])
+    _pending_states = set([PENDING, PENDING_RETRY, SCHEDULED, SHUTDOWN])
     _running_states = set([RUNNING])
     _finished_states = set([SUCCESS, FAILED, SKIPPED])
     _skipped_states = set([SKIPPED])

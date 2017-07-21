@@ -13,14 +13,14 @@ def dont_run(preceding_states):
     if context.task_name in context.flowrun_start_tasks:
         return True
 
+
 def all_successful(preceding_states):
     """
     any unsuccessful -> fail
     * skipped tasks count as successes
     """
     if not all(s.is_successful() for s in preceding_states.values()):
-        raise signals.FAIL(
-            'Trigger failed: some preceding tasks failed')
+        raise signals.FAIL('Trigger failed: some preceding tasks failed')
     return True
 
 
