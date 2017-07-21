@@ -23,6 +23,7 @@ class Client:
         self.projects = Projects(client=self)
         self.flows = Flows(client=self)
         self.flowruns = FlowRuns(client=self)
+
     # -------------------------------------------------------------------------
     # Utilities
 
@@ -86,8 +87,7 @@ class Client:
                     data=params)
             elif method == 'DELETE':
                 response = requests.delete(
-                    url,
-                    headers={'Authorization': 'Bearer ' + self._token})
+                    url, headers={'Authorization': 'Bearer ' + self._token})
             else:
                 raise ValueError(f'Invalid method: {method}')
 
@@ -107,8 +107,7 @@ class Client:
     # Auth
 
     def login(self, email, password):
-        url = os.path.join(
-            self._server, f'v{self._api_version}', 'auth/login')
+        url = os.path.join(self._server, f'v{self._api_version}', 'auth/login')
         response = requests.post(url, auth=(email, password))
         if not response.ok:
             raise ValueError('Could not log in.')
@@ -153,8 +152,7 @@ class Projects(ClientModule):
         """
         Lists all available projects
         """
-        return self._get(
-            path='/', per_page=per_page, page=page)
+        return self._get(path='/', per_page=per_page, page=page)
 
     def get_flows(self, project_id):
         """
@@ -198,34 +196,24 @@ class Flows(ClientModule):
         """
         Retrieve the Flow's tasks and edges connecting them.
         """
-        return self._get(
-            path=f'/{flow_id}/tasks',
-            per_page=per_page,
-            page=page)
+        return self._get(path=f'/{flow_id}/tasks', per_page=per_page, page=page)
 
     def create(self, flow):
         """
         Submit a Flow to the server.
         """
         return self._post(
-            path='/',
-            serialized_flow=ujson.dumps(flow.serialize()))
+            path='/', serialized_flow=ujson.dumps(flow.serialize()))
 
     def search(
-            self,
-            project=None,
-            name=None,
-            version=None,
-            per_page=100,
-            page=1):
+            self, project=None, name=None, version=None, per_page=100, page=1):
         return self._post(
             path='/search',
             project=project,
             name=name,
             version=version,
             per_page=per_page,
-            page=page
-        )
+            page=page)
 
     # def run_flow(
     #         self,
@@ -297,6 +285,5 @@ class FlowRuns(ClientModule):
             path=f'/{flowrun_id}/queue',
             start_at=start_at,
             start_tasks=start_tasks)
-
 
     # def run(self, flow_id, scheduled_start=None):

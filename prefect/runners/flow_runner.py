@@ -6,6 +6,7 @@ import prefect.signals
 # from prefect.runners.task_runner import TaskRunner
 from prefect.state import FlowRunState
 from prefect.runners.runner import Runner
+
 # from prefect.runners.results import RunResult
 # import uuid
 
@@ -15,9 +16,7 @@ class FlowRunner(Runner):
     def __init__(self, flow, executor=None, progress_fn=None):
         self.flow = flow
         super().__init__(
-            executor=executor,
-            logger_name=repr(flow),
-            progress_fn=progress_fn)
+            executor=executor, logger_name=repr(flow), progress_fn=progress_fn)
 
     @contextmanager
     def catch_signals(self, state):
@@ -170,27 +169,24 @@ class FlowRunner(Runner):
 
                 # store the task's state
                 task_states[task.name] = client.submit(
-                    lambda future: future['state'],
-                    future=future,
-                    pure=False)
+                    lambda future: future['state'], future=future, pure=False)
 
                 # store the task's result
                 task_results[task.name] = client.submit(
-                    lambda future: future['result'],
-                    future=future,
-                    pure=False)
+                    lambda future: future['result'], future=future, pure=False)
 
             # once all tasks are done, collect their states
             # and collect their serialized results
             task_states = client.gather(task_states)
-            serialized_results = client.gather({
-                task_name: client.submit(
-                    self.executor.serialize_result,
-                    result=result,
-                    context=context,
-                    pure=False)
-                for task_name, result in task_results.items()
-            })
+            serialized_results = client.gather(
+                {
+                    task_name: client.submit(
+                        self.executor.serialize_result,
+                        result=result,
+                        context=context,
+                        pure=False)
+                    for task_name, result in task_results.items()
+                })
 
         return dict(task_states=task_states, task_results=serialized_results)
 

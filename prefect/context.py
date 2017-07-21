@@ -16,6 +16,7 @@ Example:
 from contextlib import contextmanager as _contextmanager
 import threading
 
+
 # context dictionary
 class Context(threading.local):
     """

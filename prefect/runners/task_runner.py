@@ -17,9 +17,7 @@ class TaskRunner(Runner):
     def __init__(self, task, executor=None, progress_fn=None):
         self.task = task
         super().__init__(
-            executor=executor,
-            logger_name=repr(task),
-            progress_fn=progress_fn)
+            executor=executor, logger_name=repr(task), progress_fn=progress_fn)
 
     def run(
             self,
@@ -53,8 +51,7 @@ class TaskRunner(Runner):
         with prefect.context(context):
             with self.catch_signals(state):
                 state = self.check_state(
-                    state=state,
-                    upstream_states=upstream_states)
+                    state=state, upstream_states=upstream_states)
                 result = self.run_task(inputs=inputs)
                 state, result = self.finalize(state, result)
 
@@ -83,8 +80,7 @@ class TaskRunner(Runner):
             self.logger.info(f'Task {type(s).__name__}: {s}')
             state.fail()
         except Exception as e:
-            self.logger.error(
-                'Task: An unexpected error occurred', exc_info=1)
+            self.logger.error('Task: An unexpected error occurred', exc_info=1)
             if prefect.context.get('debug'):
                 raise
             state.fail()
