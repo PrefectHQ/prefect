@@ -98,8 +98,7 @@ class Task:
             default = prefect.config.get('tasks', 'default_serializer')
             default_module, default_class = default.rsplit('.', 1)
             serializer_class = getattr(
-                importlib.import_module(default_module),
-                default_class)
+                importlib.import_module(default_module), default_class)
             serializer = serializer_class()
         self.serializer = serializer
 
@@ -198,7 +197,8 @@ class Task:
         if not flow:
             raise ValueError(
                 'This function can only be called inside a Flow context')
-        flow.set_up_task(task=self, upstream_tasks=upstream_tasks, upstream_results=results)
+        flow.set_up_task(
+            task=self, upstream_tasks=upstream_tasks, upstream_results=results)
         return self
 
     # Serialize ---------------------------------------------------------------
