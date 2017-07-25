@@ -396,7 +396,7 @@ class Flow:
             t.serialize(sort_order=i)
             for i, t in enumerate(self.sorted_tasks())
         ]
-        required_parametres = sorted(str(p) for p in self.required_parameters)
+        required_parameters = sorted(str(p) for p in self.required_parameters)
 
         return {
             'project': self.project,
