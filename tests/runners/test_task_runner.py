@@ -1,6 +1,6 @@
 import pytest
 import prefect
-from prefect.state import TaskState
+from prefect.state import TaskRunState
 
 def test_simple_taskrunner():
     t1 = prefect.tasks.FunctionTask(fn=lambda: 1)
@@ -25,18 +25,18 @@ def test_run_finished_task():
     """
     t1 = prefect.tasks.FunctionTask(fn=lambda: 1)
     tr1 = prefect.runners.TaskRunner(task=t1)
-    result1 = tr1.run(state=TaskState.FAILED, success_result=99)
+    result1 = tr1.run(state=TaskRunState.FAILED, success_result=99)
     assert result1['state'].is_failed()
     assert result1['result'] is None
 
     t2 = prefect.tasks.FunctionTask(fn=lambda: 1/0)
     tr2 = prefect.runners.TaskRunner(task=t2)
-    result2 = tr2.run(state=TaskState.SUCCESS, success_result=99)
+    result2 = tr2.run(state=TaskRunState.SUCCESS, success_result=99)
     assert result2['state'].is_successful()
     assert result2['result'] == 99
 
     t2 = prefect.tasks.FunctionTask(fn=lambda: 1/0)
     tr2 = prefect.runners.TaskRunner(task=t2)
-    result2 = tr2.run(state=TaskState.SUCCESS)
+    result2 = tr2.run(state=TaskRunState.SUCCESS)
     assert result2['state'].is_successful()
     assert result2['result'] is None

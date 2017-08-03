@@ -1,7 +1,6 @@
 import distributed
 import pytest
 import prefect
-from prefect.state import FlowState, TaskState
 
 
 def test_flowrunner():

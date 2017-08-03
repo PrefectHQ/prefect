@@ -1,95 +1,100 @@
-from prefect.state import (FlowStatus, FlowState, TaskState)
+from prefect.state import (FlowState, FlowRunState, TaskRunState, ExecutionState)
 import pytest
 
 
 def test_equals():
-    s = TaskState(state=TaskState.RUNNING)
-    assert s == TaskState.RUNNING
+    s = TaskRunState(state=TaskRunState.RUNNING)
+    assert s == TaskRunState.RUNNING
 
-def test_FlowStatus():
-    s = FlowStatus()
-    assert s == FlowStatus.PAUSED
+def test_FlowState():
+    s = FlowState()
+    assert s == FlowState.PAUSED
 
     s.activate()
-    assert s == FlowStatus.ACTIVE
+    assert s == FlowState.ACTIVE
 
     s.pause()
-    assert s == FlowStatus.PAUSED
+    assert s == FlowState.PAUSED
 
     s.archive()
-    assert s == FlowStatus.ARCHIVED
+    assert s == FlowState.ARCHIVED
 
     with pytest.raises(ValueError):
         s.activate()
 
     s.unarchive()
-    assert s == FlowStatus.PAUSED
+    assert s == FlowState.PAUSED
 
-def test_FlowState():
-    s = FlowState()
-    assert s == FlowState.PENDING
+def test_FlowRunState():
+    s = FlowRunState()
+    assert s == FlowRunState.PENDING
 
     s.schedule()
-    assert s == FlowState.SCHEDULED
+    assert s == FlowRunState.SCHEDULED
 
     s.start()
-    assert s == FlowState.RUNNING
+    assert s == FlowRunState.RUNNING
 
     with pytest.raises(ValueError):
         s.schedule()
 
     s.succeed()
-    assert s == FlowState.SUCCESS
+    assert s == FlowRunState.SUCCESS
     with pytest.raises(ValueError):
         s.fail()
 
-    s = FlowState()
+    s = FlowRunState()
     s.start()
     s.fail()
-    assert s == FlowState.FAILED
+    assert s == FlowRunState.FAILED
 
-def test_TaskState():
-    s = TaskState()
-    assert s == TaskState.PENDING
+def test_TaskRunState():
+    s = TaskRunState()
+    assert s == TaskRunState.PENDING
     assert s.is_pending()
     assert not s.is_started()
 
     s.start()
-    assert s == TaskState.RUNNING
+    assert s == TaskRunState.RUNNING
     assert s.is_running()
 
     s.succeed()
-    assert s == TaskState.SUCCESS
+    assert s == TaskRunState.SUCCESS
     assert s.is_successful()
     assert s.is_finished()
 
     with pytest.raises(ValueError):
         s.fail()
 
-    s.state = TaskState.FAILED
+    s.state = TaskRunState.FAILED
     s.retry()
-    assert s == TaskState.PENDING_RETRY
+    assert s == TaskRunState.PENDING_RETRY
     assert s.is_pending()
 
     s.schedule()
-    assert s == TaskState.SCHEDULED
+    assert s == TaskRunState.SCHEDULED
     assert s.is_pending()
 
     s.skip()
-    assert s == TaskState.SKIPPED
+    assert s == TaskRunState.SKIPPED
     assert s.is_skipped()
     assert s.is_finished()
 
     with pytest.raises(ValueError):
         s.start()
 
-    s = TaskState()
-    assert s == TaskState.PENDING
+    s = TaskRunState()
+    assert s == TaskRunState.PENDING
     assert s.is_pending()
     assert not s.is_started()
 
     s.start()
     s.fail()
-    assert s == TaskState.FAILED
+    assert s == TaskRunState.FAILED
     assert s.is_finished()
     assert s.is_failed()
+
+def test_ExecutionState():
+    s = ExecutionState()
+
+    assert s == ExecutionState.PENDING

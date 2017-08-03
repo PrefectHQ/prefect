@@ -1,5 +1,6 @@
-from collections import namedtuple
 import functools
+from collections import namedtuple
+
 import prefect
 
 
@@ -12,7 +13,7 @@ class State:
     # its source_states
     _transitions = {}
 
-    def __init__(self, state=None):
+    def __init__(self, state=None, on_change=None):
 
         if not hasattr(type(self), '_default_state'):
             'State classes require a `_default_state` state class attribute.'
@@ -21,6 +22,8 @@ class State:
             state = self._default_state
         elif isinstance(state, State):
             state = state.state
+            on_change = on_change or state.on_change
+        self.on_change = on_change or (lambda old_state, new_state: None)
         self.set_state(state)
 
     def set_state(self, state):
@@ -29,6 +32,7 @@ class State:
             raise ValueError(f'Invalid state: {state}')
         elif old_state and not self.is_valid_transition(old_state, state):
             raise ValueError(f'Invalid transition: {self.state} to {state}')
+        self.on_change(old_state, state)
         self.state = state
 
     def __eq__(self, other):
@@ -208,3 +212,44 @@ class TaskRunState(State):
 
     def is_failed(self):
         return str(self) in self._failed_states
+
+
+class ExecutionState(State):
+
+    PENDING = _default_state = 'PENDING'
+    SCHEDULED = 'SCHEDULED'
+    RUNNING = 'RUNNING'
+    FINISHED = 'FINISHED'
+    CANCELED = 'CANCELED'
+
+    _transitions = {
+        PENDING: [PENDING, SCHEDULED, CANCELED],
+        SCHEDULED: [PENDING],
+        RUNNING: [SCHEDULED],
+        FINISHED: [RUNNING],
+        CANCELED: [PENDING, SCHEDULED, RUNNING, FINISHED]
+    }
+
+    def schedule(self):
+        self.set_state(self.SCHEDULED)
+
+    def start(self):
+        self.set_state(self.RUNNING)
+
+    def finish(self):
+        self.set_state(self.FINISHED)
+
+    def is_pending(self):
+        return str(self) in [self.PENDING, self.SCHEDULED]
+
+    def is_scheduled(self):
+        return self == self.SCHEDULED
+
+    def is_running(self):
+        return self == self.RUNNING
+
+    def is_finished(self):
+        return self == self.FINISHED
+
+    def is_canceled(self):
+        return self == self.CANCELED

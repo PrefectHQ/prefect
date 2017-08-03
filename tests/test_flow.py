@@ -1,10 +1,13 @@
 import datetime
-from prefect.signals import PrefectError
-import prefect
-from prefect.flow import Flow
-from prefect.task import Task
+
 import pytest
+
+import prefect
 import ujson
+from prefect.flow import Flow
+from prefect.signals import PrefectError
+from prefect.task import Task
+from prefect import as_task
 
 
 class TestFlow:
@@ -16,21 +19,15 @@ class TestFlow:
         err = "__init__() missing 1 required positional argument: 'name'"
         assert err in str(e)
 
-        f = Flow('test', version='3')
+        f = Flow('test')
         assert f.project == prefect.config.get('flows', 'default_project')
         assert f.name == 'test'
-        assert f.version == '3'
 
     def test_add_task(self):
         f = Flow('test')
         f2 = Flow('test-2')
         with pytest.raises(TypeError):
             f.add_task(1)
-
-        # can't add task from another flow
-        t2 = Task(flow=f2)
-        with pytest.raises(ValueError):
-            f.add_task(t2)
 
         # can't add task already in the flow
         t3 = Task(flow=f)
@@ -41,7 +38,6 @@ class TestFlow:
         with Flow('test') as f:
             t1 = Task()
 
-        assert t1.flow is f
         assert t1 in f
 
     def test_iter(self):
@@ -52,7 +48,7 @@ class TestFlow:
             t1 = Task()
             t2 = Task()
             f.add_edge(upstream_task=t1, downstream_task=t2)
-        assert tuple(f) == f.sort_tasks() == (t1, t2)
+        assert tuple(f) == f.sorted_tasks() == (t1, t2)
 
     def test_edge(self):
         with Flow('test') as f:
@@ -80,12 +76,12 @@ class TestFlow:
         Tests flow.get_task()
         """
         with Flow('test') as f:
-            t1 = Task()
+            t1 = Task(name='Task_1')
             t2 = Task()
             f.add_edge(upstream_task=t1, downstream_task=t2)
 
         assert f.get_task('Task_1') is t1
-        with pytest.raises(PrefectError):
+        with pytest.raises(ValueError):
             f.get_task('some task')
 
     def test_detect_cycle(self):
@@ -94,21 +90,19 @@ class TestFlow:
             t2 = Task()
             t3 = Task()
 
-        t1.then(t2).then(t3)
+            t1.then(t2).then(t3)
 
-        with pytest.raises(ValueError) as e:
-            t3.run_before(t1)
+            with pytest.raises(ValueError) as e:
+                t3.run_before(t1)
 
 
 class TestPersistence:
 
     @pytest.fixture
     def flow(self):
-        with Flow(
-                'test',
-                schedule=prefect.schedules.IntervalSchedule(
-                    start_date=datetime.datetime(2017, 1, 1),
-                    interval=datetime.timedelta(days=1))) as f:
+        with Flow('test', schedule=prefect.schedules.IntervalSchedule(
+                start_date=datetime.datetime(2017, 1, 1),
+                interval=datetime.timedelta(days=1))) as f:
             t1 = Task()
             t2 = Task()
             t1.run_before(t2)
@@ -116,33 +110,35 @@ class TestPersistence:
 
     def test_serialize_deserialize_flow(self, flow):
         f2 = Flow.deserialize(flow.serialize())
-        assert f2.id == flow.id
-        assert [t.id for t in flow] == [t.id for t in f2]
+        assert [t for t in flow] == [t for t in f2]
 
     def test_access_schedule_from_serialized(self, flow):
         s = flow.serialize()
-        schedule = prefect.utilities.serialize.deserialize(
-            ujson.loads(s)['schedule'])
+        schedule = prefect.schedules.deserialize(s['schedule'])
         next_date = schedule.next_n(
             on_or_after=datetime.datetime(2017, 1, 1, 1))[0]
         assert next_date == datetime.datetime(2017, 1, 2)
 
+
 class TestSugar:
 
     def test_task_decorator(self):
-        with Flow('test') as f:
 
-            @f.task
-            def t1(**k):
-                return 1
+        @as_task
+        def T1(**k):
+            return 1
 
-        @f.task(name='test_name')
-        def t2(**k):
+        @as_task(name='test_name')
+        def T2(**k):
             return 2
 
-        t1.run_before(t2)
+        with Flow('test') as f:
+            t1 = T1()
+            t2 = T2()
+
+            t1.run_before(t2)
 
         assert isinstance(t1, Task)
-        assert t1.name == 't1_1'
+        assert t1.name == 'T1'
         assert isinstance(t2, Task)
         assert t2.name == 'test_name'
