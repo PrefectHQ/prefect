@@ -1,7 +1,10 @@
-import prefect
 import os
+
 import requests
+
+import prefect
 import ujson
+from prefect.utilities.graphql import format_graphql_response
 
 
 class AuthorizationError(Exception):
@@ -22,7 +25,7 @@ class Client:
 
         self.projects = Projects(client=self)
         self.flows = Flows(client=self)
-        self.flowruns = FlowRuns(client=self)
+        self.flow_runs = FlowRuns(client=self)
 
     # -------------------------------------------------------------------------
     # Utilities
@@ -66,6 +69,18 @@ class Client:
         if _json:
             response = response.json()
         return response
+
+    def graphql(self, query, **variables):
+        """
+        Convenience function for running queries against the Prefect GraphQL
+        API
+        """
+        result = self._post(
+            path='/graphql', query=query, variables=ujson.dumps(variables))
+        if 'errors' in result:
+            raise ValueError(result['errors'])
+        else:
+            return format_graphql_response(result).data
 
     def _request(self, method, path, params):
         path = path.lstrip('/')
@@ -143,6 +158,9 @@ class ClientModule:
         path = path.lstrip('/')
         return self._client._delete(os.path.join(self.path, path), **params)
 
+    def _graphql(self, query, **variables):
+        return self._client._graphql(query=query, **variables)
+
 
 class Projects(ClientModule):
 
@@ -152,35 +170,71 @@ class Projects(ClientModule):
         """
         Lists all available projects
         """
-        return self._get(path='/', per_page=per_page, page=page)
+        data = self.client.graphql(
+            '''
+             query ($perPage: Int!, $page: Int!){
+                projects(perPage: $perPage, page: $page){
+                    id
+                    name
+                }
+             }
+             ''',
+            perPage=per_page,
+            page=page)
+        return data['projects']
 
-    def get_flows(self, project_id):
+    def flows(self, project_id):
         """
         Returns the Flows for the specified project
         """
-        return self._get(path=f'/{project_id}')
+
+        data = self.client.graphql(
+            '''
+             query ($projectId: Int!){
+                projects(filter: {id: $projectId}) {
+                    id
+                    name
+                    flows {
+                        id
+                        name
+                    }
+                }
+             }
+             ''',
+            projectId=project_id)
+        return data['projects']
 
 
 class Flows(ClientModule):
 
     path = '/flows'
 
-    def get(self, flow_id, serialized=False):
+    def load(self, flow_id, safe=True):
         """
         Retrieve information about a Flow.
 
         Args:
             flow_id (int): the Flow's id
-            serialized (bool): if True, the result will include the
-                serialized Flow
         """
-        return self._get(path=f'/{flow_id}', serialized=serialized)
+        data = self._graphql(
+            '''
+            query($flowId: Int!) {
+                flow(id: $flowId) {
+                    serialized
+                }
+            }
+            ''',
+            flowId=flow_id)
+        if safe:
+            return prefect.Flow.safe_deserialize(data['flow']['serialized'])
+        else:
+            return prefect.Flow.deserialize(data['flow']['serialized'])
 
-    def get_flowruns(self, flow_id, state=None, per_page=100, page=1):
+    def get_flowruns(self, flow_id, per_page=100, page=1):
         """
         Retrieve the Flow's FlowRuns.
         """
-        return self._get(
+        return self._graphql(
             path=f'/{flow_id}/flowruns',
             state=state,
             per_page=per_page,
@@ -237,36 +291,20 @@ class Flows(ClientModule):
 
 class FlowRuns(ClientModule):
 
-    path = '/flowruns'
+    path = '/flow_runs'
 
-    def get(self, flowrun_id):
-        """
-        Describe a FlowRun
-        """
-        return self._get(path=f'/{flowrun_id}')
-
-    def get_taskruns(self, flowrun_id, status=None, per_page=100, page=1):
-        """
-        Retrieve the FlowRun's TaskRuns
-        """
-        return self._get(
-            path=f'/{flowrun_id}/taskruns',
-            status=status,
-            per_page=per_page,
-            page=page)
-
-    def get_state(self, flowrun_id):
+    def get_state(self, flow_run_id):
         """
         Retrieve a FlowRun's state
         """
-        return self._get(path=f'/{flowrun_id}/state')
+        return self._get(path=f'/{flow_run_id}/state')
 
-    def set_state(self, flowrun_id, state, expected_state=None):
+    def set_state(self, flow_run_id, state, expected_state=None):
         """
         Retrieve a FlowRun's state
         """
         return self._post(
-            path=f'/{flowrun_id}/state',
+            path=f'/{flow_run_id}/state',
             state=state,
             expected_state=expected_state)
 
@@ -277,13 +315,12 @@ class FlowRuns(ClientModule):
             parameters=parameters,
             parent_taskrun_id=parent_taskrun_id)
 
-    def queue(self, flowrun_id, start_at=None, start_tasks=None):
+    def run(self, flow_run_id, start_tasks=None):
         """
         Queue a FlowRun to be run
         """
         return self._post(
-            path=f'/{flowrun_id}/queue',
-            start_at=start_at,
+            path=f'/{flow_run_id}',
             start_tasks=start_tasks)
 
     # def run(self, flow_id, scheduled_start=None):
