@@ -42,6 +42,9 @@ def as_task(fn=None, **kwargs):
     def hello():
         print('hello')
 
+    with Flow() as flow:
+        hello().run_before(myfn())
+
     """
 
     if callable(fn):
