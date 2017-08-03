@@ -166,6 +166,9 @@ class Projects(ClientModule):
 
     path = '/projects'
 
+    def create(self, name):
+        return self.client._post(path='/', name=name)
+
     def list(self, per_page=100, page=1):
         """
         Lists all available projects
