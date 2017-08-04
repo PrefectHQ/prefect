@@ -3,6 +3,12 @@ from collections import namedtuple
 
 import prefect
 
+def as_state_str(state):
+    if isinstance(state, State):
+        return state.state
+    else:
+        return state
+
 
 class State:
 
@@ -14,6 +20,12 @@ class State:
     _transitions = {}
 
     def __init__(self, state=None, on_change=None):
+        """
+        on_change (callable): a function of (old_state, new_state) called
+            whenever the state is changed from the old_state to the new_state.
+            (it is not called during the initial state setting, when old_state
+            is None)
+        """
 
         if not hasattr(type(self), '_default_state'):
             'State classes require a `_default_state` state class attribute.'
@@ -21,18 +33,19 @@ class State:
         if state is None:
             state = self._default_state
         elif isinstance(state, State):
-            state = state.state
             on_change = on_change or state.on_change
         self.on_change = on_change or (lambda old_state, new_state: None)
         self.set_state(state)
 
     def set_state(self, state):
+        state = as_state_str(state)
         old_state = getattr(self, 'state', None)
         if not self.is_valid_state(state):
             raise ValueError(f'Invalid state: {state}')
-        elif old_state and not self.is_valid_transition(old_state, state):
-            raise ValueError(f'Invalid transition: {self.state} to {state}')
-        self.on_change(old_state, state)
+        elif old_state:
+            if not self.is_valid_transition(old_state, state):
+                raise ValueError(f'Invalid transition: {self.state} to {state}')
+            self.on_change(old_state, state)
         self.state = state
 
     def __eq__(self, other):
@@ -50,9 +63,11 @@ class State:
         return '{}({})'.format(type(self).__name__, self.state)
 
     def is_valid_state(self, state):
-        return state in self._transitions
+        return as_state_str(state) in self._transitions
 
     def is_valid_transition(self, old_state, new_state):
+        old_state = as_state_str(old_state)
+        new_state = as_state_str(new_state)
         return old_state in self._transitions.get(new_state, [])
 
 
@@ -97,7 +112,7 @@ class FlowRunState(State):
     _transitions = {
         SCHEDULED: _pending_states,
         PENDING: _pending_states,
-        RUNNING: _pending_states,
+        RUNNING: _pending_states.union(_running_states),
         SUCCESS: [RUNNING],
         FAILED: [RUNNING],
         SKIPPED: _pending_states.union(_running_states),
@@ -163,7 +178,7 @@ class TaskRunState(State):
     _transitions = {
         SCHEDULED: _pending_states,
         PENDING: _pending_states,
-        RUNNING: _pending_states,
+        RUNNING: _pending_states.union(_running_states),
         SUCCESS: _pending_states.union(_running_states),
         FAILED: _pending_states.union(_running_states),
         PENDING_RETRY: _failed_states,
