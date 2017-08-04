@@ -1,13 +1,11 @@
-import base64
 import copy
-import hashlib
+
 import prefect
-from prefect.task import Task, TaskResult
-from prefect.signals import PrefectError
 import prefect.context
-from prefect.schedules import NoSchedule
-from prefect.utilities.strings import is_valid_identifier
 import ujson
+from prefect.schedules import NoSchedule
+from prefect.task import Task, TaskResult
+from prefect.utilities.strings import is_valid_identifier
 
 
 class Edge:
@@ -90,7 +88,11 @@ class Edge:
         if serialized['upstream_index'] is not None:
             serialized['upstream_index'] = ujson.loads(
                 serialized['upstream_index'])
-        return cls(**serialized)
+        return cls(
+            upstream_task=serialized['upstream_task'],
+            downstream_task=serialized['downstream_task'],
+            key=serialized['key'],
+            upstream_index=serialized['upstream_index'])
 
 
 class Flow:
@@ -388,26 +390,26 @@ class Flow:
 
     def serialize(self):
         flow = copy.copy(self)
-        del flow.schedule
-        del flow.tasks
-        del flow.edges
 
+        required_parameters = sorted(str(p) for p in self.required_parameters)
         tasks = [
             t.serialize(sort_order=i)
             for i, t in enumerate(self.sorted_tasks())
         ]
-        required_parameters = sorted(str(p) for p in self.required_parameters)
+        edges = [e.serialize() for e in self.edges]
+
+        del flow.tasks
+        del flow.edges
 
         return {
             'project': self.project,
             'name': self.name,
-            'repr': repr(self),
+            'serialized': prefect.utilities.serialize.serialize(flow),
             'tasks': tasks,
-            'edges': [e.serialize() for e in self.edges],
+            'edges': edges,
             'required_parameters': required_parameters,
             'description': self.description,
             'schedule': self.schedule.serialize(),
-            'serialized': prefect.utilities.serialize.serialize(flow),
             'concurrent_runs': self.concurrent_runs,
             'executor_args': {
                 'cluster': self.cluster,
@@ -457,9 +459,9 @@ class Flow:
 
         for edge in serialized['edges']:
             flow.add_edge(
-                upstream_task=flow.get_task(edge.upstream_task),
-                downstream_task=flow.get_task(edge.downstream_task),
-                upstream_index=edge.upstream_index,
-                key=edge.key)
+                upstream_task=flow.get_task(edge['upstream_task']),
+                downstream_task=flow.get_task(edge['downstream_task']),
+                upstream_index=edge['upstream_index'],
+                key=edge['key'])
 
         return flow
