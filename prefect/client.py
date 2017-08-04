@@ -26,6 +26,7 @@ class Client:
         self.projects = Projects(client=self)
         self.flows = Flows(client=self)
         self.flow_runs = FlowRuns(client=self)
+        self.task_runs = TaskRuns(client=self)
 
     # -------------------------------------------------------------------------
     # Utilities
@@ -89,20 +90,20 @@ class Client:
             if self._token is None:
                 raise ValueError('Call Client.login() to set the client token.')
             url = os.path.join(self._server, f'v{self._api_version}', path)
-
+            headers = {'Authorization': 'Bearer ' + self._token.decode()}
             if method == 'GET':
                 response = requests.get(
                     url,
-                    headers={'Authorization': 'Bearer ' + self._token},
+                    headers=headers,
                     params=params)
             elif method == 'POST':
                 response = requests.post(
                     url,
-                    headers={'Authorization': 'Bearer ' + self._token},
+                    headers=headers,
                     data=params)
             elif method == 'DELETE':
                 response = requests.delete(
-                    url, headers={'Authorization': 'Bearer ' + self._token})
+                    url, headers=headers)
             else:
                 raise ValueError(f'Invalid method: {method}')
 
@@ -129,7 +130,7 @@ class Client:
         self._token = response.json()['token']
 
     def refresh_token(self):
-        response = self._post(path='auth/refresh_token', token=self._token)
+        response = self._post(path='auth/refresh', token=self._token)
         self._token = response.json()['token']
 
 
@@ -280,7 +281,7 @@ class Flows(ClientModule):
     #         resume_tasks=None,
     #         generating_taskrun_id=None):
     #     """
-    #     Start (or schedule) a FlowRun on the server
+    #     Start (or schedule) a flow run on the server
     #     """
     #     result = self._post(
     #         path='flows/run',
@@ -298,13 +299,13 @@ class FlowRuns(ClientModule):
 
     def get_state(self, flow_run_id):
         """
-        Retrieve a FlowRun's state
+        Retrieve a flow run's state
         """
         return self._get(path=f'/{flow_run_id}/state')
 
     def set_state(self, flow_run_id, state, expected_state=None):
         """
-        Retrieve a FlowRun's state
+        Retrieve a flow run's state
         """
         return self._post(
             path=f'/{flow_run_id}/state',
@@ -320,10 +321,22 @@ class FlowRuns(ClientModule):
 
     def run(self, flow_run_id, start_tasks=None):
         """
-        Queue a FlowRun to be run
+        Queue a flow run to be run
         """
         return self._post(
             path=f'/{flow_run_id}',
             start_tasks=start_tasks)
 
-    # def run(self, flow_id, scheduled_start=None):
+
+class TaskRuns(ClientModule):
+
+    path = '/task_runs'
+
+    def set_state(self, task_run_id, state, expected_state=None):
+        """
+        Retrieve a task run's state
+        """
+        return self._post(
+            path=f'/{task_run_id}/state',
+            state=state,
+            expected_state=expected_state)
