@@ -1,15 +1,16 @@
-from collections import namedtuple
-from contextlib import contextmanager
 import logging
-import prefect
-from prefect import signals
-from prefect.state import TaskRunState
-# from prefect.runners.results import RunResult, Progress
-from prefect.runners.runner import Runner
 import sys
 import traceback
 import types
 import uuid
+from collections import namedtuple
+from contextlib import contextmanager
+
+import prefect
+from prefect import signals
+# from prefect.runners.results import RunResult, Progress
+from prefect.runners.runner import Runner
+from prefect.state import TaskRunState
 
 
 class TaskRunner(Runner):
@@ -19,13 +20,36 @@ class TaskRunner(Runner):
         super().__init__(
             executor=executor, logger_name=repr(task), progress_fn=progress_fn)
 
-    def run(
-            self,
-            state=None,
-            upstream_states=None,
-            inputs=None,
-            context=None,
-            success_result=None):
+    @contextmanager
+    def task_context(self, context, state):
+        with prefect.context(context):
+            try:
+                yield
+
+            except signals.SUCCESS as s:
+                self.logger.info(f'Task {type(s).__name__}: {s}')
+                state.succeed()
+            except signals.SKIP as s:
+                self.logger.info(f'Task {type(s).__name__}: {s}')
+                state.skip()
+            except signals.RETRY as s:
+                self.logger.info(f'Task {type(s).__name__}: {s}')
+                state.fail()
+            except signals.SHUTDOWN as s:
+                self.logger.info(f'Task {type(s).__name__}: {s}')
+                state.shutdown()
+            except signals.DONTRUN as s:
+                self.logger.info(f'Task {type(s).__name__}: {s}')
+            except signals.FAIL as s:
+                self.logger.info(f'Task {type(s).__name__}: {s}')
+                state.fail()
+            except Exception as e:
+                self.logger.error('Task: An unexpected error occurred', exc_info=1)
+                if prefect.context.get('debug'):
+                    raise
+                state.fail()
+
+    def run(self, state=None, upstream_states=None, inputs=None, context=None):
         """
         Run a task
 
@@ -38,59 +62,13 @@ class TaskRunner(Runner):
             inputs (dict): a dictionary of {kwarg: value} pairs containing
                 inputs to the task function
 
-            success_result (any): if the task doesn't run because it already
-                succeeded, this result will be returned. This can be used when
-                rerunning a group of tasks that may have returned results.
+            context (dict): Prefect context
         """
         state = prefect.state.TaskRunState(state)
         upstream_states = upstream_states or {}
         inputs = inputs or {}
 
-        result = success_result if state.is_successful() else None
-
-        with prefect.context(context):
-            with self.catch_signals(state):
-                state = self.check_state(
-                    state=state, upstream_states=upstream_states)
-                result = self.run_task(inputs=inputs)
-                state, result = self.finalize(state, result)
-
-        return dict(state=state, result=result)
-
-    @contextmanager
-    def catch_signals(self, state):
-        try:
-            yield
-
-        except signals.SUCCESS as s:
-            self.logger.info(f'Task {type(s).__name__}: {s}')
-            state.succeed()
-        except signals.SKIP as s:
-            self.logger.info(f'Task {type(s).__name__}: {s}')
-            state.skip()
-        except signals.RETRY as s:
-            self.logger.info(f'Task {type(s).__name__}: {s}')
-            state.fail()
-        except signals.SHUTDOWN as s:
-            self.logger.info(f'Task {type(s).__name__}: {s}')
-            state.shutdown()
-        except signals.DONTRUN as s:
-            self.logger.info(f'Task {type(s).__name__}: {s}')
-        except signals.FAIL as s:
-            self.logger.info(f'Task {type(s).__name__}: {s}')
-            state.fail()
-        except Exception as e:
-            self.logger.error('Task: An unexpected error occurred', exc_info=1)
-            if prefect.context.get('debug'):
-                raise
-            state.fail()
-
-    def check_state(self, state, upstream_states, context=None):
-        """
-        Check if a Task is ready to run
-        """
-
-        with prefect.context(context):
+        with self.task_context(context, state):
 
             # -------------------------------------------------------------
             # check upstream tasks
@@ -126,20 +104,6 @@ class TaskRunner(Runner):
             # -------------------------------------------------------------
 
             state.start()
-
-        return state
-
-    def run_task(self, inputs=None, context=None):
-        """
-        Execute a Task
-
-        Arguments
-            inputs: a dictionary of inputs to the Task
-
-        """
-
-        with prefect.context(context):
-
             try:
                 result = self.task.run(**inputs)
 
@@ -166,8 +130,6 @@ class TaskRunner(Runner):
             except Exception as e:
                 raise signals.FAIL(traceback.format_exc())
 
-        return result
-
-    def finalize(self, state, result):
         state.succeed()
-        return state, result
+
+        return dict(state=state, result=result)
