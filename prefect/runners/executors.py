@@ -11,11 +11,13 @@ They have a few main functions:
 """
 import abc
 import collections
-from contextlib import contextmanager
 import concurrent.futures
 import copy
-import distributed
+from contextlib import contextmanager
 from functools import partial
+
+import distributed
+
 import prefect
 from prefect.utilities.cluster import client as prefect_client
 
@@ -24,6 +26,7 @@ def default_executor():
     option = prefect.config.get('executor', 'default_executor') or 'Executor'
     executor_cls = getattr(prefect.runners.executors, option)
     return executor_cls()
+
 
 class Executor:
 
@@ -34,9 +37,7 @@ class Executor:
 
     def run_flow(self, flow, state, start_tasks=None):
         flow_runner = prefect.runners.FlowRunner(flow, executor=self)
-        return flow_runner.run(
-            state=state,
-            start_tasks=start_tasks)
+        return flow_runner.run(state=state, start_tasks=start_tasks)
 
     def run_task(self, task, state, upstream_states, inputs, context=None):
         """
@@ -76,6 +77,7 @@ class Executor:
             with distributed.worker_client(**kwargs) as client:
                 yield client
 
+
 class LocalClient:
     """
     A mock Distributed client that executes all functions locally and
@@ -90,6 +92,9 @@ class LocalClient:
     def gather(self, futures):
         return futures
 
+    def close(self):
+        pass
+
 
 class LocalExecutor(Executor):
     """
@@ -102,6 +107,8 @@ class LocalExecutor(Executor):
     def client(self, context=None, **kwargs):
         with prefect.context(context):
             yield LocalClient()
+
+
 # def context_client
 
 # class Executor:
