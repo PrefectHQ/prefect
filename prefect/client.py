@@ -4,7 +4,7 @@ import requests
 
 import prefect
 import ujson
-from prefect.utilities.graphql import format_graphql_response
+from prefect.utilities.graphql import format_graphql_result
 
 
 class AuthorizationError(Exception):
@@ -80,7 +80,7 @@ class Client:
         if 'errors' in result:
             raise ValueError(result['errors'])
         else:
-            return format_graphql_response(result).data
+            return format_graphql_result(result).data
 
     def _request(self, method, path, params):
         path = path.lstrip('/')

@@ -1,27 +1,29 @@
 from collections import OrderedDict
 
-class AttrDict(OrderedDict):
 
-    def __getattribute__(self, key):
-        if key in self:
-            return self[key]
-        else:
-            return super().__getattribute__(key)
-
-
-def format_graphql_response(graphql_response):
+class GQLResult(OrderedDict):
     """
-    Given a graphql_response formatted as a dictionary, returns an object
+    An ordered dict that also supports attribute ("dot") access
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__dict__ = self
+
+
+def format_graphql_result(graphql_result):
+    """
+    Given a graphql_result formatted as a dictionary, returns an object
     that also supports "dot" access:
 
-    graphql_response['data']['child']
-    graphql_response.data.child
+    graphql_result['data']['child']
+    graphql_result.data.child
     """
-    if not isinstance(graphql_response, dict):
-        return graphql_response
-    for key, value in list(graphql_response.items()):
+    if not isinstance(graphql_result, dict):
+        return graphql_result
+    for key, value in list(graphql_result.items()):
         if isinstance(value, dict):
-            graphql_response[key] = format_graphql_response(value)
+            graphql_result[key] = format_graphql_result(value)
         elif isinstance(value, list):
-            graphql_response[key] = [format_graphql_response(v) for v in value]
-    return AttrDict(graphql_response)
+            graphql_result[key] = [format_graphql_result(v) for v in value]
+    return GQLResult(graphql_result)
