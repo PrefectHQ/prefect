@@ -1,5 +1,7 @@
 import copy
 
+from slugify import slugify
+
 import prefect
 import prefect.context
 import ujson
@@ -100,6 +102,7 @@ class Flow:
     def __init__(
             self,
             name,
+            version=None,
             project=prefect.config.get('flows', 'default_project'),
             required_parameters=None,
             schedule=NoSchedule(),
@@ -128,7 +131,11 @@ class Flow:
         else:
             required_parameters = set(required_parameters)
 
+        if not name:
+            raise ValueError('Flows must have a name.')
+
         self.name = str(name)
+        self.version = str(version)
         self.project = str(project)
         self.description = description
 
@@ -139,14 +146,31 @@ class Flow:
         self.concurrent_runs = concurrent_runs
         self.cluster = cluster
 
+    @property
+    def slug(self):
+        if self.version:
+            return slugify(f'{self.name}:{self.version}')
+        else:
+            return slugify(self.name)
+
+    @property
+    def _comps(self):
+        return tuple(
+            type(self),
+            self.project,
+            self.name,
+            self.version,
+            self.tasks,
+            self.edges,)
+
     def __repr__(self):
-        return f'{type(self).__name__}("{self.project}.{self.name}")'
+        base = f'{self.project}.{self.name}'
+        if self.version:
+            base += f':{self.version}'
+        return f'{type(self).__name__}("{base}")'
 
     def __eq__(self, other):
-        return (
-            type(self) == type(other) and self.project == other.project
-            and self.name == other.name and self.tasks == other.tasks
-            and self.edges == other.edges)
+        return self._comps == other._comps
 
     def __hash__(self):
         return id(self)
@@ -171,9 +195,10 @@ class Flow:
     def add_task(self, task):
         if not isinstance(task, Task):
             raise TypeError(f'Expected a Task; received {type(task).__name__}')
-        if task.name in self.tasks:
+        if task.slug in [t.slug for t in self.tasks]:
             raise ValueError(
-                f'A task named "{task.name}" already exists in this Flow.')
+                f'Task "{task.name}" could not be added because a task with '
+                f'the slug "{task.slug}" already exists in this Flow.')
         self.tasks[task.name] = task
 
     def add_edge(
@@ -404,6 +429,7 @@ class Flow:
         return {
             'project': self.project,
             'name': self.name,
+            'version': self.version,
             'serialized': prefect.utilities.serialize.serialize(flow),
             'tasks': tasks,
             'edges': edges,
@@ -448,6 +474,7 @@ class Flow:
         """
         flow = Flow(
             name=serialized['name'],
+            version=serialized['version'],
             project=serialized['project'],
             schedule=prefect.schedules.deserialize(serialized['schedule']),
             required_parameters=serialized['required_parameters'],

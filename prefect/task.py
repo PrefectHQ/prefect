@@ -1,7 +1,10 @@
 import importlib
+
+from slugify import slugify
+
 import prefect
-from prefect.utilities.strings import name_with_suffix
 from prefect.utilities.datetimes import retry_delay
+from prefect.utilities.strings import name_with_suffix
 
 
 class Task:
@@ -105,12 +108,19 @@ class Task:
         if flow:
             flow.add_task(self)
 
+    @property
+    def slug(self):
+        return slugify(self.name)
+
     def __repr__(self):
         return f'{type(self).__name__}({self.name})'
 
     # Comparison --------------------------------------------------------------
 
     def __eq__(self, other):
+        """
+        Equality is determined by examining the serialized Task
+        """
         if type(self) == type(other) and self.name == other.name:
             self_comp = self.serialize()
             self_comp.pop('serialized')
@@ -200,6 +210,7 @@ class Task:
     def serialize(self, sort_order=None):
         return {
             'name': self.name,
+            'slug': self.slug,
             'type': type(self).__name__,
             'max_retries': self.max_retries,
             'serialized': prefect.utilities.serialize.serialize(self),
