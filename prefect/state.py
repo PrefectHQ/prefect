@@ -3,6 +3,7 @@ from collections import namedtuple
 
 import prefect
 
+
 def as_state_str(state):
     if isinstance(state, State):
         return state.state
@@ -41,10 +42,12 @@ class State:
         state = as_state_str(state)
         old_state = getattr(self, 'state', None)
         if not self.is_valid_state(state):
-            raise ValueError(f'Invalid state: {state}')
+            raise ValueError('Invalid state: {}'.format(state))
         elif old_state:
             if not self.is_valid_transition(old_state, state):
-                raise ValueError(f'Invalid transition: {self.state} to {state}')
+                raise ValueError(
+                    'Invalid transition: {self.state} to {state}'.format(
+                        self=self, state=state))
             self.on_change(old_state, state)
         self.state = state
 

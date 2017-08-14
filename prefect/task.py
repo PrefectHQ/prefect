@@ -12,12 +12,12 @@ class Task:
     Tasks are basic units of work. Each task performs a specific funtion.
     """
 
-    def __new__(obj, *args, **kwargs):
+    def __new__(base, *args, **kwargs):
         """
         Each Task tracks the arguments that were used to create it. These
         variables are available as Task._init_args and Task._init_kwargs.
         """
-        instance = super().__new__(obj)
+        instance = super().__new__(base)
         instance._init_args = args
         instance._init_kwargs = kwargs
         return instance
@@ -74,7 +74,7 @@ class Task:
         if not isinstance(name, str):
             raise ValueError(
                 'Name is invalid or could not be inferred '
-                f'from provided Flow: {name}')
+                'from provided Flow: {}'.format(name))
         self.name = name
 
         # set up retries
@@ -113,7 +113,7 @@ class Task:
         return slugify(self.name)
 
     def __repr__(self):
-        return f'{type(self).__name__}({self.name})'
+        return '{}({})'.format(type(self).__name__, self.name)
 
     # Comparison --------------------------------------------------------------
 

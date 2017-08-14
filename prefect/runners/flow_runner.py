@@ -18,23 +18,25 @@ class FlowRunner(Runner):
 
     @contextmanager
     def flow_context(self, context, state):
+
         with prefect.context(context):
             try:
                 yield
 
             except prefect.signals.SUCCESS as s:
-                self.logger.info(f'Flow {type(s).__name__}: {s}')
+                self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
                 state.succeed()
             except prefect.signals.SKIP as s:
-                self.logger.info(f'Flow {type(s).__name__}: {s}')
+                self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
                 state.skip()
             except prefect.signals.SHUTDOWN as s:
-                self.logger.info(f'Flow {type(s).__name__}: {s}')
+                self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
                 state.shutdown()
             except prefect.signals.DONTRUN as s:
-                self.logger.info(f'Flow {type(s).__name__}: {s}')
+                self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
             except prefect.signals.FAIL as s:
-                self.logger.info(f'Flow {type(s).__name__}: {s}', exc_info=True)
+                self.logger.info(
+                    'Flow {}: {}'.format(type(s).__name__, s), exc_info=True)
                 state.fail()
             except Exception:
                 if prefect.context.get('debug'):
@@ -82,13 +84,14 @@ class FlowRunner(Runner):
 
                 # this flow is already finished
                 if state.is_finished():
-                    raise prefect.signals.DONTRUN('Flow run is already finished.')
+                    raise prefect.signals.DONTRUN(
+                        'Flow run is already finished.')
 
                 # this flow is not pending or already running
                 # Note: we allow multiple flowruns at the same time (state = RUNNING)
                 elif not (state.is_pending() or state.is_running()):
                     raise prefect.signals.DONTRUN(
-                        f'Flow is not ready to run (state {state}).')
+                        'Flow is not ready to run (state {}).'.format(state))
 
                 # -------------------------------------------------------------
                 # start!
@@ -120,8 +123,10 @@ class FlowRunner(Runner):
                         # get the upstream state
                         if upstream_task_name not in task_states:
                             raise ValueError(
-                                f'Task state not found: {upstream_task_name}')
-                        states[upstream_task_name] = task_states[upstream_task_name]
+                                'Task state not found: {}'.format(
+                                    upstream_task_name))
+                        states[upstream_task_name] = task_states[
+                            upstream_task_name]
 
                         # if the edge has no key, then we're done
                         if edge.key is None:
@@ -148,11 +153,15 @@ class FlowRunner(Runner):
 
                     # store the task's state
                     task_states[task.name] = client.submit(
-                        lambda future: future['state'], future=future, pure=False)
+                        lambda future: future['state'],
+                        future=future,
+                        pure=False)
 
                     # store the task's result
                     task_results[task.name] = client.submit(
-                        lambda future: future['result'], future=future, pure=False)
+                        lambda future: future['result'],
+                        future=future,
+                        pure=False)
 
                 # once all tasks are done, collect their states
                 # and collect their serialized results

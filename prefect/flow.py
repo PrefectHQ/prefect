@@ -149,7 +149,7 @@ class Flow:
     @property
     def slug(self):
         if self.version:
-            return slugify(f'{self.name}:{self.version}')
+            return slugify('{self.name}:{self.version}'.format(self=self))
         else:
             return slugify(self.name)
 
@@ -164,10 +164,10 @@ class Flow:
             self.edges,)
 
     def __repr__(self):
-        base = f'{self.project}.{self.name}'
+        base = '{self.project}.{self.name}'.format(self=self)
         if self.version:
-            base += f':{self.version}'
-        return f'{type(self).__name__}("{base}")'
+            base += ':{self.version}'.format(self=self)
+        return '{type}("{base}")'.format(type=type(self).__name__, base=base)
 
     def __eq__(self, other):
         return self._comps == other._comps
@@ -194,11 +194,13 @@ class Flow:
 
     def add_task(self, task):
         if not isinstance(task, Task):
-            raise TypeError(f'Expected a Task; received {type(task).__name__}')
+            raise TypeError(
+                'Expected a Task; received {}'.format(type(task).__name__))
         if task.slug in [t.slug for t in self.tasks]:
             raise ValueError(
-                f'Task "{task.name}" could not be added because a task with '
-                f'the slug "{task.slug}" already exists in this Flow.')
+                'Task "{task.name}" could not be added because a task with '
+                'the slug "{task.slug}" already exists in this Flow.'.format(
+                    task=task))
         self.tasks[task.name] = task
 
     def add_edge(
@@ -237,8 +239,8 @@ class Flow:
             ]
             if existing_edges:
                 raise ValueError(
-                    f'An edge to task {edge.downstream_task} with '
-                    f'key "{edge.key}" already exists!')
+                    'An edge to task {edge.downstream_task} with '
+                    'key "{edge.key}" already exists!'.format(edge=edge))
 
         self.edges.add(edge)
 

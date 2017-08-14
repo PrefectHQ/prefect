@@ -89,23 +89,17 @@ class Client:
         def request_fn():
             if self._token is None:
                 raise ValueError('Call Client.login() to set the client token.')
-            url = os.path.join(self._server, f'v{self._api_version}', path)
+            url = os.path.join(
+                self._server, 'v{}'.format(self._api_version), path)
             headers = {'Authorization': 'Bearer ' + self._token.decode()}
             if method == 'GET':
-                response = requests.get(
-                    url,
-                    headers=headers,
-                    params=params)
+                response = requests.get(url, headers=headers, params=params)
             elif method == 'POST':
-                response = requests.post(
-                    url,
-                    headers=headers,
-                    data=params)
+                response = requests.post(url, headers=headers, data=params)
             elif method == 'DELETE':
-                response = requests.delete(
-                    url, headers=headers)
+                response = requests.delete(url, headers=headers)
             else:
-                raise ValueError(f'Invalid method: {method}')
+                raise ValueError('Invalid method: {}'.format(method))
 
             response.raise_for_status()
 
@@ -123,7 +117,7 @@ class Client:
     # Auth
 
     def login(self, email, password):
-        url = os.path.join(self._server, f'v{self._api_version}', 'auth/login')
+        url = os.path.join(self._server, 'v{}'.format(self._api_version), 'auth/login')
         response = requests.post(url, auth=(email, password))
         if not response.ok:
             raise ValueError('Could not log in.')
@@ -145,7 +139,7 @@ class ClientModule:
         self._client = client
 
     def __repr__(self):
-        return f'<Client Module: {self._name}>'
+        return '<Client Module: {}>'.format(self._name)'
 
     def _get(self, path, **params):
         path = path.lstrip('/')
@@ -239,7 +233,7 @@ class Flows(ClientModule):
         Retrieve the Flow's FlowRuns.
         """
         return self._graphql(
-            path=f'/{flow_id}/flowruns',
+            path='/{}/flowruns'.format(flow_id),
             state=state,
             per_page=per_page,
             page=page)
@@ -248,13 +242,13 @@ class Flows(ClientModule):
         """
         Update a Flow's state
         """
-        return self._post(path=f'/{flow_id}/state', state=state)
+        return self._post(path='/{}/state'.format(flow_id), state=state)
 
     def get_tasks(self, flow_id, state=None, per_page=500, page=1):
         """
         Retrieve the Flow's tasks and edges connecting them.
         """
-        return self._get(path=f'/{flow_id}/tasks', per_page=per_page, page=page)
+        return self._get(path='/{}/tasks'.format(flow_id), per_page=per_page, page=page)
 
     def create(self, flow):
         """
@@ -301,14 +295,14 @@ class FlowRuns(ClientModule):
         """
         Retrieve a flow run's state
         """
-        return self._get(path=f'/{flow_run_id}/state')
+        return self._get(path='/{}/state'.format(flow_run_id))
 
     def set_state(self, flow_run_id, state, expected_state=None):
         """
         Retrieve a flow run's state
         """
         return self._post(
-            path=f'/{flow_run_id}/state',
+            path='/{}/state'.format(flow_run_id),
             state=state,
             expected_state=expected_state)
 
@@ -323,9 +317,7 @@ class FlowRuns(ClientModule):
         """
         Queue a flow run to be run
         """
-        return self._post(
-            path=f'/{flow_run_id}',
-            start_tasks=start_tasks)
+        return self._post(path='/{}'.format(flow_run_id), start_tasks=start_tasks)
 
 
 class TaskRuns(ClientModule):
@@ -337,6 +329,6 @@ class TaskRuns(ClientModule):
         Retrieve a task run's state
         """
         return self._post(
-            path=f'/{task_run_id}/state',
+            path='/{}/state'.format(task_run_id),
             state=state,
             expected_state=expected_state)

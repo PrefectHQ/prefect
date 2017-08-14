@@ -27,24 +27,25 @@ class TaskRunner(Runner):
                 yield
 
             except signals.SUCCESS as s:
-                self.logger.info(f'Task {type(s).__name__}: {s}')
+                self.logger.info('Task {}: {}'.format(type(s).__name__, s))
                 state.succeed()
             except signals.SKIP as s:
-                self.logger.info(f'Task {type(s).__name__}: {s}')
+                self.logger.info('Task {}: {}'.format(type(s).__name__, s))
                 state.skip()
             except signals.RETRY as s:
-                self.logger.info(f'Task {type(s).__name__}: {s}')
+                self.logger.info('Task {}: {}'.format(type(s).__name__, s))
                 state.fail()
             except signals.SHUTDOWN as s:
-                self.logger.info(f'Task {type(s).__name__}: {s}')
+                self.logger.info('Task {}: {}'.format(type(s).__name__, s))
                 state.shutdown()
             except signals.DONTRUN as s:
-                self.logger.info(f'Task {type(s).__name__}: {s}')
+                self.logger.info('Task {}: {}'.format(type(s).__name__, s))
             except signals.FAIL as s:
-                self.logger.info(f'Task {type(s).__name__}: {s}')
+                self.logger.info('Task {}: {}'.format(type(s).__name__, s))
                 state.fail()
             except Exception as e:
-                self.logger.error('Task: An unexpected error occurred', exc_info=1)
+                self.logger.error(
+                    'Task: An unexpected error occurred', exc_info=1)
                 if prefect.context.get('debug'):
                     raise
                 state.fail()
@@ -97,7 +98,7 @@ class TaskRunner(Runner):
             # this task is not pending
             elif not state.is_pending():
                 raise signals.DONTRUN(
-                    f'Task is not ready to run (state {state}).')
+                    'Task is not ready to run (state {}).'.format(state))
 
             # -------------------------------------------------------------
             # start!

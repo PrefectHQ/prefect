@@ -12,4 +12,4 @@ class Runner:
             self.record_progress = progress_fn
 
     def record_progress(self, progress):
-        self.logger.info(f'PROGRESS: {progress}')
+        self.logger.info('PROGRESS: {}'.format(progress))
