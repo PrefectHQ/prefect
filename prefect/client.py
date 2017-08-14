@@ -139,7 +139,7 @@ class ClientModule:
         self._client = client
 
     def __repr__(self):
-        return '<Client Module: {}>'.format(self._name)'
+        return '<Client Module: {}>'.format(self._name)
 
     def _get(self, path, **params):
         path = path.lstrip('/')
