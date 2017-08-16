@@ -196,7 +196,7 @@ class Flow:
         if not isinstance(task, Task):
             raise TypeError(
                 'Expected a Task; received {}'.format(type(task).__name__))
-        if task.slug in [t.slug for t in self.tasks]:
+        if task.slug in (t.slug for t in self.tasks.values()):
             raise ValueError(
                 'Task "{task.name}" could not be added because a task with '
                 'the slug "{task.slug}" already exists in this Flow.'.format(
