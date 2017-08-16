@@ -431,6 +431,7 @@ class Flow:
         return {
             'project': self.project,
             'name': self.name,
+            'slug': self.slug,
             'version': self.version,
             'serialized': prefect.utilities.serialize.serialize(flow),
             'tasks': tasks,
