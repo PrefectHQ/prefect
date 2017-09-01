@@ -134,9 +134,9 @@ class Flow:
         if not name:
             raise ValueError('Flows must have a name.')
 
-        self.name = str(name)
-        self.version = str(version)
-        self.project = str(project)
+        self.name = name
+        self.version = version
+        self.project = project
         self.description = description
 
         self.required_parameters = required_parameters
@@ -148,7 +148,7 @@ class Flow:
 
     @property
     def slug(self):
-        if self.version:
+        if self.version not in [None, '']:
             return slugify('{self.name}:{self.version}'.format(self=self))
         else:
             return slugify(self.name)
@@ -234,8 +234,7 @@ class Flow:
         if edge.key is not None:
             existing_edges = [
                 e for e in self.edges
-                if e.downstream_task == downstream_task.name
-                and e.key == edge.key
+                if e.downstream_task == downstream_task.name and e.key == edge.key
             ]
             if existing_edges:
                 raise ValueError(
