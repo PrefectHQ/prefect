@@ -10,7 +10,7 @@ def dont_run(preceding_states):
     """
     the task never runs unless it appears in context.run_tasks
     """
-    if context.task_name in context.flowrun_start_tasks:
+    if context.Context.task_name in context.Context.flowrun_start_tasks:
         return True
 
 
