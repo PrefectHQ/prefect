@@ -68,6 +68,7 @@ class TaskRunner(Runner):
         state = prefect.state.TaskRunState(state)
         upstream_states = upstream_states or {}
         inputs = inputs or {}
+        result = None
 
         with self.task_context(context, state):
 
@@ -105,8 +106,11 @@ class TaskRunner(Runner):
             # -------------------------------------------------------------
 
             state.start()
+
             try:
                 result = self.task.run(**inputs)
+
+                # Begin generator clause --------------------------------------
 
                 # tasks can yield progress
                 if isinstance(result, types.GeneratorType):
@@ -120,17 +124,21 @@ class TaskRunner(Runner):
 
                     for progress in sentinel_wrapper(result):
 
-                        # if we see the sentinel, this is the task's return value
+                        # if we see a sentinel, this is the task's return value
                         if isinstance(progress, dict) and sentinel in progress:
                             result = progress[sentinel]
                             break
 
                         self.record_progress(progress)
+
+                # End generator clause ----------------------------------------
+
+                # mark state as successful
+                state.succeed()
+
             except signals.PrefectSignal:
                 raise
             except Exception as e:
                 raise signals.FAIL(traceback.format_exc())
-
-        state.succeed()
 
         return dict(state=state, result=result)
