@@ -3,7 +3,7 @@ import datetime
 import pytest
 
 import prefect
-from prefect.context import Annotations, Context, call_with_annotations
+from prefect.context import Annotations, Context, call_with_context_annotations
 
 AS_OF_DT = datetime.datetime(2016, 12, 31)
 RUN_DT = datetime.datetime(2017, 1, 1)
@@ -58,7 +58,7 @@ def test_context_annotations(context_dict):
     Test function decorator that inserts annotations at runtime
     """
 
-    @call_with_annotations
+    @call_with_context_annotations
     def test_fn(x, y, run_dt: Annotations.run_dt):
         return run_dt
 

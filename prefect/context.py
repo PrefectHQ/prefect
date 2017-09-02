@@ -112,7 +112,7 @@ class Annotations:
         return {k: v for k, v in cls.__dict__.items() if not k.startswith('_')}
 
 
-def call_with_annotations(fn):
+def call_with_context_annotations(fn):
     """
     This decorator wraps a function so that at runtime, any function arguments
     that are annotated as Context variables and not supplied by the user
@@ -120,9 +120,9 @@ def call_with_annotations(fn):
 
     >>> with Context(x=1, flow_id='id'):
     ...
-    ...     @call_with_annotations
+    ...     @call_with_context_annotations
     ...     def test(
-    ...             x: Annotations.context_variable, 
+    ...             x: Annotations.context_variable,
     ...             flow_id: Annotations.flow_id):
     ...         return x, flow_id
     ...
