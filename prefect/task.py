@@ -61,7 +61,7 @@ class Task:
         """
 
         # see if this task was created inside a flow context
-        flow = flow or prefect.context.get('flow')
+        flow = flow or prefect.context.Context.get('flow')
 
         # if a flow was provided, try to infer a name
         if flow and name is None:
@@ -143,7 +143,7 @@ class Task:
             Tasks (Task or collection of Tasks): Tasks that this task should
                 run before.
         """
-        flow = prefect.context.get('flow')
+        flow = prefect.context.Context.get('flow')
         if not flow:
             raise ValueError(
                 'This function can only be called inside a Flow context')
@@ -161,7 +161,7 @@ class Task:
             Tasks (Task or collection of Tasks): Tasks that this task should
                 run after.
         """
-        flow = prefect.context.get('flow')
+        flow = prefect.context.Context.get('flow')
         if not flow:
             raise ValueError(
                 'This function can only be called inside a Flow context')
@@ -197,7 +197,7 @@ class Task:
                 will be made upstream dependencies of this task AND their
                 results will passed to the task under the provided keyword.
         """
-        flow = prefect.context.get('flow')
+        flow = prefect.context.Context.get('flow')
         if not flow:
             raise ValueError(
                 'This function can only be called inside a Flow context')
