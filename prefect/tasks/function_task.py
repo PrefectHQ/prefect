@@ -24,7 +24,7 @@ class FunctionTask(prefect.Task):
         super().__init__(name=name, **kwargs)
 
     def run(self, **inputs):
-        return self.fn(**inputs)
+        return prefect.context.call_with_context_annotations(self.fn, **inputs)
 
 
 def as_task(fn=None, **kwargs):
