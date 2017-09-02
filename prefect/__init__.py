@@ -17,7 +17,6 @@ from prefect.tasks.function_task import as_task
 
 from prefect.flow import Flow
 import prefect.state
-import prefect.runners
 from prefect.secret import Secret
 
 from prefect.client import Client

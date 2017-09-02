@@ -116,8 +116,8 @@ class FlowRunState(State):
         SCHEDULED: _pending_states,
         PENDING: _pending_states,
         RUNNING: _pending_states.union(_running_states),
-        SUCCESS: [RUNNING],
-        FAILED: [RUNNING],
+        SUCCESS: _pending_states.union(_running_states),
+        FAILED: _pending_states.union(_running_states),
         SKIPPED: _pending_states.union(_running_states),
         SHUTDOWN: _pending_states.union(_running_states),
     }
