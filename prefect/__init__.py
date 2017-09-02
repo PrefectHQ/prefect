@@ -10,7 +10,7 @@ import prefect.serializers
 import prefect.state
 import prefect.triggers
 
-from prefect.context import context
+import prefect.context
 
 from prefect.task import Task
 from prefect.tasks.function_task import as_task
