@@ -16,11 +16,10 @@ class Client:
     Client for the Prefect API.
     """
 
-    def __init__(self, server=None, api_version=1, token=None):
+    def __init__(self, server=None, token=None):
         if server is None:
             server = prefect.config.get('prefect', 'server')
         self._server = server
-        self._api_version = api_version
         self._token = token
 
         self.projects = Projects(client=self)
@@ -89,9 +88,8 @@ class Client:
         def request_fn():
             if self._token is None:
                 raise ValueError('Call Client.login() to set the client token.')
-            url = os.path.join(
-                self._server, 'v{}'.format(self._api_version), path)
-            headers = {'Authorization': 'Bearer ' + self._token.decode()}
+            url = os.path.join(self._server, path)
+            headers = {'Authorization': 'Bearer ' + self._token}
             if method == 'GET':
                 response = requests.get(url, headers=headers, params=params)
             elif method == 'POST':
@@ -115,17 +113,18 @@ class Client:
 
     # -------------------------------------------------------------------------
     # Auth
+    # -------------------------------------------------------------------------
 
     def login(self, email, password):
-        url = os.path.join(self._server, 'v{}'.format(self._api_version), 'auth/login')
+        url = os.path.join(self._server, 'auth/login')
         response = requests.post(url, auth=(email, password))
         if not response.ok:
             raise ValueError('Could not log in.')
-        self._token = response.json()['token']
+        self._token = response.json().get('token')
 
     def refresh_token(self):
         response = self._post(path='auth/refresh', token=self._token)
-        self._token = response.json()['token']
+        self._token = response.json().get('token')
 
 
 class ClientModule:
@@ -156,6 +155,9 @@ class ClientModule:
     def _graphql(self, query, **variables):
         return self._client._graphql(query=query, **variables)
 
+
+# -------------------------------------------------------------------------
+# Projects
 
 class Projects(ClientModule):
 
@@ -201,6 +203,9 @@ class Projects(ClientModule):
              ''',
             projectId=project_id)
         return data['projects']
+
+# -------------------------------------------------------------------------
+# Flows
 
 
 class Flows(ClientModule):
@@ -287,9 +292,12 @@ class Flows(ClientModule):
     #     return result
 
 
+# -------------------------------------------------------------------------
+# FlowRuns
+
 class FlowRuns(ClientModule):
 
-    path = '/flow_runs'
+    path = '/flowruns'
 
     def get_state(self, flow_run_id):
         """
@@ -319,6 +327,8 @@ class FlowRuns(ClientModule):
         """
         return self._post(path='/{}'.format(flow_run_id), start_tasks=start_tasks)
 
+# -------------------------------------------------------------------------
+# TaskRuns
 
 class TaskRuns(ClientModule):
 
