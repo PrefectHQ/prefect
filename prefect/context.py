@@ -70,6 +70,9 @@ class Context(threading.local):
     def get(self, key, missing_value=None):
         return getattr(self, key, missing_value)
 
+    def __getstate__(self):
+        return self.as_dict()
+
 
 Context = Context()
 
@@ -112,20 +115,19 @@ class Annotations:
         return {k: v for k, v in cls.__dict__.items() if not k.startswith('_')}
 
 
-def call_with_context_annotations(fn):
+def apply_context_annotations(fn):
     """
     This decorator wraps a function so that at runtime, any function arguments
     that are annotated as Context variables and not supplied by the user
     are supplied from the context.
 
+    >>> @apply_context_annotations
+    ... def test(
+    ...         x: Annotations.context_variable,
+    ...         flow_id: Annotations.flow_id):
+    ...     return x, flow_id
+    >>>
     >>> with Context(x=1, flow_id='id'):
-    ...
-    ...     @call_with_context_annotations
-    ...     def test(
-    ...             x: Annotations.context_variable,
-    ...             flow_id: Annotations.flow_id):
-    ...         return x, flow_id
-    ...
     ...     test()
     (1, 'id')
 
@@ -133,27 +135,35 @@ def call_with_context_annotations(fn):
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
-        signature = inspect.signature(fn)
-        annotations = Annotations._annotations()
-
-        # iterate over the function signature to examine each parameter
-        for i, (key, param) in enumerate(signature.parameters.items()):
-            # skip any that were explicitly provided
-            if key in kwargs or len(args) > i:
-                continue
-
-            # skip any that aren't context variables
-            elif param.annotation not in annotations.values():
-                continue
-
-            # if the annotation IS the context, return the context dict
-            elif param.annotation is Annotations.context:
-                kwargs[key] = Context.as_dict()
-
-            # else return the context variable
-            elif key in Context:
-                kwargs[key] = Context[key]
-
-        return fn(*args, **kwargs)
+        return call_with_context_annotations(fn, *args, **kwargs)
 
     return wrapper
+
+
+def call_with_context_annotations(fn, *args, **kwargs):
+    """
+    If a function has been annotated with Context variables, then calling
+    it in this way will automatically provide those variables to the function.
+    """
+    signature = inspect.signature(fn)
+    annotations = Annotations._annotations()
+
+    # iterate over the function signature to examine each parameter
+    for i, (key, param) in enumerate(signature.parameters.items()):
+        # skip any that were explicitly provided
+        if key in kwargs or len(args) > i:
+            continue
+
+        # skip any that aren't context variables
+        elif param.annotation not in annotations.values():
+            continue
+
+        # if the annotation IS the context, return the context dict
+        elif param.annotation is Annotations.context:
+            kwargs[key] = Context.as_dict()
+
+        # else return the context variable
+        elif key in Context:
+            kwargs[key] = Context[key]
+
+    return fn(*args, **kwargs)
