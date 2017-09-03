@@ -13,7 +13,7 @@ class FunctionTask(prefect.Task):
         # set the name from the fn
         if name is None:
             name = getattr(fn, '__name__', type(self).__name__)
-            flow = prefect.context.get('flow')
+            flow = prefect.context.Context.get('flow')
             if flow:
                 name = prefect.utilities.strings.name_with_suffix(
                     name=name,
