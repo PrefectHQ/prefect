@@ -109,3 +109,12 @@ def test_apply_context_annotations(context_dict):
     # annotated variable is in the context but overridden
     with Context(context_dict):
         assert test_fn(1, 2, run_dt_plus1) == run_dt_plus1
+
+def test_context_annotations_builtin(context_dict):
+    """
+    Test that functions with unreadable signatures are handled
+    """
+
+    fn = print
+    inputs = {}
+    assert not call_with_context_annotations(fn, **inputs)

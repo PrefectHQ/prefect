@@ -145,7 +145,12 @@ def call_with_context_annotations(fn, *args, **kwargs):
     If a function has been annotated with Context variables, then calling
     it in this way will automatically provide those variables to the function.
     """
-    signature = inspect.signature(fn)
+    # if we can't read a signature, just return the function
+    try:
+        signature = inspect.signature(fn)
+    except ValueError:
+        return fn(*args, **kwargs)
+        
     annotations = Annotations._annotations()
 
     # iterate over the function signature to examine each parameter
