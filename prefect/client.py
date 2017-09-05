@@ -87,7 +87,8 @@ class Client:
 
         def request_fn():
             if self._token is None:
-                raise ValueError('Call Client.login() to set the client token.')
+                raise ValueError(
+                    'Call Client.login() to set the client token.')
             url = os.path.join(self._server, path)
             headers = {'Authorization': 'Bearer ' + self._token}
             if method == 'GET':
@@ -159,6 +160,7 @@ class ClientModule:
 # -------------------------------------------------------------------------
 # Projects
 
+
 class Projects(ClientModule):
 
     path = '/projects'
@@ -203,6 +205,7 @@ class Projects(ClientModule):
              ''',
             projectId=project_id)
         return data['projects']
+
 
 # -------------------------------------------------------------------------
 # Flows
@@ -253,7 +256,8 @@ class Flows(ClientModule):
         """
         Retrieve the Flow's tasks and edges connecting them.
         """
-        return self._get(path='/{}/tasks'.format(flow_id), per_page=per_page, page=page)
+        return self._get(
+            path='/{}/tasks'.format(flow_id), per_page=per_page, page=page)
 
     def create(self, flow):
         """
@@ -291,9 +295,9 @@ class Flows(ClientModule):
     #         generating_taskrun_id=generating_taskrun_id)
     #     return result
 
+    # -------------------------------------------------------------------------
+    # FlowRuns
 
-# -------------------------------------------------------------------------
-# FlowRuns
 
 class FlowRuns(ClientModule):
 
@@ -325,14 +329,17 @@ class FlowRuns(ClientModule):
         """
         Queue a flow run to be run
         """
-        return self._post(path='/{}'.format(flow_run_id), start_tasks=start_tasks)
+        return self._post(
+            path='/{}'.format(flow_run_id), start_tasks=start_tasks)
+
 
 # -------------------------------------------------------------------------
 # TaskRuns
 
+
 class TaskRuns(ClientModule):
 
-    path = '/task_runs'
+    path = '/taskruns'
 
     def set_state(self, task_run_id, state, expected_state=None):
         """
