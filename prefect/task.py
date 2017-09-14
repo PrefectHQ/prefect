@@ -25,6 +25,7 @@ class Task:
     def __init__(
             self,
             name=None,
+            description=None,
             max_retries=0,
             retry_delay=retry_delay(minutes=5),
             trigger=None,
@@ -38,6 +39,8 @@ class Task:
         """
 
         Args:
+
+            description (str): a description of the task. Markdown is supported.
 
             retry_delay (timedelta or callable): a function that
                 is passed the most recent run number and returns an amount of
@@ -84,6 +87,7 @@ class Task:
                 'Name is invalid or could not be inferred '
                 'from provided Flow: {}'.format(name))
         self.name = name
+        self.description = description or ''
 
         # set up retries
         if not callable(retry_delay):
@@ -222,6 +226,7 @@ class Task:
         return {
             'name': self.name,
             'slug': self.slug,
+            'description': self.description,
             'type': type(self).__name__,
             'max_retries': self.max_retries,
             'serialized': prefect.utilities.serialize.serialize(self),
