@@ -28,6 +28,8 @@ class Task:
             max_retries=0,
             retry_delay=retry_delay(minutes=5),
             trigger=None,
+            loop=False,
+            loop_delay=30,
             serializer=None,
             flow=None,
             resources=None,
@@ -46,6 +48,12 @@ class Task:
 
             max_retries: the number of times this task can be retried. -1
                 indicates an infinite number of times.
+
+            loop: if True, the task will be called repeatedly until it returns
+                a "True-ish" value.
+
+            loop_delay: the number of seconds the Task should pause between
+                loop iterations.
 
             serializer (Serializer): the class used to serialize and
                 deserialize the task result.
@@ -89,6 +97,9 @@ class Task:
         elif isinstance(trigger, str):
             trigger = getattr(prefect.triggers, trigger)
         self.trigger = trigger
+
+        self.loop = loop
+        self.loop_delay = loop_delay
 
         # set up result serialization
         if serializer is None:
@@ -215,6 +226,8 @@ class Task:
             'max_retries': self.max_retries,
             'serialized': prefect.utilities.serialize.serialize(self),
             'trigger': self.trigger.__name__,
+            'loop': self.loop,
+            'loop_delay': self.loop_delay,
             'sort_order': sort_order,
             'executor_args': {
                 'cluster': self.cluster,
@@ -247,6 +260,8 @@ class Task:
             name=serialized['name'],
             max_retries=serialized['max_retries'],
             trigger=getattr(prefect.triggers, serialized['trigger'], None),
+            loop=bool(serialized['loop']),
+            loop_delay=serialized['loop_delay'],
             # executor_args
         )
 
