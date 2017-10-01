@@ -93,6 +93,9 @@ class Annotations:
     run_dt = NewType('run_dt', datetime.datetime)
     as_of_dt = NewType('as_of_dt', datetime.datetime)
 
+    # token
+    token = NewType('token', str)
+
     # flow
     flow = NewType('flow', Any)  # Flow hasn't been defined yet
     flow_id = NewType('flow_id', str)
@@ -102,10 +105,10 @@ class Annotations:
     task_id = NewType('task_id', str)
     task_name = NewType('task_name', str)
 
-    # flowrun
-    flowrun_id = NewType('flowrun_id', str)
-    flowrun_start_tasks = NewType('flowrun_start_tasks', list)
-    flowrun_params = NewType('flowrun_params', dict)
+    # flow_run
+    flow_run_id = NewType('flow_run_id', str)
+    flow_run_start_tasks = NewType('flow_run_start_tasks', list)
+    params = NewType('params', dict)
 
     # taskrun
     taskrun_id = NewType('taskrun_id', str)
@@ -150,7 +153,7 @@ def call_with_context_annotations(fn, *args, **kwargs):
         signature = inspect.signature(fn)
     except ValueError:
         return fn(*args, **kwargs)
-        
+
     annotations = Annotations._annotations()
 
     # iterate over the function signature to examine each parameter
