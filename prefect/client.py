@@ -83,7 +83,7 @@ class Client:
             return format_graphql_result(result).data
 
     def _request(self, method, path, params):
-        path = path.lstrip('/')
+        path = path.lstrip('/').rstrip('/')
 
         def request_fn():
             if self._token is None:
@@ -139,7 +139,7 @@ class ClientModule:
         self._client = client
 
     def __repr__(self):
-        return '<Client Module: {}>'.format(self._name)
+        return '<Client Module: {name}>'.format(name=self._name)
 
     def _get(self, path, **params):
         path = path.lstrip('/')
@@ -236,28 +236,11 @@ class Flows(ClientModule):
         else:
             return prefect.Flow.deserialize(data['flow']['serialized'])
 
-    def get_flowruns(self, flow_id, per_page=100, page=1):
-        """
-        Retrieve the Flow's FlowRuns.
-        """
-        return self._graphql(
-            path='/{}/flowruns'.format(flow_id),
-            state=state,
-            per_page=per_page,
-            page=page)
-
     def set_state(self, flow_id, state):
         """
         Update a Flow's state
         """
-        return self._post(path='/{}/state'.format(flow_id), state=state)
-
-    def get_tasks(self, flow_id, state=None, per_page=500, page=1):
-        """
-        Retrieve the Flow's tasks and edges connecting them.
-        """
-        return self._get(
-            path='/{}/tasks'.format(flow_id), per_page=per_page, page=page)
+        return self._post(path='/{id}/state'.format(id=flow_id), state=state)
 
     def create(self, flow):
         """
@@ -266,37 +249,9 @@ class Flows(ClientModule):
         return self._post(
             path='/', serialized_flow=ujson.dumps(flow.serialize()))
 
-    def search(
-            self, project=None, name=None, version=None, per_page=100, page=1):
-        return self._post(
-            path='/search',
-            project=project,
-            name=name,
-            version=version,
-            per_page=per_page,
-            page=page)
 
-    # def run_flow(
-    #         self,
-    #         flow_id,
-    #         scheduled_start=None,
-    #         parameters=None,
-    #         resume_tasks=None,
-    #         generating_taskrun_id=None):
-    #     """
-    #     Start (or schedule) a flow run on the server
-    #     """
-    #     result = self._post(
-    #         path='flows/run',
-    #         flow_id=flow_id,
-    #         scheduled_start=scheduled_start,
-    #         parameters=parameters,
-    #         resume_tasks=resume_tasks,
-    #         generating_taskrun_id=generating_taskrun_id)
-    #     return result
-
-    # -------------------------------------------------------------------------
-    # FlowRuns
+# -------------------------------------------------------------------------
+# FlowRuns
 
 
 class FlowRuns(ClientModule):
@@ -307,14 +262,14 @@ class FlowRuns(ClientModule):
         """
         Retrieve a flow run's state
         """
-        return self._get(path='/{}/state'.format(flow_run_id))
+        return self._get(path='/{id}/state'.format(id=flow_run_id))
 
     def set_state(self, flow_run_id, state, expected_state=None):
         """
         Retrieve a flow run's state
         """
         return self._post(
-            path='/{}/state'.format(flow_run_id),
+            path='/{id}/state'.format(id=flow_run_id),
             state=state,
             expected_state=expected_state)
 
@@ -325,12 +280,14 @@ class FlowRuns(ClientModule):
             parameters=parameters,
             parent_taskrun_id=parent_taskrun_id)
 
-    def run(self, flow_run_id, start_tasks=None):
+    def run(self, flow_run_id, start_tasks=None, context=None):
         """
         Queue a flow run to be run
         """
         return self._post(
-            path='/{}'.format(flow_run_id), start_tasks=start_tasks)
+            path='/{id}'.format(id=flow_run_id),
+            start_tasks=start_tasks,
+            context=context)
 
 
 # -------------------------------------------------------------------------
@@ -346,6 +303,6 @@ class TaskRuns(ClientModule):
         Retrieve a task run's state
         """
         return self._post(
-            path='/{}/state'.format(task_run_id),
+            path='/{id}/state'.format(id=task_run_id),
             state=state,
             expected_state=expected_state)
