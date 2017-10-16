@@ -1,8 +1,8 @@
-import functools
+import ujson
 import prefect
 
 
-class IndexTask(prefect.Task):
+class IndexResultTask(prefect.Task):
 
     def __init__(self, index, **kwargs):
         """
@@ -14,7 +14,10 @@ class IndexTask(prefect.Task):
             indexed_task = task[3]
 
         """
-        self.index = index
+        try:
+            self.index = ujson.loads(ujson.dumps(index))
+        except TypeError:
+            raise ValueError('index must be JSON-encodable')
         super().__init__(**kwargs)
 
     def run(self, index_task):

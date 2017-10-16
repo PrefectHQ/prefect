@@ -6,7 +6,7 @@ import prefect
 import prefect.context
 import ujson
 from prefect.schedules import NoSchedule
-from prefect.task import Task, TaskResult
+from prefect.task import Task
 from prefect.utilities.strings import is_valid_identifier
 
 

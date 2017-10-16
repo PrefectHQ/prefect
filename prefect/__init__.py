@@ -12,7 +12,7 @@ import prefect.triggers
 import prefect.context
 
 from prefect.task import Task
-from prefect.tasks.function_task import as_task
+from prefect.tasks.core.function_task import as_task
 
 from prefect.flow import Flow
 from prefect.secret import Secret

@@ -118,6 +118,7 @@ class Task:
         self.resources = resources or {}
         self.image = image
         self.cluster = cluster
+        self._indexed_results_cache = {}
 
         # add the task to the flow
         if flow:
@@ -237,11 +238,12 @@ class Task:
             'loop': self.loop,
             'loop_delay': self.loop_delay,
             'sort_order': sort_order,
-            'executor_args': {
-                'cluster': self.cluster,
-                'image': self.image,
-                'resources': self.resources,
-            }
+            'executor_args':
+                {
+                    'cluster': self.cluster,
+                    'image': self.image,
+                    'resources': self.resources,
+                }
         }
 
     @classmethod
@@ -302,7 +304,18 @@ class Task:
         raise NotImplementedError('Tasks are not iterable.')
 
     def __getitem__(self, index):
-        return TaskResult(task=self, index=index)
+        """
+        Indexing a task automatically creates an IndexR
+        """
+        from prefect.tasks.core import IndexResultTask
+
+        name = '{}[{}]'.format(self.name, index)
+        # use a cache so we can reuse IndexResultTasks when possible
+        if name not in self._indexed_results_cache:
+            self._indexed_results_cache[name] = IndexResultTask(
+                index=index, name=name)
+            self._indexed_results_cache[name].run_with(upstream_task=self)
+        return self._indexed_results_cache[name]
 
     # Sugar -------------------------------------------------------------------
 
@@ -337,28 +350,3 @@ class Task:
         """ obj << self -> self.run_before(obj)"""
         self.run_before(obj)
         return obj
-
-
-class TaskResult:
-    """
-    An object that represents the symbolic result (output) of a Task.
-
-    TaskResults are primarily used to pipe data from one task to another.
-
-    Note that TaskResults are stand-ins for task results, but don't hold
-    the actual results.
-    """
-
-    def __init__(self, task, index=None):
-        if not isinstance(task, Task):
-            raise TypeError(
-                'task must be a Task; received {}'.format(type(task).__name__))
-        self.task = task
-        self.name = task.name
-        self.index = index
-
-    def _repr_index(self):
-        return '[{}]'.format(self.index if self.index is not None else ':')
-
-    def __repr__(self):
-        return 'TaskResult({}{})'.format(self.task.name, self._repr_index())
