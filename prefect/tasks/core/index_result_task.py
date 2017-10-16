@@ -20,5 +20,5 @@ class IndexResultTask(prefect.Task):
             raise ValueError('index must be JSON-encodable')
         super().__init__(**kwargs)
 
-    def run(self, index_task):
-        return index_task[self.index]
+    def run(self, upstream_task):
+        return upstream_task[self.index]
