@@ -16,8 +16,7 @@ class Edge:
             self,
             upstream_task,
             downstream_task,
-            key=None,
-            upstream_index=None,):
+            key=None):
         """
         Edges represent connections between Tasks.
 
@@ -25,12 +24,11 @@ class Edge:
         indicating that the downstream task shouldn't run until the upstream
         task is complete.
 
-        In addition, edges can specify a key and upstream_index that
-        describe how upstream results are passed to the downstream task.
+        In addition, edges can specify a key that describe how upstream results
+        are passed to the downstream task.
 
-        Args:
-            upstream_task (str): the name of a task that must run before the
-                downstream_task
+        Args: upstream_task (str): the name of a task that must run before the
+            downstream_task
 
             downstream_task (str): the name of a task that will be run after the
                 upstream_task. The upstream task state is passed to the
@@ -41,14 +39,9 @@ class Edge:
                 that the upstream result should be passed to the downstream
                 task as a keyword argument.
 
-            upstream_index (obj): Optional, but a key must also be
-                passed. The upstream key is used to index the upstream result
-                prior to passing it to the downstream task.
+        The key indicates that the result of the upstream task should be passed
+        to the downstream task under the key.
 
-        The key indicates that the result of the upstream task
-        should be passed to the downstream task under the key.
-
-        If a key is provided, an upstream_index can also be provided
         """
         if isinstance(upstream_task, Task):
             upstream_task = upstream_task.name
@@ -62,16 +55,7 @@ class Edge:
                 raise ValueError(
                     'Downstream key ("{}") must be a valid identifier'.format(
                         key))
-        elif upstream_index is not None:
-            raise ValueError(
-                'Downstream key must be supplied to use an upstream key')
         self.key = key
-
-        try:
-            ujson.loads(ujson.dumps(upstream_index))
-            self.upstream_index = upstream_index
-        except TypeError:
-            raise ValueError('upstream_index must be JSON-encodable')
 
     def serialize(self):
         """
@@ -81,20 +65,14 @@ class Edge:
             'upstream_task': self.upstream_task,
             'downstream_task': self.downstream_task,
             'key': self.key,
-            'upstream_index': self.upstream_index
         }
 
     @classmethod
     def deserialize(cls, serialized):
-        serialized = serialized.copy()
-        if serialized['upstream_index'] is not None:
-            serialized['upstream_index'] = ujson.loads(
-                serialized['upstream_index'])
         return cls(
             upstream_task=serialized['upstream_task'],
             downstream_task=serialized['downstream_task'],
-            key=serialized['key'],
-            upstream_index=serialized['upstream_index'])
+            key=serialized['key'])
 
 
 class Flow:
@@ -207,8 +185,7 @@ class Flow:
             self,
             upstream_task,
             downstream_task,
-            key=None,
-            upstream_index=None,):
+            key=None):
         """
         Adds an Edge to the Flow. Edges create dependencies between tasks.
         The simplest edge simply enforcces an ordering so that the upstream
@@ -216,14 +193,9 @@ class Flow:
         complex behaviors as well.
         """
 
-        if isinstance(upstream_task, TaskResult):
-            upstream_task = upstream_task.task
-            upstream_index = upstream_task.index
-
         edge = Edge(
             upstream_task=upstream_task.name,
             downstream_task=downstream_task.name,
-            upstream_index=upstream_index,
             key=key,)
 
         if upstream_task not in self.tasks.values():
@@ -490,7 +462,6 @@ class Flow:
             flow.add_edge(
                 upstream_task=flow.get_task(edge['upstream_task']),
                 downstream_task=flow.get_task(edge['downstream_task']),
-                upstream_index=edge['upstream_index'],
                 key=edge['key'])
 
         return flow
