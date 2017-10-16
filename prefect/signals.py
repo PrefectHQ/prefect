@@ -2,48 +2,45 @@ class PrefectError(Exception):
     pass
 
 
-class PrefectSignal(Exception):
-    pass
-
-
 # ------------------------------------------------------------------------------
-# These classes are used to signal state changes to Runners
+# These classes are used to signal state changes when tasks are running
 # ------------------------------------------------------------------------------
+class PrefectStateException(Exception):
+
+    def __init__(self, result=None, *args, **kwargs):
+        self.result = result
+        super().__init__(*args, **kwargs)
 
 
-class RETRY(PrefectSignal):
+class RETRY(PrefectStateException):
     """
     Used to indicate that a task should be retried
     """
     pass
 
 
-class SKIP(PrefectSignal):
+class SKIP(PrefectStateException):
     """
-    Indicates that a task was skipped. Generally this is considered a "success"
-    and downstream tasks will run.
+    Indicates that a task was skipped.
     """
     pass
 
 
-class FAIL(PrefectSignal):
+class FAIL(PrefectStateException):
     """
     Indicates that a task failed.
     """
     pass
 
 
-class SUCCESS(PrefectSignal):
+class SUCCESS(PrefectStateException):
     """
     Indicates that a task succeeded.
     """
-
-    def __init__(self, *args, result=None, **kwargs):
-        self.result = result
-        super().__init__(*args, **kwargs)
+    pass
 
 
-class DONTRUN(PrefectSignal):
+class DONTRUN(PrefectStateException):
     """
     Aborts the task without changing its state. Used to avoid
     running multiple tasks simultaneously.
@@ -51,7 +48,7 @@ class DONTRUN(PrefectSignal):
     pass
 
 
-class SHUTDOWN(PrefectSignal):
+class SHUTDOWN(PrefectStateException):
     """
     Indicates that a task was shutdown externally.
     """
