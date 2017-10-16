@@ -199,25 +199,28 @@ class Task:
         self.run_before(task)
         return task
 
-    def __call__(self, *upstream_tasks, **results):
-        """
-        Dynamically create relationships between this task and upstream
-        tasks.
+    def run_with(self, *upstream_tasks, **upstream_results):
+        '''
+        Dynamically create relationships between this task and upstream tasks.
 
         Args:
+
             *upstream_tasks (Tasks): The provided Tasks will be set as upstream
                 dependencies of this task
 
-            **results (Tasks or TaskResults): The provided Tasks / TaskResults
-                will be made upstream dependencies of this task AND their
-                results will passed to the task under the provided keyword.
-        """
+            upstream_results (Tasks or TaskResults): The provided Tasks /
+                TaskResults will be made upstream dependencies of this task AND
+                their upstream_results will passed to the task under the
+                provided keyword.
+        '''
         flow = prefect.context.Context.get('flow')
         if not flow:
             raise ValueError(
                 'This function can only be called inside a Flow context')
         flow.set_up_task(
-            task=self, upstream_tasks=upstream_tasks, upstream_results=results)
+            task=self,
+            upstream_tasks=upstream_tasks,
+            upstream_results=upstream_results)
         return self
 
     # Serialize ---------------------------------------------------------------
