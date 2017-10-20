@@ -12,11 +12,7 @@ from prefect.utilities.strings import is_valid_identifier
 
 class Edge:
 
-    def __init__(
-            self,
-            upstream_task,
-            downstream_task,
-            key=None):
+    def __init__(self, upstream_task, downstream_task, key=None):
         """
         Edges represent connections between Tasks.
 
@@ -139,7 +135,8 @@ class Flow:
             self.name,
             self.version,
             self.tasks,
-            self.edges,)
+            self.edges,
+        )
 
     def __repr__(self):
         base = '{self.project}.{self.name}'.format(self=self)
@@ -181,11 +178,7 @@ class Flow:
                     task=task))
         self.tasks[task.name] = task
 
-    def add_edge(
-            self,
-            upstream_task,
-            downstream_task,
-            key=None):
+    def add_edge(self, upstream_task, downstream_task, key=None):
         """
         Adds an Edge to the Flow. Edges create dependencies between tasks.
         The simplest edge simply enforcces an ordering so that the upstream
@@ -196,7 +189,8 @@ class Flow:
         edge = Edge(
             upstream_task=upstream_task.name,
             downstream_task=downstream_task.name,
-            key=key,)
+            key=key,
+        )
 
         if upstream_task not in self.tasks.values():
             self.add_task(upstream_task)
@@ -391,7 +385,7 @@ class Flow:
 
         required_parameters = sorted(str(p) for p in self.required_parameters)
         tasks = [
-            t.serialize(sort_order=i)
+            dict(t.serialize(), sort_order=i)
             for i, t in enumerate(self.sorted_tasks())
         ]
         edges = [e.serialize() for e in self.edges]
