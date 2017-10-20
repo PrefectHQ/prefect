@@ -43,10 +43,10 @@ class Context(threading.local):
     def update(self, *args, **kwargs):
         if args == (None,):
             args = ()
+        args = [a.as_dict() if isinstance(a, type(self)) else a for a in args]
         self.__dict__.update(*args, **kwargs)
 
     def reset(self, *args, **kwargs):
-
         self.__dict__.clear()
         self.update(*args, **kwargs)
 
@@ -110,8 +110,10 @@ class Annotations:
     flow_run_start_tasks = NewType('flow_run_start_tasks', list)
     params = NewType('params', dict)
 
-    # taskrun
-    taskrun_id = NewType('taskrun_id', str)
+    # task_run
+    task_run_id = NewType('task_run_id', str)
+    task_run_upstream_states = NewType('task_run_upstream_states', dict)
+    task_run_inputs = NewType('task_run_inputs', dict)
 
     @classmethod
     def _annotations(cls):
