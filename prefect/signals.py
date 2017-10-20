@@ -12,20 +12,6 @@ class PrefectStateException(Exception):
         super().__init__(*args, **kwargs)
 
 
-class RETRY(PrefectStateException):
-    """
-    Used to indicate that a task should be retried
-    """
-    pass
-
-
-class SKIP(PrefectStateException):
-    """
-    Indicates that a task was skipped.
-    """
-    pass
-
-
 class FAIL(PrefectStateException):
     """
     Indicates that a task failed.
@@ -40,10 +26,33 @@ class SUCCESS(PrefectStateException):
     pass
 
 
+class RETRY(PrefectStateException):
+    """
+    Used to indicate that a task should be retried
+    """
+    pass
+
+
+class SKIP(PrefectStateException):
+    """
+    Indicates that a task was skipped. By default, downstream tasks will
+    act as if skipped tasks succeeded.
+    """
+    pass
+
+class SKIP_DOWNSTREAM(PrefectStateException):
+    """
+    Indicates that a task *and all downstream tasks* should be skipped.
+
+    Downstream tasks will still evaluate their trigger functions, giving them
+    a chance to interrupt the chain, but if the trigger fails they will also
+    enter a SKIP_DOWNSTREAM state.
+    """
+    pass
+
 class DONTRUN(PrefectStateException):
     """
-    Aborts the task without changing its state. Used to avoid
-    running multiple tasks simultaneously.
+    Indicates that a task should not run and its state should not be modified.
     """
     pass
 
