@@ -5,7 +5,7 @@ from prefect.signals import PrefectError
 from prefect.flow import Flow
 from prefect.task import Task
 from prefect.tasks.core import FunctionTask, IndexResultTask
-from prefect import as_task
+from prefect import as_task_class
 from prefect.utilities.datetimes import retry_delay
 import pytest
 
@@ -33,7 +33,7 @@ class TestTask:
     def test_task_decorator(self):
         """ Test task decorator"""
 
-        @as_task
+        @as_task_class
         def fn():
             raise ValueError('expected error')
 
@@ -47,7 +47,7 @@ class TestTask:
         Test auto-assignment of Task names
         """
 
-        @as_task
+        @as_task_class
         def myfn():
             pass
 

@@ -27,18 +27,18 @@ class FunctionTask(prefect.Task):
         return prefect.context.call_with_context_annotations(self.fn, **inputs)
 
 
-def as_task(fn=None, **kwargs):
+def as_task_class(fn=None, **kwargs):
     """
     A decorator for creating Tasks from functions.
 
     Usage:
 
-    @as_task
+    @as_task_class
     def myfn():
         time.sleep(10)
         return 1
 
-    @as_task(name='hello', retries=3)
+    @as_task_class(name='hello', retries=3)
     def hello():
         print('hello')
 
