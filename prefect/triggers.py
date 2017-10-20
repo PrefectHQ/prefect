@@ -6,60 +6,74 @@ the state of preceding tasks.
 from prefect import context, signals
 
 
-def dont_run(preceding_states):
+def always_run(upstream_states):
     """
-    the task never runs unless it appears in context.run_tasks
+    This task will run no matter what the upstream states are.
     """
-    if context.Context.task_name in context.Context.flowrun_start_tasks:
+    return True
+
+
+def never_run(upstream_states):
+    """
+    This task will never run no matter what the upstream states are.
+
+    It will only run if it is specified as a "start task" of the flow run. Note
+    that root tasks (tasks with no upstream tasks) are considered "start tasks"
+    unless specified otherwise.
+    """
+    task_name = context.Context.get('task_name', False)
+    if task_name and task_name in context.Context.get('flowrun_start_tasks', []):
         return True
 
 
-def all_successful(preceding_states):
+def all_successful(upstream_states):
     """
-    any unsuccessful -> fail
-    * skipped tasks count as successes
+    Runs if all upstream tasks were successful. SKIPPED tasks are considered
+    successes (SKIP_DOWNSTREAM is not).
+
+    If any tasks failed, this task will fail since the trigger can not be
+    acheived.
     """
-    if not all(s.is_successful() for s in preceding_states.values()):
+    if not all(s.is_successful() for s in upstream_states.values()):
         raise signals.FAIL('Trigger failed: some preceding tasks failed')
     return True
 
 
-def all_failed(preceding_states):
+def all_failed(upstream_states):
     """
-    any successful -> fail
-    * skipped tasks count as successes
+    Runs if all upstream tasks failed. SKIPPED tasks are considered successes.
     """
-    if not all(s.is_failed() for s in preceding_states.values()):
+    if not all(s.is_failed() for s in upstream_states.values()):
         raise signals.FAIL('Trigger failed: some preceding tasks succeeded')
     return True
 
 
-def all_done(preceding_states):
+def all_finished(upstream_states):
     """
-    the task always runs when upstream tasks have run
+    Runs if all tasks finished (either SUCCESS, FAIL, SKIP, or SKIP_DOWNSTREAM)
     """
-    if not all(s.is_finished() for s in preceding_states.values()):
+    if not all(s.is_finished() for s in upstream_states.values()):
         raise signals.FAIL(
             "Trigger failed: some preceding tasks did not finish. "
-            "(This shouldn't happen.)")
+            "(This shouldn't happen!)")
     return True
 
 
-def any_successful(preceding_states):
+def any_successful(upstream_states):
     """
-    none successful -> fail
-    * skipped tasks count as successes
+    Runs if any tasks were successful. SKIPPED tasks are considered successes;
+    SKIP_DOWNSTREAM is not.
     """
-    if not any(s.is_successful() for s in preceding_states.values()):
+    if not any(s.is_successful() for s in upstream_states.values()):
         raise signals.FAIL('Trigger failed: no preceding tasks succeeded')
     return True
 
 
-def any_failed(preceding_states):
+def any_failed(upstream_states):
     """
-    none failed -> fail
+    No failed tasks -> fail
     * skipped tasks count as successes
     """
-    if not any(s.is_failed() for s in preceding_states.values()):
+    if not any(s.is_failed() for s in upstream_states.values()):
         raise signals.FAIL('Trigger failed: no preceding tasks failed')
     return True
