@@ -1,7 +1,10 @@
 import importlib
+
+from slugify import slugify
+
 import prefect
-from prefect.utilities.strings import name_with_suffix
 from prefect.utilities.datetimes import retry_delay
+from prefect.utilities.strings import name_with_suffix
 
 
 class Task:
@@ -9,12 +12,12 @@ class Task:
     Tasks are basic units of work. Each task performs a specific funtion.
     """
 
-    def __new__(obj, *args, **kwargs):
+    def __new__(base, *args, **kwargs):
         """
         Each Task tracks the arguments that were used to create it. These
         variables are available as Task._init_args and Task._init_kwargs.
         """
-        instance = super().__new__(obj)
+        instance = super().__new__(base)
         instance._init_args = args
         instance._init_kwargs = kwargs
         return instance
@@ -22,9 +25,12 @@ class Task:
     def __init__(
             self,
             name=None,
+            description=None,
             max_retries=0,
             retry_delay=retry_delay(minutes=5),
             trigger=None,
+            loop=False,
+            loop_delay=30,
             serializer=None,
             flow=None,
             resources=None,
@@ -33,6 +39,8 @@ class Task:
         """
 
         Args:
+
+            description (str): a description of the task. Markdown is supported.
 
             retry_delay (timedelta or callable): a function that
                 is passed the most recent run number and returns an amount of
@@ -43,6 +51,12 @@ class Task:
 
             max_retries: the number of times this task can be retried. -1
                 indicates an infinite number of times.
+
+            loop: if True, the task will be called repeatedly until it returns
+                a "True-ish" value.
+
+            loop_delay: the number of seconds the Task should pause between
+                loop iterations.
 
             serializer (Serializer): the class used to serialize and
                 deserialize the task result.
@@ -58,7 +72,7 @@ class Task:
         """
 
         # see if this task was created inside a flow context
-        flow = flow or prefect.context.get('flow')
+        flow = flow or prefect.context.Context.get('flow')
 
         # if a flow was provided, try to infer a name
         if flow and name is None:
@@ -71,8 +85,9 @@ class Task:
         if not isinstance(name, str):
             raise ValueError(
                 'Name is invalid or could not be inferred '
-                f'from provided Flow: {name}')
+                'from provided Flow: {}'.format(name))
         self.name = name
+        self.description = description or ''
 
         # set up retries
         if not callable(retry_delay):
@@ -87,6 +102,9 @@ class Task:
             trigger = getattr(prefect.triggers, trigger)
         self.trigger = trigger
 
+        self.loop = loop
+        self.loop_delay = loop_delay
+
         # set up result serialization
         if serializer is None:
             default = prefect.config.get('tasks', 'default_serializer')
@@ -100,17 +118,25 @@ class Task:
         self.resources = resources or {}
         self.image = image
         self.cluster = cluster
+        self._indexed_results_cache = {}
 
         # add the task to the flow
         if flow:
             flow.add_task(self)
 
+    @property
+    def slug(self):
+        return slugify(self.name)
+
     def __repr__(self):
-        return f'{type(self).__name__}({self.name})'
+        return '{}({})'.format(type(self).__name__, self.name)
 
     # Comparison --------------------------------------------------------------
 
     def __eq__(self, other):
+        """
+        Equality is determined by examining the serialized Task
+        """
         if type(self) == type(other) and self.name == other.name:
             self_comp = self.serialize()
             self_comp.pop('serialized')
@@ -124,92 +150,94 @@ class Task:
 
     # Relationships  ----------------------------------------------------------
 
-    def run_before(self, tasks):
+    def run_after(self, *tasks, **kwarg_tasks):
         """
-        Adds a relationship to the Flow so that this task runs before another
-        task.
+        Adds a relationship to the Flow so that this task runs after other
+        tasks, optionally receiving their results at runtime as keyword
+        arguments.
 
         Args:
-            Tasks (Task or collection of Tasks): Tasks that this task should
-                run before.
+            *tasks (Task[]): The provided tasks will become upstream
+                dependencies of this task.
+
+            **kwarg_tasks (dict[kwarg, Task]): The provided tasks will become
+                upstream dependencies of this task AND their results will be
+                provided to this task as the specified keyword argument.
         """
-        flow = prefect.context.get('flow')
-        if not flow:
-            raise ValueError(
-                'This function can only be called inside a Flow context')
-        if isinstance(tasks, Task):
-            tasks = [tasks]
-        for t in tasks:
-            flow.set_up_task(task=t, upstream_tasks=[self])
-
-    def run_after(self, tasks):
-        """
-        Adds a relationship to the Flow so that this task runs after another
-        task.
-
-        Args:
-            Tasks (Task or collection of Tasks): Tasks that this task should
-                run after.
-        """
-        flow = prefect.context.get('flow')
-        if not flow:
-            raise ValueError(
-                'This function can only be called inside a Flow context')
-        if isinstance(tasks, Task):
-            tasks = [tasks]
-        flow.set_up_task(task=self, upstream_tasks=tasks)
-
-    def then(self, task):
-        """
-        Create simple dependency chains by linking tasks:
-            task1.then(task2).then(task3)
-
-        Args:
-            task (Task): the task that should run after this one
-
-        Returns:
-            The downstream task (`task`)
-
-        """
-        self.run_before(task)
-        return task
-
-    def __call__(self, *upstream_tasks, **results):
-        """
-        Dynamically create relationships between this task and upstream
-        tasks.
-
-        Args:
-            *upstream_tasks (Tasks): The provided Tasks will be set as upstream
-                dependencies of this task
-
-            **results (Tasks or TaskResults): The provided Tasks / TaskResults
-                will be made upstream dependencies of this task AND their
-                results will passed to the task under the provided keyword.
-        """
-        flow = prefect.context.get('flow')
+        flow = prefect.context.Context.get('flow')
         if not flow:
             raise ValueError(
                 'This function can only be called inside a Flow context')
         flow.set_up_task(
-            task=self, upstream_tasks=upstream_tasks, upstream_results=results)
+            task=self, upstream_tasks=tasks, upstream_results=kwarg_tasks)
+
         return self
+
+    def run_before(self, *tasks, kwarg=None):
+        """
+        Adds a relationship to the Flow so that this task runs before other
+        tasks.
+
+        Args:
+            tasks (Task[]): The provided tasks will become downstream
+                dependencies of this task.
+
+            kwarg (str): If provided, this task's result will be provided
+                to any downstream tasks under the specified keyword argument.
+        """
+        flow = prefect.context.Context.get('flow')
+        if not flow:
+            raise ValueError(
+                'This function can only be called inside a Flow context')
+
+        if kwarg:
+            if not isinstance(kwarg, str):
+                raise TypeError('kwarg must be a string.')
+            upstream_results = {kwarg: self}
+        else:
+            upstream_results = None
+
+        for t in tasks:
+            flow.set_up_task(
+                task=t,
+                upstream_tasks=[self],
+                upstream_results=upstream_results)
+
+        return self
+
+    def then(self, task, kwarg=None):
+        """
+        Create simple dependency chains by linking tasks:
+            task1.then(task2, kwarg=t1).then(task3)
+
+        Args:
+            task (Task): The task that should run after this one
+            kwarg (str): If provided, this task's result will be provided to
+                the downstream task under this keyword argument.
+
+        Returns:
+            The downstream task (`task`)
+        """
+        self.run_before(task, kwarg=kwarg)
+        return task
 
     # Serialize ---------------------------------------------------------------
 
-    def serialize(self, sort_order=None):
+    def serialize(self):
         return {
             'name': self.name,
+            'slug': self.slug,
+            'description': self.description,
             'type': type(self).__name__,
             'max_retries': self.max_retries,
             'serialized': prefect.utilities.serialize.serialize(self),
             'trigger': self.trigger.__name__,
-            'sort_order': sort_order,
-            'executor_args': {
-                'cluster': self.cluster,
-                'image': self.image,
-                'resources': self.resources,
-            }
+            'executor_args':
+                {
+                    'cluster': self.cluster,
+                    'image': self.image,
+                    'resources': self.resources,
+                }
         }
 
     @classmethod
@@ -236,6 +264,8 @@ class Task:
             name=serialized['name'],
             max_retries=serialized['max_retries'],
             trigger=getattr(prefect.triggers, serialized['trigger'], None),
+            loop=bool(serialized['loop']),
+            loop_delay=serialized['loop_delay'],
             # executor_args
         )
 
@@ -268,20 +298,33 @@ class Task:
         raise NotImplementedError('Tasks are not iterable.')
 
     def __getitem__(self, index):
-        return TaskResult(task=self, index=index)
+        """
+        Indexing a task automatically creates an IndexR
+        """
+        from prefect.tasks.core import IndexResultTask
+
+        name = '{}[{}]'.format(self.name, index)
+        # use a cache so we can reuse IndexResultTasks when possible
+        if name not in self._indexed_results_cache:
+            self._indexed_results_cache[name] = IndexResultTask(
+                index=index, name=name)
+            self._indexed_results_cache[name].run_with(upstream_task=self)
+        return self._indexed_results_cache[name]
 
     # Sugar -------------------------------------------------------------------
 
     def __or__(self, task):
-        """ self | task -> self.run_before(task)"""
+        """
+        self | task -> self.run_before(task)
+        """
         self.run_before(task)
         return task
 
-    def __ror__(self, obj):
+    def __ror__(self, task):
         """
-        obj | self -> self.run_after(obj)
+        task | self -> self.run_after(task)
         """
-        self.run_after(obj)
+        self.run_after(task)
         return self
 
     def __rshift__(self, task):
@@ -303,28 +346,3 @@ class Task:
         """ obj << self -> self.run_before(obj)"""
         self.run_before(obj)
         return obj
-
-
-class TaskResult:
-    """
-    An object that represents the symbolic result (output) of a Task.
-
-    TaskResults are primarily used to pipe data from one task to another.
-
-    Note that TaskResults are stand-ins for task results, but don't hold
-    the actual results.
-    """
-
-    def __init__(self, task, index=None):
-        if not isinstance(task, Task):
-            raise TypeError(
-                'task must be a Task; received {}'.format(type(task).__name__))
-        self.task = task
-        self.name = task.name
-        self.index = index
-
-    def _repr_index(self):
-        return '[{}]'.format(self.index if self.index is not None else ':')
-
-    def __repr__(self):
-        return 'TaskResult({}{})'.format(self.task.name, self._repr_index())

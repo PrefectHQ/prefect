@@ -3,11 +3,15 @@ import datetime
 import prefect
 from prefect.signals import PrefectError
 from prefect.flow import Flow
-from prefect.task import Task, TaskResult
-from prefect import as_task
+from prefect.task import Task
+from prefect.tasks.core import FunctionTask, IndexResultTask
+from prefect import as_task_class
 from prefect.utilities.datetimes import retry_delay
 import pytest
 
+@pytest.fixture
+def indexable_task():
+    return FunctionTask(fn=lambda: {'a': 1, 'b': [2, 3]})
 
 class TestTask:
 
@@ -29,7 +33,7 @@ class TestTask:
     def test_task_decorator(self):
         """ Test task decorator"""
 
-        @as_task
+        @as_task_class
         def fn():
             raise ValueError('expected error')
 
@@ -43,7 +47,7 @@ class TestTask:
         Test auto-assignment of Task names
         """
 
-        @as_task
+        @as_task_class
         def myfn():
             pass
 
@@ -207,10 +211,19 @@ class TestTaskRelationships:
         assert set([mid1, mid2]) == f.upstream_tasks(after)
 
 
-class TestTaskResult:
+class TestIndexResult:
 
-    def test_getitem(self):
+    def test_getitem(self, indexable_task):
+        """
+        Tests that indexing a task works
+        """
         with Flow('test') as f:
-            t1 = Task()
-        assert isinstance(t1['a'], TaskResult)
-        assert t1['a'].task is t1 and t1['a'].index == 'a'
+            t2 = indexable_task['a']
+            assert isinstance(t2, IndexResultTask)
+            assert t2.index == 'a'
+            assert len(f.edges) == 1
+
+    def test_getitem_outside_flow(self, indexable_task):
+        with pytest.raises(ValueError):
+            t2 = indexable_task['a']
+

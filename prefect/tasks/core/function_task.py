@@ -13,7 +13,7 @@ class FunctionTask(prefect.Task):
         # set the name from the fn
         if name is None:
             name = getattr(fn, '__name__', type(self).__name__)
-            flow = prefect.context.get('flow')
+            flow = prefect.context.Context.get('flow')
             if flow:
                 name = prefect.utilities.strings.name_with_suffix(
                     name=name,
@@ -24,21 +24,21 @@ class FunctionTask(prefect.Task):
         super().__init__(name=name, **kwargs)
 
     def run(self, **inputs):
-        return self.fn(**inputs)
+        return prefect.context.call_with_context_annotations(self.fn, **inputs)
 
 
-def as_task(fn=None, **kwargs):
+def as_task_class(fn=None, **kwargs):
     """
     A decorator for creating Tasks from functions.
 
     Usage:
 
-    @as_task
+    @as_task_class
     def myfn():
         time.sleep(10)
         return 1
 
-    @as_task(name='hello', retries=3)
+    @as_task_class(name='hello', retries=3)
     def hello():
         print('hello')
 

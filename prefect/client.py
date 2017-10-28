@@ -16,11 +16,10 @@ class Client:
     Client for the Prefect API.
     """
 
-    def __init__(self, server=None, api_version=1, token=None):
+    def __init__(self, server=None, token=None):
         if server is None:
             server = prefect.config.get('prefect', 'server')
         self._server = server
-        self._api_version = api_version
         self._token = token
 
         self.projects = Projects(client=self)
@@ -84,28 +83,22 @@ class Client:
             return format_graphql_result(result).data
 
     def _request(self, method, path, params):
-        path = path.lstrip('/')
+        path = path.lstrip('/').rstrip('/')
 
         def request_fn():
             if self._token is None:
-                raise ValueError('Call Client.login() to set the client token.')
-            url = os.path.join(self._server, f'v{self._api_version}', path)
-            headers = {'Authorization': 'Bearer ' + self._token.decode()}
+                raise ValueError(
+                    'Call Client.login() to set the client token.')
+            url = os.path.join(self._server, path)
+            headers = {'Authorization': 'Bearer ' + self._token}
             if method == 'GET':
-                response = requests.get(
-                    url,
-                    headers=headers,
-                    params=params)
+                response = requests.get(url, headers=headers, params=params)
             elif method == 'POST':
-                response = requests.post(
-                    url,
-                    headers=headers,
-                    data=params)
+                response = requests.post(url, headers=headers, data=params)
             elif method == 'DELETE':
-                response = requests.delete(
-                    url, headers=headers)
+                response = requests.delete(url, headers=headers)
             else:
-                raise ValueError(f'Invalid method: {method}')
+                raise ValueError('Invalid method: {}'.format(method))
 
             response.raise_for_status()
 
@@ -121,17 +114,18 @@ class Client:
 
     # -------------------------------------------------------------------------
     # Auth
+    # -------------------------------------------------------------------------
 
     def login(self, email, password):
-        url = os.path.join(self._server, f'v{self._api_version}', 'auth/login')
+        url = os.path.join(self._server, 'auth/login')
         response = requests.post(url, auth=(email, password))
         if not response.ok:
             raise ValueError('Could not log in.')
-        self._token = response.json()['token']
+        self._token = response.json().get('token')
 
     def refresh_token(self):
         response = self._post(path='auth/refresh', token=self._token)
-        self._token = response.json()['token']
+        self._token = response.json().get('token')
 
 
 class ClientModule:
@@ -145,7 +139,7 @@ class ClientModule:
         self._client = client
 
     def __repr__(self):
-        return f'<Client Module: {self._name}>'
+        return '<Client Module: {name}>'.format(name=self._name)
 
     def _get(self, path, **params):
         path = path.lstrip('/')
@@ -161,6 +155,10 @@ class ClientModule:
 
     def _graphql(self, query, **variables):
         return self._client._graphql(query=query, **variables)
+
+
+# -------------------------------------------------------------------------
+# Projects
 
 
 class Projects(ClientModule):
@@ -209,6 +207,10 @@ class Projects(ClientModule):
         return data['projects']
 
 
+# -------------------------------------------------------------------------
+# Flows
+
+
 class Flows(ClientModule):
 
     path = '/flows'
@@ -234,27 +236,11 @@ class Flows(ClientModule):
         else:
             return prefect.Flow.deserialize(data['flow']['serialized'])
 
-    def get_flowruns(self, flow_id, per_page=100, page=1):
-        """
-        Retrieve the Flow's FlowRuns.
-        """
-        return self._graphql(
-            path=f'/{flow_id}/flowruns',
-            state=state,
-            per_page=per_page,
-            page=page)
-
     def set_state(self, flow_id, state):
         """
         Update a Flow's state
         """
-        return self._post(path=f'/{flow_id}/state', state=state)
-
-    def get_tasks(self, flow_id, state=None, per_page=500, page=1):
-        """
-        Retrieve the Flow's tasks and edges connecting them.
-        """
-        return self._get(path=f'/{flow_id}/tasks', per_page=per_page, page=page)
+        return self._post(path='/{id}/state'.format(id=flow_id), state=state)
 
     def create(self, flow):
         """
@@ -263,52 +249,27 @@ class Flows(ClientModule):
         return self._post(
             path='/', serialized_flow=ujson.dumps(flow.serialize()))
 
-    def search(
-            self, project=None, name=None, version=None, per_page=100, page=1):
-        return self._post(
-            path='/search',
-            project=project,
-            name=name,
-            version=version,
-            per_page=per_page,
-            page=page)
 
-    # def run_flow(
-    #         self,
-    #         flow_id,
-    #         scheduled_start=None,
-    #         parameters=None,
-    #         resume_tasks=None,
-    #         generating_taskrun_id=None):
-    #     """
-    #     Start (or schedule) a flow run on the server
-    #     """
-    #     result = self._post(
-    #         path='flows/run',
-    #         flow_id=flow_id,
-    #         scheduled_start=scheduled_start,
-    #         parameters=parameters,
-    #         resume_tasks=resume_tasks,
-    #         generating_taskrun_id=generating_taskrun_id)
-    #     return result
+# -------------------------------------------------------------------------
+# FlowRuns
 
 
 class FlowRuns(ClientModule):
 
-    path = '/flow_runs'
+    path = '/flowruns'
 
     def get_state(self, flow_run_id):
         """
         Retrieve a flow run's state
         """
-        return self._get(path=f'/{flow_run_id}/state')
+        return self._get(path='/{id}/state'.format(id=flow_run_id))
 
     def set_state(self, flow_run_id, state, expected_state=None):
         """
         Retrieve a flow run's state
         """
         return self._post(
-            path=f'/{flow_run_id}/state',
+            path='/{id}/state'.format(id=flow_run_id),
             state=state,
             expected_state=expected_state)
 
@@ -319,24 +280,29 @@ class FlowRuns(ClientModule):
             parameters=parameters,
             parent_taskrun_id=parent_taskrun_id)
 
-    def run(self, flow_run_id, start_tasks=None):
+    def run(self, flow_run_id, start_tasks=None, context=None):
         """
         Queue a flow run to be run
         """
         return self._post(
-            path=f'/{flow_run_id}',
-            start_tasks=start_tasks)
+            path='/{id}'.format(id=flow_run_id),
+            start_tasks=start_tasks,
+            context=context)
+
+
+# -------------------------------------------------------------------------
+# TaskRuns
 
 
 class TaskRuns(ClientModule):
 
-    path = '/task_runs'
+    path = '/taskruns'
 
     def set_state(self, task_run_id, state, expected_state=None):
         """
         Retrieve a task run's state
         """
         return self._post(
-            path=f'/{task_run_id}/state',
+            path='/{id}/state'.format(id=task_run_id),
             state=state,
             expected_state=expected_state)

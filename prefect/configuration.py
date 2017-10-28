@@ -45,12 +45,12 @@ def create_user_config(config_file='~/.prefect/prefect.cfg'):
 
 
 def configure_logging(config):
-    root_logger = logging.getLogger()
+    logger = logging.getLogger('Prefect')
     handler = logging.StreamHandler()
     formatter = logging.Formatter(config.get('logging', 'format'))
     handler.setFormatter(formatter)
-    root_logger.addHandler(handler)
-    root_logger.setLevel(getattr(logging, config.get('logging', 'level')))
+    logger.addHandler(handler)
+    logger.setLevel(getattr(logging, config.get('logging', 'level')))
 
 
 # Validation ------------------------------------------------------------------

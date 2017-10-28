@@ -7,7 +7,7 @@ import ujson
 from prefect.flow import Flow
 from prefect.signals import PrefectError
 from prefect.task import Task
-from prefect import as_task
+from prefect import as_task_class
 
 
 class TestFlow:
@@ -124,11 +124,11 @@ class TestSugar:
 
     def test_task_decorator(self):
 
-        @as_task
+        @as_task_class
         def T1(**k):
             return 1
 
-        @as_task(name='test_name')
+        @as_task_class(name='test_name')
         def T2(**k):
             return 2
 

@@ -4,8 +4,6 @@ This module implements the Prefect context that is available when tasks run.
 Tasks can import prefect.context and access attributes that will be overwritten
 when the task is run.
 
->>> Example
-
 Example:
     import prefect.context
     with prefect.context(a=1, b=2):
@@ -13,8 +11,12 @@ Example:
     print (prefect.context.a) # undefined
 
 """
-from contextlib import contextmanager as _contextmanager
+import datetime
+import functools
+import inspect
 import threading
+from contextlib import contextmanager as _contextmanager
+from typing import Any, NewType
 
 
 # context dictionary
@@ -35,40 +37,17 @@ class Context(threading.local):
     def __getitem__(self, key):
         return getattr(self, key)
 
-    def to_dict(self):
+    def as_dict(self):
         return self.__dict__.copy()
 
     def update(self, *args, **kwargs):
         if args == (None,):
             args = ()
+        args = [a.as_dict() if isinstance(a, type(self)) else a for a in args]
         self.__dict__.update(*args, **kwargs)
 
     def reset(self, *args, **kwargs):
-
         self.__dict__.clear()
-
-        # set the following properties to assist with autocomplete tools
-        # -- they don't actually do anything until context is set
-
-        self.run_dt = None
-        self.as_of_dt = None
-
-        self.flow = None
-        self.flow_id = None
-        self.flow_project = None
-        self.flow_name = None
-        self.flow_version = None
-        self.flow_state = None
-        self.params = None
-
-        self.flowrun_start_tasks = set()
-
-        self.task_id = None
-        self.task_name = None
-        self.task_state = None
-
-        self.run_number = None
-
         self.update(*args, **kwargs)
 
     @_contextmanager
@@ -81,7 +60,7 @@ class Context(threading.local):
             with prefect.context(dict(a=1, b=2), c=3):
                 print(prefect.context.a) # 1
         """
-        previous_context = self.to_dict()
+        previous_context = self.as_dict()
         try:
             self.update(*context_args, **context_kwargs)
             yield self
@@ -91,5 +70,110 @@ class Context(threading.local):
     def get(self, key, missing_value=None):
         return getattr(self, key, missing_value)
 
+    def __getstate__(self):
+        return self.as_dict()
 
-context = Context()
+
+Context = Context()
+
+
+class Annotations:
+    """
+    Task functions can be annotated with these types to have them supplied
+    at runtime.
+    """
+
+    # any other variable [this is a catch all]
+    context_variable = NewType('context', Any)
+
+    # the context itself
+    context = NewType('context', dict)
+
+    # execution
+    run_dt = NewType('run_dt', datetime.datetime)
+    as_of_dt = NewType('as_of_dt', datetime.datetime)
+
+    # token
+    token = NewType('token', str)
+
+    # flow
+    flow = NewType('flow', Any)  # Flow hasn't been defined yet
+    flow_id = NewType('flow_id', str)
+    flow_name = NewType('flow_name', str)
+
+    # task
+    task_id = NewType('task_id', str)
+    task_name = NewType('task_name', str)
+
+    # flow_run
+    flow_run_id = NewType('flow_run_id', str)
+    flow_run_start_tasks = NewType('flow_run_start_tasks', list)
+    params = NewType('params', dict)
+
+    # task_run
+    task_run_id = NewType('task_run_id', str)
+    task_run_upstream_states = NewType('task_run_upstream_states', dict)
+    task_run_inputs = NewType('task_run_inputs', dict)
+
+    @classmethod
+    def _annotations(cls):
+        return {k: v for k, v in cls.__dict__.items() if not k.startswith('_')}
+
+
+def apply_context_annotations(fn):
+    """
+    This decorator wraps a function so that at runtime, any function arguments
+    that are annotated as Context variables and not supplied by the user
+    are supplied from the context.
+
+    >>> @apply_context_annotations
+    ... def test(
+    ...         x: Annotations.context_variable,
+    ...         flow_id: Annotations.flow_id):
+    ...     return x, flow_id
+    >>>
+    >>> with Context(x=1, flow_id='id'):
+    ...     test()
+    (1, 'id')
+
+    """
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        return call_with_context_annotations(fn, *args, **kwargs)
+
+    return wrapper
+
+
+def call_with_context_annotations(fn, *args, **kwargs):
+    """
+    If a function has been annotated with Context variables, then calling
+    it in this way will automatically provide those variables to the function.
+    """
+    # if we can't read a signature, just return the function
+    try:
+        signature = inspect.signature(fn)
+    except ValueError:
+        return fn(*args, **kwargs)
+
+    annotations = Annotations._annotations()
+
+    # iterate over the function signature to examine each parameter
+    for i, (key, param) in enumerate(signature.parameters.items()):
+        # skip any that were explicitly provided
+        if key in kwargs or len(args) > i:
+            continue
+
+        # skip any that aren't context variables
+        elif param.annotation not in annotations.values():
+            continue
+
+        # if the annotation IS the context, return the context dict
+        elif param.annotation is Annotations.context:
+            kwargs[key] = Context.as_dict()
+
+        # else return the context variable
+        elif key in Context:
+            kwargs[key] = Context[key]
+
+    return fn(*args, **kwargs)

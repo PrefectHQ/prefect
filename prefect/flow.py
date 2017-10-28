@@ -1,21 +1,18 @@
 import copy
 
+from slugify import slugify
+
 import prefect
 import prefect.context
 import ujson
 from prefect.schedules import NoSchedule
-from prefect.task import Task, TaskResult
+from prefect.task import Task
 from prefect.utilities.strings import is_valid_identifier
 
 
 class Edge:
 
-    def __init__(
-            self,
-            upstream_task,
-            downstream_task,
-            key=None,
-            upstream_index=None,):
+    def __init__(self, upstream_task, downstream_task, key=None):
         """
         Edges represent connections between Tasks.
 
@@ -23,12 +20,11 @@ class Edge:
         indicating that the downstream task shouldn't run until the upstream
         task is complete.
 
-        In addition, edges can specify a key and upstream_index that
-        describe how upstream results are passed to the downstream task.
+        In addition, edges can specify a key that describe how upstream results
+        are passed to the downstream task.
 
-        Args:
-            upstream_task (str): the name of a task that must run before the
-                downstream_task
+        Args: upstream_task (str): the name of a task that must run before the
+            downstream_task
 
             downstream_task (str): the name of a task that will be run after the
                 upstream_task. The upstream task state is passed to the
@@ -39,14 +35,9 @@ class Edge:
                 that the upstream result should be passed to the downstream
                 task as a keyword argument.
 
-            upstream_index (obj): Optional, but a key must also be
-                passed. The upstream key is used to index the upstream result
-                prior to passing it to the downstream task.
+        The key indicates that the result of the upstream task should be passed
+        to the downstream task under the key.
 
-        The key indicates that the result of the upstream task
-        should be passed to the downstream task under the key.
-
-        If a key is provided, an upstream_index can also be provided
         """
         if isinstance(upstream_task, Task):
             upstream_task = upstream_task.name
@@ -60,16 +51,7 @@ class Edge:
                 raise ValueError(
                     'Downstream key ("{}") must be a valid identifier'.format(
                         key))
-        elif upstream_index is not None:
-            raise ValueError(
-                'Downstream key must be supplied to use an upstream key')
         self.key = key
-
-        try:
-            ujson.loads(ujson.dumps(upstream_index))
-            self.upstream_index = upstream_index
-        except TypeError:
-            raise ValueError('upstream_index must be JSON-encodable')
 
     def serialize(self):
         """
@@ -79,20 +61,14 @@ class Edge:
             'upstream_task': self.upstream_task,
             'downstream_task': self.downstream_task,
             'key': self.key,
-            'upstream_index': self.upstream_index
         }
 
     @classmethod
     def deserialize(cls, serialized):
-        serialized = serialized.copy()
-        if serialized['upstream_index'] is not None:
-            serialized['upstream_index'] = ujson.loads(
-                serialized['upstream_index'])
         return cls(
             upstream_task=serialized['upstream_task'],
             downstream_task=serialized['downstream_task'],
-            key=serialized['key'],
-            upstream_index=serialized['upstream_index'])
+            key=serialized['key'])
 
 
 class Flow:
@@ -100,6 +76,7 @@ class Flow:
     def __init__(
             self,
             name,
+            version=None,
             project=prefect.config.get('flows', 'default_project'),
             required_parameters=None,
             schedule=NoSchedule(),
@@ -128,8 +105,12 @@ class Flow:
         else:
             required_parameters = set(required_parameters)
 
-        self.name = str(name)
-        self.project = str(project)
+        if not name:
+            raise ValueError('Flows must have a name.')
+
+        self.name = name
+        self.version = version
+        self.project = project
         self.description = description
 
         self.required_parameters = required_parameters
@@ -139,14 +120,32 @@ class Flow:
         self.concurrent_runs = concurrent_runs
         self.cluster = cluster
 
+    @property
+    def slug(self):
+        if self.version not in [None, '']:
+            return slugify('{self.name}:{self.version}'.format(self=self))
+        else:
+            return slugify(self.name)
+
+    @property
+    def _comps(self):
+        return tuple(
+            type(self),
+            self.project,
+            self.name,
+            self.version,
+            self.tasks,
+            self.edges,
+        )
+
     def __repr__(self):
-        return f'{type(self).__name__}("{self.project}.{self.name}")'
+        base = '{self.project}.{self.name}'.format(self=self)
+        if self.version:
+            base += ':{self.version}'.format(self=self)
+        return '{type}("{base}")'.format(type=type(self).__name__, base=base)
 
     def __eq__(self, other):
-        return (
-            type(self) == type(other) and self.project == other.project
-            and self.name == other.name and self.tasks == other.tasks
-            and self.edges == other.edges)
+        return self._comps == other._comps
 
     def __hash__(self):
         return id(self)
@@ -170,18 +169,16 @@ class Flow:
 
     def add_task(self, task):
         if not isinstance(task, Task):
-            raise TypeError(f'Expected a Task; received {type(task).__name__}')
-        if task.name in self.tasks:
+            raise TypeError(
+                'Expected a Task; received {}'.format(type(task).__name__))
+        if task.slug in (t.slug for t in self.tasks.values()):
             raise ValueError(
-                f'A task named "{task.name}" already exists in this Flow.')
+                'Task "{task.name}" could not be added because a task with '
+                'the slug "{task.slug}" already exists in this Flow.'.format(
+                    task=task))
         self.tasks[task.name] = task
 
-    def add_edge(
-            self,
-            upstream_task,
-            downstream_task,
-            key=None,
-            upstream_index=None,):
+    def add_edge(self, upstream_task, downstream_task, key=None):
         """
         Adds an Edge to the Flow. Edges create dependencies between tasks.
         The simplest edge simply enforcces an ordering so that the upstream
@@ -189,15 +186,11 @@ class Flow:
         complex behaviors as well.
         """
 
-        if isinstance(upstream_task, TaskResult):
-            upstream_task = upstream_task.task
-            upstream_index = upstream_task.index
-
         edge = Edge(
             upstream_task=upstream_task.name,
             downstream_task=downstream_task.name,
-            upstream_index=upstream_index,
-            key=key,)
+            key=key,
+        )
 
         if upstream_task not in self.tasks.values():
             self.add_task(upstream_task)
@@ -207,13 +200,12 @@ class Flow:
         if edge.key is not None:
             existing_edges = [
                 e for e in self.edges
-                if e.downstream_task == downstream_task.name
-                and e.key == edge.key
+                if e.downstream_task == downstream_task.name and e.key == edge.key
             ]
             if existing_edges:
                 raise ValueError(
-                    f'An edge to task {edge.downstream_task} with '
-                    f'key "{edge.key}" already exists!')
+                    'An edge to task {edge.downstream_task} with '
+                    'key "{edge.key}" already exists!'.format(edge=edge))
 
         self.edges.add(edge)
 
@@ -378,12 +370,12 @@ class Flow:
     # Context Manager -----------------------------------------------
 
     def __enter__(self):
-        self._previous_context = prefect.context.to_dict()
-        prefect.context.update(dict(flow=self))
+        self._previous_context = prefect.context.Context.as_dict()
+        prefect.context.Context.update(dict(flow=self))
         return self
 
     def __exit__(self, _type, _value, _tb):
-        prefect.context.reset(self._previous_context)
+        prefect.context.Context.reset(self._previous_context)
         del self._previous_context
 
     # Persistence  ------------------------------------------------
@@ -393,7 +385,7 @@ class Flow:
 
         required_parameters = sorted(str(p) for p in self.required_parameters)
         tasks = [
-            t.serialize(sort_order=i)
+            dict(t.serialize(), sort_order=i)
             for i, t in enumerate(self.sorted_tasks())
         ]
         edges = [e.serialize() for e in self.edges]
@@ -404,6 +396,8 @@ class Flow:
         return {
             'project': self.project,
             'name': self.name,
+            'slug': self.slug,
+            'version': self.version,
             'serialized': prefect.utilities.serialize.serialize(flow),
             'tasks': tasks,
             'edges': edges,
@@ -448,6 +442,7 @@ class Flow:
         """
         flow = Flow(
             name=serialized['name'],
+            version=serialized['version'],
             project=serialized['project'],
             schedule=prefect.schedules.deserialize(serialized['schedule']),
             required_parameters=serialized['required_parameters'],
@@ -461,7 +456,6 @@ class Flow:
             flow.add_edge(
                 upstream_task=flow.get_task(edge['upstream_task']),
                 downstream_task=flow.get_task(edge['downstream_task']),
-                upstream_index=edge['upstream_index'],
                 key=edge['key'])
 
         return flow
