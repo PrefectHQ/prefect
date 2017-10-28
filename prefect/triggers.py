@@ -16,14 +16,8 @@ def always_run(upstream_states):
 def never_run(upstream_states):
     """
     This task will never run no matter what the upstream states are.
-
-    It will only run if it is specified as a "start task" of the flow run. Note
-    that root tasks (tasks with no upstream tasks) are considered "start tasks"
-    unless specified otherwise.
     """
-    task_name = context.Context.get('task_name', False)
-    if task_name and task_name in context.Context.get('flowrun_start_tasks', []):
-        return True
+    return False
 
 
 def all_successful(upstream_states):
