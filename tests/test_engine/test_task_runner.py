@@ -2,9 +2,9 @@ import datetime
 import pytest
 import prefect
 from prefect.tasks import as_task_class
-from prefect_engine import TaskRunner
-from prefect_engine.state import TaskRunState
-from prefect_engine.test_utils import run_task_runner_test
+from prefect.engine import TaskRunner
+from prefect.state import TaskRunState
+from prefect.utilities.test import run_task_runner_test
 
 
 @pytest.fixture()

@@ -1,10 +1,12 @@
-from prefect_engine.state import (FlowState, FlowRunState, TaskRunState, ExecutionState)
+from prefect.state import (
+    FlowState, FlowRunState, TaskRunState, ExecutionState)
 import pytest
 
 
 def test_equals():
     s = TaskRunState(state=TaskRunState.RUNNING)
     assert s == TaskRunState.RUNNING
+
 
 def test_FlowState():
     s = FlowState()
@@ -25,28 +27,22 @@ def test_FlowState():
     s.unarchive()
     assert s == FlowState.PAUSED
 
+
 def test_FlowRunState():
     s = FlowRunState()
     assert s == FlowRunState.PENDING
 
-    s.schedule()
-    assert s == FlowRunState.SCHEDULED
-
-    s.start()
+    s.set_state(state=FlowRunState.RUNNING)
     assert s == FlowRunState.RUNNING
+    assert not s in [FlowRunState.RUNNING]
+    assert s.state == FlowRunState.RUNNING
+    assert s.state in [FlowRunState.RUNNING]
 
-    with pytest.raises(ValueError):
-        s.schedule()
+    assert s == FlowRunState(state=FlowRunState.RUNNING)
 
-    s.succeed()
-    assert s == FlowRunState.SUCCESS
-    with pytest.raises(ValueError):
-        s.fail()
+    s.set_state(result=3)
+    assert s.result == 3
 
-    s = FlowRunState()
-    s.start()
-    s.fail()
-    assert s == FlowRunState.FAILED
 
 def test_TaskRunState():
     s = TaskRunState()
@@ -93,6 +89,7 @@ def test_TaskRunState():
     assert s == TaskRunState.FAILED
     assert s.is_finished()
     assert s.is_failed()
+
 
 def test_ExecutionState():
     s = ExecutionState()
