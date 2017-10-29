@@ -308,7 +308,7 @@ class Task:
         if name not in self._indexed_results_cache:
             self._indexed_results_cache[name] = IndexResultTask(
                 index=index, name=name)
-            self._indexed_results_cache[name].run_with(upstream_task=self)
+            self._indexed_results_cache[name].run_after(upstream_task=self)
         return self._indexed_results_cache[name]
 
     # Sugar -------------------------------------------------------------------
