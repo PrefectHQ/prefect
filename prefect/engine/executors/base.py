@@ -87,9 +87,32 @@ class Executor(metaclass=abc.ABCMeta):
             inputs,
             context,
     ):
-        task_runner = prefect.engine.TaskRunner(task=task, executor_context=executor_context)
+        task_runner = prefect.engine.TaskRunner(
+            task=task, executor_context=executor_context)
         return task_runner.run(
             state=state,
             upstream_states=upstream_states,
             inputs=inputs,
             context=context)
+
+    @submit_to_self
+    def run_serialized_flow(
+            self,
+            executor_context,
+            serialized_flow,
+            state,
+            task_states,
+            start_tasks,
+            inputs,
+            context,
+            return_all_task_states=False):
+        flow = prefect.Flow.deserialize(serialized_flow)
+        flow_runner = prefect.engine.FlowRunner(
+            flow=flow, executor_context=executor_context)
+        return flow_runner.run(
+            state=state,
+            task_states=task_states,
+            start_tasks=start_tasks,
+            inputs=inputs,
+            context=context,
+            return_all_task_states=return_all_task_states)

@@ -53,6 +53,7 @@ def run_flow_runner_test(
         state=None,
         expected_task_states=None,
         executor_context=None,
+        inputs=None,
         context=None):
     """
     Runs a flow and tests that it matches the expected state. If an
@@ -72,6 +73,9 @@ def run_flow_runner_test(
 
         context (dict): an optional context for the run
 
+        inputs (dict): input overrides for tasks. This dict should have
+            the form {task.name: {kwarg: value}}.
+
     Returns:
         The FlowRun state
     """
@@ -81,7 +85,10 @@ def run_flow_runner_test(
     flow_runner = prefect.engine.flow_runner.FlowRunner(
         flow=flow, executor_context=executor_context)
     flow_state = flow_runner.run(
-        state=state, context=context, return_all_task_states=True)
+        state=state,
+        context=context,
+        inputs=inputs,
+        return_all_task_states=True)
     assert flow_state == expected_state
 
     for task_name, expected_task_state in expected_task_states.items():

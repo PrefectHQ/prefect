@@ -63,16 +63,16 @@ class FlowRunner:
         except Exception:
             self.logger.error(
                 'Flow: An unexpected error occurred', exc_info=True)
-            self.set_state(
-                executor, state=state, new_state=FlowRunState.FAILED)
+            self.set_state(executor, state=state, new_state=FlowRunState.FAILED)
 
     def run(
             self,
-            state=None,
-            task_states=None,
-            start_tasks=None,
-            return_all_task_states=False,
-            context=None):
+            state: FlowRunState = None,
+            task_states: dict = None,
+            start_tasks: list = None,
+            inputs: dict = None,
+            context: dict = None,
+            return_all_task_states: bool = False,):
         """
         Arguments
 
@@ -83,6 +83,7 @@ class FlowRunner:
 
         state = FlowRunState(state)
         task_states = task_states or {}
+        inputs = inputs or {}
 
         # prepare context
         with prefect.context.Context(context):
@@ -102,7 +103,8 @@ class FlowRunner:
                         state=state,
                         task_states=task_states,
                         start_tasks=start_tasks,
-                        return_all_task_states=return_all_task_states)
+                        return_all_task_states=return_all_task_states,
+                        inputs=inputs)
 
         return state
 
@@ -112,6 +114,7 @@ class FlowRunner:
             state,
             task_states,
             start_tasks,
+            inputs,
             return_all_task_states=False):
 
         context = prefect.context.Context
@@ -162,6 +165,9 @@ class FlowRunner:
                     upstream_inputs[edge.key] = executor.submit(
                         lambda state: state.result,
                         task_states[edge.upstream_task])
+
+            # override upstream_inputs with provided inputs
+            upstream_inputs.update(inputs.get(task.name, {}))
 
             # run the task!
             task_states[task.name] = executor.run_task(
