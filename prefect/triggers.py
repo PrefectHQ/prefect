@@ -13,9 +13,11 @@ def always_run(upstream_states):
     return True
 
 
-def never_run(upstream_states):
+def manual_only(upstream_states):
     """
-    This task will never run no matter what the upstream states are.
+    This task will never run automatically. It will only run if it is
+    specifically instructed, either by ignoring the trigger or adding it
+    as a flow run's start task.
     """
     return False
 
