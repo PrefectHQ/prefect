@@ -1,5 +1,6 @@
 import prefect
 from prefect.state import TaskRunState
+import pytest
 
 
 def run_task_runner_test(
@@ -8,7 +9,7 @@ def run_task_runner_test(
         state=None,
         upstream_states=None,
         inputs=None,
-        executor_context=None,
+        executor=None,
         context=None):
     """
     Runs a task and tests that it matches the expected state.
@@ -25,7 +26,7 @@ def run_task_runner_test(
 
         inputs (dict): a dictionary of inputs to the task
 
-        executor_context (contextmanager): an optional execution context manager
+        executor (prefect.Executor)
 
         context (dict): an optional context for the run
 
@@ -33,7 +34,7 @@ def run_task_runner_test(
         The TaskRun state
     """
     task_runner = prefect.engine.task_runner.TaskRunner(
-        task=task, executor_context=executor_context)
+        task=task, executor=executor)
     task_state = task_runner.run(
         state=state,
         upstream_states=upstream_states,
@@ -51,8 +52,10 @@ def run_flow_runner_test(
         flow,
         expected_state,
         state=None,
+        task_states=None,
+        start_tasks=None,
         expected_task_states=None,
-        executor_context=None,
+        executor=None,
         inputs=None,
         context=None):
     """
@@ -69,7 +72,7 @@ def run_flow_runner_test(
         expected_task_states (dict): a dict of expected
             {task_name: TaskRunState} (or {task_name: str}) pairs
 
-        executor_context (contextmanager): an optional execution context manager
+        executor (prefect.Executor)
 
         context (dict): an optional context for the run
 
@@ -83,18 +86,33 @@ def run_flow_runner_test(
         expected_task_states = {}
 
     flow_runner = prefect.engine.flow_runner.FlowRunner(
-        flow=flow, executor_context=executor_context)
+        flow=flow, executor=executor)
     flow_state = flow_runner.run(
         state=state,
         context=context,
         inputs=inputs,
+        task_states=task_states,
+        start_tasks=start_tasks,
         return_all_task_states=True)
-    assert flow_state == expected_state
+    try:
+        assert flow_state == expected_state
+    except AssertionError:
+        pytest.fail(
+            'Flow state ({}) did not match expected state ({})'.format(
+                flow_state, expected_state))
 
     for task_name, expected_task_state in expected_task_states.items():
-        assert flow_state.result[task_name] == expected_task_state
+        try:
+            assert flow_state.result[task_name] == expected_task_state
+        except KeyError:
+            pytest.fail('Task {} not found in flow result'.format(task_name))
+        except AssertionError:
+            pytest.fail(
+                'Actual task state ({}) did not match expected task state ({}) '
+                'for task: {}'.format(
+                    flow_state.result[task_name], expected_task_state,
+                    task_name))
         if isinstance(expected_task_state, TaskRunState):
-            assert flow_state.result[
-                task_name].result == expected_task_state.result
+            assert flow_state.result[task_name].result == expected_task_state.result
 
     return flow_state
