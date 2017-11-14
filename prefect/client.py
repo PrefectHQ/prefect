@@ -19,7 +19,14 @@ class Client:
     def __init__(self, server=None, token=None):
         if server is None:
             server = prefect.config.get('prefect', 'server')
+            if not server:
+                server = prefect.context.Context.get('api_server', None)
+                if not server:
+                    raise ValueError('Could not determine API server.')
         self._server = server
+
+        if token is None:
+            token = prefect.context.Context.get('api_token', None)
         self._token = token
 
         self.projects = Projects(client=self)
@@ -87,8 +94,7 @@ class Client:
 
         def request_fn():
             if self._token is None:
-                raise ValueError(
-                    'Call Client.login() to set the client token.')
+                raise ValueError('Call Client.login() to set the client token.')
             url = os.path.join(self._server, path)
             headers = {'Authorization': 'Bearer ' + self._token}
             if method == 'GET':
@@ -154,7 +160,7 @@ class ClientModule:
         return self._client._delete(os.path.join(self.path, path), **params)
 
     def _graphql(self, query, **variables):
-        return self._client._graphql(query=query, **variables)
+        return self._client.graphql(query=query, **variables)
 
 
 # -------------------------------------------------------------------------
@@ -220,11 +226,11 @@ class Flows(ClientModule):
         Retrieve information about a Flow.
 
         Args:
-            flow_id (int): the Flow's id
+            flow_id (str): the Flow's id
         """
         data = self._graphql(
             '''
-            query($flowId: Int!) {
+            query($flowId: String!) {
                 flow(id: $flowId) {
                     serialized
                 }
@@ -256,38 +262,60 @@ class Flows(ClientModule):
 
 class FlowRuns(ClientModule):
 
-    path = '/flowruns'
+    path = '/flow_runs'
 
     def get_state(self, flow_run_id):
         """
         Retrieve a flow run's state
         """
-        return self._get(path='/{id}/state'.format(id=flow_run_id))
+        # return self._get(path='/{id}/state'.format(id=flow_run_id))
+        data = self._graphql(
+            '''
+             query ($flowRunId: String!){
+                flow_runs(filter: {id: $flowRunId}) {
+                    id
+                    state {
+                        state
+                        result
+                    }
+                }
+             }
+             ''',
+            flowRunId=flow_run_id)
+        state = data['flow_runs'][0].get('state', {})
+        return prefect.state.FlowRunState(
+            state=state.get('state', None), result=state.get('result', None))
 
-    def set_state(self, flow_run_id, state, expected_state=None):
+    def set_state(self, flow_run_id, state, result=None, expected_state=None):
         """
         Retrieve a flow run's state
         """
         return self._post(
             path='/{id}/state'.format(id=flow_run_id),
             state=state,
+            result=result,
             expected_state=expected_state)
 
     def create(self, flow_id, parameters=None, parent_taskrun_id=None):
         return self._post(
-            path='flowruns',
+            path='/',
             flow_id=flow_id,
             parameters=parameters,
             parent_taskrun_id=parent_taskrun_id)
 
-    def run(self, flow_run_id, start_tasks=None, context=None):
+    def run(self, flow_run_id, start_tasks=None, inputs=None):
         """
         Queue a flow run to be run
         """
+        if start_tasks is None:
+            start_tasks = []
+        if inputs is None:
+            inputs = {}
+
         return self._post(
-            path='/{id}'.format(id=flow_run_id),
+            path='/{id}/run'.format(id=flow_run_id),
             start_tasks=start_tasks,
-            context=context)
+            inputs=inputs)
 
 
 # -------------------------------------------------------------------------
@@ -296,13 +324,14 @@ class FlowRuns(ClientModule):
 
 class TaskRuns(ClientModule):
 
-    path = '/taskruns'
+    path = '/task_runs'
 
-    def set_state(self, task_run_id, state, expected_state=None):
+    def set_state(self, task_run_id, state, result=None, expected_state=None):
         """
         Retrieve a task run's state
         """
         return self._post(
             path='/{id}/state'.format(id=task_run_id),
             state=state,
+            result=result,
             expected_state=expected_state)

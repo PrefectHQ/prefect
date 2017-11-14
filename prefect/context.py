@@ -93,8 +93,9 @@ class Annotations:
     run_dt = NewType('run_dt', datetime.datetime)
     as_of_dt = NewType('as_of_dt', datetime.datetime)
 
-    # token
-    token = NewType('token', str)
+    # API
+    api_server = NewType('api_server', str)
+    api_token = NewType('api_token', str)
 
     # flow
     flow = NewType('flow', Any)  # Flow hasn't been defined yet

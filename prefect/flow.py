@@ -273,8 +273,13 @@ class Flow:
 
         # generate a list of all tasks downstream from root_tasks
         if root_tasks is not None:
+            # recover tasks from root tasks (if they are strings)
+            tasks = set(
+                [
+                    self.get_task(t) if isinstance(t, str) else t
+                    for t in root_tasks
+                ])
             seen = set()
-            tasks = set(root_tasks or [])
 
             while seen != tasks:
                 # for each task we haven't seen yet...
