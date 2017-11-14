@@ -79,37 +79,32 @@ def distributed_client(address=None, separate_thread=False):
         return
 
 
-class DistributedExecutor:
+class DistributedExecutor(Executor):
+    """
+    An executor that runs functions on a Distributed cluster.
+    """
 
-    def __init__(
-            self,
-            client=None,
-            address=None,
-            separate_thread=None,):
+    def __init__(self, address=None, separate_thread=None, client=None):
         self.address = address
         self.separate_thread = separate_thread
         self.client = client
         super().__init__()
 
     @contextmanager
-    def __call__(self, context, **kwargs):
-        if self.client:
-            yield DistributedExecutorClient(client=self.client)
-        else:
+    def execution_context(self):
+        if not self.client:
+            old_client = self.client
             with distributed_client(
                     address=self.address,
                     separate_thread=self.separate_thread) as client:
-                yield DistributedExecutorClient(client=client)
+                self.client = client
+                yield
+            self.client = old_client
 
-
-class DistributedExecutorClient(Executor):
-    """
-    An executor that runs functions on a Distributed cluster.
-    """
-
-    def __init__(self, client=None):
-        self.client = client
-        super().__init__()
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['client'] = None
+        return state
 
     def submit(self, fn, *args, _client_kwargs=None, **kwargs):
         """

@@ -1,6 +1,6 @@
 import abc
 from functools import wraps
-
+from contextlib import contextmanager
 import prefect
 from prefect.engine.task_runner import TaskRunner
 
@@ -54,6 +54,13 @@ class Executor(metaclass=abc.ABCMeta):
     def __init__(self):
         pass
 
+    @contextmanager
+    def execution_context(self):
+        """
+        This method is called
+        """
+        yield
+
     @abc.abstractmethod
     def submit(self, fn, *args, _client_kwargs=None, **kwargs):
         """
@@ -80,35 +87,34 @@ class Executor(metaclass=abc.ABCMeta):
     @submit_to_self
     def run_task(
             self,
-            executor_context,
             task,
             state,
             upstream_states,
             inputs,
-            context,
-    ):
-        task_runner = prefect.engine.TaskRunner(
-            task=task, executor_context=executor_context)
+            ignore_trigger=False,
+            context=None):
+        task_runner = prefect.engine.TaskRunner(task=task, executor=self)
         return task_runner.run(
             state=state,
             upstream_states=upstream_states,
             inputs=inputs,
+            ignore_trigger=ignore_trigger,
             context=context)
 
     @submit_to_self
-    def run_serialized_flow(
+    def run_flow(
             self,
-            executor_context,
-            serialized_flow,
+            flow,
             state,
             task_states,
             start_tasks,
             inputs,
             context,
+            flow_is_serialized=True,
             return_all_task_states=False):
-        flow = prefect.Flow.deserialize(serialized_flow)
-        flow_runner = prefect.engine.FlowRunner(
-            flow=flow, executor_context=executor_context)
+        if flow_is_serialized:
+            flow = prefect.Flow.deserialize(flow)
+        flow_runner = prefect.engine.FlowRunner(flow=flow, executor=self)
         return flow_runner.run(
             state=state,
             task_states=task_states,

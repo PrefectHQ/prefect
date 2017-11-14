@@ -10,10 +10,6 @@ class LocalExecutor(Executor):
     LocalExecutors serve as their own Executor contexts.
     """
 
-    @contextmanager
-    def __call__(self, **kwargs):
-        yield self
-
     def submit(self, fn, *args, _client_kwargs=None, **kwargs):
         """
         Runs a function locally
