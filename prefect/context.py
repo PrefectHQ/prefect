@@ -19,6 +19,10 @@ from contextlib import contextmanager as _contextmanager
 from typing import Any, NewType
 
 
+class ContextError(KeyError):
+    pass
+
+
 # context dictionary
 class Context(threading.local):
     """
@@ -67,7 +71,9 @@ class Context(threading.local):
         finally:
             self.reset(previous_context)
 
-    def get(self, key, missing_value=None):
+    def get(self, key, missing_value=None, raise_if_missing=False):
+        if raise_if_missing and key not in self:
+            raise ContextError('Context key not found: "{}"'.format(key))
         return getattr(self, key, missing_value)
 
     def __getstate__(self):
