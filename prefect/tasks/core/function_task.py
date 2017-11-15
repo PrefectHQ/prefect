@@ -12,14 +12,8 @@ class FunctionTask(prefect.Task):
 
         # set the name from the fn
         if name is None:
+            kwargs['autorename'] = True
             name = getattr(fn, '__name__', type(self).__name__)
-            flow = prefect.context.Context.get('flow')
-            if flow:
-                name = prefect.utilities.strings.name_with_suffix(
-                    name=name,
-                    delimiter='-',
-                    first_suffix=2,
-                    predicate=lambda n: n not in flow.tasks)
 
         super().__init__(name=name, **kwargs)
 

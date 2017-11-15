@@ -35,6 +35,7 @@ class Task:
             flow=None,
             resources=None,
             image=None,
+            autorename=False,
             cluster=None,):
         """
 
@@ -67,6 +68,10 @@ class Task:
 
             image (str): the Docker image the task should be run in (requires
                 cluster configuration)
+
+            autorename (bool): if True, the task will automatically have a
+                suffix added to its name if it conflicts with an existing
+                task in the flow
 
 
         """
@@ -122,6 +127,12 @@ class Task:
 
         # add the task to the flow
         if flow:
+            if autorename:
+                self.name = prefect.utilities.strings.name_with_suffix(
+                    name=self.name,
+                    delimiter='-',
+                    first_suffix=2,
+                    predicate=lambda n: n not in flow.tasks)
             flow.add_task(self)
 
     @property
