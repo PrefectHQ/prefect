@@ -80,7 +80,7 @@ class Task:
         flow = flow or prefect.context.Context.get('flow')
 
         # if a flow was provided, try to infer a name
-        if flow and name is None:
+        if flow and (name is None or autorename):
             name = name_with_suffix(
                 type(self).__name__,
                 predicate=lambda n: n not in flow.tasks,
@@ -127,12 +127,6 @@ class Task:
 
         # add the task to the flow
         if flow:
-            if autorename:
-                self.name = prefect.utilities.strings.name_with_suffix(
-                    name=self.name,
-                    delimiter='-',
-                    first_suffix=2,
-                    predicate=lambda n: n not in flow.tasks)
             flow.add_task(self)
 
     @property
