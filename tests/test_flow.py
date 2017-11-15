@@ -105,6 +105,20 @@ class TestFlow:
 
         assert f.run().result['my-task'].result == 1
 
+    def test_constant(self):
+        """
+        Test that Flows properly wrap constant values
+        """
+        with Flow('test') as f:
+            t1 = FunctionTask(fn=lambda x: x + 1, name='my-task')
+            t1.run_after(x=5)
+
+        # check that a ConstantTask was added
+        assert len(f.tasks) == 2
+
+        assert f.run().result['my-task'].result == 6
+
+
 
 class TestPersistence:
 
