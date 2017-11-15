@@ -7,6 +7,7 @@ import ujson
 from prefect.flow import Flow
 from prefect.signals import PrefectError
 from prefect.task import Task
+from prefect.tasks import FunctionTask
 from prefect import as_task_class
 
 
@@ -94,6 +95,15 @@ class TestFlow:
 
             with pytest.raises(ValueError) as e:
                 t3.run_before(t1)
+
+    def test_run(self):
+        """
+        Test the flow's run() method
+        """
+        with Flow('test') as f:
+            t1 = FunctionTask(fn=lambda: 1, name='my-task')
+
+        assert f.run().result['my-task'].result == 1
 
 
 class TestPersistence:

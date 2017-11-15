@@ -464,3 +464,10 @@ class Flow:
                 key=edge['key'])
 
         return flow
+
+    # Execution  ------------------------------------------------
+
+    def run(self, executor=None, **kwargs):
+        runner = prefect.engine.flow_runner.FlowRunner(flow=self, executor=executor)
+        return runner.run(**kwargs)
+
