@@ -43,7 +43,7 @@ class Client:
 
         Args:
             path: the path of the API url. For example, to GET
-                http://prefect-server/v1/auth/login, path would be 'login'.
+                http://prefect-server/v1/auth/login, path would be 'auth/login'.
             params: GET parameters
         """
         response = self._request(method='GET', path=path, params=params)
@@ -57,7 +57,7 @@ class Client:
 
         Args:
             path: the path of the API url. For example, to POST
-                http://prefect-server/v1/login, path would be 'login'.
+                http://prefect-server/v1/auth/login, path would be 'auth/login'.
             params: POST params
         """
         response = self._request(method='POST', path=path, params=params)
