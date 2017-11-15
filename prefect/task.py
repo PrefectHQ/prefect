@@ -81,8 +81,10 @@ class Task:
 
         # if a flow was provided, try to infer a name
         if flow and (name is None or autorename):
+            if name is None:
+                name = type(self).__name__
             name = name_with_suffix(
-                type(self).__name__,
+                name,
                 predicate=lambda n: n not in flow.tasks,
                 first_suffix=2,
                 delimiter='-')

@@ -3,23 +3,30 @@ import prefect
 
 class ConstantTask(prefect.Task):
 
-    def __init__(self, value, name=None, **kwargs):
+    def __init__(self, value, name=None, autorename=True, **kwargs):
 
         self.value = value
 
         # set the name from the fn
         if name is None:
-            kwargs['autorename'] = True
             name = 'Constant[{type}]'.format(type=type(value))
 
-        super().__init__(name=name, **kwargs)
+        super().__init__(name=name, autorename=autorename, **kwargs)
 
     def run(self):
         return self.value
 
 
 class ContextTask(ConstantTask):
-    def __init__(self, context_key, name=None, missing_value=None, raise_if_missing=False, **kwargs):
+
+    def __init__(
+            self,
+            context_key,
+            name=None,
+            missing_value=None,
+            raise_if_missing=False,
+            autorename=True,
+            **kwargs):
         """
 
         Args:
@@ -41,7 +48,8 @@ class ContextTask(ConstantTask):
             name = 'Context["{}"]'.format(context_key)
             kwargs['autorename'] = True
 
-        super().__init__(value=context_key, name=name, **kwargs)
+        super().__init__(
+            value=context_key, name=name, autorename=autorename, **kwargs)
 
     def run(self):
         return prefect.context.Context.get(
