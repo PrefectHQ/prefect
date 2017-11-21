@@ -28,12 +28,13 @@ def submit_to_self(method):
 
     @wraps(method)
     def wrapper(self, *args, **kwargs):
-        return self.submit(
-            method_with_context,
-            self,
-            *args,
-            _context=prefect.context.Context,
-            **kwargs)
+        with prefect.context.Context(kwargs.get('context', {})):
+            return self.submit(
+                method_with_context,
+                self,
+                *args,
+                _context=prefect.context.Context.as_dict(),
+                **kwargs)
 
     return wrapper
 
@@ -110,6 +111,7 @@ class Executor(metaclass=abc.ABCMeta):
             start_tasks,
             inputs,
             context,
+            task_contexts=None,
             flow_is_serialized=True,
             return_all_task_states=False):
         if flow_is_serialized:
@@ -121,4 +123,5 @@ class Executor(metaclass=abc.ABCMeta):
             start_tasks=start_tasks,
             inputs=inputs,
             context=context,
+            task_contexts=task_contexts,
             return_all_task_states=return_all_task_states)
