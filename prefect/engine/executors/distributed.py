@@ -119,4 +119,4 @@ class DistributedExecutor(Executor):
         """
         Resolves futures to their values. Blocks until the future is complete.
         """
-        return self.client.gather(futures, timeout=timeout)
+        return self.client.gather(futures)
