@@ -36,7 +36,8 @@ class Task:
             resources=None,
             image=None,
             autorename=False,
-            cluster=None,):
+            cluster=None,
+    ):
         """
 
         Args:
@@ -157,6 +158,9 @@ class Task:
 
     # Relationships  ----------------------------------------------------------
 
+    def __call__(self, *tasks, **kwarg_tasks):
+        return self.run_after(*tasks, **kwarg_tasks)
+
     def run_after(self, *tasks, **kwarg_tasks):
         """
         Adds a relationship to the Flow so that this task runs after other
@@ -239,12 +243,11 @@ class Task:
             'max_retries': self.max_retries,
             'serialized': prefect.utilities.serialize.serialize(self),
             'trigger': self.trigger.__name__,
-            'executor_args':
-                {
-                    'cluster': self.cluster,
-                    'image': self.image,
-                    'resources': self.resources,
-                }
+            'executor_args': {
+                'cluster': self.cluster,
+                'image': self.image,
+                'resources': self.resources,
+            }
         }
 
     @classmethod
