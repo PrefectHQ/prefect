@@ -1,3 +1,4 @@
+import datetime
 import os
 
 import requests
@@ -26,7 +27,7 @@ class Client:
         self._server = server
 
         if token is None:
-            token = prefect.context.Context.get('api_token', None)
+            token = prefect.context.Context.get('token', None)
         self._token = token
 
         self.projects = Projects(client=self)
@@ -316,6 +317,23 @@ class FlowRuns(ClientModule):
             path='/{id}/run'.format(id=flow_run_id),
             start_tasks=start_tasks,
             inputs=inputs)
+
+    def get_resume_url(
+            self,
+            flow_run_id=None,
+            start_tasks=None,
+            expires_in=datetime.timedelta(hours=1)):
+        """
+        If flow_run_id is None, it will attempt to infer it from the
+        current context.
+        """
+        if flow_run_id is None:
+            flow_run_id = prefect.context.Context.get('flow_run_id')
+        data = self._post(
+            path='/{id}/get_resume_url'.format(id=flow_run_id),
+            start_tasks=start_tasks,
+            expires_in=expires_in)
+        return data['url']
 
 
 # -------------------------------------------------------------------------
