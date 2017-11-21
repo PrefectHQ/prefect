@@ -9,7 +9,7 @@ class ConstantTask(prefect.Task):
 
         # set the name from the fn
         if name is None:
-            name = 'Constant[{type}]'.format(type=type(value))
+            name = 'Constant[{type}]'.format(type=type(value).__name__)
 
         super().__init__(name=name, autorename=autorename, **kwargs)
 
