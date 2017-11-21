@@ -104,11 +104,10 @@ class TaskRunner:
 
         # prepare context
         context.update(
-            dict(
                 task_name=self.task.name,
                 task_max_retries=self.task.max_retries,
                 task_run_upstream_states=upstream_states,
-                task_run_inputs=inputs))
+                task_run_inputs=inputs)
 
         # set up context
         with prefect.context.Context(context):

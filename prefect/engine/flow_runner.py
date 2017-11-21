@@ -58,6 +58,7 @@ class FlowRunner:
             start_tasks: list = None,
             inputs: dict = None,
             context: dict = None,
+            task_contexts: dict = None,
             return_all_task_states: bool = False,
     ):
         """
@@ -71,6 +72,7 @@ class FlowRunner:
         state = FlowRunState(state)
         task_states = task_states or {}
         inputs = inputs or {}
+        task_contexts = task_contexts or {}
 
         # prepare context
         with prefect.context.Context(context):
@@ -89,6 +91,7 @@ class FlowRunner:
                         state=state,
                         task_states=task_states,
                         start_tasks=start_tasks,
+                        task_contexts=task_contexts,
                         return_all_task_states=return_all_task_states,
                         inputs=inputs)
 
@@ -100,9 +103,10 @@ class FlowRunner:
             task_states,
             start_tasks,
             inputs,
+            task_contexts,
             return_all_task_states=False):
 
-        context = prefect.context.Context
+        context = prefect.context.Context.as_dict()
 
         # ------------------------------------------------------------------
         # check this flow
@@ -155,13 +159,14 @@ class FlowRunner:
             upstream_inputs.update(inputs.get(task.name, {}))
 
             # run the task!
-            task_states[task.name] = self.executor.run_task(
-                task=task,
-                state=task_states[task.name],
-                upstream_states=upstream_states,
-                inputs=upstream_inputs,
-                ignore_trigger=(task.name in (start_tasks or [])),
-                context=context)
+            with prefect.context.Context(task_contexts.get(task.name)):
+                task_states[task.name] = self.executor.run_task(
+                    task=task,
+                    state=task_states[task.name],
+                    upstream_states=upstream_states,
+                    inputs=upstream_inputs,
+                    ignore_trigger=(task.name in (start_tasks or [])),
+                    context=context)
 
         # gather the terminal states and wait for them to complete
         terminal_states = {
