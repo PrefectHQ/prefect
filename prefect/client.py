@@ -101,7 +101,7 @@ class Client:
             if method == 'GET':
                 response = requests.get(url, headers=headers, params=params)
             elif method == 'POST':
-                response = requests.post(url, headers=headers, data=params)
+                response = requests.post(url, headers=headers, json=params)
             elif method == 'DELETE':
                 response = requests.delete(url, headers=headers)
             else:
