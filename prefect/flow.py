@@ -78,7 +78,7 @@ class Flow:
             name,
             version=None,
             project=prefect.config.get('flows', 'default_project'),
-            required_parameters=None,
+            # required_parameters=None,
             schedule=NoSchedule(),
             concurrent_runs=None,  #TODO
             cluster=None,
@@ -98,12 +98,12 @@ class Flow:
 
         """
 
-        if required_parameters is None:
-            required_parameters = set()
-        elif isinstance(required_parameters, str):
-            required_parameters = set([required_parameters])
-        else:
-            required_parameters = set(required_parameters)
+        # if required_parameters is None:
+        #     required_parameters = set()
+        # elif isinstance(required_parameters, str):
+        #     required_parameters = set([required_parameters])
+        # else:
+        #     required_parameters = set(required_parameters)
 
         if not name:
             raise ValueError('Flows must have a name.')
@@ -113,7 +113,7 @@ class Flow:
         self.project = project
         self.description = description
 
-        self.required_parameters = required_parameters
+        # self.required_parameters = required_parameters
         self.schedule = schedule
         self.tasks = dict()
         self.edges = set()
@@ -200,7 +200,8 @@ class Flow:
         if edge.key is not None:
             existing_edges = [
                 e for e in self.edges
-                if e.downstream_task == downstream_task.name and e.key == edge.key
+                if e.downstream_task == downstream_task.name
+                and e.key == edge.key
             ]
             if existing_edges:
                 raise ValueError(
@@ -391,7 +392,7 @@ class Flow:
     def serialize(self):
         flow = copy.copy(self)
 
-        required_parameters = sorted(str(p) for p in self.required_parameters)
+        # required_parameters = sorted(str(p) for p in self.required_parameters)
         tasks = [
             dict(t.serialize(), sort_order=i)
             for i, t in enumerate(self.sorted_tasks())
@@ -409,7 +410,7 @@ class Flow:
             'serialized': prefect.utilities.serialize.serialize(flow),
             'tasks': tasks,
             'edges': edges,
-            'required_parameters': required_parameters,
+            # 'required_parameters': required_parameters,
             'description': self.description,
             'schedule': self.schedule.serialize(),
             'concurrent_runs': self.concurrent_runs,
@@ -431,7 +432,8 @@ class Flow:
         if not isinstance(obj, cls):
             raise TypeError(
                 'Expected {}; received {}'.format(
-                    cls.__name__, type(obj).__name__))
+                    cls.__name__,
+                    type(obj).__name__))
 
         obj.tasks = dict()
         for task in serialized['tasks']:
@@ -453,7 +455,7 @@ class Flow:
             version=serialized['version'],
             project=serialized['project'],
             schedule=prefect.schedules.deserialize(serialized['schedule']),
-            required_parameters=serialized['required_parameters'],
+            # required_parameters=serialized['required_parameters'],
             concurrent_runs=serialized['concurrent_runs'],
             # executor_args
         )
@@ -473,4 +475,3 @@ class Flow:
     def run(self, executor=None, **kwargs):
         runner = prefect.engine.flow_runner.FlowRunner(flow=self, executor=executor)
         return runner.run(**kwargs)
-
