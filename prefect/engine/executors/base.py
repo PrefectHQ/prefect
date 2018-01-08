@@ -60,7 +60,7 @@ class Executor(metaclass=abc.ABCMeta):
         """
         This method is called
         """
-        yield
+        yield self
 
     @abc.abstractmethod
     def submit(self, fn, *args, _client_kwargs=None, **kwargs):

@@ -98,7 +98,7 @@ class DistributedExecutor(Executor):
                     address=self.address,
                     separate_thread=self.separate_thread) as client:
                 self.client = client
-                yield
+                yield self
             self.client = old_client
 
     def __getstate__(self):

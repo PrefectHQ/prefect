@@ -33,7 +33,7 @@ class ThreadPoolExecutor(ConcurrentExecutor):
         old_executor = self.executor
         with concurrent.futures.ThreadPoolExecutor(self.threads) as executor:
             self.executor = executor
-            yield
+            yield self
             self.executor = old_executor
 
 
@@ -49,5 +49,5 @@ class ProcessPoolExecutor(ConcurrentExecutor):
         old_executor = self.executor
         with concurrent.futures.ProcessPoolExecutor(self.processes) as executor:
             self.executor = executor
-            yield
+            yield self
             self.executor = old_executor

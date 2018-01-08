@@ -2,7 +2,6 @@ import datetime
 
 import pytest
 
-import prefect
 from prefect.context import (
     Annotations,
     Context,
