@@ -178,38 +178,32 @@ class TaskRunner:
         self.logger.info('Starting TaskRun.')
         self.executor.set_state(state, TaskRunState.RUNNING)
 
-        if self.task.loop:
-            result = None
-            while not result:
-                result = call_with_context_annotations(self.task.run, **inputs)
-                time.sleep(self.task.loop_delay)
-        else:
-            result = call_with_context_annotations(self.task.run, **inputs)
+        result = call_with_context_annotations(self.task.run, **inputs)
 
-            # Begin generator clause -----------------------------------
+        # Begin generator clause -----------------------------------
 
-            # tasks can yield progress
-            if isinstance(result, types.GeneratorType):
+        # tasks can yield progress
+        if isinstance(result, types.GeneratorType):
 
-                # use a sentinel to get the task's final result
-                sentinel = uuid.uuid1().hex
+            # use a sentinel to get the task's final result
+            sentinel = uuid.uuid1().hex
 
-                def sentinel_wrapper(task_generator):
-                    task_result = yield from task_generator
-                    yield {sentinel: task_result}
+            def sentinel_wrapper(task_generator):
+                task_result = yield from task_generator
+                yield {sentinel: task_result}
 
-                for progress in sentinel_wrapper(result):
+            for progress in sentinel_wrapper(result):
 
-                    # if we see a sentinel, this is the return value
-                    if isinstance(progress, dict) and sentinel in progress:
-                        result = progress[sentinel]
-                        break
+                # if we see a sentinel, this is the return value
+                if isinstance(progress, dict) and sentinel in progress:
+                    result = progress[sentinel]
+                    break
 
-                    # self.record_progress(progress)
+                # self.record_progress(progress)
 
-                    # End generator clause -------------------------------------
+        # End generator clause -------------------------------------
 
-                    # mark success
+        # mark success
         self.handle_success(state, result=result)
 
     def set_state(self, state, new_state, result=None):
