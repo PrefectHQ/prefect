@@ -62,16 +62,6 @@ class TestFlow:
         assert f.downstream_tasks(t1) == set([t2])
         assert f.edges_to(t2) == f.edges_from(t1)
 
-    def test_pipes(self):
-        with Flow('test') as f:
-            t1 = Task()
-            t2 = Task()
-            f.add_edge(upstream_task=t1, downstream_task=t2)
-        assert f.upstream_tasks(t2) == set([t1])
-        assert f.upstream_tasks(t1) == set()
-        assert f.downstream_tasks(t2) == set()
-        assert f.downstream_tasks(t1) == set([t2])
-
     def test_get_task_by_name(self):
         """
         Tests flow.get_task()
@@ -91,10 +81,10 @@ class TestFlow:
             t2 = Task()
             t3 = Task()
 
-            t1.then(t2).then(t3)
+            t1.set(run_before=t2).set(run_before=t3)
 
             with pytest.raises(ValueError) as e:
-                t3.run_before(t1)
+                t3.set(run_before=t1)
 
     def test_run(self):
         """
@@ -117,7 +107,6 @@ class TestFlow:
         assert len(f.tasks) == 2
 
         assert f.run().result['my-task'].result == 6
-
 
 
 class TestPersistence:

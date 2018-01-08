@@ -213,9 +213,12 @@ class Flow:
         # check that the edge doesn't add a cycle
         self.sorted_tasks()
 
-    def set_up_task(self, task, upstream_tasks=None, upstream_results=None):
+    # Dependencies ------------------------------------------------------------
+
+    def set_dependencies(
+            self, task, upstream_tasks=None, upstream_results=None):
         """
-        Convenience function for adding task relationships.
+        Convenience function for adding task dependencies on upstream tasks.
 
         Args:
             task (Task): a Task that will become part of the Flow
@@ -251,7 +254,8 @@ class Flow:
             name = task.name
 
         return set(
-            self.get_task(e.upstream_task) for e in self.edges
+            self.get_task(e.upstream_task)
+            for e in self.edges
             if e.downstream_task == name)
 
     def downstream_tasks(self, task):
@@ -267,7 +271,8 @@ class Flow:
             name = task.name
 
         return set(
-            self.get_task(e.downstream_task) for e in self.edges
+            self.get_task(e.downstream_task)
+            for e in self.edges
             if e.upstream_task == name)
 
     def sorted_tasks(self, root_tasks=None):
@@ -473,5 +478,6 @@ class Flow:
     # Execution  ------------------------------------------------
 
     def run(self, executor=None, **kwargs):
-        runner = prefect.engine.flow_runner.FlowRunner(flow=self, executor=executor)
+        runner = prefect.engine.flow_runner.FlowRunner(
+            flow=self, executor=executor)
         return runner.run(**kwargs)

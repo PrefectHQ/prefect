@@ -147,79 +147,61 @@ class Task:
 
     # Relationships  ----------------------------------------------------------
 
-    def __call__(self, *tasks, **kwarg_tasks):
-        return self.run_after(*tasks, **kwarg_tasks)
+    def __call__(self, *tasks, **upstream_results):
+        return self.set(run_after=tasks, **upstream_results)
 
-    def run_after(self, *tasks, **kwarg_tasks):
+    def set(self, *, run_before=None, run_after=None, **upstream_results):
+        flow = prefect.context.Context.get('flow')
+        if not flow:
+            raise ValueError(
+                'Dependencies can only be set within an active Flow context.')
+
+        if run_after is not None and isinstance(run_after, (str, Task)):
+            run_after = [run_after]
+        flow.set_dependencies(
+            task=self,
+            upstream_tasks=run_after,
+            upstream_results=upstream_results)
+
+        if run_before is not None:
+            if isinstance(run_before, (str, Task)):
+                run_before = [run_before]
+            for task in run_before:
+                flow.set_dependencies(task, upstream_tasks=[self])
+
+        return self
+
+    def run_after(self, *upstream_tasks, **upstream_results):
         """
-        Adds a relationship to the Flow so that this task runs after other
+        Adds a dependency to the Flow so that this task runs after other
         tasks, optionally receiving their results at runtime as keyword
         arguments.
 
+        Tasks that are provided as kwarg results do not also have to be
+        supplied as upstream tasks.
+
         Args:
-            *tasks (Task[]): The provided tasks will become upstream
+            *upstream_tasks (Task[]): The provided tasks will become upstream
                 dependencies of this task.
 
-            **kwarg_tasks (dict[kwarg, Task]): The provided tasks will become
+            **upstream_results (dict[kwarg, Task]): The provided tasks will become
                 upstream dependencies of this task AND their results will be
                 provided to this task as the specified keyword argument.
         """
-        flow = prefect.context.Context.get('flow')
-        if not flow:
-            raise ValueError(
-                'This function can only be called inside a Flow context')
-        flow.set_up_task(
-            task=self, upstream_tasks=tasks, upstream_results=kwarg_tasks)
-
+        self.set(run_after=upstream_tasks, **upstream_results)
         return self
 
-    def run_before(self, *tasks, kwarg=None):
+    def run_before(self, *downstream_tasks):
         """
-        Adds a relationship to the Flow so that this task runs before other
+        Adds a dependency to the Flow so that this task runs before other
         tasks.
 
         Args:
-            tasks (Task[]): The provided tasks will become downstream
+            downstream_tasks (Task[]): The provided tasks will become downstream
                 dependencies of this task.
-
-            kwarg (str): If provided, this task's result will be provided
-                to any downstream tasks under the specified keyword argument.
         """
-        flow = prefect.context.Context.get('flow')
-        if not flow:
-            raise ValueError(
-                'This function can only be called inside a Flow context')
-
-        if kwarg:
-            if not isinstance(kwarg, str):
-                raise TypeError('kwarg must be a string.')
-            upstream_results = {kwarg: self}
-        else:
-            upstream_results = None
-
-        for t in tasks:
-            flow.set_up_task(
-                task=t,
-                upstream_tasks=[self],
-                upstream_results=upstream_results)
-
+        self.set(run_before=downstream_tasks)
         return self
-
-    def then(self, task, kwarg=None):
-        """
-        Create simple dependency chains by linking tasks:
-            task1.then(task2, kwarg=t1).then(task3)
-
-        Args:
-            task (Task): The task that should run after this one
-            kwarg (str): If provided, this task's result will be provided to
-                the downstream task under this keyword argument.
-
-        Returns:
-            The downstream task (`task`)
-        """
-        self.run_before(task, kwarg=kwarg)
-        return task
 
     # Serialize ---------------------------------------------------------------
 
@@ -251,7 +233,8 @@ class Task:
         if not isinstance(obj, cls):
             raise TypeError(
                 'Expected {}; received {}'.format(
-                    cls.__name__, type(obj).__name__))
+                    cls.__name__,
+                    type(obj).__name__))
         return obj
 
     @classmethod
