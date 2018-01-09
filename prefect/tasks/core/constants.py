@@ -1,7 +1,7 @@
 import prefect
 
 
-class ConstantTask(prefect.Task):
+class Constant(prefect.Task):
 
     def __init__(self, value, name=None, autorename=True, **kwargs):
 

@@ -238,8 +238,8 @@ class Flow:
 
         for key, t in (upstream_results or {}).items():
             if not isinstance(t, prefect.task.Task):
-                # if the value is not a Task class, wrap it in a ConstantTask.
-                t = prefect.tasks.core.ConstantTask(value=t)
+                # if the value is not a Task class, wrap it in a Constant.
+                t = prefect.tasks.core.Constant(value=t)
             self.add_edge(upstream_task=t, downstream_task=task, key=key)
 
     def upstream_tasks(self, task):
