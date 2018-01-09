@@ -10,6 +10,7 @@ class ConstantTask(prefect.Task):
         # set the name from the fn
         if name is None:
             name = 'Constant[{type}]'.format(type=type(value).__name__)
+            autorename = True
 
         super().__init__(name=name, autorename=autorename, **kwargs)
 
@@ -17,17 +18,18 @@ class ConstantTask(prefect.Task):
         return self.value
 
 
-class ContextTask(ConstantTask):
+class ContextTask(prefect.Task):
 
     def __init__(
             self,
             context_key,
             name=None,
-            missing_value=None,
-            raise_if_missing=False,
+            missing_value=prefect.utilities.functions.OPTIONAL_ARGUMENT,
             autorename=True,
             **kwargs):
         """
+
+        A Task that retrieves a value from the active Prefect context.
 
         Args:
             context_key (str): the context key whose value will be returned
@@ -37,22 +39,17 @@ class ContextTask(ConstantTask):
             missing_value (any): the value to supply if the key is not found
                 in the Context
 
-            raise_if_missing (bool): if True, a bad context value will raise
-                a ContextError
-
         """
+        self.context_key = context_key
         self.missing_value = missing_value
-        self.raise_if_missing = raise_if_missing
 
         if name is None:
             name = 'Context["{}"]'.format(context_key)
-            kwargs['autorename'] = True
+            autorename = True
 
-        super().__init__(
-            value=context_key, name=name, autorename=autorename, **kwargs)
+        super().__init__(name=name, autorename=autorename, **kwargs)
 
     def run(self):
         return prefect.context.Context.get(
-            self.value,
-            missing_value=self.missing_value,
-            raise_if_missing=self.raise_if_missing)
+            self.context_key,
+            missing_value=self.missing_value)

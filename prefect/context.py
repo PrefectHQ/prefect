@@ -17,6 +17,7 @@ import inspect
 import threading
 from contextlib import contextmanager as _contextmanager
 from typing import Any, NewType
+from prefect.utilities.functions import OPTIONAL_ARGUMENT
 
 
 class ContextError(KeyError):
@@ -71,8 +72,8 @@ class Context(threading.local):
         finally:
             self.reset(previous_context)
 
-    def get(self, key, missing_value=None, raise_if_missing=False):
-        if raise_if_missing and key not in self:
+    def get(self, key, missing_value=OPTIONAL_ARGUMENT):
+        if key not in self and missing_value is OPTIONAL_ARGUMENT:
             raise ContextError('Context key not found: "{}"'.format(key))
         return getattr(self, key, missing_value)
 
