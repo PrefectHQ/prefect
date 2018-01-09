@@ -7,6 +7,7 @@ import prefect.context
 import ujson
 from prefect.schedules import NoSchedule
 from prefect.task import Task
+from prefect.tasks.core import Parameter
 from prefect.utilities.strings import is_valid_identifier
 
 
@@ -367,6 +368,8 @@ class Flow:
             name = task.name
         return set(e for e in self.edges if e.upstream_task == name)
 
+    # Introspection -----------------------------------------------------------
+
     def root_tasks(self):
         """
         Returns the root tasks of the Flow -- tasks that have no upstream
@@ -380,6 +383,20 @@ class Flow:
         dependencies.
         """
         return set(t for t in self.tasks.values() if not self.edges_from(t))
+
+    def parameters(self):
+        """
+        Returns the parameters of the flow, including whether they are required
+        and any default value
+        """
+        return {
+            t.name: {
+                'required': t.required,
+                'default': t.default
+            }
+            for t in self.tasks.values()
+            if isinstance(t, Parameter)
+        }
 
     # Context Manager -----------------------------------------------
 
@@ -397,7 +414,6 @@ class Flow:
     def serialize(self):
         flow = copy.copy(self)
 
-        # required_parameters = sorted(str(p) for p in self.required_parameters)
         tasks = [
             dict(t.serialize(), sort_order=i)
             for i, t in enumerate(self.sorted_tasks())
@@ -415,7 +431,7 @@ class Flow:
             'serialized': prefect.utilities.serialize.serialize(flow),
             'tasks': tasks,
             'edges': edges,
-            # 'required_parameters': required_parameters,
+            'required_parameters': required_parameters,
             'description': self.description,
             'schedule': self.schedule.serialize(),
             'concurrent_runs': self.concurrent_runs,
