@@ -4,7 +4,7 @@ import prefect
 from prefect.tasks import as_task_class
 from prefect.engine import TaskRunner
 from prefect.state import TaskRunState
-from prefect.utilities.test import run_task_runner_test
+from prefect.utilities.tests import run_task_runner_test
 
 
 @pytest.fixture()

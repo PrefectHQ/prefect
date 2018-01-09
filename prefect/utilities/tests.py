@@ -1,6 +1,22 @@
+import itertools
+
+import pytest
+
 import prefect
 from prefect.state import TaskRunState
-import pytest
+
+
+class DummyTask(prefect.Task):
+
+    _id_iter = itertools.count()
+
+    def __init__(self, *args, **kwargs):
+        if 'name' not in kwargs:
+            kwargs['name'] = str(next(self._id_iter))
+        super().__init__(*args, **kwargs)
+
+    def run(self):
+        pass
 
 
 def run_task_runner_test(
@@ -56,7 +72,7 @@ def run_flow_runner_test(
         start_tasks=None,
         expected_task_states=None,
         executor=None,
-        inputs=None,
+        override_task_inputs=None,
         context=None):
     """
     Runs a flow and tests that it matches the expected state. If an
@@ -76,7 +92,7 @@ def run_flow_runner_test(
 
         context (dict): an optional context for the run
 
-        inputs (dict): input overrides for tasks. This dict should have
+        override_task_inputs (dict): input overrides for tasks. This dict should have
             the form {task.name: {kwarg: value}}.
 
     Returns:
@@ -90,7 +106,7 @@ def run_flow_runner_test(
     flow_state = flow_runner.run(
         state=state,
         context=context,
-        inputs=inputs,
+        override_task_inputs=override_task_inputs,
         task_states=task_states,
         start_tasks=start_tasks,
         return_all_task_states=True)
@@ -113,6 +129,7 @@ def run_flow_runner_test(
                     flow_state.result[task_name], expected_task_state,
                     task_name))
         if isinstance(expected_task_state, TaskRunState):
-            assert flow_state.result[task_name].result == expected_task_state.result
+            assert flow_state.result[
+                task_name].result == expected_task_state.result
 
     return flow_state

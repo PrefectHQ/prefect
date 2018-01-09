@@ -1,11 +1,8 @@
-import distributed
-import pytest
-
 import prefect
 from prefect.tasks import FunctionTask
 from prefect.engine import FlowRunner
 from prefect.state import FlowRunState, TaskRunState
-from prefect.utilities.test import run_flow_runner_test
+from prefect.utilities.tests import run_flow_runner_test
 
 
 def test_flow_runner_success():
