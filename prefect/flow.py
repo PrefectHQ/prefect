@@ -322,26 +322,6 @@ class Flow:
 
         return tuple(sorted_tasks)
 
-    def sub_flow(self, root_tasks=None):
-        """
-        Returns a Flow consisting of a subgraph of this graph including only
-        tasks between the supplied root_tasks and ending_tasks.
-        """
-
-        sub_flow = copy.copy(self)
-        sub_flow.tasks = dict()
-        sub_flow.edges = set()
-
-        for t in self.sorted_tasks(root_tasks=root_tasks):
-            sub_flow.add_task(t)
-
-        for e in self.edges:
-            if e.upstream_task in sub_flow.tasks:
-                if e.downstream_task in sub_flow.tasks:
-                    sub_flow.edges.add(e)
-
-        return sub_flow
-
     def edges_to(self, task):
         """
         Set of all Edges leading to this Task
@@ -397,6 +377,26 @@ class Flow:
             for t in self.tasks.values()
             if isinstance(t, Parameter)
         }
+
+    def sub_flow(self, root_tasks=None):
+        """
+        Returns a Flow consisting of a subgraph of this graph including only
+        tasks between the supplied root_tasks and ending_tasks.
+        """
+
+        sub_flow = copy.copy(self)
+        sub_flow.tasks = dict()
+        sub_flow.edges = set()
+
+        for t in self.sorted_tasks(root_tasks=root_tasks):
+            sub_flow.add_task(t)
+
+        for e in self.edges:
+            if e.upstream_task in sub_flow.tasks:
+                if e.downstream_task in sub_flow.tasks:
+                    sub_flow.edges.add(e)
+
+        return sub_flow
 
     # Context Manager -----------------------------------------------
 
@@ -493,7 +493,8 @@ class Flow:
 
     # Execution  ------------------------------------------------
 
-    def run(self, executor=None, **kwargs):
+    def run(self, executor=None, return_all_task_states=False, **kwargs):
         runner = prefect.engine.flow_runner.FlowRunner(
             flow=self, executor=executor)
-        return runner.run(**kwargs)
+        return runner.run(
+            return_all_task_states=return_all_task_states, **kwargs)
