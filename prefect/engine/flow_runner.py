@@ -56,6 +56,7 @@ class FlowRunner:
             state: FlowRunState = None,
             task_states: dict = None,
             start_tasks: list = None,
+            parameters: dict = None,
             context: dict = None,
             task_contexts: dict = None,
             override_task_inputs: dict = None,
@@ -64,15 +65,30 @@ class FlowRunner:
         """
         Arguments
 
-            task_states (dict): a dictionary of { task.name: TaskRunState } pairs
-                representing the initial states of the FlowRun tasks.
+            task_states (dict): a dictionary of { task.name: TaskRunState }
+                pairs representing the initial states of the FlowRun tasks.
 
+            start_tasks (list): a list of task names indicating the tasks
+                that should be run first. Only tasks downstream of these will
+                be run.
+
+            parameters (dict): a dictionary of { parameter_name: value } pairs
+                indicating parameter values for the Flow run.
+
+            override_task_inputs (dict): a dictionary of
+                { task.name: {upstream_task.name: input_value } } pairs
+                indicating that a given task's upstream task's reuslt should be
+                overwritten with the supplied input
         """
 
         state = FlowRunState(state)
         task_states = task_states or {}
         override_task_inputs = override_task_inputs or {}
+        parameters = parameters or {}
+        context = context or {}
         task_contexts = task_contexts or {}
+
+        context.update({'parameters': parameters})
 
         # prepare context
         with prefect.context.Context(context):
