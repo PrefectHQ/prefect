@@ -19,7 +19,7 @@ class TaskRunner:
     def __init__(self, task, executor=None, logger_name=None):
         """
         Args:
-            flow (prefect.Flow)
+            task (prefect.Task)
 
             executor (Prefect Executor)
 
@@ -36,39 +36,51 @@ class TaskRunner:
         try:
             yield
         except signals.SUCCESS as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.handle_success(state=state, result=s.result)
         except signals.SKIP as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.executor.set_state(
-                state=state,
-                new_state=TaskRunState.SKIPPED,
-                result=s.result)
+                state=state, new_state=TaskRunState.SKIPPED, result=s.result)
         except signals.SKIP_DOWNSTREAM as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.executor.set_state(
                 state=state,
                 new_state=TaskRunState.SKIP_DOWNSTREAM,
                 result=s.result)
         except signals.RETRY as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.handle_retry(
                 state=state,
                 new_state=TaskRunState.PENDING_RETRY,
                 result=s.result)
         except signals.SHUTDOWN as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.executor.set_state(
-                state=state,
-                new_state=TaskRunState.SHUTDOWN,
-                result=s.result)
+                state=state, new_state=TaskRunState.SHUTDOWN, result=s.result)
         except signals.DONTRUN as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
         except signals.FAIL as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.handle_fail(state=state, result=s.result)
         except Exception as e:
-            self.logger.error('Task: An unexpected error occurred', exc_info=1)
+            self.logger.info(
+                'Task {}: An unexpected error occurred'.format(self.task.name),
+                exc_info=1)
             self.handle_fail(state=state)
 
     def run(
@@ -104,10 +116,10 @@ class TaskRunner:
 
         # prepare context
         context.update(
-                task_name=self.task.name,
-                task_max_retries=self.task.max_retries,
-                task_run_upstream_states=upstream_states,
-                task_run_inputs=inputs)
+            task_name=self.task.name,
+            task_max_retries=self.task.max_retries,
+            task_run_upstream_states=upstream_states,
+            task_run_inputs=inputs)
 
         # set up context
         with prefect.context.Context(context):
@@ -149,7 +161,8 @@ class TaskRunner:
         # check if a SKIP_DOWNSTREAM should be raised before raising any
         # other signals
         except signals.PrefectStateException:
-            if any(s == TaskRunState.SKIP_DOWNSTREAM for s in upstream_states.values()):
+            if any(s == TaskRunState.SKIP_DOWNSTREAM
+                   for s in upstream_states.values()):
                 raise signals.SKIP_DOWNSTREAM('Received SKIP_DOWNSTREAM state')
             else:
                 raise
