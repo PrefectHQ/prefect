@@ -32,7 +32,7 @@ def test_wait_local_executor():
 
 def test_submit_distributed_executor(client):
 
-    with executors.DistributedExecutor(client=client).execution_context as e:
+    with executors.DistributedExecutor(client=client).execution_context() as e:
         r1 = e.submit(lambda: 1) == 1
         assert e.submit(lambda x, y: x + y, 1, 2) == 3
         x, y = 1, 2
@@ -44,7 +44,7 @@ def test_distributed_flowrunner(client):
         t1 = prefect.tasks.FunctionTask(fn=lambda: 1, name='t1')
         t2 = prefect.tasks.FunctionTask(fn=lambda: 2, name='t2')
         t1.run_before(t2)
-    with executors.DistributedExecutor(client=client).execution_context as e:
+    with executors.DistributedExecutor(client=client).execution_context() as e:
         future = e.run_flow(f)
         assert isinstance(future, distributed.Future)
 
