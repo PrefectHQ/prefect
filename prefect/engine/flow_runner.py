@@ -56,9 +56,9 @@ class FlowRunner:
             state: FlowRunState = None,
             task_states: dict = None,
             start_tasks: list = None,
-            inputs: dict = None,
             context: dict = None,
             task_contexts: dict = None,
+            override_task_inputs: dict = None,
             return_all_task_states: bool = False,
     ):
         """
@@ -71,7 +71,7 @@ class FlowRunner:
 
         state = FlowRunState(state)
         task_states = task_states or {}
-        inputs = inputs or {}
+        override_task_inputs = override_task_inputs or {}
         task_contexts = task_contexts or {}
 
         # prepare context
@@ -93,7 +93,7 @@ class FlowRunner:
                         start_tasks=start_tasks,
                         task_contexts=task_contexts,
                         return_all_task_states=return_all_task_states,
-                        inputs=inputs)
+                        override_task_inputs=override_task_inputs)
 
         return state
 
@@ -102,7 +102,7 @@ class FlowRunner:
             state,
             task_states,
             start_tasks,
-            inputs,
+            override_task_inputs,
             task_contexts,
             return_all_task_states=False):
 
@@ -155,8 +155,8 @@ class FlowRunner:
                         lambda state: state.result,
                         task_states[edge.upstream_task])
 
-            # override upstream_inputs with provided inputs
-            upstream_inputs.update(inputs.get(task.name, {}))
+            # override upstream_inputs with provided override_task_inputs
+            upstream_inputs.update(override_task_inputs.get(task.name, {}))
 
             # run the task!
             with prefect.context.Context(task_contexts.get(task.name)):
@@ -184,7 +184,8 @@ class FlowRunner:
 
         if any(s.is_failed() for s in terminal_states.values()):
             self.logger.info('FlowRun FAIL: Some terminal tasks failed.')
-            self.executor.set_state(state, FlowRunState.FAILED, result=result_states)
+            self.executor.set_state(
+                state, FlowRunState.FAILED, result=result_states)
         elif all(s.is_successful() for s in terminal_states.values()):
             self.logger.info('FlowRun SUCCESS: All terminal tasks succeeded.')
             self.executor.set_state(

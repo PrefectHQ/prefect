@@ -110,7 +110,7 @@ def test_indexed_task():
             t2=TaskRunState(TaskRunState.SUCCESS, result=2)))
 
 
-def test_provided_inputs():
+def test_override_inputs():
     with prefect.Flow('flow') as f:
         x = FunctionTask(fn=lambda: 1, name='x')
         y = FunctionTask(fn=lambda: 2, name='y')
@@ -125,7 +125,7 @@ def test_provided_inputs():
 
     # test FlowRunner with inputs
     fr_state_inputs = fr.run(
-        inputs=dict(z=dict(x=10)),
+        override_task_inputs=dict(z=dict(x=10)),
         return_all_task_states=True,
     )
     assert fr_state_inputs.result['x'].result == 1
@@ -134,7 +134,7 @@ def test_provided_inputs():
     # test utility
     run_flow_runner_test(
         flow=f,
-        inputs=dict(z=dict(x=10)),
+        override_task_inputs=dict(z=dict(x=10)),
         expected_state=FlowRunState.SUCCESS,
         expected_task_states=dict(
             z=TaskRunState(TaskRunState.SUCCESS, result=12)))
