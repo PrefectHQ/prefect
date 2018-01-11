@@ -18,101 +18,101 @@ def check_operator_flow(flow, task_name, result):
 
 def test_and():
     with Flow('test') as flow:
-        ops.And().set(x=True, y=True)
+        ops.And(True, True)
     check_operator_flow(flow, 'And', True)
 
     with Flow('test') as flow:
-        ops.And().set(x=True, y=False)
+        ops.And(True, False)
     check_operator_flow(flow, 'And', False)
 
 
 def test_or():
 
     with Flow('test') as flow:
-        ops.Or().set(x=True, y=True)
+        ops.Or(True, True)
     check_operator_flow(flow, 'Or', True)
 
     with Flow('test') as flow:
-        ops.Or().set(x=True, y=False)
+        ops.Or(True, False)
     check_operator_flow(flow, 'Or', True)
 
 
 def test_eq():
 
     with Flow('test') as flow:
-        ops.Eq().set(x=1, y=1)
+        ops.Eq(1, 1)
     check_operator_flow(flow, 'Eq', True)
 
     with Flow('test') as flow:
-        ops.Eq().set(x=1, y=2)
+        ops.Eq(1, 2)
     check_operator_flow(flow, 'Eq', False)
 
 
 def test_neq():
 
     with Flow('test') as flow:
-        ops.Neq().set(x=1, y=1)
+        ops.Neq(1, 1)
     check_operator_flow(flow, 'Neq', False)
 
     with Flow('test') as flow:
-        ops.Neq().set(x=1, y=2)
+        ops.Neq(1, 2)
     check_operator_flow(flow, 'Neq', True)
 
 
 def test_gt():
 
     with Flow('test') as flow:
-        ops.GT().set(x=2, y=1)
+        ops.GT(2, 1)
     check_operator_flow(flow, 'GT', True)
 
     with Flow('test') as flow:
-        ops.GT().set(x=1, y=2)
+        ops.GT(1, 2)
     check_operator_flow(flow, 'GT', False)
 
     with Flow('test') as flow:
-        ops.GT().set(x=1, y=1)
+        ops.GT(1, 1)
     check_operator_flow(flow, 'GT', False)
 
 
 def test_gte():
 
     with Flow('test') as flow:
-        ops.GTE().set(x=2, y=1)
+        ops.GTE(2, 1)
     check_operator_flow(flow, 'GTE', True)
 
     with Flow('test') as flow:
-        ops.GTE().set(x=1, y=2)
+        ops.GTE(1, 2)
     check_operator_flow(flow, 'GTE', False)
     with Flow('test') as flow:
-        ops.GTE().set(x=1, y=1)
+        ops.GTE(1, 1)
     check_operator_flow(flow, 'GTE', True)
 
 
 def test_lt():
 
     with Flow('test') as flow:
-        ops.LT().set(x=2, y=1)
+        ops.LT(2, 1)
     check_operator_flow(flow, 'LT', False)
 
     with Flow('test') as flow:
-        ops.LT().set(x=1, y=2)
+        ops.LT(1, 2)
     check_operator_flow(flow, 'LT', True)
 
     with Flow('test') as flow:
-        ops.LT().set(x=1, y=1)
+        ops.LT(1, 1)
     check_operator_flow(flow, 'LT', False)
 
 
 def test_lte():
 
     with Flow('test') as flow:
-        ops.LTE().set(x=2, y=1)
+        ops.LTE(2, 1)
     check_operator_flow(flow, 'LTE', False)
 
     with Flow('test') as flow:
-        ops.LTE().set(x=1, y=2)
+        ops.LTE(1, 2)
     check_operator_flow(flow, 'LTE', True)
     with Flow('test') as flow:
 
-        ops.LTE().set(x=1, y=1)
+        ops.LTE(1, 1)
     check_operator_flow(flow, 'LTE', True)

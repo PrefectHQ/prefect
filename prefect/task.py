@@ -81,11 +81,13 @@ class Task:
                 predicate=lambda n: n not in flow.tasks,
                 first_suffix=2,
                 delimiter='-')
+        elif name is None:
+            name = type(self).__name__
 
         if not isinstance(name, str):
             raise ValueError(
                 'Name is invalid or could not be inferred '
-                'from provided Flow: {}'.format(name))
+                'from Flow: "{}"'.format(name))
         self.name = name
         self.description = description or ''
 
@@ -126,7 +128,10 @@ class Task:
         return slugify(self.name)
 
     def __repr__(self):
-        return '{}({})'.format(type(self).__name__, self.name)
+        if type(self).__name__ == self.name:
+            return self.name
+        else:
+            return '{}({})'.format(type(self).__name__, self.name)
 
     # Comparison --------------------------------------------------------------
 
