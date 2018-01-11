@@ -6,7 +6,8 @@ import prefect
 import ujson
 from prefect.flow import Flow
 from prefect.signals import PrefectError
-from prefect.tasks import Task, FunctionTask, as_task_class
+from prefect.tasks import Task, FunctionTask
+from prefect.utilities.tasks import as_task_class
 from prefect.utilities.tests import DummyTask
 
 

@@ -20,32 +20,3 @@ class FunctionTask(prefect.Task):
     def run(self, **inputs):
         return prefect.context.call_with_context_annotations(self.fn, **inputs)
 
-
-def as_task_class(fn=None, **kwargs):
-    """
-    A decorator for creating Tasks from functions.
-
-    Usage:
-
-    @as_task_class
-    def myfn():
-        time.sleep(10)
-        return 1
-
-    @as_task_class(name='hello', retries=3)
-    def hello():
-        print('hello')
-
-    with Flow() as flow:
-        hello().run_before(myfn())
-
-    """
-
-    if callable(fn):
-        return functools.partial(FunctionTask, fn=fn)
-    else:
-
-        def wrapper(fn):
-            return functools.partial(FunctionTask, fn=fn, **kwargs)
-
-        return wrapper

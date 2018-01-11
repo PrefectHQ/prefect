@@ -9,7 +9,7 @@ import prefect.serializers
 import prefect.triggers
 
 from prefect.task import Task
-from prefect.tasks import as_task_class
+from prefect.utilities.tasks import as_task_class
 
 from prefect.flow import Flow
 from prefect.engine import FlowRunner, TaskRunner

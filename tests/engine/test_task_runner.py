@@ -1,7 +1,7 @@
 import datetime
 import pytest
 import prefect
-from prefect.tasks import as_task_class
+from prefect.utilities.tasks import as_task_class
 from prefect.engine import TaskRunner
 from prefect.state import TaskRunState
 from prefect.utilities.tests import run_task_runner_test
