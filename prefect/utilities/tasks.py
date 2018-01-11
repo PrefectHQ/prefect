@@ -11,7 +11,7 @@ def as_task(x):
     elif callable(x):
         return prefect.tasks.FunctionTask(fn=x)
     else:
-        return prefect.tasks.Constant(fn=x)
+        return prefect.tasks.Constant(value=x)
 
 
 def as_task_class(fn=None, **kwargs):
