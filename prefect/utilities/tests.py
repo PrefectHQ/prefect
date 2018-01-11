@@ -10,10 +10,10 @@ class DummyTask(prefect.Task):
 
     _id_iter = itertools.count()
 
-    def __init__(self, *args, **kwargs):
-        if 'name' not in kwargs:
-            kwargs['name'] = str(next(self._id_iter))
-        super().__init__(*args, **kwargs)
+    def __init__(self, name=None, *args, **kwargs):
+        if name is None:
+            name = str(next(self._id_iter))
+        super().__init__(*args, name=name, **kwargs)
 
     def run(self):
         pass
