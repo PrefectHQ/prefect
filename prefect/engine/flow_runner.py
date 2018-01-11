@@ -210,7 +210,7 @@ class FlowRunner:
             result_states = terminal_states
 
         if any(s.is_failed() for s in terminal_states.values()):
-            self.logger.info('FlowRun FAIL: Some terminal tasks failed.')
+            self.logger.info('FlowRun FAILED: Some terminal tasks failed.')
             self.executor.set_state(
                 state, FlowRunState.FAILED, result=result_states)
         elif all(s.is_successful() for s in terminal_states.values()):
