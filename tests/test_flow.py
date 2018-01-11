@@ -6,9 +6,8 @@ import prefect
 import ujson
 from prefect.flow import Flow
 from prefect.signals import PrefectError
-from prefect.task import Task
-from prefect.tasks import FunctionTask
-from prefect import as_task_class
+from prefect.tasks import Task, FunctionTask, as_task_class
+from prefect.utilities.tests import DummyTask
 
 
 class TestFlow:
@@ -81,7 +80,8 @@ class TestFlow:
             t2 = Task()
             t3 = Task()
 
-            t1.set(run_before=t2).set(run_before=t3)
+            t1.set(run_before=t2)
+            t2.set(run_before=t3)
 
             with pytest.raises(ValueError) as e:
                 t3.set(run_before=t1)
@@ -103,11 +103,21 @@ class TestFlow:
             t1 = FunctionTask(fn=lambda x: x + 1, name='my-task')
             t1.run_after(x=5)
 
-        # check that a ConstantTask was added
+        # check that a Constant was added
         assert len(f.tasks) == 2
 
         assert f.run().result['my-task'].result == 6
 
+    def test_terminal_tasks(self):
+        with Flow('test') as f:
+            t1 = DummyTask()
+            t2 = DummyTask()
+            t3 = DummyTask()
+
+            t1.set(run_before=t2)
+            t2.set(run_before=t3)
+
+        assert f.terminal_tasks() == set([t3])
 
 class TestPersistence:
 
