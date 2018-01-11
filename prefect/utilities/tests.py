@@ -73,6 +73,7 @@ def run_flow_runner_test(
         expected_task_states=None,
         executor=None,
         override_task_inputs=None,
+        parameters=None,
         context=None):
     """
     Runs a flow and tests that it matches the expected state. If an
@@ -86,11 +87,14 @@ def run_flow_runner_test(
         state (prefect.FlowRunState or str): the starting state for the task.
 
         expected_task_states (dict): a dict of expected
-            {task_name: TaskRunState} (or {task_name: str}) pairs
+            {task_name: TaskRunState} (or {task_name: str}) pairs. Passing a
+            dict with Task keys is also ok.
 
         executor (prefect.Executor)
 
         context (dict): an optional context for the run
+
+        parameters (dict): the parameters for the run
 
         override_task_inputs (dict): input overrides for tasks. This dict should have
             the form {task.name: {kwarg: value}}.
@@ -106,6 +110,7 @@ def run_flow_runner_test(
     flow_state = flow_runner.run(
         state=state,
         context=context,
+        parameters=parameters,
         override_task_inputs=override_task_inputs,
         task_states=task_states,
         start_tasks=start_tasks,
@@ -118,6 +123,8 @@ def run_flow_runner_test(
                 flow_state, expected_state))
 
     for task_name, expected_task_state in expected_task_states.items():
+        if isinstance(task_name, prefect.Task):
+            task_name = task_name.name
         try:
             assert flow_state.result[task_name] == expected_task_state
         except KeyError:

@@ -1,5 +1,6 @@
+import pytest
 import prefect
-from prefect.tasks import FunctionTask
+from prefect.tasks import FunctionTask, Parameter
 from prefect.engine import FlowRunner
 from prefect.state import FlowRunState, TaskRunState
 from prefect.utilities.tests import run_flow_runner_test
@@ -63,8 +64,12 @@ def test_fail_early_and_cleanup():
         t1 = FunctionTask(fn=lambda: 1 / 0, name='t1')
         t2 = FunctionTask(fn=lambda: 2, name='t2')
         t3 = FunctionTask(fn=lambda: 3, name='t3', trigger='all_failed')
-        t1.set(run_before=t2).set(run_before=t3)
+        t1.set(run_before=t2)
+        t2.set(run_before=t3)
 
+    # t1 fails by design
+    # t2 fails because it can't run if t1 fails
+    # t3 succeeds
     run_flow_runner_test(
         flow=f,
         expected_state=FlowRunState.SUCCESS,
@@ -137,4 +142,30 @@ def test_override_inputs():
             z=TaskRunState(TaskRunState.SUCCESS, result=12)))
 
 
-# def test_approval
+def test_parameters():
+    with prefect.Flow('flow') as f:
+        x = Parameter('x')
+        y = Parameter('y', default=10)
+        z = FunctionTask(fn=lambda x, y: x + y)
+
+        z.set(x=x, y=y)
+
+    # if no parameters are provided, the flow will fail
+    run_flow_runner_test(
+        flow=f,
+        expected_state=FlowRunState.FAILED)
+
+    # if a required parameter isn't provided, the flow will fail
+    run_flow_runner_test(
+        flow=f,
+        parameters=dict(y=2),
+        expected_state=FlowRunState.FAILED
+    )
+
+    # if the required parameter is provided, the flow will succeed
+    run_flow_runner_test(
+        flow=f,
+        parameters=dict(x=1),
+        expected_state=FlowRunState.SUCCESS,
+        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=11)}
+    )

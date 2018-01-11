@@ -81,7 +81,7 @@ class TaskRunner:
             self.logger.info(
                 'Task {}: An unexpected error occurred'.format(self.task.name),
                 exc_info=1)
-            self.handle_fail(state=state)
+            self.handle_fail(state=state, result=str(e))
 
     def run(
             self,

@@ -79,17 +79,12 @@ class Flow:
             name,
             version=None,
             project=prefect.config.get('flows', 'default_project'),
-            # required_parameters=None,
             schedule=NoSchedule(),
             concurrent_runs=None,  #TODO
             cluster=None,
             description=None):
         """
         Args:
-            required_parameters: a collection of parameter names that must be
-                provided when the Flow is run. Flows can be called with any
-                params, but an error will be raised if these are missing.
-
             schedule (prefect.Schedule): a Schedule object that returns the
                 Flow's schedule
 
@@ -114,7 +109,6 @@ class Flow:
         self.project = project
         self.description = description
 
-        # self.required_parameters = required_parameters
         self.schedule = schedule
         self.tasks = dict()
         self.edges = set()
@@ -364,7 +358,7 @@ class Flow:
         """
         return set(t for t in self.tasks.values() if not self.edges_from(t))
 
-    def parameters(self):
+    def parameters(self, only_required=False):
         """
         Returns the parameters of the flow, including whether they are required
         and any default value
@@ -376,6 +370,7 @@ class Flow:
             }
             for t in self.tasks.values()
             if isinstance(t, Parameter)
+            and (t.required if only_required else True)
         }
 
     def sub_flow(self, root_tasks=None):
@@ -493,8 +488,15 @@ class Flow:
 
     # Execution  ------------------------------------------------
 
-    def run(self, executor=None, return_all_task_states=False, **kwargs):
+    def run(
+            self,
+            parameters=None,
+            executor=None,
+            return_all_task_states=False,
+            **kwargs):
         runner = prefect.engine.flow_runner.FlowRunner(
             flow=self, executor=executor)
         return runner.run(
-            return_all_task_states=return_all_task_states, **kwargs)
+            parameters=parameters,
+            return_all_task_states=return_all_task_states,
+            **kwargs)

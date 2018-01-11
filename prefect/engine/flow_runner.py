@@ -27,6 +27,10 @@ class FlowRunner:
     def catch_signals(self, state):
         try:
             yield
+        except prefect.signals.ParameterError as s:
+            self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
+            self.executor.set_state(
+                state=state, new_state=FlowRunState.FAILED, result=str(s))
         except prefect.signals.SUCCESS as s:
             self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
             self.executor.set_state(
@@ -49,7 +53,7 @@ class FlowRunner:
         except Exception:
             self.logger.error(
                 'Flow: An unexpected error occurred', exc_info=True)
-            self.executor.set_state(state=state, new_state=FlowRunState.FAILED)
+            self.executor.set_state(state=state, new_state=FlowRunState.FAILED, result={})
 
     def run(
             self,
@@ -88,16 +92,23 @@ class FlowRunner:
         context = context or {}
         task_contexts = task_contexts or {}
 
-        context.update({'parameters': parameters})
+        context.setdefault('parameters', {}).update(parameters)
 
         # prepare context
-        with prefect.context.Context(context):
+        with prefect.context.Context(context) as ctx:
 
             # set up executor context
             with self.executor.execution_context():
 
                 # catch any signals
                 with self.catch_signals(state=state):
+
+                    req_parameters = self.flow.parameters(only_required=True)
+                    missing = set(req_parameters).difference(ctx.parameters)
+                    if missing:
+                        raise prefect.signals.ParameterError(
+                            'Required parameters not provided: {}'.format(
+                                missing))
 
                     if not all(isinstance(t, str) for t in task_states):
                         raise TypeError(

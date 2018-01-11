@@ -1,6 +1,11 @@
 class PrefectError(Exception):
     pass
 
+# ------------------------------------------------------------------------------
+# Flow errors
+# ------------------------------------------------------------------------------
+class ParameterError(PrefectError):
+    pass
 
 # ------------------------------------------------------------------------------
 # These classes are used to signal state changes when tasks are running
