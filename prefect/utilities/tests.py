@@ -66,7 +66,7 @@ def run_task_runner_test(
 
 def run_flow_runner_test(
         flow,
-        expected_state,
+        expected_state=None,
         state=None,
         task_states=None,
         start_tasks=None,
@@ -115,12 +115,14 @@ def run_flow_runner_test(
         task_states=task_states,
         start_tasks=start_tasks,
         return_all_task_states=True)
-    try:
-        assert flow_state == expected_state
-    except AssertionError:
-        pytest.fail(
-            'Flow state ({}) did not match expected state ({})'.format(
-                flow_state, expected_state))
+
+    if expected_state is not None:
+        try:
+            assert flow_state == expected_state
+        except AssertionError:
+            pytest.fail(
+                'Flow state ({}) did not match expected state ({})'.format(
+                    flow_state, expected_state))
 
     for task_name, expected_task_state in expected_task_states.items():
         if isinstance(task_name, prefect.Task):
