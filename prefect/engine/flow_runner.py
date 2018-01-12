@@ -53,7 +53,8 @@ class FlowRunner:
         except Exception:
             self.logger.error(
                 'Flow: An unexpected error occurred', exc_info=True)
-            self.executor.set_state(state=state, new_state=FlowRunState.FAILED, result={})
+            self.executor.set_state(
+                state=state, new_state=FlowRunState.FAILED, result={})
 
     def run(
             self,
@@ -195,36 +196,45 @@ class FlowRunner:
                     ignore_trigger=(task.name in (start_tasks or [])),
                     context=context)
 
-        # gather the terminal states and wait for them to complete
+        # gather the results for all tasks
+        self.logger.info('Waiting for tasks to complete...')
+        all_task_states = self.executor.wait(task_states)
+
+        # gather the results for terminal tasks
         terminal_states = {
-            task.name: task_states[task.name]
+            task.name: all_task_states[task.name]
             for task in self.flow.terminal_tasks()
         }
-        self.logger.info('Waiting for tasks to complete...')
-        terminal_states = self.executor.wait(terminal_states)
 
-        # depending on the flag, we return all states or just terminal states
+
+        # depending on the flag, we return all states or just
+        # terminal/failed states
         if return_all_task_states:
-            result_states = self.executor.wait(task_states)
+            return_states = all_task_states
         else:
-            result_states = terminal_states
+            return_states = {
+                t: s
+                for t, s in all_task_states.items()
+                if s.is_failed()
+            }
+            return_states.update(terminal_states)
 
         if any(s.is_failed() for s in terminal_states.values()):
             self.logger.info('FlowRun FAILED: Some terminal tasks failed.')
             self.executor.set_state(
-                state, FlowRunState.FAILED, result=result_states)
+                state, FlowRunState.FAILED, result=return_states)
         elif all(s.is_successful() for s in terminal_states.values()):
             self.logger.info('FlowRun SUCCESS: All terminal tasks succeeded.')
             self.executor.set_state(
-                state, FlowRunState.SUCCESS, result=result_states)
+                state, FlowRunState.SUCCESS, result=return_states)
         elif all(s.is_finished() for s in terminal_states.values()):
             self.logger.info(
                 'FlowRun SUCCESS: All terminal tasks finished and none failed.')
             self.executor.set_state(
-                state, FlowRunState.SUCCESS, result=result_states)
+                state, FlowRunState.SUCCESS, result=return_states)
         else:
             self.logger.info('FlowRun PENDING: Terminal tasks are incomplete.')
             self.executor.set_state(
-                state, FlowRunState.PENDING, result=result_states)
+                state, FlowRunState.PENDING, result=return_states)
 
         return state
