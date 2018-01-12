@@ -94,13 +94,6 @@ class Flow:
 
         """
 
-        # if required_parameters is None:
-        #     required_parameters = set()
-        # elif isinstance(required_parameters, str):
-        #     required_parameters = set([required_parameters])
-        # else:
-        #     required_parameters = set(required_parameters)
-
         if not name:
             raise ValueError('Flows must have a name.')
 
@@ -424,7 +417,7 @@ class Flow:
             'serialized': prefect.utilities.serialize.serialize(flow),
             'tasks': tasks,
             'edges': edges,
-            'required_parameters': required_parameters,
+            'required_parameters': self.parameters(only_required=True),
             'description': self.description,
             'schedule': self.schedule.serialize(),
             'concurrent_runs': self.concurrent_runs,
@@ -469,7 +462,6 @@ class Flow:
             version=serialized['version'],
             project=serialized['project'],
             schedule=prefect.schedules.deserialize(serialized['schedule']),
-            # required_parameters=serialized['required_parameters'],
             concurrent_runs=serialized['concurrent_runs'],
             # executor_args
         )
