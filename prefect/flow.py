@@ -492,8 +492,17 @@ class Flow:
             executor=None,
             return_all_task_states=False,
             **kwargs):
+        """
+        Run the flow.
+        """
         runner = prefect.engine.flow_runner.FlowRunner(
             flow=self, executor=executor)
+
+        parameters = parameters or {}
+        for p in self.parameters():
+            if p in kwargs:
+                parameters[p] = kwargs.pop(p)
+
         return runner.run(
             parameters=parameters,
             return_all_task_states=return_all_task_states,
