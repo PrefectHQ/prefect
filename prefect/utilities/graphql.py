@@ -1,9 +1,7 @@
-from collections import OrderedDict
 
-
-class GQLResult(OrderedDict):
+class GQLResult(dict):
     """
-    An ordered dict that also supports attribute ("dot") access
+    A dict that also supports attribute ("dot") access
     """
 
     def __init__(self, *args, **kwargs):
