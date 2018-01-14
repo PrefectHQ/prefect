@@ -194,13 +194,13 @@ class Projects(ClientModule):
     path = '/projects'
 
     def create(self, name):
-        return self._client._post(path='/', name=name)
+        return self._post(path='/', name=name)
 
     def list(self, per_page=100, page=1):
         """
         Lists all available projects
         """
-        data = self._client.graphql(
+        data = self._graphql(
             '''
              query ($perPage: Int!, $page: Int!){
                 projects(perPage: $perPage, page: $page){
@@ -218,9 +218,9 @@ class Projects(ClientModule):
         Returns the Flows for the specified project
         """
 
-        data = self._client.graphql(
+        data = self._graphql(
             '''
-             query ($projectId: Int!){
+             query ($projectId: String!){
                 projects(filter: {id: $projectId}) {
                     id
                     name
