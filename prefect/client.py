@@ -152,7 +152,11 @@ class Client:
         self._token = response.json().get('token')
 
     def refresh_token(self):
-        response = self._post(path='auth/refresh', token=self._token)
+        url = os.path.join(self._api_server, 'auth/refresh')
+        response = requests.post(
+            url, headers={
+                'Authorization': 'Bearer ' + self._token
+            })
         self._token = response.json().get('token')
 
 
