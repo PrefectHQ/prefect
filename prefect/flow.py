@@ -417,7 +417,7 @@ class Flow:
             'serialized': prefect.utilities.serialize.serialize(flow),
             'tasks': tasks,
             'edges': edges,
-            'required_parameters': self.parameters(only_required=True),
+            'parameters': self.parameters(),
             'description': self.description,
             'schedule': self.schedule.serialize(),
             'concurrent_runs': self.concurrent_runs,
