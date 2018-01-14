@@ -401,7 +401,7 @@ class Flow:
         flow = copy.copy(self)
 
         tasks = [
-            dict(t.serialize(), sort_order=i)
+            dict(t.serialize(), sort_order=i + 1)
             for i, t in enumerate(self.sorted_tasks())
         ]
         edges = [e.serialize() for e in self.edges]
