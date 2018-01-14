@@ -158,7 +158,7 @@ class Client:
 
 class ClientModule:
 
-    path = ''
+    _path = ''
 
     def __init__(self, client, name=None):
         if name is None:
@@ -171,15 +171,15 @@ class ClientModule:
 
     def _get(self, path, **params):
         path = path.lstrip('/')
-        return self._client._get(os.path.join(self.path, path), **params)
+        return self._client._get(os.path.join(self._path, path), **params)
 
     def _post(self, path, **data):
         path = path.lstrip('/')
-        return self._client._post(os.path.join(self.path, path), **data)
+        return self._client._post(os.path.join(self._path, path), **data)
 
     def _delete(self, path, **params):
         path = path.lstrip('/')
-        return self._client._delete(os.path.join(self.path, path), **params)
+        return self._client._delete(os.path.join(self._path, path), **params)
 
     def _graphql(self, query, **variables):
         return self._client.graphql(query=query, **variables)
@@ -191,7 +191,7 @@ class ClientModule:
 
 class Projects(ClientModule):
 
-    path = '/projects'
+    _path = '/projects'
 
     def create(self, name):
         return self._post(path='/', name=name)
@@ -241,7 +241,7 @@ class Projects(ClientModule):
 
 class Flows(ClientModule):
 
-    path = '/flows'
+    _path = '/flows'
 
     def load(self, flow_id, safe=True):
         """
@@ -284,7 +284,7 @@ class Flows(ClientModule):
 
 class FlowRuns(ClientModule):
 
-    path = '/flow_runs'
+    _path = '/flow_runs'
 
     def get_state(self, flow_run_id):
         """
@@ -363,7 +363,7 @@ class FlowRuns(ClientModule):
 
 class TaskRuns(ClientModule):
 
-    path = '/task_runs'
+    _path = '/task_runs'
 
     def set_state(self, task_run_id, state, result=None, expected_state=None):
         """
