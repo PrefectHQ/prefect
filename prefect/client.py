@@ -289,8 +289,7 @@ class Flows(ClientModule):
         """
         Submit a Flow to the server.
         """
-        return self._post(
-            path='/', serialized_flow=ujson.dumps(flow.serialize()))
+        return self._post(path='/', serialized_flow=flow.serialize())
 
 
 # -------------------------------------------------------------------------
