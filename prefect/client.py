@@ -254,18 +254,29 @@ class Flows(ClientModule):
         Args:
             flow_id (str): the Flow's id
         """
-        data = self._graphql(
-            '''
-            query($flowId: String!) {
-                flow(id: $flowId) {
-                    serialized
-                }
-            }
-            ''',
-            flowId=flow_id)
         if safe:
-            return prefect.Flow.safe_deserialize(data['flow']['serialized'])
+            data = self._graphql(
+                '''
+                query($flowId: String!) {
+                    flow(id: $flowId) {
+                        safe_serialized
+                    }
+                }
+                ''',
+                flowId=flow_id)
+
+            return prefect.Flow.safe_deserialize(
+                data['flow']['safe_serialized'])
         else:
+            data = self._graphql(
+                '''
+                query($flowId: String!) {
+                    flow(id: $flowId) {
+                        serialized
+                    }
+                }
+                ''',
+                flowId=flow_id)
             return prefect.Flow.deserialize(data['flow']['serialized'])
 
     def set_state(self, flow_id, state):
