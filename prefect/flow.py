@@ -130,7 +130,7 @@ class Flow:
         base = '{self.project}.{self.name}'.format(self=self)
         if self.version:
             base += ':{self.version}'.format(self=self)
-        return '{type}("{base}")'.format(type=type(self).__name__, base=base)
+        return "{type}('{base}')".format(type=type(self).__name__, base=base)
 
     def __eq__(self, other):
         return self._comps == other._comps
