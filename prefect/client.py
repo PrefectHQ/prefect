@@ -17,14 +17,23 @@ class Client:
     Client for the Prefect API.
     """
 
-    def __init__(self, server=None, token=None):
-        if server is None:
-            server = prefect.config.get('prefect', 'server')
-            if not server:
-                server = prefect.context.Context.get('api_server', None)
-                if not server:
+    def __init__(self, api_server=None, graphql_server=None, token=None):
+        if api_server is None:
+            api_server = prefect.config.get('prefect', 'api_server')
+            if not api_server:
+                api_server = prefect.context.Context.get('api_server', None)
+                if not api_server:
                     raise ValueError('Could not determine API server.')
-        self._server = server
+        self._api_server = api_server
+
+        if graphql_server is None:
+            graphql_server = prefect.config.get('prefect', 'graphql_server')
+            if not graphql_server:
+                graphql_server = prefect.context.Context.get(
+                    'graphql_server', None)
+                if not graphql_server:
+                    graphql_server = api_server
+        self._graphql_server = graphql_server
 
         if token is None:
             token = prefect.context.Context.get('token', None)
@@ -38,7 +47,7 @@ class Client:
     # -------------------------------------------------------------------------
     # Utilities
 
-    def _get(self, path, *, _json=True, **params):
+    def _get(self, path, *, _json=True, _server=None, **params):
         """
         Convenience function for calling the Prefect API with token auth.
 
@@ -47,12 +56,13 @@ class Client:
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             params: GET parameters
         """
-        response = self._request(method='GET', path=path, params=params)
+        response = self._request(
+            method='GET', path=path, params=params, server=_server)
         if _json:
             response = response.json()
         return response
 
-    def _post(self, path, *, _json=True, **params):
+    def _post(self, path, *, _json=True, _server=None, **params):
         """
         Convenience function for calling the Prefect API with token auth.
 
@@ -61,19 +71,20 @@ class Client:
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             params: POST params
         """
-        response = self._request(method='POST', path=path, params=params)
+        response = self._request(
+            method='POST', path=path, params=params, server=_server)
         if _json:
             response = response.json()
         return response
 
-    def _delete(self, path, *, _json=True):
+    def _delete(self, path, *, _server=None, _json=True):
         """
         Convenience function for calling the Prefect API with token auth.
 
         Args:
             path: the path of the API url
         """
-        response = self._request(method='delete', path=path)
+        response = self._request(method='delete', path=path, server=_server)
         if _json:
             response = response.json()
         return response
@@ -84,19 +95,29 @@ class Client:
         API
         """
         result = self._post(
-            path='/graphql', query=query, variables=ujson.dumps(variables))
+            path='',
+            query=query,
+            variables=ujson.dumps(variables),
+            _server=self._graphql_server)
         if 'errors' in result:
             raise ValueError(result['errors'])
         else:
             return format_graphql_result(result).data
 
-    def _request(self, method, path, params):
-        path = path.lstrip('/').rstrip('/')
+    def _request(self, method, path, params, server=None):
 
+        if server is None:
+            server = self._api_server
+
+        if self._token is None:
+            raise ValueError('Call Client.login() to set the client token.')
+
+        url = os.path.join(server, path.lstrip('/')).rstrip('/')
+
+        params = params or {}
+
+        # write this as a function to allow reuse in next try/except block
         def request_fn():
-            if self._token is None:
-                raise ValueError('Call Client.login() to set the client token.')
-            url = os.path.join(self._server, path)
             headers = {'Authorization': 'Bearer ' + self._token}
             if method == 'GET':
                 response = requests.get(url, headers=headers, params=params)
@@ -124,8 +145,8 @@ class Client:
     # -------------------------------------------------------------------------
 
     def login(self, email, password):
-        url = os.path.join(self._server, 'auth/login')
-        response = requests.post(url, auth=(email, password))
+        url = os.path.join(self._api_server, 'auth/login')
+        response = requests.post(url, auth=(email, password), json={})
         if not response.ok:
             raise ValueError('Could not log in.')
         self._token = response.json().get('token')
@@ -173,13 +194,13 @@ class Projects(ClientModule):
     path = '/projects'
 
     def create(self, name):
-        return self.client._post(path='/', name=name)
+        return self._client._post(path='/', name=name)
 
     def list(self, per_page=100, page=1):
         """
         Lists all available projects
         """
-        data = self.client.graphql(
+        data = self._client.graphql(
             '''
              query ($perPage: Int!, $page: Int!){
                 projects(perPage: $perPage, page: $page){
@@ -197,7 +218,7 @@ class Projects(ClientModule):
         Returns the Flows for the specified project
         """
 
-        data = self.client.graphql(
+        data = self._client.graphql(
             '''
              query ($projectId: Int!){
                 projects(filter: {id: $projectId}) {
@@ -283,7 +304,7 @@ class FlowRuns(ClientModule):
              }
              ''',
             flowRunId=flow_run_id)
-        state = data['flow_runs'][0].get('state', {})
+        state = data.flow_runs[0].get('state', {})
         return prefect.state.FlowRunState(
             state=state.get('state', None), result=state.get('result', None))
 
