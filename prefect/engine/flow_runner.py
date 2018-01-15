@@ -84,6 +84,10 @@ class FlowRunner:
                 { task.name: {upstream_task.name: input_value } } pairs
                 indicating that a given task's upstream task's reuslt should be
                 overwritten with the supplied input
+
+            task_contexts (dict): a dict of { task.name : context_dict } pairs
+                that contains items that should be provided to each task's
+                context.
         """
 
         state = FlowRunState(state)
