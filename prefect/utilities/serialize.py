@@ -1,3 +1,4 @@
+import functools
 import base64
 from Crypto.Cipher import AES
 from Crypto import Random
@@ -7,24 +8,61 @@ import hashlib
 import json
 import prefect
 
+JSON_CLASS_REGISTRY = dict()
+
 # -----------------------------------------------------------------------------
 # monkey patch json.JSONEncoder to support:
 # - datetime to timestamp
 # - objects with __json__ methods
 
-_original_default = json.JSONEncoder.default
+_original_encoder_default = json.JSONEncoder.default
 
 
-def _default(obj):
+def _default_encode(self, obj):
     if isinstance(obj, datetime.datetime):
         return obj.timestamp()
-    elif hasattr(obj, '__json__'):
-        return obj.__json__()
+    elif type(obj) in JSON_CLASS_REGISTRY.values() or hasattr(obj, '__json__'):
+        serialized = obj.__json__()
+        if JSON_CLASS_REGISTRY.get(type(obj).__name__) is not type(obj):
+            raise TypeError(
+                'The serialized type was not registered with the '
+                'JSON_CLASS_REGISTRY, or another class with the same name '
+                'overwrote it. Decorate the class with @register_json.')
+        serialized['__prefect_type__'] = type(obj).__name__
+        return serialized
     else:
-        return _original_default(obj)
+        return _original_encoder_default(self, obj)
 
 
-json.JSONEncoder.default = _default
+json.JSONEncoder.default = _default_encode
+
+# -----------------------------------------------------------------------------
+# monkey patch json.JSONDecoder to support:
+# - loading classes based on __prefect_type__
+# - objects with __json__ methods
+
+
+def _default_object_hook(dct):
+    if '__prefect_type__' in dct:
+        cls = JSON_CLASS_REGISTRY[dct.pop('__prefect_type__')]
+        return cls(**dct)
+    return dct
+
+
+json._default_decoder = json.JSONDecoder(object_hook=_default_object_hook)
+
+
+def register_json(cls):
+    """
+    Decorator to register a serialized class
+    """
+
+    name = cls.__name__
+    if not hasattr(cls, '__json__'):
+        raise ValueError('Class has no "__json__()" method.')
+    JSON_CLASS_REGISTRY[name] = cls
+    return cls
+
 
 # -----------------------------------------------------------------------------
 
