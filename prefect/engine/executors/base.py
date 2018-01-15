@@ -109,8 +109,8 @@ class Executor(metaclass=abc.ABCMeta):
             state,
             task_states,
             start_tasks,
-            inputs,
             context,
+            parameters=None,
             task_contexts=None,
             flow_is_serialized=True,
             return_all_task_states=False):
@@ -121,7 +121,7 @@ class Executor(metaclass=abc.ABCMeta):
             state=state,
             task_states=task_states,
             start_tasks=start_tasks,
-            inputs=inputs,
             context=context,
+            parameters=parameters,
             task_contexts=task_contexts,
             return_all_task_states=return_all_task_states)
