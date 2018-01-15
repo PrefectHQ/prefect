@@ -5,7 +5,7 @@ from prefect.signals import PrefectError
 from prefect.flow import Flow
 from prefect.task import Task
 from prefect.tasks.core import FunctionTask, IndexResultTask
-from prefect import as_task_class
+from prefect.utilities.tasks import as_task_class
 from prefect.utilities.datetimes import retry_delay
 import pytest
 

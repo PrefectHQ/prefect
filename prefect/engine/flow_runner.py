@@ -27,6 +27,10 @@ class FlowRunner:
     def catch_signals(self, state):
         try:
             yield
+        except prefect.signals.ParameterError as s:
+            self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
+            self.executor.set_state(
+                state=state, new_state=FlowRunState.FAILED, result=str(s))
         except prefect.signals.SUCCESS as s:
             self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
             self.executor.set_state(
@@ -49,37 +53,67 @@ class FlowRunner:
         except Exception:
             self.logger.error(
                 'Flow: An unexpected error occurred', exc_info=True)
-            self.executor.set_state(state=state, new_state=FlowRunState.FAILED)
+            self.executor.set_state(
+                state=state, new_state=FlowRunState.FAILED, result={})
 
     def run(
             self,
             state: FlowRunState = None,
             task_states: dict = None,
             start_tasks: list = None,
-            inputs: dict = None,
+            parameters: dict = None,
             context: dict = None,
+            task_contexts: dict = None,
+            override_task_inputs: dict = None,
             return_all_task_states: bool = False,
     ):
         """
         Arguments
 
-            task_states (dict): a dictionary of { task.name: TaskRunState } pairs
-                representing the initial states of the FlowRun tasks.
+            task_states (dict): a dictionary of { task.name: TaskRunState }
+                pairs representing the initial states of the FlowRun tasks.
 
+            start_tasks (list): a list of task names indicating the tasks
+                that should be run first. Only tasks downstream of these will
+                be run.
+
+            parameters (dict): a dictionary of { parameter_name: value } pairs
+                indicating parameter values for the Flow run.
+
+            override_task_inputs (dict): a dictionary of
+                { task.name: {upstream_task.name: input_value } } pairs
+                indicating that a given task's upstream task's reuslt should be
+                overwritten with the supplied input
+
+            task_contexts (dict): a dict of { task.name : context_dict } pairs
+                that contains items that should be provided to each task's
+                context.
         """
 
         state = FlowRunState(state)
         task_states = task_states or {}
-        inputs = inputs or {}
+        override_task_inputs = override_task_inputs or {}
+        parameters = parameters or {}
+        context = context or {}
+        task_contexts = task_contexts or {}
+
+        context.setdefault('parameters', {}).update(parameters)
 
         # prepare context
-        with prefect.context.Context(context):
+        with prefect.context.Context(context) as ctx:
 
             # set up executor context
             with self.executor.execution_context():
 
                 # catch any signals
                 with self.catch_signals(state=state):
+
+                    req_parameters = self.flow.parameters(only_required=True)
+                    missing = set(req_parameters).difference(ctx.parameters)
+                    if missing:
+                        raise prefect.signals.ParameterError(
+                            'Required parameters not provided: {}'.format(
+                                missing))
 
                     if not all(isinstance(t, str) for t in task_states):
                         raise TypeError(
@@ -89,8 +123,9 @@ class FlowRunner:
                         state=state,
                         task_states=task_states,
                         start_tasks=start_tasks,
+                        task_contexts=task_contexts,
                         return_all_task_states=return_all_task_states,
-                        inputs=inputs)
+                        override_task_inputs=override_task_inputs)
 
         return state
 
@@ -99,10 +134,11 @@ class FlowRunner:
             state,
             task_states,
             start_tasks,
-            inputs,
+            override_task_inputs,
+            task_contexts,
             return_all_task_states=False):
 
-        context = prefect.context.Context
+        context = prefect.context.Context.as_dict()
 
         # ------------------------------------------------------------------
         # check this flow
@@ -151,47 +187,58 @@ class FlowRunner:
                         lambda state: state.result,
                         task_states[edge.upstream_task])
 
-            # override upstream_inputs with provided inputs
-            upstream_inputs.update(inputs.get(task.name, {}))
+            # override upstream_inputs with provided override_task_inputs
+            upstream_inputs.update(override_task_inputs.get(task.name, {}))
 
             # run the task!
-            task_states[task.name] = self.executor.run_task(
-                task=task,
-                state=task_states[task.name],
-                upstream_states=upstream_states,
-                inputs=upstream_inputs,
-                ignore_trigger=(task.name in (start_tasks or [])),
-                context=context)
+            with prefect.context.Context(task_contexts.get(task.name)):
+                task_states[task.name] = self.executor.run_task(
+                    task=task,
+                    state=task_states[task.name],
+                    upstream_states=upstream_states,
+                    inputs=upstream_inputs,
+                    ignore_trigger=(task.name in (start_tasks or [])),
+                    context=context)
 
-        # gather the terminal states and wait for them to complete
+        # gather the results for all tasks
+        self.logger.info('Waiting for tasks to complete...')
+        all_task_states = self.executor.wait(task_states)
+
+        # gather the results for terminal tasks
         terminal_states = {
-            task.name: task_states[task.name]
+            task.name: all_task_states[task.name]
             for task in self.flow.terminal_tasks()
         }
-        self.logger.info('Waiting for tasks to complete...')
-        terminal_states = self.executor.wait(terminal_states)
 
-        # depending on the flag, we return all states or just terminal states
+
+        # depending on the flag, we return all states or just
+        # terminal/failed states
         if return_all_task_states:
-            result_states = self.executor.wait(task_states)
+            return_states = all_task_states
         else:
-            result_states = terminal_states
+            return_states = {
+                t: s
+                for t, s in all_task_states.items()
+                if s.is_failed()
+            }
+            return_states.update(terminal_states)
 
         if any(s.is_failed() for s in terminal_states.values()):
-            self.logger.info('FlowRun FAIL: Some terminal tasks failed.')
-            self.executor.set_state(state, FlowRunState.FAILED, result=result_states)
+            self.logger.info('FlowRun FAILED: Some terminal tasks failed.')
+            self.executor.set_state(
+                state, FlowRunState.FAILED, result=return_states)
         elif all(s.is_successful() for s in terminal_states.values()):
             self.logger.info('FlowRun SUCCESS: All terminal tasks succeeded.')
             self.executor.set_state(
-                state, FlowRunState.SUCCESS, result=result_states)
+                state, FlowRunState.SUCCESS, result=return_states)
         elif all(s.is_finished() for s in terminal_states.values()):
             self.logger.info(
                 'FlowRun SUCCESS: All terminal tasks finished and none failed.')
             self.executor.set_state(
-                state, FlowRunState.SUCCESS, result=result_states)
+                state, FlowRunState.SUCCESS, result=return_states)
         else:
             self.logger.info('FlowRun PENDING: Terminal tasks are incomplete.')
             self.executor.set_state(
-                state, FlowRunState.PENDING, result=result_states)
+                state, FlowRunState.PENDING, result=return_states)
 
         return state

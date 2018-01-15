@@ -1,17 +1,9 @@
 import prefect
 from prefect import signals, Task
-from prefect.tasks.core import FunctionTask, Not
+from prefect.tasks.core import FunctionTask, operators
+from prefect.utilities.tasks import as_task
 
 __all__ = ['ifelse']
-
-class Condition(FunctionTask):
-
-    def __init__(self, condition_fn, name=None, **kwargs):
-        """
-        This task evaluates a True/False condition
-        """
-        super().__init__(fn=condition_fn, name=name, **kwargs)
-
 
 class EvaluateCondition(Task):
 
@@ -28,7 +20,25 @@ class EvaluateCondition(Task):
             raise self.raise_if_false
 
 
-def ifelse(condition, true_task, false_task, name=None):
+def switch(condition, patterns, name=None):
+    """
+    Builds a switch into a workflow.
+
+    The result of the `condition` is looked up in the `patterns` dict and the
+    resulting Task continues execution. All other pattern Tasks are skipped.
+    """
+    if not isinstance(condition, Task):
+        condition = as_task(condition)
+
+    for pattern, task in patterns.items():
+        eval_cond = EvaluateCondition(raise_if_false=signals.SKIP_DOWNSTREAM)
+        eval_cond.set(
+            condition=operators.Eq(condition, pattern), run_before=task)
+
+    return condition
+
+
+def ifelse(condition, true_task, false_task):
     """
     Builds a conditional branch into a workflow.
 
@@ -36,18 +46,9 @@ def ifelse(condition, true_task, false_task, name=None):
     evaluates False(ish), the false_task will run. The branch that doesn't run
     will be stopped by raising a signals.DONTRUN() signal.
     """
-    if not isinstance(condition, Task):
-        condition = Condition(condition_fn=condition, name=name)
 
-    # build true branch
-    true_eval = EvaluateCondition(raise_if_false=signals.SKIP_DOWNSTREAM)
-    true_eval.run_after(condition=condition)
-    true_task.run_after(true_eval)
-
-    # build false branch
-    false_eval = EvaluateCondition(raise_if_false=signals.SKIP_DOWNSTREAM)
-    inv_condition = Not().run_after(x=condition)
-    false_eval.run_after(condition=inv_condition)
-    false_task.run_after(false_eval)
-
-    return condition
+    return switch(
+        condition=condition, patterns={
+            True: true_task,
+            False: false_task
+        })

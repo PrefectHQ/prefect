@@ -1,6 +1,6 @@
 import pytest
 import prefect
-from prefect.utilities.test import run_flow_runner_test
+from prefect.utilities.tests import run_flow_runner_test
 from prefect.state import FlowRunState, TaskRunState
 
 

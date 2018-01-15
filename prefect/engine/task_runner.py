@@ -19,7 +19,7 @@ class TaskRunner:
     def __init__(self, task, executor=None, logger_name=None):
         """
         Args:
-            flow (prefect.Flow)
+            task (prefect.Task)
 
             executor (Prefect Executor)
 
@@ -36,40 +36,52 @@ class TaskRunner:
         try:
             yield
         except signals.SUCCESS as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.handle_success(state=state, result=s.result)
         except signals.SKIP as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.executor.set_state(
-                state=state,
-                new_state=TaskRunState.SKIPPED,
-                result=s.result)
+                state=state, new_state=TaskRunState.SKIPPED, result=s.result)
         except signals.SKIP_DOWNSTREAM as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.executor.set_state(
                 state=state,
                 new_state=TaskRunState.SKIP_DOWNSTREAM,
                 result=s.result)
         except signals.RETRY as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.handle_retry(
                 state=state,
                 new_state=TaskRunState.PENDING_RETRY,
                 result=s.result)
         except signals.SHUTDOWN as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.executor.set_state(
-                state=state,
-                new_state=TaskRunState.SHUTDOWN,
-                result=s.result)
+                state=state, new_state=TaskRunState.SHUTDOWN, result=s.result)
         except signals.DONTRUN as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
         except signals.FAIL as s:
-            self.logger.info('Task {}: {}'.format(type(s).__name__, s))
+            self.logger.info(
+                'Task {} {}: {}'.format(self.task.name,
+                                        type(s).__name__, s))
             self.handle_fail(state=state, result=s.result)
         except Exception as e:
-            self.logger.error('Task: An unexpected error occurred', exc_info=1)
-            self.handle_fail(state=state)
+            self.logger.info(
+                'Task {}: An unexpected error occurred'.format(self.task.name),
+                exc_info=1)
+            self.handle_fail(state=state, result=str(e))
 
     def run(
             self,
@@ -104,11 +116,10 @@ class TaskRunner:
 
         # prepare context
         context.update(
-            dict(
-                task_name=self.task.name,
-                task_max_retries=self.task.max_retries,
-                task_run_upstream_states=upstream_states,
-                task_run_inputs=inputs))
+            task_name=self.task.name,
+            task_max_retries=self.task.max_retries,
+            task_run_upstream_states=upstream_states,
+            task_run_inputs=inputs)
 
         # set up context
         with prefect.context.Context(context):
@@ -150,7 +161,8 @@ class TaskRunner:
         # check if a SKIP_DOWNSTREAM should be raised before raising any
         # other signals
         except signals.PrefectStateException:
-            if any(s == TaskRunState.SKIP_DOWNSTREAM for s in upstream_states.values()):
+            if any(s == TaskRunState.SKIP_DOWNSTREAM
+                   for s in upstream_states.values()):
                 raise signals.SKIP_DOWNSTREAM('Received SKIP_DOWNSTREAM state')
             else:
                 raise
@@ -179,38 +191,32 @@ class TaskRunner:
         self.logger.info('Starting TaskRun.')
         self.executor.set_state(state, TaskRunState.RUNNING)
 
-        if self.task.loop:
-            result = None
-            while not result:
-                result = call_with_context_annotations(self.task.run, **inputs)
-                time.sleep(self.task.loop_delay)
-        else:
-            result = call_with_context_annotations(self.task.run, **inputs)
+        result = call_with_context_annotations(self.task.run, **inputs)
 
-            # Begin generator clause -----------------------------------
+        # Begin generator clause -----------------------------------
 
-            # tasks can yield progress
-            if isinstance(result, types.GeneratorType):
+        # tasks can yield progress
+        if isinstance(result, types.GeneratorType):
 
-                # use a sentinel to get the task's final result
-                sentinel = uuid.uuid1().hex
+            # use a sentinel to get the task's final result
+            sentinel = uuid.uuid1().hex
 
-                def sentinel_wrapper(task_generator):
-                    task_result = yield from task_generator
-                    yield {sentinel: task_result}
+            def sentinel_wrapper(task_generator):
+                task_result = yield from task_generator
+                yield {sentinel: task_result}
 
-                for progress in sentinel_wrapper(result):
+            for progress in sentinel_wrapper(result):
 
-                    # if we see a sentinel, this is the return value
-                    if isinstance(progress, dict) and sentinel in progress:
-                        result = progress[sentinel]
-                        break
+                # if we see a sentinel, this is the return value
+                if isinstance(progress, dict) and sentinel in progress:
+                    result = progress[sentinel]
+                    break
 
-                    # self.record_progress(progress)
+                # self.record_progress(progress)
 
-                    # End generator clause -------------------------------------
+        # End generator clause -------------------------------------
 
-                    # mark success
+        # mark success
         self.handle_success(state, result=result)
 
     def set_state(self, state, new_state, result=None):

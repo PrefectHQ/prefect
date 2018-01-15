@@ -1,6 +1,22 @@
+import itertools
+
+import pytest
+
 import prefect
 from prefect.state import TaskRunState
-import pytest
+
+
+class DummyTask(prefect.Task):
+
+    _id_iter = itertools.count()
+
+    def __init__(self, name=None, *args, **kwargs):
+        if name is None:
+            name = str(next(self._id_iter))
+        super().__init__(*args, name=name, **kwargs)
+
+    def run(self):
+        pass
 
 
 def run_task_runner_test(
@@ -50,13 +66,14 @@ def run_task_runner_test(
 
 def run_flow_runner_test(
         flow,
-        expected_state,
+        expected_state=None,
         state=None,
         task_states=None,
         start_tasks=None,
         expected_task_states=None,
         executor=None,
-        inputs=None,
+        override_task_inputs=None,
+        parameters=None,
         context=None):
     """
     Runs a flow and tests that it matches the expected state. If an
@@ -70,13 +87,16 @@ def run_flow_runner_test(
         state (prefect.FlowRunState or str): the starting state for the task.
 
         expected_task_states (dict): a dict of expected
-            {task_name: TaskRunState} (or {task_name: str}) pairs
+            {task_name: TaskRunState} (or {task_name: str}) pairs. Passing a
+            dict with Task keys is also ok.
 
         executor (prefect.Executor)
 
         context (dict): an optional context for the run
 
-        inputs (dict): input overrides for tasks. This dict should have
+        parameters (dict): the parameters for the run
+
+        override_task_inputs (dict): input overrides for tasks. This dict should have
             the form {task.name: {kwarg: value}}.
 
     Returns:
@@ -90,18 +110,23 @@ def run_flow_runner_test(
     flow_state = flow_runner.run(
         state=state,
         context=context,
-        inputs=inputs,
+        parameters=parameters,
+        override_task_inputs=override_task_inputs,
         task_states=task_states,
         start_tasks=start_tasks,
         return_all_task_states=True)
-    try:
-        assert flow_state == expected_state
-    except AssertionError:
-        pytest.fail(
-            'Flow state ({}) did not match expected state ({})'.format(
-                flow_state, expected_state))
+
+    if expected_state is not None:
+        try:
+            assert flow_state == expected_state
+        except AssertionError:
+            pytest.fail(
+                'Flow state ({}) did not match expected state ({})'.format(
+                    flow_state, expected_state))
 
     for task_name, expected_task_state in expected_task_states.items():
+        if isinstance(task_name, prefect.Task):
+            task_name = task_name.name
         try:
             assert flow_state.result[task_name] == expected_task_state
         except KeyError:
@@ -113,6 +138,7 @@ def run_flow_runner_test(
                     flow_state.result[task_name], expected_task_state,
                     task_name))
         if isinstance(expected_task_state, TaskRunState):
-            assert flow_state.result[task_name].result == expected_task_state.result
+            assert flow_state.result[
+                task_name].result == expected_task_state.result
 
     return flow_state

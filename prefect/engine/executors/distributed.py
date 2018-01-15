@@ -98,7 +98,7 @@ class DistributedExecutor(Executor):
                     address=self.address,
                     separate_thread=self.separate_thread) as client:
                 self.client = client
-                yield
+                yield self
             self.client = old_client
 
     def __getstate__(self):
@@ -119,4 +119,4 @@ class DistributedExecutor(Executor):
         """
         Resolves futures to their values. Blocks until the future is complete.
         """
-        return self.client.gather(futures, timeout=timeout)
+        return self.client.gather(futures)

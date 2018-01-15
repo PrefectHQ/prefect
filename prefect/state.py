@@ -1,3 +1,6 @@
+from prefect.utilities.serialize import register_json
+
+@register_json
 class State:
 
     _default = None
@@ -29,6 +32,10 @@ class State:
     def __repr__(self):
         return '{}({})'.format(type(self).__name__, self.state)
 
+    def __json__(self):
+        return dict(state=self.state, result=self.result)
+
+
     @classmethod
     def all_states(cls):
         return frozenset(
@@ -44,7 +51,7 @@ class State:
         """
         return str(state) in self.all_states()
 
-
+@register_json
 class FlowState(State):
 
     ACTIVE = 'ACTIVE'
@@ -64,6 +71,7 @@ class FlowState(State):
         self.set_state(self.PAUSED)
 
 
+@register_json
 class FlowRunState(State):
 
     PENDING = _default = 'PENDING'
@@ -98,6 +106,7 @@ class FlowRunState(State):
         return self == self.SKIPPED
 
 
+@register_json
 class TaskRunState(State):
 
     PENDING = _default = 'PENDING'

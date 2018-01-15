@@ -15,8 +15,12 @@ import datetime
 import functools
 import inspect
 import threading
-from contextlib import contextmanager as _contextmanager
+import contextlib
 from typing import Any, NewType
+
+
+class ContextError(KeyError):
+    pass
 
 
 # context dictionary
@@ -50,7 +54,7 @@ class Context(threading.local):
         self.__dict__.clear()
         self.update(*args, **kwargs)
 
-    @_contextmanager
+    @contextlib.contextmanager
     def __call__(self, *context_args, **context_kwargs):
         """
         A context manager for setting / resetting the Prefect context
@@ -67,8 +71,8 @@ class Context(threading.local):
         finally:
             self.reset(previous_context)
 
-    def get(self, key, missing_value=None):
-        return getattr(self, key, missing_value)
+    def get(self, key, if_missing=None):
+        return getattr(self, key, if_missing)
 
     def __getstate__(self):
         return self.as_dict()

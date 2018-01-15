@@ -7,6 +7,7 @@ import prefect.context
 import ujson
 from prefect.schedules import NoSchedule
 from prefect.task import Task
+from prefect.tasks.core import Parameter
 from prefect.utilities.strings import is_valid_identifier
 
 
@@ -75,20 +76,15 @@ class Flow:
 
     def __init__(
             self,
-            name,
+            name='Flow',
             version=None,
             project=prefect.config.get('flows', 'default_project'),
-            required_parameters=None,
             schedule=NoSchedule(),
             concurrent_runs=None,  #TODO
             cluster=None,
             description=None):
         """
         Args:
-            required_parameters: a collection of parameter names that must be
-                provided when the Flow is run. Flows can be called with any
-                params, but an error will be raised if these are missing.
-
             schedule (prefect.Schedule): a Schedule object that returns the
                 Flow's schedule
 
@@ -98,13 +94,6 @@ class Flow:
 
         """
 
-        if required_parameters is None:
-            required_parameters = set()
-        elif isinstance(required_parameters, str):
-            required_parameters = set([required_parameters])
-        else:
-            required_parameters = set(required_parameters)
-
         if not name:
             raise ValueError('Flows must have a name.')
 
@@ -113,7 +102,6 @@ class Flow:
         self.project = project
         self.description = description
 
-        self.required_parameters = required_parameters
         self.schedule = schedule
         self.tasks = dict()
         self.edges = set()
@@ -142,7 +130,7 @@ class Flow:
         base = '{self.project}.{self.name}'.format(self=self)
         if self.version:
             base += ':{self.version}'.format(self=self)
-        return '{type}("{base}")'.format(type=type(self).__name__, base=base)
+        return "{type}('{base}')".format(type=type(self).__name__, base=base)
 
     def __eq__(self, other):
         return self._comps == other._comps
@@ -200,7 +188,8 @@ class Flow:
         if edge.key is not None:
             existing_edges = [
                 e for e in self.edges
-                if e.downstream_task == downstream_task.name and e.key == edge.key
+                if e.downstream_task == downstream_task.name
+                and e.key == edge.key
             ]
             if existing_edges:
                 raise ValueError(
@@ -212,9 +201,12 @@ class Flow:
         # check that the edge doesn't add a cycle
         self.sorted_tasks()
 
-    def set_up_task(self, task, upstream_tasks=None, upstream_results=None):
+    # Dependencies ------------------------------------------------------------
+
+    def set_dependencies(
+            self, task, upstream_tasks=None, upstream_results=None):
         """
-        Convenience function for adding task relationships.
+        Convenience function for adding task dependencies on upstream tasks.
 
         Args:
             task (Task): a Task that will become part of the Flow
@@ -232,6 +224,7 @@ class Flow:
             self.add_edge(upstream_task=t, downstream_task=task)
 
         for key, t in (upstream_results or {}).items():
+            t = prefect.utilities.tasks.as_task(t)
             self.add_edge(upstream_task=t, downstream_task=task, key=key)
 
     def upstream_tasks(self, task):
@@ -247,7 +240,8 @@ class Flow:
             name = task.name
 
         return set(
-            self.get_task(e.upstream_task) for e in self.edges
+            self.get_task(e.upstream_task)
+            for e in self.edges
             if e.downstream_task == name)
 
     def downstream_tasks(self, task):
@@ -263,7 +257,8 @@ class Flow:
             name = task.name
 
         return set(
-            self.get_task(e.downstream_task) for e in self.edges
+            self.get_task(e.downstream_task)
+            for e in self.edges
             if e.upstream_task == name)
 
     def sorted_tasks(self, root_tasks=None):
@@ -312,26 +307,6 @@ class Flow:
 
         return tuple(sorted_tasks)
 
-    def sub_flow(self, root_tasks=None):
-        """
-        Returns a Flow consisting of a subgraph of this graph including only
-        tasks between the supplied root_tasks and ending_tasks.
-        """
-
-        sub_flow = copy.copy(self)
-        sub_flow.tasks = dict()
-        sub_flow.edges = set()
-
-        for t in self.sorted_tasks(root_tasks=root_tasks):
-            sub_flow.add_task(t)
-
-        for e in self.edges:
-            if e.upstream_task in sub_flow.tasks:
-                if e.downstream_task in sub_flow.tasks:
-                    sub_flow.edges.add(e)
-
-        return sub_flow
-
     def edges_to(self, task):
         """
         Set of all Edges leading to this Task
@@ -358,6 +333,8 @@ class Flow:
             name = task.name
         return set(e for e in self.edges if e.upstream_task == name)
 
+    # Introspection -----------------------------------------------------------
+
     def root_tasks(self):
         """
         Returns the root tasks of the Flow -- tasks that have no upstream
@@ -371,6 +348,41 @@ class Flow:
         dependencies.
         """
         return set(t for t in self.tasks.values() if not self.edges_from(t))
+
+    def parameters(self, only_required=False):
+        """
+        Returns the parameters of the flow, including whether they are required
+        and any default value
+        """
+        return {
+            t.name: {
+                'required': t.required,
+                'default': t.default
+            }
+            for t in self.tasks.values()
+            if isinstance(t, Parameter)
+            and (t.required if only_required else True)
+        }
+
+    def sub_flow(self, root_tasks=None):
+        """
+        Returns a Flow consisting of a subgraph of this graph including only
+        tasks between the supplied root_tasks and ending_tasks.
+        """
+
+        sub_flow = copy.copy(self)
+        sub_flow.tasks = dict()
+        sub_flow.edges = set()
+
+        for t in self.sorted_tasks(root_tasks=root_tasks):
+            sub_flow.add_task(t)
+
+        for e in self.edges:
+            if e.upstream_task in sub_flow.tasks:
+                if e.downstream_task in sub_flow.tasks:
+                    sub_flow.edges.add(e)
+
+        return sub_flow
 
     # Context Manager -----------------------------------------------
 
@@ -388,9 +400,8 @@ class Flow:
     def serialize(self):
         flow = copy.copy(self)
 
-        required_parameters = sorted(str(p) for p in self.required_parameters)
         tasks = [
-            dict(t.serialize(), sort_order=i)
+            dict(t.serialize(), sort_order=i + 1)
             for i, t in enumerate(self.sorted_tasks())
         ]
         edges = [e.serialize() for e in self.edges]
@@ -406,7 +417,7 @@ class Flow:
             'serialized': prefect.utilities.serialize.serialize(flow),
             'tasks': tasks,
             'edges': edges,
-            'required_parameters': required_parameters,
+            'parameters': self.parameters(),
             'description': self.description,
             'schedule': self.schedule.serialize(),
             'concurrent_runs': self.concurrent_runs,
@@ -428,7 +439,8 @@ class Flow:
         if not isinstance(obj, cls):
             raise TypeError(
                 'Expected {}; received {}'.format(
-                    cls.__name__, type(obj).__name__))
+                    cls.__name__,
+                    type(obj).__name__))
 
         obj.tasks = dict()
         for task in serialized['tasks']:
@@ -450,7 +462,6 @@ class Flow:
             version=serialized['version'],
             project=serialized['project'],
             schedule=prefect.schedules.deserialize(serialized['schedule']),
-            required_parameters=serialized['required_parameters'],
             concurrent_runs=serialized['concurrent_runs'],
             # executor_args
         )
@@ -464,3 +475,27 @@ class Flow:
                 key=edge['key'])
 
         return flow
+
+    # Execution  ------------------------------------------------
+
+    def run(
+            self,
+            parameters=None,
+            executor=None,
+            return_all_task_states=False,
+            **kwargs):
+        """
+        Run the flow.
+        """
+        runner = prefect.engine.flow_runner.FlowRunner(
+            flow=self, executor=executor)
+
+        parameters = parameters or {}
+        for p in self.parameters():
+            if p in kwargs:
+                parameters[p] = kwargs.pop(p)
+
+        return runner.run(
+            parameters=parameters,
+            return_all_task_states=return_all_task_states,
+            **kwargs)

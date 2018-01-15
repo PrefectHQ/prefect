@@ -6,8 +6,9 @@ import prefect
 import ujson
 from prefect.flow import Flow
 from prefect.signals import PrefectError
-from prefect.task import Task
-from prefect import as_task_class
+from prefect.tasks import Task, FunctionTask
+from prefect.utilities.tasks import as_task_class
+from prefect.utilities.tests import DummyTask
 
 
 class TestFlow:
@@ -61,16 +62,6 @@ class TestFlow:
         assert f.downstream_tasks(t1) == set([t2])
         assert f.edges_to(t2) == f.edges_from(t1)
 
-    def test_pipes(self):
-        with Flow('test') as f:
-            t1 = Task()
-            t2 = Task()
-            f.add_edge(upstream_task=t1, downstream_task=t2)
-        assert f.upstream_tasks(t2) == set([t1])
-        assert f.upstream_tasks(t1) == set()
-        assert f.downstream_tasks(t2) == set()
-        assert f.downstream_tasks(t1) == set([t2])
-
     def test_get_task_by_name(self):
         """
         Tests flow.get_task()
@@ -90,11 +81,44 @@ class TestFlow:
             t2 = Task()
             t3 = Task()
 
-            t1.then(t2).then(t3)
+            t1.set(run_before=t2)
+            t2.set(run_before=t3)
 
             with pytest.raises(ValueError) as e:
-                t3.run_before(t1)
+                t3.set(run_before=t1)
 
+    def test_run(self):
+        """
+        Test the flow's run() method
+        """
+        with Flow('test') as f:
+            t1 = FunctionTask(fn=lambda: 1, name='my-task')
+
+        assert f.run().result['my-task'].result == 1
+
+    def test_constant(self):
+        """
+        Test that Flows properly wrap constant values
+        """
+        with Flow('test') as f:
+            t1 = FunctionTask(fn=lambda x: x + 1, name='my-task')
+            t1.run_after(x=5)
+
+        # check that a Constant was added
+        assert len(f.tasks) == 2
+
+        assert f.run().result['my-task'].result == 6
+
+    def test_terminal_tasks(self):
+        with Flow('test') as f:
+            t1 = DummyTask()
+            t2 = DummyTask()
+            t3 = DummyTask()
+
+            t1.set(run_before=t2)
+            t2.set(run_before=t3)
+
+        assert f.terminal_tasks() == set([t3])
 
 class TestPersistence:
 
