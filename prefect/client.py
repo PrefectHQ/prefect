@@ -59,7 +59,10 @@ class Client:
         response = self._request(
             method='GET', path=path, params=params, server=_server)
         if _json:
-            response = response.json()
+            if response.text:
+                response = response.json()
+            else:
+                response = {}
         return response
 
     def _post(self, path, *, _json=True, _server=None, **params):
@@ -74,8 +77,10 @@ class Client:
         response = self._request(
             method='POST', path=path, params=params, server=_server)
         if _json:
-            response = response.json()
-        return response
+            if response.text:
+                return response.json()
+        else:
+            return response
 
     def _delete(self, path, *, _server=None, _json=True):
         """
@@ -86,7 +91,10 @@ class Client:
         """
         response = self._request(method='delete', path=path, server=_server)
         if _json:
-            response = response.json()
+            if response.text:
+                response = response.json()
+            else:
+                response = {}
         return response
 
     def graphql(self, query, **variables):
@@ -273,11 +281,17 @@ class Flows(ClientModule):
                 query($flowId: String!) {
                     flow(id: $flowId) {
                         serialized
+                        tasks {
+                            serialized
+                        }
+                        edges {
+                            serialized
+                        }
                     }
                 }
                 ''',
                 flowId=flow_id)
-            return prefect.Flow.deserialize(data['flow']['serialized'])
+            return prefect.Flow.deserialize(data['flow'])
 
     def set_state(self, flow_id, state):
         """
@@ -304,12 +318,11 @@ class FlowRuns(ClientModule):
         """
         Retrieve a flow run's state
         """
-        # return self._get(path='/{id}/state'.format(id=flow_run_id))
+
         data = self._graphql(
             '''
              query ($flowRunId: String!){
                 flow_runs(filter: {id: $flowRunId}) {
-                    id
                     state {
                         state
                         result
@@ -329,7 +342,7 @@ class FlowRuns(ClientModule):
         return self._post(
             path='/{id}/state'.format(id=flow_run_id),
             state=state,
-            result=result,
+            result=dict(result=result),
             expected_state=expected_state)
 
     def create(self, flow_id, parameters=None, parent_taskrun_id=None):
@@ -353,22 +366,22 @@ class FlowRuns(ClientModule):
             start_tasks=start_tasks,
             inputs=inputs)
 
-    def get_resume_url(
-            self,
-            flow_run_id=None,
-            start_tasks=None,
-            expires_in=datetime.timedelta(hours=1)):
-        """
-        If flow_run_id is None, it will attempt to infer it from the
-        current context.
-        """
-        if flow_run_id is None:
-            flow_run_id = prefect.context.Context.get('flow_run_id')
-        data = self._post(
-            path='/{id}/get_resume_url'.format(id=flow_run_id),
-            start_tasks=start_tasks,
-            expires_in=expires_in)
-        return data['url']
+    # def get_resume_url(
+    #         self,
+    #         flow_run_id=None,
+    #         start_tasks=None,
+    #         expires_in=datetime.timedelta(hours=1)):
+    #     """
+    #     If flow_run_id is None, it will attempt to infer it from the
+    #     current context.
+    #     """
+    #     if flow_run_id is None:
+    #         flow_run_id = prefect.context.Context.get('flow_run_id')
+    #     data = self._post(
+    #         path='/{id}/get_resume_url'.format(id=flow_run_id),
+    #         start_tasks=start_tasks,
+    #         expires_in=expires_in)
+    #     return data['url']
 
 
 # -------------------------------------------------------------------------
@@ -379,6 +392,26 @@ class TaskRuns(ClientModule):
 
     _path = '/task_runs'
 
+    def get_state(self, task_run_id):
+        """
+        Retrieve a flow run's state
+        """
+        data = self._graphql(
+            '''
+             query ($taskRunId: String!){
+                task_runs(filter: {id: $taskRunId}) {
+                    state {
+                        state
+                        result
+                    }
+                }
+             }
+             ''',
+            taskRunId=task_run_id)
+        state = data.task_runs[0].get('state', {})
+        return prefect.state.TaskRunState(
+            state=state.get('state', None), result=state.get('result', None))
+
     def set_state(self, task_run_id, state, result=None, expected_state=None):
         """
         Retrieve a task run's state
@@ -386,5 +419,5 @@ class TaskRuns(ClientModule):
         return self._post(
             path='/{id}/state'.format(id=task_run_id),
             state=state,
-            result=result,
+            result=dict(result=result),
             expected_state=expected_state)
