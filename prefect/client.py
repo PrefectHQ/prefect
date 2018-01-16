@@ -152,12 +152,17 @@ class Client:
     # Auth
     # -------------------------------------------------------------------------
 
-    def login(self, email, password):
+    def login(self, email, password, account_id=None):
         url = os.path.join(self._api_server, 'auth/login')
-        response = requests.post(url, auth=(email, password), json={})
+        response = requests.post(url, auth=(email, password), json=dict(account_id=account_id))
         if not response.ok:
             raise ValueError('Could not log in.')
         self._token = response.json().get('token')
+
+        if not account_id:
+            print('No account provided; returning available accounts.')
+            accounts = self._get('auth/accounts')
+            return accounts
 
     def refresh_token(self):
         url = os.path.join(self._api_server, 'auth/refresh')
