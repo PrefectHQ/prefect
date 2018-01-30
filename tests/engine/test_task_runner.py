@@ -47,7 +47,7 @@ def test_error(err_task):
     """
     state = run_task_runner_test(
         task=err_task,
-        expected_state=TaskRunState(TaskRunState.FAILED, result=None))
+        expected_state=TaskRunState.FAILED)
     assert state.is_finished()
 
 
