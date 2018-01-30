@@ -9,9 +9,11 @@ from prefect.utilities.tasks import as_task_class
 from prefect.utilities.datetimes import retry_delay
 import pytest
 
+
 @pytest.fixture
 def indexable_task():
     return FunctionTask(fn=lambda: {'a': 1, 'b': [2, 3]})
+
 
 class TestTask:
 
@@ -36,7 +38,6 @@ class TestTask:
         t = fn()
         with pytest.raises(ValueError):
             t.run()
-
 
     def test_task_names(self):
         """
@@ -75,7 +76,6 @@ class TestTask:
         f2 = copy.deepcopy(f)
         assert f.get_task('Task') is not f2.get_task('Task')
         assert f.get_task('Task') == f2.get_task('Task')
-
 
     def test_flow_context_manager(self):
         """Tests that flows can be used as context managers"""
@@ -161,50 +161,50 @@ class TestTaskRelationships:
         assert before in f.upstream_tasks(after)
         assert before2 in f.upstream_tasks(after)
 
-    def test_shift_relationship_sugar(self):
-        """Test task relationships with | and >> and << sugar"""
-        with Flow('test') as f:
-            before = Task()
-            mid1 = Task()
-            mid2 = Task()
-            after = Task()
+    # def test_shift_relationship_sugar(self):
+    #     """Test task relationships with | and >> and << sugar"""
+    #     with Flow('test') as f:
+    #         before = Task()
+    #         mid1 = Task()
+    #         mid2 = Task()
+    #         after = Task()
 
-            (before | (mid1, mid2) | after)
-        assert before in f
-        assert mid1 in f
-        assert mid2 in f
-        assert after in f
-        assert set([mid1, mid2]) == f.downstream_tasks(before)
-        assert set([mid1, mid2]) == f.upstream_tasks(after)
+    #         (before | (mid1, mid2) | after)
+    #     assert before in f
+    #     assert mid1 in f
+    #     assert mid2 in f
+    #     assert after in f
+    #     assert set([mid1, mid2]) == f.downstream_tasks(before)
+    #     assert set([mid1, mid2]) == f.upstream_tasks(after)
 
-        with Flow('test') as f:
-            before = Task()
-            mid1 = Task()
-            mid2 = Task()
-            after = Task()
+    #     with Flow('test') as f:
+    #         before = Task()
+    #         mid1 = Task()
+    #         mid2 = Task()
+    #         after = Task()
 
-            before >> (mid1, mid2) >> after
-        assert before in f
-        assert mid1 in f
-        assert mid2 in f
-        assert after in f
-        assert set([mid1, mid2]) == f.downstream_tasks(before)
-        assert set([mid1, mid2]) == f.upstream_tasks(after)
+    #         before >> (mid1, mid2) >> after
+    #     assert before in f
+    #     assert mid1 in f
+    #     assert mid2 in f
+    #     assert after in f
+    #     assert set([mid1, mid2]) == f.downstream_tasks(before)
+    #     assert set([mid1, mid2]) == f.upstream_tasks(after)
 
-        # same test, calling `run_after`
-        with Flow('test') as f:
-            before = Task()
-            mid1 = Task()
-            mid2 = Task()
-            after = Task()
+    #     # same test, calling `run_after`
+    #     with Flow('test') as f:
+    #         before = Task()
+    #         mid1 = Task()
+    #         mid2 = Task()
+    #         after = Task()
 
-            after << (mid1, mid2) << before
-        assert before in f
-        assert mid1 in f
-        assert mid2 in f
-        assert after in f
-        assert set([mid1, mid2]) == f.downstream_tasks(before)
-        assert set([mid1, mid2]) == f.upstream_tasks(after)
+    #         after << (mid1, mid2) << before
+    #     assert before in f
+    #     assert mid1 in f
+    #     assert mid2 in f
+    #     assert after in f
+    #     assert set([mid1, mid2]) == f.downstream_tasks(before)
+    #     assert set([mid1, mid2]) == f.upstream_tasks(after)
 
 
 class TestIndexResult:
@@ -222,4 +222,3 @@ class TestIndexResult:
     def test_getitem_outside_flow(self, indexable_task):
         with pytest.raises(ValueError):
             t2 = indexable_task['a']
-
