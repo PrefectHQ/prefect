@@ -158,7 +158,7 @@ class TestTaskRelationships:
             before2 = Task(name='before_2')
             after = Task(name='after')
 
-            after.run_after([before, before2])
+            after.run_after(before, before2)
         assert before in f
         assert before2 in f
         assert after in f
