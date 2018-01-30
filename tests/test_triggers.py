@@ -58,11 +58,11 @@ def test_always_run():
         states(success=1, failed=1, skipped=1, skip_downstream=1))
 
 
-def test_never_run():
-    assert not triggers.never_run(states(success=3))
-    assert not triggers.never_run(states(failed=3))
-    assert not triggers.never_run(states(skip_downstream=3))
-    assert not triggers.never_run(
+def test_manual_only():
+    assert not triggers.manual_only(states(success=3))
+    assert not triggers.manual_only(states(failed=3))
+    assert not triggers.manual_only(states(skip_downstream=3))
+    assert not triggers.manual_only(
         states(success=1, failed=1, skipped=1, skip_downstream=1))
 
 
