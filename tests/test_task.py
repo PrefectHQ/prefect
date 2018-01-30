@@ -18,10 +18,6 @@ class TestTask:
     def test_create_task(self):
         """Test task creation"""
 
-        # tasks require a name
-        with pytest.raises(ValueError) as e:
-            t1 = Task()
-
         # ...unless created inside a Flow
         with Flow('test'):
             t2 = Task()
