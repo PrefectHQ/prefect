@@ -14,11 +14,9 @@ from prefect.utilities.tests import DummyTask
 class TestFlow:
 
     def test_create_flow(self):
-        # name is required
-        with pytest.raises(TypeError) as e:
-            Flow()
-        err = "__init__() missing 1 required positional argument: 'name'"
-        assert err in str(e)
+        # name is not required
+        Flow()
+        Flow()
 
         f = Flow('test')
         assert f.project == prefect.config.get('flows', 'default_project')
