@@ -2,6 +2,8 @@ import importlib
 
 from slugify import slugify
 
+from typing import Iterable, Mapping
+
 import prefect
 from prefect.utilities.datetimes import retry_delay
 from prefect.utilities.strings import name_with_suffix
@@ -152,27 +154,43 @@ class Task:
 
     # Relationships  ----------------------------------------------------------
 
-    def __call__(self, *tasks, **upstream_results):
-        return self.set(run_after=tasks, **upstream_results)
+    def __call__(self, *tasks, downstream_tasks=None, **upstream_results):
+        return self.set(
+            upstream_tasks=tasks,
+            downstream_tasks=downstream_tasks,
+            **upstream_results)
 
-    def set(self, *, run_before=None, run_after=None, **upstream_results):
+    def set(
+            self,
+            *,
+            upstream_tasks: Iterable['Task'] = None,
+            downstream_tasks: Iterable['Task'] = None,
+            **upstream_results: Mapping[str, 'Task']):
+        """
+        Create dependencies between tasks or (optionally) task outputs
+
+        Args:
+            upstream_tasks ([Task]): A list of tasks that will run before this
+                task runs.
+
+            downstream_tasks ([Task]): A list of tasks that will run after this
+                task runs.
+
+            **upstream_results ({str: Task}): The result of each task in this
+                dictionary will be provided to this task when it runs as the
+                specified keyword argument.
+
+        """
         flow = prefect.context.Context.get('flow')
         if not flow:
             raise ValueError(
                 'Dependencies can only be set within an active Flow context.')
 
-        if run_after is not None and isinstance(run_after, (str, Task)):
-            run_after = [run_after]
         flow.set_dependencies(
             task=self,
-            upstream_tasks=run_after,
+            upstream_tasks=upstream_tasks,
+            downstream_tasks=downstream_tasks,
             upstream_results=upstream_results)
-
-        if run_before is not None:
-            if isinstance(run_before, (str, Task)):
-                run_before = [run_before]
-            for task in run_before:
-                flow.set_dependencies(task, upstream_tasks=[self])
 
         return self
 
@@ -193,7 +211,7 @@ class Task:
                 upstream dependencies of this task AND their results will be
                 provided to this task as the specified keyword argument.
         """
-        self.set(run_after=upstream_tasks, **upstream_results)
+        self.set(upstream_tasks=upstream_tasks, **upstream_results)
         return self
 
     def run_before(self, *downstream_tasks):
@@ -205,7 +223,7 @@ class Task:
             downstream_tasks (Task[]): The provided tasks will become downstream
                 dependencies of this task.
         """
-        self.set(run_before=downstream_tasks)
+        self.set(downstream_tasks=downstream_tasks)
         return self
 
     # Serialize ---------------------------------------------------------------

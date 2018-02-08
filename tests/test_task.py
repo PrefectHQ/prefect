@@ -143,7 +143,7 @@ class TestTaskRelationships:
             before = Task(name='before')
             after = Task(name='after')
 
-            before.run_before(after)
+            before.set(downstream_tasks=[after])
         assert before in f
         assert after in f
         assert before in f.upstream_tasks(after)
@@ -154,7 +154,7 @@ class TestTaskRelationships:
             before2 = Task(name='before_2')
             after = Task(name='after')
 
-            after.run_after(before, before2)
+            after.set(upstream_tasks=[before, before2])
         assert before in f
         assert before2 in f
         assert after in f

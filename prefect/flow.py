@@ -1,12 +1,13 @@
 import copy
+from typing import Iterable, Mapping
 
 from slugify import slugify
 
 import prefect
 import prefect.context
-import ujson
 from prefect.schedules import NoSchedule
 from prefect.task import Task
+from prefect.edge import Edge
 from prefect.tasks.core import Parameter
 from prefect.utilities.strings import is_valid_identifier
 
@@ -145,7 +146,11 @@ class Flow:
     # Dependencies ------------------------------------------------------------
 
     def set_dependencies(
-            self, task, upstream_tasks=None, upstream_results=None):
+            self,
+            task: Task,
+            upstream_tasks: Iterable[Task] = None,
+            downstream_tasks: Iterable[Task] = None,
+            upstream_results: Mapping[str, Task] = None):
         """
         Convenience function for adding task dependencies on upstream tasks.
 
@@ -154,15 +159,20 @@ class Flow:
 
             upstream_tasks ([Task]): Tasks that will run before the task runs
 
-            upstream_results ({key: Task or TaskResult}): Tasks that will run
-                before the task runs and pass their output to the task under
-                the key
+            downstream_tasks ([Task]): Tasks that will run after the task runs
+
+            upstream_results ({key: Task}): The results of these tasks
+                will be provided to the task under the specified keyword
+                arguments.
         """
         if task not in self.tasks.values():
             self.add_task(task)
 
         for t in upstream_tasks or []:
             self.add_edge(upstream_task=t, downstream_task=task)
+
+        for t in downstream_tasks or []:
+            self.add_edge(upstream_task=task, downstream_task=t)
 
         for key, t in (upstream_results or {}).items():
             t = prefect.utilities.tasks.as_task(t)
@@ -301,8 +311,8 @@ class Flow:
                 'default': t.default
             }
             for t in self.tasks.values()
-            if isinstance(t, Parameter)
-            and (t.required if only_required else True)
+            if isinstance(t, Parameter) and (
+                t.required if only_required else True)
         }
 
     def sub_flow(self, root_tasks=None):
