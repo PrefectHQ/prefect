@@ -12,6 +12,7 @@ from prefect.task import Task
 from prefect.utilities.tasks import as_task_class
 from prefect.tasks import Parameter, FunctionTask
 
+import prefect.edge
 from prefect.flow import Flow
 from prefect.engine import FlowRunner, TaskRunner
 
