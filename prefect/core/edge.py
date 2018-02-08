@@ -1,4 +1,6 @@
 from prefect.core.task import Task
+from prefect.utilities.strings import is_valid_identifier
+
 
 class Edge:
 
