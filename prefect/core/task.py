@@ -33,10 +33,7 @@ class Task:
             trigger=None,
             serializer=None,
             flow=None,
-            resources=None,
-            image=None,
             autorename=False,
-            cluster=None,
     ):
         """
 
@@ -56,13 +53,6 @@ class Task:
 
             serializer (Serializer): the class used to serialize and
                 deserialize the task result.
-
-            resources (dict): a dictionary of resources that the Dask scheduler
-                can use to allocate the task (requires cluster configuration)
-                See https://distributed.readthedocs.io/en/latest/resources.html
-
-            image (str): the Docker image the task should be run in (requires
-                cluster configuration)
 
             autorename (bool): if True, the task will automatically have a
                 suffix added to its name if it conflicts with an existing
@@ -116,9 +106,6 @@ class Task:
         self.serializer = serializer
 
         # misc
-        self.resources = resources or {}
-        self.image = image
-        self.cluster = cluster
         self._indexed_results_cache = {}
 
         # add the task to the flow
@@ -237,11 +224,7 @@ class Task:
             'max_retries': self.max_retries,
             'serialized': prefect.utilities.serialize.serialize(self),
             'trigger': self.trigger.__name__,
-            'executor_args': {
-                'cluster': self.cluster,
-                'image': self.image,
-                'resources': self.resources,
-            }
+            'executor_args': {}
         }
 
     @classmethod
