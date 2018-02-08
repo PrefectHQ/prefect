@@ -1,5 +1,5 @@
 import re
-from prefect.task import Task
+from prefect import Task
 
 class StringFormatterTask(Task):
     """

@@ -14,18 +14,18 @@ def as_task(x):
         return prefect.tasks.Constant(value=x)
 
 
-def as_task_class(fn=None, **kwargs):
+def task(fn=None, **kwargs):
     """
     A decorator for creating Tasks from functions.
 
     Usage:
 
-    @as_task_class
+    @task
     def myfn():
         time.sleep(10)
         return 1
 
-    @as_task_class(name='hello', retries=3)
+    @task(name='hello', retries=3)
     def hello():
         print('hello')
 

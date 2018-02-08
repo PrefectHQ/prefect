@@ -1,9 +1,9 @@
 import datetime
 import pytest
 import prefect
-from prefect.utilities.tasks import as_task_class
+from prefect.utilities.tasks import task
 from prefect.engine import TaskRunner
-from prefect.state import TaskRunState
+from prefect.engine.state import TaskRunState
 from prefect.utilities.tests import run_task_runner_test
 
 
@@ -67,7 +67,7 @@ def test_signal():
     Test running a task that raises a Prefect signal
     """
 
-    @as_task_class
+    @task
     def fail_task():
         raise prefect.signals.FAIL(3)
 
@@ -81,7 +81,7 @@ def test_signal():
         context={'run_number': 1})
     assert isinstance(state.result, datetime.datetime)
 
-    @as_task_class
+    @task
     def skip_task():
         raise prefect.signals.SKIP(3)
 
@@ -89,7 +89,7 @@ def test_signal():
         task=skip_task(),
         expected_state=TaskRunState(TaskRunState.SKIPPED, result=3))
 
-    @as_task_class
+    @task
     def success_task():
         raise prefect.signals.SUCCESS(3)
 

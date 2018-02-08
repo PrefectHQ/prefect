@@ -11,7 +11,7 @@ from contextlib import contextmanager
 import prefect
 from prefect import signals
 from prefect.context import Context, call_with_context_annotations
-from prefect.state import TaskRunState
+from prefect.engine.state import TaskRunState
 
 
 class TaskRunner:

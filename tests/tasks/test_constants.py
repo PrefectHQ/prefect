@@ -1,9 +1,9 @@
 import pytest
 
 import prefect
-from prefect.flow import Flow
+from prefect.core.flow import Flow
 from prefect.tasks.core.function_task import FunctionTask
-from prefect.tasks.core.constants import Constant, ContextTask, Parameter
+from prefect.tasks.core.constants import Constant, ContextTask
 
 
 def test_constant_task():
@@ -23,17 +23,3 @@ def test_context_task():
 
     with prefect.context.Context(some_var=17):
         assert flow.run().result['context'].result == 17
-
-
-def test_parameter():
-    with Flow('test') as flow:
-        x = Parameter('x')
-        y = Parameter('y', default=1)
-        z = FunctionTask(fn=lambda a: a + 1)
-
-        z.set(x=x, y=y)
-
-    assert len(flow.parameters()) == 2
-    assert 'x' in flow.parameters()
-    assert flow.parameters()['x']['required']
-    assert not flow.parameters()['y']['required']

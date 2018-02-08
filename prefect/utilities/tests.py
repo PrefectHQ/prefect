@@ -3,7 +3,7 @@ import itertools
 import pytest
 
 import prefect
-from prefect.state import TaskRunState
+from prefect.engine.state import TaskRunState
 
 
 class DummyTask(prefect.Task):

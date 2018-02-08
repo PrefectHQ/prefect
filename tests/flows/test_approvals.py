@@ -1,7 +1,7 @@
 import pytest
 import prefect
 from prefect.utilities.tests import run_flow_runner_test
-from prefect.state import FlowRunState, TaskRunState
+from prefect.engine.state import FlowRunState, TaskRunState
 
 
 def test_approval():

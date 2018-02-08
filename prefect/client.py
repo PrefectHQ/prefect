@@ -337,7 +337,7 @@ class FlowRuns(ClientModule):
              ''',
             flowRunId=flow_run_id)
         state = data.flow_runs[0].get('state', {})
-        return prefect.state.FlowRunState(
+        return prefect.engine.state.FlowRunState(
             state=state.get('state', None), result=state.get('result', None))
 
     def set_state(self, flow_run_id, state, result=None, expected_state=None):
@@ -414,7 +414,7 @@ class TaskRuns(ClientModule):
              ''',
             taskRunId=task_run_id)
         state = data.task_runs[0].get('state', {})
-        return prefect.state.TaskRunState(
+        return prefect.engine.state.TaskRunState(
             state=state.get('state', None), result=state.get('result', None))
 
     def set_state(self, task_run_id, state, result=None, expected_state=None):

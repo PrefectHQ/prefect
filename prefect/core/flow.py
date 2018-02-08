@@ -5,10 +5,10 @@ from slugify import slugify
 
 import prefect
 import prefect.context
-from prefect.schedules import NoSchedule
-from prefect.task import Task
-from prefect.edge import Edge
-from prefect.tasks.core import Parameter
+from prefect.flows.schedules import NoSchedule
+from prefect.core.task import Task
+from prefect.core.edge import Edge
+from prefect.core.parameter import Parameter
 from prefect.utilities.strings import is_valid_identifier
 
 

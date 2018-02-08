@@ -1,10 +1,10 @@
 import pytest
 
 import prefect
-from prefect.flow import Flow
+from prefect.core.flow import Flow
 from prefect.tasks.core import operators as ops
 from prefect.utilities.tests import run_flow_runner_test
-from prefect.state import FlowRunState, TaskRunState
+from prefect.engine.state import FlowRunState, TaskRunState
 
 
 def check_operator_flow(flow, task_name, result):

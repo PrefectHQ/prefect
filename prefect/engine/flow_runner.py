@@ -3,7 +3,7 @@ from contextlib import contextmanager
 
 import prefect
 import prefect.signals
-from prefect.state import FlowRunState, TaskRunState
+from prefect.engine.state import FlowRunState, TaskRunState
 
 
 class FlowRunner:

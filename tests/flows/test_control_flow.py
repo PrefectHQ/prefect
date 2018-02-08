@@ -1,8 +1,9 @@
 import pytest
 import prefect
-from prefect.tasks import control_flow, Parameter
+from prefect.core.parameter import Parameter
+from prefect.tasks import control_flow
 from prefect.utilities.tests import run_flow_runner_test, DummyTask
-from prefect.state import FlowRunState, TaskRunState
+from prefect.engine.state import FlowRunState, TaskRunState
 
 
 def test_ifelse():

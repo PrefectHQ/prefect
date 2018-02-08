@@ -1,6 +1,6 @@
 import datetime
 import dateutil.parser
-from prefect import schedules
+from prefect.flows import schedules
 
 
 def test_date_schedule():

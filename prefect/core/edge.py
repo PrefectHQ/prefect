@@ -1,4 +1,4 @@
-from prefect.task import Task
+from prefect.core.task import Task
 
 class Edge:
 
