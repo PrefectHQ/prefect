@@ -34,7 +34,9 @@ class Task:
             serializer=None,
             flow=None,
             autorename=False,
-    ):
+            upstream_tasks=None,
+            downstream_tasks=None,
+            **upstream_results):
         """
 
         Args:
@@ -112,6 +114,12 @@ class Task:
         if flow:
             flow.add_task(self)
 
+            self.set(
+                upstream_tasks=upstream_tasks,
+                downstream_tasks=downstream_tasks,
+                flow=flow,
+                **upstream_results)
+
     @property
     def slug(self):
         return slugify(self.name)
@@ -147,11 +155,13 @@ class Task:
             downstream_tasks=downstream_tasks,
             **upstream_results)
 
+    #TODO set a type annotation for Flow
     def set(
             self,
             *,
             upstream_tasks: Iterable['Task'] = None,
             downstream_tasks: Iterable['Task'] = None,
+            flow=None,
             **upstream_results: Mapping[str, 'Task']):
         """
         Create dependencies between tasks or (optionally) task outputs
@@ -163,12 +173,16 @@ class Task:
             downstream_tasks ([Task]): A list of tasks that will run after this
                 task runs.
 
+            flow: The flow in which to set these dependencies. If none is
+                provided it will be inferred from the Prefect context.
+
             **upstream_results ({str: Task}): The result of each task in this
                 dictionary will be provided to this task when it runs as the
                 specified keyword argument.
 
         """
-        flow = prefect.context.Context.get('flow')
+        if flow is None:
+            flow = prefect.context.Context.get('flow')
         if not flow:
             raise ValueError(
                 'Dependencies can only be set within an active Flow context.')

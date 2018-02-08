@@ -163,6 +163,28 @@ class TestTaskRelationships:
         assert before in f.upstream_tasks(after)
         assert before2 in f.upstream_tasks(after)
 
+    def test_task_relationships_at_init(self):
+        """Test task relationships"""
+        with Flow('test') as f:
+            before = Task(name='before')
+            after = Task(name='after', upstream_tasks=[before])
+
+        assert before in f
+        assert after in f
+        assert before in f.upstream_tasks(after)
+
+        with Flow('test') as f:
+            before = Task(name='before')
+            before2 = Task(name='before_2')
+            after = Task(name='after', upstream_tasks=[before, before2])
+
+            after.set(upstream_tasks=[before, before2])
+        assert before in f
+        assert before2 in f
+        assert after in f
+        assert before in f.upstream_tasks(after)
+        assert before2 in f.upstream_tasks(after)
+
     # def test_shift_relationship_sugar(self):
     #     """Test task relationships with | and >> and << sugar"""
     #     with Flow('test') as f:
