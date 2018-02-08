@@ -36,7 +36,7 @@ class Task:
             autorename=False,
             upstream_tasks=None,
             downstream_tasks=None,
-            **upstream_results):
+            upstream_results=None):
         """
 
         Args:
@@ -118,7 +118,7 @@ class Task:
                 upstream_tasks=upstream_tasks,
                 downstream_tasks=downstream_tasks,
                 flow=flow,
-                **upstream_results)
+                **(upstream_results or {}))
 
     @property
     def slug(self):
