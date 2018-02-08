@@ -91,9 +91,9 @@ class Task:
 
         # set up up trigger
         if trigger is None:
-            trigger = prefect.triggers.all_successful
+            trigger = prefect.tasks.triggers.all_successful
         elif isinstance(trigger, str):
-            trigger = getattr(prefect.triggers, trigger)
+            trigger = getattr(prefect.tasks.triggers, trigger)
         self.trigger = trigger
 
         # set up result serialization
@@ -251,7 +251,7 @@ class Task:
         return Task(
             name=serialized['name'],
             max_retries=serialized['max_retries'],
-            trigger=getattr(prefect.triggers, serialized['trigger'], None),
+            trigger=getattr(prefect.tasks.triggers, serialized['trigger'], None),
             # executor_args
         )
 
