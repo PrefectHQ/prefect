@@ -14,3 +14,4 @@ import prefect.engine
 
 from prefect.client import Client
 
+__version__ = '0.0'

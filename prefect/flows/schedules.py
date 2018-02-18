@@ -1,36 +1,17 @@
-import inspect
 import croniter
 import datetime
 import itertools
 import prefect.utilities.datetimes
+from prefect.utilities.serialize import JSONSerializable
 
 
-def deserialize(serialized):
-    cls = getattr(prefect.schedules, serialized['type'], None)
-    if not cls:
-        raise TypeError('Unrecognized Schedule: {}'.format(serialized['type']))
-    return cls(**serialized['params'])
-
-
-class Schedule:
+class Schedule(JSONSerializable):
     """
     Base class for Schedules
     """
 
-    serialize_args = []
-
     def next_n(self, n=1, on_or_after=None):
         raise NotImplementedError('Must be implemented on Schedule subclasses')
-
-    def serialize(self):
-        return {
-            'type': type(self).__name__,
-            'params': {a: getattr(self, a)
-                       for a in self.serialize_args}
-        }
-
-    def __json__(self):
-        return self.serialize()
 
 
 class NoSchedule(Schedule):
@@ -46,8 +27,6 @@ class IntervalSchedule(Schedule):
     """
     A schedule formed by adding `timedelta` increments to a start_date.
     """
-
-    serialize_args = ['start_date', 'interval']
 
     def __init__(self, start_date, interval):
         if interval.total_seconds() <= 0:
@@ -77,8 +56,6 @@ class IntervalSchedule(Schedule):
 
 class CronSchedule(Schedule):
 
-    serialize_args = ['cron']
-
     def __init__(self, cron):
         self.cron = cron
 
@@ -93,8 +70,6 @@ class CronSchedule(Schedule):
 
 
 class DateSchedule(Schedule):
-
-    serialize_args = ['dates']
 
     def __init__(self, dates):
         self.dates = [

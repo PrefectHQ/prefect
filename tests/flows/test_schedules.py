@@ -1,5 +1,5 @@
+import json
 import datetime
-import dateutil.parser
 from prefect.flows import schedules
 
 
@@ -46,19 +46,19 @@ def test_interval_schedule():
 
 def test_serialize_and_deserialize():
     s1 = schedules.NoSchedule()
-    s2 = schedules.deserialize(s1.serialize())
+    s2 = json.loads(s1.serialize())
     assert s1.next_n(2) == s2.next_n(2)
 
     s1 = schedules.DateSchedule(
         dates=['20{}-01-01'.format(i) for i in range(20, 30)])
-    s2 = schedules.deserialize(s1.serialize())
+    s2 = json.loads(s1.serialize())
     assert s1.next_n(2) == s2.next_n(2)
 
     s1 = schedules.CronSchedule('0 22 * * 1-5')
-    s2 = schedules.deserialize(s1.serialize())
+    s2 = json.loads(s1.serialize())
     assert s1.next_n(2) == s2.next_n(2)
 
     s1 = schedules.IntervalSchedule(
         start_date='2017-01-01', interval=datetime.timedelta(days=20))
-    s2 = schedules.deserialize(s1.serialize())
+    s2 = json.loads(s1.serialize())
     assert s1.next_n(2) == s2.next_n(2)

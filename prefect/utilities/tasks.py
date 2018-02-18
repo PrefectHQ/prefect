@@ -1,5 +1,6 @@
-import functools
 import prefect
+
+import wrapt
 
 
 def as_task(x):
@@ -14,7 +15,8 @@ def as_task(x):
         return prefect.tasks.Constant(value=x)
 
 
-def task(fn=None, **kwargs):
+@wrapt.decorator
+def task(fn, instance, args, kwargs):
     """
     A decorator for creating Tasks from functions.
 
@@ -34,12 +36,4 @@ def task(fn=None, **kwargs):
 
     """
 
-    if callable(fn):
-        return functools.partial(prefect.tasks.FunctionTask, fn=fn)
-    else:
-
-        def wrapper(fn):
-            return functools.partial(
-                prefect.tasks.FunctionTask, fn=fn, **kwargs)
-
-        return wrapper
+    return prefect.tasks.FunctionTask(fn=fn, *args, **kwargs)

@@ -6,9 +6,10 @@ install_requires = [
     'croniter',
     'distributed >= 1.16.1',
     'pycrypto',
+    'python-dateutil',
     'requests',
     'ujson',
-    'typing',
+    'wrapt',
 ]
 
 extras = {

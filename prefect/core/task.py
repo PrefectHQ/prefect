@@ -1,35 +1,28 @@
 import importlib
-
+from datetime import timedelta
 from slugify import slugify
 
 from typing import Iterable, Mapping
 
 import prefect
-from prefect.utilities.datetimes import retry_delay
+# from prefect.utilities.datetimes import retry_delay
 from prefect.utilities.strings import name_with_suffix
+from prefect.utilities.serialize import JSONSerializable
 
 
-class Task:
+class Task(JSONSerializable):
     """
     Tasks are basic units of work. Each task performs a specific funtion.
     """
 
-    def __new__(base, *args, **kwargs):
-        """
-        Each Task tracks the arguments that were used to create it. These
-        variables are available as Task._init_args and Task._init_kwargs.
-        """
-        instance = super().__new__(base)
-        instance._init_args = args
-        instance._init_kwargs = kwargs
-        return instance
-
     def __init__(
             self,
             name=None,
+            parent=None,
             description=None,
             max_retries=0,
-            retry_delay=retry_delay(minutes=5),
+            retry_delay=timedelta(minutes=5),
+            timeout=None,
             trigger=None,
             serializer=None,
             flow=None,
@@ -41,14 +34,19 @@ class Task:
 
         Args:
 
+            name (str): a name for the Task
+
+            parent (str): a '.'-delimited chain of parents. This can be modified
+                by context.
+
             description (str): a description of the task. Markdown is supported.
 
-            retry_delay (timedelta or callable): a function that
-                is passed the most recent run number and returns an amount of
-                time to wait before retrying the task. It is recommended to
-                build the function with the retry_delay() helper function in
-                this module. If a timedelta is passed, retry_delay is
-                called on the interval automatically.
+            retry_delay (timedelta): the time to wait before retrying the task.
+
+            timeout (timedelta): the maximum amount of time the task is allowed
+                to run. Note that while a task will be considered FAILED if it
+                exceeds this time limit, it may not be possible to actually
+                halt a task once it starts.
 
             max_retries: the number of times this task can be retried. -1
                 indicates an infinite number of times.
@@ -59,8 +57,6 @@ class Task:
             autorename (bool): if True, the task will automatically have a
                 suffix added to its name if it conflicts with an existing
                 task in the flow
-
-
         """
 
         # see if this task was created inside a flow context
@@ -83,12 +79,14 @@ class Task:
                 'Name is invalid or could not be inferred '
                 'from Flow: "{}"'.format(name))
         self.name = name
+        context_parent = prefect.context.Context.get('task_parent')
+        if context_parent:
+            parent = context_parent + '.' + parent
+        self.parent = parent
         self.description = description or ''
 
-        # set up retries
-        if not callable(retry_delay):
-            retry_delay = prefect.tasks.retry_delay(retry_delay)
         self.retry_delay = retry_delay
+        self.timeout = timeout
         self.max_retries = max_retries
 
         # set up up trigger
@@ -230,16 +228,26 @@ class Task:
     # Serialize ---------------------------------------------------------------
 
     def serialize(self):
-        return {
-            'name': self.name,
-            'slug': self.slug,
-            'description': self.description,
-            'type': type(self).__name__,
-            'max_retries': self.max_retries,
-            'serialized': prefect.utilities.serialize.serialize(self),
-            'trigger': self.trigger.__name__,
-            'executor_args': {}
-        }
+        return json.dumps(self)
+
+    def __json__(self):
+        serialized = super().__json__()
+
+        serialized.update(
+            dict(
+                name=self.name,
+                slug=self.slug,
+                parent=self.parent,
+                description=self.description,
+                max_retries=self.max_retries,
+                retry_delay=self.retry_delay,
+                timeout=self.timeout,
+                trigger=self.trigger.__name__,
+                type=type(self).__name__,
+                serialized=prefect.utilities.serialize.serialize(self),
+            ))
+
+        return serialized
 
     @classmethod
     def deserialize(cls, serialized):
@@ -265,7 +273,8 @@ class Task:
         return Task(
             name=serialized['name'],
             max_retries=serialized['max_retries'],
-            trigger=getattr(prefect.tasks.triggers, serialized['trigger'], None),
+            trigger=getattr(
+                prefect.tasks.triggers, serialized['trigger'], None),
             # executor_args
         )
 
