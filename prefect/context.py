@@ -11,12 +11,13 @@ Example:
     print (prefect.context.a) # undefined
 
 """
+import contextlib
 import datetime
-import functools
 import inspect
 import threading
-import contextlib
 from typing import Any, NewType
+
+import wrapt
 
 
 class ContextError(KeyError):
@@ -125,7 +126,8 @@ class Annotations:
         return {k: v for k, v in cls.__dict__.items() if not k.startswith('_')}
 
 
-def apply_context_annotations(fn):
+@wrapt.decorator
+def apply_context_annotations(fn, instance, args, kwargs):
     """
     This decorator wraps a function so that at runtime, any function arguments
     that are annotated as Context variables and not supplied by the user
@@ -142,12 +144,7 @@ def apply_context_annotations(fn):
     (1, 'id')
 
     """
-
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        return call_with_context_annotations(fn, *args, **kwargs)
-
-    return wrapper
+    return call_with_context_annotations(fn, *args, **kwargs)
 
 
 def call_with_context_annotations(fn, *args, **kwargs):
