@@ -1,11 +1,11 @@
-import abc
 from functools import wraps
 from contextlib import contextmanager
 import prefect
 from prefect.engine.task_runner import TaskRunner
+from prefect.utilities.serialize import JSONSerializable
 
 
-def submit_to_self(method):
+def run_in_executor(method):
     """
     Decorator for executor methods that automatically executes them in the
     Executor.
@@ -16,7 +16,7 @@ def submit_to_self(method):
 
     class MyExecutor(Executor):
 
-        @submit_to_self
+        @run_in_executor
         def method_that_should_run_on_client(x, y):
             return x + y
 
@@ -39,7 +39,7 @@ def submit_to_self(method):
     return wrapper
 
 
-class Executor(metaclass=abc.ABCMeta):
+class Executor(JSONSerializable):
     """
     Executors are objects that yield ExecutorClients, which in turn
     can submit/resolve functions for execution.
@@ -62,19 +62,17 @@ class Executor(metaclass=abc.ABCMeta):
         """
         yield self
 
-    @abc.abstractmethod
     def submit(self, fn, *args, _client_kwargs=None, **kwargs):
         """
         Submit a function to the executor for execution. Returns a future.
         """
-        pass
+        raise NotImplementedError()
 
-    @abc.abstractmethod
     def wait(self, futures, timeout=None):
         """
         Resolves futures to their values. Blocks until the future is complete.
         """
-        pass
+        raise NotImplementedError()
 
     def set_state(self, state, new_state, result=None):
         """
@@ -85,7 +83,7 @@ class Executor(metaclass=abc.ABCMeta):
         """
         state.set_state(new_state, result=result)
 
-    @submit_to_self
+    @run_in_executor
     def run_task(
             self,
             task,
@@ -102,7 +100,6 @@ class Executor(metaclass=abc.ABCMeta):
             ignore_trigger=ignore_trigger,
             context=context)
 
-    @submit_to_self
     def run_flow(
             self,
             flow,
@@ -114,14 +111,39 @@ class Executor(metaclass=abc.ABCMeta):
             task_contexts=None,
             flow_is_serialized=True,
             return_all_task_states=False):
-        if flow_is_serialized:
-            flow = prefect.Flow.deserialize(flow)
-        flow_runner = prefect.engine.FlowRunner(flow=flow, executor=self)
-        return flow_runner.run(
+
+        def run_flow_in_executor(
+                flow,
+                state,
+                task_states,
+                start_tasks,
+                context,
+                parameters,
+                task_contexts,
+                flow_is_serialized,
+                return_all_task_states,
+        ):
+            if flow_is_serialized:
+                flow = prefect.Flow.deserialize(flow)
+            flow_runner = prefect.engine.FlowRunner(flow=flow, executor=self)
+            return flow_runner.run(
+                state=state,
+                task_states=task_states,
+                start_tasks=start_tasks,
+                context=context,
+                parameters=parameters,
+                task_contexts=task_contexts,
+                return_all_task_states=return_all_task_states)
+
+        self.submit(
+            run_flow_in_executor,
+            flow=flow,
             state=state,
             task_states=task_states,
             start_tasks=start_tasks,
             context=context,
             parameters=parameters,
             task_contexts=task_contexts,
-            return_all_task_states=return_all_task_states)
+            flow_is_serialized=flow_is_serialized,
+            return_all_task_states=return_all_task_states,
+        )
