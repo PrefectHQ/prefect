@@ -2,14 +2,23 @@ class PrefectError(Exception):
     pass
 
 # ------------------------------------------------------------------------------
+# Serialization errors
+# ------------------------------------------------------------------------------
+
+class SerializationError(PrefectError):
+    pass
+
+# ------------------------------------------------------------------------------
 # Flow errors
 # ------------------------------------------------------------------------------
+
 class ParameterError(PrefectError):
     pass
 
 # ------------------------------------------------------------------------------
 # These classes are used to signal state changes when tasks are running
 # ------------------------------------------------------------------------------
+
 class PrefectStateException(Exception):
 
     def __init__(self, result=None, *args, **kwargs):
