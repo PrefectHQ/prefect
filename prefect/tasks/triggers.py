@@ -2,14 +2,15 @@
 Triggers are functions that determine if task state should change based on
 the state of preceding tasks.
 """
-import abc
-from prefect import context, signals
+from prefect import signals
 from prefect.utilities.serialize import JSONSerializable
 
 
 def autoinstantiate(cls):
+    """
+    Decorator to automatically instantiate a class
+    """
     return cls()
-
 
 
 class Trigger(JSONSerializable):
