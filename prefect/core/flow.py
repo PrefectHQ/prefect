@@ -12,8 +12,6 @@ from prefect.core.parameter import Parameter
 from prefect.utilities.strings import is_valid_identifier
 
 
-
-
 class Flow:
 
     def __init__(

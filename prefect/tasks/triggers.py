@@ -3,7 +3,7 @@ Triggers are functions that determine if task state should change based on
 the state of preceding tasks.
 """
 from prefect import signals
-from prefect.utilities.serialize import JSONSerializable
+from prefect.utilities.serialize import Serializable
 
 
 def autoinstantiate(cls):
@@ -13,7 +13,7 @@ def autoinstantiate(cls):
     return cls()
 
 
-class Trigger(JSONSerializable):
+class Trigger(Serializable):
     pass
 
     @staticmethod

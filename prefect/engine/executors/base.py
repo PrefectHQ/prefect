@@ -2,7 +2,7 @@ from functools import wraps
 from contextlib import contextmanager
 import prefect
 from prefect.engine.task_runner import TaskRunner
-from prefect.utilities.serialize import JSONSerializable
+from prefect.utilities.serialize import Serializable
 
 
 def run_in_executor(method):
@@ -39,7 +39,7 @@ def run_in_executor(method):
     return wrapper
 
 
-class Executor(JSONSerializable):
+class Executor(Serializable):
     """
     Executors are objects that yield ExecutorClients, which in turn
     can submit/resolve functions for execution.

@@ -2,10 +2,10 @@ import croniter
 import datetime
 import itertools
 import prefect.utilities.datetimes
-from prefect.utilities.serialize import JSONSerializable
+from prefect.utilities.serialize import Serializable
 
 
-class Schedule(JSONSerializable):
+class Schedule(Serializable):
     """
     Base class for Schedules
     """

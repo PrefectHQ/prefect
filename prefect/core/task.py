@@ -1,20 +1,29 @@
 import importlib
 from datetime import timedelta
-from slugify import slugify
-
+import json
 from typing import Iterable, Mapping
 
+from slugify import slugify
+
 import prefect
+from prefect.utilities.serialize import (
+    Encrypted,
+    Serializable,
+    serialize_to_encrypted_pickle,
+)
 # from prefect.utilities.datetimes import retry_delay
 from prefect.utilities.strings import name_with_suffix
-from prefect.utilities.serialize import JSONSerializable
 
 
-class Task(JSONSerializable):
+class Task(Serializable):
     """
     Tasks are basic units of work. Each task performs a specific funtion.
     """
 
+    serialize_encrypted = True
+    serialize_restore_fields = ['parent']
+
+    @prefect.context.apply_context_annotations
     def __init__(
             self,
             name=None,
@@ -24,8 +33,7 @@ class Task(JSONSerializable):
             retry_delay=timedelta(minutes=5),
             timeout=None,
             trigger=None,
-            serializer=None,
-            flow=None,
+            flow: prefect.context.Annotations.flow = None,
             autorename=False,
             upstream_tasks=None,
             downstream_tasks=None,
@@ -73,12 +81,13 @@ class Task(JSONSerializable):
                 delimiter='-')
         elif name is None:
             name = type(self).__name__
-
         if not isinstance(name, str):
             raise ValueError(
                 'Name is invalid or could not be inferred '
                 'from Flow: "{}"'.format(name))
         self.name = name
+        self._init_args['name'] = name
+
         context_parent = prefect.context.Context.get('task_parent')
         if context_parent:
             parent = context_parent + '.' + parent
@@ -91,19 +100,10 @@ class Task(JSONSerializable):
 
         # set up up trigger
         if trigger is None:
-            trigger = prefect.tasks.triggers.all_successful
-        elif isinstance(trigger, str):
-            trigger = getattr(prefect.tasks.triggers, trigger)
+            trigger = prefect.tasks.triggers.AllSuccessful
+        if not isinstance(trigger, prefect.tasks.triggers.Trigger):
+            raise TypeError('Trigger must be a Trigger subclass.')
         self.trigger = trigger
-
-        # set up result serialization
-        if serializer is None:
-            default = prefect.config.get('tasks', 'default_serializer')
-            default_module, default_class = default.rsplit('.', 1)
-            serializer_class = getattr(
-                importlib.import_module(default_module), default_class)
-            serializer = serializer_class()
-        self.serializer = serializer
 
         # misc
         self._indexed_results_cache = {}
@@ -228,10 +228,7 @@ class Task(JSONSerializable):
     # Serialize ---------------------------------------------------------------
 
     def serialize(self):
-        return json.dumps(self)
-
-    def __json__(self):
-        serialized = super().__json__()
+        serialized = super().serialize()
 
         serialized.update(
             dict(
@@ -242,9 +239,9 @@ class Task(JSONSerializable):
                 max_retries=self.max_retries,
                 retry_delay=self.retry_delay,
                 timeout=self.timeout,
-                trigger=self.trigger.__name__,
+                trigger=self.trigger,
                 type=type(self).__name__,
-                serialized=prefect.utilities.serialize.serialize(self),
+                serialized=serialize_to_encrypted_pickle(self)
             ))
 
         return serialized

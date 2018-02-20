@@ -1,23 +1,28 @@
 class PrefectError(Exception):
     pass
 
-# ------------------------------------------------------------------------------
-# Serialization errors
-# ------------------------------------------------------------------------------
+
+class ContextError(KeyError, PrefectError):
+    pass
+
 
 class SerializationError(PrefectError):
     pass
+
 
 # ------------------------------------------------------------------------------
 # Flow errors
 # ------------------------------------------------------------------------------
 
+
 class ParameterError(PrefectError):
     pass
+
 
 # ------------------------------------------------------------------------------
 # These classes are used to signal state changes when tasks are running
 # ------------------------------------------------------------------------------
+
 
 class PrefectStateException(Exception):
 
@@ -54,6 +59,7 @@ class SKIP(PrefectStateException):
     """
     pass
 
+
 class SKIP_DOWNSTREAM(PrefectStateException):
     """
     Indicates that a task *and all downstream tasks* should be skipped.
@@ -63,6 +69,7 @@ class SKIP_DOWNSTREAM(PrefectStateException):
     enter a SKIP_DOWNSTREAM state.
     """
     pass
+
 
 class DONTRUN(PrefectStateException):
     """

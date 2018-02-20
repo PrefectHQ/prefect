@@ -20,10 +20,6 @@ from typing import Any, NewType
 import wrapt
 
 
-class ContextError(KeyError):
-    pass
-
-
 # context dictionary
 class Context(threading.local):
     """

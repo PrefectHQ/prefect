@@ -1,6 +1,6 @@
-from prefect.utilities.serialize import JSONSerializable
+from prefect.utilities.serialize import Serializable
 
-class State(JSONSerializable):
+class State(Serializable):
 
     _default = None
 

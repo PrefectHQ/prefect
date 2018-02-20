@@ -1,13 +1,15 @@
 import prefect.configuration
 import base64
 from configparser import ConfigParser
-import hashlib
+from cryptography.fernet import Fernet
 import logging
 import os
 import re
 
 env_var_re = re.compile(
     '^PREFECT__(?P<section>\S+)__(?P<option>\S+)', re.IGNORECASE)
+DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), 'prefect.cfg')
+USER_CONFIG = '~/.prefect/prefect.cfg'
 
 
 def expand(env_var):
@@ -26,7 +28,7 @@ def expand(env_var):
             env_var = interpolated
 
 
-def create_user_config(config_file='~/.prefect/prefect.cfg'):
+def create_user_config(config_file=USER_CONFIG):
     """
     Copies the default configuration to a user-customizable file
     """
@@ -36,9 +38,11 @@ def create_user_config(config_file='~/.prefect/prefect.cfg'):
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
 
     with open(config_file, 'w') as fw:
-        for config_file in _default_config_files:
-            with open(config_file, 'r') as fr:
-                fw.write(fr.read())
+        with open(DEFAULT_CONFIG, 'r') as fr:
+            template = fr.read()
+            key = Fernet.generate_key().decode()
+            template = template.replace('<<REPLACE WITH FERNET KEY>>', key)
+            fw.write(template)
 
 
 # Logging ---------------------------------------------------------------------
@@ -82,6 +86,9 @@ def load_config_file(config_file, config=None):
     if config is None:
         config = ConfigParser()
 
+    if config_file is None:
+        return config
+
     config.read(expand(config_file))
 
     # overwrite environment variables
@@ -97,7 +104,11 @@ def load_config_file(config_file, config=None):
     return config
 
 
-def load_configuration(default_config, user_config, env_var=None, config=None):
+def load_configuration(
+        default_config=DEFAULT_CONFIG,
+        user_config=USER_CONFIG,
+        env_var='PREFECT_CONFIG',
+        config=None):
     """
     Loads a prefect configuration by first loading the default_config file
     and then loading a user configuration. If an env_var is supplied, it is
@@ -105,14 +116,14 @@ def load_configuration(default_config, user_config, env_var=None, config=None):
     argument is used.
     """
     default_config = load_config_file(default_config, config=config)
-    user_config_file = os.getenv(env_var or '', user_config)
-    config = load_config_file(user_config_file, config=default_config)
+    user_config = os.getenv(env_var, user_config)
+    try:
+        create_user_config(config_file=user_config)
+    except ValueError:
+        pass
+    config = load_config_file(user_config, config=default_config)
     return config
 
 
-config = load_configuration(
-    default_config=os.path.join(
-        os.path.dirname(prefect.__file__), 'prefect.cfg'),
-    user_config='~/.prefect/prefect.cfg',
-    env_var='PREFECT_CONFIG',)
+config = load_configuration()
 configure_logging(config)

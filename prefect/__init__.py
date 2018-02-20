@@ -1,6 +1,6 @@
 from prefect.configuration import config
 
-import prefect.context
+from prefect.context import Context
 import prefect.utilities
 import prefect.signals
 import prefect.serializers
