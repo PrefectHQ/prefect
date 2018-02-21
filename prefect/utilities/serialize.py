@@ -103,6 +103,10 @@ class JSONCodec:
         self.value = value
 
     def serialize(self):
+        """
+        Returns the value that will be serialized using this JSONCodec's
+        codec_key
+        """
         return self.value
 
     @classmethod
@@ -208,6 +212,17 @@ class ImportableFunction(JSONCodec):
                     name=name, module=module))
 
 
+@register_JSONCodec('__json_serialized__')
+class JSONSerialized(JSONCodec):
+
+    def serialize(self):
+        return self.value
+
+    @classmethod
+    def deserialize(cls, obj):
+        return obj
+
+
 @register_JSONCodec('__encrypted_pickle__')
 class EncryptedPickle(JSONCodec):
 
@@ -231,7 +246,7 @@ class EncryptedPickle(JSONCodec):
         return deserialize_from_encrypted_pickle(obj['pickle'])
 
 
-@register_JSONCodec('__serialized_init_args__')
+@register_JSONCodec('__init_args__')
 class SerializedInitArgs(JSONCodec):
 
     def serialize(self):
@@ -239,13 +254,8 @@ class SerializedInitArgs(JSONCodec):
         Return a JSON-serializable dictionary representing this object.
         """
         init_args = getattr(self.value, '_serialized_init_args', {})
-        if init_args:
-            init_args = Encrypted(init_args)
-
         restore_fields = getattr(self.value, '_serialized_restore_fields', [])
         restore_fields = {f: getattr(self.value, f) for f in restore_fields}
-        if restore_fields:
-            restore_fields = Encrypted(restore_fields)
 
         return {
             'class': serialized_name(self.value),
@@ -324,17 +334,30 @@ class Serializable(metaclass=SerializableMetaclass):
 
     def __eq__(self, other):
         if type(self) == type(other):
-            return self.serialize() == other.serialize()
+            self_serialized = SerializedInitArgs(self).__json__()
+            other_serialized = SerializedInitArgs(other).__json__()
+            return self_serialized == other_serialized
         return False
-
-    def __hash__(self):
-        return id(self)
 
     def serialize(self):
         """
         Return a JSON-serializable dictionary representing this object.
         """
-        return SerializedInitArgs(self).__json__()
+        return JSONSerialized(SerializedInitArgs(self)).__json__()
+
+    @classmethod
+    def deserialize(cls, serialized):
+        """
+        Rest
+        """
+        if not isinstance(serialized, str):
+            serialized = json.dumps(serialized)
+        result = json.loads(serialized)
+        if not isinstance(result, cls):
+            raise TypeError(
+                'Type mismatch between deserializing class and '
+                'serialized class.')
+        return result
 
     def __json__(self):
         return self.serialize()
@@ -379,7 +402,6 @@ def _json_encoder_fn(self, obj):
 
 
 def _json_decoder_fn(dct):
-
     # iterate over the dictionary looking for a key that matches a codec.
     # it would be extremely unusual to have more than one such key.
     for key, value in dct.items():
