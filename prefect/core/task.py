@@ -1,6 +1,4 @@
-import importlib
 from datetime import timedelta
-import json
 from typing import Iterable, Mapping
 
 from slugify import slugify
@@ -9,7 +7,7 @@ import prefect
 from prefect.utilities.serialize import (
     Encrypted,
     Serializable,
-    serialize_to_encrypted_pickle,
+    EncryptedPickle,
 )
 # from prefect.utilities.datetimes import retry_delay
 from prefect.utilities.strings import name_with_suffix
@@ -20,14 +18,12 @@ class Task(Serializable):
     Tasks are basic units of work. Each task performs a specific funtion.
     """
 
-    serialize_encrypted = True
-    serialize_restore_fields = ['parent']
+    _serialized_restore_fields = ['name']
 
     @prefect.context.apply_context_annotations
     def __init__(
             self,
             name=None,
-            parent=None,
             description=None,
             max_retries=0,
             retry_delay=timedelta(minutes=5),
@@ -43,9 +39,6 @@ class Task(Serializable):
         Args:
 
             name (str): a name for the Task
-
-            parent (str): a '.'-delimited chain of parents. This can be modified
-                by context.
 
             description (str): a description of the task. Markdown is supported.
 
@@ -86,12 +79,6 @@ class Task(Serializable):
                 'Name is invalid or could not be inferred '
                 'from Flow: "{}"'.format(name))
         self.name = name
-        self._init_args['name'] = name
-
-        context_parent = prefect.context.Context.get('task_parent')
-        if context_parent:
-            parent = context_parent + '.' + parent
-        self.parent = parent
         self.description = description or ''
 
         self.retry_delay = retry_delay
@@ -129,18 +116,6 @@ class Task(Serializable):
             return '{}({})'.format(type(self).__name__, self.name)
 
     # Comparison --------------------------------------------------------------
-
-    def __eq__(self, other):
-        """
-        Equality is determined by examining the serialized Task
-        """
-        if type(self) == type(other) and self.name == other.name:
-            self_comp = self.serialize()
-            self_comp.pop('serialized')
-            other_comp = other.serialize()
-            other_comp.pop('serialized')
-            return self_comp == other_comp
-        return False
 
     def __hash__(self):
         return id(self)
@@ -227,53 +202,25 @@ class Task(Serializable):
 
     # Serialize ---------------------------------------------------------------
 
-    def serialize(self):
+    def serialize(self, pickle=False):
+
         serialized = super().serialize()
 
         serialized.update(
             dict(
                 name=self.name,
                 slug=self.slug,
-                parent=self.parent,
                 description=self.description,
                 max_retries=self.max_retries,
                 retry_delay=self.retry_delay,
                 timeout=self.timeout,
                 trigger=self.trigger,
-                type=type(self).__name__,
-                serialized=serialize_to_encrypted_pickle(self)
-            ))
+                type=type(self).__name__))
+
+        if pickle:
+            serialized['serialized'] = EncryptedPickle(self)
 
         return serialized
-
-    @classmethod
-    def deserialize(cls, serialized):
-        """
-        Creates a Task from a serialized task.
-
-        NOTE This method is unsafe and should not be run on untrusted
-        serializations. See Task.safe_deserialize() instead.
-        """
-        obj = prefect.utilities.serialize.deserialize(serialized['serialized'])
-        if not isinstance(obj, cls):
-            raise TypeError(
-                'Expected {}; received {}'.format(
-                    cls.__name__,
-                    type(obj).__name__))
-        return obj
-
-    @classmethod
-    def safe_deserialize(cls, serialized):
-        """
-        Creates a dummy Task that approximates the serialized task.
-        """
-        return Task(
-            name=serialized['name'],
-            max_retries=serialized['max_retries'],
-            trigger=getattr(
-                prefect.tasks.triggers, serialized['trigger'], None),
-            # executor_args
-        )
 
     # Run  --------------------------------------------------------------------
 

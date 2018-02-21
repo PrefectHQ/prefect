@@ -10,9 +10,12 @@ from prefect.core.task import Task
 from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
 from prefect.utilities.strings import is_valid_identifier
+from prefect.utilities.serialize import Serializable
 
 
-class Flow:
+class Flow(Serializable):
+
+    _serialized_restore_fields = ['tasks', 'edges']
 
     def __init__(
             self,
@@ -55,31 +58,15 @@ class Flow:
         else:
             return slugify(self.name)
 
-    @property
-    def _comps(self):
-        return tuple(
-            type(self),
-            self.project,
-            self.name,
-            self.version,
-            self.tasks,
-            self.edges,
-        )
-
     def __repr__(self):
         base = '{self.project}.{self.name}'.format(self=self)
         if self.version:
             base += ':{self.version}'.format(self=self)
         return "{type}('{base}')".format(type=type(self).__name__, base=base)
 
-    def __eq__(self, other):
-        return self._comps == other._comps
 
     def __hash__(self):
         return id(self)
-
-    def __json__(self):
-        return self.serialize()
 
     # Graph -------------------------------------------------------------------
 
@@ -127,9 +114,8 @@ class Flow:
 
         if edge.key is not None:
             existing_edges = [
-                e for e in self.edges
-                if e.downstream_task == downstream_task.name
-                and e.key == edge.key
+                e for e in self.edges if
+                e.downstream_task == downstream_task.name and e.key == edge.key
             ]
             if existing_edges:
                 raise ValueError(
@@ -347,33 +333,20 @@ class Flow:
     # Persistence  ------------------------------------------------
 
     def serialize(self):
-        flow = copy.copy(self)
 
-        tasks = [
-            dict(t.serialize(), sort_order=i + 1)
-            for i, t in enumerate(self.sorted_tasks())
-        ]
-        edges = [e.serialize() for e in self.edges]
-
-        del flow.tasks
-        del flow.edges
-
-        return {
-            'project': self.project,
-            'name': self.name,
-            'slug': self.slug,
-            'version': self.version,
-            'serialized': prefect.utilities.serialize.serialize(flow),
-            'tasks': tasks,
-            'edges': edges,
-            'parameters': self.parameters(),
-            'description': self.description,
-            'schedule': self.schedule.serialize(),
-            'concurrent_runs': self.concurrent_runs,
-            'executor_args': {
-                'cluster': self.cluster,
-            }
-        }
+        serialized = super().serialize()
+        serialized.update(
+            project=self.project,
+            name=self.name,
+            slug=self.slug,
+            version=self.version,
+            description=self.description,
+            parameters=self.parameters(),
+            schedule=self.schedule,
+            concurrent_runs=self.concurrent_runs,
+            tasks=[t for t in self.sorted_tasks()],
+            edges=[e for e in self.edges])
+        return serialized
 
     @classmethod
     def deserialize(cls, serialized):

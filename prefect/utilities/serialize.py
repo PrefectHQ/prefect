@@ -1,4 +1,16 @@
-from functools import partial
+"""
+Facilities for serializing/deserializing Python objects to (safe) JSON.
+
+Recursive function called when decoding objects from JSON:
+    - '__serialized__' objects are instantiated correctly but not unpickled
+    - '__datetime__' keys are restored as DateTimes
+    - '__timedelta__' keys are restored as TimeDeltas
+    - '__bytes__' keys are restored as bytes
+    - '__importable__' keys are restored by importing the referenced object
+    - '__encrypted__' keys are decrypted using a local encryption key
+
+"""
+from functools import partial, singledispatch
 import base64
 import datetime
 import hashlib
@@ -14,18 +26,13 @@ import prefect
 from prefect.signals import SerializationError
 
 __all__ = [
+    'Encrypted',
     'Serializable',
-    'serializeable',
-    'SerializeMethod',
+    'serializable',
 ]
 
-CLASS_REGISTRY = dict()
-
-
-class SerializeMethod:
-    INIT_ARGS = 'INIT_ARGS'
-    PICKLE = 'PICKLE'
-    FILE = 'FILE'
+JSON_CODECS = dict()
+JSON_CLASS_REGISTRY = dict()
 
 
 def serialized_name(obj):
@@ -70,11 +77,200 @@ def deserialize_from_encrypted_pickle(serialized, encryption_key=None):
     return cloudpickle.loads(base64.b64decode(serialized))
 
 
+def register_JSONCodec(key):
+
+    def _register(codec, codec_key):
+        JSON_CODECS[codec_key] = codec
+        codec.codec_key = key
+        return codec
+
+    return partial(_register, codec_key=key)
+
+
+class JSONCodec:
+    """
+    JSON Codecs define how to serialize objects and deserialize objects to JSON.
+
+    Each codec has a unique key. When an object is wrapped in a codec, it
+    is serialized as {codec.codec_key: codec(obj).serialize()}.
+
+    When JSON objects are decoded, the key is matched and codec.deserialize() is
+    called on the resulting value.
+    """
+    codec_key = None
+
+    def __init__(self, value):
+        self.value = value
+
+    def serialize(self):
+        return self.value
+
+    @classmethod
+    def deserialize(cls, obj):
+        return obj
+
+    def __json__(self):
+        return {self.codec_key: self.serialize()}
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.value == other.value
+
+
+@singledispatch
+def apply_json_codec(obj):
+    return None
+
+
+@register_JSONCodec('__encrypted__')
+class Encrypted(JSONCodec):
+
+    def serialize(self):
+        key = prefect.config.get('security', 'encryption_key')
+        payload = base64.b64encode(json.dumps(self.value).encode())
+        return Fernet(key).encrypt(payload).decode()
+
+    @classmethod
+    def deserialize(cls, obj):
+        key = prefect.config.get('security', 'encryption_key')
+        decrypted = Fernet(key).decrypt(obj.encode())
+        decoded = base64.b64decode(decrypted).decode()
+        return json.loads(decoded)
+
+
+@register_JSONCodec('__set__')
+@apply_json_codec.register(set)
+class SetCodec(JSONCodec):
+
+    def serialize(self):
+        return list(self.value)
+
+    @classmethod
+    def deserialize(cls, obj):
+        return set(obj)
+
+
+@register_JSONCodec('__bytes__')
+@apply_json_codec.register(bytes)
+class BytesCodec(JSONCodec):
+
+    def serialize(self):
+        return self.value.decode()
+
+    @classmethod
+    def deserialize(cls, obj):
+        return obj.encode()
+
+
+@register_JSONCodec('__datetime__')
+@apply_json_codec.register(datetime.datetime)
+class DateTimeCodec(JSONCodec):
+
+    def serialize(self):
+        return self.value.isoformat()
+
+    @classmethod
+    def deserialize(cls, obj):
+        return dateutil.parser.parse(obj)
+
+
+@register_JSONCodec('__timedelta__')
+@apply_json_codec.register(datetime.timedelta)
+class TimeDeltaCodec(JSONCodec):
+
+    def serialize(self):
+        return self.value.total_seconds()
+
+    @classmethod
+    def deserialize(cls, obj):
+        return datetime.timedelta(seconds=obj)
+
+
+@register_JSONCodec('__importable_fn__')
+class ImportableFunction(JSONCodec):
+
+    def __init__(self, value):
+        if not isinstance(value, types.FunctionType):
+            raise SerializationError(
+                'Only functions can be marked as ImportableFunction')
+        super().__init__(value=value)
+
+    def serialize(self):
+        return serialized_name(self.value)
+
+    @classmethod
+    def deserialize(cls, obj):
+        module, name = obj.rsplit('.', 1)
+        try:
+            return getattr(importlib.import_module(module), name)
+        except AttributeError:
+            raise SerializationError(
+                "Could not import '{name}' from module '{module}'".format(
+                    name=name, module=module))
+
+
+@register_JSONCodec('__encrypted_pickle__')
+class EncryptedPickle(JSONCodec):
+
+    def serialize(self):
+        return {
+            'pickle': serialize_to_encrypted_pickle(self.value),
+            'prefect_version': prefect.__version__
+        }
+
+    @classmethod
+    def deserialize(cls, obj):
+        """
+        We never automatically unpickle.
+
+        Call json_unpickle(obj, safe=False) for that behavior.
+        """
+        return obj
+
+    @classmethod
+    def unsafe_deserialize(cls, obj):
+        return deserialize_from_encrypted_pickle(obj['pickle'])
+
+
+@register_JSONCodec('__serialized_init_args__')
+class SerializedInitArgs(JSONCodec):
+
+    def serialize(self):
+        """
+        Return a JSON-serializable dictionary representing this object.
+        """
+        init_args = getattr(self.value, '_serialized_init_args', {})
+        if init_args:
+            init_args = Encrypted(init_args)
+
+        restore_fields = getattr(self.value, '_serialized_restore_fields', [])
+        restore_fields = {f: getattr(self.value, f) for f in restore_fields}
+        if restore_fields:
+            restore_fields = Encrypted(restore_fields)
+
+        return {
+            'class': serialized_name(self.value),
+            'init_args': init_args,
+            'prefect_version': prefect.__version__,
+            'restore_fields': restore_fields
+        }
+
+    @classmethod
+    def deserialize(cls, obj):
+        cls = JSON_CLASS_REGISTRY[obj['class']]
+        init_args = obj.get('init_args', {})
+        args = init_args.pop('*args', ())
+        kwargs = init_args.pop('**kwargs', {})
+        instance = cls(**init_args, **kwargs)
+        for field, value in obj.get('restore_fields', {}).items():
+            setattr(instance, field, value)
+        return instance
+
+
 class SerializableMetaclass(type):
 
     def __new__(meta, name, bases, class_dict):
         cls = type.__new__(meta, name, bases, class_dict)
-        CLASS_REGISTRY[serialized_name(cls)] = cls
+        JSON_CLASS_REGISTRY[serialized_name(cls)] = cls
         return cls
 
 
@@ -88,7 +284,7 @@ class Serializable(metaclass=SerializableMetaclass):
     instantiated with those same arguments.
     """
 
-    serialize_method = SerializeMethod.INIT_ARGS
+    _serialized_restore_fields = []
 
     def __new__(cls, *args, **kwargs):
         instance = super().__new__(cls)
@@ -107,77 +303,41 @@ class Serializable(metaclass=SerializableMetaclass):
         # identify the argument corresponding to **kwargs
         params = signature.parameters.items()
         var_k = next((k for k, p in params if p.kind == p.VAR_KEYWORD), None)
-        callargs['**kwargs'] = callargs.pop(var_k, {})
+        if var_k:
+            callargs['**kwargs'] = callargs.pop(var_k, {})
 
         # identify the argument corresponding to *args
         var_a = next((k for k, p in params if p.kind == p.VAR_POSITIONAL), None)
         if var_a:
+            callargs['*args'] = callargs.pop(var_a, ())
             raise SerializationError(
                 'Serializable classes do not support *args in __init__, '
                 'because all arguments must be serializable with a known '
                 'keyword. Consider replacing *args with an explicit sequence.')
-        callargs['*args'] = callargs.pop(var_a, ())
 
-        instance._init_args = callargs
+        instance._serialized_init_args = callargs
         return instance
 
     # create __init__ because otherwise the __new__ signature is used for init.
     def __init__(self):
         pass
 
+    def __eq__(self, other):
+        if type(self) == type(other):
+            return self.serialize() == other.serialize()
+        return False
+
+    def __hash__(self):
+        return id(self)
+
     def serialize(self):
         """
         Return a JSON-serializable dictionary representing this object.
         """
-        # serialize the class
-        if self.serialize_method == SerializeMethod.INIT_ARGS:
-            serialized = {
-                'method': SerializeMethod.INIT_ARGS,
-                'class': serialized_name(type(self)),
-                'init_args': Encrypted(self._init_args),
-                'prefect_version': prefect.__version__,
-            }
-
-        elif self.serialize_method == SerializeMethod.PICKLE:
-            serialized = {
-                'method': SerializeMethod.PICKLE,
-                'pickle': serialize_to_encrypted_pickle(self)
-            }
-
-        elif self.serialize_method == SerializeMethod.FILE:
-            raise NotImplementedError()
-
-        else:
-            raise ValueError(
-                'Unrecognized serialization method: "{}"'.format(
-                    self.serialize_method))
-
-        serialized = {'__serialized__': serialized}
-
-        return serialized
+        return SerializedInitArgs(self).__json__()
 
     def __json__(self):
-        """
-        Return a JSON-serializable dictionary representing this object.
-
-        By default, this calls self.serialize()
-        """
         return self.serialize()
-
-    @classmethod
-    def deserialize(cls, serialized):
-        return json.loads(serialized)
-
-
-class Encrypted(Serializable):
-
-    def __init__(self, value):
-        self.value = value
-
-    def serialize(self):
-        key = prefect.config.get('security', 'encryption_key')
-        payload = base64.b64encode(json.dumps(self.value).encode())
-        return {'__encrypted__': Fernet(key).encrypt(payload).decode()}
 
 
 def serializable(fn):
@@ -187,9 +347,7 @@ def serializable(fn):
     Note that this works by importing the function at the time of
     deserialization, so it may not be stable across software versions.
     """
-    if not isinstance(fn, types.FunctionType):
-        raise SerializationError('Only functions can be serialized this way.')
-    fn.__json__ = lambda: {'__importable__': serialized_name(fn)}
+    fn.__json__ = ImportableFunction(fn).__json__
     return fn
 
 
@@ -198,117 +356,68 @@ _encode_json_original = json.JSONEncoder.default
 
 def _json_encoder_fn(self, obj):
     """
-    Recursive function called when encoding JSON objects
+    Recursive method called when encoding JSON objects
 
         - Any class with a __json__() method is stored as the result of
-            calling that method. Classes that subclass Serializable will
-            encode the information needed to reinstantiate themselves.
-        - DateTimes are stored as timestamps with the key '__datetime__'
-        - TimeDeltas are stored as total seconds with the key '__timedelta__'
-        - Bytes are stored as strings with the key '__bytes__'
+            calling that method.
+        - If no __json__ method is found, a JSON codec is applied via
+            single dispatch.
+        - Otherwise the original json encoding is used.
     """
 
     # call __json__ method
     if hasattr(obj, '__json__'):
         return obj.__json__()
 
-    # encode datetimes
-    elif isinstance(obj, datetime.datetime):
-        return {'__datetime__': obj.isoformat()}
-
-    # encode timedeltas
-    elif isinstance(obj, datetime.timedelta):
-        return {'__timedelta__': obj.total_seconds()}
-
-    # encode bytes
-    elif isinstance(obj, bytes):
-        return {'__bytes__': obj.decode()}
+    # otherwise try to apply a json codec via singledispatch on type
+    elif apply_json_codec(obj):
+        return _json_encoder_fn(self, apply_json_codec(obj))
 
     # fallback on default
     else:
         return _encode_json_original(self, obj)
 
 
-def _json_decoder_fn(dct, safe=True):
-    """
+def _json_decoder_fn(dct):
 
-    If safe = True, then JSON objects serialized as pickles will NOT be
-        deserialized. If safe = False, they will be.
-
-    Recursive function called when decoding objects from JSON:
-        - '__serialized__' objects are instantiated correctly but not unpickled
-        - '__datetime__' keys are restored as DateTimes
-        - '__timedelta__' keys are restored as TimeDeltas
-        - '__bytes__' keys are restored as bytes
-        - '__importable__' keys are restored by importing the referenced object
-        - '__encrypted__' keys are decrypted using a local encryption key
-
-    """
-    # decrypt
-    if '__encrypted__' in dct:
-        key = prefect.config.get('security', 'encryption_key')
-        decrypted = Fernet(key).decrypt(dct['__encrypted__'].encode())
-        decoded = base64.b64decode(decrypted).decode()
-        return _json_decoder_fn(json.loads(decoded))
-
-    # decode datetimes
-    if '__datetime__' in dct:
-        return dateutil.parser.parse(dct['__datetime__'])
-
-    # decode timestamps
-    if '__timedelta__' in dct:
-        return datetime.timedelta(seconds=dct['__timedelta__'])
-
-    # decode bytes:
-    if '__bytes__' in dct:
-        return dct['__bytes__'].encode()
-
-    # decode functions
-    if '__importable__' in dct:
-        module, name = dct['__importable__'].rsplit('.', 1)
-        try:
-            return getattr(importlib.import_module(module), name)
-        except AttributeError:
-            raise SerializationError(
-                "Could not import '{name}' from module '{module}'".format(
-                    name=name, module=module))
-
-    # decode Serialized objects
-    if '__serialized__' in dct:
-        serialized = dct['__serialized__']
-
-        if serialized.get('method') == SerializeMethod.INIT_ARGS:
-            cls = CLASS_REGISTRY[serialized['class']]
-            init_args = serialized.get('init_args', {})
-            args = init_args.pop('*args', ())
-            kwargs = init_args.pop('**kwargs', {})
-            return cls(**init_args, **kwargs)
-
-        elif serialized.get('method') == SerializeMethod.PICKLE:
-            if safe:
-                return dct
-            else:
-                key = prefect.config.get('security', 'encryption_key')
-                return deserialize_from_encrypted_pickle(
-                    serialized['pickle'], encryption_key=key)
+    # iterate over the dictionary looking for a key that matches a codec.
+    # it would be extremely unusual to have more than one such key.
+    for key, value in dct.items():
+        codec = JSON_CODECS.get(key, None)
+        if codec:
+            return codec.deserialize(value)
 
     return dct
 
 
 # Monkey-patch the builtin JSON module with new serialization features
 json.JSONEncoder.default = _json_encoder_fn
-json._default_decoder = json.JSONDecoder(
-    object_hook=partial(_json_decoder_fn, safe=True))
+json._default_decoder = json.JSONDecoder(object_hook=_json_decoder_fn)
 
 
-def load_json(serialized, safe=True):
+def load_json(serialized):
     """
     Load Prefect-flavored JSON serializations.
-
-    If safe is False, then pickles will be unpickled. Don't do this unless
-    you're sure you know what you're doing.
     """
     # decoder = json.JSONDecoder(
     #     object_hook=)
-    return json.loads(
-        serialized, object_hook=partial(_json_decoder_fn, safe=safe))
+    return json.loads(serialized, object_hook=_json_decoder_fn)
+
+
+def dump_json(obj):
+    return json.dumps(obj)
+
+
+def load_json_pickles(serialized, safe=True):
+
+    def _pickle_decoder_fn(dct):
+        if EncryptedPickle.codec_key in dct:
+            return EncryptedPickle.unsafe_deserialize(
+                dct[EncryptedPickle.codec_key])
+        else:
+            return _json_decoder_fn(dct)
+
+    if safe:
+        return serialized
+    else:
+        return json.loads(serialized, object_hook=_pickle_decoder_fn)

@@ -1,8 +1,9 @@
 from prefect.core.task import Task
 from prefect.utilities.strings import is_valid_identifier
+from prefect.utilities.serialize import Serializable
 
 
-class Edge:
+class Edge(Serializable):
 
     def __init__(self, upstream_task, downstream_task, key=None):
         """
@@ -44,20 +45,3 @@ class Edge:
                     'Downstream key ("{}") must be a valid identifier'.format(
                         key))
         self.key = key
-
-    def serialize(self):
-        """
-        Returns a serialized version of the edge
-        """
-        return {
-            'upstream_task': self.upstream_task,
-            'downstream_task': self.downstream_task,
-            'key': self.key,
-        }
-
-    @classmethod
-    def deserialize(cls, serialized):
-        return cls(
-            upstream_task=serialized['upstream_task'],
-            downstream_task=serialized['downstream_task'],
-            key=serialized['key'])
