@@ -64,7 +64,6 @@ class Flow(Serializable):
             base += ':{self.version}'.format(self=self)
         return "{type}('{base}')".format(type=type(self).__name__, base=base)
 
-
     def __hash__(self):
         return id(self)
 
@@ -332,9 +331,15 @@ class Flow(Serializable):
 
     # Persistence  ------------------------------------------------
 
-    def serialize(self):
+    def serialize(self, pickle=False):
 
         serialized = super().serialize()
+
+        tasks = self.sorted_tasks()
+        if pickle:
+            tasks = [t.serialize(pickle=pickle) for t in tasks]
+        else:
+
         serialized.update(
             project=self.project,
             name=self.name,
@@ -344,59 +349,9 @@ class Flow(Serializable):
             parameters=self.parameters(),
             schedule=self.schedule,
             concurrent_runs=self.concurrent_runs,
-            tasks=[t for t in self.sorted_tasks()],
+            tasks=tasks,
             edges=[e for e in self.edges])
         return serialized
-
-    @classmethod
-    def deserialize(cls, serialized):
-        """
-        Creates a Flow from a serialized Flow object.
-
-        NOTE this method is unsafe and should not be executed on untrusted
-        serialiations. See Flow.safe_deserialize() instead.
-        """
-        obj = prefect.utilities.serialize.deserialize(serialized['serialized'])
-
-        if not isinstance(obj, cls):
-            raise TypeError(
-                'Expected {}; received {}'.format(
-                    cls.__name__,
-                    type(obj).__name__))
-
-        obj.tasks = dict()
-        for task in serialized['tasks']:
-            obj.add_task(Task.deserialize(task))
-        obj.edges = set([Edge.deserialize(e) for e in serialized['edges']])
-        obj.schedule = prefect.schedules.deserialize(serialized['schedule'])
-        return obj
-
-    @classmethod
-    def safe_deserialize(cls, serialized):
-        """
-        This method uses a serialized Flow to create a new Flow that has the
-        same graph as the serialized Flow, but doesn't execute any potentially
-        untrusted code. The resulting "safe" Flow can be used to analyze
-        relationships between Tasks but can not actually run those tasks.
-        """
-        flow = Flow(
-            name=serialized['name'],
-            version=serialized['version'],
-            project=serialized['project'],
-            schedule=prefect.schedules.deserialize(serialized['schedule']),
-            concurrent_runs=serialized['concurrent_runs'],
-            # executor_args
-        )
-        for task in serialized['tasks']:
-            flow.add_task(prefect.Task.safe_deserialize(task))
-
-        for edge in serialized['edges']:
-            flow.add_edge(
-                upstream_task=flow.get_task(edge['upstream_task']),
-                downstream_task=flow.get_task(edge['downstream_task']),
-                key=edge['key'])
-
-        return flow
 
     # Execution  ------------------------------------------------
 

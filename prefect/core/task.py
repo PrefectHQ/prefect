@@ -33,7 +33,7 @@ class Task(Serializable):
             autorename=False,
             upstream_tasks=None,
             downstream_tasks=None,
-            upstream_results=None):
+            **kwargs):
         """
 
         Args:
@@ -103,7 +103,7 @@ class Task(Serializable):
                 upstream_tasks=upstream_tasks,
                 downstream_tasks=downstream_tasks,
                 flow=flow,
-                **(upstream_results or {}))
+                **kwargs)
 
     @property
     def slug(self):
@@ -218,7 +218,7 @@ class Task(Serializable):
                 type=type(self).__name__))
 
         if pickle:
-            serialized['serialized'] = EncryptedPickle(self)
+            serialized['pickle'] = EncryptedPickle(self)
 
         return serialized
 
