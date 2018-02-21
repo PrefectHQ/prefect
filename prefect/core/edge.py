@@ -45,3 +45,8 @@ class Edge(Serializable):
                     'Downstream key ("{}") must be a valid identifier'.format(
                         key))
         self.key = key
+
+    # Comparison --------------------------------------------------------------
+
+    def __hash__(self):
+        return id(self)
