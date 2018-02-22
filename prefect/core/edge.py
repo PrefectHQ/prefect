@@ -1,25 +1,24 @@
-from prefect.core.task import Task
 from prefect.utilities.strings import is_valid_identifier
 from prefect.utilities.serialize import Serializable
 
 
 class Edge(Serializable):
 
-    def __init__(self, upstream_task, downstream_task, key=None):
+    def __init__(self, upstream_task_id, downstream_task_id, key=None):
         """
         Edges represent connections between Tasks.
 
-        At a minimum, edges link an upstream_task and a downstream_task
+        At a minimum, edges link an upstream_task_id and a downstream_task_id
         indicating that the downstream task shouldn't run until the upstream
         task is complete.
 
         In addition, edges can specify a key that describe how upstream results
         are passed to the downstream task.
 
-        Args: upstream_task (str): the name of a task that must run before the
+        Args: upstream_task_id (str): the id of a task that must run before the
             downstream_task
 
-            downstream_task (str): the name of a task that will be run after the
+            downstream_task_id (str): the id of a task that will be run after the
                 upstream_task. The upstream task state is passed to the
                 downstream task's trigger function to determine whether the
                 downstream task should run.
@@ -32,12 +31,8 @@ class Edge(Serializable):
         to the downstream task under the key.
 
         """
-        if isinstance(upstream_task, Task):
-            upstream_task = upstream_task.name
-        if isinstance(downstream_task, Task):
-            downstream_task = downstream_task.name
-        self.upstream_task = upstream_task
-        self.downstream_task = downstream_task
+        self.upstream_task_id = upstream_task_id
+        self.downstream_task_id = downstream_task_id
 
         if key is not None:
             if not is_valid_identifier(key):

@@ -11,6 +11,7 @@ from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
 from prefect.utilities.strings import is_valid_identifier
 from prefect.utilities.serialize import Serializable
+import uuid
 
 
 class Flow(Serializable):
@@ -20,10 +21,10 @@ class Flow(Serializable):
     def __init__(
             self,
             name='Flow',
+            id=None,
             version=None,
             schedule=NoSchedule(),
             concurrent_runs=None,  #TODO
-            cluster=None,
             description=None):
         """
         Args:
@@ -36,12 +37,10 @@ class Flow(Serializable):
 
         """
 
-        if not name:
-            raise ValueError('Flows must have a name.')
-
         self.name = name
         self.version = version
         self.description = description
+        self.id = id or uuid.uuid4().hex
 
         self.schedule = schedule
         self.tasks = dict()
@@ -83,12 +82,7 @@ class Flow(Serializable):
         if not isinstance(task, Task):
             raise TypeError(
                 'Expected a Task; received {}'.format(type(task).__name__))
-        if task.slug in (t.slug for t in self.tasks.values()):
-            raise ValueError(
-                'Task "{task.name}" could not be added because a task with '
-                'the slug "{task.slug}" already exists in this Flow.'.format(
-                    task=task))
-        self.tasks[task.name] = task
+        self.tasks[task.id] = task
 
     def add_edge(self, upstream_task, downstream_task, key=None):
         """
@@ -99,8 +93,8 @@ class Flow(Serializable):
         """
 
         edge = Edge(
-            upstream_task=upstream_task.name,
-            downstream_task=downstream_task.name,
+            upstream_task=upstream_task.id,
+            downstream_task=downstream_task.id,
             key=key,
         )
 
@@ -112,7 +106,7 @@ class Flow(Serializable):
         if edge.key is not None:
             existing_edges = [
                 e for e in self.edges if
-                e.downstream_task == downstream_task.name and e.key == edge.key
+                e.downstream_task == downstream_task.id and e.key == edge.key
             ]
             if existing_edges:
                 raise ValueError(
@@ -167,14 +161,14 @@ class Flow(Serializable):
             task (Task): tasks upstream from this task will be returned.
         """
         if isinstance(task, str):
-            name = task
+            task_id = task
         else:
-            name = task.name
+            task_id = task.id
 
         return set(
             self.get_task(e.upstream_task)
             for e in self.edges
-            if e.downstream_task == name)
+            if e.downstream_task == task_id)
 
     def downstream_tasks(self, task):
         """
@@ -184,14 +178,14 @@ class Flow(Serializable):
             task (Task): tasks downstream from this task will be returned.
         """
         if isinstance(task, str):
-            name = task
+            task_id = task
         else:
-            name = task.name
+            task_id = task.id
 
         return set(
             self.get_task(e.downstream_task)
             for e in self.edges
-            if e.upstream_task == name)
+            if e.upstream_task == task_id)
 
     def sorted_tasks(self, root_tasks=None):
         """
@@ -247,10 +241,10 @@ class Flow(Serializable):
             task (Task or str)
         """
         if isinstance(task, str):
-            name = task
+            task_id = task
         else:
-            name = task.name
-        return set(e for e in self.edges if e.downstream_task == name)
+            task_id = task.id
+        return set(e for e in self.edges if e.downstream_task == task_id)
 
     def edges_from(self, task):
         """
@@ -260,10 +254,10 @@ class Flow(Serializable):
             task (Task or str)
         """
         if isinstance(task, str):
-            name = task
+            task_id = task
         else:
-            name = task.name
-        return set(e for e in self.edges if e.upstream_task == name)
+            task_id = task.id
+        return set(e for e in self.edges if e.upstream_task == task_id)
 
     # Introspection -----------------------------------------------------------
 
@@ -339,7 +333,7 @@ class Flow(Serializable):
 
         serialized.update(
             name=self.name,
-            slug=self.slug,
+            id=self.id,
             version=self.version,
             description=self.description,
             parameters=self.parameters(),
