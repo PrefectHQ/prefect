@@ -21,7 +21,6 @@ class Flow(Serializable):
             self,
             name='Flow',
             version=None,
-            project=prefect.config.get('flows', 'default_project'),
             schedule=NoSchedule(),
             concurrent_runs=None,  #TODO
             cluster=None,
@@ -42,7 +41,6 @@ class Flow(Serializable):
 
         self.name = name
         self.version = version
-        self.project = project
         self.description = description
 
         self.schedule = schedule
@@ -59,7 +57,7 @@ class Flow(Serializable):
             return slugify(self.name)
 
     def __repr__(self):
-        base = '{self.project}.{self.name}'.format(self=self)
+        base = self.name
         if self.version:
             base += ':{self.version}'.format(self=self)
         return "{type}('{base}')".format(type=type(self).__name__, base=base)
@@ -338,10 +336,8 @@ class Flow(Serializable):
         tasks = self.sorted_tasks()
         if pickle:
             tasks = [t.serialize(pickle=pickle) for t in tasks]
-        else:
 
         serialized.update(
-            project=self.project,
             name=self.name,
             slug=self.slug,
             version=self.version,
