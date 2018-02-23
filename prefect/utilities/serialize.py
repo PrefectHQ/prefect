@@ -13,11 +13,11 @@ Recursive function called when decoding objects from JSON:
 from functools import partial, singledispatch
 import base64
 import datetime
-import hashlib
 import importlib
 import inspect
 import json
 import types
+import uuid
 
 import cloudpickle
 import dateutil.parser
@@ -164,6 +164,17 @@ class BytesCodec(JSONCodec):
     def deserialize(cls, obj):
         return obj.encode()
 
+
+@register_JSONCodec('__uuid__')
+@apply_json_codec.register(uuid.UUID)
+class UUIDCodec(JSONCodec):
+
+    def serialize(self):
+        return str(self.value)
+
+    @classmethod
+    def deserialize(cls, obj):
+        return uuid.UUID(obj)
 
 @register_JSONCodec('__datetime__')
 @apply_json_codec.register(datetime.datetime)
