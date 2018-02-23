@@ -1,12 +1,12 @@
-import copy
+import inspect
 from typing import Iterable, Mapping
-
+from contextlib import contextmanager
 from slugify import slugify
 
 import prefect
 import prefect.context
 from prefect.flows.schedules import NoSchedule
-from prefect.core.task import Task
+from prefect.core.task import Task, TaskResult
 from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
 from prefect.utilities.strings import is_valid_identifier
@@ -16,44 +16,38 @@ import uuid
 
 class Flow(Serializable):
 
-    _serialized_restore_fields = ['tasks', 'edges']
-
     def __init__(
             self,
             name='Flow',
             id=None,
             version=None,
-            schedule=NoSchedule(),
-            concurrent_runs=None,  #TODO
-            description=None):
-        """
-        Args:
-            schedule (prefect.Schedule): a Schedule object that returns the
-                Flow's schedule
-
-            cluster (str): The address of a specific cluster that this Flow
-                should run in. If not provided, the default cluster will be
-                used.
-
-        """
-
+            schedule=None,
+            description=None,
+            tasks=None,
+            edges=None,
+    ):
         self.name = name
+        self.id = id
         self.version = version
         self.description = description
-        self.id = id or uuid.uuid4().hex
+        self.schedule = schedule or NoSchedule()
 
-        self.schedule = schedule
-        self.tasks = dict()
+        self.tasks = set()
         self.edges = set()
-        self.concurrent_runs = concurrent_runs
-        self.cluster = cluster
 
-    @property
-    def slug(self):
-        if self.version not in [None, '']:
-            return slugify('{self.name}:{self.version}'.format(self=self))
-        else:
-            return slugify(self.name)
+        for t in tasks or []:
+            self.add_task(t)
+
+        for e in edges or []:
+            self.add_edge(
+                upstream_task=e.upstream_task,
+                downstream_task=e.downstream_task,
+                key=e.key)
+
+    def __eq__(self, other):
+        s = (type(self), self.tasks, self.edges)
+        o = (type(other), other.tasks, other.edges)
+        return s == o
 
     def __repr__(self):
         base = self.name
@@ -61,64 +55,120 @@ class Flow(Serializable):
             base += ':{self.version}'.format(self=self)
         return "{type}('{base}')".format(type=type(self).__name__, base=base)
 
-    def __hash__(self):
-        return id(self)
+    # Context Manager ----------------------------------------------------------
 
-    # Graph -------------------------------------------------------------------
+    @contextmanager
+    def _flow_context(self):
+        previous_context = prefect.context.Context.as_dict()
+        prefect.context.Context.update(flow=self)
+        try:
+            yield
+        finally:
+            prefect.context.Context.reset(previous_context)
+
+    def __enter__(self):
+        self._flow_context.__enter__()
+        return self
+
+    def __exit__(self, _type, _value, _tb):
+        self._flow_context.__exit__()
+
+    # Introspection ------------------------------------------------------------
+
+    def root_tasks(self):
+        """
+        Returns the root tasks of the Flow -- tasks that have no upstream
+        dependencies.
+        """
+        return set(t for t in self.tasks if not self.edges_to(t))
+
+    def terminal_tasks(self):
+        """
+        Returns the terminal tasks of the Flow -- tasks that have no downstream
+        dependencies.
+        """
+        return set(t for t in self.tasks if not self.edges_from(t))
+
+    def parameters(self):
+        """
+        Returns details about any Parameters of this flow
+        """
+        return {
+            t.name: {
+                'required': t.required,
+                'default': t.default
+            }
+            for t in self.tasks
+            if isinstance(t, Parameter)
+        }
+
+    # Graph --------------------------------------------------------------------
 
     def __iter__(self):
         yield from self.sorted_tasks()
 
-    def get_task(self, name):
-        """
-        Retrieve a task by name
-        """
-        if name in self.tasks:
-            return self.tasks[name]
-        else:
-            raise ValueError('Task {} was not found in the Flow'.format(name))
-
     def add_task(self, task):
         if not isinstance(task, Task):
             raise TypeError(
-                'Expected a Task; received {}'.format(type(task).__name__))
-        self.tasks[task.id] = task
+                'Tasks must be Task instances (received {})'.format(type(task)))
+        if task not in self.tasks and task.id:
+            if next((t for t in self.tasks if t.id == task.id), None):
+                raise ValueError(
+                    'A different task with the same ID ("{}") already exists '
+                    'in the Flow.'.format(task.id))
+
+        if isinstance(task, Parameter):
+            if task.name in self.parameters():
+                raise ValueError(
+                    'This Flow already has a parameter called {}'.format(
+                        task.name))
+        self.tasks.add(task)
 
     def add_edge(self, upstream_task, downstream_task, key=None):
-        """
-        Adds an Edge to the Flow. Edges create dependencies between tasks.
-        The simplest edge simply enforcces an ordering so that the upstream
-        task runs before the downstream task, but edges can introduce more
-        complex behaviors as well.
-        """
+
+        edges_to_task = self.edges_to(downstream_task)
+        if key and key in {e.key for e in edges_to_task}:
+            raise ValueError(
+                'The argument "{a}" for task "{t}" has already been '
+                'assigned.'.format(a=e.key, t=downstream_task))
 
         edge = Edge(
-            upstream_task=upstream_task.id,
-            downstream_task=downstream_task.id,
-            key=key,
-        )
+            upstream_task=upstream_task,
+            downstream_task=downstream_task,
+            key=key)
 
-        if upstream_task not in self.tasks.values():
+        with self.restore_graph_on_error():
             self.add_task(upstream_task)
-        if downstream_task not in self.tasks.values():
             self.add_task(downstream_task)
+            self.edges.add(edge)
 
-        if edge.key is not None:
-            existing_edges = [
-                e for e in self.edges if
-                e.downstream_task == downstream_task.id and e.key == edge.key
-            ]
-            if existing_edges:
-                raise ValueError(
-                    'An edge to task {edge.downstream_task} with '
-                    'key "{edge.key}" already exists!'.format(edge=edge))
+            # check that the edges are valid keywords by binding them
+            edge_keys = {e.key: 0 for e in edges_to_task if e.key is not None}
+            inspect.signature(downstream_task.run).bind_partial(edge_keys)
 
-        self.edges.add(edge)
-
-        # check that the edge doesn't add a cycle
-        self.sorted_tasks()
+            # check for cycles
+            self.sorted_tasks()
 
     # Dependencies ------------------------------------------------------------
+
+    @contextmanager
+    def restore_graph_on_error(self):
+        """
+        A context manager that saves the Flow's graph (tasks & edges) and
+        restores it if an error is raised. It can be used to test potentially
+        erroneous configurations (for example, ones that might include cycles)
+        without modifying the graph.
+
+        with flow.restore_graph_on_error():
+            # this will raise an error, but the flow graph will not be modified
+            add_cycle_to_graph(flow)
+        """
+        tasks, edges = self.tasks.copy(), self.edges.copy()
+        try:
+            yield
+        except Exception:
+            self.tasks, self.edges = tasks, edges
+            raise
 
     def set_dependencies(
             self,
@@ -140,197 +190,128 @@ class Flow(Serializable):
                 will be provided to the task under the specified keyword
                 arguments.
         """
-        if task not in self.tasks.values():
+        with self.restore_graph_on_error():
+
+            # add the task to the graph
             self.add_task(task)
 
-        for t in upstream_tasks or []:
-            self.add_edge(upstream_task=t, downstream_task=task)
+            for t in upstream_tasks or []:
+                if isinstance(t, TaskResult):
+                    self.merge(t.flow)
+                    t = t.task
+                self.add_edge(upstream_task=t, downstream_task=task)
 
-        for t in downstream_tasks or []:
-            self.add_edge(upstream_task=task, downstream_task=t)
+            for t in downstream_tasks or []:
+                if isinstance(t, TaskResult):
+                    self.merge(t.flow)
+                    t = t.task
+                self.add_edge(upstream_task=task, downstream_task=t)
 
-        for key, t in (upstream_results or {}).items():
-            t = prefect.utilities.tasks.as_task(t)
-            self.add_edge(upstream_task=t, downstream_task=task, key=key)
+            for key, t in (upstream_results or {}).items():
+                if isinstance(t, TaskResult):
+                    self.merge(t.flow)
+                    t = t.task
+                t = prefect.utilities.tasks.as_task(t)
+                self.add_edge(upstream_task=t, downstream_task=task, key=key)
+
+    def edges_to(self, task):
+        return set(e for e in self.edges if e.downstream_task == task)
+
+    def edges_from(self, task):
+        return set(e for e in self.edges if e.upstream_task == task)
 
     def upstream_tasks(self, task):
-        """
-        Set of all tasks immediately upstream from a task.
-
-        Args:
-            task (Task): tasks upstream from this task will be returned.
-        """
-        if isinstance(task, str):
-            task_id = task
-        else:
-            task_id = task.id
-
-        return set(
-            self.get_task(e.upstream_task)
-            for e in self.edges
-            if e.downstream_task == task_id)
+        return set(e.upstream_task for e in self.edges_to(task))
 
     def downstream_tasks(self, task):
-        """
-        Set of all tasks immediately downstream from a task.
+        return set(e.downstream_task for e in self.edges_from(task))
 
-        Args:
-            task (Task): tasks downstream from this task will be returned.
-        """
-        if isinstance(task, str):
-            task_id = task
-        else:
-            task_id = task.id
+    def merge(self, flow):
+        with self.restore_graph_on_error():
+            for t in flow.tasks:
+                self.add_task(t)
 
-        return set(
-            self.get_task(e.downstream_task)
-            for e in self.edges
-            if e.upstream_task == task_id)
+            for e in flow.edges:
+                self.add_edge(
+                    upstream_task=e.upstream_task,
+                    downstream_task=e.downstream_task,
+                    key=e.key)
 
     def sorted_tasks(self, root_tasks=None):
-        """
-        Returns a topological sort of this Flow's tasks.
-        """
 
-        # generate a list of all tasks downstream from root_tasks
-        if root_tasks is not None:
-            # recover tasks from root tasks (if they are strings)
-            tasks = set(
-                [
-                    self.get_task(t) if isinstance(t, str) else t
-                    for t in root_tasks
-                ])
+        # begin by getting all tasks under consideration (root tasks and all
+        # downstream tasks)
+
+        if root_tasks:
+            tasks = set(root_tasks)
             seen = set()
-
-            while seen != tasks:
-                # for each task we haven't seen yet...
+            # while the set of tasks is different from the seen tasks...
+            while tasks.difference(seen):
+                # iterate over the new tasks...
                 for t in list(tasks.difference(seen)):
-                    # add its downstream tasks to the list
+                    # add its downstream tasks to the task list
                     tasks.update(self.downstream_tasks(t))
                     # mark it as seen
                     seen.add(t)
         else:
-            tasks = set(self.tasks.values())
+            tasks = self.tasks
 
+        # build the list of sorted tasks
+        remaining_tasks = tasks.copy()
         sorted_tasks = []
-        while tasks:
-            acyclic = False
-            for task in list(tasks):
+        while remaining_tasks:
+            # mark the flow as cyclic unless we prove otherwise
+            cyclic = True
+
+            # iterate over each remaining task
+            for task in sorted(remaining_tasks, key=lambda t: (t.name, t.id)):
+                # check all the upstream tasks of that task
                 for upstream_task in self.upstream_tasks(task):
-                    if upstream_task in tasks:
-                        # the previous task hasn't been sorted yet, so
-                        # this task can't be sorted either
+                    # if the upstream task is also remaining, it means it
+                    # hasn't been sorted, so we can't sort this task either
+                    if upstream_task in remaining_tasks:
                         break
                 else:
-                    # all previous tasks are sorted, so this one can be
-                    # sorted as well
-                    acyclic = True
-                    tasks.remove(task)
+                    # but if all upstream tasks have been sorted, we can sort
+                    # this one too. We note that we found no cycle this time.
+                    cyclic = False
+                    remaining_tasks.remove(task)
                     sorted_tasks.append(task)
-            if not acyclic:
-                # no tasks matched
+
+            # if we were unable to match any upstream tasks, we have a cycle
+            if cyclic:
                 raise ValueError('Flows must be acyclic!')
 
         return tuple(sorted_tasks)
 
-    def edges_to(self, task):
-        """
-        Set of all Edges leading to this Task
+    # Execution  ---------------------------------------------------------------
 
-        Args:
-            task (Task or str)
-        """
-        if isinstance(task, str):
-            task_id = task
-        else:
-            task_id = task.id
-        return set(e for e in self.edges if e.downstream_task == task_id)
+    # def run(
+    #         self,
+    #         parameters=None,
+    #         executor=None,
+    #         return_all_task_states=False,
+    #         **kwargs):
+    #     """
+    #     Run the flow.
+    #     """
+    #     runner = prefect.engine.flow_runner.FlowRunner(
+    #         flow=self, executor=executor)
 
-    def edges_from(self, task):
-        """
-        Set of all Edges leading from this Task
+    #     parameters = parameters or {}
+    #     for p in self.parameters():
+    #         if p in kwargs:
+    #             parameters[p] = kwargs.pop(p)
 
-        Args:
-            task (Task or str)
-        """
-        if isinstance(task, str):
-            task_id = task
-        else:
-            task_id = task.id
-        return set(e for e in self.edges if e.upstream_task == task_id)
+    #     return runner.run(
+    #         parameters=parameters,
+    #         return_all_task_states=return_all_task_states,
+    #         **kwargs)
 
-    # Introspection -----------------------------------------------------------
+    # Serialization ------------------------------------------------------------
 
-    def root_tasks(self):
-        """
-        Returns the root tasks of the Flow -- tasks that have no upstream
-        dependencies.
-        """
-        return set(t for t in self.tasks.values() if not self.edges_to(t))
-
-    def terminal_tasks(self):
-        """
-        Returns the terminal tasks of the Flow -- tasks that have no downstream
-        dependencies.
-        """
-        return set(t for t in self.tasks.values() if not self.edges_from(t))
-
-    def parameters(self, only_required=False):
-        """
-        Returns the parameters of the flow, including whether they are required
-        and any default value
-        """
-        return {
-            t.name: {
-                'required': t.required,
-                'default': t.default
-            }
-            for t in self.tasks.values()
-            if isinstance(t, Parameter) and (
-                t.required if only_required else True)
-        }
-
-    def sub_flow(self, root_tasks=None):
-        """
-        Returns a Flow consisting of a subgraph of this graph including only
-        tasks between the supplied root_tasks and ending_tasks.
-        """
-
-        sub_flow = copy.copy(self)
-        sub_flow.tasks = dict()
-        sub_flow.edges = set()
-
-        for t in self.sorted_tasks(root_tasks=root_tasks):
-            sub_flow.add_task(t)
-
-        for e in self.edges:
-            if e.upstream_task in sub_flow.tasks:
-                if e.downstream_task in sub_flow.tasks:
-                    sub_flow.edges.add(e)
-
-        return sub_flow
-
-    # Context Manager -----------------------------------------------
-
-    def __enter__(self):
-        self._previous_context = prefect.context.Context.as_dict()
-        prefect.context.Context.update(dict(flow=self))
-        return self
-
-    def __exit__(self, _type, _value, _tb):
-        prefect.context.Context.reset(self._previous_context)
-        del self._previous_context
-
-    # Persistence  ------------------------------------------------
-
-    def serialize(self, pickle=False):
-
+    def serialize(self):
         serialized = super().serialize()
-
-        tasks = self.sorted_tasks()
-        if pickle:
-            tasks = [t.serialize(pickle=pickle) for t in tasks]
-
         serialized.update(
             name=self.name,
             id=self.id,
@@ -339,30 +320,6 @@ class Flow(Serializable):
             parameters=self.parameters(),
             schedule=self.schedule,
             concurrent_runs=self.concurrent_runs,
-            tasks=tasks,
-            edges=[e for e in self.edges])
+            tasks=self.tasks,
+            edges=self.edges)
         return serialized
-
-    # Execution  ------------------------------------------------
-
-    def run(
-            self,
-            parameters=None,
-            executor=None,
-            return_all_task_states=False,
-            **kwargs):
-        """
-        Run the flow.
-        """
-        runner = prefect.engine.flow_runner.FlowRunner(
-            flow=self, executor=executor)
-
-        parameters = parameters or {}
-        for p in self.parameters():
-            if p in kwargs:
-                parameters[p] = kwargs.pop(p)
-
-        return runner.run(
-            parameters=parameters,
-            return_all_task_states=return_all_task_states,
-            **kwargs)
