@@ -3,7 +3,7 @@ import prefect
 
 class Constant(prefect.Task):
 
-    def __init__(self, value, name=None, autorename=True, **kwargs):
+    def __init__(self, value, name=None, **kwargs):
 
         self.value = value
 
@@ -12,7 +12,7 @@ class Constant(prefect.Task):
             name = 'Constant[{type}]'.format(type=type(value).__name__)
             autorename = True
 
-        super().__init__(name=name, autorename=autorename, **kwargs)
+        super().__init__(name=name, **kwargs)
 
     def run(self):
         return self.value
