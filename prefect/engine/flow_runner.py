@@ -99,6 +99,11 @@ class FlowRunner:
 
         context.setdefault('parameters', {}).update(parameters)
 
+        context.update(
+            flow_name=self.flow.name,
+            flow_id=self.flow.id,
+            flow_version=self.flow.version)
+
         # prepare context
         with prefect.context.Context(context) as ctx:
 
