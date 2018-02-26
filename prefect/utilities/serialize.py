@@ -32,7 +32,7 @@ __all__ = [
 ]
 
 JSON_CODECS = dict()
-JSON_CLASS_REGISTRY = dict()
+SERIALIZED_CLASS_REGISTRY = dict()
 
 
 def serialized_name(obj):
@@ -176,6 +176,7 @@ class UUIDCodec(JSONCodec):
     def deserialize(cls, obj):
         return uuid.UUID(obj)
 
+
 @register_JSONCodec('__datetime__')
 @apply_json_codec.register(datetime.datetime)
 class DateTimeCodec(JSONCodec):
@@ -223,15 +224,15 @@ class ImportableFunction(JSONCodec):
                     name=name, module=module))
 
 
-@register_JSONCodec('__json_serialized__')
-class JSONSerialized(JSONCodec):
+# @register_JSONCodec('__json_serialized__')
+# class JSONSerialized(JSONCodec):
 
-    def serialize(self):
-        return self.value
+#     def serialize(self):
+#         return self.value
 
-    @classmethod
-    def deserialize(cls, obj):
-        return obj
+#     @classmethod
+#     def deserialize(cls, obj):
+#         return obj
 
 
 @register_JSONCodec('__encrypted_pickle__')
@@ -257,33 +258,39 @@ class EncryptedPickle(JSONCodec):
         return deserialize_from_encrypted_pickle(obj['pickle'])
 
 
-@register_JSONCodec('__init_args__')
+@register_JSONCodec('__serialized_init_args__')
 class SerializedInitArgs(JSONCodec):
+
+    def __init__(self, value):
+        if not isinstance(value, Serializable):
+            raise TypeError(
+                'SerializedInitArgs object must subclass Serializable')
+        super().__init__(value=value)
 
     def serialize(self):
         """
         Return a JSON-serializable dictionary representing this object.
         """
-        init_args = getattr(self.value, '_serialized_init_args', {})
-        restore_fields = getattr(self.value, '_serialized_restore_fields', [])
-        restore_fields = {f: getattr(self.value, f) for f in restore_fields}
 
-        return {
-            'class': serialized_name(self.value),
-            'init_args': init_args,
-            'prefect_version': prefect.__version__,
-            'restore_fields': restore_fields
-        }
+        serialized = self.value.serialize()
+
+        serialized.update({
+            '__class__': serialized_name(self.value),
+            '__init_args__': getattr(self.value, '_serialized_init_args', {}),
+            '__prefect_version__': prefect.__version__,
+        })
+
+        return serialized
+
 
     @classmethod
     def deserialize(cls, obj):
-        cls = JSON_CLASS_REGISTRY[obj['class']]
-        init_args = obj.get('init_args', {})
+        cls = SERIALIZED_CLASS_REGISTRY[obj.pop('__class__')]
+        init_args = obj.pop('__init_args__')
         args = init_args.pop('*args', ())
         kwargs = init_args.pop('**kwargs', {})
         instance = cls(**init_args, **kwargs)
-        for field, value in obj.get('restore_fields', {}).items():
-            setattr(instance, field, value)
+        instance.after_deserialize(obj)
         return instance
 
 
@@ -291,7 +298,7 @@ class SerializableMetaclass(type):
 
     def __new__(meta, name, bases, class_dict):
         cls = type.__new__(meta, name, bases, class_dict)
-        JSON_CLASS_REGISTRY[serialized_name(cls)] = cls
+        SERIALIZED_CLASS_REGISTRY[serialized_name(cls)] = cls
         return cls
 
 
@@ -304,8 +311,6 @@ class Serializable(metaclass=SerializableMetaclass):
     that were used to create it. On deserialization, the correct class type is
     instantiated with those same arguments.
     """
-
-    _serialized_restore_fields = []
 
     def __new__(cls, *args, **kwargs):
         instance = super().__new__(cls)
@@ -345,22 +350,20 @@ class Serializable(metaclass=SerializableMetaclass):
 
     def __eq__(self, other):
         if type(self) == type(other):
-            self_serialized = SerializedInitArgs(self).__json__()
-            other_serialized = SerializedInitArgs(other).__json__()
-            return self_serialized == other_serialized
+            return self.__json__() == other.__json__()
         return False
+
+    def __json__(self):
+        return SerializedInitArgs(self).__json__()
 
     def serialize(self):
         """
-        Return a JSON-serializable dictionary representing this object.
+        A JSON-serializable description of the object that will be passed to
         """
-        return JSONSerialized(SerializedInitArgs(self)).__json__()
+        return {}
 
     @classmethod
     def deserialize(cls, serialized):
-        """
-        Rest
-        """
         if not isinstance(serialized, str):
             serialized = json.dumps(serialized)
         result = json.loads(serialized)
@@ -370,8 +373,11 @@ class Serializable(metaclass=SerializableMetaclass):
                 'serialized class.')
         return result
 
-    def __json__(self):
-        return self.serialize()
+    def after_deserialize(self, payload):
+        """
+        Called after deserializing an object.
+        """
+        pass
 
 
 def serializable(fn):
