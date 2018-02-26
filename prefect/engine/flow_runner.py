@@ -175,17 +175,17 @@ class FlowRunner:
             upstream_states = {}
             upstream_inputs = {}
 
-            for edge in self.flow.edges_to(task):
+            # process each edge
+            for e in self.flow.edges_to(task):
 
                 # gather upstream states
-                upstream_states[edge.upstream_task] = (
-                    task_states[edge.upstream_task])
+                upstream_states[e.upstream_task] = task_states[e.upstream_task]
 
-                # extract upstream results if the edge indicates they are needed
-                if edge.key is not None:
-                    upstream_inputs[edge.key] = self.executor.submit(
+                # if the edge has a key, get the upstream result
+                if e.key is not None:
+                    upstream_inputs[e.key] = self.executor.submit(
                         lambda state: state.result,
-                        task_states[edge.upstream_task])
+                        task_states[e.upstream_task])
 
             # override upstream_inputs with provided override_task_inputs
             upstream_inputs.update(override_task_inputs.get(task.name, {}))
@@ -209,7 +209,6 @@ class FlowRunner:
             task.name: all_task_states[task.name]
             for task in self.flow.terminal_tasks()
         }
-
 
         # depending on the flag, we return all states or just
         # terminal/failed states
