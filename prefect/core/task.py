@@ -6,28 +6,8 @@ from typing import Iterable, Mapping
 from slugify import slugify
 
 import prefect
-# from prefect.utilities.datetimes import retry_delay
-from prefect.utilities.strings import name_with_suffix
-
-
-class TaskResult(Serializable):
-
-    def __init__(self, flow, task):
-        self.flow = flow
-        self.task = task
 from prefect.utilities.serialize import (Encrypted, EncryptedPickle)
 from prefect.core.base import PrefectObject
-
-    def __eq__(self, other):
-        s = (type(self), self.flow, self.task)
-        o = (type(other), other.flow, other.task)
-        return s == o
-
-    def __getitem__(self, index):
-        from prefect.tasks.core import IndexResultTask
-        name = '{}[{}]'.format(self.task.name, index)
-        index_task = IndexResultTask(index=index, name=name)
-        return index_task(upstream_task=self)
 
 
 class Task(PrefectObject):
