@@ -115,11 +115,12 @@ class Flow(PrefectObject):
                     'A different task with the same ID ("{}") already exists '
                     'in the Flow.'.format(task.id))
 
-        if isinstance(task, Parameter):
+        elif isinstance(task, Parameter):
             if task.name in self.parameters():
                 raise ValueError(
                     'This Flow already has a parameter called "{}"'.format(
                         task.name))
+
         self.tasks.add(task)
 
     def add_edge(self, upstream_task, downstream_task, key=None):

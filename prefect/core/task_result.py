@@ -13,7 +13,7 @@ class TaskResult(Serializable):
     def __getitem__(self, index):
         name = '{}[{}]'.format(self.task.name, index)
         index_task = IndexedTaskResult(index=index, name=name)
-        return index_task(upstream_task=self.task)
+        return index_task(task_result=self.task)
 
 
 class IndexedTaskResult(Task):

@@ -37,7 +37,7 @@ def run_task_runner_test(
 
         state (prefect.TaskRunState or str): the starting state for the task.
 
-        upstream_states (dict): a dictionary of {task_name: TaskRunState} pairs
+        upstream_states (dict): a dictionary of {task: TaskRunState} pairs
             representing the task's upstream states
 
         inputs (dict): a dictionary of inputs to the task
@@ -87,7 +87,7 @@ def run_flow_runner_test(
         state (prefect.FlowRunState or str): the starting state for the task.
 
         expected_task_states (dict): a dict of expected
-            {task_name: TaskRunState} (or {task_name: str}) pairs. Passing a
+            {task_id: TaskRunState} (or {task_id: str}) pairs. Passing a
             dict with Task keys is also ok.
 
         executor (prefect.Executor)
@@ -107,6 +107,7 @@ def run_flow_runner_test(
 
     flow_runner = prefect.engine.flow_runner.FlowRunner(
         flow=flow, executor=executor)
+
     flow_state = flow_runner.run(
         state=state,
         context=context,
@@ -124,21 +125,24 @@ def run_flow_runner_test(
                 'Flow state ({}) did not match expected state ({})'.format(
                     flow_state, expected_state))
 
-    for task_name, expected_task_state in expected_task_states.items():
-        if isinstance(task_name, prefect.Task):
-            task_name = task_name.name
+    for task, expected_task_state in expected_task_states.items():
         try:
-            assert flow_state.result[task_name] == expected_task_state
+            assert flow_state.result[task.id] == expected_task_state
         except KeyError:
-            pytest.fail('Task {} not found in flow result'.format(task_name))
+            pytest.fail(
+                'Task {} with id {} not found in flow result'.format(
+                    task, task.id))
         except AssertionError:
             pytest.fail(
-                'Actual task state ({}) did not match expected task state ({}) '
-                'for task: {}'.format(
-                    flow_state.result[task_name], expected_task_state,
-                    task_name))
-        if isinstance(expected_task_state, TaskRunState):
-            assert flow_state.result[
-                task_name].result == expected_task_state.result
+                'Actual task state ({ast}) or result ({ar}) did not match '
+                'expected task state ({est}) or result ({er}) '
+                'for task {t} with id {tid}'.format(
+                    ast=flow_state.result[task.id].state,
+                    ar=flow_state.result[task.id].result,
+                    est=TaskRunState(expected_task_state).state,
+                    er=TaskRunState(expected_task_state).result,
+                    t=task,
+                    tid=task.id,
+                ))
 
     return flow_state

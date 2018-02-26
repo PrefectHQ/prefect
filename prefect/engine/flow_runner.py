@@ -113,16 +113,17 @@ class FlowRunner:
                 # catch any signals
                 with self.catch_signals(state=state):
 
-                    req_parameters = self.flow.parameters(only_required=True)
-                    missing = set(req_parameters).difference(ctx.parameters)
+                    # check for parameters
+                    required_params = {
+                        name
+                        for name, details in self.flow.parameters().items()
+                        if details['required']
+                    }
+                    missing = set(required_params).difference(ctx.parameters)
                     if missing:
                         raise prefect.signals.ParameterError(
                             'Required parameters not provided: {}'.format(
                                 missing))
-
-                    if not all(isinstance(t, str) for t in task_states):
-                        raise TypeError(
-                            'task_states keys must be string Task names.')
 
                     self._run(
                         state=state,
@@ -181,16 +182,17 @@ class FlowRunner:
             upstream_inputs = {}
 
             # process each edge
-            for e in self.flow.edges_to(task):
+            for edge in self.flow.edges_to(task):
 
                 # gather upstream states
-                upstream_states[e.upstream_task] = task_states[e.upstream_task]
+                upstream_id = edge.upstream_task.id
+                upstream_states[upstream_id] = task_states[upstream_id]
 
                 # if the edge has a key, get the upstream result
-                if e.key is not None:
-                    upstream_inputs[e.key] = self.executor.submit(
+                if edge.key is not None:
+                    upstream_inputs[edge.key] = self.executor.submit(
                         lambda state: state.result,
-                        task_states[e.upstream_task])
+                        task_states[upstream_id])
 
             # override upstream_inputs with provided override_task_inputs
             upstream_inputs.update(override_task_inputs.get(task.id, {}))

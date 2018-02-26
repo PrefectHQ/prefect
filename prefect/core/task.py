@@ -24,7 +24,12 @@ class Task(PrefectObject):
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
-        self.trigger = trigger or prefect.tasks.triggers.AllSuccessful
+
+        if trigger is None:
+            trigger = prefect.tasks.triggers.AllSuccessful
+        elif not isinstance(trigger, prefect.tasks.triggers.Trigger):
+            raise TypeError('Expected a Trigger object.')
+        self.trigger = trigger
 
         super().__init__(id=id)
 

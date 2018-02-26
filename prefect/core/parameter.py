@@ -28,7 +28,7 @@ class Parameter(Task):
         self.required = required
         self.default = default
 
-        super().__init__(name=name, max_retries=None, autorename=False)
+        super().__init__(name=name)
 
     def run(self):
         params = prefect.context.Context.get('parameters', {})

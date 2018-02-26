@@ -19,11 +19,11 @@ class State(Serializable):
         self.result = result
 
     def __eq__(self, other):
-        strings_match = str(self) == str(other)
-        if isinstance(other, str):
-            return strings_match
-        else:
-            return strings_match and type(self) == type(other)
+        if type(self) == type(other):
+            return (self.state, self.result) == (other.state, other.result)
+        elif isinstance(other, str):
+            return self.state == other
+        return False
 
     def __str__(self):
         return self.state
