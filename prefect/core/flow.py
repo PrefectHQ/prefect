@@ -323,3 +323,8 @@ class Flow(PrefectObject):
             tasks=self.tasks,
             edges=self.edges)
         return serialized
+
+    def after_deserialize(self, serialized):
+        super().after_deserialize(serialized)
+        self.tasks = serialized['tasks']
+        self.edges = serialized['edges']
