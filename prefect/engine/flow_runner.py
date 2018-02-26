@@ -70,7 +70,7 @@ class FlowRunner:
         """
         Arguments
 
-            task_states (dict): a dictionary of { task.name: TaskRunState }
+            task_states (dict): a dictionary of { task.id: TaskRunState }
                 pairs representing the initial states of the FlowRun tasks.
 
             start_tasks (list): a list of task names indicating the tasks
@@ -81,11 +81,11 @@ class FlowRunner:
                 indicating parameter values for the Flow run.
 
             override_task_inputs (dict): a dictionary of
-                { task.name: {upstream_task.name: input_value } } pairs
+                { task.id: {upstream_task.id: input_value } } pairs
                 indicating that a given task's upstream task's reuslt should be
                 overwritten with the supplied input
 
-            task_contexts (dict): a dict of { task.name : context_dict } pairs
+            task_contexts (dict): a dict of { task.id : context_dict } pairs
                 that contains items that should be provided to each task's
                 context.
         """
@@ -166,11 +166,11 @@ class FlowRunner:
 
         # process each task in order
         for task in self.flow.sorted_tasks(root_tasks=start_tasks):
-            self.logger.info('Running task: {}'.format(task.name))
+            self.logger.info('Running task: {}'.format(task.id))
 
             # if the task is unrecognized, create a placeholder State
-            if task.name not in task_states:
-                task_states[task.name] = TaskRunState()
+            if task.id not in task_states:
+                task_states[task.id] = TaskRunState()
 
             upstream_states = {}
             upstream_inputs = {}
@@ -188,16 +188,16 @@ class FlowRunner:
                         task_states[e.upstream_task])
 
             # override upstream_inputs with provided override_task_inputs
-            upstream_inputs.update(override_task_inputs.get(task.name, {}))
+            upstream_inputs.update(override_task_inputs.get(task.id, {}))
 
             # run the task!
-            with prefect.context.Context(task_contexts.get(task.name)):
-                task_states[task.name] = self.executor.run_task(
+            with prefect.context.Context(task_contexts.get(task.id)):
+                task_states[task.id] = self.executor.run_task(
                     task=task,
-                    state=task_states[task.name],
+                    state=task_states[task.id],
                     upstream_states=upstream_states,
                     inputs=upstream_inputs,
-                    ignore_trigger=(task.name in (start_tasks or [])),
+                    ignore_trigger=(task.id in (start_tasks or [])),
                     context=context)
 
         # gather the results for all tasks
@@ -206,7 +206,7 @@ class FlowRunner:
 
         # gather the results for terminal tasks
         terminal_states = {
-            task.name: all_task_states[task.name]
+            task.id: all_task_states[task.id]
             for task in self.flow.terminal_tasks()
         }
 
