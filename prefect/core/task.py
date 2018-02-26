@@ -1,9 +1,6 @@
 import inspect
-import uuid
 from datetime import timedelta
 from typing import Iterable, Mapping
-
-from slugify import slugify
 
 import prefect
 from prefect.utilities.serialize import (Encrypted, EncryptedPickle)
@@ -15,28 +12,28 @@ class Task(PrefectObject):
     def __init__(
             self,
             name='Task',
-            description=None,
             id=None,
+            description=None,
             max_retries=0,
             retry_delay=timedelta(minutes=1),
             timeout=None,
-            trigger=None,
-            **kwargs):
+            trigger=None):
         self.name = name
-        self.id = id or str(uuid.uuid4())
         self.description = description
 
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
         self.trigger = trigger or prefect.tasks.triggers.AllSuccessful
-        self._set_dependencies(upstream_task_results=kwargs)
+
+        super().__init__(id=id)
+
+        flow = prefect.context.Context.get('flow')
+        if flow:
+            flow.add_task(self)
 
     def __repr__(self):
-        return '{}({})'.format(type(self).__name__, self.name)
-
-    def __eq__(self, other):
-        return type(self) == type(other) and self.id == other.id
+        return '{}("{}")'.format(type(self).__name__, self.name)
 
     def __hash__(self):
         return id(self)
@@ -44,17 +41,17 @@ class Task(PrefectObject):
     def __getitem__(self, index):
         return self()[index]
 
-    def __call__(
-            self, *args, upstream_tasks=None, downstream_tasks=None, **kwargs):
+    def __call__(self, *args, _wait_for=None, **kwargs):
         signature = inspect.signature(self.run)
-        callargs = dict(signature.bind_partial(*args, **kwargs).arguments)
+        # this will raise an error if callargs weren't all provided
+        callargs = dict(signature.bind(*args, **kwargs).arguments)
 
-        return self._set_dependencies(
-            upstream_tasks=upstream_tasks,
-            downstream_tasks=downstream_tasks,
-            upstream_task_results=callargs)
+        return self.set_dependencies(
+            upstream_tasks=_wait_for, upstream_task_results=callargs)
 
-    def _set_dependencies(
+    # Dependencies -------------------------------------------------------------
+
+    def set_dependencies(
             self,
             *,
             upstream_tasks=None,
@@ -63,14 +60,15 @@ class Task(PrefectObject):
             flow=None):
         flow = flow or prefect.context.Context.get('flow')
         if flow is None:
-            flow = prefect.core.flow.Flow()
+            raise ValueError(
+                'Dependencies can only be set within a Flow context.')
 
         flow.set_dependencies(
             task=self,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
             upstream_results=upstream_task_results)
-        return TaskResult(flow=flow, task=self)
+        return prefect.core.task_result.TaskResult(flow=flow, task=self)
 
     # Run  --------------------------------------------------------------------
 
@@ -107,7 +105,7 @@ class Task(PrefectObject):
         serialized.update(
             dict(
                 name=self.name,
-                slug=self.slug,
+                id=self.id,
                 description=self.description,
                 max_retries=self.max_retries,
                 retry_delay=self.retry_delay,

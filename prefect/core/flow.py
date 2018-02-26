@@ -6,12 +6,10 @@ from slugify import slugify
 import prefect
 import prefect.context
 from prefect.flows.schedules import NoSchedule
-from prefect.core.task import Task, TaskResult
 from prefect.core.base import PrefectObject
+from prefect.core.task import Task
 from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
-from prefect.utilities.strings import is_valid_identifier
-import uuid
 
 
 class Flow(PrefectObject):
@@ -24,10 +22,9 @@ class Flow(PrefectObject):
             schedule=None,
             description=None,
             tasks=None,
-            edges=None,
-    ):
+            edges=None):
+
         self.name = name
-        self.id = id
         self.version = version
         self.description = description
         self.schedule = schedule or NoSchedule()
@@ -44,34 +41,31 @@ class Flow(PrefectObject):
                 downstream_task=e.downstream_task,
                 key=e.key)
 
+        super().__init__(id=id)
+
     def __eq__(self, other):
-        s = (type(self), self.tasks, self.edges)
-        o = (type(other), other.tasks, other.edges)
-        return s == o
+        if type(self) == type(other):
+            s = (self.name, self.version, self.tasks, self.edges)
+            o = (other.name, other.version, other.tasks, other.edges)
+            return s == o
+        return False
 
     def __repr__(self):
         base = self.name
         if self.version:
             base += ':{self.version}'.format(self=self)
-        return "{type}('{base}')".format(type=type(self).__name__, base=base)
+        return '{type}("{base}")'.format(type=type(self).__name__, base=base)
 
     # Context Manager ----------------------------------------------------------
 
-    @contextmanager
-    def _flow_context(self):
-        previous_context = prefect.context.Context.as_dict()
-        prefect.context.Context.update(flow=self)
-        try:
-            yield
-        finally:
-            prefect.context.Context.reset(previous_context)
-
     def __enter__(self):
-        self._flow_context.__enter__()
+        self.__previous_context = prefect.context.Context.as_dict()
+        prefect.context.Context.update(flow=self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        self._flow_context.__exit__()
+        prefect.context.Context.reset(self.__previous_context)
+        del self.__previous_context
 
     # Introspection ------------------------------------------------------------
 
@@ -111,7 +105,11 @@ class Flow(PrefectObject):
         if not isinstance(task, Task):
             raise TypeError(
                 'Tasks must be Task instances (received {})'.format(type(task)))
-        if task not in self.tasks and task.id:
+
+        elif task in self.tasks:
+            raise ValueError('Task is already in the flow.')
+
+        elif task not in self.tasks and task.id:
             if next((t for t in self.tasks if t.id == task.id), None):
                 raise ValueError(
                     'A different task with the same ID ("{}") already exists '
@@ -120,7 +118,7 @@ class Flow(PrefectObject):
         if isinstance(task, Parameter):
             if task.name in self.parameters():
                 raise ValueError(
-                    'This Flow already has a parameter called {}'.format(
+                    'This Flow already has a parameter called "{}"'.format(
                         task.name))
         self.tasks.add(task)
 
@@ -129,8 +127,8 @@ class Flow(PrefectObject):
         edges_to_task = self.edges_to(downstream_task)
         if key and key in {e.key for e in edges_to_task}:
             raise ValueError(
-                'The argument "{a}" for task "{t}" has already been '
-                'assigned.'.format(a=e.key, t=downstream_task))
+                'The argument "{a}" for task {t} has already been '
+                'assigned.'.format(a=key, t=downstream_task))
 
         edge = Edge(
             upstream_task=upstream_task,
@@ -138,13 +136,15 @@ class Flow(PrefectObject):
             key=key)
 
         with self.restore_graph_on_error():
-            self.add_task(upstream_task)
-            self.add_task(downstream_task)
+            if upstream_task not in self.tasks:
+                self.add_task(upstream_task)
+            if downstream_task not in self.tasks:
+                self.add_task(downstream_task)
             self.edges.add(edge)
 
             # check that the edges are valid keywords by binding them
             edge_keys = {e.key: 0 for e in edges_to_task if e.key is not None}
-            inspect.signature(downstream_task.run).bind_partial(edge_keys)
+            inspect.signature(downstream_task.run).bind_partial(**edge_keys)
 
             # check for cycles
             self.sorted_tasks()
@@ -193,22 +193,29 @@ class Flow(PrefectObject):
         with self.restore_graph_on_error():
 
             # add the task to the graph
-            self.add_task(task)
+            if task not in self.tasks:
+                self.add_task(task)
 
             for t in upstream_tasks or []:
-                if isinstance(t, TaskResult):
+                if isinstance(t, prefect.core.task_result.TaskResult):
+                    if t.flow.id != self.id:
+                        raise ValueError('Flows do not match.')
                     self.merge(t.flow)
                     t = t.task
                 self.add_edge(upstream_task=t, downstream_task=task)
 
             for t in downstream_tasks or []:
-                if isinstance(t, TaskResult):
+                if isinstance(t, prefect.core.task_result.TaskResult):
+                    if t.flow.id != self.id:
+                        raise ValueError('Flows do not match.')
                     self.merge(t.flow)
                     t = t.task
                 self.add_edge(upstream_task=task, downstream_task=t)
 
             for key, t in (upstream_results or {}).items():
-                if isinstance(t, TaskResult):
+                if isinstance(t, prefect.core.task_result.TaskResult):
+                    if t.flow.id != self.id:
+                        raise ValueError('Flows do not match.')
                     self.merge(t.flow)
                     t = t.task
                 t = prefect.utilities.tasks.as_task(t)
@@ -228,14 +235,16 @@ class Flow(PrefectObject):
 
     def merge(self, flow):
         with self.restore_graph_on_error():
-            for t in flow.tasks:
-                self.add_task(t)
+            for task in flow.tasks:
+                if task not in self.tasks:
+                    self.add_task(task)
 
-            for e in flow.edges:
-                self.add_edge(
-                    upstream_task=e.upstream_task,
-                    downstream_task=e.downstream_task,
-                    key=e.key)
+            for edge in flow.edges:
+                if edge not in self.edges:
+                    self.add_edge(
+                        upstream_task=edge.upstream_task,
+                        downstream_task=edge.downstream_task,
+                        key=edge.key)
 
     def sorted_tasks(self, root_tasks=None):
 
@@ -319,7 +328,6 @@ class Flow(PrefectObject):
             description=self.description,
             parameters=self.parameters(),
             schedule=self.schedule,
-            concurrent_runs=self.concurrent_runs,
             tasks=self.tasks,
             edges=self.edges)
         return serialized
