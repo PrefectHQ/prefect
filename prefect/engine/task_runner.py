@@ -240,11 +240,11 @@ class TaskRunner:
             self.set_state(state, TaskRunState.FAILED, result=result)
 
     def handle_retry(self, state, retry_time=None):
+        #TODO exponential backoff based on run_number
         run_number = prefect.context.Context.get('run_number', 0)
 
         if retry_time is None:
-            retry_time = datetime.datetime.utcnow() + self.task.retry_delay(
-                run_number)
+            retry_time = datetime.datetime.utcnow() + self.task.retry_delay
 
         self.executor.set_state(
             state, TaskRunState.PENDING_RETRY, result=retry_time)

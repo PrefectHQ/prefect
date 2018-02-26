@@ -1,6 +1,7 @@
 import datetime
 import pytest
 import prefect
+from prefect.core.task import Task
 from prefect.utilities.tasks import task
 from prefect.engine import TaskRunner
 from prefect.engine.state import TaskRunState
@@ -46,8 +47,7 @@ def test_error(err_task):
     Test running a task that has an error
     """
     state = run_task_runner_test(
-        task=err_task,
-        expected_state=TaskRunState.FAILED)
+        task=err_task, expected_state=TaskRunState.FAILED)
     assert state.is_finished()
 
 
@@ -67,34 +67,42 @@ def test_signal():
     Test running a task that raises a Prefect signal
     """
 
-    @task
-    def fail_task():
-        raise prefect.signals.FAIL(3)
+    class FailTask(Task):
 
+        def run(self):
+            raise prefect.signals.FAIL(3)
+
+    class SkipTask(Task):
+
+        def run(self):
+            raise prefect.signals.SKIP(3)
+
+    class SuccessTask(Task):
+
+        def run(self):
+            raise prefect.signals.SUCCESS(3)
+
+    # fail task
     run_task_runner_test(
-        task=fail_task(),
+        task=FailTask(),
         expected_state=TaskRunState(TaskRunState.FAILED, result=3))
 
     state = run_task_runner_test(
-        task=fail_task(max_retries=1),
+        task=FailTask(max_retries=1),
         expected_state=TaskRunState.PENDING_RETRY,
         context={'run_number': 1})
+
     assert isinstance(state.result, datetime.datetime)
 
-    @task
-    def skip_task():
-        raise prefect.signals.SKIP(3)
 
+    # skip task
     run_task_runner_test(
-        task=skip_task(),
+        task=SkipTask(),
         expected_state=TaskRunState(TaskRunState.SKIPPED, result=3))
 
-    @task
-    def success_task():
-        raise prefect.signals.SUCCESS(3)
-
+    # success task
     run_task_runner_test(
-        task=success_task(),
+        task=SuccessTask(),
         expected_state=TaskRunState(TaskRunState.SUCCESS, result=3))
 
 
@@ -106,22 +114,12 @@ def test_run_finished_task(task, err_task):
     """
     # a successful task initialized as failed should fail
     state = TaskRunState(TaskRunState.FAILED, result=-1)
-    run_task_runner_test(
-        task=task,
-        state=state,
-        expected_state=state)
+    run_task_runner_test(task=task, state=state, expected_state=state)
 
     # a failing task initialized as successful should be successful
     state = TaskRunState(TaskRunState.SUCCESS, result=1)
-    run_task_runner_test(
-        task=err_task,
-        state=state,
-        expected_state=state)
+    run_task_runner_test(task=err_task, state=state, expected_state=state)
 
     state = TaskRunState(TaskRunState.SKIPPED, result=-1)
-    run_task_runner_test(
-        task=err_task,
-        state=state,
-        expected_state=state)
+    run_task_runner_test(task=err_task, state=state, expected_state=state)
 
-# def test_upstream_states(cleanup_task)
