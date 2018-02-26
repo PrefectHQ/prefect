@@ -1,7 +1,9 @@
+__version__ = '0.0'
+
 from prefect.configuration import config
 
-from prefect.context import Context
 import prefect.utilities
+from prefect.context import Context
 import prefect.signals
 import prefect.serializers
 
@@ -13,5 +15,3 @@ from prefect.utilities.tasks import task
 import prefect.engine
 
 from prefect.client import Client
-
-__version__ = '0.0'
