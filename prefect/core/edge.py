@@ -1,9 +1,9 @@
 import uuid
 from prefect.utilities.strings import is_valid_identifier
-from prefect.utilities.serialize import Serializable
+from prefect.core.base import PrefectObject
 
 
-class Edge(Serializable):
+class Edge(PrefectObject):
 
     def __init__(self, upstream_task, downstream_task, key=None, id=None):
         """
@@ -30,21 +30,38 @@ class Edge(Serializable):
 
         The key indicates that the result of the upstream task should be passed
         to the downstream task under the key.
-
         """
         self.upstream_task = upstream_task
         self.downstream_task = downstream_task
-        self.id = id or uuid.uuid4().hex
 
         if key is not None:
             if not is_valid_identifier(key):
                 raise ValueError(
-                    'Downstream key ("{}") must be a valid identifier'.format(
+                    'Key must be a valid identifier (received "{}")'.format(
                         key))
         self.key = key
+        super().__init__(id=id)
 
     # Comparison --------------------------------------------------------------
 
-    def __hash__(self):
-        return id(self)
+    @property
+    def _cmp(self):
+        return (self.upstream_task, self.downstream_task, self.key)
 
+    def __eq__(self, other):
+        if type(self) == type(other):
+            return self._cmp == other._cmp
+        return False
+
+    def __hash__(self):
+        return hash(self._cmp)
+
+    def serialize(self):
+        serialized = super().serialize(self)
+        serialized.update(
+            {
+                'upstream_task': self.upstream_task,
+                'downstream_task': self.downstream_task,
+                'key': key
+            })
+        return serialized

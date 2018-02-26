@@ -7,14 +7,14 @@ import prefect
 import prefect.context
 from prefect.flows.schedules import NoSchedule
 from prefect.core.task import Task, TaskResult
+from prefect.core.base import PrefectObject
 from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
 from prefect.utilities.strings import is_valid_identifier
-from prefect.utilities.serialize import Serializable
 import uuid
 
 
-class Flow(Serializable):
+class Flow(PrefectObject):
 
     def __init__(
             self,
