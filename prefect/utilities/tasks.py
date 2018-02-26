@@ -15,25 +15,24 @@ def as_task(x):
         return prefect.tasks.Constant(value=x)
 
 
-@wrapt.decorator
-def task(fn, instance, args, kwargs):
+def task(**task_init_kwargs):
     """
     A decorator for creating Tasks from functions.
 
     Usage:
 
-    @task
-    def myfn():
-        time.sleep(10)
-        return 1
-
     @task(name='hello', retries=3)
-    def hello():
-        print('hello')
+    def hello(name):
+        print('hello, {}'.format(name))
 
     with Flow() as flow:
-        hello().run_before(myfn())
-
+        t1 = hello('x')
+        t2 = hello('y')
     """
 
-    return prefect.tasks.FunctionTask(fn=fn, *args, **kwargs)
+    @wrapt.decorator
+    def task_factory(fn, instance, args, kwargs):
+        task = prefect.tasks.FunctionTask(fn=fn, **task_init_kwargs)
+        return task(*args, **kwargs)
+    return task_factory
+

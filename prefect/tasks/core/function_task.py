@@ -1,6 +1,5 @@
-import functools
 import prefect
-
+import inspect
 
 class FunctionTask(prefect.Task):
 
@@ -12,11 +11,16 @@ class FunctionTask(prefect.Task):
 
         # set the name from the fn
         if name is None:
-            kwargs['autorename'] = True
             name = getattr(fn, '__name__', type(self).__name__)
 
         super().__init__(name=name, **kwargs)
 
-    def run(self, **inputs):
-        return prefect.context.call_with_context_annotations(self.fn, **inputs)
+    def __call__(self, *args, _wait_for=None, **kwargs):
+        signature = inspect.signature(self.fn)
+        # try to bind arguments
+        signature.bind(*args, **kwargs).arguments
+        return super().__call__(self, *args, _wait_for, **kwargs)
 
+    def run(self, *args, **inputs):
+        return prefect.context.call_with_context_annotations(
+            self.fn, *args, **inputs)
