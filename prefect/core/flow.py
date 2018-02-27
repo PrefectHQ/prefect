@@ -199,24 +199,18 @@ class Flow(PrefectObject):
 
             for t in upstream_tasks or []:
                 if isinstance(t, prefect.core.task_result.TaskResult):
-                    if t.flow.id != self.id:
-                        raise ValueError('Flows do not match.')
                     self.merge(t.flow)
                     t = t.task
                 self.add_edge(upstream_task=t, downstream_task=task)
 
             for t in downstream_tasks or []:
                 if isinstance(t, prefect.core.task_result.TaskResult):
-                    if t.flow.id != self.id:
-                        raise ValueError('Flows do not match.')
                     self.merge(t.flow)
                     t = t.task
                 self.add_edge(upstream_task=task, downstream_task=t)
 
             for key, t in (upstream_results or {}).items():
                 if isinstance(t, prefect.core.task_result.TaskResult):
-                    if t.flow.id != self.id:
-                        raise ValueError('Flows do not match.')
                     self.merge(t.flow)
                     t = t.task
                 t = prefect.utilities.tasks.as_task(t)
@@ -236,6 +230,10 @@ class Flow(PrefectObject):
 
     def merge(self, flow):
         with self.restore_graph_on_error():
+
+            if flow.id != self.id:
+                raise ValueError('Flow ids do not match.')
+
             for task in flow.tasks:
                 if task not in self.tasks:
                     self.add_task(task)
