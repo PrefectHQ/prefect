@@ -193,6 +193,9 @@ class Flow(PrefectObject):
         """
         with self.restore_graph_on_error():
 
+            # validate the task
+            self._validate_task_signature(task)
+
             # add the task to the graph
             if task not in self.tasks:
                 self.add_task(task)
@@ -215,6 +218,15 @@ class Flow(PrefectObject):
                     t = t.task
                 t = prefect.utilities.tasks.as_task(t)
                 self.add_edge(upstream_task=t, downstream_task=task, key=key)
+
+    def _validate_task_signature(self, task):
+        varargs = prefect.utilities.functions.get_var_pos_arg(task.run)
+        if varargs:
+            raise ValueError(
+                'Tasks with variable positional arguments (*args) are not '
+                'supported, because all Prefect arguments are stored as '
+                'keywords. As a workaround, consider modifying the run() '
+                'method to accept **kwargs and feeding the values to *args.')
 
     def edges_to(self, task):
         return set(e for e in self.edges if e.downstream_task == task)
