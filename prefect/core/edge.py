@@ -48,6 +48,13 @@ class Edge(PrefectObject):
     def _cmp(self):
         return (self.upstream_task, self.downstream_task, self.key)
 
+    def __repr__(self):
+        if self.key:
+            return 'Edge({} to {} as "{}")'.format(*self._cmp)
+        else:
+            return 'Edge({} to {})'.format(
+                self.upstream_task, self.downstream_task)
+
     def __eq__(self, other):
         if type(self) == type(other):
             return self._cmp == other._cmp
