@@ -24,6 +24,3 @@ class PrefectObject(Serializable):
 
     def after_deserialize(self, serialized):
         self.id = serialized['id']
-
-    def __eq__(self, other):
-        return type(self) == type(other) and self.id == other.id

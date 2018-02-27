@@ -1,9 +1,11 @@
+import copy
+import uuid
 import inspect
 from datetime import timedelta
 from typing import Iterable, Mapping
 
 import prefect
-from prefect.utilities.serialize import (Encrypted, EncryptedPickle)
+from prefect.utilities.serialize import SerializedEncryptedPickle
 from prefect.core.base import PrefectObject
 
 
@@ -47,12 +49,17 @@ class Task(PrefectObject):
         return self()[index]
 
     def __call__(self, *args, _wait_for=None, **kwargs):
-        signature = inspect.signature(self.run)
         # this will raise an error if callargs weren't all provided
+        signature = inspect.signature(self.run)
         callargs = dict(signature.bind(*args, **kwargs).arguments)
 
         return self.set_dependencies(
             upstream_tasks=_wait_for, upstream_task_results=callargs)
+
+    def copy(self):
+        new = copy.copy(self)
+        new.id = uuid.uuid4()
+        return new
 
     # Dependencies -------------------------------------------------------------
 
@@ -119,6 +126,6 @@ class Task(PrefectObject):
                 type=type(self).__name__))
 
         if pickle:
-            serialized['pickle'] = EncryptedPickle(self)
+            serialized['pickle'] = SerializedEncryptedPickle(self)
 
         return serialized
