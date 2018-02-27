@@ -20,7 +20,8 @@ extras = {
 
 setup(
     name='prefect',
-    version='0.0',
+    # corresponds to __version__
+    version='0.2',
     description='',
     long_description=open('README.md').read(),
     url='https://gitlab.com/prefect/prefect',
