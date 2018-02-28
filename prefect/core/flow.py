@@ -5,7 +5,6 @@ from slugify import slugify
 
 import prefect
 import prefect.context
-from prefect.flows.schedules import NoSchedule
 from prefect.core.base import PrefectObject
 from prefect.core.task import Task
 from prefect.core.edge import Edge
@@ -27,7 +26,7 @@ class Flow(PrefectObject):
         self.name = name
         self.version = version
         self.description = description
-        self.schedule = schedule or NoSchedule()
+        self.schedule = schedule or prefect.schedules.NoSchedule()
 
         self.tasks = set()
         self.edges = set()

@@ -28,8 +28,8 @@ class Task(PrefectObject):
         self.timeout = timeout
 
         if trigger is None:
-            trigger = prefect.tasks.triggers.AllSuccessful
-        elif not isinstance(trigger, prefect.tasks.triggers.Trigger):
+            trigger = prefect.triggers.AllSuccessful
+        elif not isinstance(trigger, prefect.triggers.Trigger):
             raise TypeError('Expected a Trigger object.')
         self.trigger = trigger
 
