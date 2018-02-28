@@ -13,7 +13,7 @@ class Task(PrefectObject):
 
     def __init__(
             self,
-            name='Task',
+            name=None,
             id=None,
             description=None,
             max_retries=0,
@@ -21,6 +21,7 @@ class Task(PrefectObject):
             timeout=None,
             trigger=None):
         self.name = name
+        self.name = name or type(self).__name__
         self.description = description
 
         self.max_retries = max_retries
@@ -40,7 +41,8 @@ class Task(PrefectObject):
             flow.add_task(self)
 
     def __repr__(self):
-        return '{}("{}")'.format(type(self).__name__, self.name)
+        return '<Task: "{self.name}" type={cls} id={id}>'.format(
+            cls=type(self).__name__, self=self, id=self.short_id)
 
     def __hash__(self):
         return id(self)

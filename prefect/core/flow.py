@@ -15,7 +15,7 @@ class Flow(PrefectObject):
 
     def __init__(
             self,
-            name='Flow',
+            name=None,
             id=None,
             version=None,
             schedule=None,
@@ -23,7 +23,7 @@ class Flow(PrefectObject):
             tasks=None,
             edges=None):
 
-        self.name = name
+        self.name = name or type(self).__name__
         self.version = version
         self.description = description
         self.schedule = schedule or prefect.schedules.NoSchedule()
@@ -50,10 +50,10 @@ class Flow(PrefectObject):
         return False
 
     def __repr__(self):
-        base = self.name
-        if self.version:
-            base += ':{self.version}'.format(self=self)
-        return '{type}("{base}")'.format(type=type(self).__name__, base=base)
+        return '<{cls}: {self.name}{v}>'.format(
+            cls=type(self).__name__,
+            self=self,
+            v=' version={}'.format(self.version) if self.version else '')
 
     # Context Manager ----------------------------------------------------------
 

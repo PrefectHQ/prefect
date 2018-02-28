@@ -49,11 +49,13 @@ class Edge(PrefectObject):
         return (self.upstream_task, self.downstream_task, self.key)
 
     def __repr__(self):
+
         if self.key:
-            return 'Edge({} to {} as "{}")'.format(*self._cmp)
-        else:
-            return 'Edge({} to {})'.format(
-                self.upstream_task, self.downstream_task)
+            return '<{cls}: {u} to {d}{k}>'.format(
+                cls=type(self).__name__,
+                u=self.upstream_task.short_id,
+                d=self.downstream_task.short_id,
+                k=' (key={})'.format(self.key) if self.key else '')
 
     def __eq__(self, other):
         if type(self) == type(other):
