@@ -1,8 +1,7 @@
 import uuid
-from prefect.utilities.serialize import Serializable
 
 
-class PrefectObject(Serializable):
+class PrefectObject:
 
     def __init__(self, id=None):
         self.id = id
@@ -18,9 +17,3 @@ class PrefectObject(Serializable):
         elif not isinstance(value, uuid.UUID):
             value = uuid.UUID(value)
         self._id = str(value)
-
-    def serialize(self):
-        return {'id': self.id}
-
-    def after_deserialize(self, serialized):
-        self.id = serialized['id']

@@ -1,17 +1,17 @@
+import uuid
 import inspect
 from typing import Iterable, Mapping
 from contextlib import contextmanager
-from slugify import slugify
 
 import prefect
 import prefect.context
-from prefect.core.base import PrefectObject
 from prefect.core.task import Task
 from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
+from prefect.utilities.serialize import Serializable
 
 
-class Flow(PrefectObject):
+class Flow(Serializable):
 
     def __init__(
             self,
@@ -23,6 +23,7 @@ class Flow(PrefectObject):
             tasks=None,
             edges=None):
 
+        self.id = id or uuid.uuid4()
         self.name = name or type(self).__name__
         self.version = version
         self.description = description
@@ -40,7 +41,19 @@ class Flow(PrefectObject):
                 downstream_task=e.downstream_task,
                 key=e.key)
 
-        super().__init__(id=id)
+    @property
+    def id(self):
+        return self._id
+
+    @id.setter
+    def id(self, value):
+        if not isinstance(value, uuid.UUID):
+            value = uuid.UUID(value)
+        self._id = str(value)
+
+    @property
+    def short_id(self):
+        return self._id[:8]
 
     def __eq__(self, other):
         if type(self) == type(other):

@@ -5,11 +5,10 @@ from datetime import timedelta
 from typing import Iterable, Mapping
 
 import prefect
-from prefect.utilities.serialize import SerializedEncryptedPickle
-from prefect.core.base import PrefectObject
+from prefect.utilities.serialize import SerializedEncryptedPickleCodec, SerializableFromInitArgs
 
 
-class Task(PrefectObject):
+class Task(SerializableFromInitArgs):
 
     def __init__(
             self,
@@ -20,7 +19,7 @@ class Task(PrefectObject):
             retry_delay=timedelta(minutes=1),
             timeout=None,
             trigger=None):
-        self.name = name
+        self.id = id or uuid.uuid4()
         self.name = name or type(self).__name__
         self.description = description
 
@@ -33,8 +32,6 @@ class Task(PrefectObject):
         elif not isinstance(trigger, prefect.triggers.Trigger):
             raise TypeError('Expected a Trigger object.')
         self.trigger = trigger
-
-        super().__init__(id=id)
 
         flow = prefect.context.Context.get('flow')
         if flow:
@@ -62,6 +59,20 @@ class Task(PrefectObject):
         new = copy.copy(self)
         new.id = uuid.uuid4()
         return new
+
+    @property
+    def id(self):
+        return self._id
+
+    @id.setter
+    def id(self, value):
+        if not isinstance(value, uuid.UUID):
+            value = uuid.UUID(value)
+        self._id = str(value)
+
+    @property
+    def short_id(self):
+        return self._id[:8]
 
     # Dependencies -------------------------------------------------------------
 
@@ -128,6 +139,9 @@ class Task(PrefectObject):
                 type=type(self).__name__))
 
         if pickle:
-            serialized['pickle'] = SerializedEncryptedPickle(self)
+            serialized['pickle'] = SerializedEncryptedPickleCodec(self)
 
         return serialized
+
+    def after_deserialize(self, serialized):
+        self.id = serialized['id']

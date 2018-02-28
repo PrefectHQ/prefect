@@ -131,7 +131,7 @@ class JSONCodec:
         default it calls the codec's deserialize method on the value associated
         with the codec key.
         """
-        return cls.deserialize(obj.pop(cls.codec_key))
+        return cls.deserialize(obj[cls.codec_key])
 
     def __eq__(self, other):
         return type(self) == type(other) and self.value == other.value
@@ -219,12 +219,12 @@ class TimeDeltaCodec(JSONCodec):
 
 
 @register_JSONCodec('__importable_fn__')
-class ImportableFunction(JSONCodec):
+class ImportableFunctionCodec(JSONCodec):
 
     def __init__(self, value):
         if not isinstance(value, types.FunctionType):
             raise SerializationError(
-                'Only functions can be marked as ImportableFunction')
+                'Only functions can apply ImportableFunctionCodec')
         super().__init__(value=value)
 
     def serialize(self):
@@ -241,19 +241,8 @@ class ImportableFunction(JSONCodec):
                     name=name, module=module))
 
 
-# @register_JSONCodec('__json_serialized__')
-# class JSONSerialized(JSONCodec):
-
-#     def serialize(self):
-#         return self.value
-
-#     @classmethod
-#     def deserialize(cls, obj):
-#         return obj
-
-
 @register_JSONCodec('__encrypted_pickle__')
-class SerializedEncryptedPickle(JSONCodec):
+class SerializedEncryptedPickleCodec(JSONCodec):
 
     def serialize(self):
         return {
@@ -275,8 +264,39 @@ class SerializedEncryptedPickle(JSONCodec):
         return deserialize_from_encrypted_pickle(obj['pickle'])
 
 
+class RegisteredSerializedCodec(JSONCodec):
+
+    def __init__(self, value):
+        if serialized_name(value) not in SERIALIZED_CLASS_REGISTRY:
+            raise TypeError(
+                'This class was not properly registered for serialization.')
+
+        super().__init__(value=value)
+
+    def serialize(self):
+        return {
+            '__class__': serialized_name(self.value),
+            '__prefect_version__': prefect.__version__,
+        }
+
+    @classmethod
+    def deserialize(self, obj):
+        obj_class = SERIALIZED_CLASS_REGISTRY[obj.pop('__class__')]
+        return obj_class
+
+    @classmethod
+    def __from_json__(cls, obj):
+        """
+        The JSON Decoder will call the deserialize() method on the appropriate
+        value of the object, then call the object's after_deserialize method.
+        """
+        instance = super().__from_json__(obj)
+        instance.after_deserialize(obj)
+        return instance
+
+
 @register_JSONCodec('__serialized_dict__')
-class SerializedDict(JSONCodec):
+class SerializedDictCodec(RegisteredSerializedCodec):
     """
     Serializes an object by storing its class name and __dict__, similar to how
     the builtin copy module works. The object is deserialized by creating a
@@ -284,31 +304,53 @@ class SerializedDict(JSONCodec):
     """
 
     def __init__(self, value):
-        if serialized_name(value) not in SERIALIZED_CLASS_REGISTRY:
-            raise TypeError(
-                'This class was not properly registered for serialization.')
-        super().__init__(value=value)
+        if not isinstance(value, Serializable):
+            raise TypeError('Value must subclass Serializable')
+        super().__init__(value)
 
     def serialize(self):
-        return {
-            '__class__': serialized_name(self.value),
-            '__dict__': self.value.__dict__.copy(),
-            '__prefect_version__': prefect.__version__,
-        }
+        serialized = super().serialize()
+        serialized_dict = self.value.__dict__.copy()
+        for key in self.value._ignore_serialize_keys:
+            serialized_dict.pop(key, None)
+        if serialized_dict:
+            serialized.update({'__dict__': serialized_dict})
+        return serialized
 
     @classmethod
     def deserialize(cls, obj):
-        obj_class = SERIALIZED_CLASS_REGISTRY[obj.pop('__class__')]
+        obj_class = super().deserialize(obj)
         instance = object.__new__(obj_class)
-        serialized_dict = obj.pop('__dict__', {})
-        instance.__dict__.update(serialized_dict)
+        instance.__dict__.update(obj.pop('__dict__', {}))
         return instance
 
+
+@register_JSONCodec('__serialized_init_args__')
+class SerializedInitArgsCodec(RegisteredSerializedCodec):
+
+    def __init__(self, value):
+        if not isinstance(value, SerializableFromInitArgs):
+            raise TypeError('Value must subclass SerializableFromInitArgs')
+        super().__init__(value)
+
+    def serialize(self):
+        """
+        Return a JSON-serializable dictionary that can be reconstructed as this object.
+        """
+
+        serialized = super().serialize()
+        init_args = self.value._serialized_init_args
+        if init_args:
+            serialized.update({'__init_args__': init_args})
+        return serialized
+
     @classmethod
-    def __from_json__(cls, obj):
-        deserialized = super().__from_json__(obj)
-        deserialized.after_deserialize(obj)
-        return deserialized
+    def deserialize(cls, obj):
+        obj_class = super().deserialize(obj)
+        init_args = obj.pop('__init_args__', {})
+        args = init_args.pop('*args', ())
+        kwargs = init_args.pop('**kwargs', {})
+        return obj_class(**init_args, **kwargs)
 
 
 class SerializableMetaclass(type):
@@ -319,145 +361,96 @@ class SerializableMetaclass(type):
         return cls
 
 
-# @register_JSONCodec('__serialized_init_args__')
-# class SerializedInitArgs(JSONCodec):
-
-#     def __init__(self, value):
-#         if serialized_name(value) not in SERIALIZED_CLASS_REGISTRY:
-#             raise TypeError(
-#                 'This class was not properly registered for serialization.')
-#         super().__init__(value=value)
-
-#     def serialize(self):
-#         """
-#         Return a JSON-serializable dictionary representing this object.
-#         """
-
-#         serialized = self.value.serialize()
-
-#         serialized.update(
-#             {
-#                 '__class__': serialized_name(self.value),
-#                 '__init_args__':
-#                     getattr(self.value, '_serialized_init_args', {}),
-#                 '__prefect_version__': prefect.__version__,
-#             })
-
-#         return serialized
-
-#     @classmethod
-#     def deserialize(cls, obj):
-#         cls = SERIALIZED_CLASS_REGISTRY[obj.pop('__class__')]
-#         init_args = obj.pop('__init_args__')
-#         args = init_args.pop('*args', ())
-#         kwargs = init_args.pop('**kwargs', {})
-#         instance = cls(**init_args, **kwargs)
-#         instance.after_deserialize(obj)
-#         return instance
-# class SerializableInitArgs(metaclass=SerializableMetaclass):
-#     """
-#     A class that can automatically be serialized to JSON and deserialized later.
-
-#     When the class type is created, it registers itself so that Prefect knows
-#     how to instantiate it. When an instance is created, it records the arguments
-#     that were used to create it. On deserialization, the correct class type is
-#     instantiated with those same arguments.
-#     """
-
-#     def __new__(cls, *args, **kwargs):
-#         instance = super().__new__(cls)
-
-#         # we wrap this in a try block because there are times when __new__
-#         # is called without any arguments, and we want to handle them - for
-#         # example, copy.copy() creates a new object and then copies all
-#         # attributes
-#         try:
-#             self = object()
-#             signature = inspect.signature(cls.__init__)
-#             bound = signature.bind_partial(self, *args, **kwargs)
-#         except Exception:
-#             return instance
-
-#         callargs = dict(bound.arguments)
-
-#         # identify the argument corresponding to 'self'
-#         self_arg = prefect.utilities.functions.get_first_arg(cls.__init__)
-#         if self_arg:
-#             callargs.pop(self_arg, None)
-
-#         # identify the argument corresponding to **kwargs
-#         var_k = prefect.utilities.functions.get_var_kw_arg(cls.__init__)
-#         if var_k:
-#             callargs['**kwargs'] = callargs.pop(var_k, {})
-
-#         # identify the argument corresponding to *args
-#         var_a = prefect.utilities.functions.get_var_pos_arg(cls.__init__)
-#         if var_a:
-#             # callargs['*args'] = callargs.pop(var_a, ())
-#             raise SerializationError(
-#                 'Serializable classes do not support *args in __init__, '
-#                 'because all arguments must be serializable with a known '
-#                 'keyword. Consider replacing *args with an explicit sequence.')
-
-#         instance._serialized_init_args = callargs
-#         return instance
-
-#     # create __init__ because otherwise the __new__ signature is used for init.
-#     def __init__(self):
-#         pass
-
-#     def __eq__(self, other):
-#         if type(self) == type(other):
-#             return self.__json__() == other.__json__()
-#         return False
-
-#     def __json__(self):
-#         return SerializedInitArgs(self).__json__()
-
-#     def serialize(self):
-#         """
-#         A JSON-serializable description of the object that will be passed to
-#         """
-#         return {}
-
-#     @classmethod
-#     def deserialize(cls, serialized):
-#         if not isinstance(serialized, str):
-#             serialized = json.dumps(serialized)
-#         result = json.loads(serialized)
-#         if not isinstance(result, cls):
-#             raise TypeError(
-#                 'Type mismatch between deserializing class and '
-#                 'serialized class.')
-#         return result
-
-#     def after_deserialize(self, payload):
-#         """
-#         Called after deserializing an object.
-#         """
-#         pass
-
-
 class Serializable(metaclass=SerializableMetaclass):
+    """
+    A class that can be serialized to JSON by recording its __dict__.
 
-    def __json__(self):
-        serialized = self.serialize()
-        serialized.update(SerializedDict(self).__json__())
-        return serialized
+    This will not work for objects that have unserializable attributes. Either
+    exclude those attributes with the _ignore_serialize_keys class attribute,
+    or consider an alternative serialization like SerializableFromInitArgs
+    """
 
-    def serialize(self):
-        return {}
+    _serialize_codec = SerializedDictCodec
+    _ignore_serialize_keys = []
 
     def __eq__(self, other):
         return type(self) == type(other) and self.__json__() == other.__json__()
 
-    @classmethod
-    def deserialize(cls, serialized):
-        if not isinstance(serialized, str):
-            serialized = json.dumps(serialized)
-        return json.loads(serialized)
+    def serialize(self):
+        """
+        A JSON-serializable description of the object that will be passed to
+        """
+        return {}
 
-    def after_deserialize(self, payload):
+    @classmethod
+    def deserialize(cls, obj):
+        if not isinstance(obj, str):
+            obj = json.dumps(obj)
+        return json.loads(obj)
+
+    def after_deserialize(self, details):
+        """
+        Called after deserializing an object.
+        """
+        pass
+
+    def __json__(self):
+        serialized = self.serialize()
+        serialized.update(self._serialize_codec(self).__json__())
+        return serialized
+
+
+class SerializableFromInitArgs(Serializable):
+    """
+    A class that can be serialized to JSON by recording its instantiation
+    arguments. The class is deserialized by creating a new class with the same
+    arguments. This method of serialization is not as robust as Serializable,
+    which copies the entire __dict__ of an object, but it may be preferable
+    for certain situations where attributes are complicated or unserializable.
+    """
+    _serialize_codec = SerializedInitArgsCodec
+
+    def __new__(cls, *args, **kwargs):
+        instance = super().__new__(cls)
+
+        # we wrap this in a try block because there are times when __new__
+        # is called without any arguments, and we want to handle them - for
+        # example, copy.copy() creates a new object and then copies all
+        # attributes
+        # try:
+        self = object()
+        signature = inspect.signature(cls.__init__)
+        bound = signature.bind_partial(self, *args, **kwargs)
+        # except Exception:
+        #     return instance
+
+        callargs = dict(bound.arguments)
+
+        # identify the argument corresponding to 'self'
+        self_arg = prefect.utilities.functions.get_first_arg(cls.__init__)
+        if self_arg:
+            callargs.pop(self_arg, None)
+
+        # identify the argument corresponding to **kwargs
+        var_k = prefect.utilities.functions.get_var_kw_arg(cls.__init__)
+        if var_k:
+            callargs['**kwargs'] = callargs.pop(var_k, {})
+
+        # identify the argument corresponding to *args
+        var_a = prefect.utilities.functions.get_var_pos_arg(cls.__init__)
+        if var_a:
+            # callargs['*args'] = callargs.pop(var_a, ())
+            raise SerializationError(
+                'Serializable classes do not support *args in __init__, '
+                'because all arguments must be serializable with a known '
+                'keyword. Consider replacing *args with an explicit sequence.')
+
+        instance._serialized_init_args = callargs
+        return instance
+
+    # define __init__ because otherwise the *args and **kwargs of __new__
+    # will be used as the signature
+    def __init__(self):
         pass
 
 
@@ -468,7 +461,7 @@ def serializable(fn):
     Note that this works by importing the function at the time of
     deserialization, so it may not be stable across software versions.
     """
-    fn.__json__ = ImportableFunction(fn).__json__
+    fn.__json__ = ImportableFunctionCodec(fn).__json__
     return fn
 
 
@@ -515,15 +508,6 @@ json.JSONEncoder.default = _json_encoder_fn
 json._default_decoder = json.JSONDecoder(object_hook=_json_decoder_fn)
 
 
-def load_json(serialized):
-    """
-    Load Prefect-flavored JSON serializations.
-    """
-    # decoder = json.JSONDecoder(
-    #     object_hook=)
-    return json.loads(serialized, object_hook=_json_decoder_fn)
-
-
 def load_raw_json(serialized):
     """
     Load JSON as a dict with no modifications
@@ -531,16 +515,12 @@ def load_raw_json(serialized):
     return json.loads(serialized, object_hook=lambda j: j)
 
 
-def dump_json(obj):
-    return json.dumps(obj)
-
-
 def load_json_pickles(serialized, safe=True):
 
     def _pickle_decoder_fn(dct):
-        if SerializedEncryptedPickle.codec_key in dct:
-            return SerializedEncryptedPickle.unsafe_deserialize(
-                dct[SerializedEncryptedPickle.codec_key])
+        if SerializedEncryptedPickleCodec.codec_key in dct:
+            return SerializedEncryptedPickleCodec.unsafe_deserialize(
+                dct[SerializedEncryptedPickleCodec.codec_key])
         else:
             return _json_decoder_fn(dct)
 
