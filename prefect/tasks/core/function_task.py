@@ -12,6 +12,11 @@ class FunctionTask(prefect.Task):
         if name is None:
             name = getattr(fn, '__name__', type(self).__name__)
 
+        if prefect.utilities.functions.get_var_pos_arg(fn):
+            raise ValueError(
+                'Functions with variable positional arguments are not '
+                'supported, since all arguments must be passed by keyword.')
+
         self.fn = fn
         self.run = prefect.context.apply_context_annotations(fn)
 
