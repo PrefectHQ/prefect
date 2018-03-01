@@ -8,7 +8,7 @@ import prefect.context
 from prefect.core.task import Task
 from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
-from prefect.utilities.serialize import Serializable
+from prefect.utilities.serializers import Serializable
 
 
 class Flow(Serializable):
@@ -356,6 +356,6 @@ class Flow(Serializable):
         return serialized
 
     def after_deserialize(self, serialized):
-        super().after_deserialize(serialized)
+        self.id = serialized['id']
         self.tasks = serialized['tasks']
         self.edges = serialized['edges']

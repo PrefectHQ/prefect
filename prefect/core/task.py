@@ -5,10 +5,10 @@ from datetime import timedelta
 from typing import Iterable, Mapping
 
 import prefect
-from prefect.utilities.serialize import SerializedEncryptedPickleCodec, SerializableFromInitArgs
+from prefect.utilities.serializers import Serializable
 
 
-class Task(SerializableFromInitArgs):
+class Task(Serializable):
 
     def __init__(
             self,
@@ -28,9 +28,9 @@ class Task(SerializableFromInitArgs):
         self.timeout = timeout
 
         if trigger is None:
-            trigger = prefect.triggers.AllSuccessful
-        elif not isinstance(trigger, prefect.triggers.Trigger):
-            raise TypeError('Expected a Trigger object.')
+            trigger = prefect.triggers.all_successful
+        # elif not isinstance(trigger, prefect.triggers.Trigger):
+        #     raise TypeError('Expected a Trigger object.')
         self.trigger = trigger
 
         flow = prefect.context.Context.get('flow')
@@ -123,7 +123,7 @@ class Task(SerializableFromInitArgs):
 
     # Serialize ---------------------------------------------------------------
 
-    def serialize(self, pickle=False):
+    def serialize(self):
 
         serialized = super().serialize()
 
@@ -137,9 +137,6 @@ class Task(SerializableFromInitArgs):
                 timeout=self.timeout,
                 trigger=self.trigger,
                 type=type(self).__name__))
-
-        if pickle:
-            serialized['pickle'] = SerializedEncryptedPickleCodec(self)
 
         return serialized
 
