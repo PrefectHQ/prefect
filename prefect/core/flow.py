@@ -188,7 +188,7 @@ class Flow(Serializable):
             task: Task,
             upstream_tasks: Iterable[Task] = None,
             downstream_tasks: Iterable[Task] = None,
-            upstream_results: Mapping[str, Task] = None):
+            keyword_results: Mapping[str, Task] = None):
         """
         Convenience function for adding task dependencies on upstream tasks.
 
@@ -199,7 +199,7 @@ class Flow(Serializable):
 
             downstream_tasks ([Task]): Tasks that will run after the task runs
 
-            upstream_results ({key: Task}): The results of these tasks
+            keyword_results ({key: Task}): The results of these tasks
                 will be provided to the task under the specified keyword
                 arguments.
         """
@@ -224,12 +224,25 @@ class Flow(Serializable):
                     t = t.task
                 self.add_edge(upstream_task=task, downstream_task=t)
 
-            for key, t in (upstream_results or {}).items():
+            for key, t in (keyword_results or {}).items():
+                # self.set_keyword_dependency()
+                # if isinstance(t, list)):
+                #     if any(isinstance(ti, (Task, TaskResult)):
+                #         if i
+                #         result =
+
                 if isinstance(t, prefect.core.task_result.TaskResult):
                     self.merge(t.flow)
                     t = t.task
                 t = prefect.utilities.tasks.as_task(t)
                 self.add_edge(upstream_task=t, downstream_task=task, key=key)
+
+    # def _set_keyword_result(self, task, key, result):
+    #     if isinstance(result, TaskResult):
+    #         self.merge(result.flow)
+    #         result = result.task
+    #     result = prefect.utilities.tasks.as_task(result)
+    #     self.add_edge(upstream_task=result, downstream_task)
 
     def _validate_task_signature(self, task):
         varargs = prefect.utilities.functions.get_var_pos_arg(task.run)

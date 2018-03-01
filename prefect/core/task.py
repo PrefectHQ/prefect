@@ -52,8 +52,12 @@ class Task(Serializable):
         signature = inspect.signature(self.run)
         callargs = dict(signature.bind(*args, **kwargs).arguments)
 
+        # bind() compresses all variable keyword arguments, so we expand them
+        var_kw_arg = prefect.utilities.functions.get_var_kw_arg(self.run)
+        callargs.update(callargs.pop(var_kw_arg, {}))
+
         return self.set_dependencies(
-            upstream_tasks=_wait_for, upstream_task_results=callargs)
+            upstream_tasks=_wait_for, keyword_results=callargs)
 
     def copy(self):
         new = copy.copy(self)
@@ -81,7 +85,7 @@ class Task(Serializable):
             *,
             upstream_tasks=None,
             downstream_tasks=None,
-            upstream_task_results=None,
+            keyword_results=None,
             flow=None):
         flow = flow or prefect.context.Context.get('flow')
         if flow is None:
@@ -92,7 +96,7 @@ class Task(Serializable):
             task=self,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
-            upstream_results=upstream_task_results)
+            keyword_results=keyword_results)
         return prefect.core.task_result.TaskResult(flow=flow, task=self)
 
     # Run  --------------------------------------------------------------------
