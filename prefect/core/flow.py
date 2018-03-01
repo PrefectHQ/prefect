@@ -334,27 +334,27 @@ class Flow(Serializable):
 
     # Execution  ---------------------------------------------------------------
 
-    # def run(
-    #         self,
-    #         parameters=None,
-    #         executor=None,
-    #         return_all_task_states=False,
-    #         **kwargs):
-    #     """
-    #     Run the flow.
-    #     """
-    #     runner = prefect.engine.flow_runner.FlowRunner(
-    #         flow=self, executor=executor)
+    def run(
+            self,
+            parameters=None,
+            executor=None,
+            return_all_task_states=False,
+            **kwargs):
+        """
+        Run the flow.
+        """
+        runner = prefect.engine.flow_runner.FlowRunner(
+            flow=self, executor=executor)
 
-    #     parameters = parameters or {}
-    #     for p in self.parameters():
-    #         if p in kwargs:
-    #             parameters[p] = kwargs.pop(p)
+        parameters = parameters or {}
+        for p in self.parameters():
+            if p in kwargs:
+                parameters[p] = kwargs.pop(p)
 
-    #     return runner.run(
-    #         parameters=parameters,
-    #         return_all_task_states=return_all_task_states,
-    #         **kwargs)
+        return runner.run(
+            parameters=parameters,
+            return_all_task_states=return_all_task_states,
+            **kwargs)
 
     # Serialization ------------------------------------------------------------
 
