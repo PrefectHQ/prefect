@@ -248,6 +248,7 @@ class PrefectJSONDecoder(json.JSONDecoder):
 
 
 # Monkey-patch the builtin JSON module with new serialization features
+json.JSONEncoder.default = PrefectJSONEncoder.default
 json._default_encoder = PrefectJSONEncoder()
 json._default_decoder = PrefectJSONDecoder()
 
