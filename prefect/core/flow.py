@@ -1,13 +1,16 @@
-import uuid
 import inspect
-from typing import Iterable, Mapping
+import tempfile
+import uuid
 from contextlib import contextmanager
+from typing import Iterable, Mapping
+
+import graphviz
 
 import prefect
 import prefect.context
-from prefect.core.task import Task
 from prefect.core.edge import Edge
 from prefect.core.parameter import Parameter
+from prefect.core.task import Task
 from prefect.utilities.serializers import Serializable
 
 
@@ -372,3 +375,17 @@ class Flow(Serializable):
         self.id = serialized['id']
         self.tasks = serialized['tasks']
         self.edges = serialized['edges']
+
+    # Visualization ------------------------------------------------------------
+
+    def visualize(self):
+        graph = graphviz.Digraph()
+
+        for t in self.tasks:
+            graph.node(t.id, t.name)
+
+        for e in self.edges:
+            graph.edge(e.upstream_task.id, e.downstream_task.id, e.key)
+
+        with tempfile.NamedTemporaryFile() as tmp:
+            graph.render(tmp.name, view=True)
