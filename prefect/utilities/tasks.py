@@ -15,18 +15,18 @@ def as_task(x, return_constant=True):
     # sequences
     elif isinstance(x, list):
         tasks = [as_task(t, return_constant=False) for t in x]
-        return prefect.tasks.collections.list_(*tasks).task
+        return prefect.tasks.collections.List(*tasks).task
     elif isinstance(x, tuple):
         tasks = [as_task(t, return_constant=False) for t in x]
-        return prefect.tasks.collections.tuple_(*tasks).task
+        return prefect.tasks.collections.Tuple(*tasks).task
     elif isinstance(x, set):
         tasks = [as_task(t, return_constant=False) for t in x]
-        return prefect.tasks.collections.set_(*tasks).task
+        return prefect.tasks.collections.Set(*tasks).task
 
     # collections
     elif isinstance(x, dict):
         task_dict = {k: as_task(v, return_constant=False) for k, v in x.items()}
-        return prefect.tasks.collections.dict_(**task_dict).task
+        return prefect.tasks.collections.Dict(**task_dict).task
 
     # functions
     elif callable(x):
@@ -41,14 +41,16 @@ def as_task(x, return_constant=True):
         return x
 
 
-class TaskFactory:
+@wrapt.decorator
+def task_factory(cls, instance, args, kwargs):
+    """
+    A decorator for marking a Task class as a factory.
 
-    def __init__(self, task):
-        self.task = task
+    Task factories automatically instantiate the class and calls it on the
+    provided arguments
+    """
+    return cls(**kwargs.pop('task_kwargs', {}))(*args, **kwargs)
 
-    def __call__(self, *args, **kwargs):
-        task = self.task.copy()
-        return task(*args, **kwargs)
 
 
 def task(**task_init_kwargs):

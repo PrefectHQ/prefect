@@ -1,15 +1,9 @@
 import inspect
 from prefect import Task
+from prefect.utilities.tasks import task_factory
 
-def operator(cls):
-    def wrapper(*args):
-        task_instance = cls()
-        callargs = inspect.getcallargs(task_instance.run, *args)
-        callargs.pop(next(k for k, v in callargs.items() if v is task_instance))
-        return task_instance(**callargs)
-    return wrapper
 
-@operator
+@task_factory
 class And(Task):
     """
     Evaluates x and y
@@ -19,7 +13,7 @@ class And(Task):
         return bool(x and y)
 
 
-@operator
+@task_factory
 class Or(Task):
     """
     Evaluates x or y
@@ -29,7 +23,7 @@ class Or(Task):
         return bool(x or y)
 
 
-@operator
+@task_factory
 class Not(Task):
     """
     Evaluates not x
@@ -39,7 +33,7 @@ class Not(Task):
         return bool(not (x))
 
 
-@operator
+@task_factory
 class Eq(Task):
     """
     Evaluates x == y
@@ -49,7 +43,7 @@ class Eq(Task):
         return bool(x == y)
 
 
-@operator
+@task_factory
 class Neq(Task):
     """
     Evaluates x != y
@@ -59,7 +53,7 @@ class Neq(Task):
         return bool(x != y)
 
 
-@operator
+@task_factory
 class GTE(Task):
     """
     Evaluates x ≥ y
@@ -69,7 +63,7 @@ class GTE(Task):
         return bool(x >= y)
 
 
-@operator
+@task_factory
 class GT(Task):
     """
     Evaluates x > y
@@ -79,7 +73,7 @@ class GT(Task):
         return bool(x > y)
 
 
-@operator
+@task_factory
 class LTE(Task):
     """
     Evaluates x ≤ y
@@ -89,7 +83,7 @@ class LTE(Task):
         return bool(x <= y)
 
 
-@operator
+@task_factory
 class LT(Task):
     """
     Evaluates x < y

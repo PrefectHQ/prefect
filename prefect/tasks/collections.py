@@ -1,21 +1,35 @@
 from prefect import Task
-from prefect.utilities.tasks import TaskFactory
+from prefect.utilities.tasks import task_factory
 
 
 class Sequence(Task):
 
-    def __init__(self, fn, name):
-        self.fn = fn
-        super().__init__(name=name)
-
-    def run(self, **task_results):
-        return self.fn(task_results.values())
-
     def __call__(self, *args):
-        kwargs = {'arg_{}'.format(i+1): a for i, a in enumerate(args)}
+        kwargs = {'arg_{}'.format(i + 1): a for i, a in enumerate(args)}
         return super().__call__(**kwargs)
 
 
+@task_factory
+class List(Sequence):
+
+    def run(self, **task_results):
+        return list(task_results.values())
+
+
+@task_factory
+class Set(Sequence):
+
+    def run(self, **task_results):
+        return set(task_results.values())
+
+
+@task_factory
+class Tuple(Sequence):
+
+    def run(self, **task_results):
+        return tuple(task_results.values())
+
+@task_factory
 class Dict(Task):
 
     def run(self, *, base_dict=None, **task_results):
@@ -23,9 +37,3 @@ class Dict(Task):
         result.update(base_dict or {})
         result.update(task_results)
         return result
-
-
-list_ = TaskFactory(Sequence(fn=list, name='list'))
-set_ = TaskFactory(Sequence(fn=set, name='set'))
-tuple_ = TaskFactory(Sequence(fn=tuple, name='tuple'))
-dict_ = TaskFactory(Dict(name='dict'))
