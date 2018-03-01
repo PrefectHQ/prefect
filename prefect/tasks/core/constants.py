@@ -7,10 +7,12 @@ class Constant(prefect.Task):
 
         self.value = value
 
-        # set the name from the fn
+        # set the name from the value
         if name is None:
-            name = 'Constant[{type}]'.format(type=type(value).__name__)
-            autorename = True
+            try:
+                name = repr(self.value)
+            except ValueError:
+                name = 'Constant[{}]'.format(type(value).__name__)
 
         super().__init__(name=name, **kwargs)
 
