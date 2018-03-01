@@ -1,5 +1,5 @@
 import attr
-from prefect.utilities.serialize import Serializable
+from prefect.utilities.serializers import Serializable
 from prefect.core.task import Task
 from prefect.core.flow import Flow
 

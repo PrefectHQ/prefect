@@ -1,4 +1,4 @@
-from prefect.utilities.serialize import Serializable
+from prefect.utilities.serializers import Serializable
 
 class State(Serializable):
 

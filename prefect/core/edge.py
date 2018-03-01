@@ -1,6 +1,6 @@
 import uuid
 from prefect.utilities.strings import is_valid_identifier
-from prefect.utilities.serialize import Serializable
+from prefect.utilities.serializers import Serializable
 
 
 class Edge(Serializable):

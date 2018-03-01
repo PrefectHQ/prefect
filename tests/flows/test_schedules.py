@@ -1,6 +1,6 @@
 import json
 import datetime
-from prefect.flows import schedules
+from prefect import schedules
 
 
 def test_date_schedule():

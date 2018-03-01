@@ -1,6 +1,6 @@
 import pytest
 from prefect import signals
-from prefect.tasks import triggers
+from prefect import triggers
 from prefect.engine.state import TaskRunState
 
 

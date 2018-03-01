@@ -2,7 +2,7 @@ from functools import wraps
 from contextlib import contextmanager
 import prefect
 from prefect.engine.task_runner import TaskRunner
-from prefect.utilities.serialize import Serializable
+from prefect.utilities.serializers import Serializable
 
 
 def run_in_executor(method):

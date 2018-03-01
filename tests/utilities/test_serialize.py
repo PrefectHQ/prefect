@@ -4,7 +4,8 @@ import json
 import pytest
 
 from prefect.signals import SerializationError
-from prefect.utilities.serialize import (Encrypted, Serializable, serializable)
+from prefect.utilities.serializers import Serializable
+from prefect.utilities.json import EncryptedCodec
 
 
 def default_load_json(obj):
@@ -40,7 +41,7 @@ def test_json_codec_multiple():
 
 def test_json_codec_encrypted():
     x = 1
-    j = json.dumps(Encrypted(x))
+    j = json.dumps(EncryptedCodec(x))
     assert len(default_load_json(j)['__encrypted__']) > 20
     assert x == json.loads(j)
 
@@ -68,7 +69,7 @@ def test_serialize_objects():
 
 
 def test_encrypted():
-    x = Encrypted(Serializable(1, y=2))
+    x = EncryptedCodec(Serializable(1, y=2))
     assert '__encrypted__' in default_load_json(json.dumps(x))
     obj = json.loads(json.dumps(x))
     assert isinstance(obj, Serializable)
@@ -85,20 +86,20 @@ def test_unserializable_objects():
         NotSerializeableVarArgs(1, 2, 3)
 
 
-@serializable
-def serialize_fn():
-    return 1
+# @serializable
+# def serialize_fn():
+#     return 1
 
 
-def test_serialize_functions():
+# def test_serialize_functions():
 
-    fn = json.loads(json.dumps(serialize_fn))
-    assert fn() == 1
+#     fn = json.loads(json.dumps(serialize_fn))
+#     assert fn() == 1
 
-    with pytest.raises(SerializationError):
+#     with pytest.raises(SerializationError):
 
-        @serializable
-        def cant_serialize_fn():
-            return 1
+#         @serializable
+#         def cant_serialize_fn():
+#             return 1
 
-        json.loads(json.dumps(cant_serialize_fn))
+#         json.loads(json.dumps(cant_serialize_fn))
