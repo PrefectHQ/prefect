@@ -76,11 +76,11 @@ class Edge(Serializable):
         return hash(self._cmp)
 
     def serialize(self):
-        serialized = super().serialize(self)
+        serialized = super().serialize()
         serialized.update(
             {
                 'upstream_task': self.upstream_task,
                 'downstream_task': self.downstream_task,
-                'key': key
+                'key': self.key
             })
         return serialized
