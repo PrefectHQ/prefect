@@ -18,7 +18,8 @@ class Task(Serializable):
             max_retries=0,
             retry_delay=timedelta(minutes=1),
             timeout=None,
-            trigger=None):
+            trigger=None,
+            secrets=None):
         self.id = id or uuid.uuid4()
         self.name = name or type(self).__name__
         self.description = description
@@ -36,6 +37,7 @@ class Task(Serializable):
         flow = prefect.context.Context.get('flow')
         if flow:
             flow.add_task(self)
+        self.secrets = secrets or {}
 
     def __repr__(self):
         return '<Task: "{self.name}" type={cls} id={id}>'.format(
