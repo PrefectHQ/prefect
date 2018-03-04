@@ -3,7 +3,7 @@ import tempfile
 import uuid
 from contextlib import contextmanager
 from typing import Iterable, Mapping
-
+from weakref import WeakValueDictionary
 import graphviz
 
 import prefect
@@ -13,6 +13,7 @@ from prefect.core.parameter import Parameter
 from prefect.core.task import Task
 from prefect.utilities.serializers import Serializable
 
+FLOW_REGISTRY = WeakValueDictionary()
 
 class Flow(Serializable):
 
@@ -43,6 +44,8 @@ class Flow(Serializable):
                 upstream_task=e.upstream_task,
                 downstream_task=e.downstream_task,
                 key=e.key)
+
+        FLOW_REGISTRY[self.id] = self
 
     @property
     def id(self):
@@ -216,36 +219,13 @@ class Flow(Serializable):
                 self.add_task(task)
 
             for t in upstream_tasks or []:
-                if isinstance(t, prefect.core.task_result.TaskResult):
-                    self.merge(t.flow)
-                    t = t.task
                 self.add_edge(upstream_task=t, downstream_task=task)
 
             for t in downstream_tasks or []:
-                if isinstance(t, prefect.core.task_result.TaskResult):
-                    self.merge(t.flow)
-                    t = t.task
                 self.add_edge(upstream_task=task, downstream_task=t)
 
             for key, t in (keyword_results or {}).items():
-                # self.set_keyword_dependency()
-                # if isinstance(t, list)):
-                #     if any(isinstance(ti, (Task, TaskResult)):
-                #         if i
-                #         result =
-
-                if isinstance(t, prefect.core.task_result.TaskResult):
-                    self.merge(t.flow)
-                    t = t.task
-                t = prefect.utilities.tasks.as_task(t)
                 self.add_edge(upstream_task=t, downstream_task=task, key=key)
-
-    # def _set_keyword_result(self, task, key, result):
-    #     if isinstance(result, TaskResult):
-    #         self.merge(result.flow)
-    #         result = result.task
-    #     result = prefect.utilities.tasks.as_task(result)
-    #     self.add_edge(upstream_task=result, downstream_task)
 
     def _validate_task_signature(self, task):
         varargs = prefect.utilities.functions.get_var_pos_arg(task.run)
@@ -372,9 +352,7 @@ class Flow(Serializable):
         return serialized
 
     def after_deserialize(self, serialized):
-        self.id = serialized['id']
-        self.tasks = serialized['tasks']
-        self.edges = serialized['edges']
+        FLOW_REGISTRY[self.id] = self
 
     # Visualization ------------------------------------------------------------
 

@@ -78,6 +78,14 @@ class Task(Serializable):
     def short_id(self):
         return self._id[:8]
 
+    @property
+    def flow(self):
+        return prefect.utilities.flows.get_flow_by_id(self._flow_id)
+
+    @flow.setter
+    def flow(self, flow):
+        self._flow_id = flow.id
+
     # Dependencies -------------------------------------------------------------
 
     def set_dependencies(
