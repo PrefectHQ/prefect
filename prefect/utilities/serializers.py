@@ -18,17 +18,25 @@ class SerializeAsDict(JSONCodec):
 
     def serialize(self):
 
+        if hasattr(self.value, '__getstate__'):
+            dct = self.value.__getstate__().copy()
+        else:
+            dct = self.value.__dict__.copy()
+
+        serialized_value = self.value.serialize()
+
+        get_value_from_serialized = []
+        for k, v in list(dct.items()):
+            if v == serialized_value.get(k, object()):
+                get_value_from_serialized.append(k)
+                del dct[k]
+
         serialized = dict(
             type=type(self.value),
-            serialized=self.value.serialize(),
-            dict=self.value.__dict__.copy(),
-            copy_keys=[],
+            dict=dct,
+            get_value_from_serialized=get_value_from_serialized,
+            serialized=serialized_value,
             prefect_version=prefect.__version__)
-
-        for k, v in list(serialized['dict'].items()):
-            if v == serialized['serialized'].get(k):
-                del serialized['dict'][k]
-                serialized['copy_keys'].append(k)
 
         return serialized
 
@@ -37,7 +45,7 @@ class SerializeAsDict(JSONCodec):
         instance = object.__new__(obj['type'])
         serialized = obj.get('serialized', {})
         new_dict = obj.get('dict', {})
-        for k in obj.get('copy_keys', []):
+        for k in obj.get('get_value_from_serialized', []):
             new_dict[k] = serialized.get(k)
         instance.__dict__.update(new_dict)
         instance.after_deserialize(serialized)
@@ -96,15 +104,11 @@ class Serializable(metaclass=SerializableMetaclass):
             callargs['**kwargs'] = callargs.pop(var_k, {})
 
             # identify the argument corresponding to *args
-            var_a = functions.get_var_pos_arg(instance.__init__)
-            if var_a:
-                raise SerializationError(
-                    'Serializable classes do not support *args in __init__, '
-                    'because all arguments must be serializable with a known '
-                    'keyword. Consider replacing *args with an explicit '
-                    'sequence.')
+            var_pos = functions.get_var_pos_arg(instance.__init__)
+            callargs['*args'] = callargs.pop(var_pos, {})
 
             instance._init_args = callargs
+
         return instance
 
     def __init__(self):
