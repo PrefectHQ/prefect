@@ -1,3 +1,4 @@
+import copy
 import inspect
 import tempfile
 import uuid
@@ -45,7 +46,7 @@ class Flow(Serializable):
                 downstream_task=e.downstream_task,
                 key=e.key)
 
-        FLOW_REGISTRY[self.id] = self
+        self.register()
 
     @property
     def id(self):
@@ -73,6 +74,17 @@ class Flow(Serializable):
             cls=type(self).__name__,
             self=self,
             v=' version={}'.format(self.version) if self.version else '')
+
+    def register(self):
+        FLOW_REGISTRY[self.id] = self
+
+    def copy(self):
+        new = copy.copy(self)
+        new.id = uuid.uuid4()
+        new.register()
+        new.tasks = self.tasks.copy()
+        new.edges = self.edges.copy()
+        return new
 
     # Context Manager ----------------------------------------------------------
 
@@ -352,7 +364,7 @@ class Flow(Serializable):
         return serialized
 
     def after_deserialize(self, serialized):
-        FLOW_REGISTRY[self.id] = self
+        self.register()
 
     # Visualization ------------------------------------------------------------
 

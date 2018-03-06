@@ -42,7 +42,7 @@ class Task(Serializable):
             flow.add_task(self)
         self.secrets = secrets or {}
 
-        TASK_REGISTRY[self.id] = self
+        self.register()
 
     def __repr__(self):
         return '<Task: "{self.name}" type={cls} id={id}>'.format(
@@ -66,9 +66,13 @@ class Task(Serializable):
         return self.set_dependencies(
             upstream_tasks=_wait_for, keyword_results=callargs)
 
+    def register(self):
+        TASK_REGISTRY[self.id] = self
+
     def copy(self):
         new = copy.copy(self)
         new.id = uuid.uuid4()
+        new.register()
         return new
 
     @property
@@ -161,4 +165,4 @@ class Task(Serializable):
 
     def after_deserialize(self, serialized):
         self.id = serialized['id']
-        TASK_REGISTRY[self.id] = self
+        self.register()
