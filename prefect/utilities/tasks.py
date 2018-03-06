@@ -74,3 +74,10 @@ def task(**task_init_kwargs):
         return task(*args, **kwargs)
 
     return task_factory
+
+def get_task_by_id(id):
+    """
+    Retrieves a task by its ID. This will only work for tasks that are alive
+    in the current interpreter.
+    """
+    return prefect.core.task.TASK_REGISTRY.get(id)

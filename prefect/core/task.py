@@ -1,3 +1,4 @@
+from weakref import WeakValueDictionary
 import copy
 import uuid
 import inspect
@@ -7,6 +8,7 @@ from typing import Iterable, Mapping
 import prefect
 from prefect.utilities.serializers import Serializable
 
+TASK_REGISTRY = WeakValueDictionary()
 
 class Task(Serializable):
 
@@ -38,6 +40,8 @@ class Task(Serializable):
         if flow:
             flow.add_task(self)
         self.secrets = secrets or {}
+
+        TASK_REGISTRY[self.id] = self
 
     def __repr__(self):
         return '<Task: "{self.name}" type={cls} id={id}>'.format(
@@ -156,3 +160,4 @@ class Task(Serializable):
 
     def after_deserialize(self, serialized):
         self.id = serialized['id']
+        TASK_REGISTRY[self.id] = self
