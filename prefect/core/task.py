@@ -6,6 +6,7 @@ from datetime import timedelta
 from typing import Iterable, Mapping
 
 import prefect
+from prefect.context import Context
 from prefect.utilities.serializers import Serializable
 
 TASK_REGISTRY = WeakValueDictionary()
@@ -36,7 +37,7 @@ class Task(Serializable):
         #     raise TypeError('Expected a Trigger object.')
         self.trigger = trigger
 
-        flow = prefect.context.Context.get('flow')
+        flow = Context.get('flow')
         if flow:
             flow.add_task(self)
         self.secrets = secrets or {}
