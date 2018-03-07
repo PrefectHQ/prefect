@@ -1,3 +1,4 @@
+from prefect.utilities.strings import is_valid_identifier
 import copy
 import inspect
 import tempfile
@@ -9,12 +10,126 @@ import graphviz
 
 import prefect
 import prefect.context
-from prefect.core.edge import Edge
-from prefect.core.parameter import Parameter
-from prefect.core.task import Task
+from prefect.task import Task, Parameter
+from prefect.utilities.tasks import as_task_result
 from prefect.utilities.serializers import Serializable
 
 FLOW_REGISTRY = WeakValueDictionary()
+
+
+class TaskResult:
+    """
+    TaskResults represent the execution of a specific task in a given flow.
+    """
+
+    def __init__(self, task, flow=None):
+        if flow is None:
+            flow = Flow()
+        flow.add_task(task)
+        self.task = task
+        self.flow = flow
+
+    def __getitem__(self, index):
+        name = '{}[{}]'.format(self.task.name, index)
+        index_task = IndexedTaskResult(index=index, name=name)
+        return index_task(task_result=self)
+
+    def set_dependencies(
+            self, upstream_tasks=None, downstream_tasks=None,
+            keyword_results=None):
+
+        self.flow.set_dependencies(
+            task=self,
+            upstream_tasks=upstream_tasks,
+            downstream_tasks=downstream_tasks,
+            keyword_results=keyword_results)
+
+    def wait_for(self, task_results):
+        self.set_dependencies(upstream_tasks=task_results)
+
+
+class Edge(Serializable):
+
+    def __init__(self, upstream_task, downstream_task, key=None, id=None):
+        """
+        Edges represent connections between Tasks.
+
+        At a minimum, edges link an upstream_task and a downstream_task
+        indicating that the downstream task shouldn't run until the upstream
+        task is complete.
+
+        In addition, edges can specify a key that describe how upstream results
+        are passed to the downstream task.
+
+        Args: upstream_task (str): the id of a task that must run before the
+            downstream_task
+
+            downstream_task (str): the id of a task that will be run after the
+                upstream_task. The upstream task state is passed to the
+                downstream task's trigger function to determine whether the
+                downstream task should run.
+
+            key (str): Optional. Passing a key indicates
+                that the upstream result should be passed to the downstream
+                task as a keyword argument.
+
+        The key indicates that the result of the upstream task should be passed
+        to the downstream task under the key.
+        """
+        self.id = id or uuid.uuid4()
+        self.upstream_task = upstream_task
+        self.downstream_task = downstream_task
+
+        if key is not None:
+            if not is_valid_identifier(key):
+                raise ValueError(
+                    'Key must be a valid identifier (received "{}")'.format(
+                        key))
+        self.key = key
+
+    @property
+    def id(self):
+        return self._id
+
+    @id.setter
+    def id(self, value):
+        if not isinstance(value, uuid.UUID):
+            value = uuid.UUID(value)
+        self._id = str(value)
+
+    # Comparison --------------------------------------------------------------
+
+    @property
+    def _cmp(self):
+        return (self.upstream_task, self.downstream_task, self.key)
+
+    def __repr__(self):
+
+        if self.key:
+            return '<{cls}: {u} to {d}{k}>'.format(
+                cls=type(self).__name__,
+                u=self.upstream_task.short_id,
+                d=self.downstream_task.short_id,
+                k=' (key={})'.format(self.key) if self.key else '')
+
+    def __eq__(self, other):
+        if type(self) == type(other):
+            return self._cmp == other._cmp
+        return False
+
+    def __hash__(self):
+        return hash(self._cmp)
+
+    def serialize(self):
+        serialized = super().serialize()
+        serialized.update(
+            {
+                'upstream_task': self.upstream_task,
+                'downstream_task': self.downstream_task,
+                'key': self.key
+            })
+        return serialized
+
 
 class Flow(Serializable):
 
@@ -48,20 +163,6 @@ class Flow(Serializable):
 
         self.register()
 
-    @property
-    def id(self):
-        return self._id
-
-    @id.setter
-    def id(self, value):
-        if not isinstance(value, uuid.UUID):
-            value = uuid.UUID(value)
-        self._id = str(value)
-
-    @property
-    def short_id(self):
-        return self._id[:8]
-
     def __eq__(self, other):
         if type(self) == type(other):
             s = (self.name, self.version, self.tasks, self.edges)
@@ -75,6 +176,11 @@ class Flow(Serializable):
             self=self,
             v=' version={}'.format(self.version) if self.version else '')
 
+    def __iter__(self):
+        yield from self.sorted_tasks()
+
+    # Identification  ----------------------------------------------------------
+
     def register(self):
         FLOW_REGISTRY[self.id] = self
 
@@ -85,6 +191,20 @@ class Flow(Serializable):
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
         return new
+
+    @property
+    def id(self):
+        return self._id
+
+    @id.setter
+    def id(self, value):
+        if not isinstance(value, uuid.UUID):
+            value = uuid.UUID(value)
+        self._id = str(value)
+
+    @property
+    def short_id(self):
+        return self._id[:8]
 
     # Context Manager ----------------------------------------------------------
 
@@ -128,16 +248,29 @@ class Flow(Serializable):
 
     # Graph --------------------------------------------------------------------
 
-    def __iter__(self):
-        yield from self.sorted_tasks()
+    @contextmanager
+    def restore_graph_on_error(self):
+        """
+        A context manager that saves the Flow's graph (tasks & edges) and
+        restores it if an error is raised. It can be used to test potentially
+        erroneous configurations (for example, ones that might include cycles)
+        without modifying the graph.
+
+        with flow.restore_graph_on_error():
+            # this will raise an error, but the flow graph will not be modified
+            add_cycle_to_graph(flow)
+        """
+        tasks, edges = self.tasks.copy(), self.edges.copy()
+        try:
+            yield
+        except Exception:
+            self.tasks, self.edges = tasks, edges
+            raise
 
     def add_task(self, task):
         if not isinstance(task, Task):
             raise TypeError(
                 'Tasks must be Task instances (received {})'.format(type(task)))
-
-        elif task in self.tasks:
-            raise ValueError('Task is already in the flow.')
 
         elif task not in self.tasks and task.id:
             if next((t for t in self.tasks if t.id == task.id), None):
@@ -154,12 +287,19 @@ class Flow(Serializable):
         self.tasks.add(task)
 
     def add_edge(self, upstream_task, downstream_task, key=None):
+        if isinstance(upstream_task, TaskResult):
+            upstream_task = upstream_task.task
+        if isinstance(downstream_task, TaskResult):
+            downstream_task = downstream_task.task
 
         edges_to_task = self.edges_to(downstream_task)
+
         if key and key in {e.key for e in edges_to_task}:
             raise ValueError(
-                'The argument "{a}" for task {t} has already been '
-                'assigned.'.format(a=key, t=downstream_task))
+                'Argument "{a}" for task {t} has already been assigned in this '
+                'flow. If you are trying to call the task again with new '
+                'arguments, call Task.copy() before adding the result to this '
+                'flow.'.format(a=key, t=downstream_task))
 
         edge = Edge(
             upstream_task=upstream_task,
@@ -180,73 +320,25 @@ class Flow(Serializable):
             # check for cycles
             self.sorted_tasks()
 
-    # Dependencies ------------------------------------------------------------
-
-    @contextmanager
-    def restore_graph_on_error(self):
-        """
-        A context manager that saves the Flow's graph (tasks & edges) and
-        restores it if an error is raised. It can be used to test potentially
-        erroneous configurations (for example, ones that might include cycles)
-        without modifying the graph.
-
-        with flow.restore_graph_on_error():
-            # this will raise an error, but the flow graph will not be modified
-            add_cycle_to_graph(flow)
-        """
-        tasks, edges = self.tasks.copy(), self.edges.copy()
-        try:
-            yield
-        except Exception:
-            self.tasks, self.edges = tasks, edges
-            raise
-
-    def set_dependencies(
-            self,
-            task: Task,
-            upstream_tasks: Iterable[Task] = None,
-            downstream_tasks: Iterable[Task] = None,
-            keyword_results: Mapping[str, Task] = None):
-        """
-        Convenience function for adding task dependencies on upstream tasks.
-
-        Args:
-            task (Task): a Task that will become part of the Flow
-
-            upstream_tasks ([Task]): Tasks that will run before the task runs
-
-            downstream_tasks ([Task]): Tasks that will run after the task runs
-
-            keyword_results ({key: Task}): The results of these tasks
-                will be provided to the task under the specified keyword
-                arguments.
-        """
+    def update(self, flow):
         with self.restore_graph_on_error():
 
-            # validate the task
-            self._validate_task_signature(task)
+            for task in flow.tasks:
+                if task not in self.tasks:
+                    self.add_task(task)
 
-            # add the task to the graph
-            if task not in self.tasks:
-                self.add_task(task)
+            for edge in flow.edges:
+                if edge not in self.edges:
+                    self.add_edge(
+                        upstream_task=edge.upstream_task,
+                        downstream_task=edge.downstream_task,
+                        key=edge.key)
 
-            for t in upstream_tasks or []:
-                self.add_edge(upstream_task=t, downstream_task=task)
-
-            for t in downstream_tasks or []:
-                self.add_edge(upstream_task=task, downstream_task=t)
-
-            for key, t in (keyword_results or {}).items():
-                self.add_edge(upstream_task=t, downstream_task=task, key=key)
-
-    def _validate_task_signature(self, task):
-        varargs = prefect.utilities.functions.get_var_pos_arg(task.run)
-        if varargs:
-            raise ValueError(
-                'Tasks with variable positional arguments (*args) are not '
-                'supported, because all Prefect arguments are stored as '
-                'keywords. As a workaround, consider modifying the run() '
-                'method to accept **kwargs and feeding the values to *args.')
+    def add_task_results(self, *task_results):
+        with self.restore_graph_on_error():
+            for t in task_results:
+                self.add_task(t.task)
+                self.update(t.flow)
 
     def edges_to(self, task):
         return set(e for e in self.edges if e.downstream_task == task)
@@ -259,23 +351,6 @@ class Flow(Serializable):
 
     def downstream_tasks(self, task):
         return set(e.downstream_task for e in self.edges_from(task))
-
-    def merge(self, flow):
-        with self.restore_graph_on_error():
-
-            if flow.id != self.id:
-                raise ValueError('Flow ids do not match.')
-
-            for task in flow.tasks:
-                if task not in self.tasks:
-                    self.add_task(task)
-
-            for edge in flow.edges:
-                if edge not in self.edges:
-                    self.add_edge(
-                        upstream_task=edge.upstream_task,
-                        downstream_task=edge.downstream_task,
-                        key=edge.key)
 
     def sorted_tasks(self, root_tasks=None):
 
@@ -323,6 +398,65 @@ class Flow(Serializable):
                 raise ValueError('Flows must be acyclic!')
 
         return tuple(sorted_tasks)
+
+    # Dependencies ------------------------------------------------------------
+
+    def set_dependencies(
+            self,
+            task: Task,
+            upstream_tasks: Iterable[Task] = None,
+            downstream_tasks: Iterable[Task] = None,
+            keyword_results: Mapping[str, Task] = None):
+        """
+        Convenience function for adding task dependencies on upstream tasks.
+
+        Args:
+            task (Task): a Task that will become part of the Flow
+
+            upstream_tasks ([Task]): Tasks that will run before the task runs
+
+            downstream_tasks ([Task]): Tasks that will run after the task runs
+
+            keyword_results ({key: Task}): The results of these tasks
+                will be provided to the task under the specified keyword
+                arguments.
+        """
+        with self.restore_graph_on_error():
+
+            result = as_task_result(task)
+            task = result.task
+
+            # update this flow with the result
+            self.add_task_results(result)
+
+            # validate the task
+            self._validate_task_signature(task)
+
+            for t in upstream_tasks or []:
+                t = as_task_result(t)
+                self.add_task_results(t)
+                self.add_edge(upstream_task=t, downstream_task=task)
+
+            for t in downstream_tasks or []:
+                t = as_task_result(t)
+                self.add_task_results(t)
+                self.add_edge(upstream_task=task, downstream_task=t)
+
+            for key, t in (keyword_results or {}).items():
+                t = as_task_result(t)
+                self.add_task_results(t)
+                self.add_edge(upstream_task=t, downstream_task=task, key=key)
+
+        return TaskResult(task=task, flow=self)
+
+    def _validate_task_signature(self, task):
+        varargs = prefect.utilities.functions.get_var_pos_arg(task.run)
+        if varargs:
+            raise ValueError(
+                'Tasks with variable positional arguments (*args) are not '
+                'supported, because all Prefect arguments are stored as '
+                'keywords. As a workaround, consider modifying the run() '
+                'method to accept **kwargs and feeding the values to *args.')
 
     # Execution  ---------------------------------------------------------------
 
@@ -379,3 +513,4 @@ class Flow(Serializable):
 
         with tempfile.NamedTemporaryFile() as tmp:
             graph.render(tmp.name, view=True)
+

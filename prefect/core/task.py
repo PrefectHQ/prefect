@@ -1,15 +1,15 @@
-from weakref import WeakValueDictionary
 import copy
-import uuid
 import inspect
+import uuid
 from datetime import timedelta
-from typing import Iterable, Mapping
+from weakref import WeakValueDictionary
 
 import prefect
 from prefect.context import Context
 from prefect.utilities.serializers import Serializable
 
 TASK_REGISTRY = WeakValueDictionary()
+
 
 class Task(Serializable):
 
@@ -33,8 +33,6 @@ class Task(Serializable):
 
         if trigger is None:
             trigger = prefect.triggers.all_successful
-        # elif not isinstance(trigger, prefect.triggers.Trigger):
-        #     raise TypeError('Expected a Trigger object.')
         self.trigger = trigger
 
         flow = Context.get('flow')
@@ -51,29 +49,7 @@ class Task(Serializable):
     def __hash__(self):
         return id(self)
 
-    def __getitem__(self, index):
-        return self()[index]
-
-    def __call__(self, *args, _wait_for=None, **kwargs):
-        # this will raise an error if callargs weren't all provided
-        signature = inspect.signature(self.run)
-        callargs = dict(signature.bind(*args, **kwargs).arguments)
-
-        # bind() compresses all variable keyword arguments, so we expand them
-        var_kw_arg = prefect.utilities.functions.get_var_kw_arg(self.run)
-        callargs.update(callargs.pop(var_kw_arg, {}))
-
-        return self.set_dependencies(
-            upstream_tasks=_wait_for, keyword_results=callargs)
-
-    def register(self):
-        TASK_REGISTRY[self.id] = self
-
-    def copy(self):
-        new = copy.copy(self)
-        new.id = uuid.uuid4()
-        new.register()
-        return new
+    # Identification  ----------------------------------------------------------
 
     @property
     def id(self):
@@ -89,34 +65,14 @@ class Task(Serializable):
     def short_id(self):
         return self._id[:8]
 
-    @property
-    def flow(self):
-        return prefect.utilities.flows.get_flow_by_id(self._flow_id)
+    def register(self):
+        TASK_REGISTRY[self.id] = self
 
-    @flow.setter
-    def flow(self, flow):
-        self._flow_id = flow.id
-
-    # Dependencies -------------------------------------------------------------
-
-    def set_dependencies(
-            self,
-            *,
-            upstream_tasks=None,
-            downstream_tasks=None,
-            keyword_results=None,
-            flow=None):
-        flow = flow or prefect.context.Context.get('flow')
-        if flow is None:
-            raise ValueError(
-                'Dependencies can only be set within a Flow context.')
-
-        flow.set_dependencies(
-            task=self,
-            upstream_tasks=upstream_tasks,
-            downstream_tasks=downstream_tasks,
-            keyword_results=keyword_results)
-        return prefect.core.task_result.TaskResult(flow=flow, task=self)
+    def copy(self):
+        new = copy.copy(self)
+        new.id = uuid.uuid4()
+        new.register()
+        return new
 
     # Run  --------------------------------------------------------------------
 
@@ -144,7 +100,25 @@ class Task(Serializable):
         """
         raise NotImplementedError()
 
-    # Serialize ---------------------------------------------------------------
+    # Dependencies -------------------------------------------------------------
+
+    def __call__(self, *args, **kwargs):
+        # this will raise an error if callargs weren't all provided
+        signature = inspect.signature(self.run)
+        callargs = dict(signature.bind(*args, **kwargs).arguments)
+
+        # bind() compresses all variable keyword arguments, so we expand them
+        var_kw_arg = prefect.utilities.functions.get_var_kw_arg(self.run)
+        callargs.update(callargs.pop(var_kw_arg, {}))
+
+        flow = Context.get('flow')
+        if flow is None:
+            flow = prefect.flow.Flow()
+        return flow.set_dependencies(task=self, keyword_results=callargs)
+
+    # Operators ----------------------------------------------------------------
+
+    # Serialize ----------------------------------------------------------------
 
     def serialize(self):
 
@@ -166,3 +140,36 @@ class Task(Serializable):
     def after_deserialize(self, serialized):
         self.id = serialized['id']
         self.register()
+
+
+class Parameter(Task):
+    """
+    A Parameter is a special task that defines a required flow input.
+    """
+
+    def __init__(self, name, default=None, required=True):
+        """
+        Args:
+            name (str): the Parameter name.
+
+            required (bool): If True, the Parameter is required and the default
+                value is ignored.
+
+            default (any): A default value for the parameter. If the default
+                is not None, the Parameter will not be required.
+        """
+        if default is not None:
+            required = False
+
+        self.required = required
+        self.default = default
+
+        super().__init__(name=name)
+
+    def run(self):
+        params = Context.get('parameters', {})
+        if self.required and self.name not in params:
+            raise prefect.signals.FAIL(
+                'Parameter "{}" was required but not provided.'.format(
+                    self.name))
+        return params.get(self.name, self.default)
