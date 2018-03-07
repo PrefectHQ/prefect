@@ -4,8 +4,8 @@ import datetime
 import pytest
 
 import prefect
-from prefect.core.flow import Flow
-from prefect.core.task import Task
+from prefect.flow import Flow
+from prefect.task import Task
 from prefect.core.task_result import TaskResult
 from prefect.utilities.tasks import task
 

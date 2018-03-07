@@ -8,12 +8,12 @@ import prefect.signals
 import prefect.schedules
 import prefect.triggers
 
-from prefect.core import Task, Flow, Parameter
+import prefect.task as task_module
+from prefect.task import Task, Parameter
+from prefect.flow import Flow
 import prefect.tasks
 import prefect.flows
 import prefect.engine
 from prefect.utilities.tasks import task
 
 from prefect.client import Client
-
-prefect.utilities.flows.reset_default_flow()

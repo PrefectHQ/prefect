@@ -4,8 +4,8 @@ import pytest
 
 import prefect
 import ujson
-from prefect.core.flow import Flow
-from prefect.core.task import Task
+from prefect.flow import Flow
+from prefect.task import Task
 from prefect.signals import PrefectError
 from prefect.tasks import FunctionTask
 from prefect.utilities.tasks import task

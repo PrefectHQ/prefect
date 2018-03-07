@@ -51,7 +51,6 @@ class Context(threading.local):
 
     def reset(self, *args, **kwargs):
         self.__dict__.clear()
-        self.flow = prefect.utilities.flows.DEFAULT_FLOW
         self.update(*args, **kwargs)
 
     @contextlib.contextmanager

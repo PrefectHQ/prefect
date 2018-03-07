@@ -2,55 +2,58 @@ import prefect
 import wrapt
 
 
-def as_task(x, return_constant=True):
+def as_task_result(x):
     """
     Wraps a function, collection, or constant with the appropriate Task type.
     """
+    # utilities are imported first, so TaskResult must be imported here
+    TaskResult = prefect.core.flow.TaskResult
+
     # task objects
-    if isinstance(x, prefect.Task):
+    if isinstance(x, TaskResult):
         return x
-    elif isinstance(x, prefect.core.task_result.TaskResult):
-        return x.task
+
+    elif isinstance(x, prefect.Task):
+        return TaskResult(task=x, flow=None)
 
     # sequences
     elif isinstance(x, list):
-        tasks = [as_task(t, return_constant=False) for t in x]
-        return prefect.tasks.collections.List(*tasks).task
+        return prefect.tasks.collections.List(*[as_task_result(t) for t in x])
     elif isinstance(x, tuple):
-        tasks = [as_task(t, return_constant=False) for t in x]
-        return prefect.tasks.collections.Tuple(*tasks).task
+        return prefect.tasks.collections.Tuple(*[as_task_result(t) for t in x])
     elif isinstance(x, set):
-        tasks = [as_task(t, return_constant=False) for t in x]
-        return prefect.tasks.collections.Set(*tasks).task
+        return prefect.tasks.collections.Set(*[as_task_result(t) for t in x])
 
     # collections
     elif isinstance(x, dict):
-        task_dict = {k: as_task(v, return_constant=False) for k, v in x.items()}
-        return prefect.tasks.collections.Dict(**task_dict).task
+        task_dict = {k: as_task_result(v) for k, v in x.items()}
+        return prefect.tasks.collections.Dict(**task_dict)
 
     # functions
     elif callable(x):
-        return prefect.tasks.FunctionTask(fn=x)
+        return TaskResult(task=prefect.tasks.FunctionTask(fn=x), flow=None)
 
     # constants
-    elif return_constant:
-        return prefect.tasks.Constant(value=x)
-
-    # others
     else:
-        return x
+        return TaskResult(task=prefect.tasks.Constant(value=x), flow=None)
+
+    # others - not reachable right now
+    # else:
+    #     raise ValueError('Could not create a Task Result from {}'.format(x))
 
 
-@wrapt.decorator
-def task_factory(cls, instance, args, kwargs):
+def task_factory(**task_init_kwargs):
     """
     A decorator for marking a Task class as a factory.
 
     Task factories automatically instantiate the class and calls it on the
-    provided arguments
+    provided arguments, returning a TaskResult.
     """
-    return cls(**kwargs.pop('task_kwargs', {}))(*args, **kwargs)
-
+    @wrapt.decorator
+    def inner(cls, instance, args, kwargs):
+        task = cls(**task_init_kwargs)
+        return task(*args, **kwargs)
+    return inner
 
 
 def task(**task_init_kwargs):
@@ -64,16 +67,17 @@ def task(**task_init_kwargs):
         print('hello, {}'.format(name))
 
     with Flow() as flow:
-        t1 = hello('x')
-        t2 = hello('y')
+        t1 = hello('foo')
+        t2 = hello('bar')
     """
 
     @wrapt.decorator
-    def task_factory(fn, instance, args, kwargs):
+    def inner(fn, instance, args, kwargs):
         task = prefect.tasks.FunctionTask(fn=fn, **task_init_kwargs)
         return task(*args, **kwargs)
 
-    return task_factory
+    return inner
+
 
 def get_task_by_id(id):
     """

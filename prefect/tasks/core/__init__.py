@@ -1,3 +1,4 @@
-from prefect.tasks.core.constants import Constant, ContextTask
-from prefect.tasks.core.function_task import FunctionTask
-from prefect.tasks.core.operators import Not, And, Or
+import prefect.tasks.core.constants
+import prefect.tasks.core.function_task
+import prefect.tasks.core.operators
+import prefect.tasks.core.collections

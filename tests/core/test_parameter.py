@@ -1,4 +1,4 @@
-from prefect.core.flow import Flow
+from prefect.flow import Flow
 from prefect.core.parameter import Parameter
 from prefect.tasks.core.function_task import FunctionTask
 
