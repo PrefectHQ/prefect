@@ -503,6 +503,10 @@ class Flow(Serializable):
     def after_deserialize(self, serialized):
         self.register()
 
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.register()
+
     # Visualization ------------------------------------------------------------
 
     def visualize(self):

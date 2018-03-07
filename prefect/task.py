@@ -35,13 +35,15 @@ class Task(Serializable):
             trigger = prefect.triggers.all_successful
         self.trigger = trigger
 
-        flow = Context.get('flow')
-        if flow:
-            flow.add_task(self)
         self.secrets = secrets or {}
 
         self.register()
         self._prefect_version = prefect.__version__
+
+        flow = Context.get('flow')
+        if flow:
+            flow.add_task(self)
+
 
     def __repr__(self):
         return '<Task: "{self.name}" type={cls} id={id}>'.format(
@@ -119,7 +121,7 @@ class Task(Serializable):
 
     # Operators ----------------------------------------------------------------
 
-    # Serialize ----------------------------------------------------------------
+    # Serialization ------------------------------------------------------------
 
     def serialize(self):
 
@@ -135,12 +137,16 @@ class Task(Serializable):
                 timeout=self.timeout,
                 trigger=self.trigger,
                 type=type(self).__name__),
-                prefect_version=self._prefect_version)
+            prefect_version=self._prefect_version)
 
         return serialized
 
     def after_deserialize(self, serialized):
         self.id = serialized['id']
+        self.register()
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
         self.register()
 
 
