@@ -41,6 +41,7 @@ class Task(Serializable):
         self.secrets = secrets or {}
 
         self.register()
+        self._prefect_version = prefect.__version__
 
     def __repr__(self):
         return '<Task: "{self.name}" type={cls} id={id}>'.format(
@@ -133,7 +134,8 @@ class Task(Serializable):
                 retry_delay=self.retry_delay,
                 timeout=self.timeout,
                 trigger=self.trigger,
-                type=type(self).__name__))
+                type=type(self).__name__),
+                prefect_version=self._prefect_version)
 
         return serialized
 

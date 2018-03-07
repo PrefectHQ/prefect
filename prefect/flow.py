@@ -163,6 +163,7 @@ class Flow(Serializable):
                 key=e.key)
 
         self.register()
+        self._prefect_version = prefect.__version__
 
     def __eq__(self, other):
         if type(self) == type(other):
@@ -495,7 +496,8 @@ class Flow(Serializable):
             parameters=self.parameters(),
             schedule=self.schedule,
             tasks=self.tasks,
-            edges=self.edges)
+            edges=self.edges,
+            prefect_version=self._prefect_version)
         return serialized
 
     def after_deserialize(self, serialized):
