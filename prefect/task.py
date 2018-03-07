@@ -44,7 +44,6 @@ class Task(Serializable):
         if flow:
             flow.add_task(self)
 
-
     def __repr__(self):
         return '<Task: "{self.name}" type={cls} id={id}>'.format(
             cls=type(self).__name__, self=self, id=self.short_id)
@@ -128,15 +127,14 @@ class Task(Serializable):
         serialized = super().serialize()
 
         serialized.update(
-            dict(
-                name=self.name,
-                id=self.id,
-                description=self.description,
-                max_retries=self.max_retries,
-                retry_delay=self.retry_delay,
-                timeout=self.timeout,
-                trigger=self.trigger,
-                type=type(self).__name__),
+            name=self.name,
+            id=self.id,
+            description=self.description,
+            max_retries=self.max_retries,
+            retry_delay=self.retry_delay,
+            timeout=self.timeout,
+            trigger=self.trigger,
+            type=type(self).__name__,
             prefect_version=self._prefect_version)
 
         return serialized
