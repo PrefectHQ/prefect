@@ -1,6 +1,6 @@
 import pytest
 import prefect
-from prefect.core.parameter import Parameter
+from prefect import Parameter
 from prefect.tasks import control_flow
 from prefect.utilities.tests import run_flow_runner_test, DummyTask
 from prefect.engine.state import FlowRunState, TaskRunState

@@ -52,6 +52,7 @@ class Task(Serializable):
     def __hash__(self):
         return id(self)
 
+
     # Identification  ----------------------------------------------------------
 
     @property

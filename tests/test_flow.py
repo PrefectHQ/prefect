@@ -7,7 +7,7 @@ import ujson
 from prefect.flow import Flow
 from prefect.task import Task
 from prefect.signals import PrefectError
-from prefect.tasks import FunctionTask
+from prefect.tasks.core.function_task import FunctionTask
 from prefect.utilities.tasks import task
 from prefect.utilities.tests import DummyTask
 
@@ -120,7 +120,7 @@ class TestFlow:
         f1.add_edge(t1, t2)
         f2.add_edge(t2, t3)
 
-        f2.merge(f1)
+        f2.update(f1)
         assert f2.tasks == set([t1, t2, t3])
         assert len(f2.edges) == 2
 

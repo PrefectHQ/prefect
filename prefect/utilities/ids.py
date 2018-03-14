@@ -1,6 +1,5 @@
 import random
 import uuid
-import prefect
 
 _id_rng = random.Random()
 

@@ -4,9 +4,8 @@ import datetime
 import pytest
 
 import prefect
-from prefect.flow import Flow
+from prefect.flow import Flow, TaskResult
 from prefect.task import Task
-from prefect.core.task_result import TaskResult
 from prefect.utilities.tasks import task
 
 
@@ -20,10 +19,9 @@ class TestBasicTask:
     def test_create_task(self):
         t1 = Task()
         t2 = Task()
-        t3 = Task(id=t2.id)
 
-        assert t1 != t2
-        assert t2 == t3
+        assert t1.id != t2.id
+        assert t1.name == t2.name
 
 
     def test_task_inputs(self):
