@@ -1,3 +1,4 @@
+import random
 import logging
 import os
 import prefect
@@ -9,7 +10,6 @@ from prefect.utilities.collections import dict_to_dotdict, merge_dicts
 DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), 'prefect.toml')
 USER_CONFIG = '~/.prefect/prefect.toml'
 ENV_VAR_PREFIX = 'PREFECT'
-
 
 
 def expand(env_var):
@@ -45,10 +45,21 @@ def create_user_config(path):
             fw.write(template)
 
 
+# IDs ---------------------------------------------------------------------
+
+
+def configure_ids():
+    """
+    Sets the random seed for generating Prefect IDs
+    """
+    from prefect.utilities.ids import _id_rng
+    _id_rng.seed(config.general.get('id_seed') or random.getrandbits(128))
+
+
 # Logging ---------------------------------------------------------------------
 
 
-def configure_logging(config, logger_name):
+def configure_logging(logger_name):
     logger = logging.getLogger(logger_name)
     handler = logging.StreamHandler()
     formatter = logging.Formatter(config.logging.format)
@@ -106,8 +117,6 @@ config = load_configuration(
     user_config=USER_CONFIG,
     env_var='PREFECT_CONFIG')
 
-configure_logging(config, logger_name='Prefect')
-
 # load unit test configuration
 if config.tests.test_mode:
     config = load_configuration(
@@ -115,3 +124,6 @@ if config.tests.test_mode:
         user_config=os.path.join(
             os.path.dirname(__file__), 'prefect_tests.toml'),
         env_var='PREFECT_TESTS_CONFIG')
+
+configure_ids()
+configure_logging(logger_name='Prefect')

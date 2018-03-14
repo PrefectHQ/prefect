@@ -1,8 +1,8 @@
 import random
 import uuid
+import prefect
 
 _id_rng = random.Random()
-_id_rng.seed(prefect.config.general.get('id_seed', random.getrandbits(128)))
 
 
 def generate_uuid():
