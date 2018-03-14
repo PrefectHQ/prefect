@@ -1,4 +1,9 @@
 
+[general]
+# the seed value for random Task and Flow ids. You should never set this
+# manually.
+id_seed = false
+
 
 [server]
 # the Prefect Server address
@@ -13,15 +18,6 @@ graphql_server = "http://127.0.0.1:4242/graphql"
 encryption_key = "<<REPLACE WITH FERNET KEY>>"
 
 
-[executor]
-
-default_executor = "Executor"
-
-[dask]
-# the Prefect Cluster address -- either supply a host:port URL or "local" to
-# automatically start a LocalCluster
-cluster_address = "127.0.0.1:8786"
-
 
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
@@ -29,7 +25,6 @@ level = "INFO"
 
 # The log format
 format = "[%%(asctime)s] %%(levelname)s - %%(name)s | %%(message)s"
-
 
 [flows]
 # the global default Flow. Set to None to disable; this will require all Flows

@@ -1,9 +1,9 @@
-from collections import Mapping
-import prefect.configuration
-from cryptography.fernet import Fernet
 import logging
 import os
+import prefect
 import toml
+from cryptography.fernet import Fernet
+
 from prefect.utilities.collections import dict_to_dotdict, merge_dicts
 
 DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), 'prefect.toml')
@@ -75,6 +75,8 @@ def load_config_file(path, existing_config=None):
         if not env_var.startswith(ENV_VAR_PREFIX):
             continue
         sections = env_var.lower().split('__')[1:]
+        if not sections:
+            continue
         config_section = config
         # recurse to the last section
         for section in sections[:-1]:

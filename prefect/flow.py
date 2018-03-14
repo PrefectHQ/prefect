@@ -13,6 +13,7 @@ import prefect.context
 from prefect.task import Task, Parameter
 from prefect.utilities.tasks import as_task_result
 from prefect.utilities.serializers import Serializable
+from prefect.utilities.ids import generate_uuid
 
 FLOW_REGISTRY = WeakValueDictionary()
 
@@ -51,7 +52,7 @@ class TaskResult:
 
 class Edge(Serializable):
 
-    def __init__(self, upstream_task, downstream_task, key=None, id=None):
+    def __init__(self, upstream_task, downstream_task, key=None):
         """
         Edges represent connections between Tasks.
 
@@ -77,7 +78,6 @@ class Edge(Serializable):
         The key indicates that the result of the upstream task should be passed
         to the downstream task under the key.
         """
-        self.id = id or uuid.uuid4()
         self.upstream_task = upstream_task
         self.downstream_task = downstream_task
 
@@ -87,16 +87,6 @@ class Edge(Serializable):
                     'Key must be a valid identifier (received "{}")'.format(
                         key))
         self.key = key
-
-    @property
-    def id(self):
-        return self._id
-
-    @id.setter
-    def id(self, value):
-        if not isinstance(value, uuid.UUID):
-            value = uuid.UUID(value)
-        self._id = str(value)
 
     # Comparison --------------------------------------------------------------
 
@@ -137,14 +127,13 @@ class Flow(Serializable):
     def __init__(
             self,
             name=None,
-            id=None,
             version=None,
             schedule=None,
             description=None,
             tasks=None,
             edges=None):
 
-        self.id = id or uuid.uuid4()
+        self.id = generate_uuid()
         self.name = name or type(self).__name__
         self.version = version
         self.description = description
@@ -188,7 +177,7 @@ class Flow(Serializable):
 
     def copy(self):
         new = copy.copy(self)
-        new.id = uuid.uuid4()
+        new.id = generate_uuid()
         new.register()
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()

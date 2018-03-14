@@ -7,6 +7,7 @@ from weakref import WeakValueDictionary
 import prefect
 from prefect.context import Context
 from prefect.utilities.serializers import Serializable
+from prefect.utilities.ids import generate_uuid
 
 TASK_REGISTRY = WeakValueDictionary()
 
@@ -23,7 +24,7 @@ class Task(Serializable):
             timeout=None,
             trigger=None,
             secrets=None):
-        self.id = id or uuid.uuid4()
+        self.id = generate_uuid()
         self.name = name or type(self).__name__
         self.description = description
 
@@ -59,9 +60,8 @@ class Task(Serializable):
 
     @id.setter
     def id(self, value):
-        if not isinstance(value, uuid.UUID):
-            value = uuid.UUID(value)
-        self._id = str(value)
+        self._id = value
+        self.register()
 
     @property
     def short_id(self):
@@ -72,7 +72,7 @@ class Task(Serializable):
 
     def copy(self):
         new = copy.copy(self)
-        new.id = uuid.uuid4()
+        new.id = generate_uuid()
         new.register()
         return new
 

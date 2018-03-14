@@ -5,7 +5,7 @@ import requests
 
 import prefect
 import ujson
-from prefect.utilities.graphql import format_graphql_result
+from prefect.utilities.collections import dict_to_dotdict
 
 
 class AuthorizationError(Exception):
@@ -110,7 +110,7 @@ class Client:
         if 'errors' in result:
             raise ValueError(result['errors'])
         else:
-            return format_graphql_result(result).data
+            return dict_to_dotdict(result).data
 
     def _request(self, method, path, params, server=None):
 
