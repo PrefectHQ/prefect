@@ -1,26 +1,15 @@
+from collections import Mapping
 import prefect.configuration
-import base64
-from configparser import ConfigParser
 from cryptography.fernet import Fernet
 import logging
 import os
-import re
+import toml
+from prefect.utilities.collections import dict_to_dotdict, merge_dicts
 
-env_var_re = re.compile(
-    '^PREFECT__(?P<section>\S+)__(?P<option>\S+)', re.IGNORECASE)
-DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), 'prefect.cfg')
-USER_CONFIG = '~/.prefect/prefect.cfg'
+DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), 'prefect.toml')
+USER_CONFIG = '~/.prefect/prefect.toml'
+ENV_VAR_PREFIX = 'PREFECT'
 
-
-def str_to_bool(string):
-    true_strings = ['1', 'true', 't', 'yes', 'y']
-    false_strings = ['0', 'false', 'f', 'no', 'n', 'none']
-    if string.lower() in true_strings:
-        return True
-    elif string.lower() in false_strings:
-        return False
-    else:
-        return ValueError(f'Unrecognized boolean string: "{string}"')
 
 
 def expand(env_var):
@@ -39,11 +28,11 @@ def expand(env_var):
             env_var = interpolated
 
 
-def create_user_config(config_file):
+def create_user_config(path):
     """
     Copies the default configuration to a user-customizable file
     """
-    config_file = expand(config_file)
+    config_file = expand(path)
     if os.path.isfile(config_file):
         raise ValueError('File already exists: {}'.format(config_file))
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
@@ -62,10 +51,10 @@ def create_user_config(config_file):
 def configure_logging(config, logger_name):
     logger = logging.getLogger(logger_name)
     handler = logging.StreamHandler()
-    formatter = logging.Formatter(config.get('logging', 'format'))
+    formatter = logging.Formatter(config.logging.format)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.setLevel(getattr(logging, config.get('logging', 'level')))
+    logger.setLevel(getattr(logging, config.logging.level))
 
 
 # Validation ------------------------------------------------------------------
@@ -78,77 +67,49 @@ def validate_config(config):
 # Load configuration ----------------------------------------------------------
 
 
-def load_config_file(config_file, config=None, env_var_re=None):
-    """
-    Loads a new Prefect configuration.
+def load_config_file(path, existing_config=None):
 
-    The supplied config file is loaded on top of an existing config (
-    if provided); otherwise a new config is returned.
+    config = toml.load(expand(path))
 
-    Any configuration options set by environment variables take precedance over
-    all loaded files.
+    for env_var in os.environ:
+        if not env_var.startswith(ENV_VAR_PREFIX):
+            continue
+        sections = env_var.lower().split('__')[1:]
+        config_section = config
+        # recurse to the last section
+        for section in sections[:-1]:
+            config_section = config_section.setdefault(section, {})
+        # apply the env var value
+        config_section[sections[-1]] = expand(os.getenv(env_var))
 
-    Args:
-        config_file (str): the path to a Prefect configuration file
+    if existing_config is not None:
+        config = merge_dicts(existing_config, config)
 
-        config (ConfigParser): an existing config that should be modified
-
-    """
-    if config is None:
-        config = ConfigParser()
-
-    if config_file is None:
-        return config
-
-    config.read(expand(config_file))
-
-    # overwrite environment variables
-    if env_var_re:
-        for ev in os.environ:
-            match = re.match(env_var_re, ev)
-            if match:
-                config.set(
-                    section=match.groupdict()['section'].lower(),
-                    option=match.groupdict()['option'].lower(),
-                    value=os.environ[ev])
-
-    validate_config(config)
-    return config
+    return dict_to_dotdict(config)
 
 
-def load_configuration(
-        default_config, user_config, env_var_config, config, env_var_re):
-    """
-    Loads a prefect configuration by first loading the default_config file
-    and then loading a user configuration. If an env_var_config is supplied, it is
-    checked for the location of a configuration file; otherwise the user_config
-    argument is used.
-    """
-    default_config = load_config_file(
-        default_config, config=config, env_var_re=env_var_re)
-    user_config = os.getenv(env_var_config, user_config)
+def load_configuration(default_config, user_config, env_var=None):
+    user_config_path = os.getenv(env_var, user_config)
+    config = load_config_file(default_config)
     try:
-        create_user_config(config_file=user_config)
-    except ValueError:
+        create_user_config(user_config_path)
+    except Exception:
         pass
-    config = load_config_file(
-        user_config, config=default_config, env_var_re=env_var_re)
+    config = load_config_file(user_config_path, existing_config=config)
     return config
 
 
 config = load_configuration(
     default_config=DEFAULT_CONFIG,
     user_config=USER_CONFIG,
-    env_var_config='PREFECT_CONFIG',
-    config=None,
-    env_var_re=env_var_re)
+    env_var='PREFECT_CONFIG')
 
 configure_logging(config, logger_name='Prefect')
 
 # load unit test configuration
-if config.getboolean('tests', 'test_mode'):
+if config.tests.test_mode:
     config = load_configuration(
+        default_config=DEFAULT_CONFIG,
         user_config=os.path.join(
-            os.path.dirname(__file__), 'prefect_tests.cfg'),
-        env_var_config='PREFECT_SERVER_TESTS_CONFIG',
-        config=config)
+            os.path.dirname(__file__), 'prefect_tests.toml'),
+        env_var='PREFECT_TESTS_CONFIG')
