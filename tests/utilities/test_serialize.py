@@ -157,3 +157,8 @@ def test_serializable_class():
             }
         })
     assert x == json.loads(j)
+
+
+def test_qualified_type():
+    assert codecs.qualified_type(
+        SerializableObj) == 'tests.utilities.test_serialize.SerializableObj'
