@@ -188,11 +188,13 @@ class ImportedObjectCodec(JSONCodec):
     """
 
     def serialize(self):
-        return self.value.__module__ + '.' + self.value.__name__
+        return dict(
+            path=self.value.__module__ + '.' + self.value.__name__,
+            prefect_version=prefect.__version__)
 
     @classmethod
     def deserialize(cls, obj):
-        obj_import_path = obj.split('.')
+        obj_import_path = obj['path'].split('.')
         loaded_obj = sys.modules[obj_import_path[0]]
         for p in obj_import_path[1:]:
             loaded_obj = getattr(loaded_obj, p)

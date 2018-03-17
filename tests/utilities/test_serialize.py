@@ -1,8 +1,6 @@
 import datetime
 import json
-
-import pytest
-
+import prefect
 import prefect.utilities.json as codecs
 
 
@@ -101,19 +99,22 @@ def test_json_codec_object_dict():
     x = ObjectDictClass(1, datetime.datetime(2000, 1, 1))
     j = json.dumps(codecs.ObjectDictCodec(x))
 
-    assert j == json.dumps(
-        {
-            "__object_dict__": {
-                "type": {
-                    "__imported_object__":
-                    "tests.utilities.test_serialize.ObjectDictClass"
-                },
-                "dict": {
-                    "a": 1,
-                    "b": datetime.datetime(2000, 1, 1)
+    assert default_load_json(j) == {
+        "__object_dict__": {
+            "type": {
+                "__imported_object__": {
+                    "path": "tests.utilities.test_serialize.ObjectDictClass",
+                    "prefect_version": prefect.__version__
+                }
+            },
+            "dict": {
+                "a": 1,
+                "b": {
+                    '__datetime__': '2000-01-01T00:00:00'
                 }
             }
-        })
+        }
+    }
     assert x == json.loads(j)
 
 
@@ -141,12 +142,17 @@ def test_serializable_class():
         {
             "__object_dict__": {
                 "type": {
-                    "__imported_object__":
-                    "tests.utilities.test_serialize.SerializableObj"
+                    "__imported_object__": {
+                        "path":
+                        "tests.utilities.test_serialize.SerializableObj",
+                        "prefect_version": prefect.__version__
+                    }
                 },
                 "dict": {
                     "a": 1,
-                    "b": datetime.datetime(2000, 1, 1)
+                    "b": {
+                        '__datetime__': '2000-01-01T00:00:00'
+                    }
                 }
             }
         })
