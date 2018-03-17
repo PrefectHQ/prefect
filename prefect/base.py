@@ -1,13 +1,22 @@
 import copy
+import random
 import uuid
 from weakref import WeakValueDictionary
 
 import prefect
-from prefect.utilities.ids import generate_uuid
 from prefect.utilities.json import qualified_name
 
 PREFECT_REGISTRY = WeakValueDictionary()
 
+_id_rng = random.Random()
+_id_rng.seed(prefect.config.general.get('id_seed') or random.getrandbits(128))
+
+
+def generate_uuid():
+    """
+    Generates a random UUID using the _id_rng random seed.
+    """
+    return str(uuid.UUID(int=_id_rng.getrandbits(128)))
 
 class PrefectObject:
 

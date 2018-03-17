@@ -45,17 +45,6 @@ def create_user_config(path):
             fw.write(template)
 
 
-# IDs ---------------------------------------------------------------------
-
-
-def configure_ids():
-    """
-    Sets the random seed for generating Prefect IDs
-    """
-    from prefect.utilities.ids import _id_rng
-    _id_rng.seed(config.general.get('id_seed') or random.getrandbits(128))
-
-
 # Logging ---------------------------------------------------------------------
 
 
@@ -125,5 +114,4 @@ if config.tests.test_mode:
             os.path.dirname(__file__), 'prefect_tests.toml'),
         env_var='PREFECT_TESTS_CONFIG')
 
-configure_ids()
 configure_logging(logger_name='Prefect')
