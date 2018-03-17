@@ -66,7 +66,7 @@ def test_json_codec_imported_object():
 
     j = json.dumps(serializable_fn)
     assert default_load_json(j) == {
-        '__imported_object__': 'tests.utilities.test_serialize.serializable_fn'
+        '__imported_object__': 'tests.utilities.test_json.serializable_fn'
     }
     assert serializable_fn == json.loads(j)
 
@@ -103,7 +103,7 @@ def test_json_codec_object_dict():
         "__object_dict__": {
             "type": {
                 "__imported_object__": {
-                    "path": "tests.utilities.test_serialize.ObjectDictClass",
+                    "path": "tests.utilities.test_json.ObjectDictClass",
                     "prefect_version": prefect.__version__
                 }
             },
@@ -144,7 +144,7 @@ def test_serializable_class():
                 "type": {
                     "__imported_object__": {
                         "path":
-                        "tests.utilities.test_serialize.SerializableObj",
+                        "tests.utilities.test_json.SerializableObj",
                         "prefect_version": prefect.__version__
                     }
                 },
@@ -161,4 +161,4 @@ def test_serializable_class():
 
 def test_qualified_type():
     assert codecs.qualified_type(
-        SerializableObj) == 'tests.utilities.test_serialize.SerializableObj'
+        SerializableObj) == 'tests.utilities.test_json.SerializableObj'

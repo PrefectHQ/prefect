@@ -16,9 +16,7 @@ import prefect
 JSON_CODECS_KEYS = dict()
 
 
-def qualified_type(obj):
-    if not isinstance(obj, type):
-        return qualified_type(type(obj))
+def qualified_name(obj):
     return obj.__module__ + '.' + obj.__name__
 
 
@@ -195,7 +193,7 @@ class ImportedObjectCodec(JSONCodec):
 
     def serialize(self):
         return dict(
-            path=qualified_type(self.value),
+            path=qualified_name(self.value),
             prefect_version=prefect.__version__)
 
     @classmethod
@@ -283,9 +281,9 @@ class PrefectJSONEncoder(json.JSONEncoder):
             return obj.__json__()
 
         # otherwise try to apply a json codec by dispatching on type
-        codec = get_json_codec(obj)
-        if codec:
-            return codec
+        obj_codec = get_json_codec(obj)
+        if obj_codec:
+            return obj_codec.__json__()
 
         else:
             return json.JSONEncoder.default(self, obj)

@@ -4,7 +4,7 @@ import uuid
 from weakref import WeakValueDictionary
 
 import prefect
-from prefect.utilities.json import qualified_type
+from prefect.utilities.json import qualified_name
 
 PREFECT_REGISTRY = WeakValueDictionary()
 
@@ -31,7 +31,8 @@ class PrefectObject:
     def __init__(self):
         self.id = generate_uuid()
 
-    # Identification  ----------------------------------------------------------
+    def __repr__(self):
+        return '<{cls}: {id}>'.format(cls=type(self).__name__, id=self.short_id)
 
     def __eq__(self, other):
         if type(self) == type(other):
@@ -41,6 +42,13 @@ class PrefectObject:
             other_serialized.pop('id')
             return self_serialized == other_serialized
         return False
+
+    def copy(self):
+        new = copy.copy(self)
+        new.id = generate_uuid()
+        return new
+
+    # Identification -----------------------------------------------------------
 
     @property
     def id(self):
@@ -62,17 +70,15 @@ class PrefectObject:
             raise ValueError('ID {} is already registered!'.format(self.id))
         PREFECT_REGISTRY[self.id] = self
 
-    # Misc ---------------------------------------------------------------------
+    # Serialization ------------------------------------------------------------
 
-    def copy(self):
-        new = copy.copy(self)
-        new.id = generate_uuid()
-        return new
+    def __json__(self):
+        return self.serialize()
 
     def serialize(self):
         return dict(
             type=type(self).__name__,
-            qualified_type=qualified_type(type(self)),
+            qualified_name=qualified_name(type(self)),
             id=self.id,
             prefect_version=prefect.__version__)
 

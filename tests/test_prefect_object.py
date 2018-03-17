@@ -1,7 +1,10 @@
+import json
 import uuid
+
+import pytest
+
 import prefect
 from prefect import base
-import pytest
 
 
 def test_generate_id():
@@ -12,14 +15,9 @@ def test_generate_id():
 
 
 def test_create_object():
-    po1 = base.PrefectObject()
-    po2 = base.PrefectObject()
-    assert po1 == po2
-    assert po1.id != po2.id
-    assert po1.id in base.PREFECT_REGISTRY
-    assert po2.id in base.PREFECT_REGISTRY
-    assert po1 is base.get_object_by_id(po1.id)
-    assert po2 is base.get_object_by_id(po2.id)
+    po = base.PrefectObject()
+    assert po.id in base.PREFECT_REGISTRY
+    assert po is base.get_object_by_id(po.id)
 
 
 def test_get_nonexistant_id():
@@ -43,6 +41,14 @@ def test_assign_id():
     assert po.id in base.PREFECT_REGISTRY
 
 
+def test_equality():
+    po1 = base.PrefectObject()
+    po2 = base.PrefectObject()
+    assert po1 == po2
+    assert po1.id != po2.id
+    assert po1 is not po2
+
+
 def test_serialize():
     po = base.PrefectObject()
     serialized = po.serialize()
@@ -50,3 +56,7 @@ def test_serialize():
     assert serialized['qualified_type'] == 'prefect.base.PrefectObject'
     assert serialized['id'] == po.id
     assert serialized['prefect_version'] == prefect.__version__
+
+def test_json():
+    po = base.PrefectObject()
+    json.dumps(po)
