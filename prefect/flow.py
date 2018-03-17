@@ -7,7 +7,7 @@ import graphviz
 
 import prefect
 import prefect.context
-from prefect.base import PrefectObject
+from prefect.base import PrefectObject, get_object_by_id
 from prefect.task import Task, Parameter
 from prefect.utilities.tasks import as_task_result
 
@@ -102,12 +102,17 @@ class Edge:
         return id(self)
 
     def serialize(self):
-        serialized = {
-            'upstream_task_id': self.upstream_task_id,
-            'downstream_task_id': self.downstream_task_id,
-            'key': self.key
-        }
-        return serialized
+        return dict(
+            upstream_task_id=self.upstream_task_id,
+            downstream_task_id=self.downstream_task_id,
+            key=self.key)
+
+    @classmethod
+    def deserialize(cls, serialized):
+        return cls(
+            upstream_task=get_object_by_id(serialized['upstream_task_id']),
+            downstream_task=get_object_by_id(serialized['downstream_task_id']),
+            key=serialized['key'])
 
 
 class Flow(PrefectObject):
