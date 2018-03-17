@@ -3,9 +3,7 @@ import json
 
 import pytest
 
-from prefect.signals import SerializationError
-from prefect.utilities.serializers import Serializable
-from prefect.utilities.json import EncryptedCodec
+import prefect.utilities.json as codecs
 
 
 def default_load_json(obj):
@@ -13,7 +11,8 @@ def default_load_json(obj):
 
 
 def test_json_codec_datetime():
-    d = datetime.datetime(2020, 1, 1)
+    d = datetime.datetime(2020, 1, 2, 3, 4, 5, 6)
+
     j = json.dumps(d)
     assert j == json.dumps({'__datetime__': d.isoformat()})
     assert d == json.loads(j)
@@ -24,6 +23,13 @@ def test_json_codec_timedelta():
     j = json.dumps(t)
     assert j == json.dumps({'__timedelta__': t.total_seconds()})
     assert t == json.loads(j)
+
+
+def test_json_codec_date():
+    d = datetime.datetime(2020, 1, 2, 3, 4, 5, 6).date()
+    j = json.dumps(d)
+    assert j == json.dumps({'__date__': d.isoformat()})
+    assert d == json.loads(j)
 
 
 def test_json_codec_bytes():
@@ -41,7 +47,7 @@ def test_json_codec_multiple():
 
 def test_json_codec_encrypted():
     x = 1
-    j = json.dumps(EncryptedCodec(x))
+    j = json.dumps(codecs.EncryptedCodec(x))
     assert len(default_load_json(j)['__encrypted__']) > 20
     assert x == json.loads(j)
 
@@ -53,53 +59,59 @@ def test_json_codec_set():
     assert x == json.loads(j)
 
 
-class Serializable(Serializable):
-
-    def __init__(self, x=1, y=2, **kwargs):
-        self.count_kwargs = len(kwargs)
-
-
-def test_serialize_objects():
-
-    # test with args
-    x = Serializable(1, y=2, a=3, b=datetime.datetime(2020, 1, 1))
-    x2 = json.loads(json.dumps(x))
-    assert type(x) == type(x2)
-    assert x2.count_kwargs == 2
+@codecs.serializable
+def serializable_fn():
+    return 'hi'
 
 
-def test_encrypted():
-    x = EncryptedCodec(Serializable(1, y=2))
-    assert '__encrypted__' in default_load_json(json.dumps(x))
-    obj = json.loads(json.dumps(x))
-    assert isinstance(obj, Serializable)
+def test_json_codec_imported_object():
+
+    j = json.dumps(serializable_fn)
+    assert default_load_json(j) == {
+        '__imported_object__': 'tests.utilities.test_serialize.serializable_fn'
+    }
+    assert serializable_fn == json.loads(j)
 
 
-def test_unserializable_objects():
+class JsonMethodClass:
 
-    class NotSerializeableVarArgs(Serializable):
-
-        def __init__(self, *args, **kwargs):
-            pass
-
-    with pytest.raises(SerializationError):
-        NotSerializeableVarArgs(1, 2, 3)
+    def __json__(self):
+        return dict(a=1, b=2, c=datetime.datetime(2000, 1, 1))
 
 
-# @serializable
-# def serialize_fn():
-#     return 1
+def test_json_method():
+
+    x = JsonMethodClass()
+    j = json.dumps(x)
+    assert j == json.dumps(dict(a=1, b=2, c=datetime.datetime(2000, 1, 1)))
 
 
-# def test_serialize_functions():
+class ObjectDictClass:
 
-#     fn = json.loads(json.dumps(serialize_fn))
-#     assert fn() == 1
+    def __init__(self, a, b):
+        self.a = a
+        self.b = b
 
-#     with pytest.raises(SerializationError):
+    def __eq__(self, o):
+        return type(self) == type(o) and self.a == o.a and self.b == o.b
 
-#         @serializable
-#         def cant_serialize_fn():
-#             return 1
 
-#         json.loads(json.dumps(cant_serialize_fn))
+def test_json_method():
+
+    x = ObjectDictClass(1, datetime.datetime(2000, 1, 1))
+    j = json.dumps(codecs.ObjectDictCodec(x))
+
+    assert j == json.dumps(
+        {
+            "__object_dict__": {
+                "type": {
+                    "__imported_object__":
+                    "tests.utilities.test_serialize.ObjectDictClass"
+                },
+                "dict": {
+                    "a": 1,
+                    "b": datetime.datetime(2000, 1, 1)
+                }
+            }
+        })
+    assert x == json.loads(j)

@@ -1,26 +1,19 @@
 """
 Facilities for serializing/deserializing Python objects to JSON.
 """
+import sys
 from functools import singledispatch
 import base64
 import datetime
-import importlib
 import json
+import types
 import uuid
 
 import dateutil.parser
 from cryptography.fernet import Fernet
 import prefect
-from prefect.signals import SerializationError
 
 JSON_CODECS_KEYS = dict()
-
-
-def serialized_name(obj):
-    if hasattr(obj, '__name__'):
-        return obj.__module__ + '.' + obj.__name__
-    else:
-        return serialized_name(type(obj))
 
 
 def register_json_codec(codec_key, dispatch_type=None):
@@ -101,24 +94,11 @@ class JSONCodec:
         return type(self) == type(other) and self.value == other.value
 
 
-@register_json_codec('__encrypted__')
-class EncryptedCodec(JSONCodec):
-
-    def serialize(self):
-        key = prefect.config.get('security', 'encryption_key')
-        payload = base64.b64encode(json.dumps(self.value).encode())
-        return Fernet(key).encrypt(payload).decode()
-
-    @classmethod
-    def deserialize(cls, obj):
-        key = prefect.config.get('security', 'encryption_key')
-        decrypted = Fernet(key).decrypt(obj.encode())
-        decoded = base64.b64decode(decrypted).decode()
-        return json.loads(decoded)
-
-
 @register_json_codec('__set__', dispatch_type=set)
 class SetCodec(JSONCodec):
+    """
+    Serialize/deserialize sets
+    """
 
     def serialize(self):
         return list(self.value)
@@ -130,6 +110,9 @@ class SetCodec(JSONCodec):
 
 @register_json_codec('__bytes__', dispatch_type=bytes)
 class BytesCodec(JSONCodec):
+    """
+    Serialize/deserialize bytes
+    """
 
     def serialize(self):
         return self.value.decode()
@@ -141,6 +124,9 @@ class BytesCodec(JSONCodec):
 
 @register_json_codec('__uuid__', dispatch_type=uuid.UUID)
 class UUIDCodec(JSONCodec):
+    """
+    Serialize/deserialize UUIDs
+    """
 
     def serialize(self):
         return str(self.value)
@@ -152,6 +138,9 @@ class UUIDCodec(JSONCodec):
 
 @register_json_codec('__datetime__', dispatch_type=datetime.datetime)
 class DateTimeCodec(JSONCodec):
+    """
+    Serialize/deserialize DateTimes
+    """
 
     def serialize(self):
         return self.value.isoformat()
@@ -162,7 +151,10 @@ class DateTimeCodec(JSONCodec):
 
 
 @register_json_codec('__date__', dispatch_type=datetime.date)
-class DateTimeCodec(JSONCodec):
+class DateCodec(JSONCodec):
+    """
+    Serialize/deserialize Dates
+    """
 
     def serialize(self):
         return self.value.isoformat()
@@ -174,6 +166,9 @@ class DateTimeCodec(JSONCodec):
 
 @register_json_codec('__timedelta__', dispatch_type=datetime.timedelta)
 class TimeDeltaCodec(JSONCodec):
+    """
+    Serialize/deserialize TimeDeltas
+    """
 
     def serialize(self):
         return self.value.total_seconds()
@@ -183,19 +178,74 @@ class TimeDeltaCodec(JSONCodec):
         return datetime.timedelta(seconds=obj)
 
 
-# @register_json_codec('__import__')
-# @get_json_codec.register(type)
-# @get_json_codec.register(types.FunctionType)
-# class ImportableCodec(JSONCodec):
+@register_json_codec('__imported_object__')
+class ImportedObjectCodec(JSONCodec):
+    """
+    Serialize/deserialize objects by referencing their fully qualified name.
 
-#     def serialize(self):
-#         name = serialized_name(self.value)
-#         import_serialized_name(name)
-#         return dict(name=name, prefect_version=prefect.__version__)
+    Objects must already be imported at the same module path or
+    deserialization will fail.
+    """
 
-#     @classmethod
-#     def deserialize(cls, obj):
-#         return import_serialized_name(obj['name'])
+    def serialize(self):
+        return self.value.__module__ + '.' + self.value.__name__
+
+    @classmethod
+    def deserialize(cls, obj):
+        obj_import_path = obj.split('.')
+        loaded_obj = sys.modules[obj_import_path[0]]
+        for p in obj_import_path[1:]:
+            loaded_obj = getattr(loaded_obj, p)
+        return loaded_obj
+
+
+def serializable(fn):
+    """
+    Decorator that marks a function as automatically serializable via
+    ImportedObjectCodec
+    """
+    if hasattr(fn, '__json__'):
+        raise ValueError('Object already has a __json__() method.')
+    setattr(fn, '__json__', lambda: ImportedObjectCodec(fn).__json__())
+    return fn
+
+
+@register_json_codec('__encrypted__')
+class EncryptedCodec(JSONCodec):
+
+    def serialize(self):
+        key = prefect.config.security.encryption_key
+        payload = base64.b64encode(json.dumps(self.value).encode())
+        return Fernet(key).encrypt(payload).decode()
+
+    @classmethod
+    def deserialize(cls, obj):
+        key = prefect.config.security.encryption_key
+        decrypted = Fernet(key).decrypt(obj.encode())
+        decoded = base64.b64decode(decrypted).decode()
+        return json.loads(decoded)
+
+
+@register_json_codec('__object_dict__')
+class ObjectDictCodec(JSONCodec):
+    """
+    Serializes an object by storing its class name and __dict__, similar to how
+    the builtin copy module works.
+
+    The object's class *must* be imported before the object is deserialized.
+    """
+
+    def serialize(self):
+        serialized = dict(
+            type=ImportedObjectCodec(type(self.value)),
+            dict=self.value.__dict__.copy())
+        return serialized
+
+    @classmethod
+    def deserialize(cls, obj):
+        instance = object.__new__(obj['type'])
+        instance.__dict__.update(obj['dict'])
+        return instance
 
 
 class PrefectJSONEncoder(json.JSONEncoder):
@@ -217,7 +267,7 @@ class PrefectJSONEncoder(json.JSONEncoder):
         # otherwise try to apply a json codec by dispatching on type
         codec = get_json_codec(obj)
         if codec:
-            return self.default(codec)
+            return codec
 
         else:
             return json.JSONEncoder.default(self, obj)
