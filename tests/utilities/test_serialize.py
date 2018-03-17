@@ -96,7 +96,7 @@ class ObjectDictClass:
         return type(self) == type(o) and self.a == o.a and self.b == o.b
 
 
-def test_json_method():
+def test_json_codec_object_dict():
 
     x = ObjectDictClass(1, datetime.datetime(2000, 1, 1))
     j = json.dumps(codecs.ObjectDictCodec(x))
@@ -107,6 +107,42 @@ def test_json_method():
                 "type": {
                     "__imported_object__":
                     "tests.utilities.test_serialize.ObjectDictClass"
+                },
+                "dict": {
+                    "a": 1,
+                    "b": datetime.datetime(2000, 1, 1)
+                }
+            }
+        })
+    assert x == json.loads(j)
+
+
+class SerializableObj(codecs.Serializable):
+
+    def __init__(self, a, b):
+        self.a = a
+        self.b = b
+
+    def __eq__(self, o):
+        return type(self) == type(o) and self.a == o.a and self.b == o.b
+
+
+def test_serializable_class():
+    """
+    Tests that objects subclassing Serializable are automatically serialized.
+    """
+
+    x = SerializableObj(1, datetime.datetime(2000, 1, 1))
+    j = json.dumps(x)
+
+    assert x.json_codec is codecs.ObjectDictCodec
+
+    assert j == json.dumps(
+        {
+            "__object_dict__": {
+                "type": {
+                    "__imported_object__":
+                    "tests.utilities.test_serialize.SerializableObj"
                 },
                 "dict": {
                     "a": 1,

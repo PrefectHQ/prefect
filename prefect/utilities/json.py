@@ -248,6 +248,13 @@ class ObjectDictCodec(JSONCodec):
         return instance
 
 
+class Serializable:
+    json_codec = ObjectDictCodec
+
+    def __json__(self):
+        return self.json_codec(self)
+
+
 class PrefectJSONEncoder(json.JSONEncoder):
 
     def default(self, obj):
