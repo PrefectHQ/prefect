@@ -103,8 +103,8 @@ class Edge:
 
     def serialize(self):
         return dict(
-            upstream_task_id=self.upstream_task_id,
-            downstream_task_id=self.downstream_task_id,
+            upstream_task_id=self.upstream_task.id,
+            downstream_task_id=self.downstream_task.id,
             key=self.key)
 
     @classmethod
@@ -237,14 +237,13 @@ class Flow(PrefectObject):
             raise TypeError(
                 'Tasks must be Task instances (received {})'.format(type(task)))
 
-        elif task not in self.tasks and task.id:
+        elif task not in self.tasks:
             if next((t for t in self.tasks if t.id == task.id), None):
                 raise ValueError(
                     'A different task with the same ID ("{}") already exists '
                     'in the Flow.'.format(task.id))
 
-        elif isinstance(task, Parameter):
-            if task.name in self.parameters():
+            elif isinstance(task, Parameter) and task.name in self.parameters():
                 raise ValueError(
                     'This Flow already has a parameter called "{}"'.format(
                         task.name))
@@ -459,10 +458,20 @@ class Flow(PrefectObject):
             description=self.description,
             parameters=self.parameters(),
             schedule=self.schedule,
-            tasks=self.tasks,
-            edges=self.edges,
+            tasks=[t.serialize() for t in self.sorted_tasks()],
+            edges=[e.serialize() for e in self.edges],
         )
         return serialized
+
+    @classmethod
+    def deserialize(cls, serialized):
+        flow = super().deserialize(serialized)
+        flow.name = serialized['name']
+        flow.version = serialized['version']
+        flow.schedule = serialized['schedule']
+        flow.tasks = set(Task.deserialize(t) for t in serialized['tasks'])
+        flow.edges = set(Edge.deserialize(e) for e in serialized['edges'])
+        return flow
 
     # Visualization ------------------------------------------------------------
 

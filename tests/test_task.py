@@ -57,10 +57,10 @@ def test_task_factory_decorator():
     assert isinstance(add(1, 2), TaskResult)
 
 
-
 def test_serialize():
     t = Task()
     serialized = t.serialize()
+    assert t.id == serialized['id']
     assert t.name == serialized['name']
     assert t.description == serialized['description']
     assert t.max_retries == serialized['max_retries']
@@ -81,6 +81,7 @@ def test_deserialize():
     assert t2.id == t1.id
     assert t2.name == t1.name
     assert prefect.base.get_object_by_id(t1.id) is t2
+
 
 def test_deserialize_parameter():
     p = Parameter('x', default=1)
