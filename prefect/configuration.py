@@ -1,10 +1,13 @@
-import random
 import logging
 import os
-import prefect
+import random
+import uuid
+from string import ascii_letters, digits, punctuation
+
 import toml
 from cryptography.fernet import Fernet
 
+import prefect
 from prefect.utilities.collections import dict_to_dotdict, merge_dicts
 
 DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), 'prefect.toml')
@@ -28,7 +31,7 @@ def expand(env_var):
             env_var = interpolated
 
 
-def create_user_config(path):
+def create_user_config(path, source=DEFAULT_CONFIG):
     """
     Copies the default configuration to a user-customizable file
     """
@@ -38,11 +41,21 @@ def create_user_config(path):
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
 
     with open(config_file, 'w') as fw:
-        with open(DEFAULT_CONFIG, 'r') as fr:
-            template = fr.read()
-            key = Fernet.generate_key().decode()
-            template = template.replace('<<REPLACE WITH FERNET KEY>>', key)
-            fw.write(template)
+        with open(source, 'r') as fr:
+            src = fr.read()
+
+            while '<<FERNET KEY>>' in src:
+                key = Fernet.generate_key().decode()
+                src = src.replace('<<FERNET KEY>>', '"' + key + '"', 1)
+
+            while '<<SECRET>>' in src:
+                chars = ascii_letters + digits + '!@#$%^&*()[]<>,.-'
+                secret = ''.join(random.choice(chars) for i in range(32))
+                src = src.replace('<<SECRET>>', '"' + secret + '"', 1)
+
+            while '<<UUID>>' in src:
+                src = src.replace('<<UUID>>', '"' + str(uuid.uuid4()) + '"', 1)
+            fw.write(src)
 
 
 # Logging ---------------------------------------------------------------------
