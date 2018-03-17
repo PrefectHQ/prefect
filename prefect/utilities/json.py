@@ -255,6 +255,9 @@ class ObjectDictCodec(JSONCodec):
 
 
 class Serializable:
+    """
+    A class that automatically uses a specified JSONCodec to serialize itself.
+    """
     json_codec = ObjectDictCodec
 
     def __json__(self):
