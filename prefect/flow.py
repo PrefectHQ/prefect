@@ -332,14 +332,14 @@ class Flow(PrefectObject):
             tasks = self.tasks
 
         # build the list of sorted tasks
-        remaining_tasks = tasks.copy()
+        remaining_tasks = list(sorted(tasks, key=lambda t: t.id))
         sorted_tasks = []
         while remaining_tasks:
             # mark the flow as cyclic unless we prove otherwise
             cyclic = True
 
             # iterate over each remaining task
-            for task in sorted(remaining_tasks, key=lambda t: (t.name, t.id)):
+            for task in remaining_tasks.copy():
                 # check all the upstream tasks of that task
                 for upstream_task in self.upstream_tasks(task):
                     # if the upstream task is also remaining, it means it
