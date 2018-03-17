@@ -82,6 +82,12 @@ class PrefectObject:
             id=self.id,
             prefect_version=prefect.__version__)
 
+    @classmethod
+    def deserialize(cls, serialized):
+        instance = object.__new__(cls)
+        instance.id = serialized['id']
+        return instance
+
     def __setstate__(self, state):
         self.__dict__.update(state)
         self.register()

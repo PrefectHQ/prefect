@@ -60,3 +60,11 @@ def test_serialize():
 def test_json():
     po = base.PrefectObject()
     json.dumps(po)
+
+def test_deserialize():
+    po1 = base.PrefectObject()
+    po2 = base.PrefectObject.deserialize(po1.serialize())
+
+    assert po1 == po2
+    assert po1.id == po2.id
+    assert po1 is not po2
