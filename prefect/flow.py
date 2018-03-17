@@ -256,6 +256,8 @@ class Flow(PrefectObject):
             upstream_task = upstream_task.task
         if isinstance(downstream_task, TaskResult):
             downstream_task = downstream_task.task
+        if isinstance(downstream_task, Parameter):
+            raise ValueError('Parameters can not have upstream dependencies.')
 
         edges_to_task = self.edges_to(downstream_task)
 
