@@ -3,8 +3,10 @@ Triggers are functions that determine if task state should change based on
 the state of preceding tasks.
 """
 from prefect import signals
+from prefect.utilities.json import serializable
 
 
+@serializable
 def always_run(upstream_states):
     """
     This task will run no matter what the upstream states are.
@@ -13,6 +15,7 @@ def always_run(upstream_states):
     return True
 
 
+@serializable
 def manual_only(upstream_states):
     """
     This task will never run automatically. It will only run if it is
@@ -23,6 +26,7 @@ def manual_only(upstream_states):
     return False
 
 
+@serializable
 def all_successful(upstream_states):
     """
     Runs if all upstream tasks were successful. SKIPPED tasks are considered
@@ -37,6 +41,7 @@ def all_successful(upstream_states):
     return True
 
 
+@serializable
 def all_failed(upstream_states):
     """
     Runs if all upstream tasks failed. SKIPPED tasks are considered successes.
@@ -47,6 +52,7 @@ def all_failed(upstream_states):
     return True
 
 
+@serializable
 def all_finished(upstream_states):
     """
     Runs if all tasks finished (either SUCCESS, FAIL, SKIP, or SKIP_DOWNSTREAM)
@@ -59,6 +65,7 @@ def all_finished(upstream_states):
     return True
 
 
+@serializable
 def any_successful(upstream_states):
     """
     Runs if any tasks were successful. SKIPPED tasks are considered successes;
@@ -70,6 +77,7 @@ def any_successful(upstream_states):
     return True
 
 
+@serializable
 def any_failed(upstream_states):
     """
     No failed tasks -> fail

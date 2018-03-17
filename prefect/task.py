@@ -1,30 +1,23 @@
-import copy
 import inspect
-import uuid
 from datetime import timedelta
-from weakref import WeakValueDictionary
 
 import prefect
 from prefect.context import Context
-from prefect.utilities.serializers import Serializable
-from prefect.utilities.ids import generate_uuid
-
-TASK_REGISTRY = WeakValueDictionary()
+from prefect.base import PrefectObject
 
 
-class Task(Serializable):
+class Task(PrefectObject):
 
     def __init__(
             self,
             name=None,
-            id=None,
             description=None,
             max_retries=0,
             retry_delay=timedelta(minutes=1),
             timeout=None,
             trigger=None,
             secrets=None):
-        self.id = generate_uuid()
+
         self.name = name or type(self).__name__
         self.description = description
 
@@ -38,8 +31,7 @@ class Task(Serializable):
 
         self.secrets = secrets or {}
 
-        self.register()
-        self._prefect_version = prefect.__version__
+        super().__init__()
 
         flow = Context.get('flow')
         if flow:
@@ -51,31 +43,6 @@ class Task(Serializable):
 
     def __hash__(self):
         return id(self)
-
-
-    # Identification  ----------------------------------------------------------
-
-    @property
-    def id(self):
-        return self._id
-
-    @id.setter
-    def id(self, value):
-        self._id = value
-        self.register()
-
-    @property
-    def short_id(self):
-        return self._id[:8]
-
-    def register(self):
-        TASK_REGISTRY[self.id] = self
-
-    def copy(self):
-        new = copy.copy(self)
-        new.id = generate_uuid()
-        new.register()
-        return new
 
     # Run  --------------------------------------------------------------------
 
@@ -129,24 +96,13 @@ class Task(Serializable):
 
         serialized.update(
             name=self.name,
-            id=self.id,
             description=self.description,
             max_retries=self.max_retries,
             retry_delay=self.retry_delay,
             timeout=self.timeout,
-            trigger=self.trigger,
-            type=type(self).__name__,
-            prefect_version=self._prefect_version)
+            trigger=self.trigger)
 
         return serialized
-
-    def after_deserialize(self, serialized):
-        self.id = serialized['id']
-        self.register()
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        self.register()
 
 
 class Parameter(Task):

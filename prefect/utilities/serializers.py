@@ -5,7 +5,7 @@ import prefect
 from prefect.signals import SerializationError
 from prefect.utilities import functions
 from prefect.utilities.json import (
-    JSONCodec, register_json_codec, serialized_name, SERIALIZED_NAME_REGISTRY)
+    JSONCodec, register_json_codec, )
 
 
 @register_json_codec('__serialized_dict__')
@@ -18,11 +18,7 @@ class SerializeAsDict(JSONCodec):
 
     def serialize(self):
 
-        if hasattr(self.value, '__getstate__'):
-            dct = self.value.__getstate__().copy()
-        else:
-            dct = self.value.__dict__.copy()
-
+        dct = self.value.__dict__.copy()
         serialized_value = self.value.serialize()
 
         get_value_from_serialized = []
@@ -80,6 +76,7 @@ class SerializableMetaclass(type):
 
     def __new__(meta, name, bases, class_dict):
         cls = type.__new__(meta, name, bases, class_dict)
+        return cls
         SERIALIZED_NAME_REGISTRY[serialized_name(cls)] = cls
         return cls
 

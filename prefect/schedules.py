@@ -2,7 +2,7 @@ import croniter
 import datetime
 import itertools
 import prefect.utilities.datetimes
-from prefect.utilities.serializers import Serializable
+from prefect.utilities.json import Serializable
 
 
 class Schedule(Serializable):

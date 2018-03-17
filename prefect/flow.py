@@ -1,21 +1,15 @@
 from prefect.utilities.strings import is_valid_identifier
-import copy
 import inspect
 import tempfile
-import uuid
 from contextlib import contextmanager
 from typing import Iterable, Mapping
-from weakref import WeakValueDictionary
 import graphviz
 
 import prefect
 import prefect.context
+from prefect.base import PrefectObject
 from prefect.task import Task, Parameter
 from prefect.utilities.tasks import as_task_result
-from prefect.utilities.serializers import Serializable
-from prefect.utilities.ids import generate_uuid
-
-FLOW_REGISTRY = WeakValueDictionary()
 
 
 class TaskResult:
@@ -50,7 +44,7 @@ class TaskResult:
         self.set_dependencies(upstream_tasks=task_results)
 
 
-class Edge(Serializable):
+class Edge:
 
     def __init__(self, upstream_task, downstream_task, key=None):
         """
@@ -90,39 +84,33 @@ class Edge(Serializable):
 
     # Comparison --------------------------------------------------------------
 
-    @property
-    def _cmp(self):
-        return (self.upstream_task, self.downstream_task, self.key)
-
     def __repr__(self):
-
-        if self.key:
-            return '<{cls}: {u} to {d}{k}>'.format(
-                cls=type(self).__name__,
-                u=self.upstream_task.short_id,
-                d=self.downstream_task.short_id,
-                k=' (key={})'.format(self.key) if self.key else '')
+        return '<{cls}: {u} to {d}{k}>'.format(
+            cls=type(self).__name__,
+            u=self.upstream_task.short_id,
+            d=self.downstream_task.short_id,
+            k=' (key={})'.format(self.key) if self.key else '')
 
     def __eq__(self, other):
         if type(self) == type(other):
-            return self._cmp == other._cmp
+            self_cmp = (self.upstream_task, self.downstream_task, self.key)
+            other_cmp = (other.upstream_task, other.downstream_task, other.key)
+            return self_cmp == other_cmp
         return False
 
     def __hash__(self):
-        return hash(self._cmp)
+        return id(self)
 
     def serialize(self):
-        serialized = super().serialize()
-        serialized.update(
-            {
-                'upstream_task': self.upstream_task,
-                'downstream_task': self.downstream_task,
-                'key': self.key
-            })
+        serialized = {
+            'upstream_task_id': self.upstream_task_id,
+            'downstream_task_id': self.downstream_task_id,
+            'key': self.key
+        }
         return serialized
 
 
-class Flow(Serializable):
+class Flow(PrefectObject):
 
     def __init__(
             self,
@@ -133,7 +121,6 @@ class Flow(Serializable):
             tasks=None,
             edges=None):
 
-        self.id = generate_uuid()
         self.name = name or type(self).__name__
         self.version = version
         self.description = description
@@ -151,8 +138,9 @@ class Flow(Serializable):
                 downstream_task=e.downstream_task,
                 key=e.key)
 
-        self.register()
         self._prefect_version = prefect.__version__
+
+        super().__init__()
 
     def __eq__(self, other):
         if type(self) == type(other):
@@ -172,30 +160,11 @@ class Flow(Serializable):
 
     # Identification  ----------------------------------------------------------
 
-    def register(self):
-        FLOW_REGISTRY[self.id] = self
-
     def copy(self):
-        new = copy.copy(self)
-        new.id = generate_uuid()
-        new.register()
+        new = super().copy()
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
         return new
-
-    @property
-    def id(self):
-        return self._id
-
-    @id.setter
-    def id(self, value):
-        if not isinstance(value, uuid.UUID):
-            value = uuid.UUID(value)
-        self._id = str(value)
-
-    @property
-    def short_id(self):
-        return self._id[:8]
 
     # Context Manager ----------------------------------------------------------
 
@@ -479,22 +448,14 @@ class Flow(Serializable):
         serialized = super().serialize()
         serialized.update(
             name=self.name,
-            id=self.id,
             version=self.version,
             description=self.description,
             parameters=self.parameters(),
             schedule=self.schedule,
             tasks=self.tasks,
             edges=self.edges,
-            prefect_version=self._prefect_version)
+        )
         return serialized
-
-    def after_deserialize(self, serialized):
-        self.register()
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        self.register()
 
     # Visualization ------------------------------------------------------------
 

@@ -16,6 +16,10 @@ import prefect
 JSON_CODECS_KEYS = dict()
 
 
+def qualified_name(obj):
+    obj.__module__ + '.' + obj.__name__
+
+
 def register_json_codec(codec_key, dispatch_type=None):
     """
     Decorator that registers a JSON Codec to a corresponding codec_key.
@@ -189,7 +193,7 @@ class ImportedObjectCodec(JSONCodec):
 
     def serialize(self):
         return dict(
-            path=self.value.__module__ + '.' + self.value.__name__,
+            path=qualified_name(self.value),
             prefect_version=prefect.__version__)
 
     @classmethod
