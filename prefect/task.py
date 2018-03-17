@@ -38,8 +38,8 @@ class Task(PrefectObject):
             flow.add_task(self)
 
     def __repr__(self):
-        return '<Task: "{self.name}" type={cls} id={id}>'.format(
-            cls=type(self).__name__, self=self, id=self.short_id)
+        return '<Task: {self.short_id}>'.format(
+            cls=type(self).__name__, self=self)
 
     def __hash__(self):
         return id(self)
@@ -104,6 +104,22 @@ class Task(PrefectObject):
 
         return serialized
 
+    @classmethod
+    def deserialize(cls, serialized):
+        if serialized.get('qualified_name') == 'prefect.task.Parameter':
+            serialized.pop('qualified_name')
+            return Parameter.deserialize(serialized)
+
+        task = super().deserialize(serialized)
+        task.name = serialized['name']
+        task.description = serialized['description']
+        task.max_retries = serialized['max_retries']
+        task.retry_delay = serialized['retry_delay']
+        task.timeout = serialized['timeout']
+        task.trigger = serialized['trigger']
+
+        return task
+
 
 class Parameter(Task):
     """
@@ -136,3 +152,15 @@ class Parameter(Task):
                 'Parameter "{}" was required but not provided.'.format(
                     self.name))
         return params.get(self.name, self.default)
+
+    def serialize(self):
+        serialized = super().serialize()
+        serialized.update(required=self.required, default=self.default)
+        return serialized
+
+    @classmethod
+    def deserialize(cls, serialized):
+        parameter = super().deserialize(serialized)
+        parameter.required = serialized['required']
+        parameter.default = serialized['default']
+        return parameter

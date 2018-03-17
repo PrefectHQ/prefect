@@ -66,8 +66,6 @@ class PrefectObject:
         return self._id[:8]
 
     def register(self):
-        if PREFECT_REGISTRY.get(self.id) not in (None, self):
-            raise ValueError('ID {} is already registered!'.format(self.id))
         PREFECT_REGISTRY[self.id] = self
 
     # Serialization ------------------------------------------------------------
