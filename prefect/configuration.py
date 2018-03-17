@@ -40,21 +40,35 @@ def create_user_config(path, source=DEFAULT_CONFIG):
         raise ValueError('File already exists: {}'.format(config_file))
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
 
+    def quote(s):
+        return '"' + s + '"'
+
     with open(config_file, 'w') as fw:
         with open(source, 'r') as fr:
             src = fr.read()
+            counter = 0
 
-            while '<<FERNET KEY>>' in src:
+            while '"<<FERNET KEY>>"' in src:
                 key = Fernet.generate_key().decode()
-                src = src.replace('<<FERNET KEY>>', '"' + key + '"', 1)
+                src = src.replace('"<<FERNET KEY>>"', quote(key), 1)
+                counter += 1
+                if counter > 100:
+                    raise ValueError('Unexpected interpolation error.')
 
-            while '<<SECRET>>' in src:
+            while '"<<SECRET>>"' in src:
                 chars = ascii_letters + digits + '!@#$%^&*()[]<>,.-'
                 secret = ''.join(random.choice(chars) for i in range(32))
-                src = src.replace('<<SECRET>>', '"' + secret + '"', 1)
+                src = src.replace('"<<SECRET>>"', quote(secret), 1)
+                counter += 1
+                if counter > 100:
+                    raise ValueError('Unexpected interpolation error.')
 
-            while '<<UUID>>' in src:
-                src = src.replace('<<UUID>>', '"' + str(uuid.uuid4()) + '"', 1)
+            while '"<<UUID>>"' in src:
+                src = src.replace('"<<UUID>>"', quote(str(uuid.uuid4())), 1)
+                counter += 1
+                if counter > 100:
+                    raise ValueError('Unexpected interpolation error.')
+
             fw.write(src)
 
 

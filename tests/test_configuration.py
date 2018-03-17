@@ -8,14 +8,14 @@ from prefect import configuration
 template = b"""
     [interpolation]
 
-    password1 = <<SECRET>>
-    password2 = <<SECRET>>
+    password1 = "<<SECRET>>"
+    password2 = "<<SECRET>>"
 
-    uuid1 = <<UUID>>
-    uuid2 = <<UUID>>
+    uuid1 = "<<UUID>>"
+    uuid2 = "<<UUID>>"
 
-    fernet1 = <<FERNET KEY>>
-    fernet2 = <<FERNET KEY>>
+    fernet1 = "<<FERNET KEY>>"
+    fernet2 = "<<FERNET KEY>>"
     """
 
 

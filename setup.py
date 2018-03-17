@@ -10,6 +10,7 @@ install_requires = [
     'requests',
     'ujson',
     'wrapt',
+    'toml',
 ]
 
 extras = {
