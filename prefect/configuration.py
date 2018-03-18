@@ -1,3 +1,4 @@
+import re
 import logging
 import os
 import random
@@ -13,7 +14,7 @@ from prefect.utilities import collections
 DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), 'prefect.toml')
 USER_CONFIG = '~/.prefect/prefect.toml'
 ENV_VAR_PREFIX = 'PREFECT'
-
+INTERPOLATION_REGEX = re.compile(r'\${(.*)}+')
 
 def expand(env_var):
     """
@@ -21,7 +22,7 @@ def expand(env_var):
     `expandvars` and `expanduser` until interpolation stops having
     any effect.
     """
-    if not env_var:
+    if not env_var or not isinstance(env_var, str):
         return env_var
     while True:
         interpolated = os.path.expanduser(os.path.expandvars(str(env_var)))
@@ -103,7 +104,6 @@ def load_config_file(path, existing_config=None):
     for env_var in os.environ:
         if not env_var.startswith(ENV_VAR_PREFIX):
             continue
-
         sections = collections.CompoundKey(env_var.lower().split('__')[1:])
         if sections:
             flat_config[sections] = expand(os.getenv(env_var))
@@ -111,6 +111,22 @@ def load_config_file(path, existing_config=None):
     # expand configuration referencing env vars
     for k, v in list(flat_config.items()):
         flat_config[k] = expand(v)
+
+    # process interpolation of any variable referencing another with ${}
+    # process up to 10 links
+    for i in range(10):
+        for k, v in list(flat_config.items()):
+            if not isinstance(v, str):
+                continue
+            match = INTERPOLATION_REGEX.search(v)
+            if not match:
+                continue
+            referenced_key = collections.CompoundKey(match.group(1).split('.'))
+            referenced_value = flat_config[referenced_key]
+            if v == match.group(0):
+                flat_config[k] = referenced_value
+            else:
+                flat_config[k] = v.replace(match.group(0), referenced_value, 1)
 
     config = collections.flatdict_to_dict(flat_config)
 
