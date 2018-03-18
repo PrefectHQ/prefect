@@ -8,7 +8,7 @@ import toml
 from cryptography.fernet import Fernet
 
 import prefect
-from prefect.utilities.collections import dict_to_dotdict, merge_dicts
+from prefect.utilities import collections
 
 DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), 'prefect.toml')
 USER_CONFIG = '~/.prefect/prefect.toml'
@@ -97,24 +97,27 @@ def validate_config(config):
 def load_config_file(path, existing_config=None):
 
     config = toml.load(expand(path))
+    flat_config = collections.dict_to_flatdict(config)
 
+    # set configuration from env vars
     for env_var in os.environ:
         if not env_var.startswith(ENV_VAR_PREFIX):
             continue
-        sections = env_var.lower().split('__')[1:]
-        if not sections:
-            continue
-        config_section = config
-        # recurse to the last section
-        for section in sections[:-1]:
-            config_section = config_section.setdefault(section, {})
-        # apply the env var value
-        config_section[sections[-1]] = expand(os.getenv(env_var))
+
+        sections = collections.CompoundKey(env_var.lower().split('__')[1:])
+        if sections:
+            flat_config[sections] = expand(os.getenv(env_var))
+
+    # expand configuration referencing env vars
+    for k, v in list(flat_config.items()):
+        flat_config[k] = expand(v)
+
+    config = collections.flatdict_to_dict(flat_config)
 
     if existing_config is not None:
-        config = merge_dicts(existing_config, config)
+        config = collections.merge_dicts(existing_config, config)
 
-    return dict_to_dotdict(config)
+    return collections.dict_to_dotdict(config)
 
 
 def load_configuration(default_config, user_config, env_var=None):
