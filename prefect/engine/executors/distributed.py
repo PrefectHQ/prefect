@@ -1,7 +1,5 @@
 from contextlib import contextmanager
 
-import distributed
-from distributed import worker_client
 
 from prefect.engine.executors import Executor
 
@@ -13,6 +11,9 @@ def running_in_cluster():
     Returns True if the current thread is running inside a distributed cluster
     and False otherwise.
     """
+
+    # lazy load because distributed is slow
+    import distributed
     return hasattr(distributed.worker.thread_state, 'execution_state')
 
 
@@ -55,6 +56,9 @@ def distributed_client(address=None, separate_thread=False):
     """
 
     global _LOCAL_CLUSTER
+    # lazy load because distributed is slow
+    from distributed import worker_client
+
 
     # return a worker client is we are running in the cluster
     # and no address is provided OR if the provided address is the cluster

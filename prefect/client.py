@@ -1,10 +1,7 @@
 import datetime
 import os
 
-import requests
-
 import prefect
-import ujson
 from prefect.utilities.collections import dict_to_dotdict
 
 
@@ -105,7 +102,7 @@ class Client:
         result = self._post(
             path='',
             query=query,
-            variables=ujson.dumps(variables),
+            variables=json.dumps(variables),
             _server=self._graphql_server)
         if 'errors' in result:
             raise ValueError(result['errors'])
@@ -113,6 +110,9 @@ class Client:
             return dict_to_dotdict(result).data
 
     def _request(self, method, path, params, server=None):
+
+        # lazy import for performance
+        import requests
 
         if server is None:
             server = self._api_server
@@ -153,8 +153,15 @@ class Client:
     # -------------------------------------------------------------------------
 
     def login(self, email, password, account_slug=None, account_id=None):
+
+        # lazy import for performance
+        import requests
+
         url = os.path.join(self._api_server, 'auth/login')
-        response = requests.post(url, auth=(email, password), json=dict(account_id=account_id, account_slug=account_slug))
+        response = requests.post(
+            url,
+            auth=(email, password),
+            json=dict(account_id=account_id, account_slug=account_slug))
         if not response.ok:
             raise ValueError('Could not log in.')
         self._token = response.json().get('token')
@@ -167,9 +174,7 @@ class Client:
     def refresh_token(self):
         url = os.path.join(self._api_server, 'auth/refresh')
         response = requests.post(
-            url, headers={
-                'Authorization': 'Bearer ' + self._token
-            })
+            url, headers={'Authorization': 'Bearer ' + self._token})
         self._token = response.json().get('token')
 
 
