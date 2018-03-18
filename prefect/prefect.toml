@@ -24,7 +24,7 @@ encryption_key = "<<FERNET KEY>>"
 level = "INFO"
 
 # The log format
-format = "[%%(asctime)s] %%(levelname)s - %%(name)s | %%(message)s"
+format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
 
 [flows]
 # the global default Flow. Set to None to disable; this will require all Flows

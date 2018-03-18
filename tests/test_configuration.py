@@ -16,7 +16,11 @@ template = b"""
     [interpolation]
     x = "${interpolation.y}"
     y = 11
-    z = "${interpolation.x}"
+    z = "Number: ${interpolation.x}"
+    multiple = "${interpolation.x} + ${interpolation.y}"
+
+    ref = "y"
+    nested = "${interpolation.${interpolation.ref}}"
 
     [substitution]
 
@@ -77,4 +81,6 @@ def test_env_var_configuration():
 def test_interpolation(config):
     assert config.interpolation.y == 11
     assert config.interpolation.x == config.interpolation.y
-    assert config.interpolation.z == config.interpolation.y
+    assert config.interpolation.z == 'Number: 11'
+    assert config.interpolation.multiple == '11 + 11'
+    assert config.interpolation.nested == config.interpolation.y

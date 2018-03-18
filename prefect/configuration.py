@@ -14,7 +14,7 @@ from prefect.utilities import collections
 DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), 'prefect.toml')
 USER_CONFIG = '~/.prefect/prefect.toml'
 ENV_VAR_PREFIX = 'PREFECT'
-INTERPOLATION_REGEX = re.compile(r'\${(.*)}+')
+INTERPOLATION_REGEX = re.compile(r'\${(.[^${}]*)}')
 
 def expand(env_var):
     """
@@ -25,11 +25,11 @@ def expand(env_var):
     if not env_var or not isinstance(env_var, str):
         return env_var
     while True:
-        interpolated = os.path.expanduser(os.path.expandvars(str(env_var)))
-        if interpolated == env_var:
-            return interpolated
+        substituted = os.path.expanduser(os.path.expandvars(str(env_var)))
+        if substituted == env_var:
+            return substituted
         else:
-            env_var = interpolated
+            env_var = substituted
 
 
 def create_user_config(path, source=DEFAULT_CONFIG):
@@ -121,12 +121,12 @@ def load_config_file(path, existing_config=None):
             match = INTERPOLATION_REGEX.search(v)
             if not match:
                 continue
-            referenced_key = collections.CompoundKey(match.group(1).split('.'))
-            referenced_value = flat_config[referenced_key]
+            ref_key = collections.CompoundKey(match.group(1).split('.'))
+            ref_value = flat_config[ref_key]
             if v == match.group(0):
-                flat_config[k] = referenced_value
+                flat_config[k] = ref_value
             else:
-                flat_config[k] = v.replace(match.group(0), referenced_value, 1)
+                flat_config[k] = v.replace(match.group(0), str(ref_value), 1)
 
     config = collections.flatdict_to_dict(flat_config)
 
