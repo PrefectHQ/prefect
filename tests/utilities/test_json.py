@@ -94,20 +94,41 @@ class ObjectDictClass:
         return type(self) == type(o) and self.a == o.a and self.b == o.b
 
 
-def test_json_codec_object_dict():
+def test_json_object_attributes_codec():
+    x = ObjectDictClass(1, 2)
+
+    dict_codec = codecs.ObjectAttributesCodec(x)
+    assert dict_codec.attributes_list == list(x.__dict__.keys())
+    dict_j = default_load_json(json.dumps(dict_codec))
+    assert dict_j['__object_attrs__']['attrs'] == x.__dict__
+    assert json.loads(json.dumps(dict_codec)) == x
+
+    attr_codec = codecs.ObjectAttributesCodec(x, attributes_list=['a'])
+    assert attr_codec.attributes_list == ['a']
+    attr_j = default_load_json(json.dumps(attr_codec))
+    assert attr_j['__object_attrs__']['attrs'] == {'a': x.a}
+    j = json.loads(json.dumps(attr_codec))
+    assert isinstance(j, ObjectDictClass)
+    assert j.a == x.a
+    assert not hasattr(j, 'b')
+
+
+def test_json_codec_object_attrs_dict():
+    """Without arguments, the ObjectAttributesCodec will serialize the __dict__
+    """
 
     x = ObjectDictClass(1, datetime.datetime(2000, 1, 1))
-    j = json.dumps(codecs.ObjectDictCodec(x))
+    j = json.dumps(codecs.ObjectAttributesCodec(x))
 
     assert default_load_json(j) == {
-        "__object_dict__": {
+        "__object_attrs__": {
             "type": {
                 "__imported_object__": {
                     "path": "tests.utilities.test_json.ObjectDictClass",
                     "prefect_version": prefect.__version__
                 }
             },
-            "dict": {
+            "attrs": {
                 "a": 1,
                 "b": {
                     '__datetime__': '2000-01-01T00:00:00'
@@ -136,19 +157,18 @@ def test_serializable_class():
     x = SerializableObj(1, datetime.datetime(2000, 1, 1))
     j = json.dumps(x)
 
-    assert x.json_codec is codecs.ObjectDictCodec
+    assert x.json_codec is codecs.ObjectAttributesCodec
 
     assert j == json.dumps(
         {
-            "__object_dict__": {
+            "__object_attrs__": {
                 "type": {
                     "__imported_object__": {
-                        "path":
-                        "tests.utilities.test_json.SerializableObj",
+                        "path": "tests.utilities.test_json.SerializableObj",
                         "prefect_version": prefect.__version__
                     }
                 },
-                "dict": {
+                "attrs": {
                     "a": 1,
                     "b": {
                         '__datetime__': '2000-01-01T00:00:00'

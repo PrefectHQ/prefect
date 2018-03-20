@@ -232,25 +232,34 @@ class EncryptedCodec(JSONCodec):
         return json.loads(decoded)
 
 
-@register_json_codec('__object_dict__')
-class ObjectDictCodec(JSONCodec):
+@register_json_codec('__object_attrs__')
+class ObjectAttributesCodec(JSONCodec):
     """
-    Serializes an object by storing its class name and __dict__, similar to how
-    the builtin copy module works.
+    Serializes an object by storing its class name and a dict of attributes,
+    similar to how the builtin copy module works. If the attributes_list is
+    None (default), then the object's __dict__ is serialized. Otherwise, each
+    provided attribute is stored and restored.
 
     The object's class *must* be imported before the object is deserialized.
     """
 
+    def __init__(self, value, attributes_list=None):
+        super().__init__(value)
+        if attributes_list is None:
+            attributes_list = list(value.__dict__.keys())
+        self.attributes_list = attributes_list
+
     def serialize(self):
         serialized = dict(
             type=ImportedObjectCodec(type(self.value)),
-            dict=self.value.__dict__.copy())
+            attrs={a: getattr(self.value, a)
+                   for a in self.attributes_list})
         return serialized
 
     @classmethod
     def deserialize(cls, obj):
         instance = object.__new__(obj['type'])
-        instance.__dict__.update(obj['dict'])
+        instance.__dict__.update(obj['attrs'])
         return instance
 
 
@@ -258,10 +267,19 @@ class Serializable:
     """
     A class that automatically uses a specified JSONCodec to serialize itself.
     """
-    json_codec = ObjectDictCodec
+    json_codec = ObjectAttributesCodec
+    json_attributes_list = None
 
     def __json__(self):
-        return self.json_codec(self)
+        return self.json_codec(
+            value=self, attributes_list=self.json_attributes_list)
+
+    @classmethod
+    def deserialize(cls, serialized):
+        obj = json.loads(serialized)
+        if not issubclass(type(obj), cls):
+            raise TypeError('Invalid type')
+        return obj
 
 
 class PrefectJSONEncoder(json.JSONEncoder):
