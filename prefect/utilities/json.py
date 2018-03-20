@@ -182,7 +182,7 @@ class TimeDeltaCodec(JSONCodec):
         return datetime.timedelta(seconds=obj)
 
 
-@register_json_codec('__imported_object__')
+@register_json_codec('__imported_object__', dispatch_type=type)
 class ImportedObjectCodec(JSONCodec):
     """
     Serialize/deserialize objects by referencing their fully qualified name.
@@ -192,13 +192,11 @@ class ImportedObjectCodec(JSONCodec):
     """
 
     def serialize(self):
-        return dict(
-            path=qualified_name(self.value),
-            prefect_version=prefect.__version__)
+        return qualified_name(self.value)
 
     @classmethod
     def deserialize(cls, obj):
-        obj_import_path = obj['path'].split('.')
+        obj_import_path = obj.split('.')
         loaded_obj = sys.modules[obj_import_path[0]]
         for p in obj_import_path[1:]:
             loaded_obj = getattr(loaded_obj, p)

@@ -123,10 +123,8 @@ def test_json_codec_object_attrs_dict():
     assert default_load_json(j) == {
         "__object_attrs__": {
             "type": {
-                "__imported_object__": {
-                    "path": "tests.utilities.test_json.ObjectDictClass",
-                    "prefect_version": prefect.__version__
-                }
+                "__imported_object__":
+                "tests.utilities.test_json.ObjectDictClass"
             },
             "attrs": {
                 "a": 1,
@@ -163,10 +161,8 @@ def test_serializable_class():
         {
             "__object_attrs__": {
                 "type": {
-                    "__imported_object__": {
-                        "path": "tests.utilities.test_json.SerializableObj",
-                        "prefect_version": prefect.__version__
-                    }
+                    "__imported_object__":
+                    "tests.utilities.test_json.SerializableObj"
                 },
                 "attrs": {
                     "a": 1,
