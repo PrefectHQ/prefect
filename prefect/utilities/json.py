@@ -45,7 +45,7 @@ def register_json_codec(codec_key, dispatch_type=None):
 
         # register the dispatch type
         if dispatch_type:
-            get_json_codec.register(dispatch_type)(codec_class)
+            dispatch_json_codec.register(dispatch_type)(codec_class)
 
         return codec_class
 
@@ -53,7 +53,7 @@ def register_json_codec(codec_key, dispatch_type=None):
 
 
 @singledispatch
-def get_json_codec(obj):
+def dispatch_json_codec(obj):
     return None
 
 
@@ -299,7 +299,7 @@ class PrefectJSONEncoder(json.JSONEncoder):
             return obj.__json__()
 
         # otherwise try to apply a json codec by dispatching on type
-        obj_codec = get_json_codec(obj)
+        obj_codec = dispatch_json_codec(obj)
         if obj_codec:
             return obj_codec.__json__()
 
