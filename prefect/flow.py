@@ -115,7 +115,7 @@ class Edge:
             key=serialized['key'])
 
 
-class Flow(PrefectObject):
+class Flow:
 
     def __init__(
             self,
@@ -238,12 +238,12 @@ class Flow(PrefectObject):
                 'Tasks must be Task instances (received {})'.format(type(task)))
 
         elif task not in self.tasks:
-            if next((t for t in self.tasks if t.id == task.id), None):
-                raise ValueError(
-                    'A different task with the same ID ("{}") already exists '
-                    'in the Flow.'.format(task.id))
+            # if next((t for t in self.tasks if t.id == task.id), None):
+            #     raise ValueError(
+            #         'A different task with the same ID ("{}") already exists '
+            #         'in the Flow.'.format(task.id))
 
-            elif isinstance(task, Parameter) and task.name in self.parameters():
+            if isinstance(task, Parameter) and task.name in self.parameters():
                 raise ValueError(
                     'This Flow already has a parameter called "{}"'.format(
                         task.name))
@@ -307,10 +307,10 @@ class Flow(PrefectObject):
                 self.update(t.flow)
 
     def edges_to(self, task):
-        return set(e for e in self.edges if e.downstream_task == task)
+        return set(e for e in self.edges if e.downstream_task is task)
 
     def edges_from(self, task):
-        return set(e for e in self.edges if e.upstream_task == task)
+        return set(e for e in self.edges if e.upstream_task is task)
 
     def upstream_tasks(self, task):
         return set(e.upstream_task for e in self.edges_to(task))
@@ -322,7 +322,7 @@ class Flow(PrefectObject):
 
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
-
+        # import ipdb; ipdb.set_trace()
         if root_tasks:
             tasks = set(root_tasks)
             seen = set()
@@ -338,7 +338,7 @@ class Flow(PrefectObject):
             tasks = self.tasks
 
         # build the list of sorted tasks
-        remaining_tasks = list(sorted(tasks, key=lambda t: t.id))
+        remaining_tasks = list(tasks)
         sorted_tasks = []
         while remaining_tasks:
             # mark the flow as cyclic unless we prove otherwise
@@ -451,8 +451,7 @@ class Flow(PrefectObject):
     # Serialization ------------------------------------------------------------
 
     def serialize(self):
-        serialized = super().serialize()
-        serialized.update(
+        return dict(
             name=self.name,
             version=self.version,
             description=self.description,
@@ -461,17 +460,15 @@ class Flow(PrefectObject):
             tasks=[t.serialize() for t in self.sorted_tasks()],
             edges=[e.serialize() for e in self.edges],
         )
-        return serialized
 
     @classmethod
     def deserialize(cls, serialized):
-        flow = super().deserialize(serialized)
-        flow.name = serialized['name']
-        flow.version = serialized['version']
-        flow.schedule = serialized['schedule']
-        flow.tasks = set(Task.deserialize(t) for t in serialized['tasks'])
-        flow.edges = set(Edge.deserialize(e) for e in serialized['edges'])
-        return flow
+        return Flow(
+            name=serialized['name'],
+            version=serialized['version'],
+            schedule=serialized['schedule'],
+            tasks=set(Task.deserialize(t) for t in serialized['tasks']),
+            edges=set(Edge.deserialize(e) for e in serialized['edges']))
 
     # Visualization ------------------------------------------------------------
 
@@ -479,10 +476,10 @@ class Flow(PrefectObject):
         graph = graphviz.Digraph()
 
         for t in self.tasks:
-            graph.node(t.id, t.name)
+            graph.node(str(id(t)), t.name)
 
         for e in self.edges:
-            graph.edge(e.upstream_task.id, e.downstream_task.id, e.key)
+            graph.edge(str(id(e.upstream_task)), str(id(e.downstream_task)), e.key)
 
         with tempfile.NamedTemporaryFile() as tmp:
             graph.render(tmp.name, view=True)

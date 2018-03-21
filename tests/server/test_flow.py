@@ -12,8 +12,6 @@ from prefect.utilities.tasks import task
 from prefect.utilities.tests import DummyTask
 
 
-class TestFlow:
-
     def test_create_flow(self):
         # name is required
         with pytest.raises(TypeError) as e:
