@@ -13,7 +13,6 @@ def hash_object(obj, as_int=False):
         return xhash.hexdigest()
 
 
-
 def get_task_hashes(flow, seed=None):
     """
     Generates a unique ID for each task in a Flow, as well as the flow itself,
