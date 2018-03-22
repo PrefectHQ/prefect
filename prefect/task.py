@@ -3,10 +3,9 @@ from datetime import timedelta
 
 import prefect
 from prefect.context import Context
-from prefect.base import PrefectObject
 
 
-class Task(PrefectObject):
+class Task:
 
     def __init__(
             self,
@@ -31,18 +30,12 @@ class Task(PrefectObject):
 
         self.secrets = secrets or {}
 
-        super().__init__()
-
         flow = Context.get('flow')
         if flow:
             flow.add_task(self)
 
     def __repr__(self):
-        return '<Task: {self.short_id}>'.format(
-            cls=type(self).__name__, self=self)
-
-    def __hash__(self):
-        return id(self)
+        return '<Task: {self.name}>'.format(cls=type(self).__name__, self=self)
 
     # Run  --------------------------------------------------------------------
 
@@ -92,9 +85,7 @@ class Task(PrefectObject):
 
     def serialize(self):
 
-        serialized = super().serialize()
-
-        serialized.update(
+        serialized = dict(
             name=self.name,
             description=self.description,
             max_retries=self.max_retries,
@@ -110,13 +101,13 @@ class Task(PrefectObject):
             serialized.pop('qualified_name')
             return Parameter.deserialize(serialized)
 
-        task = super().deserialize(serialized)
-        task.name = serialized['name']
-        task.description = serialized['description']
-        task.max_retries = serialized['max_retries']
-        task.retry_delay = serialized['retry_delay']
-        task.timeout = serialized['timeout']
-        task.trigger = serialized['trigger']
+        task = Task(
+            name=serialized['name'],
+            description=serialized['description'],
+            max_retries=serialized['max_retries'],
+            retry_delay=serialized['retry_delay'],
+            timeout=serialized['timeout'],
+            trigger=serialized['trigger'])
 
         return task
 

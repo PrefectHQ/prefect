@@ -7,7 +7,6 @@ import graphviz
 
 import prefect
 import prefect.context
-from prefect.base import PrefectObject, get_object_by_id
 from prefect.task import Task, Parameter
 from prefect.utilities.tasks import as_task_result
 
@@ -57,10 +56,10 @@ class Edge:
         In addition, edges can specify a key that describe how upstream results
         are passed to the downstream task.
 
-        Args: upstream_task (str): the id of a task that must run before the
+        Args: upstream_task (Task): the task that must run before the
             downstream_task
 
-            downstream_task (str): the id of a task that will be run after the
+            downstream_task (Task): the task that will be run after the
                 upstream_task. The upstream task state is passed to the
                 downstream task's trigger function to determine whether the
                 downstream task should run.
@@ -87,8 +86,8 @@ class Edge:
     def __repr__(self):
         return '<{cls}: {u} to {d}{k}>'.format(
             cls=type(self).__name__,
-            u=self.upstream_task.short_id,
-            d=self.downstream_task.short_id,
+            u=self.upstream_task,
+            d=self.downstream_task,
             k=' (key={})'.format(self.key) if self.key else '')
 
     def __eq__(self, other):
@@ -101,21 +100,8 @@ class Edge:
     def __hash__(self):
         return id(self)
 
-    def serialize(self):
-        return dict(
-            upstream_task_id=self.upstream_task.id,
-            downstream_task_id=self.downstream_task.id,
-            key=self.key)
 
-    @classmethod
-    def deserialize(cls, serialized):
-        return cls(
-            upstream_task=get_object_by_id(serialized['upstream_task_id']),
-            downstream_task=get_object_by_id(serialized['downstream_task_id']),
-            key=serialized['key'])
-
-
-class Flow(PrefectObject):
+class Flow:
 
     def __init__(
             self,
@@ -238,12 +224,12 @@ class Flow(PrefectObject):
                 'Tasks must be Task instances (received {})'.format(type(task)))
 
         elif task not in self.tasks:
-            if next((t for t in self.tasks if t.id == task.id), None):
-                raise ValueError(
-                    'A different task with the same ID ("{}") already exists '
-                    'in the Flow.'.format(task.id))
+            # if next((t for t in self.tasks if t.id == task.id), None):
+            #     raise ValueError(
+            #         'A different task with the same ID ("{}") already exists '
+            #         'in the Flow.'.format(task.id))
 
-            elif isinstance(task, Parameter) and task.name in self.parameters():
+            if isinstance(task, Parameter) and task.name in self.parameters():
                 raise ValueError(
                     'This Flow already has a parameter called "{}"'.format(
                         task.name))
@@ -307,10 +293,10 @@ class Flow(PrefectObject):
                 self.update(t.flow)
 
     def edges_to(self, task):
-        return set(e for e in self.edges if e.downstream_task == task)
+        return set(e for e in self.edges if e.downstream_task is task)
 
     def edges_from(self, task):
-        return set(e for e in self.edges if e.upstream_task == task)
+        return set(e for e in self.edges if e.upstream_task is task)
 
     def upstream_tasks(self, task):
         return set(e.upstream_task for e in self.edges_to(task))
@@ -322,7 +308,7 @@ class Flow(PrefectObject):
 
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
-
+        # import ipdb; ipdb.set_trace()
         if root_tasks:
             tasks = set(root_tasks)
             seen = set()
@@ -338,7 +324,7 @@ class Flow(PrefectObject):
             tasks = self.tasks
 
         # build the list of sorted tasks
-        remaining_tasks = list(sorted(tasks, key=lambda t: t.id))
+        remaining_tasks = list(tasks)
         sorted_tasks = []
         while remaining_tasks:
             # mark the flow as cyclic unless we prove otherwise
@@ -369,7 +355,7 @@ class Flow(PrefectObject):
 
     def set_dependencies(
             self,
-            task: Task,
+            t: Task,
             upstream_tasks: Iterable[Task] = None,
             downstream_tasks: Iterable[Task] = None,
             keyword_results: Mapping[str, Task] = None):
@@ -451,8 +437,7 @@ class Flow(PrefectObject):
     # Serialization ------------------------------------------------------------
 
     def serialize(self):
-        serialized = super().serialize()
-        serialized.update(
+        return dict(
             name=self.name,
             version=self.version,
             description=self.description,
@@ -461,17 +446,15 @@ class Flow(PrefectObject):
             tasks=[t.serialize() for t in self.sorted_tasks()],
             edges=[e.serialize() for e in self.edges],
         )
-        return serialized
 
     @classmethod
     def deserialize(cls, serialized):
-        flow = super().deserialize(serialized)
-        flow.name = serialized['name']
-        flow.version = serialized['version']
-        flow.schedule = serialized['schedule']
-        flow.tasks = set(Task.deserialize(t) for t in serialized['tasks'])
-        flow.edges = set(Edge.deserialize(e) for e in serialized['edges'])
-        return flow
+        return Flow(
+            name=serialized['name'],
+            version=serialized['version'],
+            schedule=serialized['schedule'],
+            tasks=set(Task.deserialize(t) for t in serialized['tasks']),
+            edges=set(Edge.deserialize(e) for e in serialized['edges']))
 
     # Visualization ------------------------------------------------------------
 
@@ -479,10 +462,11 @@ class Flow(PrefectObject):
         graph = graphviz.Digraph()
 
         for t in self.tasks:
-            graph.node(t.id, t.name)
+            graph.node(str(id(t)), t.name)
 
         for e in self.edges:
-            graph.edge(e.upstream_task.id, e.downstream_task.id, e.key)
+            graph.edge(
+                str(id(e.upstream_task)), str(id(e.downstream_task)), e.key)
 
         with tempfile.NamedTemporaryFile() as tmp:
             graph.render(tmp.name, view=True)
