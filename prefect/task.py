@@ -3,9 +3,10 @@ from datetime import timedelta
 
 import prefect
 from prefect.context import Context
+from prefect.utilities.json import Serializable
 
 
-class Task:
+class Task(Serializable):
 
     def __init__(
             self,

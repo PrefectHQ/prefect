@@ -98,7 +98,7 @@ class JSONCodec:
         return type(self) == type(other) and self.value == other.value
 
 
-@register_json_codec('__set__', dispatch_type=set)
+@register_json_codec('//set', dispatch_type=set)
 class SetCodec(JSONCodec):
     """
     Serialize/deserialize sets
@@ -112,7 +112,7 @@ class SetCodec(JSONCodec):
         return set(obj)
 
 
-@register_json_codec('__bytes__', dispatch_type=bytes)
+@register_json_codec('//bytes', dispatch_type=bytes)
 class BytesCodec(JSONCodec):
     """
     Serialize/deserialize bytes
@@ -126,7 +126,7 @@ class BytesCodec(JSONCodec):
         return obj.encode()
 
 
-@register_json_codec('__uuid__', dispatch_type=uuid.UUID)
+@register_json_codec('//uuid', dispatch_type=uuid.UUID)
 class UUIDCodec(JSONCodec):
     """
     Serialize/deserialize UUIDs
@@ -140,7 +140,7 @@ class UUIDCodec(JSONCodec):
         return uuid.UUID(obj)
 
 
-@register_json_codec('__datetime__', dispatch_type=datetime.datetime)
+@register_json_codec('//datetime', dispatch_type=datetime.datetime)
 class DateTimeCodec(JSONCodec):
     """
     Serialize/deserialize DateTimes
@@ -154,7 +154,7 @@ class DateTimeCodec(JSONCodec):
         return dateutil.parser.parse(obj)
 
 
-@register_json_codec('__date__', dispatch_type=datetime.date)
+@register_json_codec('//date', dispatch_type=datetime.date)
 class DateCodec(JSONCodec):
     """
     Serialize/deserialize Dates
@@ -168,7 +168,7 @@ class DateCodec(JSONCodec):
         return dateutil.parser.parse(obj).date()
 
 
-@register_json_codec('__timedelta__', dispatch_type=datetime.timedelta)
+@register_json_codec('//timedelta', dispatch_type=datetime.timedelta)
 class TimeDeltaCodec(JSONCodec):
     """
     Serialize/deserialize TimeDeltas
@@ -182,8 +182,8 @@ class TimeDeltaCodec(JSONCodec):
         return datetime.timedelta(seconds=obj)
 
 
-@register_json_codec('__imported_object__', dispatch_type=type)
-class ImportedObjectCodec(JSONCodec):
+@register_json_codec('//load', dispatch_type=type)
+class LoadObjectCodec(JSONCodec):
     """
     Serialize/deserialize objects by referencing their fully qualified name.
 
@@ -196,9 +196,9 @@ class ImportedObjectCodec(JSONCodec):
 
     @classmethod
     def deserialize(cls, obj):
-        obj_import_path = obj.split('.')
-        loaded_obj = sys.modules[obj_import_path[0]]
-        for p in obj_import_path[1:]:
+        obj_path = obj.split('.')
+        loaded_obj = sys.modules[obj_path[0]]
+        for p in obj_path[1:]:
             loaded_obj = getattr(loaded_obj, p)
         return loaded_obj
 
@@ -206,15 +206,15 @@ class ImportedObjectCodec(JSONCodec):
 def serializable(fn):
     """
     Decorator that marks a function as automatically serializable via
-    ImportedObjectCodec
+    LoadObjectCodec
     """
     if hasattr(fn, '__json__'):
         raise ValueError('Object already has a __json__() method.')
-    setattr(fn, '__json__', lambda: ImportedObjectCodec(fn).__json__())
+    setattr(fn, '__json__', lambda: LoadObjectCodec(fn).__json__())
     return fn
 
 
-@register_json_codec('__encrypted__')
+@register_json_codec('//encrypted')
 class EncryptedCodec(JSONCodec):
 
     def serialize(self):
@@ -230,7 +230,7 @@ class EncryptedCodec(JSONCodec):
         return json.loads(decoded)
 
 
-@register_json_codec('__object_attrs__')
+@register_json_codec('//object_attrs')
 class ObjectAttributesCodec(JSONCodec):
     """
     Serializes an object by storing its class name and a dict of attributes,
@@ -249,7 +249,7 @@ class ObjectAttributesCodec(JSONCodec):
 
     def serialize(self):
         serialized = dict(
-            type=ImportedObjectCodec(type(self.value)),
+            type=LoadObjectCodec(type(self.value)),
             attrs={a: getattr(self.value, a)
                    for a in self.attributes_list})
         return serialized

@@ -1,13 +1,15 @@
-from prefect.utilities.strings import is_valid_identifier
 import inspect
 import tempfile
 from contextlib import contextmanager
 from typing import Iterable, Mapping
+
 import graphviz
 
 import prefect
 import prefect.context
-from prefect.task import Task, Parameter
+from prefect.task import Parameter, Task
+from prefect.utilities.json import Serializable
+from prefect.utilities.strings import is_valid_identifier
 from prefect.utilities.tasks import as_task_result
 
 
@@ -101,7 +103,7 @@ class Edge:
         return id(self)
 
 
-class Flow:
+class Flow(Serializable):
 
     def __init__(
             self,
