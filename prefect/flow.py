@@ -7,7 +7,6 @@ import graphviz
 
 import prefect
 import prefect.context
-from prefect.base import PrefectObject, get_object_by_id
 from prefect.task import Task, Parameter
 from prefect.utilities.tasks import as_task_result
 
@@ -57,10 +56,10 @@ class Edge:
         In addition, edges can specify a key that describe how upstream results
         are passed to the downstream task.
 
-        Args: upstream_task (str): the id of a task that must run before the
+        Args: upstream_task (Task): the task that must run before the
             downstream_task
 
-            downstream_task (str): the id of a task that will be run after the
+            downstream_task (Task): the task that will be run after the
                 upstream_task. The upstream task state is passed to the
                 downstream task's trigger function to determine whether the
                 downstream task should run.
@@ -87,8 +86,8 @@ class Edge:
     def __repr__(self):
         return '<{cls}: {u} to {d}{k}>'.format(
             cls=type(self).__name__,
-            u=self.upstream_task.short_id,
-            d=self.downstream_task.short_id,
+            u=self.upstream_task,
+            d=self.downstream_task,
             k=' (key={})'.format(self.key) if self.key else '')
 
     def __eq__(self, other):
@@ -100,19 +99,6 @@ class Edge:
 
     def __hash__(self):
         return id(self)
-
-    def serialize(self):
-        return dict(
-            upstream_task_id=self.upstream_task.id,
-            downstream_task_id=self.downstream_task.id,
-            key=self.key)
-
-    @classmethod
-    def deserialize(cls, serialized):
-        return cls(
-            upstream_task=get_object_by_id(serialized['upstream_task_id']),
-            downstream_task=get_object_by_id(serialized['downstream_task_id']),
-            key=serialized['key'])
 
 
 class Flow:
@@ -369,7 +355,7 @@ class Flow:
 
     def set_dependencies(
             self,
-            task: Task,
+            t: Task,
             upstream_tasks: Iterable[Task] = None,
             downstream_tasks: Iterable[Task] = None,
             keyword_results: Mapping[str, Task] = None):
@@ -479,7 +465,8 @@ class Flow:
             graph.node(str(id(t)), t.name)
 
         for e in self.edges:
-            graph.edge(str(id(e.upstream_task)), str(id(e.downstream_task)), e.key)
+            graph.edge(
+                str(id(e.upstream_task)), str(id(e.downstream_task)), e.key)
 
         with tempfile.NamedTemporaryFile() as tmp:
             graph.render(tmp.name, view=True)

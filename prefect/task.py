@@ -3,7 +3,6 @@ from datetime import timedelta
 
 import prefect
 from prefect.context import Context
-from prefect.base import PrefectObject
 
 
 class Task:
