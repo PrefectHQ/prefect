@@ -12,46 +12,35 @@ Example:
 
 """
 import contextlib
+import copy
 import datetime
 import inspect
-import threading
+from types import SimpleNamespace
 from typing import Any, NewType
 
 import wrapt
 
-import prefect
+from prefect.utilities.json import Serializable
 
 
 # context dictionary
-class Context(threading.local):
+class Context(SimpleNamespace, Serializable):
     """
     A context store for Prefect data.
     """
 
-    def __init__(self, *args, **kwargs):
-        self.reset(*args, **kwargs)
-
     def __repr__(self):
-        return '<PrefectContext>'
+        return '<Prefect Context>'
 
-    def __iter__(self):
-        return iter(self.__dict__.keys())
-
-    def __getitem__(self, key):
-        return getattr(self, key)
-
-    def as_dict(self):
+    def to_dict(self):
         return self.__dict__.copy()
 
     def update(self, *args, **kwargs):
-        if args == (None,):
-            args = ()
-        args = [a.as_dict() if isinstance(a, type(self)) else a for a in args]
+        args = [a.to_dict() if isinstance(a, type(self)) else a for a in args]
         self.__dict__.update(*args, **kwargs)
 
-    def reset(self, *args, **kwargs):
+    def clear(self):
         self.__dict__.clear()
-        self.update(*args, **kwargs)
 
     @contextlib.contextmanager
     def __call__(self, *context_args, **context_kwargs):
@@ -63,21 +52,18 @@ class Context(threading.local):
             with prefect.context(dict(a=1, b=2), c=3):
                 print(prefect.context.a) # 1
         """
-        previous_context = self.as_dict()
+        previous_context = copy.deepcopy(self)
         try:
             self.update(*context_args, **context_kwargs)
             yield self
         finally:
-            self.reset(previous_context)
+            self.clear()
+            self.update(previous_context)
 
     def get(self, key, if_missing=None):
         return getattr(self, key, if_missing)
 
-    def __getstate__(self):
-        return self.as_dict()
-
-
-Context = Context()
+context = Context()
 
 
 class Annotations:
@@ -170,10 +156,10 @@ def call_with_context_annotations(fn, *args, **kwargs):
 
         # if the annotation IS the context, return the context dict
         elif param.annotation is Annotations.context:
-            kwargs[key] = Context.as_dict()
+            kwargs[key] = context.to_dict()
 
         # else return the context variable
-        elif key in Context:
-            kwargs[key] = Context[key]
+        elif key in context:
+            kwargs[key] = context[key]
 
     return fn(*args, **kwargs)
