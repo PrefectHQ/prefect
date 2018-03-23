@@ -8,7 +8,7 @@ import datetime
 import json
 import types
 import uuid
-
+import inspect
 import dateutil.parser
 from cryptography.fernet import Fernet
 import prefect
@@ -37,7 +37,7 @@ def object_from_string(obj_str):
 
 
 def qualified_name(obj):
-    return obj.__module__ + '.' + obj.__name__
+    return obj.__module__ + '.' + obj.__qualname__
 
 
 def register_json_codec(codec_key, dispatch_type=None):
@@ -244,6 +244,71 @@ class EncryptedCodec(JSONCodec):
         decrypted = Fernet(key).decrypt(obj.encode())
         decoded = base64.b64decode(decrypted).decode()
         return json.loads(decoded)
+
+
+@register_json_codec('//obj_init')
+class ObjectInitArgsCodec(JSONCodec):
+    """
+    Serializes an object by storing its class and a dict of initialization args.
+
+    The initialization args can be collected from these places in sequence:
+        1. an "_init_args" attribute storing a dict of args.
+        3. an underscore-prefixed attribute with same name as the arg
+        4. an attribute with the same name as the arg
+
+    For example:
+
+        class Foo:
+            def __init__(a, b, c, **kwargs):
+                self.a = a
+                self._b = b
+                self._kwargs = kwargs
+                self._init_args = dict(c=c)
+    """
+
+    def serialize(self):
+
+        init_args = {}
+
+        signature = inspect.signature(self.value.__init__)
+        for arg, param in signature.parameters.items():
+
+            # see if the init arg was stored in the _init_args dict
+            if arg in getattr(self.value, '_init_args', {}):
+                init_arg = self.value._init_args[arg]
+
+            # check for an underscore-prefixed attribute with the same name
+            elif hasattr(self.value, '_' + arg):
+                init_arg = getattr(self.value, '_' + arg)
+
+            # check for an attribute with the same name
+            elif hasattr(self.value, arg):
+                init_arg = getattr(self.value, arg)
+
+            # fail
+            elif param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+                raise ValueError(
+                    'Could not find a value for the required init arg "{a}" of '
+                    'object {o}. The value should be stored in an attribute '
+                    'with the same name as the argument, optionally prefixed '
+                    'with an underscore, or an _init_args dict '
+                    'attribute.'.format(a=arg, o=self.value))
+
+            if param.kind == param.VAR_KEYWORD:
+                init_args['**kwargs'] = init_arg
+            elif param.kind == param.VAR_POSITIONAL:
+                init_args['*args'] = init_arg
+            else:
+                init_args[arg] = init_arg
+
+        return dict(type=type(self.value), args=init_args)
+
+    @staticmethod
+    def deserialize(obj):
+        cls = obj['type']
+        kwargs = obj['args'].pop('**kwargs', {})
+        args = obj['args'].pop('*args', ())
+        return cls(*args, **obj['args'], **kwargs)
 
 
 @register_json_codec('//obj_attrs')
