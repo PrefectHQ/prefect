@@ -132,7 +132,7 @@ class SetCodec(JSONCodec):
         return set(obj)
 
 
-@register_json_codec('//bytes', dispatch_type=bytes)
+@register_json_codec('//b', dispatch_type=bytes)
 class BytesCodec(JSONCodec):
     """
     Serialize/deserialize bytes
@@ -202,7 +202,7 @@ class TimeDeltaCodec(JSONCodec):
         return datetime.timedelta(seconds=obj)
 
 
-@register_json_codec('//load', dispatch_type=type)
+@register_json_codec('//obj', dispatch_type=type)
 class LoadObjectCodec(JSONCodec):
     """
     Serialize/deserialize objects by referencing their fully qualified name.
@@ -246,7 +246,7 @@ class EncryptedCodec(JSONCodec):
         return json.loads(decoded)
 
 
-@register_json_codec('//object_attrs')
+@register_json_codec('//obj_attrs')
 class ObjectAttributesCodec(JSONCodec):
     """
     Serializes an object by storing its class name and a dict of attributes,
@@ -261,14 +261,13 @@ class ObjectAttributesCodec(JSONCodec):
         super().__init__(value)
         if attributes_list is None:
             attributes_list = list(value.__dict__.keys())
-        self.attributes_list = attributes_list
+        self.attrs = attributes_list
 
     def serialize(self):
-        serialized = dict(
-            type=LoadObjectCodec(type(self.value)),
+        return dict(
+            type=type(self.value),
             attrs={a: getattr(self.value, a)
-                   for a in self.attributes_list})
-        return serialized
+                   for a in self.attrs})
 
     @staticmethod
     def deserialize(obj):
