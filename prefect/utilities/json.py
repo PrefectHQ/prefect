@@ -79,8 +79,8 @@ class JSONCodec:
         """
         return self.value
 
-    @classmethod
-    def deserialize(cls, obj):
+    @staticmethod
+    def deserialize(obj):
         """
         Deserialize an object.
         """
@@ -107,8 +107,8 @@ class SetCodec(JSONCodec):
     def serialize(self):
         return list(self.value)
 
-    @classmethod
-    def deserialize(cls, obj):
+    @staticmethod
+    def deserialize(obj):
         return set(obj)
 
 
@@ -121,8 +121,8 @@ class BytesCodec(JSONCodec):
     def serialize(self):
         return self.value.decode()
 
-    @classmethod
-    def deserialize(cls, obj):
+    @staticmethod
+    def deserialize(obj):
         return obj.encode()
 
 
@@ -135,8 +135,8 @@ class UUIDCodec(JSONCodec):
     def serialize(self):
         return str(self.value)
 
-    @classmethod
-    def deserialize(cls, obj):
+    @staticmethod
+    def deserialize(obj):
         return uuid.UUID(obj)
 
 
@@ -149,8 +149,8 @@ class DateTimeCodec(JSONCodec):
     def serialize(self):
         return self.value.isoformat()
 
-    @classmethod
-    def deserialize(cls, obj):
+    @staticmethod
+    def deserialize(obj):
         return dateutil.parser.parse(obj)
 
 
@@ -163,8 +163,8 @@ class DateCodec(JSONCodec):
     def serialize(self):
         return self.value.isoformat()
 
-    @classmethod
-    def deserialize(cls, obj):
+    @staticmethod
+    def deserialize(obj):
         return dateutil.parser.parse(obj).date()
 
 
@@ -177,8 +177,8 @@ class TimeDeltaCodec(JSONCodec):
     def serialize(self):
         return self.value.total_seconds()
 
-    @classmethod
-    def deserialize(cls, obj):
+    @staticmethod
+    def deserialize(obj):
         return datetime.timedelta(seconds=obj)
 
 
@@ -194,13 +194,13 @@ class LoadObjectCodec(JSONCodec):
     def serialize(self):
         return qualified_name(self.value)
 
-    @classmethod
-    def deserialize(cls, obj):
         obj_path = obj.split('.')
         loaded_obj = sys.modules[obj_path[0]]
         for p in obj_path[1:]:
             loaded_obj = getattr(loaded_obj, p)
         return loaded_obj
+    @staticmethod
+    def deserialize(obj):
 
 
 def serializable(fn):
@@ -222,8 +222,8 @@ class EncryptedCodec(JSONCodec):
         payload = base64.b64encode(json.dumps(self.value).encode())
         return Fernet(key).encrypt(payload).decode()
 
-    @classmethod
-    def deserialize(cls, obj):
+    @staticmethod
+    def deserialize(obj):
         key = prefect.config.security.encryption_key
         decrypted = Fernet(key).decrypt(obj.encode())
         decoded = base64.b64decode(decrypted).decode()
@@ -254,8 +254,8 @@ class ObjectAttributesCodec(JSONCodec):
                    for a in self.attributes_list})
         return serialized
 
-    @classmethod
-    def deserialize(cls, obj):
+    @staticmethod
+    def deserialize(obj):
         instance = object.__new__(obj['type'])
         instance.__dict__.update(obj['attrs'])
         return instance
