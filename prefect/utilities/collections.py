@@ -43,10 +43,9 @@ def dict_to_dotdict(dct):
     for key, value in list(dct.items()):
         if isinstance(value, dict):
             dct[key] = dict_to_dotdict(value)
-        elif isinstance(value, list):
-            dct[key] = [dict_to_dotdict(v) for v in value]
+        elif isinstance(value, (list, tuple, set)):
+            dct[key] = type(value)([dict_to_dotdict(v) for v in value])
     return DotDict(dct)
-
 
 class CompoundKey(tuple):
     pass
