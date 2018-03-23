@@ -345,12 +345,10 @@ class Serializable:
     """
     A class that automatically uses a specified JSONCodec to serialize itself.
     """
-    json_codec = ObjectAttributesCodec
-    json_attributes_list = None
+    _json_codec = ObjectInitArgsCodec
 
     def __json__(self):
-        return self.json_codec(
-            value=self, attributes_list=self.json_attributes_list)
+        return self._json_codec(value=self)
 
     @classmethod
     def deserialize(cls, serialized):

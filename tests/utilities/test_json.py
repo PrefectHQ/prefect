@@ -224,14 +224,11 @@ class TestObjectInitArgsSerialization:
 
 class TestSerializableClass:
 
-    class SerializableObj(codecs.Serializable):
+    class SerializableObj(codecs.Serializable, EqMixin):
 
         def __init__(self, a, b):
             self.a = a
             self.b = b
-
-        def __eq__(self, o):
-            return type(self) == type(o) and self.a == o.a and self.b == o.b
 
     def test_serializable_class(self):
         """
@@ -239,22 +236,6 @@ class TestSerializableClass:
         """
 
         x = self.SerializableObj(1, datetime.datetime(2000, 1, 1))
-        j = json.dumps(x)
 
-        assert x.json_codec is codecs.ObjectAttributesCodec
-
-        assert j == json.dumps(
-            {
-                '//obj_attrs': {
-                    'type': {
-                        '//obj': 'tests.utilities.test_json.TestSerializableClass.SerializableObj'
-                    },
-                    'attrs': {
-                        'a': 1,
-                        'b': {
-                            '//datetime': '2000-01-01T00:00:00'
-                        }
-                    }
-                }
-            })
-        assert x == json.loads(j)
+        assert x._json_codec is codecs.ObjectInitArgsCodec
+        assert x == json.loads(json.dumps(x))
