@@ -16,6 +16,26 @@ import prefect
 JSON_CODECS_KEYS = dict()
 
 
+def object_from_string(obj_str):
+    """
+    Retrives an object from a fully qualified string path. The object must be
+    imported in advance.
+    """
+
+    path_components = obj_str.split('.')
+    for i in range(len(path_components), 0, -1):
+        module_path = '.'.join(path_components[:i])
+        # import ipdb; ipdb.set_trace()
+        if module_path in sys.modules:
+            obj = sys.modules[module_path]
+            for p in path_components[i:]:
+                obj = getattr(obj, p)
+            return obj
+    raise ValueError(
+        'Couldn\'t load "{}"; maybe it hasn\'t been imported yet?'.format(
+            obj_str))
+
+
 def qualified_name(obj):
     return obj.__module__ + '.' + obj.__name__
 
@@ -194,13 +214,9 @@ class LoadObjectCodec(JSONCodec):
     def serialize(self):
         return qualified_name(self.value)
 
-        obj_path = obj.split('.')
-        loaded_obj = sys.modules[obj_path[0]]
-        for p in obj_path[1:]:
-            loaded_obj = getattr(loaded_obj, p)
-        return loaded_obj
     @staticmethod
     def deserialize(obj):
+        return object_from_string(obj)
 
 
 def serializable(fn):
