@@ -4,7 +4,7 @@ import os
 import random
 import uuid
 from string import ascii_letters, digits, punctuation
-
+from types import SimpleNamespace
 import toml
 from cryptography.fernet import Fernet
 
@@ -15,6 +15,36 @@ DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), 'prefect.toml')
 USER_CONFIG = '~/.prefect/prefect.toml'
 ENV_VAR_PREFIX = 'PREFECT'
 INTERPOLATION_REGEX = re.compile(r'\${(.[^${}]*)}')
+
+
+class Config(SimpleNamespace):
+
+    def __repr__(self):
+        return 'Config({})'.format(', '.join(sorted(self.sections())))
+
+    def sections(self):
+        return self.__dict__.keys()
+
+    def to_dict(self):
+        dct = {}
+        for k, v in self.__dict__.items():
+            if isinstance(v, SimpleNamespace):
+                v = v.to_dict()
+            dct[k] = v
+        return dct
+
+    @classmethod
+    def from_dict(cls, dct, recursive=True):
+        if not isinstance(dct, dict):
+            return dct
+        for key, value in list(dct.items()):
+            if isinstance(value, dict):
+                dct[key] = cls.from_dict(value, recursive=recursive)
+            elif isinstance(value, (list, tuple, set)):
+                dct[key] = type(value)(
+                    [cls.from_dict(v, recursive=recursive) for v in value])
+        return cls(**dct)
+
 
 def expand(env_var):
     """
@@ -131,9 +161,9 @@ def load_config_file(path, existing_config=None):
     config = collections.flatdict_to_dict(flat_config)
 
     if existing_config is not None:
-        config = collections.merge_dicts(existing_config, config)
+        config = collections.merge_dicts(existing_config.to_dict(), config)
 
-    return collections.dict_to_dotdict(config)
+    return Config.from_dict(config)
 
 
 def load_configuration(default_config, user_config, env_var=None):
