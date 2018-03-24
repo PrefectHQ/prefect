@@ -162,13 +162,13 @@ class Flow(Serializable):
     # Context Manager ----------------------------------------------------------
 
     def __enter__(self):
-        self.__previous_context = prefect.context.Context.as_dict()
+        self.__previous_flow = prefect.context.get('flow')
         prefect.context.Context.update(flow=self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        prefect.context.Context.reset(self.__previous_context)
-        del self.__previous_context
+        prefect.context.Context.reset(self.__previous_flow)
+        del self.__previous_flow
 
     # Introspection ------------------------------------------------------------
 
