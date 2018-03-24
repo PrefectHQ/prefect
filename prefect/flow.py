@@ -357,7 +357,7 @@ class Flow(Serializable):
 
     def set_dependencies(
             self,
-            t: Task,
+            task: Task,
             upstream_tasks: Iterable[Task] = None,
             downstream_tasks: Iterable[Task] = None,
             keyword_results: Mapping[str, Task] = None):
