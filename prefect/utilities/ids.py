@@ -9,6 +9,7 @@ import jsonpickle
 FLOWS = {}
 TASKS = {}
 
+
 def get_hash(obj):
     if isinstance(obj, str):
         obj = obj.encode()
@@ -99,6 +100,7 @@ def generate_task_ids(flow, seed=None):
         for t, h in final_hashes.items()
     }
 
+
 def register_flow(flow, seed=None):
     flow_id = generate_flow_id(flow, seed=seed)
     task_ids = generate_task_ids(flow, seed=seed)
@@ -106,11 +108,13 @@ def register_flow(flow, seed=None):
     TASKS.update({i: task for task, i in task_ids.items()})
     return dict(flow_id=flow_id, task_ids=task_ids)
 
+
 def get_flow_from_id(flow_id):
     if flow_id in FLOWS:
         return FLOWS[flow_id]
     else:
         raise ValueError('Flow not found: {}'.format(flow_id))
+
 
 def get_task_from_id(task_id):
     if task_id in TASKS:
