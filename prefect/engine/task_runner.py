@@ -35,48 +35,49 @@ class TaskRunner:
     def catch_signals(self, state):
         try:
             yield
+
         except signals.SUCCESS as s:
-            self.logger.info(
-                'Task {} {}: {}'.format(self.task.id,
-                                        type(s).__name__, s))
+            s_name = type(s).__name__
+            self.logger.info('Task {} {}: {}'.format(self.task.id, s_name, s))
             self.handle_success(state=state, result=s.result)
+
         except signals.SKIP as s:
-            self.logger.info(
-                'Task {} {}: {}'.format(self.task.id,
-                                        type(s).__name__, s))
+            s_name = type(s).__name__
+            self.logger.info('Task {} {}: {}'.format(self.task.id, s_name, s))
             self.executor.set_state(
                 state=state, new_state=TaskRunState.SKIPPED, result=s.result)
+
         except signals.SKIP_DOWNSTREAM as s:
-            self.logger.info(
-                'Task {} {}: {}'.format(self.task.id,
-                                        type(s).__name__, s))
+            s_name = type(s).__name__
+            self.logger.info('Task {} {}: {}'.format(self.task.id, s_name, s))
             self.executor.set_state(
                 state=state,
                 new_state=TaskRunState.SKIP_DOWNSTREAM,
                 result=s.result)
+
         except signals.RETRY as s:
-            self.logger.info(
-                'Task {} {}: {}'.format(self.task.id,
-                                        type(s).__name__, s))
+            s_name = type(s).__name__
+            self.logger.info('Task {} {}: {}'.format(self.task.id, s_name, s))
             self.handle_retry(
                 state=state,
                 new_state=TaskRunState.PENDING_RETRY,
                 result=s.result)
+
         except signals.SHUTDOWN as s:
-            self.logger.info(
-                'Task {} {}: {}'.format(self.task.id,
-                                        type(s).__name__, s))
+            s_name = type(s).__name__
+            self.logger.info('Task {} {}: {}'.format(self.task.id, s_name, s))
             self.executor.set_state(
                 state=state, new_state=TaskRunState.SHUTDOWN, result=s.result)
+
         except signals.DONTRUN as s:
-            self.logger.info(
-                'Task {} {}: {}'.format(self.task.id,
-                                        type(s).__name__, s))
+            s_name = type(s).__name__
+            self.logger.info('Task {} {}: {}'.format(self.task.id, s_name, s))
+
         except signals.FAIL as s:
-            self.logger.info(
-                'Task {} {}: {}'.format(self.task.id,
-                                        type(s).__name__, s))
+            s_name = type(s).__name__
+            self.logger.info('Task {} {}: {}'.format(self.task.id, s_name, s))
             self.handle_fail(state=state, result=s.result)
+
         except Exception as e:
             self.logger.info(
                 'Task {}: An unexpected error occurred'.format(self.task.id),
