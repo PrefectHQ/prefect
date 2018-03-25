@@ -21,6 +21,6 @@ class FunctionTask(prefect.Task):
                 'to the original function\'s *args.')
 
         self.fn = fn
-        self.run = prefect.context.apply_context_annotations(fn)
+        self.run = prefect.utilities.context.apply_context_annotations(fn)
 
         super().__init__(name=name, **kwargs)
