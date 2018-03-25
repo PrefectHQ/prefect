@@ -1,6 +1,9 @@
 import pytest
-from prefect.utilities.ids import generate_task_ids, generate_flow_id
+
 from prefect import Flow, Task
+from prefect.utilities.ids import (
+    generate_flow_id, generate_task_ids, get_flow_from_id, get_task_from_id,
+    register_flow)
 
 TASKS = {}
 LOOKUP_TASKS = {}
@@ -13,10 +16,12 @@ def get_task(name):
         LOOKUP_TASKS[task] = name
     return TASKS[name]
 
+
 @pytest.fixture
 def reset_tasks():
     TASKS.clear()
     LOOKUP_TASKS.clear()
+
 
 def count_hashes(task_hashes):
     return len(set(task_hashes.values()))
@@ -43,7 +48,9 @@ def flow_from_chains(*chains):
                     get_task(u_name), get_task(d_name), validate=False)
     return flow
 
+
 class TestFlowIDs:
+
     def test_flow_id(self):
         foo = Flow(name='foo')
         foo2 = Flow(name='foo', version='2')
@@ -60,11 +67,11 @@ class TestFlowIDs:
         foo = Flow(name='foo')
         assert generate_flow_id(foo) != generate_flow_id(foo)
 
+
 class TestTaskIDs:
 
     def test_no_tasks(self):
         assert generate_task_ids(Flow()) == {}
-
 
     def test_one_task(self):
         f = Flow()
@@ -89,12 +96,10 @@ class TestTaskIDs:
         f = flow_from_chains(['x', 'y', 'z'])
         assert generate_task_ids(f) != generate_task_ids(f)
 
-
     def test_set_seed(self):
         """Tests that ids are always the same for a given seed"""
         f = flow_from_chains(['x', 'y', 'z'])
         assert generate_task_ids(f, seed=1) == generate_task_ids(f, seed=1)
-
 
     def test_modify_task_changes_hash(self):
         f = Flow()
@@ -105,13 +110,11 @@ class TestTaskIDs:
         hash2 = generate_task_ids(f, seed=1)
         assert hash1 != hash2
 
-
     def test_two_dependent_tasks(self):
         """ x1 -> x2"""
         f = Flow()
         f.add_edge(get_task('x1'), get_task('x2'))
         assert count_hashes(generate_task_ids(f)) == 2
-
 
     def test_two_identical_subflows(self):
         """
@@ -123,7 +126,6 @@ class TestTaskIDs:
             ['y1', 'y2'],
         )
         assert count_hashes(generate_task_ids(f)) == len(f.tasks)
-
 
     def test_three_identical_subflows(self):
         """
@@ -138,7 +140,6 @@ class TestTaskIDs:
         )
         independent_hashes = generate_task_ids(f, seed=1)
         assert len(independent_hashes) == len(f.tasks)
-
 
     def test_two_linked_subflows_and_one_independent(self):
         r"""
@@ -162,7 +163,6 @@ class TestTaskIDs:
         assert len(dependent_hashes) == len(f.tasks)
         assert independent_hashes != dependent_hashes
 
-
     def test_four_subflows(self):
         r"""
             x1 -> x2
@@ -182,7 +182,6 @@ class TestTaskIDs:
             ['a1', 'a2', 'a3'],
         )
         assert count_hashes(generate_task_ids(f)) == len(f.tasks)
-
 
     def test_four_subflows(self):
         r"""
@@ -204,7 +203,6 @@ class TestTaskIDs:
         )
         assert count_hashes(generate_task_ids(f)) == len(f.tasks)
 
-
     def test_diamond_flow(self):
         r"""
             x1 -> x2 -> x3
@@ -217,7 +215,6 @@ class TestTaskIDs:
             ['x1', 'y1', 'x3'],
         )
         assert count_hashes(generate_task_ids(f)) == len(f.tasks)
-
 
     def test_ids_are_stable(self, reset_tasks):
         r"""
@@ -236,3 +233,16 @@ class TestTaskIDs:
         f2_hashes = generate_task_ids(f2, seed=0)
         assert f1_hashes[get_task('x3')] == f2_hashes[get_task('x3')]
         assert f1_hashes[get_task('x4')] == f2_hashes[get_task('x4')]
+
+
+class TestRetrieveIDs:
+
+    def test_retrieve_flow_by_id(self):
+        f = flow_from_chains(['a', 'b', 'c'], ['a', 'x', 'y'])
+        ids = register_flow(f)
+        assert get_flow_from_id(ids['flow_id']) is f
+
+    def test_retrieve_task_by_id(self):
+        f = flow_from_chains(['a', 'b', 'c'], ['a', 'x', 'y'])
+        ids = register_flow(f)
+        assert all(get_task_from_id(i) is t for t, i in ids['task_ids'].items())
