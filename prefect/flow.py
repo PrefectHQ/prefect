@@ -251,8 +251,6 @@ class Flow(Serializable):
         if isinstance(downstream_task, Parameter):
             raise ValueError('Parameters can not have upstream dependencies.')
 
-        if validate:
-
         if key and key in {e.key for e in self.edges_to(downstream_task)}:
             raise ValueError(
                 'Argument "{a}" for task {t} has already been assigned in '
