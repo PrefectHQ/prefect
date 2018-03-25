@@ -77,7 +77,7 @@ class Task(Serializable):
         callargs = dict(signature.bind(*args, **kwargs).arguments)
 
         # bind() compresses all variable keyword arguments, so we expand them
-        var_kw_arg = prefect.utilities.functions.get_var_kw_arg(self.run)
+        var_kw_arg = inspect.getfullargspec(self.run).varkw
         callargs.update(callargs.pop(var_kw_arg, {}))
 
         flow = prefect.context.get('flow')

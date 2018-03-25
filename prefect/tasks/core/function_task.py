@@ -12,10 +12,13 @@ class FunctionTask(prefect.Task):
         if name is None:
             name = getattr(fn, '__name__', type(self).__name__)
 
-        if prefect.utilities.functions.get_var_pos_arg(fn):
+        if inspect.getfullargspec(fn).varargs:
             raise ValueError(
-                'Functions with variable positional arguments are not '
-                'supported, since all arguments must be passed by keyword.')
+                'Tasks with variable positional arguments (*args) are not '
+                'supported, because all Prefect arguments are stored as '
+                'keywords. As a workaround, consider modifying the function '
+                'to accept **kwargs and feeding the values '
+                'to the original function\'s *args.')
 
         self.fn = fn
         self.run = prefect.context.apply_context_annotations(fn)
