@@ -13,10 +13,8 @@ Example:
 """
 import contextlib
 import copy
-import datetime
 import inspect
 from types import SimpleNamespace
-from typing import Any, NewType
 
 import wrapt
 
@@ -24,10 +22,21 @@ from prefect.utilities.json import Serializable
 
 
 # context dictionary
-class Context(SimpleNamespace, Serializable):
+class PrefectContext(SimpleNamespace, Serializable):
     """
     A context store for Prefect data.
     """
+    _context = None
+
+    # PrefectContext is a Singleton
+    def __new__(cls, *args, **kwargs):
+        if not cls._context:
+            cls._context = super().__new__(cls, *args, **kwargs)
+        return cls._context
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+        self.update(args)
 
     def __repr__(self):
         return '<Prefect Context>'
@@ -74,51 +83,14 @@ class Context(SimpleNamespace, Serializable):
             self.key = default
         return getattr(self, key)
 
-context = Context()
+
+context = PrefectContext()
 
 
-class Annotations:
-    """
-    Task functions can be annotated with these types to have them supplied
-    at runtime.
-    """
+class ContextAnnotation:
 
-    # any other variable [this is a catch all]
-    context_variable = NewType('context', Any)
-
-    # the context itself
-    context = NewType('context', dict)
-
-    # execution
-    run_dt = NewType('run_dt', datetime.datetime)
-    as_of_dt = NewType('as_of_dt', datetime.datetime)
-
-    # API
-    api_server = NewType('api_server', str)
-    api_token = NewType('api_token', str)
-
-    # flow
-    flow = NewType('flow', Any)  # Flow hasn't been defined yet
-    flow_id = NewType('flow_id', str)
-    flow_name = NewType('flow_name', str)
-
-    # task
-    task_id = NewType('task_id', str)
-    task_name = NewType('task_name', str)
-
-    # flow_run
-    flow_run_id = NewType('flow_run_id', str)
-    flow_run_start_tasks = NewType('flow_run_start_tasks', list)
-    params = NewType('params', dict)
-
-    # task_run
-    task_run_id = NewType('task_run_id', str)
-    task_run_upstream_states = NewType('task_run_upstream_states', dict)
-    task_run_inputs = NewType('task_run_inputs', dict)
-
-    @classmethod
-    def _annotations(cls):
-        return {k: v for k, v in cls.__dict__.items() if not k.startswith('_')}
+    def __init__(self, name):
+        self.name = name
 
 
 @wrapt.decorator
@@ -153,8 +125,6 @@ def call_with_context_annotations(fn, *args, **kwargs):
     except ValueError:
         return fn(*args, **kwargs)
 
-    annotations = Annotations._annotations()
-
     # iterate over the function signature to examine each parameter
     for i, (key, param) in enumerate(signature.parameters.items()):
         # skip any that were explicitly provided
@@ -162,15 +132,10 @@ def call_with_context_annotations(fn, *args, **kwargs):
             continue
 
         # skip any that aren't context variables
-        elif param.annotation not in annotations.values():
+        elif not isinstance(param.annotation, ContextAnnotation):
             continue
 
-        # if the annotation IS the context, return the context dict
-        elif param.annotation is Annotations.context:
-            kwargs[key] = context.to_dict()
-
-        # else return the context variable
-        elif key in context:
-            kwargs[key] = context[key]
+        # retrieve the context variable
+        kwargs[key] = context[key]
 
     return fn(*args, **kwargs)

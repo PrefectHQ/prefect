@@ -3,7 +3,8 @@ __version__ = '0.2'
 from prefect.configuration import config
 
 import prefect.utilities
-from prefect.context import context
+from prefect.utilities.context import context
+
 import prefect.signals
 import prefect.schedules
 import prefect.triggers

@@ -10,7 +10,7 @@ from contextlib import contextmanager
 
 import prefect
 from prefect import signals
-from prefect.context import Context, call_with_context_annotations
+from prefect.utilities.context import call_with_context_annotations
 from prefect.engine.state import TaskRunState
 
 
@@ -123,7 +123,7 @@ class TaskRunner:
             task_run_inputs=inputs)
 
         # set up context
-        with prefect.context.Context(context):
+        with prefect.context(context):
 
             # prepare executor
             with self.executor.execution_context():
@@ -230,7 +230,7 @@ class TaskRunner:
         """
         Checks if a task is eligable for retry; otherwise marks it failed.
         """
-        run_number = prefect.context.Context.get('run_number', False)
+        run_number = prefect.context.get('run_number', False)
         if run_number and run_number <= self.task.max_retries:
             self.logger.info(
                 'Task has run {} time(s) and is allowed {} retries; '
@@ -241,7 +241,7 @@ class TaskRunner:
 
     def handle_retry(self, state, retry_time=None):
         #TODO exponential backoff based on run_number
-        run_number = prefect.context.Context.get('run_number', 0)
+        run_number = prefect.context.get('run_number', 0)
 
         if retry_time is None:
             retry_time = datetime.datetime.utcnow() + self.task.retry_delay

@@ -6,7 +6,6 @@ from typing import Iterable, Mapping
 import graphviz
 
 import prefect
-import prefect.context
 from prefect.task import Parameter, Task
 from prefect.utilities.json import Serializable
 from prefect.utilities.strings import is_valid_identifier
@@ -169,11 +168,11 @@ class Flow(Serializable):
 
     def __enter__(self):
         self.__previous_flow = prefect.context.get('flow')
-        prefect.context.Context.update(flow=self)
+        prefect.context.update(flow=self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        prefect.context.Context.reset(self.__previous_flow)
+        prefect.context.reset(self.__previous_flow)
         del self.__previous_flow
 
     # Introspection ------------------------------------------------------------
