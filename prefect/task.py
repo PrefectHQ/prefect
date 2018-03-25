@@ -11,6 +11,8 @@ class Task(Serializable):
             self,
             name=None,
             description=None,
+            group=None,
+            tags=None,
             max_retries=0,
             retry_delay=timedelta(minutes=1),
             timeout=None,
@@ -20,13 +22,17 @@ class Task(Serializable):
         self.name = name or type(self).__name__
         self.description = description
 
+        self.group = str(group or prefect.context.get('group', ''))
+        self._group = group
+
+        self.tags = set(tags or prefect.context.get('tags', set()))
+        self._tags = tags
+
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
-
-        if trigger is None:
-            trigger = prefect.triggers.all_successful
-        self.trigger = trigger
+        self.trigger = trigger or prefect.triggers.all_successful
+        self._trigger = trigger
 
         self.secrets = secrets or {}
 

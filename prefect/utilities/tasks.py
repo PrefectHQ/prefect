@@ -1,5 +1,31 @@
+from contextlib import contextmanager
 import prefect
 import wrapt
+
+
+@contextmanager
+def group(name):
+    """
+    Context manager for setting a task group.
+    """
+    current_group = prefect.context.get('group', '')
+    if current_group:
+        name = current_group + '.' + name
+    with prefect.context(group=name):
+        yield
+
+
+@contextmanager
+def tags(*tags):
+    """
+    Context manager for setting task tags.
+    """
+    tags = set(tags)
+    current_tags = prefect.context.get('tags', set())
+    if current_tags:
+        tags = tags.update(current_tags)
+    with prefect.context(tags=tags):
+        yield
 
 
 def as_task_result(x):
