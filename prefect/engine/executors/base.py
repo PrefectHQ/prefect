@@ -33,7 +33,7 @@ def run_in_executor(method):
                 method_with_context,
                 self,
                 *args,
-                _context=prefect.context.Context.as_dict(),
+                _context=prefect.context.Context.to_dict(),
                 **kwargs)
 
     return wrapper

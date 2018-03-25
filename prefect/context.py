@@ -32,6 +32,12 @@ class Context(SimpleNamespace, Serializable):
     def __repr__(self):
         return '<Prefect Context>'
 
+    def __delattr__(self, key):
+        del self.__dict__[key]
+
+    def __iter__(self):
+        return self.__dict__.keys()
+
     def to_dict(self):
         return self.__dict__.copy()
 
@@ -60,8 +66,13 @@ class Context(SimpleNamespace, Serializable):
             self.clear()
             self.update(previous_context)
 
-    def get(self, key, if_missing=None):
-        return getattr(self, key, if_missing)
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+    def setdefault(self, key, default):
+        if key not in self:
+            self.key = default
+        return getattr(self, key)
 
 context = Context()
 

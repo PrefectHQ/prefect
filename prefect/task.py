@@ -2,7 +2,6 @@ import inspect
 from datetime import timedelta
 
 import prefect
-from prefect.context import Context
 from prefect.utilities.json import Serializable
 
 
@@ -31,7 +30,7 @@ class Task(Serializable):
 
         self.secrets = secrets or {}
 
-        flow = Context.get('flow')
+        flow = prefect.context.get('flow')
         if flow:
             flow.add_task(self)
 
@@ -75,7 +74,7 @@ class Task(Serializable):
         var_kw_arg = prefect.utilities.functions.get_var_kw_arg(self.run)
         callargs.update(callargs.pop(var_kw_arg, {}))
 
-        flow = Context.get('flow')
+        flow = prefect.context.get('flow')
         if flow is None:
             flow = prefect.flow.Flow()
         return flow.set_dependencies(task=self, keyword_results=callargs)
@@ -138,7 +137,7 @@ class Parameter(Task):
         super().__init__(name=name)
 
     def run(self):
-        params = Context.get('parameters', {})
+        params = prefect.context.get('parameters', {})
         if self.required and self.name not in params:
             raise prefect.signals.FAIL(
                 'Parameter "{}" was required but not provided.'.format(

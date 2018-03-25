@@ -144,7 +144,7 @@ class FlowRunner:
             task_contexts,
             return_all_task_states=False):
 
-        context = prefect.context.Context.as_dict()
+        context = prefect.context.Context.to_dict()
 
         # ------------------------------------------------------------------
         # check this flow
