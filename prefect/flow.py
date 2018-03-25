@@ -272,7 +272,7 @@ class Flow(Serializable):
             # check that the edges are valid keywords by binding them
             if key is not None:
                 edge_keys = {
-                    e.key: _
+                    e.key: None
                     for e in self.edges_to(downstream_task)
                     if e.key is not None
                 }
