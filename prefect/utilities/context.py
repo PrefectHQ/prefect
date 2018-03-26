@@ -52,7 +52,9 @@ class PrefectContext(SimpleNamespace, Serializable):
 
     def update(self, *args, **kwargs):
         args = [a.to_dict() if isinstance(a, type(self)) else a for a in args]
-        self.__dict__.update(*args, **kwargs)
+        for a in args:
+            self.__dict__.update(a)
+        self.__dict__.update(kwargs)
 
     def clear(self):
         self.__dict__.clear()

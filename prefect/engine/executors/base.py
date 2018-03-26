@@ -23,17 +23,17 @@ def run_in_executor(method):
     """
 
     def method_with_context(*args, _context, **kwargs):
-        with prefect.context.Context(_context):
+        with prefect.context(_context):
             return method(*args, **kwargs)
 
     @wraps(method)
     def wrapper(self, *args, **kwargs):
-        with prefect.context.Context(kwargs.get('context', {})):
+        with prefect.context(kwargs.get('context', {})):
             return self.submit(
                 method_with_context,
                 self,
                 *args,
-                _context=prefect.context.Context.to_dict(),
+                _context=prefect.context.to_dict(),
                 **kwargs)
 
     return wrapper
@@ -98,7 +98,7 @@ class Executor(Serializable):
             upstream_states=upstream_states,
             inputs=inputs,
             ignore_trigger=ignore_trigger,
-            context=context)
+            context=prefect.context)
 
     def run_flow(
             self,
