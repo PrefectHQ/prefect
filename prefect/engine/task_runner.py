@@ -199,7 +199,7 @@ class TaskRunner:
         if isinstance(result, types.GeneratorType):
 
             # use a sentinel to get the task's final result
-            sentinel = str(uuid.uuid1())
+            sentinel = str(uuid.uuid4())
 
             def sentinel_wrapper(task_generator):
                 task_result = yield from task_generator
