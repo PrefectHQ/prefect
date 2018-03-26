@@ -1,6 +1,9 @@
-import croniter
 import datetime
 import itertools
+import json
+
+import croniter
+
 import prefect.utilities.datetimes
 from prefect.utilities.json import Serializable
 
@@ -12,6 +15,11 @@ class Schedule(Serializable):
 
     def next_n(self, n=1, on_or_after=None):
         raise NotImplementedError('Must be implemented on Schedule subclasses')
+
+    def __eq__(self, other):
+        if type(self) == type(other) and json.dumps(self) == json.dumps(other):
+            return True
+        return False
 
 
 class NoSchedule(Schedule):
