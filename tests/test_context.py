@@ -2,9 +2,9 @@ import datetime
 
 import pytest
 
-from prefect.context import (
-    Annotations,
-    Context,
+from prefect import context
+from prefect.utilities.context import (
+    ContextAnnotation,
     apply_context_annotations,
     call_with_context_annotations
 )
