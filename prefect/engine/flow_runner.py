@@ -99,13 +99,10 @@ class FlowRunner:
 
         context.setdefault('parameters', {}).update(parameters)
 
-        context.update(
-            flow_name=self.flow.name,
-            flow_id=self.flow.id,
-            flow_version=self.flow.version)
+        context.update(flow_name=self.flow.name, flow_version=self.flow.version)
 
         # prepare context
-        with prefect.context.Context(context) as ctx:
+        with prefect.context(context) as ctx:
 
             # set up executor context
             with self.executor.execution_context():
@@ -125,30 +122,22 @@ class FlowRunner:
                             'Required parameters not provided: {}'.format(
                                 missing))
 
-                    self._run(
+                    self._check_flow_state(state)
+
+                    state = self._run_flow(
                         state=state,
                         task_states=task_states,
                         start_tasks=start_tasks,
                         task_contexts=task_contexts,
-                        return_all_task_states=return_all_task_states,
-                        override_task_inputs=override_task_inputs)
+                        override_task_inputs=override_task_inputs,
+                        return_all_task_states=return_all_task_states)
 
         return state
 
-    def _run(
-            self,
-            state,
-            task_states,
-            start_tasks,
-            override_task_inputs,
-            task_contexts,
-            return_all_task_states=False):
-
-        context = prefect.context.Context.to_dict()
-
-        # ------------------------------------------------------------------
-        # check this flow
-        # ------------------------------------------------------------------
+    def _check_flow_state(self, state):
+        """
+        Check if the flow is ready to run.
+        """
 
         # this flow is already finished
         if state.is_finished():
@@ -159,16 +148,19 @@ class FlowRunner:
             raise prefect.signals.DONTRUN(
                 'Flow is not ready to run (state {}).'.format(state))
 
-        # ------------------------------------------------------------------
-        # Start!
-        # ------------------------------------------------------------------
-
+        # start!
         self.logger.info('Starting FlowRun.')
         self.executor.set_state(state, FlowRunState.RUNNING)
 
-        # ------------------------------------------------------------------
-        # Process each task
-        # ------------------------------------------------------------------
+    def _run_flow(
+            self,
+            state,
+            start_tasks,
+            task_states,
+            task_contexts,
+            override_task_inputs,
+            return_all_task_states,
+    ):
 
         # process each task in order
         for task in self.flow.sorted_tasks(root_tasks=start_tasks):
@@ -191,14 +183,13 @@ class FlowRunner:
                 # if the edge has a key, get the upstream result
                 if edge.key is not None:
                     upstream_inputs[edge.key] = self.executor.submit(
-                        lambda state: state.result,
-                        task_states[upstream_id])
+                        lambda state: state.result, task_states[upstream_id])
 
             # override upstream_inputs with provided override_task_inputs
             upstream_inputs.update(override_task_inputs.get(task.id, {}))
 
             # run the task!
-            with prefect.context.Context(task_contexts.get(task.id)):
+            with prefect.context(task_contexts.get(task.id, {})) as context:
                 task_states[task.id] = self.executor.run_task(
                     task=task,
                     state=task_states[task.id],
@@ -209,42 +200,30 @@ class FlowRunner:
 
         # gather the results for all tasks
         self.logger.info('Waiting for tasks to complete...')
-        all_task_states = self.executor.wait(task_states)
+        results = self.executor.wait(task_states)
 
         # gather the results for terminal tasks
-        terminal_states = {
-            task.id: all_task_states[task.id]
-            for task in self.flow.terminal_tasks()
-        }
+        terminal = {t.id: results[t.id] for t in self.flow.terminal_tasks()}
 
         # depending on the flag, we return all states or just
         # terminal/failed states
-        if return_all_task_states:
-            return_states = all_task_states
-        else:
-            return_states = {
-                t: s
-                for t, s in all_task_states.items()
-                if s.is_failed()
-            }
-            return_states.update(terminal_states)
+        if not return_all_task_states:
+            results = {t: s for t, s in results.items() if s.is_failed()}
+            results.update(terminal)
 
-        if any(s.is_failed() for s in terminal_states.values()):
+        # handle flow state
+        if any(s.is_failed() for s in terminal.values()):
             self.logger.info('FlowRun FAILED: Some terminal tasks failed.')
-            self.executor.set_state(
-                state, FlowRunState.FAILED, result=return_states)
-        elif all(s.is_successful() for s in terminal_states.values()):
+            self.executor.set_state(state, FlowRunState.FAILED, result=results)
+        elif all(s.is_successful() for s in terminal.values()):
             self.logger.info('FlowRun SUCCESS: All terminal tasks succeeded.')
-            self.executor.set_state(
-                state, FlowRunState.SUCCESS, result=return_states)
-        elif all(s.is_finished() for s in terminal_states.values()):
+            self.executor.set_state(state, FlowRunState.SUCCESS, result=results)
+        elif all(s.is_finished() for s in terminal.values()):
             self.logger.info(
                 'FlowRun SUCCESS: All terminal tasks finished and none failed.')
-            self.executor.set_state(
-                state, FlowRunState.SUCCESS, result=return_states)
+            self.executor.set_state(state, FlowRunState.SUCCESS, result=results)
         else:
             self.logger.info('FlowRun PENDING: Terminal tasks are incomplete.')
-            self.executor.set_state(
-                state, FlowRunState.PENDING, result=return_states)
+            self.executor.set_state(state, FlowRunState.PENDING, result=results)
 
         return state

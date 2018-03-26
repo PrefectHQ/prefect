@@ -177,6 +177,7 @@ class Flow(Serializable):
 
     # Introspection ------------------------------------------------------------
 
+    @cache(flow_cache_validation)
     def root_tasks(self):
         """
         Returns the root tasks of the Flow -- tasks that have no upstream
@@ -184,6 +185,7 @@ class Flow(Serializable):
         """
         return set(t for t in self.tasks if not self.edges_to(t))
 
+    @cache(flow_cache_validation)
     def terminal_tasks(self):
         """
         Returns the terminal tasks of the Flow -- tasks that have no downstream
