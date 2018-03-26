@@ -52,16 +52,16 @@ def flow_from_chains(*chains):
 class TestFlowIDs:
 
     def test_flow_id(self):
-        foo = Flow(name='foo')
-        foo2 = Flow(name='foo', version='2')
-        bar = Flow(name='bar')
-        foo_id = generate_flow_id(foo, seed=0)
-        foo2_id = generate_flow_id(foo2, seed=0)
-        bar_id = generate_flow_id(bar, seed=0)
+        flow = Flow(name='flow')
+        flow_versioned = Flow(name='flow', version='2')
+        flow_2 = Flow(name='flow_2')
+        flow_id = generate_flow_id(flow, seed=0)
+        flow_versioned_id = generate_flow_id(flow_versioned, seed=0)
+        flow_2_id = generate_flow_id(flow_2, seed=0)
 
-        assert foo_id == 'a356e1cd-2caf-2b7c-2511-63efa50ed5f3'
-        assert foo2_id == '5d2d25f5-c223-fbcd-c583-094bd451df0f'
-        assert bar_id == 'ff9571b7-5abb-c4aa-12e6-212725977111'
+        assert flow_id == '003869f5-b4c5-29c4-e8eb-6be72b8f5e41'
+        assert flow_versioned_id == '003869f5-b4c5-29c4-e8eb-6be72b8f5e41'
+        assert flow_2_id == 'adaf65c3-ad91-f967-ba6b-68b633de0e90'
 
     def test_random_seed(self):
         foo = Flow(name='foo')

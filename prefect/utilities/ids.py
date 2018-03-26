@@ -23,25 +23,35 @@ def xor(hash1, hash2):
     return bytes([x ^ y for x, y in zip(hash1, itertools.cycle(hash2))])
 
 
-def generate_flow_id(flow, seed=None):
+def generate_flow_id(flow, use_version=False, seed=None):
+    """
+    Flow IDs are based on the flow's name and a random seed.
+
+    Note that two flows
+    """
     if seed is None:
-        seed = random.getrandbits(128)
+        seed = random.getrandbits(256)
     seed = get_hash(str(seed))
 
-    hsh = get_hash('{}{}'.format(flow.name, flow.version))
+    if use_version:
+        hsh = get_hash('{}:{}'.format(flow.name, flow.version))
+    else:
+        hsh = get_hash(flow.name)
+    hsh = get_hash(flow.name)
     return str(uuid.UUID(bytes=xor(seed, hsh)))
 
 
 def generate_task_ids(flow, seed=None):
-    flow_id = generate_flow_id(flow, seed=seed)
+    flow_id = uuid.UUID(generate_flow_id(flow, seed=seed))
     if seed is None:
-        seed = random.getrandbits(128)
-    seed = xor(uuid.UUID(flow_id).bytes, get_hash(str(seed)))
+        seed = random.getrandbits(256)
+    seed = get_hash(str(seed))
+    seed = xor(seed, flow_id.bytes)
 
     # initial pass
     # define each task based on its own structure
     hashes = {
-        t: get_hash(jsonpickle.encode((t, seed), unpicklable=False))
+        t: get_hash(jsonpickle.encode(t, unpicklable=False))
         for t in flow.sorted_tasks()
     }
     counter = Counter(hashes.values())
