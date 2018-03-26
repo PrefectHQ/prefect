@@ -350,12 +350,6 @@ class Serializable:
     def __json__(self):
         return self._json_codec(value=self)
 
-    @classmethod
-    def deserialize(cls, serialized):
-        obj = json.loads(serialized)
-        if not issubclass(type(obj), cls):
-            raise TypeError('Invalid type')
-        return obj
 
 
 class PrefectJSONEncoder(json.JSONEncoder):

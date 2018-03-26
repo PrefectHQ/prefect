@@ -1,11 +1,10 @@
-from prefect.utilities.serializers import Serializable
+from prefect.utilities.json import Serializable
 
 class State(Serializable):
 
     _default = None
 
     def __init__(self, state=None, result=None):
-        self.result = None
         if isinstance(state, type(self)):
             self.set_state(state=state.state, result=state.result)
         else:
@@ -15,8 +14,16 @@ class State(Serializable):
         if not self.is_valid_state(state):
             raise ValueError(
                 'Invalid state for {}: {}'.format(type(self).__name__, state))
-        self.state = str(state)
-        self.result = result
+        self._state = str(state)
+        self._result = result
+
+    @property
+    def state(self):
+        return self._state
+
+    @property
+    def result(self):
+        return self._result
 
     def __eq__(self, other):
         if type(self) == type(other):
@@ -30,10 +37,6 @@ class State(Serializable):
 
     def __repr__(self):
         return '{}({})'.format(type(self).__name__, self.state)
-
-    def __json__(self):
-        return dict(state=self.state, result=self.result)
-
 
     @classmethod
     def all_states(cls):

@@ -2,10 +2,12 @@ import inspect
 from datetime import timedelta
 
 import prefect
-from prefect.utilities.json import Serializable
+from prefect.utilities.json import Serializable, ObjectAttributesCodec
 
 
 class Task(Serializable):
+
+    _json_codec = ObjectAttributesCodec
 
     def __init__(
             self,
@@ -23,16 +25,13 @@ class Task(Serializable):
         self.description = description
 
         self.group = str(group or prefect.context.get('group', ''))
-        self._group = group
 
         self.tags = set(tags or prefect.context.get('tags', set()))
-        self._tags = tags
 
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
         self.trigger = trigger or prefect.triggers.all_successful
-        self._trigger = trigger
 
         self.secrets = secrets or {}
 
