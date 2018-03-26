@@ -1,11 +1,7 @@
 import datetime
 import logging
-import sys
-import time
-import traceback
 import types
 import uuid
-from collections import namedtuple
 from contextlib import contextmanager
 
 import prefect
@@ -132,15 +128,16 @@ class TaskRunner:
                 # catch signals
                 with self.catch_signals(state):
 
-                    self._run(
+                    self._check_state(
                         state=state,
                         upstream_states=upstream_states,
-                        inputs=inputs,
                         ignore_trigger=ignore_trigger)
+
+                    self._run_task(state=state, inputs=inputs)
 
         return state
 
-    def _run(self, state, upstream_states, inputs, ignore_trigger=False):
+    def _check_state(self, state, upstream_states, ignore_trigger):
 
         # -------------------------------------------------------------
         # check upstream tasks
@@ -193,6 +190,7 @@ class TaskRunner:
         self.logger.info('Starting TaskRun.')
         self.executor.set_state(state, TaskRunState.RUNNING)
 
+    def _run_task(self, state, inputs):
         result = call_with_context_annotations(self.task.run, **inputs)
 
         # Begin generator clause -----------------------------------
