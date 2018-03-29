@@ -172,7 +172,7 @@ class Flow(Serializable):
         return self
 
     def __exit__(self, _type, _value, _tb):
-        prefect.context.reset(self.__previous_flow)
+        prefect.context.update(flow=self.__previous_flow)
         del self.__previous_flow
 
     # Introspection ------------------------------------------------------------
