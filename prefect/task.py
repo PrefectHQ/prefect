@@ -33,7 +33,7 @@ class Task(Serializable):
         self.timeout = timeout
         self.trigger = trigger or prefect.triggers.all_successful
 
-        self.secrets = secrets or {}
+        self.secrets = secrets
 
         flow = prefect.context.get('flow')
         if flow:
