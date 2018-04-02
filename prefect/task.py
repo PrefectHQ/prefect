@@ -70,7 +70,7 @@ class Task(Serializable):
 
     # Dependencies -------------------------------------------------------------
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, upstream_tasks=None, **kwargs):
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
         callargs = dict(signature.bind(*args, **kwargs).arguments)
@@ -79,10 +79,30 @@ class Task(Serializable):
         var_kw_arg = inspect.getfullargspec(self.run).varkw
         callargs.update(callargs.pop(var_kw_arg, {}))
 
-        flow = prefect.context.get('flow')
+        flow = prefect.context.get('flow', prefect.flow.Flow())
+        return self.set_dependencies(
+            flow=flow,
+            upstream_tasks=upstream_tasks,
+            keyword_results=callargs,
+        )
+
+    def set_dependencies(
+            self,
+            flow=None,
+            upstream_tasks=None,
+            downstream_tasks=None,
+            keyword_results=None,
+            validate=True):
+
         if flow is None:
-            flow = prefect.flow.Flow()
-        return flow.set_dependencies(task=self, keyword_results=callargs)
+            flow = prefect.context.get('flow', prefect.flow.Flow())
+
+        return flow.set_dependencies(
+            task=self,
+            upstream_tasks=upstream_tasks,
+            downstream_tasks=downstream_tasks,
+            keyword_results=keyword_results,
+            validate=validate)
 
     # Operators ----------------------------------------------------------------
 
