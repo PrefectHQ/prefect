@@ -58,6 +58,9 @@ class FlowRunner:
                 state=state, new_state=FlowRunState.FAILED, result=s.state)
 
         except Exception:
+            if prefect.config.tests.test_mode:
+                if prefect.config.tests.raise_run_errors:
+                    raise
             self.logger.error(
                 'Flow: An unexpected error occurred', exc_info=True)
             self.executor.set_state(

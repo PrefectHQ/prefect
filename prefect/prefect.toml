@@ -48,4 +48,8 @@ max_result_size = 2000
 
 [tests]
 
+# turn on test mode
 test_mode = false
+
+# raise error if tasks/flows fail unexpectedly
+raise_run_errors = false

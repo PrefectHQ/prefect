@@ -75,6 +75,9 @@ class TaskRunner:
             self.handle_fail(state=state, result=s.result)
 
         except Exception as e:
+            if prefect.config.tests.test_mode:
+                if prefect.config.tests.raise_run_errors:
+                    raise
             self.logger.info(
                 'Task {}: An unexpected error occurred'.format(self.task),
                 exc_info=1)

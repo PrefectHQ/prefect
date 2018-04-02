@@ -1,4 +1,5 @@
-import itertools
+from contextlib import contextmanager
+import copy
 
 import pytest
 
@@ -6,17 +7,29 @@ import prefect
 from prefect.engine.state import TaskRunState
 
 
-class DummyTask(prefect.Task):
+@contextmanager
+def set_config(keys, value):
+    try:
+        old_config = copy.copy(prefect.config.__dict__)
 
-    _id_iter = itertools.count()
+        config = prefect.config
+        if isinstance(keys, str):
+            keys = [keys]
+        for key in keys[:-1]:
+            config = getattr(config, key)
+        setattr(config, keys[-1], value)
+        yield
+    finally:
+        prefect.config.__dict__.clear()
+        prefect.config.__dict__.update(old_config)
 
-    def __init__(self, name=None, *args, **kwargs):
-        if name is None:
-            name = str(next(self._id_iter))
-        super().__init__(*args, name=name, **kwargs)
 
-    def run(self):
-        pass
+
+@contextmanager
+def raise_run_errors():
+    with set_config(['tests', 'test_mode'], True):
+        with set_config(['tests', 'raise_run_errors'], True):
+            yield
 
 
 def run_task_runner_test(
