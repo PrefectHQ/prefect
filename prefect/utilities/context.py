@@ -69,7 +69,7 @@ class PrefectContext(SimpleNamespace, Serializable):
             with prefect.context(dict(a=1, b=2), c=3):
                 print(prefect.context.a) # 1
         """
-        previous_context = copy.deepcopy(self)
+        previous_context = copy.copy(self)
         try:
             self.update(*context_args, **context_kwargs)
             yield self
