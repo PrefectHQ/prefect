@@ -13,7 +13,10 @@ from prefect.utilities.tasks import as_task_result
 from prefect.utilities.functions import cache
 
 
-def flow_cache_validation(flow):
+def flow_cache_key(flow):
+    """
+    Returns a cache key that can be used to determine if the cache is stale.
+    """
     return hash((frozenset(flow.tasks), frozenset(flow.edges)))
 
 
@@ -177,7 +180,7 @@ class Flow(Serializable):
 
     # Introspection ------------------------------------------------------------
 
-    @cache(flow_cache_validation)
+    @cache(validation_fn=flow_cache_key)
     def root_tasks(self):
         """
         Returns the root tasks of the Flow -- tasks that have no upstream
@@ -185,7 +188,7 @@ class Flow(Serializable):
         """
         return set(t for t in self.tasks if not self.edges_to(t))
 
-    @cache(flow_cache_validation)
+    @cache(validation_fn=flow_cache_key)
     def terminal_tasks(self):
         """
         Returns the terminal tasks of the Flow -- tasks that have no downstream
@@ -301,14 +304,14 @@ class Flow(Serializable):
                 self.add_task(t.task)
                 self.update(t.flow, validate=False)
 
-    @cache(flow_cache_validation)
+    @cache(validation_fn=flow_cache_key)
     def all_upstream_edges(self):
         edges = {t: set() for t in self.tasks}
         for edge in self.edges:
             edges[edge.downstream_task].add(edge)
         return edges
 
-    @cache(flow_cache_validation)
+    @cache(validation_fn=flow_cache_key)
     def all_downstream_edges(self):
         edges = {t: set() for t in self.tasks}
         for edge in self.edges:
@@ -333,7 +336,7 @@ class Flow(Serializable):
         """
         self.sorted_tasks()
 
-    @cache(flow_cache_validation)
+    @cache(validation_fn=flow_cache_key)
     def sorted_tasks(self, root_tasks=None):
 
         # begin by getting all tasks under consideration (root tasks and all
