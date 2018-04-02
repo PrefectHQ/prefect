@@ -21,35 +21,42 @@ class FlowRunner:
         if executor is None:
             executor = prefect.engine.executors.LocalExecutor()
         self.executor = executor
-        self.logger = logging.getLogger(logger_name or flow.name)
+        self.logger = logging.getLogger(logger_name)
 
     @contextmanager
     def catch_signals(self, state):
         try:
             yield
+
         except prefect.signals.ParameterError as s:
             self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
             self.executor.set_state(
                 state=state, new_state=FlowRunState.FAILED, result=str(s))
+
         except prefect.signals.SUCCESS as s:
             self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
             self.executor.set_state(
                 state=state, new_state=FlowRunState.SUCCESS, result=s.state)
+
         except prefect.signals.SKIP as s:
             self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
             self.executor.set_state(
                 state=state, new_state=FlowRunState.SKIP, result=s.state)
+
         except prefect.signals.SHUTDOWN as s:
             self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
             self.executor.set_state(
                 state=state, new_state=FlowRunState.SHUTDOWN, result=s.state)
+
         except prefect.signals.DONTRUN as s:
             self.logger.info('Flow {}: {}'.format(type(s).__name__, s))
+
         except prefect.signals.FAIL as s:
             self.logger.info(
                 'Flow {}: {}'.format(type(s).__name__, s), exc_info=True)
             self.executor.set_state(
                 state=state, new_state=FlowRunState.FAILED, result=s.state)
+
         except Exception:
             self.logger.error(
                 'Flow: An unexpected error occurred', exc_info=True)
@@ -70,7 +77,7 @@ class FlowRunner:
         """
         Arguments
 
-            task_states (dict): a dictionary of { task.id: TaskRunState }
+            task_states (dict): a dictionary of { task: TaskRunState }
                 pairs representing the initial states of the FlowRun tasks.
 
             start_tasks (list): a list of task names indicating the tasks
@@ -81,11 +88,11 @@ class FlowRunner:
                 indicating parameter values for the Flow run.
 
             override_task_inputs (dict): a dictionary of
-                { task.id: {upstream_task.id: input_value } } pairs
+                { task: {upstream_task: input_value } } pairs
                 indicating that a given task's upstream task's reuslt should be
                 overwritten with the supplied input
 
-            task_contexts (dict): a dict of { task.id : context_dict } pairs
+            task_contexts (dict): a dict of { task : context_dict } pairs
                 that contains items that should be provided to each task's
                 context.
         """
@@ -164,11 +171,11 @@ class FlowRunner:
 
         # process each task in order
         for task in self.flow.sorted_tasks(root_tasks=start_tasks):
-            self.logger.info('Running task: {}'.format(task.id))
+            self.logger.info('Running task: {}'.format(task))
 
             # if the task is unrecognized, create a placeholder State
-            if task.id not in task_states:
-                task_states[task.id] = TaskRunState()
+            if task not in task_states:
+                task_states[task] = TaskRunState()
 
             upstream_states = {}
             upstream_inputs = {}
@@ -177,25 +184,26 @@ class FlowRunner:
             for edge in self.flow.edges_to(task):
 
                 # gather upstream states
-                upstream_id = edge.upstream_task.id
-                upstream_states[upstream_id] = task_states[upstream_id]
+                upstream_states[edge.upstream_task] = task_states[
+                    edge.upstream_task]
 
                 # if the edge has a key, get the upstream result
                 if edge.key is not None:
                     upstream_inputs[edge.key] = self.executor.submit(
-                        lambda state: state.result, task_states[upstream_id])
+                        lambda state: state.result,
+                        task_states[edge.upstream_task])
 
             # override upstream_inputs with provided override_task_inputs
-            upstream_inputs.update(override_task_inputs.get(task.id, {}))
+            upstream_inputs.update(override_task_inputs.get(task, {}))
 
             # run the task!
-            with prefect.context(task_contexts.get(task.id, {})) as context:
-                task_states[task.id] = self.executor.run_task(
+            with prefect.context(task_contexts.get(task, {})) as context:
+                task_states[task] = self.executor.run_task(
                     task=task,
-                    state=task_states[task.id],
+                    state=task_states[task],
                     upstream_states=upstream_states,
                     inputs=upstream_inputs,
-                    ignore_trigger=(task.id in (start_tasks or [])),
+                    ignore_trigger=(task in (start_tasks or [])),
                     context=context)
 
         # gather the results for all tasks
@@ -203,7 +211,7 @@ class FlowRunner:
         results = self.executor.wait(task_states)
 
         # gather the results for terminal tasks
-        terminal = {t.id: results[t.id] for t in self.flow.terminal_tasks()}
+        terminal = {task: results[task] for task in self.flow.terminal_tasks()}
 
         # depending on the flag, we return all states or just
         # terminal/failed states
