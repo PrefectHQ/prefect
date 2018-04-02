@@ -20,7 +20,13 @@ INTERPOLATION_REGEX = re.compile(r'\${(.[^${}]*)}')
 class Config(SimpleNamespace):
 
     def __repr__(self):
-        return 'Config({})'.format(', '.join(sorted(self.sections())))
+        return '<Config: {}>'.format(', '.join(sorted(self.sections())))
+
+    def __iter__(self):
+        return self.sections()
+
+    def get(self, key, default=None):
+        return self.__dict__.get(key, default)
 
     def sections(self):
         return self.__dict__.keys()
