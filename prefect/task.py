@@ -12,6 +12,7 @@ class Task(Serializable):
     def __init__(
             self,
             name=None,
+            slug=None,
             description=None,
             group=None,
             tags=None,
@@ -22,11 +23,11 @@ class Task(Serializable):
             secrets=None):
 
         self.name = name or type(self).__name__
+        self.slug = slug
         self.description = description
 
         self.group = str(group or prefect.context.get('group', ''))
-
-        self.tags = set(tags or prefect.context.get('tags', set()))
+        self.tags = set(tags or prefect.context.get('tags', []))
 
         self.max_retries = max_retries
         self.retry_delay = retry_delay
