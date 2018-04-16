@@ -1,3 +1,4 @@
+import copy
 import inspect
 import tempfile
 from contextlib import contextmanager
@@ -162,7 +163,7 @@ class Flow(Serializable):
     # Identification  ----------------------------------------------------------
 
     def copy(self):
-        new = super().copy()
+        new = copy.copy(self)
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
         return new
