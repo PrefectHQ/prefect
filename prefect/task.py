@@ -113,6 +113,7 @@ class Task(Serializable):
 
         serialized = dict(
             name=self.name,
+            slug=self.slug,
             description=self.description,
             max_retries=self.max_retries,
             retry_delay=self.retry_delay,
@@ -121,21 +122,21 @@ class Task(Serializable):
 
         return serialized
 
-    @classmethod
-    def deserialize(cls, serialized):
-        if serialized.get('qualified_name') == 'prefect.task.Parameter':
-            serialized.pop('qualified_name')
-            return Parameter.deserialize(serialized)
+    # @classmethod
+    # def deserialize(cls, serialized):
+    #     if serialized.get('qualified_name') == 'prefect.task.Parameter':
+    #         serialized.pop('qualified_name')
+    #         return Parameter.deserialize(serialized)
 
-        task = Task(
-            name=serialized['name'],
-            description=serialized['description'],
-            max_retries=serialized['max_retries'],
-            retry_delay=serialized['retry_delay'],
-            timeout=serialized['timeout'],
-            trigger=serialized['trigger'])
+    #     task = Task(
+    #         name=serialized['name'],
+    #         description=serialized['description'],
+    #         max_retries=serialized['max_retries'],
+    #         retry_delay=serialized['retry_delay'],
+    #         timeout=serialized['timeout'],
+    #         trigger=serialized['trigger'])
 
-        return task
+    #     return task
 
 
 class Parameter(Task):
