@@ -114,6 +114,7 @@ class Task(Serializable):
         serialized = dict(
             name=self.name,
             slug=self.slug,
+            type=type(self).__name__,
             description=self.description,
             max_retries=self.max_retries,
             retry_delay=self.retry_delay,
