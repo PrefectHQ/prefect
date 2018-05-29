@@ -1,4 +1,4 @@
-def merge_dicts(d1, d2):
+def merge_dicts(d1: dict, d2: dict) -> dict:
     """
     Updates d1 from d2 by replacing each (k, v1) pair in d1 with the
     corresponding (k, v2) pair in d2.

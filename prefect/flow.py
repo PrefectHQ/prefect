@@ -2,19 +2,19 @@ import copy
 import inspect
 import tempfile
 from contextlib import contextmanager
-from typing import Iterable, Mapping
+from typing import Any, Dict, Iterable, Mapping, Optional, Set
 
 import graphviz
 
 import prefect
 from prefect.task import Parameter, Task
+from prefect.utilities.functions import cache
 from prefect.utilities.json import Serializable
 from prefect.utilities.strings import is_valid_identifier
 from prefect.utilities.tasks import as_task_result
-from prefect.utilities.functions import cache
 
 
-def flow_cache_key(flow):
+def flow_cache_key(flow: 'Flow') -> int:
     """
     Returns a cache key that can be used to determine if the cache is stale.
     """
@@ -26,22 +26,24 @@ class TaskResult:
     TaskResults represent the execution of a specific task in a given flow.
     """
 
-    def __init__(self, task, flow=None):
+    def __init__(self, task: Task, flow: Optional['Flow'] = None) -> None:
         if flow is None:
             flow = Flow()
         flow.add_task(task)
         self.task = task
         self.flow = flow
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: Any) -> Task:
         name = '{}[{}]'.format(self.task.name, index)
         index_task = prefect.tasks.core.operators.GetIndexTask(
             index=index, name=name)
         return index_task(task_result=self)
 
     def set_dependencies(
-            self, upstream_tasks=None, downstream_tasks=None,
-            keyword_results=None):
+            self,
+            upstream_tasks: Optional[Iterable[Task]] = None,
+            downstream_tasks: Optional[Iterable[Task]] = None,
+            keyword_results: Optional[Dict[str, Task]] = None) -> None:
 
         self.flow.set_dependencies(
             task=self,
@@ -49,13 +51,17 @@ class TaskResult:
             downstream_tasks=downstream_tasks,
             keyword_results=keyword_results)
 
-    def wait_for(self, task_results):
-        self.set_dependencies(upstream_tasks=task_results)
+    # def wait_for(self, task_results):
+    #     self.set_dependencies(upstream_tasks=task_results)
 
 
 class Edge:
 
-    def __init__(self, upstream_task, downstream_task, key=None):
+    def __init__(
+            self,
+            upstream_task: Task,
+            downstream_task: Task,
+            key: Optional[str] = None) -> None:
         """
         Edges represent connections between Tasks.
 
@@ -115,20 +121,20 @@ class Flow(Serializable):
 
     def __init__(
             self,
-            name=None,
-            version=None,
+            name: Optional[str] = None,
+            version: Optional[str] = None,
             schedule=None,
-            description=None,
-            tasks=None,
-            edges=None):
+            description: Optional[str] = None,
+            tasks: Optional[Iterable[Task]] = None,
+            edges: Optional[Iterable[Edge]] = None) -> None:
 
         self.name = name or type(self).__name__
         self.version = version
         self.description = description
         self.schedule = schedule or prefect.schedules.NoSchedule()
 
-        self.tasks = set()
-        self.edges = set()
+        self.tasks = set()  # type: Set[Task]
+        self.edges = set()  # type: Set[Edge]
 
         for t in tasks or []:
             self.add_task(t)
@@ -151,7 +157,7 @@ class Flow(Serializable):
             return s == o
         return False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '<{cls}: {self.name}{v}>'.format(
             cls=type(self).__name__,
             self=self,
@@ -162,7 +168,7 @@ class Flow(Serializable):
 
     # Identification  ----------------------------------------------------------
 
-    def copy(self):
+    def copy(self) -> 'Flow':
         new = copy.copy(self)
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
@@ -182,7 +188,7 @@ class Flow(Serializable):
     # Introspection ------------------------------------------------------------
 
     @cache(validation_fn=flow_cache_key)
-    def root_tasks(self):
+    def root_tasks(self) -> Set[Task]:
         """
         Returns the root tasks of the Flow -- tasks that have no upstream
         dependencies.
@@ -190,14 +196,14 @@ class Flow(Serializable):
         return set(t for t in self.tasks if not self.edges_to(t))
 
     @cache(validation_fn=flow_cache_key)
-    def terminal_tasks(self):
+    def terminal_tasks(self) -> Set[Task]:
         """
         Returns the terminal tasks of the Flow -- tasks that have no downstream
         dependencies.
         """
         return set(t for t in self.tasks if not self.edges_from(t))
 
-    def parameters(self):
+    def parameters(self) -> Dict[str, Dict[str, Any]]:
         """
         Returns details about any Parameters of this flow
         """
@@ -235,7 +241,7 @@ class Flow(Serializable):
             self.tasks, self.edges = tasks, edges
             raise
 
-    def add_task(self, task):
+    def add_task(self, task: Task) -> None:
         if not isinstance(task, Task):
             raise TypeError(
                 'Tasks must be Task instances (received {})'.format(type(task)))

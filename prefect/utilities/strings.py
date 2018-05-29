@@ -1,6 +1,7 @@
 import keyword
 
-def is_valid_identifier(string):
+
+def is_valid_identifier(string: str) -> bool:
     """
     Determines whether a string is a valid Python identifier (meaning it can
     be used as a variable name or keyword argument).
@@ -24,7 +25,7 @@ def name_with_suffix(
         first_suffix=1,
         delimiter='_',
         max_iters=1000,
-        always_add_suffix=False):
+        always_add_suffix=False) -> str:
     """
     Automatically adds a number suffix to a name until it becomes valid.
 

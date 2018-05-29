@@ -95,3 +95,10 @@ ENV/
 
 # VS Code settings
 .vscode
+
+# mypy
+.mypy*
+
+# pyre
+.pyre
+.pyre_configuration
