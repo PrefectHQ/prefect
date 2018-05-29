@@ -36,6 +36,11 @@ default_project = "Flows"
 
 # The default version for new Flows
 # default_version = 1
+default_version = "1"
+
+# the seed value for random Task and Flow ids. You should never set this
+# manually.
+id_seed = false
 
 
 [tasks]
