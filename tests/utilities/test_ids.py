@@ -59,9 +59,9 @@ class TestFlowIDs:
         flow_versioned_id = generate_flow_id(flow_versioned, seed=0)
         flow_2_id = generate_flow_id(flow_2, seed=0)
 
-        assert flow_id == '003869f5-b4c5-29c4-e8eb-6be72b8f5e41'
-        assert flow_versioned_id == '003869f5-b4c5-29c4-e8eb-6be72b8f5e41'
-        assert flow_2_id == 'adaf65c3-ad91-f967-ba6b-68b633de0e90'
+        assert flow_id == '6b8cc02e-e2ee-5899-1f05-bd4410417a02'
+        assert flow_versioned_id == '738df697-db1a-c8a6-0aa6-63996ad8ccbb'
+        assert flow_2_id == '3d5b99f6-a2de-27b5-70f0-543870e88b4d'
 
     def test_random_seed(self):
         foo = Flow(name='foo')
