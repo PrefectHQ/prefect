@@ -345,7 +345,6 @@ class Flow(Serializable):
 
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
-        # import ipdb; ipdb.set_trace()
         if root_tasks:
             tasks = set(root_tasks)
             seen = set()
@@ -477,25 +476,37 @@ class Flow(Serializable):
 
     # Serialization ------------------------------------------------------------
 
-    def serialize(self):
+    def serialize(self, seed=None) -> dict:
+        ref_ids = self.fingerprint(seed=seed)
+
         return dict(
+            ref_id=ref_ids['flow_id'],
             name=self.name,
             version=self.version,
             description=self.description,
             parameters=self.parameters(),
             schedule=self.schedule,
-            tasks=[t.serialize() for t in self.sorted_tasks()],
-            edges=[e.serialize() for e in self.edges],
+            tasks=[
+                dict(
+                    **t.serialize(),
+                    ref_id=ref_ids['task_ids'][t],
+                ) for t in self.tasks
+            ],
+            edges=[
+                dict(
+                    upstream_ref_id=ref_ids['task_ids'][e.upstream_task],
+                    downstream_ref_id=ref_ids['task_ids'][e.downstream_task],
+                    key=e.key) for e in self.edges
+            ],
         )
 
-    @classmethod
-    def deserialize(cls, serialized):
-        return Flow(
-            name=serialized['name'],
-            version=serialized['version'],
-            schedule=serialized['schedule'],
-            tasks=set(Task.deserialize(t) for t in serialized['tasks']),
-            edges=set(Edge.deserialize(e) for e in serialized['edges']))
+    def fingerprint(self, seed=None):
+        """
+        Generates a unique fingerprint for the flow and each task it contains.
+        """
+        flow_id = prefect.utilities.ids.generate_flow_id(self, seed=seed)
+        task_ids = prefect.utilities.ids.generate_task_ids(self, seed=seed)
+        return dict(flow_id=flow_id, task_ids=task_ids)
 
     # Visualization ------------------------------------------------------------
 
