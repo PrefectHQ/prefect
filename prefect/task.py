@@ -97,8 +97,9 @@ class Task(Serializable):
             validate: bool = True):
 
         if flow is None:
-            flow = prefect.context.get('flow',
-                                       prefect.Flow())  # type: 'prefect.Flow'
+            flow = prefect.context.get('flow', prefect.Flow())
+
+        flow: 'prefect.Flow'
 
         return flow.set_dependencies(
             task=self,
@@ -148,8 +149,11 @@ class Parameter(Task):
     """
 
     def __init__(
-            self, name: str, default: Optional[Any] = None,
-            required: bool = True) -> None:
+            self,
+            name: str,
+            default: Optional[Any] = None,
+            required: bool = True,
+    ) -> None:
         """
         Args:
             name (str): the Parameter name.

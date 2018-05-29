@@ -11,6 +11,8 @@ Example:
     print (prefect.context.a) # undefined
 
 """
+
+from typing import Iterable, Dict, Any
 import contextlib
 import copy
 import inspect
@@ -29,34 +31,34 @@ class PrefectContext(SimpleNamespace, Serializable):
     _context = None
 
     # PrefectContext is a Singleton
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs) -> 'PrefectContext':
         if not cls._context:
             cls._context = super().__new__(cls, *args, **kwargs)
         return cls._context
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(**kwargs)
         self.update(args)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '<Prefect Context>'
 
-    def __delattr__(self, key):
+    def __delattr__(self, key) -> None:
         del self.__dict__[key]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable:
         return self.__dict__.keys()
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return self.__dict__.copy()
 
-    def update(self, *args, **kwargs):
+    def update(self, *args, **kwargs) -> None:
         args = [a.to_dict() if isinstance(a, type(self)) else a for a in args]
         for a in args:
             self.__dict__.update(a)
         self.__dict__.update(kwargs)
 
-    def clear(self):
+    def clear(self) -> None:
         self.__dict__.clear()
 
     @contextlib.contextmanager
@@ -77,7 +79,7 @@ class PrefectContext(SimpleNamespace, Serializable):
             self.clear()
             self.update(previous_context)
 
-    def get(self, key, default=None):
+    def get(self, key: str, default=None) -> Any:
         return getattr(self, key, default)
 
     def setdefault(self, key, default):

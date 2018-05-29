@@ -1,10 +1,10 @@
+from typing import Any
 from contextlib import contextmanager
 import prefect
 import wrapt
 
-
 @contextmanager
-def group(name):
+def group(name: str) -> None:
     """
     Context manager for setting a task group.
     """
@@ -28,7 +28,7 @@ def tags(*tags):
         yield
 
 
-def as_task_result(x):
+def as_task_result(x: Any):
     """
     Wraps a function, collection, or constant with the appropriate Task type.
     """

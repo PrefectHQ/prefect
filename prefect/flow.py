@@ -2,7 +2,7 @@ import copy
 import inspect
 import tempfile
 from contextlib import contextmanager
-from typing import Any, Dict, Iterable, Mapping, Optional, Set
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple
 
 import graphviz
 
@@ -26,14 +26,14 @@ class TaskResult:
     TaskResults represent the execution of a specific task in a given flow.
     """
 
-    def __init__(self, task: Task, flow: Optional['Flow'] = None) -> None:
+    def __init__(self, task: Task, flow: 'Flow' = None) -> None:
         if flow is None:
             flow = Flow()
         flow.add_task(task)
         self.task = task
         self.flow = flow
 
-    def __getitem__(self, index: Any) -> Task:
+    def __getitem__(self, index) -> Task:
         name = '{}[{}]'.format(self.task.name, index)
         index_task = prefect.tasks.core.operators.GetIndexTask(
             index=index, name=name)
@@ -41,9 +41,9 @@ class TaskResult:
 
     def set_dependencies(
             self,
-            upstream_tasks: Optional[Iterable[Task]] = None,
-            downstream_tasks: Optional[Iterable[Task]] = None,
-            keyword_results: Optional[Dict[str, Task]] = None) -> None:
+            upstream_tasks: Iterable[Task] = None,
+            downstream_tasks: Iterable[Task] = None,
+            keyword_results: Dict[str, Task] = None) -> None:
 
         self.flow.set_dependencies(
             task=self.task,
@@ -58,10 +58,8 @@ class TaskResult:
 class Edge:
 
     def __init__(
-            self,
-            upstream_task: Task,
-            downstream_task: Task,
-            key: Optional[str] = None) -> None:
+            self, upstream_task: Task, downstream_task: Task,
+            key: str = None) -> None:
         """
         Edges represent connections between Tasks.
 
@@ -113,7 +111,7 @@ class Edge:
             return self_cmp == other_cmp
         return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return id(self)
 
 
@@ -121,12 +119,12 @@ class Flow(Serializable):
 
     def __init__(
             self,
-            name: Optional[str] = None,
-            version: Optional[str] = None,
-            schedule: Optional[prefect.schedules.Schedule]=None,
-            description: Optional[str] = None,
-            tasks: Optional[Iterable[Task]] = None,
-            edges: Optional[Iterable[Edge]] = None) -> None:
+            name: str = None,
+            version: str = None,
+            schedule: 'prefect.schedules.Schedule' = None,
+            description: str = None,
+            tasks: Iterable[Task] = None,
+            edges: Iterable[Edge] = None) -> None:
 
         self.name = name or type(self).__name__
         self.version = version
@@ -146,7 +144,7 @@ class Flow(Serializable):
                 key=e.key)
 
         self._prefect_version = prefect.__version__
-        self._cache = {}
+        self._cache: dict = {}
 
         super().__init__()
 
@@ -176,12 +174,12 @@ class Flow(Serializable):
 
     # Context Manager ----------------------------------------------------------
 
-    def __enter__(self):
+    def __enter__(self) -> 'Flow':
         self.__previous_flow = prefect.context.get('flow')
         prefect.context.update(flow=self)
         return self
 
-    def __exit__(self, _type, _value, _tb):
+    def __exit__(self, _type, _value, _tb) -> None:
         prefect.context.update(flow=self.__previous_flow)
         del self.__previous_flow
 
@@ -219,7 +217,7 @@ class Flow(Serializable):
     # Graph --------------------------------------------------------------------
 
     @contextmanager
-    def restore_graph_on_error(self, validate: bool=True) -> None:
+    def restore_graph_on_error(self, validate: bool = True) -> None:
         """
         A context manager that saves the Flow's graph (tasks & edges) and
         restores it if an error is raised. It can be used to test potentially
@@ -257,7 +255,12 @@ class Flow(Serializable):
 
         self.tasks.add(task)
 
-    def add_edge(self, upstream_task, downstream_task, key=None, validate=True):
+    def add_edge(
+            self,
+            upstream_task: Task,
+            downstream_task: Task,
+            key: str = None,
+            validate: bool = True) -> None:
         if isinstance(upstream_task, TaskResult):
             upstream_task = upstream_task.task
         if isinstance(downstream_task, TaskResult):
@@ -293,7 +296,7 @@ class Flow(Serializable):
                 }
                 inspect.signature(downstream_task.run).bind_partial(**edge_keys)
 
-    def update(self, flow, validate=True):
+    def update(self, flow: 'Flow', validate: bool = True) -> None:
         with self.restore_graph_on_error(validate=validate):
 
             for task in flow.tasks:
@@ -308,52 +311,55 @@ class Flow(Serializable):
                         key=edge.key,
                         validate=False)
 
-    def add_task_results(self, *task_results, validate=True):
+    def add_task_results(self, *task_results, validate: bool = True) -> None:
         with self.restore_graph_on_error(validate=validate):
             for t in task_results:
                 self.add_task(t.task)
                 self.update(t.flow, validate=False)
 
     @cache(validation_fn=flow_cache_key)
-    def all_upstream_edges(self):
+    def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
         edges = {t: set() for t in self.tasks}
         for edge in self.edges:
             edges[edge.downstream_task].add(edge)
         return edges
 
     @cache(validation_fn=flow_cache_key)
-    def all_downstream_edges(self):
-        edges = {t: set() for t in self.tasks}
+    def all_downstream_edges(self) -> Dict[Task, Set[Edge]]:
+        edges: Dict[Task, Set[Edge]] = {t: set() for t in self.tasks}
         for edge in self.edges:
             edges[edge.upstream_task].add(edge)
         return edges
 
-    def edges_to(self, task):
+    def edges_to(self, task: Task) -> Set[Edge]:
         return self.all_upstream_edges()[task]
 
-    def edges_from(self, task):
+    def edges_from(self, task: Task) -> Set[Edge]:
         return self.all_downstream_edges()[task]
 
-    def upstream_tasks(self, task):
+    def upstream_tasks(self, task: Task) -> Set[Task]:
         return set(e.upstream_task for e in self.edges_to(task))
 
-    def downstream_tasks(self, task):
-        return set(e.downstream_task for e in self.edges_from(task))
+    def downstream_tasks(self, task: Task) -> Set[Task]:
+        s: Set[Task]
+        s = set(e.downstream_task for e in self.edges_from(task))
+        return s
 
-    def validate(self):
+    def validate(self) -> None:
         """
         Checks the flow for cycles and raises an error if one is found.
         """
         self.sorted_tasks()
 
     @cache(validation_fn=flow_cache_key)
-    def sorted_tasks(self, root_tasks=None):
+    def sorted_tasks(self,
+                     root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
 
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
         if root_tasks:
             tasks = set(root_tasks)
-            seen = set()
+            seen: Set[Task] = set()
             # while the set of tasks is different from the seen tasks...
             while tasks.difference(seen):
                 # iterate over the new tasks...
@@ -401,7 +407,7 @@ class Flow(Serializable):
             upstream_tasks: Iterable[Task] = None,
             downstream_tasks: Iterable[Task] = None,
             keyword_results: Mapping[str, Task] = None,
-            validate=True) -> TaskResult:
+            validate: bool = True) -> TaskResult:
         """
         Convenience function for adding task dependencies on upstream tasks.
 
@@ -418,7 +424,7 @@ class Flow(Serializable):
         """
         with self.restore_graph_on_error(validate=validate):
 
-            result = as_task_result(task)
+            result: TaskResult = as_task_result(task)
             task = result.task
 
             # validate the task

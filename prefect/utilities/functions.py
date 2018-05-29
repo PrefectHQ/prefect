@@ -1,10 +1,14 @@
+from typing import Any, Callable, Hashable, TypeVar
+
 import wrapt
 
+T = TypeVar('T')
 
-def cache(validation_fn):
+
+def cache(validation_fn: Callable[[Any], Hashable]) -> Callable:
 
     @wrapt.decorator
-    def inner(function, instance, args, kwargs):
+    def inner(function: Callable[..., T], instance, args, kwargs) -> T:
         validation_key = validation_fn(instance)
         function_key = (function.__qualname__, args, frozenset(kwargs))
 
