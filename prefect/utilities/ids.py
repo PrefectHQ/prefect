@@ -6,9 +6,15 @@ from collections import Counter
 
 import jsonpickle
 
+import prefect
+
 FLOWS = {}
 TASKS = {}
 
+
+def task_fingerprint(task):
+    task_bytes = jsonpickle.encode(task, unpicklable=False).encode()
+    return hashlib.md5(task_bytes).digest()
 
 def get_hash(obj):
     if isinstance(obj, str):
@@ -23,37 +29,29 @@ def xor(hash1, hash2):
     return bytes([x ^ y for x, y in zip(hash1, itertools.cycle(hash2))])
 
 
-def generate_flow_id(flow, use_version=False, seed=None):
+def generate_flow_id(flow, seed=None):
     """
-    Flow IDs are based on the flow's name and a random seed.
-
-    Note that two flows
+    Flow IDs are based on the flow's name, version, and a random seed.
     """
     if seed is None:
-        seed = random.getrandbits(256)
+        seed = prefect.config.flows.id_seed or random.getrandbits(256)
     seed = get_hash(str(seed))
 
-    if use_version:
-        hsh = get_hash('{}:{}'.format(flow.name, flow.version))
-    else:
-        hsh = get_hash(flow.name)
-    hsh = get_hash(flow.name)
+    hsh = get_hash('{}:{}'.format(flow.name, flow.version or ''))
     return str(uuid.UUID(bytes=xor(seed, hsh)))
 
 
 def generate_task_ids(flow, seed=None):
-    flow_id = uuid.UUID(generate_flow_id(flow, seed=seed))
     if seed is None:
-        seed = random.getrandbits(256)
+        seed = prefect.config.flows.id_seed or random.getrandbits(256)
     seed = get_hash(str(seed))
-    seed = xor(seed, flow_id.bytes)
+
+    seed = xor(seed, uuid.UUID(generate_flow_id(flow, seed=seed)).bytes)
 
     # initial pass
     # define each task based on its own structure
-    hashes = {
-        t: get_hash(jsonpickle.encode(t, unpicklable=False))
-        for t in flow.sorted_tasks()
-    }
+
+    hashes = {t: task_fingerprint(t) for t in flow.sorted_tasks()}
     counter = Counter(hashes.values())
     final_hashes = {}
 
