@@ -285,8 +285,16 @@ class ObjectInitArgsCodec(JSONCodec):
             elif hasattr(self.value, arg):
                 init_arg = getattr(self.value, arg)
 
+            # default for var_positional
+            elif param.kind == param.VAR_POSITIONAL:
+                init_arg = ()
+
+            # default for var_keyword
+            elif param.kind == param.VAR_KEYWORD:
+                init_arg = {}
+
             # fail
-            elif param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+            else:
                 raise ValueError(
                     'Could not find a value for the required init arg "{a}" of '
                     'object {o}. The value should be stored in an attribute '
@@ -349,7 +357,6 @@ class Serializable:
 
     def __json__(self):
         return self._json_codec(value=self)
-
 
 
 class PrefectJSONEncoder(json.JSONEncoder):
