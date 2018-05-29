@@ -46,7 +46,7 @@ class TaskResult:
             keyword_results: Optional[Dict[str, Task]] = None) -> None:
 
         self.flow.set_dependencies(
-            task=self,
+            task=self.task,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
             keyword_results=keyword_results)
@@ -99,14 +99,14 @@ class Edge:
 
     # Comparison --------------------------------------------------------------
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '<{cls}: {u} to {d}{k}>'.format(
             cls=type(self).__name__,
             u=self.upstream_task,
             d=self.downstream_task,
             k=' (key={})'.format(self.key) if self.key else '')
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'Edge') -> bool:
         if type(self) == type(other):
             self_cmp = (self.upstream_task, self.downstream_task, self.key)
             other_cmp = (other.upstream_task, other.downstream_task, other.key)
@@ -123,7 +123,7 @@ class Flow(Serializable):
             self,
             name: Optional[str] = None,
             version: Optional[str] = None,
-            schedule=None,
+            schedule: Optional[prefect.schedules.Schedule]=None,
             description: Optional[str] = None,
             tasks: Optional[Iterable[Task]] = None,
             edges: Optional[Iterable[Edge]] = None) -> None:
@@ -150,7 +150,7 @@ class Flow(Serializable):
 
         super().__init__()
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'Flow') -> bool:
         if type(self) == type(other):
             s = (self.name, self.version, self.tasks, self.edges)
             o = (other.name, other.version, other.tasks, other.edges)
@@ -219,7 +219,7 @@ class Flow(Serializable):
     # Graph --------------------------------------------------------------------
 
     @contextmanager
-    def restore_graph_on_error(self, validate=True):
+    def restore_graph_on_error(self, validate: bool=True) -> None:
         """
         A context manager that saves the Flow's graph (tasks & edges) and
         restores it if an error is raised. It can be used to test potentially
@@ -401,7 +401,7 @@ class Flow(Serializable):
             upstream_tasks: Iterable[Task] = None,
             downstream_tasks: Iterable[Task] = None,
             keyword_results: Mapping[str, Task] = None,
-            validate=True):
+            validate=True) -> TaskResult:
         """
         Convenience function for adding task dependencies on upstream tasks.
 

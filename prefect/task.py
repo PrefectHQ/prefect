@@ -1,8 +1,9 @@
 import inspect
 from datetime import timedelta
+from typing import Any, Dict, Iterable, Optional, Set, Tuple
 
 import prefect
-from prefect.utilities.json import Serializable, ObjectAttributesCodec
+from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 
 class Task(Serializable):
@@ -11,16 +12,16 @@ class Task(Serializable):
 
     def __init__(
             self,
-            name=None,
-            slug=None,
-            description=None,
-            group=None,
-            tags=None,
-            max_retries=0,
-            retry_delay=timedelta(minutes=1),
+            name: Optional[str] = None,
+            slug: Optional[str] = None,
+            description: Optional[str] = None,
+            group: Optional[str] = None,
+            tags: Optional[Iterable[str]] = None,
+            max_retries: int = 0,
+            retry_delay: timedelta = timedelta(minutes=1),
             timeout=None,
             trigger=None,
-            secrets=None):
+            secrets=None) -> None:
 
         self.name = name or type(self).__name__
         self.slug = slug
@@ -36,16 +37,16 @@ class Task(Serializable):
 
         self.secrets = secrets
 
-        flow = prefect.context.get('flow')
+        flow: Optional['prefect.Flow'] = prefect.context.get('flow')
         if flow:
             flow.add_task(self)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '<Task: {self.name}>'.format(cls=type(self).__name__, self=self)
 
     # Run  --------------------------------------------------------------------
 
-    def inputs(self):
+    def inputs(self) -> Tuple[str]:
         return tuple(inspect.signature(self.run).parameters.keys())
 
     def run(self):
@@ -89,14 +90,15 @@ class Task(Serializable):
 
     def set_dependencies(
             self,
-            flow=None,
-            upstream_tasks=None,
-            downstream_tasks=None,
+            flow: Optional['prefect.Flow'] = None,
+            upstream_tasks: Optional[Iterable['Task']] = None,
+            downstream_tasks: Optional[Iterable['Task']] = None,
             keyword_results=None,
-            validate=True):
+            validate: bool = True):
 
         if flow is None:
-            flow = prefect.context.get('flow', prefect.flow.Flow())
+            flow = prefect.context.get('flow',
+                                       prefect.Flow())  # type: 'prefect.Flow'
 
         return flow.set_dependencies(
             task=self,
@@ -109,7 +111,7 @@ class Task(Serializable):
 
     # Serialization ------------------------------------------------------------
 
-    def serialize(self):
+    def serialize(self) -> Dict[str, Any]:
 
         serialized = dict(
             name=self.name,
@@ -145,7 +147,9 @@ class Parameter(Task):
     A Parameter is a special task that defines a required flow input.
     """
 
-    def __init__(self, name, default=None, required=True):
+    def __init__(
+            self, name: str, default: Optional[Any] = None,
+            required: bool = True) -> None:
         """
         Args:
             name (str): the Parameter name.
@@ -164,7 +168,7 @@ class Parameter(Task):
 
         super().__init__(name=name)
 
-    def run(self):
+    def run(self) -> Any:
         params = prefect.context.get('parameters', {})
         if self.required and self.name not in params:
             raise prefect.signals.FAIL(
@@ -172,7 +176,7 @@ class Parameter(Task):
                     self.name))
         return params.get(self.name, self.default)
 
-    def serialize(self):
+    def serialize(self) -> Dict[str, Any]:
         serialized = super().serialize()
         serialized.update(required=self.required, default=self.default)
         return serialized
