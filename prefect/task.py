@@ -1,10 +1,13 @@
 import inspect
 from datetime import timedelta
-from typing import Any, Dict, Iterable, Set, Tuple
+from typing import Any, Dict, Iterable, Set, Tuple, TYPE_CHECKING
 
 import prefect
+import prefect.signals
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
+if TYPE_CHECKING:
+    from prefect.flow import Flow, TaskResult
 
 class Task(Serializable):
 
@@ -40,7 +43,7 @@ class Task(Serializable):
 
         self.secrets = secrets
 
-        flow = prefect.context.get("flow")  # typde: 'prefect.Flow'
+        flow = prefect.context.get("flow")  # type: 'prefect.Flow'
         if flow:
             flow.add_task(self)
 
@@ -75,7 +78,9 @@ class Task(Serializable):
 
     # Dependencies -------------------------------------------------------------
 
-    def __call__(self, *args, upstream_tasks=None, **kwargs):
+    def __call__(
+        self, *args: Any, upstream_tasks: Iterable['Task'] = None, **kwargs: Any
+    ) -> "TaskResult":
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
         callargs = dict(signature.bind(*args, **kwargs).arguments)
@@ -91,19 +96,17 @@ class Task(Serializable):
 
     def set_dependencies(
         self,
-        flow: "prefect.Flow" = None,
+        flow: 'Flow' = None,
         upstream_tasks: Iterable["Task"] = None,
         downstream_tasks: Iterable["Task"] = None,
-        keyword_results=None,
+        keyword_results: Dict[str, 'Task'] = None,
         validate: bool = True,
     ):
 
         if flow is None:
             flow = prefect.context.get("flow", prefect.Flow())
 
-        flow: "prefect.Flow"
-
-        return flow.set_dependencies(
+        return flow.set_dependencies(   # type: ignore
             task=self,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
@@ -136,9 +139,7 @@ class Parameter(Task):
     A Parameter is a special task that defines a required flow input.
     """
 
-    def __init__(
-        self, name: str, default: Any = None, required: bool = True
-    ) -> None:
+    def __init__(self, name: str, default: Any = None, required: bool = True) -> None:
         """
         Args:
             name (str): the Parameter name.

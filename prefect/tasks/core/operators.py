@@ -1,5 +1,19 @@
+from typing import Any
 from prefect import Task
 from prefect.utilities.tasks import task_factory
+
+
+class GetItem(Task):
+    """
+    Helper task that retrieves a specific index of an upstream task's result.
+    """
+
+    def __init__(self, index: Any, **kwargs: Any) -> None:
+        self.index = index
+        super().__init__(**kwargs)
+
+    def run(self, task_result: Any) -> Any:
+        return task_result[self.index]
 
 
 @task_factory()

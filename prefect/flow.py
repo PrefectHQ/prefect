@@ -33,9 +33,11 @@ class TaskResult:
         self.task = task
         self.flow = flow
 
-    def __getitem__(self, index) -> Task:
+    def __getitem__(self, index: Any) -> "TaskResult":
+        import prefect.tasks.core.operators
+
         name = "{}[{}]".format(self.task.name, index)
-        index_task = prefect.tasks.core.operators.GetIndexTask(index=index, name=name)
+        index_task = prefect.tasks.core.operators.GetItem(index=index, name=name)
         return index_task(task_result=self)
 
     def set_dependencies(
@@ -105,7 +107,7 @@ class Edge:
             k=" (key={})".format(self.key) if self.key else "",
         )
 
-    def __eq__(self, other: "Edge") -> bool:
+    def __eq__(self, other: "Edge") -> bool:  # type: ignore
         if type(self) == type(other):
             self_cmp = (self.upstream_task, self.downstream_task, self.key)
             other_cmp = (other.upstream_task, other.downstream_task, other.key)
@@ -164,7 +166,7 @@ class Flow(Serializable):
             v=" version={}".format(self.version) if self.version else "",
         )
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[Task]:
         yield from self.sorted_tasks()
 
     # Identification  ----------------------------------------------------------
@@ -182,7 +184,7 @@ class Flow(Serializable):
         prefect.context.update(flow=self)
         return self
 
-    def __exit__(self, _type, _value, _tb) -> None:
+    def __exit__(self, _type, _value, _tb) -> None:  # type: ignore
         prefect.context.update(flow=self.__previous_flow)
         del self.__previous_flow
 
@@ -315,7 +317,7 @@ class Flow(Serializable):
                         validate=False,
                     )
 
-    def add_task_results(self, *task_results, validate: bool = True) -> None:
+    def add_task_results(self, *task_results: TaskResult, validate: bool = True) -> None:
         with self.restore_graph_on_error(validate=validate):
             for t in task_results:
                 self.add_task(t.task)
@@ -323,7 +325,7 @@ class Flow(Serializable):
 
     @cache(validation_fn=flow_cache_key)
     def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
-        edges = {t: set() for t in self.tasks}
+        edges = {t: set() for t in self.tasks} # type: Dict[Task, Set[Edge]]
         for edge in self.edges:
             edges[edge.downstream_task].add(edge)
         return edges
