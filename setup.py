@@ -10,6 +10,8 @@ install_requires = [
     "requests",
     "wrapt",
     "toml",
+    "typing",
+    "typing_extensions",
     "xxhash",
 ]
 

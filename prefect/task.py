@@ -1,6 +1,6 @@
 import inspect
 from datetime import timedelta
-from typing import Any, Dict, Iterable, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, Set, Tuple
 
 import prefect
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
@@ -12,11 +12,11 @@ class Task(Serializable):
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        slug: Optional[str] = None,
-        description: Optional[str] = None,
-        group: Optional[str] = None,
-        tags: Optional[Iterable[str]] = None,
+        name: str = None,
+        slug: str = None,
+        description: str = None,
+        group: str = None,
+        tags: Iterable[str] = None,
         checkpoint: bool = True,
         max_retries: int = 0,
         retry_delay: timedelta = timedelta(minutes=1),
@@ -40,7 +40,7 @@ class Task(Serializable):
 
         self.secrets = secrets
 
-        flow = prefect.context.get("flow")  # typde: Optional['prefect.Flow']
+        flow = prefect.context.get("flow")  # typde: 'prefect.Flow'
         if flow:
             flow.add_task(self)
 
@@ -91,9 +91,9 @@ class Task(Serializable):
 
     def set_dependencies(
         self,
-        flow: Optional["prefect.Flow"] = None,
-        upstream_tasks: Optional[Iterable["Task"]] = None,
-        downstream_tasks: Optional[Iterable["Task"]] = None,
+        flow: "prefect.Flow" = None,
+        upstream_tasks: Iterable["Task"] = None,
+        downstream_tasks: Iterable["Task"] = None,
         keyword_results=None,
         validate: bool = True,
     ):
@@ -130,22 +130,6 @@ class Task(Serializable):
 
         return serialized
 
-    # @classmethod
-    # def deserialize(cls, serialized):
-    #     if serialized.get('qualified_name') == 'prefect.task.Parameter':
-    #         serialized.pop('qualified_name')
-    #         return Parameter.deserialize(serialized)
-
-    #     task = Task(
-    #         name=serialized['name'],
-    #         description=serialized['description'],
-    #         max_retries=serialized['max_retries'],
-    #         retry_delay=serialized['retry_delay'],
-    #         timeout=serialized['timeout'],
-    #         trigger=serialized['trigger'])
-
-    #     return task
-
 
 class Parameter(Task):
     """
@@ -153,7 +137,7 @@ class Parameter(Task):
     """
 
     def __init__(
-        self, name: str, default: Optional[Any] = None, required: bool = True
+        self, name: str, default: Any = None, required: bool = True
     ) -> None:
         """
         Args:

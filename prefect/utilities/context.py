@@ -12,7 +12,7 @@ Example:
 
 """
 
-from typing import Iterable, Dict, Any
+from typing import Iterable, Dict, Any, Union
 import contextlib
 import copy
 import inspect
@@ -22,6 +22,7 @@ import wrapt
 
 from prefect.utilities.json import Serializable
 
+DictOrContextType = Union[dict, "PrefectContext"]
 
 # context dictionary
 class PrefectContext(SimpleNamespace, Serializable):
@@ -32,19 +33,19 @@ class PrefectContext(SimpleNamespace, Serializable):
     _context = None
 
     # PrefectContext is a Singleton
-    def __new__(cls, *args, **kwargs) -> "PrefectContext":
+    def __new__(cls, *args: DictOrContextType, **kwargs: Any) -> "PrefectContext":
         if not cls._context:
             cls._context = super().__new__(cls, *args, **kwargs)
         return cls._context
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: DictOrContextType, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.update(args)
+        self.update(*args)
 
     def __repr__(self) -> str:
         return "<Prefect Context>"
 
-    def __delattr__(self, key) -> None:
+    def __delattr__(self, key: str) -> None:
         del self.__dict__[key]
 
     def __iter__(self) -> Iterable:
@@ -53,9 +54,10 @@ class PrefectContext(SimpleNamespace, Serializable):
     def to_dict(self) -> dict:
         return self.__dict__.copy()
 
-    def update(self, *args, **kwargs) -> None:
-        args = [a.to_dict() if isinstance(a, type(self)) else a for a in args]
+    def update(self, *args: DictOrContextType, **kwargs: Any) -> None:
         for a in args:
+            if isinstance(a, PrefectContext):
+                a = a.to_dict()
             self.__dict__.update(a)
         self.__dict__.update(kwargs)
 
@@ -63,7 +65,7 @@ class PrefectContext(SimpleNamespace, Serializable):
         self.__dict__.clear()
 
     @contextlib.contextmanager
-    def __call__(self, *context_args, **context_kwargs):
+    def __call__(self, *args: DictOrContextType, **kwargs: Any):
         """
         A context manager for setting / resetting the Prefect context
 
@@ -74,16 +76,16 @@ class PrefectContext(SimpleNamespace, Serializable):
         """
         previous_context = copy.copy(self)
         try:
-            self.update(*context_args, **context_kwargs)
+            self.update(*args, **kwargs)
             yield self
         finally:
             self.clear()
             self.update(previous_context)
 
-    def get(self, key: str, default=None) -> Any:
+    def get(self, key: str, default: Any = None) -> Any:
         return getattr(self, key, default)
 
-    def setdefault(self, key, default):
+    def setdefault(self, key: str, default: Any) -> Any:
         if key not in self:
             self.key = default
         return getattr(self, key)
@@ -93,7 +95,7 @@ context = PrefectContext()
 
 
 class ContextAnnotation:
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
 
 
