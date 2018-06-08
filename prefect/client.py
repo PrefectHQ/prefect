@@ -2,7 +2,7 @@ import datetime
 import os
 
 import prefect
-from prefect.utilities.collections import dict_to_dotdict
+from prefect.utilities.collections import to_dotdict
 
 
 class AuthorizationError(Exception):
@@ -107,7 +107,7 @@ class Client:
         if 'errors' in result:
             raise ValueError(result['errors'])
         else:
-            return dict_to_dotdict(result).data
+            return to_dotdict(result).data
 
     def _request(self, method, path, params, server=None):
 

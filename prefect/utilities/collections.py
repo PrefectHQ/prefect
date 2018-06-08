@@ -30,22 +30,21 @@ class DotDict(dict):
         return 'DotDict({})'.format(super().__repr__())
 
 
-def dict_to_dotdict(dct):
+def to_dotdict(obj):
     """
-    Given a dct formatted as a dictionary, returns an object
+    Given a obj formatted as a dictionary, returns an object
     that also supports "dot" access:
 
-    dct['data']['child']
-    dct.data.child
+    obj['data']['child']
+    obj.data.child
     """
-    if not isinstance(dct, dict):
-        return dct
-    for key, value in list(dct.items()):
-        if isinstance(value, dict):
-            dct[key] = dict_to_dotdict(value)
-        elif isinstance(value, (list, tuple, set)):
-            dct[key] = type(value)([dict_to_dotdict(v) for v in value])
-    return DotDict(dct)
+    if isinstance(obj, (list, tuple, set)):
+        return type(obj)([to_dotdict(d) for d in obj])
+    elif isinstance(obj, dict):
+        for key, value in list(obj.items()):
+            obj[key] = to_dotdict(value)
+        return obj
+    return obj
 
 class CompoundKey(tuple):
     pass
