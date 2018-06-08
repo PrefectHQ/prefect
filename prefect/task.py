@@ -17,6 +17,7 @@ class Task(Serializable):
             description: Optional[str] = None,
             group: Optional[str] = None,
             tags: Optional[Iterable[str]] = None,
+            checkpoint: bool = True,
             max_retries: int = 0,
             retry_delay: timedelta = timedelta(minutes=1),
             timeout=None,
@@ -30,6 +31,7 @@ class Task(Serializable):
         self.group = str(group or prefect.context.get('group', ''))
         self.tags = set(tags or prefect.context.get('tags', []))
 
+        self.checkpoint = checkpoint
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
