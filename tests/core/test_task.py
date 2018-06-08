@@ -22,6 +22,7 @@ def test_create_task():
 
 
 def test_task_inputs():
+    """Test inferring the names of task inputs from the run fn signature"""
 
     t = AddTask()
     assert t.inputs() == ('x', 'y')
