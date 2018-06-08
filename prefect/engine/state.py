@@ -1,5 +1,6 @@
 from prefect.utilities.json import Serializable
 
+
 class State(Serializable):
 
     _default = None
@@ -13,7 +14,8 @@ class State(Serializable):
     def set_state(self, state, result=None):
         if not self.is_valid_state(state):
             raise ValueError(
-                'Invalid state for {}: {}'.format(type(self).__name__, state))
+                "Invalid state for {}: {}".format(type(self).__name__, state)
+            )
         self._state = str(state)
         self._result = result
 
@@ -36,15 +38,13 @@ class State(Serializable):
         return self.state
 
     def __repr__(self):
-        return '{}({})'.format(type(self).__name__, self.state)
+        return "{}({})".format(type(self).__name__, self.state)
 
     @classmethod
     def all_states(cls):
         return frozenset(
-            [
-                k for k, v in cls.__dict__.items()
-                if k == v and k == k.upper()
-            ])
+            [k for k, v in cls.__dict__.items() if k == v and k == k.upper()]
+        )
 
     def is_valid_state(self, state):
         """
@@ -56,9 +56,9 @@ class State(Serializable):
 
 class FlowState(State):
 
-    ACTIVE = 'ACTIVE'
-    PAUSED = _default = 'PAUSED'
-    ARCHIVED = 'ARCHIVED'
+    ACTIVE = "ACTIVE"
+    PAUSED = _default = "PAUSED"
+    ARCHIVED = "ARCHIVED"
 
     def activate(self):
         self.set_state(self.ACTIVE)
@@ -73,16 +73,15 @@ class FlowState(State):
         self.set_state(self.PAUSED)
 
 
-
 class FlowRunState(State):
 
-    PENDING = _default = 'PENDING'
-    SCHEDULED = 'SCHEDULED'
-    RUNNING = 'RUNNING'
-    SUCCESS = 'SUCCESS'
-    FAILED = 'FAILED'
-    SKIPPED = 'SKIPPED'
-    SHUTDOWN = 'SHUTDOWN'
+    PENDING = _default = "PENDING"
+    SCHEDULED = "SCHEDULED"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    SKIPPED = "SKIPPED"
+    SHUTDOWN = "SHUTDOWN"
 
     _pending_states = frozenset([SCHEDULED, PENDING])
     _finished_states = frozenset([SUCCESS, FAILED, SKIPPED])
@@ -108,18 +107,17 @@ class FlowRunState(State):
         return self == self.SKIPPED
 
 
-
 class TaskRunState(State):
 
-    PENDING = _default = 'PENDING'
-    PENDING_RETRY = 'PENDING_RETRY'
-    SCHEDULED = 'SCHEDULED'
-    RUNNING = 'RUNNING'
-    SUCCESS = 'SUCCESS'
-    FAILED = 'FAILED'
-    SKIPPED = 'SKIPPED'
-    SKIP_DOWNSTREAM = 'SKIP_DOWNSTREAM'
-    SHUTDOWN = 'SHUTDOWN'
+    PENDING = _default = "PENDING"
+    PENDING_RETRY = "PENDING_RETRY"
+    SCHEDULED = "SCHEDULED"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    SKIPPED = "SKIPPED"
+    SKIP_DOWNSTREAM = "SKIP_DOWNSTREAM"
+    SHUTDOWN = "SHUTDOWN"
 
     _started_states = frozenset([RUNNING, SUCCESS, FAILED])
     _pending_states = frozenset([PENDING, PENDING_RETRY, SCHEDULED])
@@ -156,10 +154,10 @@ class TaskRunState(State):
 
 class ScheduledFlowRunState(State):
 
-    SCHEDULED = _default = 'SCHEDULED'
-    RUNNING = 'RUNNING'
-    FINISHED = 'FINISHED'
-    CANCELED = 'CANCELED'
+    SCHEDULED = _default = "SCHEDULED"
+    RUNNING = "RUNNING"
+    FINISHED = "FINISHED"
+    CANCELED = "CANCELED"
 
     def is_scheduled(self):
         return self == self.SCHEDULED
@@ -172,5 +170,3 @@ class ScheduledFlowRunState(State):
 
     def is_canceled(self):
         return self == self.CANCELED
-
-

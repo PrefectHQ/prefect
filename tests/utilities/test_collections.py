@@ -4,22 +4,7 @@ from prefect.utilities import collections
 
 @pytest.fixture
 def nested_dict():
-    return {
-        1: 2,
-        2: {
-            1: 2,
-            3: 4
-        },
-        3: {
-            1: 2,
-            3: {
-                4: 5,
-                6: {
-                    7: 8
-                }
-            }
-        },
-    }
+    return {1: 2, 2: {1: 2, 3: 4}, 3: {1: 2, 3: {4: 5, 6: {7: 8}}}}
 
 
 def test_flatten_dict(nested_dict):
@@ -32,6 +17,7 @@ def test_flatten_dict(nested_dict):
         collections.CompoundKey([3, 3, 4]): 5,
         collections.CompoundKey([3, 3, 6, 7]): 8,
     }
+
 
 def test_nest_flattened_dict(nested_dict):
     flat = collections.dict_to_flatdict(nested_dict)

@@ -6,7 +6,6 @@ import prefect
 import prefect.engine.executors as executors
 
 
-
 def test_submit_local_executor():
     """
     Tests that functions submitted to LocalExecutor are run properly
@@ -40,9 +39,9 @@ def test_submit_distributed_executor(client):
 
 
 def test_distributed_flowrunner(client):
-    with prefect.Flow('flow') as f:
-        t1 = prefect.tasks.FunctionTask(fn=lambda: 1, name='t1')
-        t2 = prefect.tasks.FunctionTask(fn=lambda: 2, name='t2')
+    with prefect.Flow("flow") as f:
+        t1 = prefect.tasks.FunctionTask(fn=lambda: 1, name="t1")
+        t2 = prefect.tasks.FunctionTask(fn=lambda: 2, name="t2")
         t1.run_before(t2)
     with executors.DistributedExecutor(client=client).execution_context() as e:
         future = e.run_flow(f)
@@ -50,8 +49,8 @@ def test_distributed_flowrunner(client):
 
         result = e.wait(future)
         assert len(result) == 3
-        assert result['state'].is_successful()
-        assert result['task_states']['t1'].is_successful()
-        assert result['task_states']['t2'].is_successful()
-        assert result['task_results']['t1'] == 1
-        assert result['task_results']['t2'] == 2
+        assert result["state"].is_successful()
+        assert result["task_states"]["t1"].is_successful()
+        assert result["task_states"]["t2"].is_successful()
+        assert result["task_results"]["t1"] == 1
+        assert result["task_results"]["t2"] == 2

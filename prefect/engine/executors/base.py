@@ -28,13 +28,14 @@ def run_in_executor(method):
 
     @wraps(method)
     def wrapper(self, *args, **kwargs):
-        with prefect.context(kwargs.get('context', {})):
+        with prefect.context(kwargs.get("context", {})):
             return self.submit(
                 method_with_context,
                 self,
                 *args,
                 _context=prefect.context.to_dict(),
-                **kwargs)
+                **kwargs
+            )
 
     return wrapper
 
@@ -85,43 +86,39 @@ class Executor(Serializable):
 
     @run_in_executor
     def run_task(
-            self,
-            task,
-            state,
-            upstream_states,
-            inputs,
-            ignore_trigger=False,
-            context=None):
+        self, task, state, upstream_states, inputs, ignore_trigger=False, context=None
+    ):
         task_runner = prefect.engine.TaskRunner(task=task, executor=self)
         return task_runner.run(
             state=state,
             upstream_states=upstream_states,
             inputs=inputs,
             ignore_trigger=ignore_trigger,
-            context=prefect.context)
+            context=prefect.context,
+        )
 
     def run_flow(
-            self,
+        self,
+        flow,
+        state,
+        task_states,
+        start_tasks,
+        context,
+        parameters=None,
+        task_contexts=None,
+        flow_is_serialized=True,
+        return_all_task_states=False,
+    ):
+        def run_flow_in_executor(
             flow,
             state,
             task_states,
             start_tasks,
             context,
-            parameters=None,
-            task_contexts=None,
-            flow_is_serialized=True,
-            return_all_task_states=False):
-
-        def run_flow_in_executor(
-                flow,
-                state,
-                task_states,
-                start_tasks,
-                context,
-                parameters,
-                task_contexts,
-                flow_is_serialized,
-                return_all_task_states,
+            parameters,
+            task_contexts,
+            flow_is_serialized,
+            return_all_task_states,
         ):
             if flow_is_serialized:
                 flow = prefect.Flow.deserialize(flow)
@@ -133,7 +130,8 @@ class Executor(Serializable):
                 context=context,
                 parameters=parameters,
                 task_contexts=task_contexts,
-                return_all_task_states=return_all_task_states)
+                return_all_task_states=return_all_task_states,
+            )
 
         self.submit(
             run_flow_in_executor,

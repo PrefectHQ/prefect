@@ -28,10 +28,11 @@ class PrefectContext(SimpleNamespace, Serializable):
     """
     A context store for Prefect data.
     """
+
     _context = None
 
     # PrefectContext is a Singleton
-    def __new__(cls, *args, **kwargs) -> 'PrefectContext':
+    def __new__(cls, *args, **kwargs) -> "PrefectContext":
         if not cls._context:
             cls._context = super().__new__(cls, *args, **kwargs)
         return cls._context
@@ -41,7 +42,7 @@ class PrefectContext(SimpleNamespace, Serializable):
         self.update(args)
 
     def __repr__(self) -> str:
-        return '<Prefect Context>'
+        return "<Prefect Context>"
 
     def __delattr__(self, key) -> None:
         del self.__dict__[key]
@@ -92,7 +93,6 @@ context = PrefectContext()
 
 
 class ContextAnnotation:
-
     def __init__(self, name):
         self.name = name
 

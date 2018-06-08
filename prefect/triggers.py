@@ -37,7 +37,7 @@ def all_successful(upstream_states):
     """
 
     if not all(s.is_successful() for s in upstream_states.values()):
-        raise signals.FAIL('Trigger failed: some preceding tasks failed')
+        raise signals.FAIL("Trigger failed: some preceding tasks failed")
     return True
 
 
@@ -48,7 +48,7 @@ def all_failed(upstream_states):
     """
 
     if not all(s.is_failed() for s in upstream_states.values()):
-        raise signals.Fail('Trigger failed: some preceding tasks succeeded')
+        raise signals.Fail("Trigger failed: some preceding tasks succeeded")
     return True
 
 
@@ -61,7 +61,8 @@ def all_finished(upstream_states):
     if not all(s.is_finished() for s in upstream_states.values()):
         raise signals.FAIL(
             "Trigger failed: some preceding tasks did not finish. "
-            "(This shouldn't happen!)")
+            "(This shouldn't happen!)"
+        )
     return True
 
 
@@ -73,7 +74,7 @@ def any_successful(upstream_states):
     """
 
     if not any(s.is_successful() for s in upstream_states.values()):
-        raise signals.FAIL('Trigger failed: no preceding tasks succeeded')
+        raise signals.FAIL("Trigger failed: no preceding tasks succeeded")
     return True
 
 
@@ -85,5 +86,5 @@ def any_failed(upstream_states):
     """
 
     if not any(s.is_failed() for s in upstream_states.values()):
-        raise signals.FAIL('Trigger failed: no preceding tasks failed')
+        raise signals.FAIL("Trigger failed: no preceding tasks failed")
     return True

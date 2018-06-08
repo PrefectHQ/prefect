@@ -16,24 +16,23 @@ class Client:
 
     def __init__(self, api_server=None, graphql_server=None, token=None):
         if api_server is None:
-            api_server = prefect.config.get('prefect', 'api_server')
+            api_server = prefect.config.get("prefect", "api_server")
             if not api_server:
-                api_server = prefect.context.Context.get('api_server', None)
+                api_server = prefect.context.Context.get("api_server", None)
                 if not api_server:
-                    raise ValueError('Could not determine API server.')
+                    raise ValueError("Could not determine API server.")
         self._api_server = api_server
 
         if graphql_server is None:
-            graphql_server = prefect.config.get('prefect', 'graphql_server')
+            graphql_server = prefect.config.get("prefect", "graphql_server")
             if not graphql_server:
-                graphql_server = prefect.context.Context.get(
-                    'graphql_server', None)
+                graphql_server = prefect.context.Context.get("graphql_server", None)
                 if not graphql_server:
                     graphql_server = api_server
         self._graphql_server = graphql_server
 
         if token is None:
-            token = prefect.context.Context.get('token', None)
+            token = prefect.context.Context.get("token", None)
         self._token = token
 
         self.projects = Projects(client=self)
@@ -53,8 +52,7 @@ class Client:
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             params: GET parameters
         """
-        response = self._request(
-            method='GET', path=path, params=params, server=_server)
+        response = self._request(method="GET", path=path, params=params, server=_server)
         if _json:
             if response.text:
                 response = response.json()
@@ -72,7 +70,8 @@ class Client:
             params: POST params
         """
         response = self._request(
-            method='POST', path=path, params=params, server=_server)
+            method="POST", path=path, params=params, server=_server
+        )
         if _json:
             if response.text:
                 return response.json()
@@ -86,7 +85,7 @@ class Client:
         Args:
             path: the path of the API url
         """
-        response = self._request(method='delete', path=path, server=_server)
+        response = self._request(method="delete", path=path, server=_server)
         if _json:
             if response.text:
                 response = response.json()
@@ -100,12 +99,13 @@ class Client:
         API
         """
         result = self._post(
-            path='',
+            path="",
             query=query,
             variables=json.dumps(variables),
-            _server=self._graphql_server)
-        if 'errors' in result:
-            raise ValueError(result['errors'])
+            _server=self._graphql_server,
+        )
+        if "errors" in result:
+            raise ValueError(result["errors"])
         else:
             return to_dotdict(result).data
 
@@ -118,23 +118,23 @@ class Client:
             server = self._api_server
 
         if self._token is None:
-            raise ValueError('Call Client.login() to set the client token.')
+            raise ValueError("Call Client.login() to set the client token.")
 
-        url = os.path.join(server, path.lstrip('/')).rstrip('/')
+        url = os.path.join(server, path.lstrip("/")).rstrip("/")
 
         params = params or {}
 
         # write this as a function to allow reuse in next try/except block
         def request_fn():
-            headers = {'Authorization': 'Bearer ' + self._token}
-            if method == 'GET':
+            headers = {"Authorization": "Bearer " + self._token}
+            if method == "GET":
                 response = requests.get(url, headers=headers, params=params)
-            elif method == 'POST':
+            elif method == "POST":
                 response = requests.post(url, headers=headers, json=params)
-            elif method == 'DELETE':
+            elif method == "DELETE":
                 response = requests.delete(url, headers=headers)
             else:
-                raise ValueError('Invalid method: {}'.format(method))
+                raise ValueError("Invalid method: {}".format(method))
 
             response.raise_for_status()
 
@@ -157,30 +157,32 @@ class Client:
         # lazy import for performance
         import requests
 
-        url = os.path.join(self._api_server, 'auth/login')
+        url = os.path.join(self._api_server, "auth/login")
         response = requests.post(
             url,
             auth=(email, password),
-            json=dict(account_id=account_id, account_slug=account_slug))
+            json=dict(account_id=account_id, account_slug=account_slug),
+        )
         if not response.ok:
-            raise ValueError('Could not log in.')
-        self._token = response.json().get('token')
+            raise ValueError("Could not log in.")
+        self._token = response.json().get("token")
 
         if not (account_id or account_slug):
-            print('No account provided; returning available accounts.')
-            accounts = self._get('auth/accounts')
+            print("No account provided; returning available accounts.")
+            accounts = self._get("auth/accounts")
             return accounts
 
     def refresh_token(self):
-        url = os.path.join(self._api_server, 'auth/refresh')
+        url = os.path.join(self._api_server, "auth/refresh")
         response = requests.post(
-            url, headers={'Authorization': 'Bearer ' + self._token})
-        self._token = response.json().get('token')
+            url, headers={"Authorization": "Bearer " + self._token}
+        )
+        self._token = response.json().get("token")
 
 
 class ClientModule:
 
-    _path = ''
+    _path = ""
 
     def __init__(self, client, name=None):
         if name is None:
@@ -189,18 +191,18 @@ class ClientModule:
         self._client = client
 
     def __repr__(self):
-        return '<Client Module: {name}>'.format(name=self._name)
+        return "<Client Module: {name}>".format(name=self._name)
 
     def _get(self, path, **params):
-        path = path.lstrip('/')
+        path = path.lstrip("/")
         return self._client._get(os.path.join(self._path, path), **params)
 
     def _post(self, path, **data):
-        path = path.lstrip('/')
+        path = path.lstrip("/")
         return self._client._post(os.path.join(self._path, path), **data)
 
     def _delete(self, path, **params):
-        path = path.lstrip('/')
+        path = path.lstrip("/")
         return self._client._delete(os.path.join(self._path, path), **params)
 
     def _graphql(self, query, **variables):
@@ -213,27 +215,28 @@ class ClientModule:
 
 class Projects(ClientModule):
 
-    _path = '/projects'
+    _path = "/projects"
 
     def create(self, name):
-        return self._post(path='/', name=name)
+        return self._post(path="/", name=name)
 
     def list(self, per_page=100, page=1):
         """
         Lists all available projects
         """
         data = self._graphql(
-            '''
+            """
              query ($perPage: Int!, $page: Int!){
                 projects(perPage: $perPage, page: $page){
                     id
                     name
                 }
              }
-             ''',
+             """,
             perPage=per_page,
-            page=page)
-        return data['projects']
+            page=page,
+        )
+        return data["projects"]
 
     def flows(self, project_id):
         """
@@ -241,7 +244,7 @@ class Projects(ClientModule):
         """
 
         data = self._graphql(
-            '''
+            """
              query ($projectId: String!){
                 projects(filter: {id: $projectId}) {
                     id
@@ -252,9 +255,10 @@ class Projects(ClientModule):
                     }
                 }
              }
-             ''',
-            projectId=project_id)
-        return data['projects']
+             """,
+            projectId=project_id,
+        )
+        return data["projects"]
 
 
 # -------------------------------------------------------------------------
@@ -263,7 +267,7 @@ class Projects(ClientModule):
 
 class Flows(ClientModule):
 
-    _path = '/flows'
+    _path = "/flows"
 
     def load(self, flow_id, safe=True):
         """
@@ -274,20 +278,20 @@ class Flows(ClientModule):
         """
         if safe:
             data = self._graphql(
-                '''
+                """
                 query($flowId: String!) {
                     flow(id: $flowId) {
                         safe_serialized
                     }
                 }
-                ''',
-                flowId=flow_id)
+                """,
+                flowId=flow_id,
+            )
 
-            return prefect.Flow.safe_deserialize(
-                data['flow']['safe_serialized'])
+            return prefect.Flow.safe_deserialize(data["flow"]["safe_serialized"])
         else:
             data = self._graphql(
-                '''
+                """
                 query($flowId: String!) {
                     flow(id: $flowId) {
                         serialized
@@ -299,21 +303,22 @@ class Flows(ClientModule):
                         }
                     }
                 }
-                ''',
-                flowId=flow_id)
-            return prefect.Flow.deserialize(data['flow'])
+                """,
+                flowId=flow_id,
+            )
+            return prefect.Flow.deserialize(data["flow"])
 
     def set_state(self, flow_id, state):
         """
         Update a Flow's state
         """
-        return self._post(path='/{id}/state'.format(id=flow_id), state=state)
+        return self._post(path="/{id}/state".format(id=flow_id), state=state)
 
     def create(self, flow):
         """
         Submit a Flow to the server.
         """
-        return self._post(path='/', serialized_flow=flow.serialize())
+        return self._post(path="/", serialized_flow=flow.serialize())
 
 
 # -------------------------------------------------------------------------
@@ -322,7 +327,7 @@ class Flows(ClientModule):
 
 class FlowRuns(ClientModule):
 
-    _path = '/flow_runs'
+    _path = "/flow_runs"
 
     def get_state(self, flow_run_id):
         """
@@ -330,7 +335,7 @@ class FlowRuns(ClientModule):
         """
 
         data = self._graphql(
-            '''
+            """
              query ($flowRunId: String!){
                 flow_runs(filter: {id: $flowRunId}) {
                     state {
@@ -339,28 +344,32 @@ class FlowRuns(ClientModule):
                     }
                 }
              }
-             ''',
-            flowRunId=flow_run_id)
-        state = data.flow_runs[0].get('state', {})
+             """,
+            flowRunId=flow_run_id,
+        )
+        state = data.flow_runs[0].get("state", {})
         return prefect.engine.state.FlowRunState(
-            state=state.get('state', None), result=state.get('result', None))
+            state=state.get("state", None), result=state.get("result", None)
+        )
 
     def set_state(self, flow_run_id, state, result=None, expected_state=None):
         """
         Retrieve a flow run's state
         """
         return self._post(
-            path='/{id}/state'.format(id=flow_run_id),
+            path="/{id}/state".format(id=flow_run_id),
             state=state,
             result=dict(result=result),
-            expected_state=expected_state)
+            expected_state=expected_state,
+        )
 
     def create(self, flow_id, parameters=None, parent_taskrun_id=None):
         return self._post(
-            path='/',
+            path="/",
             flow_id=flow_id,
             parameters=parameters,
-            parent_taskrun_id=parent_taskrun_id)
+            parent_taskrun_id=parent_taskrun_id,
+        )
 
     def run(self, flow_run_id, start_tasks=None, inputs=None):
         """
@@ -372,9 +381,10 @@ class FlowRuns(ClientModule):
             inputs = {}
 
         return self._post(
-            path='/{id}/run'.format(id=flow_run_id),
+            path="/{id}/run".format(id=flow_run_id),
             start_tasks=start_tasks,
-            inputs=inputs)
+            inputs=inputs,
+        )
 
     # def get_resume_url(
     #         self,
@@ -400,14 +410,14 @@ class FlowRuns(ClientModule):
 
 class TaskRuns(ClientModule):
 
-    _path = '/task_runs'
+    _path = "/task_runs"
 
     def get_state(self, task_run_id):
         """
         Retrieve a flow run's state
         """
         data = self._graphql(
-            '''
+            """
              query ($taskRunId: String!){
                 task_runs(filter: {id: $taskRunId}) {
                     state {
@@ -416,18 +426,21 @@ class TaskRuns(ClientModule):
                     }
                 }
              }
-             ''',
-            taskRunId=task_run_id)
-        state = data.task_runs[0].get('state', {})
+             """,
+            taskRunId=task_run_id,
+        )
+        state = data.task_runs[0].get("state", {})
         return prefect.engine.state.TaskRunState(
-            state=state.get('state', None), result=state.get('result', None))
+            state=state.get("state", None), result=state.get("result", None)
+        )
 
     def set_state(self, task_run_id, state, result=None, expected_state=None):
         """
         Retrieve a task run's state
         """
         return self._post(
-            path='/{id}/state'.format(id=task_run_id),
+            path="/{id}/state".format(id=task_run_id),
             state=state,
             result=dict(result=result),
-            expected_state=expected_state)
+            expected_state=expected_state,
+        )

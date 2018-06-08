@@ -20,12 +20,13 @@ def is_valid_identifier(string: str) -> bool:
 
 
 def name_with_suffix(
-        name,
-        predicate,
-        first_suffix=1,
-        delimiter='_',
-        max_iters=1000,
-        always_add_suffix=False) -> str:
+    name,
+    predicate,
+    first_suffix=1,
+    delimiter="_",
+    max_iters=1000,
+    always_add_suffix=False,
+) -> str:
     """
     Automatically adds a number suffix to a name until it becomes valid.
 
@@ -55,16 +56,16 @@ def name_with_suffix(
     i = 0
 
     if always_add_suffix:
-        new_name = '{}{}{}'.format(name, delimiter, first_suffix + i)
+        new_name = "{}{}{}".format(name, delimiter, first_suffix + i)
         i += 1
     else:
         new_name = name
 
     while not predicate(new_name) and i <= max_iters:
-        new_name = '{}{}{}'.format(name, delimiter, first_suffix + i)
+        new_name = "{}{}{}".format(name, delimiter, first_suffix + i)
         i = i + 1
 
     if i > max_iters:
-        raise ValueError('Maximum iterations reached.')
+        raise ValueError("Maximum iterations reached.")
 
     return new_name

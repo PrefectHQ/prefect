@@ -14,7 +14,8 @@ def running_in_cluster():
 
     # lazy load because distributed is slow
     import distributed
-    return hasattr(distributed.worker.thread_state, 'execution_state')
+
+    return hasattr(distributed.worker.thread_state, "execution_state")
 
 
 @contextmanager
@@ -59,11 +60,10 @@ def distributed_client(address=None, separate_thread=False):
     # lazy load because distributed is slow
     from distributed import worker_client
 
-
     # return a worker client is we are running in the cluster
     # and no address is provided OR if the provided address is the cluster
     if running_in_cluster():
-        s_addr = distributed.worker.thread_state.execution_state['scheduler']
+        s_addr = distributed.worker.thread_state.execution_state["scheduler"]
         if address is None or address.lower() == s_addr.lower():
             with worker_client(separate_thread=separate_thread) as client:
                 yield client
@@ -72,9 +72,10 @@ def distributed_client(address=None, separate_thread=False):
     # otherwise connect to the supplied address
     if not address:
         raise ValueError(
-            'Tried to create a Distributed client but no address was supplied '
-            'and no active cluster was detected.')
-    elif address.lower() in ('local', 'localcluster'):
+            "Tried to create a Distributed client but no address was supplied "
+            "and no active cluster was detected."
+        )
+    elif address.lower() in ("local", "localcluster"):
         if _LOCAL_CLUSTER is None:
             _LOCAL_CLUSTER = distributed.LocalCluster()
         address = _LOCAL_CLUSTER.scheduler.address
@@ -99,15 +100,15 @@ class DistributedExecutor(Executor):
         if not self.client:
             old_client = self.client
             with distributed_client(
-                    address=self.address,
-                    separate_thread=self.separate_thread) as client:
+                address=self.address, separate_thread=self.separate_thread
+            ) as client:
                 self.client = client
                 yield self
             self.client = old_client
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        state['client'] = None
+        state["client"] = None
         return state
 
     def submit(self, fn, *args, _client_kwargs=None, **kwargs):
@@ -115,8 +116,8 @@ class DistributedExecutor(Executor):
         Submit a function to the executor for execution. Returns a future.
         """
         _client_kwargs = _client_kwargs or {}
-        if 'pure' not in _client_kwargs:
-            _client_kwargs['pure'] = False
+        if "pure" not in _client_kwargs:
+            _client_kwargs["pure"] = False
         return self.client.submit(fn, *args, **kwargs, **_client_kwargs)
 
     def wait(self, futures, timeout=None):

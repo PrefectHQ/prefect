@@ -5,14 +5,13 @@ from prefect.engine.executors import Executor
 
 
 class ConcurrentExecutor(Executor):
-
     def __init__(self):
         self.executor = None
         super().__init__()
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        state['executor'] = None
+        state["executor"] = None
         return state
 
     def submit(self, fn, *args, **kwargs):
@@ -23,7 +22,6 @@ class ConcurrentExecutor(Executor):
 
 
 class ThreadPoolExecutor(ConcurrentExecutor):
-
     def __init__(self, threads):
         self.threads = threads
         super().__init__()
@@ -38,7 +36,6 @@ class ThreadPoolExecutor(ConcurrentExecutor):
 
 
 class ProcessPoolExecutor(ConcurrentExecutor):
-
     def __init__(self, processes):
         self.processes = processes
         self.executor = None

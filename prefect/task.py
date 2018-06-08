@@ -11,25 +11,26 @@ class Task(Serializable):
     _json_codec = ObjectAttributesCodec
 
     def __init__(
-            self,
-            name: Optional[str] = None,
-            slug: Optional[str] = None,
-            description: Optional[str] = None,
-            group: Optional[str] = None,
-            tags: Optional[Iterable[str]] = None,
-            checkpoint: bool = True,
-            max_retries: int = 0,
-            retry_delay: timedelta = timedelta(minutes=1),
-            timeout=None,
-            trigger=None,
-            secrets=None) -> None:
+        self,
+        name: Optional[str] = None,
+        slug: Optional[str] = None,
+        description: Optional[str] = None,
+        group: Optional[str] = None,
+        tags: Optional[Iterable[str]] = None,
+        checkpoint: bool = True,
+        max_retries: int = 0,
+        retry_delay: timedelta = timedelta(minutes=1),
+        timeout: timedelta = None,
+        trigger=None,
+        secrets=None,
+    ) -> None:
 
         self.name = name or type(self).__name__
         self.slug = slug
         self.description = description
 
-        self.group = str(group or prefect.context.get('group', ''))
-        self.tags = set(tags or prefect.context.get('tags', []))
+        self.group = str(group or prefect.context.get("group", ""))
+        self.tags = set(tags or prefect.context.get("tags", []))
 
         self.checkpoint = checkpoint
         self.max_retries = max_retries
@@ -39,12 +40,12 @@ class Task(Serializable):
 
         self.secrets = secrets
 
-        flow: Optional['prefect.Flow'] = prefect.context.get('flow')
+        flow = prefect.context.get("flow")  # typde: Optional['prefect.Flow']
         if flow:
             flow.add_task(self)
 
     def __repr__(self) -> str:
-        return '<Task: {self.name}>'.format(cls=type(self).__name__, self=self)
+        return "<Task: {self.name}>".format(cls=type(self).__name__, self=self)
 
     # Run  --------------------------------------------------------------------
 
@@ -83,32 +84,32 @@ class Task(Serializable):
         var_kw_arg = inspect.getfullargspec(self.run).varkw
         callargs.update(callargs.pop(var_kw_arg, {}))
 
-        flow = prefect.context.get('flow', prefect.flow.Flow())
+        flow = prefect.context.get("flow", prefect.flow.Flow())
         return self.set_dependencies(
-            flow=flow,
-            upstream_tasks=upstream_tasks,
-            keyword_results=callargs,
+            flow=flow, upstream_tasks=upstream_tasks, keyword_results=callargs
         )
 
     def set_dependencies(
-            self,
-            flow: Optional['prefect.Flow'] = None,
-            upstream_tasks: Optional[Iterable['Task']] = None,
-            downstream_tasks: Optional[Iterable['Task']] = None,
-            keyword_results=None,
-            validate: bool = True):
+        self,
+        flow: Optional["prefect.Flow"] = None,
+        upstream_tasks: Optional[Iterable["Task"]] = None,
+        downstream_tasks: Optional[Iterable["Task"]] = None,
+        keyword_results=None,
+        validate: bool = True,
+    ):
 
         if flow is None:
-            flow = prefect.context.get('flow', prefect.Flow())
+            flow = prefect.context.get("flow", prefect.Flow())
 
-        flow: 'prefect.Flow'
+        flow: "prefect.Flow"
 
         return flow.set_dependencies(
             task=self,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
             keyword_results=keyword_results,
-            validate=validate)
+            validate=validate,
+        )
 
     # Operators ----------------------------------------------------------------
 
@@ -124,7 +125,8 @@ class Task(Serializable):
             max_retries=self.max_retries,
             retry_delay=self.retry_delay,
             timeout=self.timeout,
-            trigger=self.trigger)
+            trigger=self.trigger,
+        )
 
         return serialized
 
@@ -151,10 +153,7 @@ class Parameter(Task):
     """
 
     def __init__(
-            self,
-            name: str,
-            default: Optional[Any] = None,
-            required: bool = True,
+        self, name: str, default: Optional[Any] = None, required: bool = True
     ) -> None:
         """
         Args:
@@ -175,11 +174,11 @@ class Parameter(Task):
         super().__init__(name=name)
 
     def run(self) -> Any:
-        params = prefect.context.get('parameters', {})
+        params = prefect.context.get("parameters", {})
         if self.required and self.name not in params:
             raise prefect.signals.FAIL(
-                'Parameter "{}" was required but not provided.'.format(
-                    self.name))
+                'Parameter "{}" was required but not provided.'.format(self.name)
+            )
         return params.get(self.name, self.default)
 
     def serialize(self) -> Dict[str, Any]:
@@ -190,6 +189,6 @@ class Parameter(Task):
     @classmethod
     def deserialize(cls, serialized):
         parameter = super().deserialize(serialized)
-        parameter.required = serialized['required']
-        parameter.default = serialized['default']
+        parameter.required = serialized["required"]
+        parameter.default = serialized["default"]
         return parameter

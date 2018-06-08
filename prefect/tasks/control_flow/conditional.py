@@ -3,10 +3,10 @@ from prefect import signals, Task
 from prefect.tasks.core import operators
 from prefect.utilities.tasks import as_task_result
 
-__all__ = ['ifelse']
+__all__ = ["ifelse"]
+
 
 class EvaluateCondition(Task):
-
     def __init__(self, raise_if_false=signals.FAIL, **kwargs):
         """
         A special task that receives a boolean value and succeeds if that value
@@ -32,8 +32,7 @@ def switch(condition, patterns, name=None):
 
     for pattern, task in patterns.items():
         eval_cond = EvaluateCondition(raise_if_false=signals.SKIP_DOWNSTREAM)
-        eval_cond.set(
-            condition=operators.Eq(condition, pattern), run_before=task)
+        eval_cond.set(condition=operators.Eq(condition, pattern), run_before=task)
 
     return condition
 
@@ -47,8 +46,4 @@ def ifelse(condition, true_task, false_task):
     will be stopped by raising a signals.DONTRUN() signal.
     """
 
-    return switch(
-        condition=condition, patterns={
-            True: true_task,
-            False: false_task
-        })
+    return switch(condition=condition, patterns={True: true_task, False: false_task})

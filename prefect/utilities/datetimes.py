@@ -3,11 +3,12 @@ import dateutil
 
 
 def retry_delay(
-        interval=None,
-        *,
-        exponential_backoff=False,
-        max_delay=datetime.timedelta(hours=2),
-        **kwargs):
+    interval=None,
+    *,
+    exponential_backoff=False,
+    max_delay=datetime.timedelta(hours=2),
+    **kwargs
+):
     """
     A helper function for generating task retry delays.
 
@@ -35,10 +36,9 @@ def retry_delay(
             delays will be capped by this amount.
     """
     if interval is not None and kwargs:
-        raise ValueError(
-            'Provide an interval or interval keywords, but not both.')
+        raise ValueError("Provide an interval or interval keywords, but not both.")
     elif interval is None and not kwargs:
-        raise ValueError('Provide either an interval or interval keywords.')
+        raise ValueError("Provide either an interval or interval keywords.")
     elif kwargs:
         interval = datetime.timedelta(**kwargs)
 
@@ -54,6 +54,7 @@ def retry_delay(
 
     return retry_delay
 
+
 def parse_datetime(dt):
     """
     Parses a string, bytes, float, or datetime object and returns a
@@ -66,5 +67,4 @@ def parse_datetime(dt):
     elif isinstance(dt, (datetime.datetime)):
         return dt
     else:
-        raise TypeError(
-            'Unrecognized datetime input: {}'.format(type(dt).__name__))
+        raise TypeError("Unrecognized datetime input: {}".format(type(dt).__name__))

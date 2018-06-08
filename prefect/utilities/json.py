@@ -22,9 +22,9 @@ def object_from_string(obj_str):
     imported in advance.
     """
 
-    path_components = obj_str.split('.')
+    path_components = obj_str.split(".")
     for i in range(len(path_components), 0, -1):
-        module_path = '.'.join(path_components[:i])
+        module_path = ".".join(path_components[:i])
         # import ipdb; ipdb.set_trace()
         if module_path in sys.modules:
             obj = sys.modules[module_path]
@@ -32,12 +32,12 @@ def object_from_string(obj_str):
                 obj = getattr(obj, p)
             return obj
     raise ValueError(
-        'Couldn\'t load "{}"; maybe it hasn\'t been imported yet?'.format(
-            obj_str))
+        "Couldn't load \"{}\"; maybe it hasn't been imported yet?".format(obj_str)
+    )
 
 
 def qualified_name(obj):
-    return obj.__module__ + '.' + obj.__qualname__
+    return obj.__module__ + "." + obj.__qualname__
 
 
 def register_json_codec(codec_key, dispatch_type=None):
@@ -56,10 +56,10 @@ def register_json_codec(codec_key, dispatch_type=None):
     def _register(codec_class):
 
         # register the codec key
-        if codec_key in JSON_CODECS_KEYS or getattr(codec_class, 'codec_key'):
+        if codec_key in JSON_CODECS_KEYS or getattr(codec_class, "codec_key"):
             raise ValueError(
-                'A JSON codec is registered for codec_key "{}"'.format(
-                    codec_key))
+                'A JSON codec is registered for codec_key "{}"'.format(codec_key)
+            )
         codec_class.codec_key = codec_key
         JSON_CODECS_KEYS[codec_key] = codec_class
 
@@ -87,6 +87,7 @@ class JSONCodec:
     When JSON objects are decoded, the key is matched and codec.deserialize() is
     called on the resulting value.
     """
+
     codec_key = None
 
     def __init__(self, value):
@@ -118,7 +119,7 @@ class JSONCodec:
         return type(self) == type(other) and self.value == other.value
 
 
-@register_json_codec('//set', dispatch_type=set)
+@register_json_codec("//set", dispatch_type=set)
 class SetCodec(JSONCodec):
     """
     Serialize/deserialize sets
@@ -132,7 +133,7 @@ class SetCodec(JSONCodec):
         return set(obj)
 
 
-@register_json_codec('//b', dispatch_type=bytes)
+@register_json_codec("//b", dispatch_type=bytes)
 class BytesCodec(JSONCodec):
     """
     Serialize/deserialize bytes
@@ -146,7 +147,7 @@ class BytesCodec(JSONCodec):
         return obj.encode()
 
 
-@register_json_codec('//uuid', dispatch_type=uuid.UUID)
+@register_json_codec("//uuid", dispatch_type=uuid.UUID)
 class UUIDCodec(JSONCodec):
     """
     Serialize/deserialize UUIDs
@@ -160,7 +161,7 @@ class UUIDCodec(JSONCodec):
         return uuid.UUID(obj)
 
 
-@register_json_codec('//datetime', dispatch_type=datetime.datetime)
+@register_json_codec("//datetime", dispatch_type=datetime.datetime)
 class DateTimeCodec(JSONCodec):
     """
     Serialize/deserialize DateTimes
@@ -174,7 +175,7 @@ class DateTimeCodec(JSONCodec):
         return dateutil.parser.parse(obj)
 
 
-@register_json_codec('//date', dispatch_type=datetime.date)
+@register_json_codec("//date", dispatch_type=datetime.date)
 class DateCodec(JSONCodec):
     """
     Serialize/deserialize Dates
@@ -188,7 +189,7 @@ class DateCodec(JSONCodec):
         return dateutil.parser.parse(obj).date()
 
 
-@register_json_codec('//timedelta', dispatch_type=datetime.timedelta)
+@register_json_codec("//timedelta", dispatch_type=datetime.timedelta)
 class TimeDeltaCodec(JSONCodec):
     """
     Serialize/deserialize TimeDeltas
@@ -202,7 +203,7 @@ class TimeDeltaCodec(JSONCodec):
         return datetime.timedelta(seconds=obj)
 
 
-@register_json_codec('//obj', dispatch_type=type)
+@register_json_codec("//obj", dispatch_type=type)
 class LoadObjectCodec(JSONCodec):
     """
     Serialize/deserialize objects by referencing their fully qualified name.
@@ -224,15 +225,14 @@ def serializable(fn):
     Decorator that marks a function as automatically serializable via
     LoadObjectCodec
     """
-    if hasattr(fn, '__json__'):
-        raise ValueError('Object already has a __json__() method.')
-    setattr(fn, '__json__', lambda: LoadObjectCodec(fn).__json__())
+    if hasattr(fn, "__json__"):
+        raise ValueError("Object already has a __json__() method.")
+    setattr(fn, "__json__", lambda: LoadObjectCodec(fn).__json__())
     return fn
 
 
-@register_json_codec('//encrypted')
+@register_json_codec("//encrypted")
 class EncryptedCodec(JSONCodec):
-
     def serialize(self):
         key = prefect.config.security.encryption_key
         payload = base64.b64encode(json.dumps(self.value).encode())
@@ -246,7 +246,7 @@ class EncryptedCodec(JSONCodec):
         return json.loads(decoded)
 
 
-@register_json_codec('//obj_init')
+@register_json_codec("//obj_init")
 class ObjectInitArgsCodec(JSONCodec):
     """
     Serializes an object by storing its class and a dict of initialization args.
@@ -274,12 +274,12 @@ class ObjectInitArgsCodec(JSONCodec):
         for arg, param in signature.parameters.items():
 
             # see if the init arg was stored in the _init_args dict
-            if arg in getattr(self.value, '_init_args', {}):
+            if arg in getattr(self.value, "_init_args", {}):
                 init_arg = self.value._init_args[arg]
 
             # check for an underscore-prefixed attribute with the same name
-            elif hasattr(self.value, '_' + arg):
-                init_arg = getattr(self.value, '_' + arg)
+            elif hasattr(self.value, "_" + arg):
+                init_arg = getattr(self.value, "_" + arg)
 
             # check for an attribute with the same name
             elif hasattr(self.value, arg):
@@ -297,15 +297,16 @@ class ObjectInitArgsCodec(JSONCodec):
             else:
                 raise ValueError(
                     'Could not find a value for the required init arg "{a}" of '
-                    'object {o}. The value should be stored in an attribute '
-                    'with the same name as the argument, optionally prefixed '
-                    'with an underscore, or an _init_args dict '
-                    'attribute.'.format(a=arg, o=self.value))
+                    "object {o}. The value should be stored in an attribute "
+                    "with the same name as the argument, optionally prefixed "
+                    "with an underscore, or an _init_args dict "
+                    "attribute.".format(a=arg, o=self.value)
+                )
 
             if param.kind == param.VAR_KEYWORD:
-                init_args['**kwargs'] = init_arg
+                init_args["**kwargs"] = init_arg
             elif param.kind == param.VAR_POSITIONAL:
-                init_args['*args'] = init_arg
+                init_args["*args"] = init_arg
             else:
                 init_args[arg] = init_arg
 
@@ -313,13 +314,13 @@ class ObjectInitArgsCodec(JSONCodec):
 
     @staticmethod
     def deserialize(obj):
-        cls = obj['type']
-        kwargs = obj['args'].pop('**kwargs', {})
-        args = obj['args'].pop('*args', ())
-        return cls(*args, **obj['args'], **kwargs)
+        cls = obj["type"]
+        kwargs = obj["args"].pop("**kwargs", {})
+        args = obj["args"].pop("*args", ())
+        return cls(*args, **obj["args"], **kwargs)
 
 
-@register_json_codec('//obj_attrs')
+@register_json_codec("//obj_attrs")
 class ObjectAttributesCodec(JSONCodec):
     """
     Serializes an object by storing its class name and a dict of attributes,
@@ -338,14 +339,13 @@ class ObjectAttributesCodec(JSONCodec):
 
     def serialize(self):
         return dict(
-            type=type(self.value),
-            attrs={a: getattr(self.value, a)
-                   for a in self.attrs})
+            type=type(self.value), attrs={a: getattr(self.value, a) for a in self.attrs}
+        )
 
     @staticmethod
     def deserialize(obj):
-        instance = object.__new__(obj['type'])
-        instance.__dict__.update(obj['attrs'])
+        instance = object.__new__(obj["type"])
+        instance.__dict__.update(obj["attrs"])
         return instance
 
 
@@ -353,6 +353,7 @@ class Serializable:
     """
     A class that automatically uses a specified JSONCodec to serialize itself.
     """
+
     _json_codec = ObjectInitArgsCodec
 
     def __json__(self):
@@ -360,7 +361,6 @@ class Serializable:
 
 
 class PrefectJSONEncoder(json.JSONEncoder):
-
     def default(self, obj):
         """
         Recursive method called when encoding JSON objects
@@ -372,7 +372,7 @@ class PrefectJSONEncoder(json.JSONEncoder):
             - Otherwise the original json encoding is used.
         """
         # call __json__ method if it exists
-        if hasattr(obj, '__json__') and not isinstance(obj, type):
+        if hasattr(obj, "__json__") and not isinstance(obj, type):
             return obj.__json__()
 
         # otherwise try to apply a json codec by dispatching on type
@@ -385,7 +385,6 @@ class PrefectJSONEncoder(json.JSONEncoder):
 
 
 class PrefectJSONDecoder(json.JSONDecoder):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, object_hook=self.object_hook, **kwargs)
 

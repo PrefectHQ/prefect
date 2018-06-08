@@ -20,7 +20,6 @@ def err_task():
 
 @pytest.fixture()
 def inputs_task():
-
     def fn(x, y=10):
         return 2 * x + y
 
@@ -30,7 +29,8 @@ def inputs_task():
 @pytest.fixture
 def cleanup_task():
     return prefect.tasks.FunctionTask(
-        fn=lambda: 'Clean!', trigger=prefect.triggers.any_failed)
+        fn=lambda: "Clean!", trigger=prefect.triggers.any_failed
+    )
 
 
 def test_success(task):
@@ -38,7 +38,8 @@ def test_success(task):
     Test running a task that finishes successfully and returns a result
     """
     state = run_task_runner_test(
-        task=task, expected_state=TaskRunState(TaskRunState.SUCCESS, result=1))
+        task=task, expected_state=TaskRunState(TaskRunState.SUCCESS, result=1)
+    )
     assert state.is_finished()
 
 
@@ -46,8 +47,7 @@ def test_error(err_task):
     """
     Test running a task that has an error
     """
-    state = run_task_runner_test(
-        task=err_task, expected_state=TaskRunState.FAILED)
+    state = run_task_runner_test(task=err_task, expected_state=TaskRunState.FAILED)
     assert state.is_finished()
 
 
@@ -58,7 +58,8 @@ def test_retry(err_task):
     state = run_task_runner_test(
         task=err_task,
         expected_state=TaskRunState.PENDING_RETRY,
-        context={'run_number': 1})
+        context={"run_number": 1},
+    )
     assert isinstance(state.result, datetime.datetime)
 
 
@@ -68,42 +69,39 @@ def test_signal():
     """
 
     class FailTask(Task):
-
         def run(self):
             raise prefect.signals.FAIL(3)
 
     class SkipTask(Task):
-
         def run(self):
             raise prefect.signals.SKIP(3)
 
     class SuccessTask(Task):
-
         def run(self):
             raise prefect.signals.SUCCESS(3)
 
     # fail task
     run_task_runner_test(
-        task=FailTask(),
-        expected_state=TaskRunState(TaskRunState.FAILED, result=3))
+        task=FailTask(), expected_state=TaskRunState(TaskRunState.FAILED, result=3)
+    )
 
     state = run_task_runner_test(
         task=FailTask(max_retries=1),
         expected_state=TaskRunState.PENDING_RETRY,
-        context={'run_number': 1})
+        context={"run_number": 1},
+    )
 
     assert isinstance(state.result, datetime.datetime)
 
-
     # skip task
     run_task_runner_test(
-        task=SkipTask(),
-        expected_state=TaskRunState(TaskRunState.SKIPPED, result=3))
+        task=SkipTask(), expected_state=TaskRunState(TaskRunState.SKIPPED, result=3)
+    )
 
     # success task
     run_task_runner_test(
-        task=SuccessTask(),
-        expected_state=TaskRunState(TaskRunState.SUCCESS, result=3))
+        task=SuccessTask(), expected_state=TaskRunState(TaskRunState.SUCCESS, result=3)
+    )
 
 
 def test_run_finished_task(task, err_task):
@@ -122,4 +120,3 @@ def test_run_finished_task(task, err_task):
 
     state = TaskRunState(TaskRunState.SKIPPED, result=-1)
     run_task_runner_test(task=err_task, state=state, expected_state=state)
-

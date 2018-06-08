@@ -1,5 +1,4 @@
-from prefect.engine.state import (
-    FlowState, FlowRunState, TaskRunState)
+from prefect.engine.state import FlowState, FlowRunState, TaskRunState
 import pytest
 
 
@@ -89,4 +88,3 @@ def test_TaskRunState():
     assert s == TaskRunState.FAILED
     assert s.is_finished()
     assert s.is_failed()
-

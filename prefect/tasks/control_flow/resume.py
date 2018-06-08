@@ -1,8 +1,8 @@
 import prefect
 from prefect import Task
 
-class GetResumeLink(Task):
 
+class GetResumeLink(Task):
     def __init__(self, start_tasks=None, name=None, **kwargs):
         self.start_tasks = start_tasks
 

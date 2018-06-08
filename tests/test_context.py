@@ -6,7 +6,7 @@ from prefect import context
 from prefect.utilities.context import (
     ContextAnnotation,
     apply_context_annotations,
-    call_with_context_annotations
+    call_with_context_annotations,
 )
 
 AS_OF_DT = datetime.datetime(2016, 12, 31)
@@ -15,11 +15,7 @@ RUN_DT = datetime.datetime(2017, 1, 1)
 
 @pytest.fixture()
 def context_dict():
-    return dict(
-        x=1,
-        y=2,
-        run_dt=RUN_DT,
-        as_of_dt=AS_OF_DT,)
+    return dict(x=1, y=2, run_dt=RUN_DT, as_of_dt=AS_OF_DT)
 
 
 def test_context_as_context_manager():
@@ -71,8 +67,7 @@ def test_call_with_context_annotations(context_dict):
 
     # annotated variable is user-supplied
     run_dt_plus1 = RUN_DT + datetime.timedelta(days=1)
-    assert call_with_context_annotations(
-        test_fn, 1, 2, run_dt_plus1) == run_dt_plus1
+    assert call_with_context_annotations(test_fn, 1, 2, run_dt_plus1) == run_dt_plus1
 
     # annotated variable is Context-supplied
     with Context(context_dict):
@@ -80,8 +75,9 @@ def test_call_with_context_annotations(context_dict):
 
     # annotated variable is in the context but overridden
     with Context(context_dict):
-        assert call_with_context_annotations(
-            test_fn, 1, 2, run_dt_plus1) == run_dt_plus1
+        assert (
+            call_with_context_annotations(test_fn, 1, 2, run_dt_plus1) == run_dt_plus1
+        )
 
 
 def test_apply_context_annotations(context_dict):
@@ -108,6 +104,7 @@ def test_apply_context_annotations(context_dict):
     # annotated variable is in the context but overridden
     with Context(context_dict):
         assert test_fn(1, 2, run_dt_plus1) == run_dt_plus1
+
 
 def test_context_annotations_builtin(context_dict):
     """

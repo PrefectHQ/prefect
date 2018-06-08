@@ -3,14 +3,15 @@ from contextlib import contextmanager
 import prefect
 import wrapt
 
+
 @contextmanager
 def group(name: str) -> None:
     """
     Context manager for setting a task group.
     """
-    current_group = prefect.context.get('group', '')
+    current_group = prefect.context.get("group", "")
     if current_group:
-        name = current_group + '.' + name
+        name = current_group + "." + name
     with prefect.context(group=name):
         yield
 
@@ -21,7 +22,7 @@ def tags(*tags):
     Context manager for setting task tags.
     """
     tags = set(tags)
-    current_tags = prefect.context.get('tags', set())
+    current_tags = prefect.context.get("tags", set())
     if current_tags:
         tags = tags.update(current_tags)
     with prefect.context(tags=tags):
@@ -57,12 +58,12 @@ def as_task_result(x: Any):
     # functions
     elif callable(x):
         return prefect.flow.TaskResult(
-            task=prefect.tasks.core.function_task.FunctionTask(fn=x), flow=None)
+            task=prefect.tasks.core.function_task.FunctionTask(fn=x), flow=None
+        )
 
     # constants
     else:
-        return prefect.flow.TaskResult(
-            task=prefect.tasks.Constant(value=x), flow=None)
+        return prefect.flow.TaskResult(task=prefect.tasks.Constant(value=x), flow=None)
 
     # others - not reachable right now
     # else:
@@ -102,8 +103,7 @@ def task(**task_init_kwargs):
 
     @wrapt.decorator
     def inner(fn, instance, args, kwargs):
-        task = prefect.tasks.core.function_task.FunctionTask(
-            fn=fn, **task_init_kwargs)
+        task = prefect.tasks.core.function_task.FunctionTask(fn=fn, **task_init_kwargs)
         return task(*args, **kwargs)
 
     return inner

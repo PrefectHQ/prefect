@@ -13,7 +13,6 @@ from prefect.utilities.tests import DummyTask
 
 
 class AddTask(Task):
-
     def run(self, x, y):
         return x + y
 
@@ -21,8 +20,8 @@ class AddTask(Task):
 @pytest.fixture
 def add_flow():
     with Flow() as f:
-        x = Parameter('x')
-        y = Parameter('y', default=10)
+        x = Parameter("x")
+        y = Parameter("y", default=10)
         z = AddTask()
         f.set_dependencies(z, keyword_results=dict(x=x, y=y))
     return f
@@ -34,8 +33,8 @@ def test_create_flow():
 
 
 def test_equality():
-    f1 = Flow(name='hi', version=1)
-    f2 = Flow(name='hi', version=1)
+    f1 = Flow(name="hi", version=1)
+    f2 = Flow(name="hi", version=1)
     assert f1 == f2
     f1.add_task(Task())
     assert f1 != f2
@@ -91,7 +90,7 @@ def test_iter():
     """
     Tests that iterating over a Flow yields the tasks in order
     """
-    with Flow('test') as f:
+    with Flow("test") as f:
         t1 = Task()
         t2 = Task()
         f.add_edge(upstream_task=t2, downstream_task=t1)
@@ -152,11 +151,11 @@ def test_merge():
 
 def test_serialize(add_flow):
     serialized = add_flow.serialize()
-    assert serialized['id'] == add_flow.id
-    assert serialized['name'] == add_flow.name
-    assert serialized['version'] == add_flow.version
-    assert len(serialized['tasks']) == 3
-    assert len(serialized['edges']) == 2
+    assert serialized["id"] == add_flow.id
+    assert serialized["name"] == add_flow.name
+    assert serialized["version"] == add_flow.version
+    assert len(serialized["tasks"]) == 3
+    assert len(serialized["edges"]) == 2
 
 
 def test_deserialize(add_flow):

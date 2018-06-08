@@ -32,7 +32,7 @@ class Not(Task):
         return bool(not (x))
 
 
-@task_factory(name='==')
+@task_factory(name="==")
 class Eq(Task):
     """
     Evaluates x == y
@@ -42,7 +42,7 @@ class Eq(Task):
         return bool(x == y)
 
 
-@task_factory(name='≠')
+@task_factory(name="≠")
 class Neq(Task):
     """
     Evaluates x != y
@@ -52,7 +52,7 @@ class Neq(Task):
         return bool(x != y)
 
 
-@task_factory(name='≥')
+@task_factory(name="≥")
 class GTE(Task):
     """
     Evaluates x ≥ y
@@ -62,7 +62,7 @@ class GTE(Task):
         return bool(x >= y)
 
 
-@task_factory(name='>')
+@task_factory(name=">")
 class GT(Task):
     """
     Evaluates x > y
@@ -72,7 +72,7 @@ class GT(Task):
         return bool(x > y)
 
 
-@task_factory(name='≤')
+@task_factory(name="≤")
 class LTE(Task):
     """
     Evaluates x ≤ y
@@ -82,7 +82,7 @@ class LTE(Task):
         return bool(x <= y)
 
 
-@task_factory(name='<')
+@task_factory(name="<")
 class LT(Task):
     """
     Evaluates x < y

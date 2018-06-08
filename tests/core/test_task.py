@@ -8,7 +8,6 @@ from prefect.utilities.tasks import task
 
 
 class AddTask(Task):
-
     def run(self, x, y=1):
         return x + y
 
@@ -25,7 +24,7 @@ def test_task_inputs():
     """Test inferring the names of task inputs from the run fn signature"""
 
     t = AddTask()
-    assert t.inputs() == ('x', 'y')
+    assert t.inputs() == ("x", "y")
 
 
 def test_create_task_in_context():
@@ -50,7 +49,6 @@ def test_call_task():
 
 
 def test_task_factory_decorator():
-
     @task()
     def add(x, y=1):
         return x + y
@@ -61,13 +59,13 @@ def test_task_factory_decorator():
 def test_serialize():
     t = Task()
     serialized = t.serialize()
-    assert t.id == serialized['id']
-    assert t.name == serialized['name']
-    assert t.description == serialized['description']
-    assert t.max_retries == serialized['max_retries']
-    assert t.retry_delay == serialized['retry_delay']
-    assert t.timeout == serialized['timeout']
-    assert t.trigger == serialized['trigger']
+    assert t.id == serialized["id"]
+    assert t.name == serialized["name"]
+    assert t.description == serialized["description"]
+    assert t.max_retries == serialized["max_retries"]
+    assert t.retry_delay == serialized["retry_delay"]
+    assert t.timeout == serialized["timeout"]
+    assert t.trigger == serialized["trigger"]
 
 
 def test_json():
@@ -85,5 +83,5 @@ def test_deserialize():
 
 
 def test_deserialize_parameter():
-    p = Parameter('x', default=1)
+    p = Parameter("x", default=1)
     assert isinstance(Task.deserialize(p.serialize()), Parameter)

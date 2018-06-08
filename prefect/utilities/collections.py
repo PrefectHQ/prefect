@@ -27,7 +27,7 @@ class DotDict(dict):
         self.__dict__ = self
 
     def __repr__(self):
-        return 'DotDict({})'.format(super().__repr__())
+        return "DotDict({})".format(super().__repr__())
 
 
 def to_dotdict(obj):
@@ -45,6 +45,7 @@ def to_dotdict(obj):
             obj[key] = to_dotdict(value)
         return obj
     return obj
+
 
 class CompoundKey(tuple):
     pass
@@ -73,6 +74,7 @@ def dict_to_flatdict(dct, parent=None):
         else:
             items.append((k_parent, v))
     return dict(items)
+
 
 def flatdict_to_dict(dct):
     """Converts a flattened dictionary back to a nested dictionary.

@@ -22,8 +22,9 @@ def test_flow_runner_success():
         expected_state=FlowRunState.SUCCESS,
         expected_task_states={
             t1: TaskRunState(TaskRunState.SUCCESS, result=1),
-            t2: TaskRunState(TaskRunState.SUCCESS, result=2)
-        })
+            t2: TaskRunState(TaskRunState.SUCCESS, result=2),
+        },
+    )
 
 
 def test_return_all_task_states():
@@ -57,8 +58,9 @@ def test_fail():
         expected_state=FlowRunState.FAILED,
         expected_task_states={
             t1: TaskRunState(TaskRunState.SUCCESS, result=1),
-            t2: TaskRunState.FAILED
-        })
+            t2: TaskRunState.FAILED,
+        },
+    )
 
 
 def test_fail_early_and_cleanup():
@@ -69,8 +71,7 @@ def test_fail_early_and_cleanup():
     with Flow() as f:
         t1 = FunctionTask(fn=lambda: 1 / 0)
         t2 = FunctionTask(fn=lambda: 2)
-        t3 = FunctionTask(
-            fn=lambda: 3, trigger=prefect.tasks.triggers.AllFailed)
+        t3 = FunctionTask(fn=lambda: 3, trigger=prefect.tasks.triggers.AllFailed)
         t2.set_dependencies(upstream_tasks=[t1])
         t3.set_dependencies(upstream_tasks=[t2])
 
@@ -83,8 +84,9 @@ def test_fail_early_and_cleanup():
         expected_task_states={
             t1: TaskRunState.FAILED,
             t2: TaskRunState.FAILED,
-            t3: TaskRunState(TaskRunState.SUCCESS, result=3)
-        })
+            t3: TaskRunState(TaskRunState.SUCCESS, result=3),
+        },
+    )
 
 
 def test_dataflow():
@@ -100,14 +102,15 @@ def test_dataflow():
     run_flow_runner_test(
         flow=f,
         expected_state=FlowRunState.SUCCESS,
-        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=5)})
+        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=5)},
+    )
 
 
 def test_indexed_task():
     with Flow() as f:
-        t1 = FunctionTask(fn=lambda: {'a': 1})
+        t1 = FunctionTask(fn=lambda: {"a": 1})
         t2 = FunctionTask(fn=lambda x: x + 1)
-        t2(x=t1['a'])
+        t2(x=t1["a"])
 
     # the index should have added a third task
     assert len(f.tasks) == 3
@@ -115,45 +118,42 @@ def test_indexed_task():
     run_flow_runner_test(
         flow=f,
         expected_state=FlowRunState.SUCCESS,
-        expected_task_states={t2: TaskRunState(TaskRunState.SUCCESS, result=2)})
+        expected_task_states={t2: TaskRunState(TaskRunState.SUCCESS, result=2)},
+    )
 
 
 def test_override_inputs():
     with Flow() as f:
-        x = FunctionTask(fn=lambda: 1, name='x')
-        y = FunctionTask(fn=lambda: 2, name='y')
-        z = FunctionTask(fn=lambda x, y: x + y, name='z')
+        x = FunctionTask(fn=lambda: 1, name="x")
+        y = FunctionTask(fn=lambda: 2, name="y")
+        z = FunctionTask(fn=lambda x, y: x + y, name="z")
         z(x=x, y=y)
 
     run_flow_runner_test(
-        flow=f,
-        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=3)})
+        flow=f, expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=3)}
+    )
 
     run_flow_runner_test(
         flow=f,
         override_task_inputs={z.id: dict(x=10)},
-        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=12)})
+        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=12)},
+    )
 
 
 def test_parameters():
     with Flow() as f:
-        x = Parameter('x')
-        y = Parameter('y', default=10)
+        x = Parameter("x")
+        y = Parameter("y", default=10)
         z = FunctionTask(fn=lambda x, y: x + y)
 
         z(x=x, y=y)
 
     # if no parameters are provided, the flow will fail
-    run_flow_runner_test(
-        flow=f,
-        expected_state=FlowRunState.FAILED,
-    )
+    run_flow_runner_test(flow=f, expected_state=FlowRunState.FAILED)
 
     # if a required parameter isn't provided, the flow will fail
     run_flow_runner_test(
-        flow=f,
-        parameters=dict(y=2),
-        expected_state=FlowRunState.FAILED,
+        flow=f, parameters=dict(y=2), expected_state=FlowRunState.FAILED
     )
 
     # if the required parameter is provided, the flow will succeed
@@ -161,13 +161,13 @@ def test_parameters():
         flow=f,
         parameters=dict(x=1),
         expected_state=FlowRunState.SUCCESS,
-        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=11)})
+        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=11)},
+    )
 
     # test both parameters
     run_flow_runner_test(
         flow=f,
         parameters=dict(x=1, y=100),
         expected_state=FlowRunState.SUCCESS,
-        expected_task_states={
-            z: TaskRunState(TaskRunState.SUCCESS, result=101)
-        })
+        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=101)},
+    )

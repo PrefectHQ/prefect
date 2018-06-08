@@ -11,16 +11,15 @@ from cryptography.fernet import Fernet
 import prefect
 from prefect.utilities import collections
 
-DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), 'prefect.toml')
-USER_CONFIG = '~/.prefect/prefect.toml'
-ENV_VAR_PREFIX = 'PREFECT'
-INTERPOLATION_REGEX = re.compile(r'\${(.[^${}]*)}')
+DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), "prefect.toml")
+USER_CONFIG = "~/.prefect/prefect.toml"
+ENV_VAR_PREFIX = "PREFECT"
+INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 
 
 class Config(SimpleNamespace):
-
     def __repr__(self):
-        return '<Config: {}>'.format(', '.join(sorted(self.sections())))
+        return "<Config: {}>".format(", ".join(sorted(self.sections())))
 
     def __iter__(self):
         return self.sections()
@@ -48,7 +47,8 @@ class Config(SimpleNamespace):
                 dct[key] = cls.from_dict(value, recursive=recursive)
             elif isinstance(value, (list, tuple, set)):
                 dct[key] = type(value)(
-                    [cls.from_dict(v, recursive=recursive) for v in value])
+                    [cls.from_dict(v, recursive=recursive) for v in value]
+                )
         return cls(**dct)
 
 
@@ -74,14 +74,14 @@ def create_user_config(path, source=DEFAULT_CONFIG):
     """
     config_file = expand(path)
     if os.path.isfile(config_file):
-        raise ValueError('File already exists: {}'.format(config_file))
+        raise ValueError("File already exists: {}".format(config_file))
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
 
     def quote(s):
         return '"' + s + '"'
 
-    with open(config_file, 'w') as fw:
-        with open(source, 'r') as fr:
+    with open(config_file, "w") as fw:
+        with open(source, "r") as fr:
             src = fr.read()
             counter = 0
 
@@ -90,21 +90,21 @@ def create_user_config(path, source=DEFAULT_CONFIG):
                 src = src.replace('"<<FERNET KEY>>"', quote(key), 1)
                 counter += 1
                 if counter > 100:
-                    raise ValueError('Unexpected interpolation error.')
+                    raise ValueError("Unexpected interpolation error.")
 
             while '"<<SECRET>>"' in src:
-                chars = ascii_letters + digits + '!@#$%^&*()[]<>,.-'
-                secret = ''.join(random.choice(chars) for i in range(32))
+                chars = ascii_letters + digits + "!@#$%^&*()[]<>,.-"
+                secret = "".join(random.choice(chars) for i in range(32))
                 src = src.replace('"<<SECRET>>"', quote(secret), 1)
                 counter += 1
                 if counter > 100:
-                    raise ValueError('Unexpected interpolation error.')
+                    raise ValueError("Unexpected interpolation error.")
 
             while '"<<UUID>>"' in src:
                 src = src.replace('"<<UUID>>"', quote(str(uuid.uuid4())), 1)
                 counter += 1
                 if counter > 100:
-                    raise ValueError('Unexpected interpolation error.')
+                    raise ValueError("Unexpected interpolation error.")
 
             fw.write(src)
 
@@ -140,7 +140,7 @@ def load_config_file(path, existing_config=None):
     for env_var in os.environ:
         if not env_var.startswith(ENV_VAR_PREFIX):
             continue
-        sections = collections.CompoundKey(env_var.lower().split('__')[1:])
+        sections = collections.CompoundKey(env_var.lower().split("__")[1:])
         if sections:
             flat_config[sections] = expand(os.getenv(env_var))
 
@@ -157,7 +157,7 @@ def load_config_file(path, existing_config=None):
             match = INTERPOLATION_REGEX.search(v)
             if not match:
                 continue
-            ref_key = collections.CompoundKey(match.group(1).split('.'))
+            ref_key = collections.CompoundKey(match.group(1).split("."))
             ref_value = flat_config[ref_key]
             if v == match.group(0):
                 flat_config[k] = ref_value
@@ -184,16 +184,15 @@ def load_configuration(default_config, user_config, env_var=None):
 
 
 config = load_configuration(
-    default_config=DEFAULT_CONFIG,
-    user_config=USER_CONFIG,
-    env_var='PREFECT_CONFIG')
+    default_config=DEFAULT_CONFIG, user_config=USER_CONFIG, env_var="PREFECT_CONFIG"
+)
 
 # load unit test configuration
 if config.tests.test_mode:
     config = load_configuration(
         default_config=DEFAULT_CONFIG,
-        user_config=os.path.join(
-            os.path.dirname(__file__), 'prefect_tests.toml'),
-        env_var='PREFECT_TESTS_CONFIG')
+        user_config=os.path.join(os.path.dirname(__file__), "prefect_tests.toml"),
+        env_var="PREFECT_TESTS_CONFIG",
+    )
 
-configure_logging(logger_name='Prefect')
+configure_logging(logger_name="Prefect")

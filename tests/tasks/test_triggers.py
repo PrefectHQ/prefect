@@ -5,19 +5,15 @@ from prefect.engine.state import TaskRunState
 
 
 def states(
-        success=0,
-        failed=0,
-        skipped=0,
-        skip_downstream=0,
-        pending=0,
-        pending_retry=0):
+    success=0, failed=0, skipped=0, skip_downstream=0, pending=0, pending_retry=0
+):
     state_counts = {
         TaskRunState.SUCCESS: success,
         TaskRunState.FAILED: failed,
         TaskRunState.SKIPPED: skipped,
         TaskRunState.SKIP_DOWNSTREAM: skip_downstream,
         TaskRunState.PENDING: pending,
-        TaskRunState.PENDING_RETRY: pending_retry
+        TaskRunState.PENDING_RETRY: pending_retry,
     }
 
     states = {}
@@ -56,7 +52,8 @@ def test_always_run():
     assert triggers.always_run(states(failed=3))
     assert triggers.always_run(states(skip_downstream=3))
     assert triggers.always_run(
-        states(success=1, failed=1, skipped=1, skip_downstream=1))
+        states(success=1, failed=1, skipped=1, skip_downstream=1)
+    )
 
 
 def test_manual_only():
@@ -64,7 +61,8 @@ def test_manual_only():
     assert not triggers.manual_only(states(failed=3))
     assert not triggers.manual_only(states(skip_downstream=3))
     assert not triggers.manual_only(
-        states(success=1, failed=1, skipped=1, skip_downstream=1))
+        states(success=1, failed=1, skipped=1, skip_downstream=1)
+    )
 
 
 def test_all_finished():
@@ -72,7 +70,8 @@ def test_all_finished():
     assert triggers.all_finished(states(failed=3))
     assert triggers.all_finished(states(skip_downstream=3))
     assert triggers.all_finished(
-        states(success=1, failed=1, skipped=1, skip_downstream=1))
+        states(success=1, failed=1, skipped=1, skip_downstream=1)
+    )
     with pytest.raises(signals.FAIL):
         triggers.all_finished(states(success=1, pending=1))
 

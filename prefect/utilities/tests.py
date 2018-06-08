@@ -24,22 +24,22 @@ def set_config(keys, value):
         prefect.config.__dict__.update(old_config)
 
 
-
 @contextmanager
 def raise_run_errors():
-    with set_config(['tests', 'test_mode'], True):
-        with set_config(['tests', 'raise_run_errors'], True):
+    with set_config(["tests", "test_mode"], True):
+        with set_config(["tests", "raise_run_errors"], True):
             yield
 
 
 def run_task_runner_test(
-        task,
-        expected_state,
-        state=None,
-        upstream_states=None,
-        inputs=None,
-        executor=None,
-        context=None):
+    task,
+    expected_state,
+    state=None,
+    upstream_states=None,
+    inputs=None,
+    executor=None,
+    context=None,
+):
     """
     Runs a task and tests that it matches the expected state.
 
@@ -62,13 +62,10 @@ def run_task_runner_test(
     Returns:
         The TaskRun state
     """
-    task_runner = prefect.engine.task_runner.TaskRunner(
-        task=task, executor=executor)
+    task_runner = prefect.engine.task_runner.TaskRunner(task=task, executor=executor)
     task_state = task_runner.run(
-        state=state,
-        upstream_states=upstream_states,
-        inputs=inputs,
-        context=context)
+        state=state, upstream_states=upstream_states, inputs=inputs, context=context
+    )
 
     assert task_state == expected_state
     if isinstance(expected_state, TaskRunState):
@@ -78,16 +75,17 @@ def run_task_runner_test(
 
 
 def run_flow_runner_test(
-        flow,
-        expected_state=None,
-        state=None,
-        task_states=None,
-        start_tasks=None,
-        expected_task_states=None,
-        executor=None,
-        override_task_inputs=None,
-        parameters=None,
-        context=None):
+    flow,
+    expected_state=None,
+    state=None,
+    task_states=None,
+    start_tasks=None,
+    expected_task_states=None,
+    executor=None,
+    override_task_inputs=None,
+    parameters=None,
+    context=None,
+):
     """
     Runs a flow and tests that it matches the expected state. If an
     expected_task_states dict is provided, it will be matched as well.
@@ -118,8 +116,7 @@ def run_flow_runner_test(
     if expected_task_states is None:
         expected_task_states = {}
 
-    flow_runner = prefect.engine.flow_runner.FlowRunner(
-        flow=flow, executor=executor)
+    flow_runner = prefect.engine.flow_runner.FlowRunner(flow=flow, executor=executor)
 
     flow_state = flow_runner.run(
         state=state,
@@ -128,34 +125,38 @@ def run_flow_runner_test(
         override_task_inputs=override_task_inputs,
         task_states=task_states,
         start_tasks=start_tasks,
-        return_all_task_states=True)
+        return_all_task_states=True,
+    )
 
     if expected_state is not None:
         try:
             assert flow_state == expected_state
         except AssertionError:
             pytest.fail(
-                'Flow state ({}) did not match expected state ({})'.format(
-                    flow_state, expected_state))
+                "Flow state ({}) did not match expected state ({})".format(
+                    flow_state, expected_state
+                )
+            )
 
     for task, expected_task_state in expected_task_states.items():
         try:
             assert flow_state.result[task.id] == expected_task_state
         except KeyError:
             pytest.fail(
-                'Task {} with id {} not found in flow result'.format(
-                    task, task.id))
+                "Task {} with id {} not found in flow result".format(task, task.id)
+            )
         except AssertionError:
             pytest.fail(
-                'Actual task state ({ast}) or result ({ar}) did not match '
-                'expected task state ({est}) or result ({er}) '
-                'for task {t} with id {tid}'.format(
+                "Actual task state ({ast}) or result ({ar}) did not match "
+                "expected task state ({est}) or result ({er}) "
+                "for task {t} with id {tid}".format(
                     ast=flow_state.result[task.id].state,
                     ar=flow_state.result[task.id].result,
                     est=TaskRunState(expected_task_state).state,
                     er=TaskRunState(expected_task_state).result,
                     t=task,
                     tid=task.id,
-                ))
+                )
+            )
 
     return flow_state

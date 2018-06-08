@@ -51,7 +51,7 @@ def config():
 
 def test_general(config):
     assert config.general.x == 1
-    assert config.general.y == 'hi'
+    assert config.general.y == "hi"
 
 
 def test_substitution(config):
@@ -70,17 +70,17 @@ def test_substitution(config):
 
 
 def test_env_var_expansion(config):
-    assert config.env_vars.path == os.getenv('PATH')
+    assert config.env_vars.path == os.getenv("PATH")
 
 
 def test_env_var_configuration():
-    os.environ['PREFECT__ENV_VARS__TEST'] = 'test'
-    assert config().env_vars.test == 'test'
+    os.environ["PREFECT__ENV_VARS__TEST"] = "test"
+    assert config().env_vars.test == "test"
 
 
 def test_interpolation(config):
     assert config.interpolation.y == 11
     assert config.interpolation.x == config.interpolation.y
-    assert config.interpolation.z == 'Number: 11'
-    assert config.interpolation.multiple == '11 + 11'
+    assert config.interpolation.z == "Number: 11"
+    assert config.interpolation.multiple == "11 + 11"
     assert config.interpolation.nested == config.interpolation.y

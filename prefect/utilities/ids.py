@@ -16,6 +16,7 @@ def task_fingerprint(task):
     task_bytes = jsonpickle.encode(task, unpicklable=False).encode()
     return hashlib.md5(task_bytes).digest()
 
+
 def get_hash(obj):
     if isinstance(obj, str):
         obj = obj.encode()
@@ -37,7 +38,7 @@ def generate_flow_id(flow, seed=None):
         seed = prefect.config.flows.id_seed or random.getrandbits(256)
     seed = get_hash(str(seed))
 
-    hsh = get_hash('{}:{}'.format(flow.name, flow.version or ''))
+    hsh = get_hash("{}:{}".format(flow.name, flow.version or ""))
     return str(uuid.UUID(bytes=xor(seed, hsh)))
 
 
@@ -62,8 +63,7 @@ def generate_task_ids(flow, seed=None):
             final_hashes[t] = hashes[t]
             continue
 
-        edge_hashes = sorted(
-            (e.key, hashes[e.upstream_task]) for e in flow.edges_to(t))
+        edge_hashes = sorted((e.key, hashes[e.upstream_task]) for e in flow.edges_to(t))
         hashes[t] = get_hash(str((hashes[t], edge_hashes)))
         counter[hashes[t]] += 1
 
@@ -75,7 +75,8 @@ def generate_task_ids(flow, seed=None):
             continue
 
         edge_hashes = sorted(
-            (e.key, hashes[e.downstream_task]) for e in flow.edges_from(t))
+            (e.key, hashes[e.downstream_task]) for e in flow.edges_from(t)
+        )
         hashes[t] = get_hash(str((hashes[t], edge_hashes)))
         counter[hashes[t]] += 1
 
@@ -92,8 +93,7 @@ def generate_task_ids(flow, seed=None):
             final_hashes[t] = hashes[t]
             continue
 
-        edge_hashes = sorted(
-            (e.key, hashes[e.upstream_task]) for e in flow.edges_to(t))
+        edge_hashes = sorted((e.key, hashes[e.upstream_task]) for e in flow.edges_to(t))
         hashes[t] = get_hash(str((hashes[t], edge_hashes)))
         counter[hashes[t]] += 1
 
@@ -103,10 +103,7 @@ def generate_task_ids(flow, seed=None):
             counter[hashes[t]] += 1
         final_hashes[t] = hashes[t]
 
-    return {
-        t: str(uuid.UUID(bytes=xor(seed, h)))
-        for t, h in final_hashes.items()
-    }
+    return {t: str(uuid.UUID(bytes=xor(seed, h))) for t, h in final_hashes.items()}
 
 
 def register_flow(flow, seed=None):
@@ -121,11 +118,11 @@ def get_flow_from_id(flow_id):
     if flow_id in FLOWS:
         return FLOWS[flow_id]
     else:
-        raise ValueError('Flow not found: {}'.format(flow_id))
+        raise ValueError("Flow not found: {}".format(flow_id))
 
 
 def get_task_from_id(task_id):
     if task_id in TASKS:
         return TASKS[task_id]
     else:
-        raise ValueError('Task not found: {}'.format(task_id))
+        raise ValueError("Task not found: {}".format(task_id))

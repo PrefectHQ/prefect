@@ -14,7 +14,7 @@ from prefect.utilities.strings import is_valid_identifier
 from prefect.utilities.tasks import as_task_result
 
 
-def flow_cache_key(flow: 'Flow') -> int:
+def flow_cache_key(flow: "Flow") -> int:
     """
     Returns a cache key that can be used to determine if the cache is stale.
     """
@@ -26,7 +26,7 @@ class TaskResult:
     TaskResults represent the execution of a specific task in a given flow.
     """
 
-    def __init__(self, task: Task, flow: 'Flow' = None) -> None:
+    def __init__(self, task: Task, flow: "Flow" = None) -> None:
         if flow is None:
             flow = Flow()
         flow.add_task(task)
@@ -34,32 +34,32 @@ class TaskResult:
         self.flow = flow
 
     def __getitem__(self, index) -> Task:
-        name = '{}[{}]'.format(self.task.name, index)
-        index_task = prefect.tasks.core.operators.GetIndexTask(
-            index=index, name=name)
+        name = "{}[{}]".format(self.task.name, index)
+        index_task = prefect.tasks.core.operators.GetIndexTask(index=index, name=name)
         return index_task(task_result=self)
 
     def set_dependencies(
-            self,
-            upstream_tasks: Iterable[Task] = None,
-            downstream_tasks: Iterable[Task] = None,
-            keyword_results: Dict[str, Task] = None) -> None:
+        self,
+        upstream_tasks: Iterable[Task] = None,
+        downstream_tasks: Iterable[Task] = None,
+        keyword_results: Dict[str, Task] = None,
+    ) -> None:
 
         self.flow.set_dependencies(
             task=self.task,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
-            keyword_results=keyword_results)
+            keyword_results=keyword_results,
+        )
 
     # def wait_for(self, task_results):
     #     self.set_dependencies(upstream_tasks=task_results)
 
 
 class Edge:
-
     def __init__(
-            self, upstream_task: Task, downstream_task: Task,
-            key: str = None) -> None:
+        self, upstream_task: Task, downstream_task: Task, key: str = None
+    ) -> None:
         """
         Edges represent connections between Tasks.
 
@@ -91,20 +91,21 @@ class Edge:
         if key is not None:
             if not is_valid_identifier(key):
                 raise ValueError(
-                    'Key must be a valid identifier (received "{}")'.format(
-                        key))
+                    'Key must be a valid identifier (received "{}")'.format(key)
+                )
         self.key = key
 
     # Comparison --------------------------------------------------------------
 
     def __repr__(self) -> str:
-        return '<{cls}: {u} to {d}{k}>'.format(
+        return "<{cls}: {u} to {d}{k}>".format(
             cls=type(self).__name__,
             u=self.upstream_task,
             d=self.downstream_task,
-            k=' (key={})'.format(self.key) if self.key else '')
+            k=" (key={})".format(self.key) if self.key else "",
+        )
 
-    def __eq__(self, other: 'Edge') -> bool:
+    def __eq__(self, other: "Edge") -> bool:
         if type(self) == type(other):
             self_cmp = (self.upstream_task, self.downstream_task, self.key)
             other_cmp = (other.upstream_task, other.downstream_task, other.key)
@@ -116,15 +117,15 @@ class Edge:
 
 
 class Flow(Serializable):
-
     def __init__(
-            self,
-            name: str = None,
-            version: str = None,
-            schedule: 'prefect.schedules.Schedule' = None,
-            description: str = None,
-            tasks: Iterable[Task] = None,
-            edges: Iterable[Edge] = None) -> None:
+        self,
+        name: str = None,
+        version: str = None,
+        schedule: "prefect.schedules.Schedule" = None,
+        description: str = None,
+        tasks: Iterable[Task] = None,
+        edges: Iterable[Edge] = None,
+    ) -> None:
 
         self.name = name or type(self).__name__
         self.version = version
@@ -141,14 +142,15 @@ class Flow(Serializable):
             self.add_edge(
                 upstream_task=e.upstream_task,
                 downstream_task=e.downstream_task,
-                key=e.key)
+                key=e.key,
+            )
 
         self._prefect_version = prefect.__version__
         self._cache: dict = {}
 
         super().__init__()
 
-    def __eq__(self, other: 'Flow') -> bool:
+    def __eq__(self, other: "Flow") -> bool:
         if type(self) == type(other):
             s = (self.name, self.version, self.tasks, self.edges)
             o = (other.name, other.version, other.tasks, other.edges)
@@ -156,17 +158,18 @@ class Flow(Serializable):
         return False
 
     def __repr__(self) -> str:
-        return '<{cls}: {self.name}{v}>'.format(
+        return "<{cls}: {self.name}{v}>".format(
             cls=type(self).__name__,
             self=self,
-            v=' version={}'.format(self.version) if self.version else '')
+            v=" version={}".format(self.version) if self.version else "",
+        )
 
     def __iter__(self):
         yield from self.sorted_tasks()
 
     # Identification  ----------------------------------------------------------
 
-    def copy(self) -> 'Flow':
+    def copy(self) -> "Flow":
         new = copy.copy(self)
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
@@ -174,8 +177,8 @@ class Flow(Serializable):
 
     # Context Manager ----------------------------------------------------------
 
-    def __enter__(self) -> 'Flow':
-        self.__previous_flow = prefect.context.get('flow')
+    def __enter__(self) -> "Flow":
+        self.__previous_flow = prefect.context.get("flow")
         prefect.context.update(flow=self)
         return self
 
@@ -206,10 +209,7 @@ class Flow(Serializable):
         Returns details about any Parameters of this flow
         """
         return {
-            t.name: {
-                'required': t.required,
-                'default': t.default
-            }
+            t.name: {"required": t.required, "default": t.default}
             for t in self.tasks
             if isinstance(t, Parameter)
         }
@@ -242,43 +242,46 @@ class Flow(Serializable):
     def add_task(self, task: Task) -> None:
         if not isinstance(task, Task):
             raise TypeError(
-                'Tasks must be Task instances (received {})'.format(type(task)))
+                "Tasks must be Task instances (received {})".format(type(task))
+            )
         elif task not in self.tasks:
             if isinstance(task, Parameter) and task.name in self.parameters():
                 raise ValueError(
-                    'This flow already has a parameter called "{}"'.format(
-                        task.name))
+                    'This flow already has a parameter called "{}"'.format(task.name)
+                )
             elif task.slug and task.slug in [t.slug for t in self.tasks]:
                 raise ValueError(
                     'A task with the slug "{}" already exists in this '
-                    'flow.'.format(task.slug))
+                    "flow.".format(task.slug)
+                )
 
         self.tasks.add(task)
 
     def add_edge(
-            self,
-            upstream_task: Task,
-            downstream_task: Task,
-            key: str = None,
-            validate: bool = True) -> None:
+        self,
+        upstream_task: Task,
+        downstream_task: Task,
+        key: str = None,
+        validate: bool = True,
+    ) -> None:
         if isinstance(upstream_task, TaskResult):
             upstream_task = upstream_task.task
         if isinstance(downstream_task, TaskResult):
             downstream_task = downstream_task.task
         if isinstance(downstream_task, Parameter):
-            raise ValueError('Parameters can not have upstream dependencies.')
+            raise ValueError("Parameters can not have upstream dependencies.")
 
         if key and key in {e.key for e in self.edges_to(downstream_task)}:
             raise ValueError(
                 'Argument "{a}" for task {t} has already been assigned in '
-                'this flow. If you are trying to call the task again with '
-                'new arguments, call Task.copy() before adding the result '
-                'to this flow.'.format(a=key, t=downstream_task))
+                "this flow. If you are trying to call the task again with "
+                "new arguments, call Task.copy() before adding the result "
+                "to this flow.".format(a=key, t=downstream_task)
+            )
 
         edge = Edge(
-            upstream_task=upstream_task,
-            downstream_task=downstream_task,
-            key=key)
+            upstream_task=upstream_task, downstream_task=downstream_task, key=key
+        )
 
         with self.restore_graph_on_error(validate=validate):
             if upstream_task not in self.tasks:
@@ -296,7 +299,7 @@ class Flow(Serializable):
                 }
                 inspect.signature(downstream_task.run).bind_partial(**edge_keys)
 
-    def update(self, flow: 'Flow', validate: bool = True) -> None:
+    def update(self, flow: "Flow", validate: bool = True) -> None:
         with self.restore_graph_on_error(validate=validate):
 
             for task in flow.tasks:
@@ -309,7 +312,8 @@ class Flow(Serializable):
                         upstream_task=edge.upstream_task,
                         downstream_task=edge.downstream_task,
                         key=edge.key,
-                        validate=False)
+                        validate=False,
+                    )
 
     def add_task_results(self, *task_results, validate: bool = True) -> None:
         with self.restore_graph_on_error(validate=validate):
@@ -352,8 +356,7 @@ class Flow(Serializable):
         self.sorted_tasks()
 
     @cache(validation_fn=flow_cache_key)
-    def sorted_tasks(self,
-                     root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
+    def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
 
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
@@ -395,19 +398,20 @@ class Flow(Serializable):
 
             # if we were unable to match any upstream tasks, we have a cycle
             if cyclic:
-                raise ValueError('Flows must be acyclic!')
+                raise ValueError("Flows must be acyclic!")
 
         return tuple(sorted_tasks)
 
     # Dependencies ------------------------------------------------------------
 
     def set_dependencies(
-            self,
-            task: Task,
-            upstream_tasks: Iterable[Task] = None,
-            downstream_tasks: Iterable[Task] = None,
-            keyword_results: Mapping[str, Task] = None,
-            validate: bool = True) -> TaskResult:
+        self,
+        task: Task,
+        upstream_tasks: Iterable[Task] = None,
+        downstream_tasks: Iterable[Task] = None,
+        keyword_results: Mapping[str, Task] = None,
+        validate: bool = True,
+    ) -> TaskResult:
         """
         Convenience function for adding task dependencies on upstream tasks.
 
@@ -430,11 +434,12 @@ class Flow(Serializable):
             # validate the task
             if inspect.getfullargspec(task.run).varargs:
                 raise ValueError(
-                    'Tasks with variable positional arguments (*args) are not '
-                    'supported, because all Prefect arguments are stored as '
-                    'keywords. As a workaround, consider modifying the run() '
-                    'method to accept **kwargs and feeding the values '
-                    'to *args.')
+                    "Tasks with variable positional arguments (*args) are not "
+                    "supported, because all Prefect arguments are stored as "
+                    "keywords. As a workaround, consider modifying the run() "
+                    "method to accept **kwargs and feeding the values "
+                    "to *args."
+                )
 
             # update this flow with the result
             self.add_task_results(result)
@@ -442,39 +447,31 @@ class Flow(Serializable):
             for t in upstream_tasks or []:
                 t = as_task_result(t)
                 self.add_task_results(t)
-                self.add_edge(
-                    upstream_task=t, downstream_task=task, validate=False)
+                self.add_edge(upstream_task=t, downstream_task=task, validate=False)
 
             for t in downstream_tasks or []:
                 t = as_task_result(t)
                 self.add_task_results(t)
-                self.add_edge(
-                    upstream_task=task, downstream_task=t, validate=False)
+                self.add_edge(upstream_task=task, downstream_task=t, validate=False)
 
             for key, t in (keyword_results or {}).items():
                 t = as_task_result(t)
                 self.add_task_results(t)
                 self.add_edge(
-                    upstream_task=t,
-                    downstream_task=task,
-                    key=key,
-                    validate=False)
+                    upstream_task=t, downstream_task=task, key=key, validate=False
+                )
 
         return TaskResult(task=task, flow=self)
 
     # Execution  ---------------------------------------------------------------
 
     def run(
-            self,
-            parameters=None,
-            executor=None,
-            return_all_task_states=False,
-            **kwargs):
+        self, parameters=None, executor=None, return_all_task_states=False, **kwargs
+    ):
         """
         Run the flow.
         """
-        runner = prefect.engine.flow_runner.FlowRunner(
-            flow=self, executor=executor)
+        runner = prefect.engine.flow_runner.FlowRunner(flow=self, executor=executor)
 
         parameters = parameters or {}
         for p in self.parameters():
@@ -484,7 +481,8 @@ class Flow(Serializable):
         return runner.run(
             parameters=parameters,
             return_all_task_states=return_all_task_states,
-            **kwargs)
+            **kwargs,
+        )
 
     # Serialization ------------------------------------------------------------
 
@@ -492,23 +490,22 @@ class Flow(Serializable):
         ref_ids = self.fingerprint(seed=seed)
 
         return dict(
-            ref_id=ref_ids['flow_id'],
+            ref_id=ref_ids["flow_id"],
             name=self.name,
             version=self.version,
             description=self.description,
             parameters=self.parameters(),
             schedule=self.schedule,
             tasks=[
-                dict(
-                    **t.serialize(),
-                    ref_id=ref_ids['task_ids'][t],
-                ) for t in self.tasks
+                dict(**t.serialize(), ref_id=ref_ids["task_ids"][t]) for t in self.tasks
             ],
             edges=[
                 dict(
-                    upstream_ref_id=ref_ids['task_ids'][e.upstream_task],
-                    downstream_ref_id=ref_ids['task_ids'][e.downstream_task],
-                    key=e.key) for e in self.edges
+                    upstream_ref_id=ref_ids["task_ids"][e.upstream_task],
+                    downstream_ref_id=ref_ids["task_ids"][e.downstream_task],
+                    key=e.key,
+                )
+                for e in self.edges
             ],
         )
 
@@ -529,8 +526,7 @@ class Flow(Serializable):
             graph.node(str(id(t)), t.name)
 
         for e in self.edges:
-            graph.edge(
-                str(id(e.upstream_task)), str(id(e.downstream_task)), e.key)
+            graph.edge(str(id(e.upstream_task)), str(id(e.downstream_task)), e.key)
 
         with tempfile.NamedTemporaryFile() as tmp:
             graph.render(tmp.name, view=True)
