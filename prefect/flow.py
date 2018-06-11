@@ -13,6 +13,8 @@ from prefect.utilities.json import Serializable
 from prefect.utilities.strings import is_valid_identifier
 from prefect.utilities.tasks import as_task_result
 
+VAR_POSITIONAL = inspect.Parameter.VAR_POSITIONAL
+
 
 def flow_cache_key(flow: "Flow") -> int:
     """
@@ -35,10 +37,9 @@ class TaskResult:
         self.flow = flow
 
     def __getitem__(self, index: Any) -> "TaskResult":
-        import prefect.tasks.core.operators
+        from prefect.tasks.core.operators import GetItem
 
-        name = "{}[{}]".format(self.task.name, index)
-        index_task = prefect.tasks.core.operators.GetItem(index=index, name=name)
+        index_task = GetItem(index=index, name="{}[{}]".format(self.task.name, index))
         return index_task(task_result=self)
 
     def set_dependencies(
@@ -437,7 +438,12 @@ class Flow(Serializable):
             task = result.task
 
             # validate the task
-            if inspect.getfullargspec(task.run).varargs:
+            signature = inspect.signature(task.run)
+            varargs = next(
+                (p for p in signature.parameters if p.kind == VAR_POSITIONAL), None
+            )
+
+            if varargs:
                 raise ValueError(
                     "Tasks with variable positional arguments (*args) are not "
                     "supported, because all Prefect arguments are stored as "
