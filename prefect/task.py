@@ -7,7 +7,7 @@ import prefect.signals
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 if TYPE_CHECKING:
-    from prefect.flow import Flow, TaskResult
+    from prefect.flow import Flow, TaskResult #noqa
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
