@@ -82,7 +82,7 @@ class Task(Serializable):
     # Dependencies -------------------------------------------------------------
 
     def __call__(
-        self, *args: Any, upstream_tasks: Iterable['Task'] = None, **kwargs: Any
+        self, *args: Any, upstream_tasks: Iterable["Task"] = None, **kwargs: Any
     ) -> "TaskResult":
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
@@ -102,17 +102,17 @@ class Task(Serializable):
 
     def set_dependencies(
         self,
-        flow: 'Flow' = None,
+        flow: "Flow" = None,
         upstream_tasks: Iterable["Task"] = None,
         downstream_tasks: Iterable["Task"] = None,
-        keyword_results: Dict[str, 'Task'] = None,
+        keyword_results: Dict[str, "Task"] = None,
         validate: bool = True,
     ):
 
         if flow is None:
             flow = prefect.context.get("flow", prefect.Flow())
 
-        return flow.set_dependencies(   # type: ignore
+        return flow.set_dependencies(  # type: ignore
             task=self,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
@@ -176,10 +176,3 @@ class Parameter(Task):
         serialized = super().serialize()
         serialized.update(required=self.required, default=self.default)
         return serialized
-
-    @classmethod
-    def deserialize(cls, serialized):
-        parameter = super().deserialize(serialized)
-        parameter.required = serialized["required"]
-        parameter.default = serialized["default"]
-        return parameter

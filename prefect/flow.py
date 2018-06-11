@@ -18,6 +18,7 @@ def flow_cache_key(flow: "Flow") -> int:
     """
     Returns a cache key that can be used to determine if the cache is stale.
     """
+
     return hash((frozenset(flow.tasks), frozenset(flow.edges)))
 
 
@@ -317,7 +318,9 @@ class Flow(Serializable):
                         validate=False,
                     )
 
-    def add_task_results(self, *task_results: TaskResult, validate: bool = True) -> None:
+    def add_task_results(
+        self, *task_results: TaskResult, validate: bool = True
+    ) -> None:
         with self.restore_graph_on_error(validate=validate):
             for t in task_results:
                 self.add_task(t.task)
@@ -325,7 +328,7 @@ class Flow(Serializable):
 
     @cache(validation_fn=flow_cache_key)
     def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
-        edges = {t: set() for t in self.tasks} # type: Dict[Task, Set[Edge]]
+        edges = {t: set() for t in self.tasks}  # type: Dict[Task, Set[Edge]]
         for edge in self.edges:
             edges[edge.downstream_task].add(edge)
         return edges
