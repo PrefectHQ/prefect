@@ -9,6 +9,9 @@ from prefect.utilities.json import ObjectAttributesCodec, Serializable
 if TYPE_CHECKING:
     from prefect.flow import Flow, TaskResult
 
+VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
+
+
 class Task(Serializable):
 
     _json_codec = ObjectAttributesCodec
@@ -85,8 +88,11 @@ class Task(Serializable):
         signature = inspect.signature(self.run)
         callargs = dict(signature.bind(*args, **kwargs).arguments)
 
-        # bind() compresses all variable keyword arguments, so we expand them
-        var_kw_arg = inspect.getfullargspec(self.run).varkw
+        # bind() compresses all variable keyword arguments under the ** argument name,
+        # so we expand them explicitly
+        var_kw_arg = next(
+            (p for p in signature.parameters if p.kind == VAR_KEYWORD), None
+        )
         callargs.update(callargs.pop(var_kw_arg, {}))
 
         flow = prefect.context.get("flow", prefect.flow.Flow())
