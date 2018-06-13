@@ -1,3 +1,4 @@
+from typing import List, Iterable
 import datetime
 import itertools
 import json
@@ -13,10 +14,12 @@ class Schedule(Serializable):
     Base class for Schedules
     """
 
-    def next_n(self, n=1, on_or_after=None):
+    def next_n(
+        self, n: int = 1, on_or_after: datetime.datetime = None
+    ) -> List[datetime.datetime]:
         raise NotImplementedError("Must be implemented on Schedule subclasses")
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if type(self) == type(other) and json.dumps(self) == json.dumps(other):
             return True
         return False
@@ -27,7 +30,9 @@ class NoSchedule(Schedule):
     No schedule; this Flow will only run on demand.
     """
 
-    def next_n(self, n=1, on_or_after=None):
+    def next_n(
+        self, n: int = 1, on_or_after: datetime.datetime = None
+    ) -> List[datetime.datetime]:
         return []
 
 
@@ -36,13 +41,17 @@ class IntervalSchedule(Schedule):
     A schedule formed by adding `timedelta` increments to a start_date.
     """
 
-    def __init__(self, start_date, interval):
+    def __init__(
+        self, start_date: datetime.datetime, interval: datetime.timedelta
+    ) -> None:
         if interval.total_seconds() <= 0:
             raise ValueError("Interval must be provided and greater than 0")
-        self.start_date = prefect.utilities.datetimes.parse_datetime(start_date)
+        self.start_date = prefect.utilities.datetimes.parse_datetime(
+            start_date
+        )  # type: datetime.datetime
         self.interval = interval
 
-    def _generator(self, start):
+    def _generator(self, start: datetime.datetime) -> Iterable[datetime.datetime]:
         dt = self.start_date
         if dt >= start:
             yield dt
@@ -53,7 +62,9 @@ class IntervalSchedule(Schedule):
                 continue
             yield dt
 
-    def next_n(self, n=1, on_or_after=None):
+    def next_n(
+        self, n: int = 1, on_or_after: datetime.datetime = None
+    ) -> List[datetime.datetime]:
         if on_or_after is None:
             on_or_after = datetime.datetime.utcnow()
         elif isinstance(on_or_after, (str, bytes)):
@@ -62,10 +73,12 @@ class IntervalSchedule(Schedule):
 
 
 class CronSchedule(Schedule):
-    def __init__(self, cron):
+    def __init__(self, cron: str) -> None:
         self.cron = cron
 
-    def next_n(self, n=1, on_or_after=None):
+    def next_n(
+        self, n: int = 1, on_or_after: datetime.datetime = None
+    ) -> List[datetime.datetime]:
         if on_or_after is None:
             on_or_after = datetime.datetime.utcnow()
         elif isinstance(on_or_after, (str, bytes)):
@@ -75,10 +88,12 @@ class CronSchedule(Schedule):
 
 
 class DateSchedule(Schedule):
-    def __init__(self, dates):
+    def __init__(self, dates: Iterable[datetime.datetime]) -> None:
         self.dates = [prefect.utilities.datetimes.parse_datetime(d) for d in dates]
 
-    def next_n(self, n=1, on_or_after=None):
+    def next_n(
+        self, n: int = 1, on_or_after: datetime.datetime = None
+    ) -> List[datetime.datetime]:
         if on_or_after is None:
             on_or_after = datetime.datetime.utcnow()
         elif isinstance(on_or_after, (str, bytes)):
