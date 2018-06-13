@@ -2,7 +2,7 @@ import copy
 import inspect
 import tempfile
 from contextlib import contextmanager
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple, Iterator, TYPE_CHECKING
 
 import graphviz
 
@@ -14,6 +14,9 @@ from prefect.utilities.strings import is_valid_identifier
 from prefect.utilities.tasks import as_task_result
 
 VAR_POSITIONAL = inspect.Parameter.VAR_POSITIONAL
+
+if TYPE_CHECKING:
+    from prefect.environments import Environment
 
 
 def flow_cache_key(flow: "Flow") -> int:
@@ -127,6 +130,7 @@ class Flow(Serializable):
         version: str = None,
         schedule: "prefect.schedules.Schedule" = None,
         description: str = None,
+        environment: Environment=None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
     ) -> None:
@@ -135,6 +139,7 @@ class Flow(Serializable):
         self.version = version
         self.description = description
         self.schedule = schedule or prefect.schedules.NoSchedule()
+        self.environment = environment
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]

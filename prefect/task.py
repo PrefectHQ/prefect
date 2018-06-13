@@ -8,6 +8,7 @@ from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 if TYPE_CHECKING:
     from prefect.flow import Flow, TaskResult #noqa
+    from prefect.environments import Environment
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
@@ -28,7 +29,7 @@ class Task(Serializable):
         retry_delay: timedelta = timedelta(minutes=1),
         timeout: timedelta = None,
         trigger=None,
-        secrets=None,
+        environment: Environment=None,
     ) -> None:
 
         self.name = name or type(self).__name__
@@ -43,8 +44,6 @@ class Task(Serializable):
         self.retry_delay = retry_delay
         self.timeout = timeout
         self.trigger = trigger or prefect.triggers.all_successful
-
-        self.secrets = secrets
 
         flow = prefect.context.get("flow")  # type: 'prefect.Flow'
         if flow:
