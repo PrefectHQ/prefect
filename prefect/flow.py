@@ -16,9 +16,6 @@ from prefect.utilities.tasks import as_task_result
 
 VAR_POSITIONAL = inspect.Parameter.VAR_POSITIONAL
 
-if TYPE_CHECKING:
-    from prefect.environments import Environment
-
 
 def flow_cache_key(flow: "Flow") -> int:
     """
@@ -131,7 +128,7 @@ class Flow(Serializable):
         version: str = None,
         schedule: prefect.schedules.Schedule = None,
         description: str = None,
-        environment: Environment=None,
+        environment: prefect.environments.Environment=None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
     ) -> None:

@@ -29,7 +29,7 @@ def tags(*tags):
         yield
 
 
-def as_task_result(x: Any) -> 'prefect.flow.TaskResult':
+def as_task_result(x: Any) -> "prefect.flow.TaskResult":
     """
     Wraps a function, collection, or constant with the appropriate Task type.
     """
@@ -63,7 +63,10 @@ def as_task_result(x: Any) -> 'prefect.flow.TaskResult':
 
     # constants
     else:
-        return prefect.flow.TaskResult(task=prefect.tasks.Constant(value=x), flow=None)
+        x = "hi"
+        return prefect.flow.TaskResult(
+            task=prefect.tasks.core.constants.Constant(value=x), flow=None
+        )
 
     # others - not reachable right now
     # else:

@@ -1,18 +1,17 @@
 import inspect
 from datetime import timedelta
-from typing import Any, Dict, Iterable, Tuple, TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 
 import prefect
 import prefect.signals
+import prefect.triggers
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 if TYPE_CHECKING:
     from prefect.flow import Flow, TaskResult  #pylint: disable=W0611
-    from prefect.environments import Environment
+    import prefect.environments.Environment
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
-import prefect.triggers
-
 class Task(Serializable):
 
     _json_codec = ObjectAttributesCodec
@@ -29,7 +28,7 @@ class Task(Serializable):
         retry_delay: timedelta = timedelta(minutes=1),
         timeout: timedelta = None,
         trigger: Callable=None,
-        environment: Environment=None,
+        environment: prefect.environments.Environment=None,
     ) -> None:
 
         self.name = name or type(self).__name__
@@ -37,7 +36,11 @@ class Task(Serializable):
         self.description = description
 
         self.group = str(group or prefect.context.get("group", ""))
-        self.tags = set(tags or prefect.context.get("tags", []))
+
+        if isinstance(tags, str):
+            tags = [tags]
+        self.tags = set(tags or [])
+        self.tags.update(prefect.context.get('tags', []))
 
         self.checkpoint = checkpoint
         self.max_retries = max_retries
@@ -57,7 +60,7 @@ class Task(Serializable):
     def inputs(self) -> Tuple[str, ...]:
         return tuple(inspect.signature(self.run).parameters.keys())
 
-    def run(self):  # type: ignore
+    def run(self, **kwargs):  # type: ignore
         """
         The main entrypoint for tasks.
 
@@ -175,6 +178,3 @@ class Parameter(Task):
         serialized = super().serialize()
         serialized.update(required=self.required, default=self.default)
         return serialized
-
-
-
