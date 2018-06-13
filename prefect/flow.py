@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple, Ite
 import graphviz
 
 import prefect
+import prefect.schedules
 from prefect.task import Parameter, Task
 from prefect.utilities.functions import cache
 from prefect.utilities.json import Serializable
@@ -128,7 +129,7 @@ class Flow(Serializable):
         self,
         name: str = None,
         version: str = None,
-        schedule: "prefect.schedules.Schedule" = None,
+        schedule: prefect.schedules.Schedule = None,
         description: str = None,
         environment: Environment=None,
         tasks: Iterable[Task] = None,
@@ -159,7 +160,7 @@ class Flow(Serializable):
 
         super().__init__()
 
-    def __eq__(self, other: "Flow") -> bool:
+    def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
             s = (self.name, self.version, self.tasks, self.edges)
             o = (other.name, other.version, other.tasks, other.edges)
@@ -226,7 +227,7 @@ class Flow(Serializable):
     # Graph --------------------------------------------------------------------
 
     @contextmanager
-    def restore_graph_on_error(self, validate: bool = True) -> None:
+    def restore_graph_on_error(self, validate: bool = True) -> Iterator[None]:
         """
         A context manager that saves the Flow's graph (tasks & edges) and
         restores it if an error is raised. It can be used to test potentially
@@ -445,7 +446,8 @@ class Flow(Serializable):
             # validate the task
             signature = inspect.signature(task.run)
             varargs = next(
-                (p for p in signature.parameters if p.kind == VAR_POSITIONAL), None
+                (p for p in signature.parameters.values() if p.kind == VAR_POSITIONAL),
+                None,
             )
 
             if varargs:
@@ -461,20 +463,20 @@ class Flow(Serializable):
             self.add_task_results(result)
 
             for t in upstream_tasks or []:
-                t = as_task_result(t)
-                self.add_task_results(t)
-                self.add_edge(upstream_task=t, downstream_task=task, validate=False)
+                tr = as_task_result(t)
+                self.add_task_results(tr)
+                self.add_edge(upstream_task=tr, downstream_task=task, validate=False)
 
             for t in downstream_tasks or []:
-                t = as_task_result(t)
-                self.add_task_results(t)
-                self.add_edge(upstream_task=task, downstream_task=t, validate=False)
+                tr = as_task_result(t)
+                self.add_task_results(tr)
+                self.add_edge(upstream_task=task, downstream_task=tr, validate=False)
 
             for key, t in (keyword_results or {}).items():
-                t = as_task_result(t)
-                self.add_task_results(t)
+                tr = as_task_result(t)
+                self.add_task_results(tr)
                 self.add_edge(
-                    upstream_task=t, downstream_task=task, key=key, validate=False
+                    upstream_task=tr, downstream_task=task, key=key, validate=False
                 )
 
         return TaskResult(task=task, flow=self)

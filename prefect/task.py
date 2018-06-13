@@ -1,17 +1,17 @@
 import inspect
 from datetime import timedelta
-from typing import Any, Dict, Iterable, Set, Tuple, TYPE_CHECKING
+from typing import Any, Dict, Iterable, Tuple, TYPE_CHECKING, Callable
 
 import prefect
 import prefect.signals
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 if TYPE_CHECKING:
-    from prefect.flow import Flow, TaskResult #noqa
+    from prefect.flow import Flow, TaskResult  #pylint: disable=W0611
     from prefect.environments import Environment
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
-
+import prefect.triggers
 
 class Task(Serializable):
 
@@ -28,7 +28,7 @@ class Task(Serializable):
         max_retries: int = 0,
         retry_delay: timedelta = timedelta(minutes=1),
         timeout: timedelta = None,
-        trigger=None,
+        trigger: Callable=None,
         environment: Environment=None,
     ) -> None:
 
@@ -45,7 +45,7 @@ class Task(Serializable):
         self.timeout = timeout
         self.trigger = trigger or prefect.triggers.all_successful
 
-        flow = prefect.context.get("flow")  # type: 'prefect.Flow'
+        flow = prefect.context.get("flow")  # type: Flow
         if flow:
             flow.add_task(self)
 
@@ -54,10 +54,10 @@ class Task(Serializable):
 
     # Run  --------------------------------------------------------------------
 
-    def inputs(self) -> Tuple[str]:
+    def inputs(self) -> Tuple[str, ...]:
         return tuple(inspect.signature(self.run).parameters.keys())
 
-    def run(self):
+    def run(self):  # type: ignore
         """
         The main entrypoint for tasks.
 
@@ -85,12 +85,12 @@ class Task(Serializable):
     ) -> "TaskResult":
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
-        callargs = dict(signature.bind(*args, **kwargs).arguments)
+        callargs = dict(signature.bind(*args, **kwargs).arguments) # type: Dict
 
         # bind() compresses all variable keyword arguments under the ** argument name,
         # so we expand them explicitly
         var_kw_arg = next(
-            (p for p in signature.parameters if p.kind == VAR_KEYWORD), None
+            (p for p in signature.parameters.values() if p.kind == VAR_KEYWORD), None
         )
         callargs.update(callargs.pop(var_kw_arg, {}))
 
@@ -106,7 +106,7 @@ class Task(Serializable):
         downstream_tasks: Iterable["Task"] = None,
         keyword_results: Dict[str, "Task"] = None,
         validate: bool = True,
-    ):
+    ) -> 'TaskResult':
 
         if flow is None:
             flow = prefect.context.get("flow", prefect.Flow())
@@ -175,3 +175,6 @@ class Parameter(Task):
         serialized = super().serialize()
         serialized.update(required=self.required, default=self.default)
         return serialized
+
+
+

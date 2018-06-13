@@ -25,7 +25,7 @@ class ParameterError(PrefectError):
 
 
 class PrefectStateException(Exception):
-    def __init__(self, result=None, *args, **kwargs):
+    def __init__(self, result=None, *args, **kwargs) -> None: #type: ignore
         self.result = result
         super().__init__(*args, **kwargs)
 

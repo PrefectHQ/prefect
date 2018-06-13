@@ -12,6 +12,7 @@ import inspect
 import dateutil.parser
 from cryptography.fernet import Fernet
 import prefect
+from typing import Type
 
 JSON_CODECS_KEYS = dict()
 
@@ -354,7 +355,7 @@ class Serializable:
     A class that automatically uses a specified JSONCodec to serialize itself.
     """
 
-    _json_codec = ObjectInitArgsCodec
+    _json_codec = ObjectInitArgsCodec  # type: Type[JSONCodec]
 
     def __json__(self):
         return self._json_codec(value=self)
