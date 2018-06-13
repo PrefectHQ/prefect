@@ -9,7 +9,6 @@ from prefect.task import Task, Parameter
 from prefect.signals import PrefectError
 from prefect.tasks.core.function_task import FunctionTask
 from prefect.utilities.tasks import task
-from prefect.utilities.tests import DummyTask
 
 
 class AddTask(Task):
@@ -27,9 +26,41 @@ def add_flow():
     return f
 
 
-def test_create_flow():
-    # name is not required
-    Flow()
+class TestCreateFlow:
+    """ Test various Flow constructors """
+
+    def test_create_flow_no_args(self):
+        # name is not required
+        assert Flow()
+
+    def test_create_flow_name(self):
+        f1 = Flow()
+        assert f1.name is None
+
+        f2 = Flow(name="test")
+        assert f2.name == "test"
+
+    def test_create_flow_version(self):
+        f1 = Flow()
+        assert f1.version is None
+
+        f2 = Flow(version="test")
+        assert f2.version == "test"
+
+    def test_create_flow_description(self):
+        f1 = Flow()
+        assert f1.description is None
+
+        f2 = Flow(description="test")
+        assert f2.description == "test"
+
+    def test_create_flow_schedule(self):
+        f1 = Flow()
+        assert isinstance(f1.schedule, prefect.schedules.NoSchedule)
+
+        cron = prefect.schedules.CronSchedule("*")
+        f2 = Flow(schedule=cron)
+        assert f2.schedule == cron
 
 
 def test_equality():
