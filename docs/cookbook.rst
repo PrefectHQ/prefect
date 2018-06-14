@@ -1,4 +1,0 @@
-- BranchOperator
-    - return a value
-    - downstream nodes run if the value matches, otherwise raise skip()
-    - join node runs if any node is successful

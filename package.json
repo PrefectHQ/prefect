@@ -1,0 +1,21 @@
+{
+  "name": "prefect",
+  "description": "Prefect is a brand-new workflow manager.",
+  "version": "0.2.0",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "dependencies": {},
+  "scripts": {
+    "docs:dev": "vuepress dev docs",
+    "docs:build": "vuepress build docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/prefect/prefect.git"
+  },
+  "devDependencies": {
+    "vuepress": "^0.10.1"
+  }
+}

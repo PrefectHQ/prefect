@@ -102,3 +102,6 @@ ENV/
 # pyre
 .pyre
 .pyre_configuration
+
+# VuePress
+node_modules
