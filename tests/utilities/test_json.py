@@ -23,26 +23,26 @@ class TestObjectFromString:
         pass
 
     def test_local_obj(self):
-        obj = codecs.object_from_string(codecs.qualified_name(a_test_fn))
+        obj = codecs.from_qualified_name(codecs.to_qualified_name(a_test_fn))
         assert obj == a_test_fn
 
     def test_nested_obj(self):
-        obj = codecs.object_from_string(codecs.qualified_name(self.NestedClass))
+        obj = codecs.from_qualified_name(codecs.to_qualified_name(self.NestedClass))
         assert obj == self.NestedClass
 
     def test_renamed_obj(self):
         from prefect.utilities.json import JSONCodec as jc
 
-        assert codecs.object_from_string(codecs.qualified_name(jc)) == jc
+        assert codecs.from_qualified_name(codecs.to_qualified_name(jc)) == jc
 
     def test_bad_obj(self):
         with pytest.raises(ValueError):
-            codecs.object_from_string("not.a.real.object")
+            codecs.from_qualified_name("not.a.real.object")
 
     def test_unimported_obj(self):
         with pytest.raises(ValueError):
             # need a real module that hasn't been imported anywhere
-            codecs.object_from_string("MODULE.path")
+            codecs.from_qualified_name("MODULE.path")
 
 
 class TestTypeCodecs:

@@ -12,12 +12,12 @@ import inspect
 import dateutil.parser
 from cryptography.fernet import Fernet
 import prefect
-from typing import Type
+from typing import Type, Any, Dict, Optional, Set, List, Callable
 
-JSON_CODECS_KEYS = dict()
+JSON_CODECS_KEYS = dict()  # type: Dict[str, 'JSONCodec']
 
 
-def object_from_string(obj_str):
+def from_qualified_name(obj_str: str) -> object:
     """
     Retrives an object from a fully qualified string path. The object must be
     imported in advance.
@@ -37,11 +37,11 @@ def object_from_string(obj_str):
     )
 
 
-def qualified_name(obj):
+def to_qualified_name(obj: Any) -> str:
     return obj.__module__ + "." + obj.__qualname__
 
 
-def register_json_codec(codec_key, dispatch_type=None):
+def register_json_codec(codec_key: str, dispatch_type: Type=None):
     """
     Decorator that registers a JSON Codec to a corresponding codec_key.
 
@@ -54,7 +54,7 @@ def register_json_codec(codec_key, dispatch_type=None):
     identify the appropriate codec.
     """
 
-    def _register(codec_class):
+    def _register(codec_class: Type) -> Type:
 
         # register the codec key
         if codec_key in JSON_CODECS_KEYS or getattr(codec_class, "codec_key"):
@@ -74,7 +74,7 @@ def register_json_codec(codec_key, dispatch_type=None):
 
 
 @singledispatch
-def dispatch_json_codec(obj):
+def dispatch_json_codec(obj: object) -> Optional["JSONCodec"]:
     return None
 
 
@@ -89,12 +89,12 @@ class JSONCodec:
     called on the resulting value.
     """
 
-    codec_key = None
+    codec_key = None # type: str
 
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         self.value = value
 
-    def serialize(self):
+    def serialize(self) -> Any:
         """
         Returns the value that will be serialized using this JSONCodec's
         codec_key
@@ -102,13 +102,13 @@ class JSONCodec:
         return self.value
 
     @staticmethod
-    def deserialize(obj):
+    def deserialize(obj: Any) -> Any:
         """
         Deserialize an object.
         """
         return obj
 
-    def __json__(self):
+    def __json__(self) -> Dict[str, Any]:
         """
         Called by the JSON encoder in order to transform this object into
         a serializable dictionary. By default it returns
@@ -116,7 +116,7 @@ class JSONCodec:
         """
         return {self.codec_key: self.serialize()}
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return type(self) == type(other) and self.value == other.value
 
 
@@ -126,11 +126,11 @@ class SetCodec(JSONCodec):
     Serialize/deserialize sets
     """
 
-    def serialize(self):
+    def serialize(self) -> List:
         return list(self.value)
 
     @staticmethod
-    def deserialize(obj):
+    def deserialize(obj: List) -> Set:
         return set(obj)
 
 
@@ -140,11 +140,11 @@ class BytesCodec(JSONCodec):
     Serialize/deserialize bytes
     """
 
-    def serialize(self):
+    def serialize(self) -> str:
         return self.value.decode()
 
     @staticmethod
-    def deserialize(obj):
+    def deserialize(obj: str) -> bytes:
         return obj.encode()
 
 
@@ -154,11 +154,11 @@ class UUIDCodec(JSONCodec):
     Serialize/deserialize UUIDs
     """
 
-    def serialize(self):
+    def serialize(self) -> str:
         return str(self.value)
 
     @staticmethod
-    def deserialize(obj):
+    def deserialize(obj: str) -> uuid.UUID:
         return uuid.UUID(obj)
 
 
@@ -168,11 +168,11 @@ class DateTimeCodec(JSONCodec):
     Serialize/deserialize DateTimes
     """
 
-    def serialize(self):
+    def serialize(self) -> str:
         return self.value.isoformat()
 
     @staticmethod
-    def deserialize(obj):
+    def deserialize(obj: str) -> datetime.datetime:
         return dateutil.parser.parse(obj)
 
 
@@ -182,11 +182,11 @@ class DateCodec(JSONCodec):
     Serialize/deserialize Dates
     """
 
-    def serialize(self):
+    def serialize(self) -> str:
         return self.value.isoformat()
 
     @staticmethod
-    def deserialize(obj):
+    def deserialize(obj: str) -> datetime.date:
         return dateutil.parser.parse(obj).date()
 
 
@@ -196,32 +196,32 @@ class TimeDeltaCodec(JSONCodec):
     Serialize/deserialize TimeDeltas
     """
 
-    def serialize(self):
+    def serialize(self) -> int:
         return self.value.total_seconds()
 
     @staticmethod
-    def deserialize(obj):
+    def deserialize(obj: int) -> datetime.timedelta:
         return datetime.timedelta(seconds=obj)
 
 
 @register_json_codec("//obj", dispatch_type=type)
 class LoadObjectCodec(JSONCodec):
     """
-    Serialize/deserialize objects by referencing their fully qualified name.
+    Serialize/deserialize objects by referencing their fully qualified name. This doesn't
+    actually "serialize" them; it just serializes a reference to the already-existing object.
 
-    Objects must already be imported at the same module path or
-    deserialization will fail.
+    Objects must already be imported at the same module path or deserialization will fail.
     """
 
-    def serialize(self):
-        return qualified_name(self.value)
+    def serialize(self) -> str:
+        return to_qualified_name(self.value)
 
     @staticmethod
-    def deserialize(obj):
-        return object_from_string(obj)
+    def deserialize(obj: str) -> Any:
+        return from_qualified_name(obj)
 
 
-def serializable(fn):
+def serializable(fn: Callable) -> Callable:
     """
     Decorator that marks a function as automatically serializable via
     LoadObjectCodec
@@ -234,13 +234,13 @@ def serializable(fn):
 
 @register_json_codec("//encrypted")
 class EncryptedCodec(JSONCodec):
-    def serialize(self):
+    def serialize(self) -> str:
         key = prefect.config.security.encryption_key
         payload = base64.b64encode(json.dumps(self.value).encode())
         return Fernet(key).encrypt(payload).decode()
 
     @staticmethod
-    def deserialize(obj):
+    def deserialize(obj: str) -> object:
         key = prefect.config.security.encryption_key
         decrypted = Fernet(key).decrypt(obj.encode())
         decoded = base64.b64decode(decrypted).decode()
@@ -267,7 +267,7 @@ class ObjectInitArgsCodec(JSONCodec):
                 self._init_args = dict(c=c)
     """
 
-    def serialize(self):
+    def serialize(self) -> dict:
 
         init_args = {}
 
@@ -314,7 +314,7 @@ class ObjectInitArgsCodec(JSONCodec):
         return dict(type=type(self.value), args=init_args)
 
     @staticmethod
-    def deserialize(obj):
+    def deserialize(obj: dict) -> object:
         cls = obj["type"]
         kwargs = obj["args"].pop("**kwargs", {})
         args = obj["args"].pop("*args", ())
@@ -332,19 +332,19 @@ class ObjectAttributesCodec(JSONCodec):
     The object's class *must* be imported before the object is deserialized.
     """
 
-    def __init__(self, value, attributes_list=None):
+    def __init__(self, value: Any, attributes_list: List=None) -> None:
         super().__init__(value)
         if attributes_list is None:
             attributes_list = list(value.__dict__.keys())
         self.attrs = attributes_list
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return dict(
             type=type(self.value), attrs={a: getattr(self.value, a) for a in self.attrs}
         )
 
     @staticmethod
-    def deserialize(obj):
+    def deserialize(obj: dict) -> object:
         instance = object.__new__(obj["type"])
         instance.__dict__.update(obj["attrs"])
         return instance
@@ -357,7 +357,7 @@ class Serializable:
 
     _json_codec = ObjectInitArgsCodec  # type: Type[JSONCodec]
 
-    def __json__(self):
+    def __json__(self) -> JSONCodec:
         return self._json_codec(value=self)
 
 
