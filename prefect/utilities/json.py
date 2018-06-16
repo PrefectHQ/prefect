@@ -369,8 +369,7 @@ class ObjectAttributesCodec(JSONCodec[object, dict]):
 
     def serialize(self) -> dict:
         return dict(
-            type=type(self.value),
-            attrs={a: getattr(self.value, a) for a in self.attrs},
+            type=type(self.value), attrs={a: getattr(self.value, a) for a in self.attrs}
         )
 
     @staticmethod
