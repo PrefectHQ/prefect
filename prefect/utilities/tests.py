@@ -93,9 +93,9 @@ def run_flow_runner_test(
     Args:
         flow (prefect.Flow): the Flow to test
 
-        expected_state (prefect.FlowRunState or str): the expected FlowRunState
+        expected_state (prefect.FlowState or str): the expected FlowState
 
-        state (prefect.FlowRunState or str): the starting state for the task.
+        state (prefect.FlowState or str): the starting state for the task.
 
         expected_task_states (dict): a dict of expected
             {task_id: TaskRunState} (or {task_id: str}) pairs. Passing a

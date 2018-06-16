@@ -348,7 +348,7 @@ class FlowRuns(ClientModule):
             flowRunId=flow_run_id,
         )
         state = data.flow_runs[0].get("state", {})
-        return prefect.engine.state.FlowRunState(
+        return prefect.engine.state.FlowState(
             state=state.get("state", None), result=state.get("result", None)
         )
 

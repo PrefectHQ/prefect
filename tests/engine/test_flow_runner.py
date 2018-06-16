@@ -4,7 +4,7 @@ from prefect.flow import Flow
 from prefect import Parameter, Task
 from prefect.tasks.core.function_task import FunctionTask
 from prefect.engine import FlowRunner
-from prefect.engine.state import FlowRunState, TaskRunState
+from prefect.engine.state import FlowState, TaskRunState
 from prefect.utilities.tests import run_flow_runner_test
 
 
@@ -19,7 +19,7 @@ def test_flow_runner_success():
 
     run_flow_runner_test(
         flow=f,
-        expected_state=FlowRunState.SUCCESS,
+        expected_state=FlowState.SUCCESS,
         expected_task_states={
             t1: TaskRunState(TaskRunState.SUCCESS, result=1),
             t2: TaskRunState(TaskRunState.SUCCESS, result=2),
@@ -55,7 +55,7 @@ def test_fail():
 
     run_flow_runner_test(
         flow=f,
-        expected_state=FlowRunState.FAILED,
+        expected_state=FlowState.FAILED,
         expected_task_states={
             t1: TaskRunState(TaskRunState.SUCCESS, result=1),
             t2: TaskRunState.FAILED,
@@ -80,7 +80,7 @@ def test_fail_early_and_cleanup():
     # t3 succeeds
     run_flow_runner_test(
         flow=f,
-        expected_state=FlowRunState.SUCCESS,
+        expected_state=FlowState.SUCCESS,
         expected_task_states={
             t1: TaskRunState.FAILED,
             t2: TaskRunState.FAILED,
@@ -101,7 +101,7 @@ def test_dataflow():
 
     run_flow_runner_test(
         flow=f,
-        expected_state=FlowRunState.SUCCESS,
+        expected_state=FlowState.SUCCESS,
         expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=5)},
     )
 
@@ -117,7 +117,7 @@ def test_indexed_task():
 
     run_flow_runner_test(
         flow=f,
-        expected_state=FlowRunState.SUCCESS,
+        expected_state=FlowState.SUCCESS,
         expected_task_states={t2: TaskRunState(TaskRunState.SUCCESS, result=2)},
     )
 
@@ -149,18 +149,18 @@ def test_parameters():
         z(x=x, y=y)
 
     # if no parameters are provided, the flow will fail
-    run_flow_runner_test(flow=f, expected_state=FlowRunState.FAILED)
+    run_flow_runner_test(flow=f, expected_state=FlowState.FAILED)
 
     # if a required parameter isn't provided, the flow will fail
     run_flow_runner_test(
-        flow=f, parameters=dict(y=2), expected_state=FlowRunState.FAILED
+        flow=f, parameters=dict(y=2), expected_state=FlowState.FAILED
     )
 
     # if the required parameter is provided, the flow will succeed
     run_flow_runner_test(
         flow=f,
         parameters=dict(x=1),
-        expected_state=FlowRunState.SUCCESS,
+        expected_state=FlowState.SUCCESS,
         expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=11)},
     )
 
@@ -168,6 +168,6 @@ def test_parameters():
     run_flow_runner_test(
         flow=f,
         parameters=dict(x=1, y=100),
-        expected_state=FlowRunState.SUCCESS,
+        expected_state=FlowState.SUCCESS,
         expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=101)},
     )

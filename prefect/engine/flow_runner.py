@@ -3,7 +3,7 @@ from contextlib import contextmanager
 
 import prefect
 import prefect.signals
-from prefect.engine.state import FlowRunState, TaskRunState
+from prefect.engine.state import FlowState, TaskRunState
 
 
 class FlowRunner:
@@ -30,25 +30,25 @@ class FlowRunner:
         except prefect.signals.ParameterError as s:
             self.logger.info("Flow {}: {}".format(type(s).__name__, s))
             self.executor.set_state(
-                state=state, new_state=FlowRunState.FAILED, data=str(s)
+                state=state, new_state=FlowState.FAILED, data=str(s)
             )
 
         except prefect.signals.SUCCESS as s:
             self.logger.info("Flow {}: {}".format(type(s).__name__, s))
             self.executor.set_state(
-                state=state, new_state=FlowRunState.SUCCESS, data=s.state
+                state=state, new_state=FlowState.SUCCESS, data=s.state
             )
 
         except prefect.signals.SKIP as s:
             self.logger.info("Flow {}: {}".format(type(s).__name__, s))
             self.executor.set_state(
-                state=state, new_state=FlowRunState.SKIP, data=s.state
+                state=state, new_state=FlowState.SKIP, data=s.state
             )
 
         except prefect.signals.SHUTDOWN as s:
             self.logger.info("Flow {}: {}".format(type(s).__name__, s))
             self.executor.set_state(
-                state=state, new_state=FlowRunState.SHUTDOWN, data=s.state
+                state=state, new_state=FlowState.SHUTDOWN, data=s.state
             )
 
         except prefect.signals.DONTRUN as s:
@@ -57,7 +57,7 @@ class FlowRunner:
         except prefect.signals.FAIL as s:
             self.logger.info("Flow {}: {}".format(type(s).__name__, s), exc_info=True)
             self.executor.set_state(
-                state=state, new_state=FlowRunState.FAILED, data=s.state
+                state=state, new_state=FlowState.FAILED, data=s.state
             )
 
         except Exception:
@@ -66,12 +66,12 @@ class FlowRunner:
                     raise
             self.logger.error("Flow: An unexpected error occurred", exc_info=True)
             self.executor.set_state(
-                state=state, new_state=FlowRunState.FAILED, result={}
+                state=state, new_state=FlowState.FAILED, result={}
             )
 
     def run(
         self,
-        state: FlowRunState = None,
+        state: FlowState = None,
         task_states: dict = None,
         start_tasks: list = None,
         parameters: dict = None,
@@ -103,7 +103,7 @@ class FlowRunner:
                 context.
         """
 
-        state = FlowRunState(state)
+        state = FlowState(state)
         task_states = task_states or {}
         override_task_inputs = override_task_inputs or {}
         parameters = parameters or {}
@@ -165,7 +165,7 @@ class FlowRunner:
 
         # start!
         self.logger.info("Starting FlowRun.")
-        self.executor.set_state(state, FlowRunState.RUNNING)
+        self.executor.set_state(state, FlowState.RUNNING)
 
     def _run_flow(
         self,
@@ -230,17 +230,17 @@ class FlowRunner:
         # handle flow state
         if any(s.is_failed() for s in terminal.values()):
             self.logger.info("FlowRun FAILED: Some terminal tasks failed.")
-            self.executor.set_state(state, FlowRunState.FAILED, data=results)
+            self.executor.set_state(state, FlowState.FAILED, data=results)
         elif all(s.is_successful() for s in terminal.values()):
             self.logger.info("FlowRun SUCCESS: All terminal tasks succeeded.")
-            self.executor.set_state(state, FlowRunState.SUCCESS, data=results)
+            self.executor.set_state(state, FlowState.SUCCESS, data=results)
         elif all(s.is_finished() for s in terminal.values()):
             self.logger.info(
                 "FlowRun SUCCESS: All terminal tasks finished and none failed."
             )
-            self.executor.set_state(state, FlowRunState.SUCCESS, data=results)
+            self.executor.set_state(state, FlowState.SUCCESS, data=results)
         else:
             self.logger.info("FlowRun PENDING: Terminal tasks are incomplete.")
-            self.executor.set_state(state, FlowRunState.PENDING, data=results)
+            self.executor.set_state(state, FlowState.PENDING, data=results)
 
         return state

@@ -1,7 +1,7 @@
 import pytest
 import prefect
 from prefect.utilities.tests import run_flow_runner_test
-from prefect.engine.state import FlowRunState, TaskRunState
+from prefect.engine.state import FlowState, TaskRunState
 
 
 def test_approval():
@@ -17,11 +17,11 @@ def test_approval():
     # states after the approval request should still be pending
     state = run_flow_runner_test(
         flow=f,
-        expected_state=FlowRunState.PENDING,
+        expected_state=FlowState.PENDING,
         expected_task_states=dict(
-            pre_approval=FlowRunState.SUCCESS,
-            wait_for_approval=FlowRunState.PENDING,
-            post_approval=FlowRunState.PENDING,
+            pre_approval=FlowState.SUCCESS,
+            wait_for_approval=FlowState.PENDING,
+            post_approval=FlowState.PENDING,
         ),
     )
 
@@ -30,11 +30,11 @@ def test_approval():
         flow=f,
         # initialize with previous results
         task_states=state.result,
-        expected_state=FlowRunState.PENDING,
+        expected_state=FlowState.PENDING,
         expected_task_states=dict(
-            pre_approval=FlowRunState.SUCCESS,
-            wait_for_approval=FlowRunState.PENDING,
-            post_approval=FlowRunState.PENDING,
+            pre_approval=FlowState.SUCCESS,
+            wait_for_approval=FlowState.PENDING,
+            post_approval=FlowState.PENDING,
         ),
     )
 
@@ -45,11 +45,11 @@ def test_approval():
         task_states=state.result,
         # specify wait_for_approval as a start_task
         start_tasks=["wait_for_approval"],
-        expected_state=FlowRunState.SUCCESS,
+        expected_state=FlowState.SUCCESS,
         expected_task_states=dict(
-            pre_approval=FlowRunState.SUCCESS,
-            wait_for_approval=FlowRunState.SUCCESS,
-            post_approval=FlowRunState.SUCCESS,
+            pre_approval=FlowState.SUCCESS,
+            wait_for_approval=FlowState.SUCCESS,
+            post_approval=FlowState.SUCCESS,
         ),
     )
 
@@ -73,4 +73,4 @@ def test_approval():
 #             true_task=if_approved,
 #             false_task=if_not_approved)
 
-#     run_flow_runner_test(flow=f, expected_state=FlowRunState.SUCCESS)
+#     run_flow_runner_test(flow=f, expected_state=FlowState.SUCCESS)

@@ -1,4 +1,4 @@
-from prefect.engine.state import FlowState, FlowRunState, TaskRunState
+from prefect.engine.state import FlowState, TaskRunState
 import pytest
 
 
@@ -7,37 +7,18 @@ def test_equals():
     assert s == TaskRunState.RUNNING
 
 
+
 def test_FlowState():
     s = FlowState()
-    assert s == FlowState.PAUSED
+    assert s == FlowState.PENDING
 
-    s.activate()
-    assert s == FlowState.ACTIVE
+    s.set_state(state=FlowState.RUNNING)
+    assert s == FlowState.RUNNING
+    assert not s in [FlowState.RUNNING]
+    assert s.state == FlowState.RUNNING
+    assert s.state in [FlowState.RUNNING]
 
-    s.pause()
-    assert s == FlowState.PAUSED
-
-    s.archive()
-    assert s == FlowState.ARCHIVED
-
-    with pytest.raises(ValueError):
-        s.activate()
-
-    s.unarchive()
-    assert s == FlowState.PAUSED
-
-
-def test_FlowRunState():
-    s = FlowRunState()
-    assert s == FlowRunState.PENDING
-
-    s.set_state(state=FlowRunState.RUNNING)
-    assert s == FlowRunState.RUNNING
-    assert not s in [FlowRunState.RUNNING]
-    assert s.state == FlowRunState.RUNNING
-    assert s.state in [FlowRunState.RUNNING]
-
-    assert s == FlowRunState(state=FlowRunState.RUNNING)
+    assert s == FlowState(state=FlowState.RUNNING)
 
     s.set_state(result=3)
     assert s.result == 3

@@ -3,7 +3,7 @@
 # from prefect import Parameter
 # from prefect.tasks import control_flow
 # from prefect.utilities.tests import run_flow_runner_test
-# from prefect.engine.state import FlowRunState, TaskRunState
+# from prefect.engine.state import FlowState, TaskRunState
 
 
 # def test_ifelse():
