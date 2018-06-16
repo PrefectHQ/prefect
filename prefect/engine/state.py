@@ -1,51 +1,50 @@
+import datetime
 from prefect.utilities.json import Serializable
 from typing import FrozenSet, Any, Union
 
 
 class State(Serializable):
 
-    _default = None  # type: str
+    _default_state = None  # type: str
 
-    def __init__(self, state: Union[str, "State"] = None, result: Any = None) -> None:
-        if isinstance(state, State):
-            self.set_state(state=state.state, result=state.result)
-        else:
-            self.set_state(state or self._default, result=result)
+    def __init__(self, state: str = None, data: Any = None) -> None:
+        if state is None:
+            state = self._default_state
+        self.state = state
+        self.data = data
 
-    def set_state(self, state: str, result: Any = None) -> None:
-        if not self.is_valid_state(state):
-            raise ValueError(
-                "Invalid state for {}: {}".format(type(self).__name__, state)
-            )
-        self._state = str(state)
-        self._result = result
+    def __repr__(self) -> str:
+        return "{}({})".format(type(self).__name__, self.state)
 
     @property
     def state(self) -> str:
         return self._state
 
+    @state.setter
+    def state(self, state: str) -> None:
+        # pylint: disable=attribute-defined-outside-init
+        if not self.is_valid_state(state):
+            raise ValueError('Invalid state: "{}"'.format(state))
+        self._state = state
+        self._timestamp = datetime.datetime.utcnow()
+
     @property
-    def result(self) -> Any:
-        return self._result
+    def data(self) -> Any:
+        return self._data
 
-    def __eq__(self, other: Any) -> bool:
-        if type(self) == type(other):
-            return (self.state, self.result) == (other.state, other.result)
-        elif isinstance(other, str):
-            return self.state == other
-        return False
+    @data.setter
+    def data(self, data: Any) -> None:
+        # pylint: disable=attribute-defined-outside-init
+        self._data = data
+        self._timestamp = datetime.datetime.utcnow()
 
-    def __str__(self) -> str:
-        return self.state
-
-    def __repr__(self) -> str:
-        return "{}({})".format(type(self).__name__, self.state)
+    @property
+    def timestamp(self) -> datetime.datetime:
+        return self._timestamp
 
     @classmethod
     def all_states(cls) -> FrozenSet[str]:
-        return frozenset(
-            [k for k, v in cls.__dict__.items() if k == v and k == k.upper()]
-        )
+        return [k for k, v in cls.__dict__.items() if k == v and k == k.upper()]
 
     def is_valid_state(self, state: str) -> bool:
         """
@@ -57,14 +56,7 @@ class State(Serializable):
 
 class FlowState(State):
 
-    ACTIVE = "ACTIVE"
-    PAUSED = _default = "PAUSED"
-    ARCHIVED = "ARCHIVED"
-
-
-class FlowRunState(State):
-
-    PENDING = _default = "PENDING"
+    PENDING = _default_state = "PENDING"
     SCHEDULED = "SCHEDULED"
     RUNNING = "RUNNING"
     SUCCESS = "SUCCESS"
@@ -90,15 +82,15 @@ class FlowRunState(State):
         return self.state in self._successful_states
 
     def is_failed(self) -> bool:
-        return self == self.FAILED
+        return self.state == self.FAILED
 
     def is_skipped(self) -> bool:
-        return self == self.SKIPPED
+        return self.state == self.SKIPPED
 
 
-class TaskRunState(State):
+class TaskState(State):
 
-    PENDING = _default = "PENDING"
+    PENDING = _default_state = "PENDING"
     PENDING_RETRY = "PENDING_RETRY"
     SCHEDULED = "SCHEDULED"
     RUNNING = "RUNNING"
@@ -108,7 +100,6 @@ class TaskRunState(State):
     SKIP_DOWNSTREAM = "SKIP_DOWNSTREAM"
     SHUTDOWN = "SHUTDOWN"
 
-    _started_states = frozenset([RUNNING, SUCCESS, FAILED])
     _pending_states = frozenset([PENDING, PENDING_RETRY, SCHEDULED])
     _running_states = frozenset([RUNNING])
     _finished_states = frozenset([SUCCESS, FAILED, SKIPPED, SKIP_DOWNSTREAM])
@@ -116,46 +107,43 @@ class TaskRunState(State):
     _successful_states = frozenset([SUCCESS, SKIPPED])
     _failed_states = frozenset([FAILED])
 
-    def is_started(self) -> bool:
-        return str(self) in self._started_states
-
     def is_pending(self) -> bool:
-        return str(self) in self._pending_states
+        return self.state in self._pending_states
 
     def is_pending_retry(self) -> bool:
-        return self == self.PENDING_RETRY
+        return self.state == self.PENDING_RETRY
 
     def is_running(self) -> bool:
-        return str(self) in self._running_states
+        return self.state in self._running_states
 
     def is_finished(self) -> bool:
-        return str(self) in self._finished_states
+        return self.state in self._finished_states
 
     def is_successful(self) -> bool:
-        return str(self) in self._successful_states
-
-    def is_skipped(self) -> bool:
-        return str(self) in self._skipped_states
+        return self.state in self._successful_states
 
     def is_failed(self) -> bool:
-        return str(self) in self._failed_states
+        return self.state in self._failed_states
+
+    def is_skipped(self) -> bool:
+        return self.state in self._skipped_states
 
 
-class ScheduledFlowRunState(State):
+# class ScheduledFlowState(State):
 
-    SCHEDULED = _default = "SCHEDULED"
-    RUNNING = "RUNNING"
-    FINISHED = "FINISHED"
-    CANCELED = "CANCELED"
+#     SCHEDULED = _default_state = "SCHEDULED"
+#     RUNNING = "RUNNING"
+#     FINISHED = "FINISHED"
+#     CANCELED = "CANCELED"
 
-    def is_scheduled(self) -> bool:
-        return self == self.SCHEDULED
+#     def is_scheduled(self) -> bool:
+#         return self.state == self.SCHEDULED
 
-    def is_running(self) -> bool:
-        return self == self.RUNNING
+#     def is_running(self) -> bool:
+#         return self.state == self.RUNNING
 
-    def is_finished(self) -> bool:
-        return self == self.FINISHED
+#     def is_finished(self) -> bool:
+#         return self.state == self.FINISHED
 
-    def is_canceled(self) -> bool:
-        return self == self.CANCELED
+#     def is_canceled(self) -> bool:
+#         return self.state == self.CANCELED
