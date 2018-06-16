@@ -30,25 +30,25 @@ class FlowRunner:
         except prefect.signals.ParameterError as s:
             self.logger.info("Flow {}: {}".format(type(s).__name__, s))
             self.executor.set_state(
-                state=state, new_state=FlowRunState.FAILED, result=str(s)
+                state=state, new_state=FlowRunState.FAILED, data=str(s)
             )
 
         except prefect.signals.SUCCESS as s:
             self.logger.info("Flow {}: {}".format(type(s).__name__, s))
             self.executor.set_state(
-                state=state, new_state=FlowRunState.SUCCESS, result=s.state
+                state=state, new_state=FlowRunState.SUCCESS, data=s.state
             )
 
         except prefect.signals.SKIP as s:
             self.logger.info("Flow {}: {}".format(type(s).__name__, s))
             self.executor.set_state(
-                state=state, new_state=FlowRunState.SKIP, result=s.state
+                state=state, new_state=FlowRunState.SKIP, data=s.state
             )
 
         except prefect.signals.SHUTDOWN as s:
             self.logger.info("Flow {}: {}".format(type(s).__name__, s))
             self.executor.set_state(
-                state=state, new_state=FlowRunState.SHUTDOWN, result=s.state
+                state=state, new_state=FlowRunState.SHUTDOWN, data=s.state
             )
 
         except prefect.signals.DONTRUN as s:
@@ -57,7 +57,7 @@ class FlowRunner:
         except prefect.signals.FAIL as s:
             self.logger.info("Flow {}: {}".format(type(s).__name__, s), exc_info=True)
             self.executor.set_state(
-                state=state, new_state=FlowRunState.FAILED, result=s.state
+                state=state, new_state=FlowRunState.FAILED, data=s.state
             )
 
         except Exception:
@@ -197,7 +197,7 @@ class FlowRunner:
                 # if the edge has a key, get the upstream result
                 if edge.key is not None:
                     upstream_inputs[edge.key] = self.executor.submit(
-                        lambda state: state.result, task_states[edge.upstream_task]
+                        lambda state: state.data, task_states[edge.upstream_task]
                     )
 
             # override upstream_inputs with provided override_task_inputs
@@ -230,17 +230,17 @@ class FlowRunner:
         # handle flow state
         if any(s.is_failed() for s in terminal.values()):
             self.logger.info("FlowRun FAILED: Some terminal tasks failed.")
-            self.executor.set_state(state, FlowRunState.FAILED, result=results)
+            self.executor.set_state(state, FlowRunState.FAILED, data=results)
         elif all(s.is_successful() for s in terminal.values()):
             self.logger.info("FlowRun SUCCESS: All terminal tasks succeeded.")
-            self.executor.set_state(state, FlowRunState.SUCCESS, result=results)
+            self.executor.set_state(state, FlowRunState.SUCCESS, data=results)
         elif all(s.is_finished() for s in terminal.values()):
             self.logger.info(
                 "FlowRun SUCCESS: All terminal tasks finished and none failed."
             )
-            self.executor.set_state(state, FlowRunState.SUCCESS, result=results)
+            self.executor.set_state(state, FlowRunState.SUCCESS, data=results)
         else:
             self.logger.info("FlowRun PENDING: Terminal tasks are incomplete.")
-            self.executor.set_state(state, FlowRunState.PENDING, result=results)
+            self.executor.set_state(state, FlowRunState.PENDING, data=results)
 
         return state

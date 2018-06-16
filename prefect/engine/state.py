@@ -1,17 +1,18 @@
 from prefect.utilities.json import Serializable
+from typing import FrozenSet, Any, Union
 
 
 class State(Serializable):
 
-    _default = None
+    _default = None  # type: str
 
-    def __init__(self, state=None, result=None):
-        if isinstance(state, type(self)):
+    def __init__(self, state: Union[str, "State"] = None, result: Any = None) -> None:
+        if isinstance(state, State):
             self.set_state(state=state.state, result=state.result)
         else:
             self.set_state(state or self._default, result=result)
 
-    def set_state(self, state, result=None):
+    def set_state(self, state: str, result: Any = None) -> None:
         if not self.is_valid_state(state):
             raise ValueError(
                 "Invalid state for {}: {}".format(type(self).__name__, state)
@@ -20,38 +21,38 @@ class State(Serializable):
         self._result = result
 
     @property
-    def state(self):
+    def state(self) -> str:
         return self._state
 
     @property
-    def result(self):
+    def result(self) -> Any:
         return self._result
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
             return (self.state, self.result) == (other.state, other.result)
         elif isinstance(other, str):
             return self.state == other
         return False
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.state
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "{}({})".format(type(self).__name__, self.state)
 
     @classmethod
-    def all_states(cls):
+    def all_states(cls) -> FrozenSet[str]:
         return frozenset(
             [k for k, v in cls.__dict__.items() if k == v and k == k.upper()]
         )
 
-    def is_valid_state(self, state):
+    def is_valid_state(self, state: str) -> bool:
         """
         Valid states are uppercase class attributes that contain their own
         string value.
         """
-        return str(state) in self.all_states()
+        return state in self.all_states()
 
 
 class FlowState(State):
@@ -59,18 +60,6 @@ class FlowState(State):
     ACTIVE = "ACTIVE"
     PAUSED = _default = "PAUSED"
     ARCHIVED = "ARCHIVED"
-
-    def activate(self):
-        self.set_state(self.ACTIVE)
-
-    def pause(self):
-        self.set_state(self.PAUSED)
-
-    def archive(self):
-        self.set_state(self.ARCHIVED)
-
-    def unarchive(self):
-        self.set_state(self.PAUSED)
 
 
 class FlowRunState(State):
@@ -88,22 +77,22 @@ class FlowRunState(State):
     _successful_states = frozenset([SUCCESS, SKIPPED])
     _running_states = frozenset([RUNNING])
 
-    def is_pending(self):
+    def is_pending(self) -> bool:
         return self.state in self._pending_states
 
-    def is_running(self):
+    def is_running(self) -> bool:
         return self.state in self._running_states
 
-    def is_finished(self):
+    def is_finished(self) -> bool:
         return self.state in self._finished_states
 
-    def is_successful(self):
+    def is_successful(self) -> bool:
         return self.state in self._successful_states
 
-    def is_failed(self):
+    def is_failed(self) -> bool:
         return self == self.FAILED
 
-    def is_skipped(self):
+    def is_skipped(self) -> bool:
         return self == self.SKIPPED
 
 
@@ -127,28 +116,28 @@ class TaskRunState(State):
     _successful_states = frozenset([SUCCESS, SKIPPED])
     _failed_states = frozenset([FAILED])
 
-    def is_started(self):
+    def is_started(self) -> bool:
         return str(self) in self._started_states
 
-    def is_pending(self):
+    def is_pending(self) -> bool:
         return str(self) in self._pending_states
 
-    def is_pending_retry(self):
+    def is_pending_retry(self) -> bool:
         return self == self.PENDING_RETRY
 
-    def is_running(self):
+    def is_running(self) -> bool:
         return str(self) in self._running_states
 
-    def is_finished(self):
+    def is_finished(self) -> bool:
         return str(self) in self._finished_states
 
-    def is_successful(self):
+    def is_successful(self) -> bool:
         return str(self) in self._successful_states
 
-    def is_skipped(self):
+    def is_skipped(self) -> bool:
         return str(self) in self._skipped_states
 
-    def is_failed(self):
+    def is_failed(self) -> bool:
         return str(self) in self._failed_states
 
 
@@ -159,14 +148,14 @@ class ScheduledFlowRunState(State):
     FINISHED = "FINISHED"
     CANCELED = "CANCELED"
 
-    def is_scheduled(self):
+    def is_scheduled(self) -> bool:
         return self == self.SCHEDULED
 
-    def is_running(self):
+    def is_running(self) -> bool:
         return self == self.RUNNING
 
-    def is_finished(self):
+    def is_finished(self) -> bool:
         return self == self.FINISHED
 
-    def is_canceled(self):
+    def is_canceled(self) -> bool:
         return self == self.CANCELED
