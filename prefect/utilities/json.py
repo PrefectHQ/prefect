@@ -369,7 +369,8 @@ class ObjectAttributesCodec(JSONCodec[object, dict]):
 
     def serialize(self) -> dict:
         return dict(
-            type=type(self.value), attrs={a: getattr(self.value, a) for a in self.attrs}
+            type=type(self.value),
+            attrs={a: getattr(self.value, a) for a in self.attrs},
         )
 
     @staticmethod
@@ -409,7 +410,7 @@ class PrefectJSONEncoder(json.JSONEncoder):
         # issue with singledispatch and pylint: https://github.com/PyCQA/pylint/issues/2155
         obj_codec = get_json_codec(obj)  # pylint: disable=E1128
         if obj_codec:
-            return obj_codec(obj).__json__() # pylint: disable=E1102
+            return obj_codec(obj).__json__()  # pylint: disable=E1102
 
         else:
             return json.JSONEncoder.default(self, obj)
