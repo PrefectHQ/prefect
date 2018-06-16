@@ -1,18 +1,26 @@
----
-# home: true
-# nav: true
-
-# actionText: Get Started →
-# actionLink: /guide/
-# features:
-# - title: Simplicity First
-#   details: Minimal setup with markdown-centered project structure helps you focus on writing.
-# - title: Vue-Powered
-#   details: Enjoy the dev experience of Vue + webpack, use Vue components in markdown, and develop custom themes with Vue.
-# - title: Performant
-#   details: VuePress generates pre-rendered static HTML for each page, and runs as an SPA once a page is loaded.
-# footer: Copyright © 2018-present Prefect Technologies, Inc.
----
 # Prefect
 
-Welcome to Prefect!
+## Welcome to Prefect!
+
+Prefect is a workflow management system designed for modern data infrastructures.
+
+Users organize `tasks` into `flows`, and Prefect takes care of the rest!
+
+
+### "...Prefect?"
+
+From the Latin *praefectus*, meaning "one who is in charge", a prefect is an official who oversees a domain and ensures that the rules are followed.
+
+It also happens to be the name of a roving researcher for that wholly remarkable book, *The Hitchhiker's Guide to the Galaxy*.
+
+
+## Requirements
+
+Prefect requires Python 3.4+.
+
+## Documentation
+
+To build and view documentation (wait a moment for the initial build to finish):
+```bash
+yarn docs:dev & open "http://localhost:8080"
+```

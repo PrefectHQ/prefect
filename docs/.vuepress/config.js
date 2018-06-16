@@ -8,6 +8,7 @@ module.exports = {
     sidebar: [
       '/',
       'concepts',
+      'utilities',
       'api',
     ]
   }
