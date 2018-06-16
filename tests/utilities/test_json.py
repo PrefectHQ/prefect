@@ -18,7 +18,7 @@ class EqMixin:
         return type(self) == type(other) and self.__dict__ == other.__dict__
 
 
-class TestObjectFromString:
+class TestObjectFromQualifiedName:
     class NestedClass:
         pass
 
@@ -220,5 +220,5 @@ class TestSerializableClass:
 
         x = self.SerializableObj(1, datetime.datetime(2000, 1, 1))
 
-        assert x._json_codec is codecs.ObjectInitArgsCodec
+        assert x._json_codec is codecs.ObjectAttributesCodec
         assert x == json.loads(json.dumps(x))
