@@ -4,7 +4,7 @@ from prefect.flow import Flow
 from prefect import Parameter, Task
 from prefect.tasks.core.function_task import FunctionTask
 from prefect.engine import FlowRunner
-from prefect.engine.state import FlowState, TaskRunState
+from prefect.engine.state import FlowState, TaskState
 from prefect.utilities.tests import run_flow_runner_test
 
 
@@ -21,8 +21,8 @@ def test_flow_runner_success():
         flow=f,
         expected_state=FlowState.SUCCESS,
         expected_task_states={
-            t1: TaskRunState(TaskRunState.SUCCESS, result=1),
-            t2: TaskRunState(TaskRunState.SUCCESS, result=2),
+            t1: TaskState(TaskState.SUCCESS, result=1),
+            t2: TaskState(TaskState.SUCCESS, result=2),
         },
     )
 
@@ -57,8 +57,8 @@ def test_fail():
         flow=f,
         expected_state=FlowState.FAILED,
         expected_task_states={
-            t1: TaskRunState(TaskRunState.SUCCESS, result=1),
-            t2: TaskRunState.FAILED,
+            t1: TaskState(TaskState.SUCCESS, result=1),
+            t2: TaskState.FAILED,
         },
     )
 
@@ -82,9 +82,9 @@ def test_fail_early_and_cleanup():
         flow=f,
         expected_state=FlowState.SUCCESS,
         expected_task_states={
-            t1: TaskRunState.FAILED,
-            t2: TaskRunState.FAILED,
-            t3: TaskRunState(TaskRunState.SUCCESS, result=3),
+            t1: TaskState.FAILED,
+            t2: TaskState.FAILED,
+            t3: TaskState(TaskState.SUCCESS, result=3),
         },
     )
 
@@ -102,7 +102,7 @@ def test_dataflow():
     run_flow_runner_test(
         flow=f,
         expected_state=FlowState.SUCCESS,
-        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=5)},
+        expected_task_states={z: TaskState(TaskState.SUCCESS, result=5)},
     )
 
 
@@ -118,7 +118,7 @@ def test_indexed_task():
     run_flow_runner_test(
         flow=f,
         expected_state=FlowState.SUCCESS,
-        expected_task_states={t2: TaskRunState(TaskRunState.SUCCESS, result=2)},
+        expected_task_states={t2: TaskState(TaskState.SUCCESS, result=2)},
     )
 
 
@@ -130,13 +130,13 @@ def test_override_inputs():
         z(x=x, y=y)
 
     run_flow_runner_test(
-        flow=f, expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=3)}
+        flow=f, expected_task_states={z: TaskState(TaskState.SUCCESS, result=3)}
     )
 
     run_flow_runner_test(
         flow=f,
         override_task_inputs={z.id: dict(x=10)},
-        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=12)},
+        expected_task_states={z: TaskState(TaskState.SUCCESS, result=12)},
     )
 
 
@@ -161,7 +161,7 @@ def test_parameters():
         flow=f,
         parameters=dict(x=1),
         expected_state=FlowState.SUCCESS,
-        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=11)},
+        expected_task_states={z: TaskState(TaskState.SUCCESS, result=11)},
     )
 
     # test both parameters
@@ -169,5 +169,5 @@ def test_parameters():
         flow=f,
         parameters=dict(x=1, y=100),
         expected_state=FlowState.SUCCESS,
-        expected_task_states={z: TaskRunState(TaskRunState.SUCCESS, result=101)},
+        expected_task_states={z: TaskState(TaskState.SUCCESS, result=101)},
     )

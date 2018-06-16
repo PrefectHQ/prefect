@@ -4,7 +4,7 @@ import copy
 import pytest
 
 import prefect
-from prefect.engine.state import TaskRunState
+from prefect.engine.state import TaskState
 
 
 @contextmanager
@@ -46,11 +46,11 @@ def run_task_runner_test(
     Args:
         task (prefect.Task): the Task to test
 
-        expected_state (prefect.TaskRunState or str): the expected TaskRunState
+        expected_state (prefect.TaskState or str): the expected TaskState
 
-        state (prefect.TaskRunState or str): the starting state for the task.
+        state (prefect.TaskState or str): the starting state for the task.
 
-        upstream_states (dict): a dictionary of {task: TaskRunState} pairs
+        upstream_states (dict): a dictionary of {task: TaskState} pairs
             representing the task's upstream states
 
         inputs (dict): a dictionary of inputs to the task
@@ -68,7 +68,7 @@ def run_task_runner_test(
     )
 
     assert task_state == expected_state
-    if isinstance(expected_state, TaskRunState):
+    if isinstance(expected_state, TaskState):
         assert task_state.result == expected_state.result
 
     return task_state
@@ -98,7 +98,7 @@ def run_flow_runner_test(
         state (prefect.FlowState or str): the starting state for the task.
 
         expected_task_states (dict): a dict of expected
-            {task_id: TaskRunState} (or {task_id: str}) pairs. Passing a
+            {task_id: TaskState} (or {task_id: str}) pairs. Passing a
             dict with Task keys is also ok.
 
         executor (prefect.Executor)
@@ -152,8 +152,8 @@ def run_flow_runner_test(
                 "for task {t} with id {tid}".format(
                     ast=flow_state.result[task.id].state,
                     ar=flow_state.result[task.id].result,
-                    est=TaskRunState(expected_task_state).state,
-                    er=TaskRunState(expected_task_state).result,
+                    est=TaskState(expected_task_state).state,
+                    er=TaskState(expected_task_state).result,
                     t=task,
                     tid=task.id,
                 )

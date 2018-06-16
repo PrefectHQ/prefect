@@ -430,7 +430,7 @@ class TaskRuns(ClientModule):
             taskRunId=task_run_id,
         )
         state = data.task_runs[0].get("state", {})
-        return prefect.engine.state.TaskRunState(
+        return prefect.engine.state.TaskState(
             state=state.get("state", None), result=state.get("result", None)
         )
 

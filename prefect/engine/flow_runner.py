@@ -3,7 +3,7 @@ from contextlib import contextmanager
 
 import prefect
 import prefect.signals
-from prefect.engine.state import FlowState, TaskRunState
+from prefect.engine.state import FlowState, TaskState
 
 
 class FlowRunner:
@@ -83,7 +83,7 @@ class FlowRunner:
         """
         Arguments
 
-            task_states (dict): a dictionary of { task: TaskRunState }
+            task_states (dict): a dictionary of { task: TaskState }
                 pairs representing the initial states of the FlowRun tasks.
 
             start_tasks (list): a list of task names indicating the tasks
@@ -183,7 +183,7 @@ class FlowRunner:
 
             # if the task is unrecognized, create a placeholder State
             if task not in task_states:
-                task_states[task] = TaskRunState()
+                task_states[task] = TaskState()
 
             upstream_states = {}
             upstream_inputs = {}

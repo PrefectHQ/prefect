@@ -7,7 +7,7 @@ from contextlib import contextmanager
 import prefect
 from prefect import signals
 from prefect.utilities.context import call_with_context_annotations
-from prefect.engine.state import TaskRunState
+from prefect.engine.state import TaskState
 
 
 class TaskRunner:
@@ -40,28 +40,28 @@ class TaskRunner:
             s_name = type(s).__name__
             self.logger.info("Task {} {}: {}".format(self.task, s_name, s))
             self.executor.set_state(
-                state=state, new_state=TaskRunState.SKIPPED, result=s.result
+                state=state, new_state=TaskState.SKIPPED, result=s.result
             )
 
         except signals.SKIP_DOWNSTREAM as s:
             s_name = type(s).__name__
             self.logger.info("Task {} {}: {}".format(self.task, s_name, s))
             self.executor.set_state(
-                state=state, new_state=TaskRunState.SKIP_DOWNSTREAM, result=s.result
+                state=state, new_state=TaskState.SKIP_DOWNSTREAM, result=s.result
             )
 
         except signals.RETRY as s:
             s_name = type(s).__name__
             self.logger.info("Task {} {}: {}".format(self.task, s_name, s))
             self.handle_retry(
-                state=state, new_state=TaskRunState.PENDING_RETRY, result=s.result
+                state=state, new_state=TaskState.PENDING_RETRY, result=s.result
             )
 
         except signals.SHUTDOWN as s:
             s_name = type(s).__name__
             self.logger.info("Task {} {}: {}".format(self.task, s_name, s))
             self.executor.set_state(
-                state=state, new_state=TaskRunState.SHUTDOWN, result=s.result
+                state=state, new_state=TaskState.SHUTDOWN, result=s.result
             )
 
         except signals.DONTRUN as s:
@@ -94,9 +94,9 @@ class TaskRunner:
         Run a task
 
         Arguments
-            state (TaskRunState): the task's current state
+            state (TaskState): the task's current state
 
-            upstream_states (dict): a dictionary of {task: TaskRunState}
+            upstream_states (dict): a dictionary of {task: TaskState}
                 pairs containing the states of any upstream tasks
 
             upstream_kwargs (dict): a dictionary of {kwarg: task} pairs
@@ -109,7 +109,7 @@ class TaskRunner:
 
             context (dict): Prefect context
         """
-        state = TaskRunState(state)
+        state = TaskState(state)
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
@@ -164,7 +164,7 @@ class TaskRunner:
         # check if a SKIP_DOWNSTREAM should be raised before raising any
         # other signals
         except signals.PrefectStateException:
-            if any(s == TaskRunState.SKIP_DOWNSTREAM for s in upstream_states.values()):
+            if any(s == TaskState.SKIP_DOWNSTREAM for s in upstream_states.values()):
                 raise signals.SKIP_DOWNSTREAM("Received SKIP_DOWNSTREAM state")
             else:
                 raise
@@ -190,7 +190,7 @@ class TaskRunner:
         # -------------------------------------------------------------
 
         self.logger.info("Starting TaskRun.")
-        self.executor.set_state(state, TaskRunState.RUNNING)
+        self.executor.set_state(state, TaskState.RUNNING)
 
     def _run_task(self, state, inputs):
         result = call_with_context_annotations(self.task.run, **inputs)
@@ -240,7 +240,7 @@ class TaskRunner:
             )
             self.handle_retry(state)
         else:
-            self.set_state(state, TaskRunState.FAILED, result=result)
+            self.set_state(state, TaskState.FAILED, result=result)
 
     def handle_retry(self, state, retry_time=None):
         # TODO exponential backoff based on run_number
@@ -249,7 +249,7 @@ class TaskRunner:
         if retry_time is None:
             retry_time = datetime.datetime.utcnow() + self.task.retry_delay
 
-        self.executor.set_state(state, TaskRunState.PENDING_RETRY, result=retry_time)
+        self.executor.set_state(state, TaskState.PENDING_RETRY, result=retry_time)
 
     def handle_success(self, state, result=None):
-        self.executor.set_state(state, TaskRunState.SUCCESS, result=result)
+        self.executor.set_state(state, TaskState.SUCCESS, result=result)

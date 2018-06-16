@@ -1,10 +1,10 @@
-from prefect.engine.state import FlowState, TaskRunState
+from prefect.engine.state import FlowState, TaskState
 import pytest
 
 
 def test_equals():
-    s = TaskRunState(state=TaskRunState.RUNNING)
-    assert s == TaskRunState.RUNNING
+    s = TaskState(state=TaskState.RUNNING)
+    assert s == TaskState.RUNNING
 
 
 
@@ -24,48 +24,48 @@ def test_FlowState():
     assert s.result == 3
 
 
-def test_TaskRunState():
-    s = TaskRunState()
-    assert s == TaskRunState.PENDING
+def test_TaskState():
+    s = TaskState()
+    assert s == TaskState.PENDING
     assert s.is_pending()
     assert not s.is_started()
 
     s.start()
-    assert s == TaskRunState.RUNNING
+    assert s == TaskState.RUNNING
     assert s.is_running()
 
     s.succeed()
-    assert s == TaskRunState.SUCCESS
+    assert s == TaskState.SUCCESS
     assert s.is_successful()
     assert s.is_finished()
 
     with pytest.raises(ValueError):
         s.fail()
 
-    s.state = TaskRunState.FAILED
+    s.state = TaskState.FAILED
     s.retry()
-    assert s == TaskRunState.PENDING_RETRY
+    assert s == TaskState.PENDING_RETRY
     assert s.is_pending()
 
     s.schedule()
-    assert s == TaskRunState.SCHEDULED
+    assert s == TaskState.SCHEDULED
     assert s.is_pending()
 
     s.skip()
-    assert s == TaskRunState.SKIPPED
+    assert s == TaskState.SKIPPED
     assert s.is_skipped()
     assert s.is_finished()
 
     with pytest.raises(ValueError):
         s.start()
 
-    s = TaskRunState()
-    assert s == TaskRunState.PENDING
+    s = TaskState()
+    assert s == TaskState.PENDING
     assert s.is_pending()
     assert not s.is_started()
 
     s.start()
     s.fail()
-    assert s == TaskRunState.FAILED
+    assert s == TaskState.FAILED
     assert s.is_finished()
     assert s.is_failed()

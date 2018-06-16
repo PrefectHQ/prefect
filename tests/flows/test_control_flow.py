@@ -3,7 +3,7 @@
 # from prefect import Parameter
 # from prefect.tasks import control_flow
 # from prefect.utilities.tests import run_flow_runner_test
-# from prefect.engine.state import FlowState, TaskRunState
+# from prefect.engine.state import FlowState, TaskState
 
 
 # def test_ifelse():
@@ -31,10 +31,10 @@
 #     run_flow_runner_test(
 #         flow=flow,
 #         expected_task_states=dict(
-#             true_1=TaskRunState.SUCCESS,
-#             true_2=TaskRunState.SUCCESS,
-#             false_1=TaskRunState.SKIP_DOWNSTREAM,
-#             false_2=TaskRunState.SKIP_DOWNSTREAM,
+#             true_1=TaskState.SUCCESS,
+#             true_2=TaskState.SUCCESS,
+#             false_1=TaskState.SKIP_DOWNSTREAM,
+#             false_2=TaskState.SKIP_DOWNSTREAM,
 #         ),
 #     )
 
@@ -54,9 +54,9 @@
 #         flow=flow,
 #         parameters=dict(x=5),
 #         expected_task_states={
-#             "5": TaskRunState.SUCCESS,
-#             "6": TaskRunState.SKIP_DOWNSTREAM,
-#             "xyz": TaskRunState.SKIP_DOWNSTREAM,
+#             "5": TaskState.SUCCESS,
+#             "6": TaskState.SKIP_DOWNSTREAM,
+#             "xyz": TaskState.SKIP_DOWNSTREAM,
 #         },
 #     )
 
@@ -64,9 +64,9 @@
 #         flow=flow,
 #         parameters=dict(x=6),
 #         expected_task_states={
-#             "5": TaskRunState.SKIP_DOWNSTREAM,
-#             "6": TaskRunState.SUCCESS,
-#             "xyz": TaskRunState.SKIP_DOWNSTREAM,
+#             "5": TaskState.SKIP_DOWNSTREAM,
+#             "6": TaskState.SUCCESS,
+#             "xyz": TaskState.SKIP_DOWNSTREAM,
 #         },
 #     )
 
@@ -74,9 +74,9 @@
 #         flow=flow,
 #         parameters=dict(x="xyz"),
 #         expected_task_states={
-#             "5": TaskRunState.SKIP_DOWNSTREAM,
-#             "6": TaskRunState.SKIP_DOWNSTREAM,
-#             "xyz": TaskRunState.SUCCESS,
+#             "5": TaskState.SKIP_DOWNSTREAM,
+#             "6": TaskState.SKIP_DOWNSTREAM,
+#             "xyz": TaskState.SUCCESS,
 #         },
 #     )
 
@@ -84,8 +84,8 @@
 #         flow=flow,
 #         parameters=dict(x=True),
 #         expected_task_states={
-#             "5": TaskRunState.SKIP_DOWNSTREAM,
-#             "6": TaskRunState.SKIP_DOWNSTREAM,
-#             "xyz": TaskRunState.SKIP_DOWNSTREAM,
+#             "5": TaskState.SKIP_DOWNSTREAM,
+#             "6": TaskState.SKIP_DOWNSTREAM,
+#             "xyz": TaskState.SKIP_DOWNSTREAM,
 #         },
 #     )

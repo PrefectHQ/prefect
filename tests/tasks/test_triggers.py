@@ -1,25 +1,25 @@
 import pytest
 from prefect import signals
 from prefect import triggers
-from prefect.engine.state import TaskRunState
+from prefect.engine.state import TaskState
 
 
 def states(
     success=0, failed=0, skipped=0, skip_downstream=0, pending=0, pending_retry=0
 ):
     state_counts = {
-        TaskRunState.SUCCESS: success,
-        TaskRunState.FAILED: failed,
-        TaskRunState.SKIPPED: skipped,
-        TaskRunState.SKIP_DOWNSTREAM: skip_downstream,
-        TaskRunState.PENDING: pending,
-        TaskRunState.PENDING_RETRY: pending_retry,
+        TaskState.SUCCESS: success,
+        TaskState.FAILED: failed,
+        TaskState.SKIPPED: skipped,
+        TaskState.SKIP_DOWNSTREAM: skip_downstream,
+        TaskState.PENDING: pending,
+        TaskState.PENDING_RETRY: pending_retry,
     }
 
     states = {}
     for state, count in state_counts.items():
         for i in range(count):
-            states[str(len(states))] = TaskRunState(state)
+            states[str(len(states))] = TaskState(state)
     return states
 
 

@@ -4,7 +4,7 @@ import prefect
 from prefect.flow import Flow
 from prefect.tasks.core import operators as ops
 from prefect.utilities.tests import run_flow_runner_test
-from prefect.engine.state import FlowState, TaskRunState
+from prefect.engine.state import FlowState, TaskState
 
 
 def check_operator_flow(flow, task_name, result):
@@ -12,7 +12,7 @@ def check_operator_flow(flow, task_name, result):
         flow=flow,
         expected_state=FlowState.SUCCESS,
         expected_task_states={
-            task_name: TaskRunState(TaskRunState.SUCCESS, result=result)
+            task_name: TaskState(TaskState.SUCCESS, result=result)
         },
     )
 
