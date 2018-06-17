@@ -20,7 +20,7 @@ class ParameterError(PrefectError):
 
 
 # ------------------------------------------------------------------------------
-# These classes are used to signal state changes when tasks are running
+# These classes are used to signal state changes when tasks or flows are running
 # ------------------------------------------------------------------------------
 
 
@@ -82,10 +82,3 @@ class DONTRUN(PrefectStateException):
 
     pass
 
-
-class SHUTDOWN(PrefectStateException):
-    """
-    Indicates that a task was shutdown externally.
-    """
-
-    pass
