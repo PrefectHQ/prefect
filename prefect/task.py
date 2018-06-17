@@ -125,7 +125,10 @@ class Task(Serializable):
 
     # Serialization ------------------------------------------------------------
 
-    def serialize(self) -> Dict[str, Any]:
+    def info(self) -> Dict[str, Any]:
+        """
+        A description of the task.
+        """
 
         serialized = dict(
             name=self.name,
@@ -136,6 +139,8 @@ class Task(Serializable):
             retry_delay=self.retry_delay,
             timeout=self.timeout,
             trigger=self.trigger,
+            checkpoint=self.checkpoint,
+            environment=self.environment,
         )
 
         return serialized
