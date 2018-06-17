@@ -29,18 +29,18 @@ def tags(*tags):
         yield
 
 
-def as_task_result(x: Any) -> "prefect.flow.TaskResult":
+def as_task_result(x: Any) -> "prefect.TaskResult":
     """
     Wraps a function, collection, or constant with the appropriate Task type.
     """
     # utilities are imported first, so TaskResult must be imported here
 
     # task objects
-    if isinstance(x, prefect.flow.TaskResult):
+    if isinstance(x, prefect.TaskResult):
         return x
 
     elif isinstance(x, prefect.Task):
-        return prefect.flow.TaskResult(task=x, flow=None)
+        return prefect.TaskResult(task=x, flow=None)
 
     # sequences
     elif isinstance(x, list):
@@ -57,14 +57,14 @@ def as_task_result(x: Any) -> "prefect.flow.TaskResult":
 
     # functions
     elif callable(x):
-        return prefect.flow.TaskResult(
+        return prefect.TaskResult(
             task=prefect.tasks.core.function_task.FunctionTask(fn=x), flow=None
         )
 
     # constants
     else:
         x = "hi"
-        return prefect.flow.TaskResult(
+        return prefect.TaskResult(
             task=prefect.tasks.core.constants.Constant(value=x), flow=None
         )
 
@@ -110,11 +110,3 @@ def task(**task_init_kwargs):
         return task(*args, **kwargs)
 
     return inner
-
-
-def get_task_by_id(id):
-    """
-    Retrieves a task by its ID. This will only work for tasks that are alive
-    in the current interpreter.
-    """
-    return prefect.task_module.TASK_REGISTRY.get(id)

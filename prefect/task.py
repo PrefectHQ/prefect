@@ -5,11 +5,12 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 import prefect
 import prefect.signals
 import prefect.triggers
-from prefect.utilities.json import ObjectAttributesCodec, Serializable
+from prefect.utilities.json import Serializable
+
+from prefect.environments import Environment
 
 if TYPE_CHECKING:
-    from prefect.flow import Flow, TaskResult  # pylint: disable=W0611
-    import prefect.environments.Environment
+    from prefect.flow import Flow  # pylint: disable=W0611
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
@@ -27,7 +28,7 @@ class Task(Serializable):
         retry_delay: timedelta = timedelta(minutes=1),
         timeout: timedelta = None,
         trigger: Callable = None,
-        environment: prefect.environments.Environment = None,
+        environment: Environment = None,
     ) -> None:
 
         self.name = name or type(self).__name__
@@ -53,7 +54,7 @@ class Task(Serializable):
             flow.add_task(self)
 
     def __repr__(self) -> str:
-        return "<Task: {self.name}>".format(cls=type(self).__name__, self=self)
+        return "<Task: {self.name}>".format(self=self)
 
     # Run  --------------------------------------------------------------------
 
@@ -122,8 +123,6 @@ class Task(Serializable):
             validate=validate,
         )
 
-    # Operators ----------------------------------------------------------------
-
     # Serialization ------------------------------------------------------------
 
     def serialize(self) -> Dict[str, Any]:
@@ -178,3 +177,38 @@ class Parameter(Task):
         serialized = super().serialize()
         serialized.update(required=self.required, default=self.default)
         return serialized
+
+class TaskResult:
+    """
+    TaskResults represent the execution of a specific task in a given flow.
+    """
+
+    def __init__(self, task: Task, flow: "Flow" = None) -> None:
+        if flow is None:
+            flow = prefect.Flow()
+        flow.add_task(task)
+        self.task = task
+        self.flow = flow
+
+    def __getitem__(self, index: Any) -> "TaskResult":
+        from prefect.tasks.core.operators import GetItem
+
+        index_task = GetItem(index=index, name="{}[{}]".format(self.task.name, index))
+        return index_task(task_result=self)
+
+    def set_dependencies(
+        self,
+        upstream_tasks: Iterable[Task] = None,
+        downstream_tasks: Iterable[Task] = None,
+        keyword_results: Dict[str, Task] = None,
+    ) -> None:
+
+        self.flow.set_dependencies(
+            task=self.task,
+            upstream_tasks=upstream_tasks,
+            downstream_tasks=downstream_tasks,
+            keyword_results=keyword_results,
+        )
+
+    # def wait_for(self, task_results):
+    #     self.set_dependencies(upstream_tasks=task_results)

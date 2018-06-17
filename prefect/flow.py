@@ -8,7 +8,7 @@ import graphviz
 
 import prefect
 import prefect.schedules
-from prefect.task import Parameter, Task
+from prefect.task import Parameter, Task, TaskResult
 from prefect.utilities.functions import cache
 from prefect.utilities.json import Serializable
 from prefect.utilities.strings import is_valid_identifier
@@ -24,41 +24,6 @@ def flow_cache_key(flow: "Flow") -> int:
 
     return hash((frozenset(flow.tasks), frozenset(flow.edges)))
 
-
-class TaskResult:
-    """
-    TaskResults represent the execution of a specific task in a given flow.
-    """
-
-    def __init__(self, task: Task, flow: "Flow" = None) -> None:
-        if flow is None:
-            flow = Flow()
-        flow.add_task(task)
-        self.task = task
-        self.flow = flow
-
-    def __getitem__(self, index: Any) -> "TaskResult":
-        from prefect.tasks.core.operators import GetItem
-
-        index_task = GetItem(index=index, name="{}[{}]".format(self.task.name, index))
-        return index_task(task_result=self)
-
-    def set_dependencies(
-        self,
-        upstream_tasks: Iterable[Task] = None,
-        downstream_tasks: Iterable[Task] = None,
-        keyword_results: Dict[str, Task] = None,
-    ) -> None:
-
-        self.flow.set_dependencies(
-            task=self.task,
-            upstream_tasks=upstream_tasks,
-            downstream_tasks=downstream_tasks,
-            keyword_results=keyword_results,
-        )
-
-    # def wait_for(self, task_results):
-    #     self.set_dependencies(upstream_tasks=task_results)
 
 
 class Edge:
