@@ -43,6 +43,7 @@ class Task(Serializable):
         self.tags.update(prefect.context.get('tags', []))
 
         self.checkpoint = checkpoint
+        self.environment = environment
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
