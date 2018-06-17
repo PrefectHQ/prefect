@@ -60,7 +60,7 @@ class Task(Serializable):
     def inputs(self) -> Tuple[str, ...]:
         return tuple(inspect.signature(self.run).parameters.keys())
 
-    def run(self, **kwargs):  # type: ignore
+    def run(self):  # type: ignore
         """
         The main entrypoint for tasks.
 
