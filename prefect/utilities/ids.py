@@ -11,13 +11,15 @@ import prefect
 FLOWS = {}
 TASKS = {}
 
+from typing import TYPE_CHECKING, AnyStr
+if TYPE_CHECKING:
+    from prefect import Task, Flow
 
-def task_fingerprint(task):
-    task_bytes = jsonpickle.encode(task, unpicklable=False).encode()
-    return hashlib.md5(task_bytes).digest()
+def hash_task(task: 'Task') -> bytes:
+    get_hash(jsonpickle.encode(task, unpicklable=False))
 
 
-def get_hash(obj):
+def get_hash(obj: AnyStr) -> bytes:
     if isinstance(obj, str):
         obj = obj.encode()
     return hashlib.md5(obj).digest()
@@ -32,7 +34,7 @@ def xor(hash1, hash2):
 
 def generate_flow_id(flow, seed=None):
     """
-    Flow IDs are based on the flow's name, version, and a random seed.
+    Flows are identified by their name and version.
     """
     if seed is None:
         seed = prefect.config.flows.id_seed or random.getrandbits(256)
@@ -52,7 +54,7 @@ def generate_task_ids(flow, seed=None):
     # initial pass
     # define each task based on its own structure
 
-    hashes = {t: task_fingerprint(t) for t in flow.sorted_tasks()}
+    hashes = {t: hash_task(t) for t in flow.sorted_tasks()}
     counter = Counter(hashes.values())
     final_hashes = {}
 
