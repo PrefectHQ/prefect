@@ -8,14 +8,13 @@ import prefect.triggers
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 if TYPE_CHECKING:
-    from prefect.flow import Flow, TaskResult  #pylint: disable=W0611
+    from prefect.flow import Flow, TaskResult  # pylint: disable=W0611
     import prefect.environments.Environment
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
+
+
 class Task(Serializable):
-
-    _json_codec = ObjectAttributesCodec
-
     def __init__(
         self,
         name: str = None,
@@ -27,8 +26,8 @@ class Task(Serializable):
         max_retries: int = 0,
         retry_delay: timedelta = timedelta(minutes=1),
         timeout: timedelta = None,
-        trigger: Callable=None,
-        environment: prefect.environments.Environment=None,
+        trigger: Callable = None,
+        environment: prefect.environments.Environment = None,
     ) -> None:
 
         self.name = name or type(self).__name__
@@ -40,7 +39,7 @@ class Task(Serializable):
         if isinstance(tags, str):
             tags = [tags]
         self.tags = set(tags or [])
-        self.tags.update(prefect.context.get('tags', []))
+        self.tags.update(prefect.context.get("tags", []))
 
         self.checkpoint = checkpoint
         self.environment = environment
@@ -89,7 +88,7 @@ class Task(Serializable):
     ) -> "TaskResult":
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
-        callargs = dict(signature.bind(*args, **kwargs).arguments) # type: Dict
+        callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
 
         # bind() compresses all variable keyword arguments under the ** argument name,
         # so we expand them explicitly
@@ -110,7 +109,7 @@ class Task(Serializable):
         downstream_tasks: Iterable["Task"] = None,
         keyword_results: Dict[str, "Task"] = None,
         validate: bool = True,
-    ) -> 'TaskResult':
+    ) -> "TaskResult":
 
         if flow is None:
             flow = prefect.context.get("flow", prefect.Flow())
