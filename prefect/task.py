@@ -23,7 +23,7 @@ class Task(Serializable):
         description: str = None,
         group: str = None,
         tags: Iterable[str] = None,
-        checkpoint: bool = True,
+        checkpoint: bool = False,
         max_retries: int = 0,
         retry_delay: timedelta = timedelta(minutes=1),
         timeout: timedelta = None,
