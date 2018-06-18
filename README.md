@@ -59,7 +59,10 @@ pytest
 
 ## Documentation
 
-To build and view documentation (wait a moment for the initial build to finish):
+To build and view documentation:
 ```bash
-yarn docs:dev & open "http://localhost:8080"
+yarn docs:dev
 ```
+This will automatically open a new browser window, but there will be a slight delay
+while the initial build finishes. When it finishes, the browser will automatically
+refresh.
