@@ -6,6 +6,7 @@ install_requires = [
     "croniter",
     "cryptography",
     # 'distributed >= 1.16.1',
+    'jsonpickle',
     "python-dateutil",
     "requests",
     "wrapt",
