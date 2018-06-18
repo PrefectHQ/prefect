@@ -105,3 +105,9 @@ ENV/
 
 # VuePress
 node_modules
+
+# Mac OS
+.DS_Store
+
+# PyTest
+.pytest_cache
