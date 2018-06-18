@@ -11,54 +11,46 @@ import prefect
 FLOWS = {}
 TASKS = {}
 
-from typing import TYPE_CHECKING, AnyStr
+from typing import TYPE_CHECKING, AnyStr, Union, Dict
+
 if TYPE_CHECKING:
     from prefect import Task, Flow
 
-def hash_task(task: 'Task') -> bytes:
-    get_hash(jsonpickle.encode(task, unpicklable=False))
 
-
-def get_hash(obj: AnyStr) -> bytes:
+def get_hash(obj: Union[str, bytes]) -> bytes:
     if isinstance(obj, str):
         obj = obj.encode()
     return hashlib.md5(obj).digest()
 
 
-def xor(hash1, hash2):
+def xor(hash1: bytes, hash2: bytes) -> bytes:
     """
     Computes the bitwise XOR between two byte hashes
     """
     return bytes([x ^ y for x, y in zip(hash1, itertools.cycle(hash2))])
 
 
-def generate_flow_id(flow, seed=None):
+def generate_flow_id(flow: "Flow") -> str:
     """
     Flows are identified by their name and version.
     """
-    if seed is None:
-        seed = prefect.config.flows.id_seed or random.getrandbits(256)
-    seed = get_hash(str(seed))
-
-    hsh = get_hash("{}:{}".format(flow.name, flow.version or ""))
-    return str(uuid.UUID(bytes=xor(seed, hsh)))
+    hash_bytes = get_hash("{}:{}".format(flow.name, flow.version or ""))
+    return str(uuid.UUID(bytes=hash_bytes))
 
 
-def generate_task_ids(flow, seed=None):
-    if seed is None:
-        seed = prefect.config.flows.id_seed or random.getrandbits(256)
-    seed = get_hash(str(seed))
-
-    seed = xor(seed, uuid.UUID(generate_flow_id(flow, seed=seed)).bytes)
-
-    # initial pass
-    # define each task based on its own structure
-
-    hashes = {t: hash_task(t) for t in flow.sorted_tasks()}
-    counter = Counter(hashes.values())
+def generate_task_ids(flow: "Flow") -> Dict["Task", str]:
     final_hashes = {}
 
-    # forward pass
+    # --- initial pass
+    # for each task, generate a hash based on that task's attributes
+    hashes = {t: get_hash(jsonpickle.encode(t, unpicklable=False)) for t in flow.tasks}
+    counter = Counter(hashes.values())
+
+    # --- forward pass #1
+    # for each task in order:
+    # - if the task hash is unique, put it in final_hashes
+    # - if not, hash the task with the hash of all incoming edges
+    # TODO make edges hashable
     # define each task in terms of the computational path of its ancestors
     for t in flow.sorted_tasks():
         if counter[hashes[t]] == 1:
@@ -69,7 +61,7 @@ def generate_task_ids(flow, seed=None):
         hashes[t] = get_hash(str((hashes[t], edge_hashes)))
         counter[hashes[t]] += 1
 
-    # backward pass
+    # --- backward pass
     # define each task in terms of the computational path of its descendents
     for t in reversed(flow.sorted_tasks()):
         if counter[hashes[t]] == 1:
@@ -82,7 +74,7 @@ def generate_task_ids(flow, seed=None):
         hashes[t] = get_hash(str((hashes[t], edge_hashes)))
         counter[hashes[t]] += 1
 
-    # forward pass #2
+    # --- forward pass #2
     # define each task in terms of the computational path of every task it's
     # connected to
     #
@@ -104,6 +96,8 @@ def generate_task_ids(flow, seed=None):
             hashes[t] = get_hash(hashes[t])
             counter[hashes[t]] += 1
         final_hashes[t] = hashes[t]
+
+    seed = uuid.UUID(generate_flow_id(flow)).bytes
 
     return {t: str(uuid.UUID(bytes=xor(seed, h))) for t, h in final_hashes.items()}
 
