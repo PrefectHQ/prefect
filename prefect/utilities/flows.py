@@ -20,4 +20,4 @@ def get_flow_by_id(id):
     Retrieves a flow by its ID. This will only work for Flows that are alive
     in the current interpreter.
     """
-    return prefect.flow.FLOW_REGISTRY.get(id)
+    return prefect.core.flow.FLOW_REGISTRY.get(id)

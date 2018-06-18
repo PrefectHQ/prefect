@@ -10,7 +10,7 @@ from prefect.utilities.json import Serializable
 from prefect.environments import Environment
 
 if TYPE_CHECKING:
-    from prefect.flow import Flow  # pylint: disable=W0611
+    from prefect.core.flow import Flow  # pylint: disable=W0611
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
@@ -98,7 +98,7 @@ class Task(Serializable):
         )
         callargs.update(callargs.pop(var_kw_arg, {}))
 
-        flow = prefect.context.get("flow", prefect.flow.Flow())
+        flow = prefect.context.get("flow", prefect.core.flow.Flow())
         return self.set_dependencies(
             flow=flow, upstream_tasks=upstream_tasks, keyword_results=callargs
         )
@@ -178,10 +178,10 @@ class Parameter(Task):
             )
         return params.get(self.name, self.default)
 
-    def serialize(self) -> Dict[str, Any]:
-        serialized = super().serialize()
-        serialized.update(required=self.required, default=self.default)
-        return serialized
+    def info(self) -> Dict[str, Any]:
+        info = super().info()
+        info.update(required=self.required, default=self.default)
+        return info
 
 class TaskResult:
     """

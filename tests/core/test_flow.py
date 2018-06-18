@@ -3,9 +3,8 @@ import datetime
 import pytest
 
 import prefect
-import ujson
-from prefect.flow import Flow
-from prefect.task import Task, Parameter
+from prefect.core.flow import Flow
+from prefect.core.task import Task, Parameter
 from prefect.signals import PrefectError
 from prefect.tasks.core.function_task import FunctionTask
 from prefect.utilities.tasks import task

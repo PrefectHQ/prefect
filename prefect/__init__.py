@@ -10,9 +10,7 @@ import prefect.signals
 import prefect.schedules
 import prefect.triggers
 
-import prefect.task as task_
-from prefect.task import Task, Parameter, TaskResult
-from prefect.flow import Flow
+from prefect.core import Task, Flow, Parameter
 import prefect.tasks
 import prefect.flows
 import prefect.engine

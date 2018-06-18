@@ -1,10 +1,10 @@
-from datetime import timedelta
 import json
+from datetime import timedelta
+
 import pytest
 
 import prefect
-from prefect.flow import Flow, TaskResult
-from prefect.task import Task, Parameter
+from prefect.core import Flow, Parameter, Task, TaskResult
 from prefect.utilities.tasks import task
 
 
