@@ -36,19 +36,15 @@ class TestFlowState:
         state = FlowState(FlowState.SUCCESS)
         assert (datetime.datetime.utcnow() - state.timestamp).total_seconds() < 0.001
 
-    def test_update_timestamp_by_setting_state(self):
-        state = FlowState(FlowState.SUCCESS)
-        ts = state.timestamp
+    def test_state_protected(self):
+        state = FlowState()
+        with pytest.raises(AttributeError):
+            state.state = FlowState.SUCCESS
 
-        state.state = FlowState.FAILED
-        assert state.timestamp > ts
-
-    def test_update_timestamp_by_setting_data(self):
-        state = FlowState(FlowState.SUCCESS)
-        ts = state.timestamp
-
-        state.data = 1
-        assert state.timestamp > ts
+    def test_data_protected(self):
+        state = FlowState()
+        with pytest.raises(AttributeError):
+            state.data = 1
 
     def test_timestamp_protected(self):
         state = FlowState(FlowState.SUCCESS)
@@ -153,19 +149,15 @@ class TestTaskState:
         state = TaskState(TaskState.SUCCESS)
         assert (datetime.datetime.utcnow() - state.timestamp).total_seconds() < 0.001
 
-    def test_update_timestamp_by_setting_state(self):
-        state = TaskState(TaskState.SUCCESS)
-        ts = state.timestamp
+    def test_state_protected(self):
+        state = TaskState()
+        with pytest.raises(AttributeError):
+            state.state = TaskState.SUCCESS
 
-        state.state = TaskState.FAILED
-        assert state.timestamp > ts
-
-    def test_update_timestamp_by_setting_data(self):
-        state = TaskState(TaskState.SUCCESS)
-        ts = state.timestamp
-
-        state.data = 1
-        assert state.timestamp > ts
+    def test_data_protected(self):
+        state = TaskState()
+        with pytest.raises(AttributeError):
+            state.data = 1
 
     def test_timestamp_protected(self):
         state = TaskState(TaskState.SUCCESS)
