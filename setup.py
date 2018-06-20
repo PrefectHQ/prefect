@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 install_requires = [
     "click",
@@ -6,7 +6,6 @@ install_requires = [
     "croniter",
     "cryptography",
     # 'distributed >= 1.16.1',
-    'jsonpickle',
     "python-dateutil",
     "requests",
     "wrapt",
@@ -19,7 +18,7 @@ install_requires = [
 extras = {
     # 's3': ['awsfs'],
     # 'gcs': ['https://github.com/martindurant/gcsfs.git'],
-    "test": ["pytest", "pytest-env", "pytest-xdist"]
+    "dev": ["pytest", "pytest-env", "pytest-xdist", "pre-commit"]
 }
 
 setup(

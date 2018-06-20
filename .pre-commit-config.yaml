@@ -1,0 +1,17 @@
+# stop running after first failure
+fail_fast: true
+
+repos:
+  # format code with Black
+  - repo: https://github.com/ambv/black
+    rev: stable
+    hooks:
+    - id: black
+      language_version: python3.6
+
+  # apply isort
+  - repo: https://github.com/pre-commit/mirrors-isort
+    rev: v4.3.4
+    hooks:
+      - id: isort
+        language_version: python3.6
