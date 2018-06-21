@@ -3,8 +3,18 @@ image: "python:3.4"
 stages:
   - test
 
+black:
+  stage: test
+  script:
+    - black --check .
+
+lint:
+  stage: test
+  script:
+  - pylint prefect
+
 test:
   stage: test
   script:
-    - pip install ".[test]"
+    - pip install ".[dev]"
     - pytest
