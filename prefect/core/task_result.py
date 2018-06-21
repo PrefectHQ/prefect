@@ -20,7 +20,7 @@ class TaskResult:
     TaskResults represent the execution of a specific task in a given flow.
     """
 
-    def __init__(self, task: 'Task', flow: "Flow" = None) -> None:
+    def __init__(self, task: "Task", flow: "Flow" = None) -> None:
         if flow is None:
             flow = prefect.core.Flow()
         flow.add_task(task)
@@ -35,9 +35,9 @@ class TaskResult:
 
     def set_dependencies(
         self,
-        upstream_tasks: Iterable['Task'] = None,
-        downstream_tasks: Iterable['Task'] = None,
-        keyword_results: Dict[str, 'Task'] = None,
+        upstream_tasks: Iterable["Task"] = None,
+        downstream_tasks: Iterable["Task"] = None,
+        keyword_results: Dict[str, "Task"] = None,
     ) -> None:
 
         self.flow.set_dependencies(

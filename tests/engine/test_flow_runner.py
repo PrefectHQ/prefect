@@ -152,9 +152,7 @@ def test_parameters():
     run_flow_runner_test(flow=f, expected_state=FlowState.FAILED)
 
     # if a required parameter isn't provided, the flow will fail
-    run_flow_runner_test(
-        flow=f, parameters=dict(y=2), expected_state=FlowState.FAILED
-    )
+    run_flow_runner_test(flow=f, parameters=dict(y=2), expected_state=FlowState.FAILED)
 
     # if the required parameter is provided, the flow will succeed
     run_flow_runner_test(

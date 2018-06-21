@@ -15,6 +15,7 @@ class AddTask(Task):
 
 class TestCreateTask:
     """Test various Task constructors"""
+
     def test_create_task_no_args(self):
         """Tasks can be created with no arguments"""
         assert Task()
@@ -23,7 +24,7 @@ class TestCreateTask:
         t1 = Task()
         assert t1.name == "Task"
 
-        t2 = Task(name='test')
+        t2 = Task(name="test")
         assert t2.name == "test"
 
     def test_create_task_slug(self):
@@ -75,40 +76,41 @@ class TestCreateTask:
         t2 = Task(trigger=prefect.triggers.all_failed)
         assert t2.trigger == prefect.triggers.all_failed
 
+
 def test_groups():
     t1 = Task()
-    assert t1.group == ''
+    assert t1.group == ""
 
-    t2 = Task(group='test')
-    assert t2.group == 'test'
+    t2 = Task(group="test")
+    assert t2.group == "test"
 
-    with prefect.context(group='test'):
+    with prefect.context(group="test"):
         t3 = Task()
-        assert t3.group == 'test'
+        assert t3.group == "test"
+
 
 def test_tags():
     t1 = Task()
     assert t1.tags == set()
 
-    t2 = Task(tags='test')
-    assert t2.tags == set(['test'])
+    t2 = Task(tags="test")
+    assert t2.tags == set(["test"])
 
-    t3 = Task(tags=['test', 'test2', 'test'])
-    assert t3.tags == set(['test', 'test2'])
+    t3 = Task(tags=["test", "test2", "test"])
+    assert t3.tags == set(["test", "test2"])
 
-    with prefect.context(tags=['test']):
+    with prefect.context(tags=["test"]):
         t4 = Task()
-        assert t4.tags == set(['test'])
+        assert t4.tags == set(["test"])
 
-    with prefect.context(tags=['test1', 'test2']):
-        t5 = Task(tags=['test3'])
-        assert t5.tags == set(['test1', 'test2', 'test3'])
+    with prefect.context(tags=["test1", "test2"]):
+        t5 = Task(tags=["test3"])
+        assert t5.tags == set(["test1", "test2", "test3"])
 
 
 def test_inputs():
     """ Test inferring input names """
-    assert AddTask().inputs() == ('x', 'y')
-
+    assert AddTask().inputs() == ("x", "y")
 
 
 def test_call():

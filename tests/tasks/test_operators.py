@@ -11,9 +11,7 @@ def check_operator_flow(flow, task_name, result):
     run_flow_runner_test(
         flow=flow,
         expected_state=FlowState.SUCCESS,
-        expected_task_states={
-            task_name: TaskState(TaskState.SUCCESS, result=result)
-        },
+        expected_task_states={task_name: TaskState(TaskState.SUCCESS, result=result)},
     )
 
 

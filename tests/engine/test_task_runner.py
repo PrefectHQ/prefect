@@ -56,9 +56,7 @@ def test_retry(err_task):
     Test that failed tasks are marked for retry if run_number is available
     """
     state = run_task_runner_test(
-        task=err_task,
-        expected_state=TaskState.PENDING_RETRY,
-        context={"run_number": 1},
+        task=err_task, expected_state=TaskState.PENDING_RETRY, context={"run_number": 1}
     )
     assert isinstance(state.result, datetime.datetime)
 
