@@ -27,7 +27,7 @@ class ThreadPoolExecutor(ConcurrentExecutor):
         super().__init__()
 
     @contextmanager
-    def execution_context(self, **kwargs):
+    def start(self, **kwargs):
         old_executor = self.executor
         with concurrent.futures.ThreadPoolExecutor(self.threads) as executor:
             self.executor = executor
@@ -42,7 +42,7 @@ class ProcessPoolExecutor(ConcurrentExecutor):
         super().__init__()
 
     @contextmanager
-    def execution_context(self, **kwargs):
+    def start(self, **kwargs):
         old_executor = self.executor
         with concurrent.futures.ProcessPoolExecutor(self.processes) as executor:
             self.executor = executor

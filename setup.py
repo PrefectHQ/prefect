@@ -6,6 +6,7 @@ install_requires = [
     "croniter",
     "cryptography",
     # 'distributed >= 1.16.1',
+    "mypy_extensions",
     "python-dateutil",
     "requests",
     "wrapt",

@@ -4,10 +4,14 @@ the state of preceding tasks.
 """
 from prefect import signals
 from prefect.utilities.json import serializable
+from typing import Iterable, TYPE_CHECKING, Dict
+
+if TYPE_CHECKING:
+    from prefect.engine.state import State
+    from prefect.core import Task
 
 
-@serializable
-def always_run(upstream_states):
+def always_run(upstream_states: Dict["Task", "State"]) -> bool:
     """
     This task will run no matter what the upstream states are.
     """
@@ -15,8 +19,7 @@ def always_run(upstream_states):
     return True
 
 
-@serializable
-def manual_only(upstream_states):
+def manual_only(upstream_states: Dict["Task", "State"]) -> bool:
     """
     This task will never run automatically. It will only run if it is
     specifically instructed, either by ignoring the trigger or adding it
@@ -26,8 +29,7 @@ def manual_only(upstream_states):
     return False
 
 
-@serializable
-def all_successful(upstream_states):
+def all_successful(upstream_states: Dict["Task", "State"]) -> bool:
     """
     Runs if all upstream tasks were successful. SKIPPED tasks are considered
     successes (SKIP_DOWNSTREAM is not).
@@ -41,8 +43,7 @@ def all_successful(upstream_states):
     return True
 
 
-@serializable
-def all_failed(upstream_states):
+def all_failed(upstream_states: Dict["Task", "State"]) -> bool:
     """
     Runs if all upstream tasks failed. SKIPPED tasks are considered successes.
     """
@@ -52,22 +53,14 @@ def all_failed(upstream_states):
     return True
 
 
-@serializable
-def all_finished(upstream_states):
+def all_finished(upstream_states: Dict["Task", "State"]) -> bool:
     """
-    Runs if all tasks finished (either SUCCESS, FAIL, SKIP, or SKIP_DOWNSTREAM)
+    Runs if all tasks finished (either SUCCESS, FAIL, SKIP)
     """
-
-    if not all(s.is_finished() for s in upstream_states.values()):
-        raise signals.FAIL(
-            "Trigger failed: some preceding tasks did not finish. "
-            "(This shouldn't happen!)"
-        )
     return True
 
 
-@serializable
-def any_successful(upstream_states):
+def any_successful(upstream_states: Dict["Task", "State"]) -> bool:
     """
     Runs if any tasks were successful. SKIPPED tasks are considered successes;
     SKIP_DOWNSTREAM is not.
@@ -78,8 +71,7 @@ def any_successful(upstream_states):
     return True
 
 
-@serializable
-def any_failed(upstream_states):
+def any_failed(upstream_states: Dict["Task", "State"]) -> bool:
     """
     No failed tasks -> fail
     * skipped tasks count as successes

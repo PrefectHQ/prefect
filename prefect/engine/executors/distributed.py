@@ -96,7 +96,7 @@ class DistributedExecutor(Executor):
         super().__init__()
 
     @contextmanager
-    def execution_context(self):
+    def start(self):
         if not self.client:
             old_client = self.client
             with distributed_client(

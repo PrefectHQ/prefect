@@ -1,43 +1,13 @@
-from functools import wraps
 from contextlib import contextmanager
+from functools import wraps
+from typing import Union, Any, Dict, Iterable, TypeVar
+
 import prefect
+from prefect.core import Flow, Task
+from prefect.engine.flow_runner import FlowRunner
+from prefect.engine.state import State
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.json import Serializable
-
-
-def run_in_executor(method):
-    """
-    Decorator for executor methods that automatically executes them in the
-    Executor.
-
-    When a decorated method is called, it and its arguments are automatically
-    passed to the executor's submit() method. The Prefect context is also
-    serialized and provided. The resulting future is returned.
-
-    class MyExecutor(Executor):
-
-        @run_in_executor
-        def method_that_should_run_on_client(x, y):
-            return x + y
-
-    """
-
-    def method_with_context(*args, _context, **kwargs):
-        with prefect.context(_context):
-            return method(*args, **kwargs)
-
-    @wraps(method)
-    def wrapper(self, *args, **kwargs):
-        with prefect.context(kwargs.get("context", {})):
-            return self.submit(
-                method_with_context,
-                self,
-                *args,
-                _context=prefect.context.to_dict(),
-                **kwargs
-            )
-
-    return wrapper
 
 
 class Executor(Serializable):
@@ -57,13 +27,13 @@ class Executor(Serializable):
         pass
 
     @contextmanager
-    def execution_context(self):
+    def start(self):
         """
         This method is called
         """
         yield self
 
-    def submit(self, fn, *args, _client_kwargs=None, **kwargs):
+    def submit(self, fn, *args, _executor_kwargs=None, **kwargs):
         """
         Submit a function to the executor for execution. Returns a future.
         """
@@ -75,73 +45,52 @@ class Executor(Serializable):
         """
         raise NotImplementedError()
 
-    def set_state(self, state, new_state, result=None):
-        """
-        Update a state object with a new state and optional result.
-
-        This method must update the passed state object, even if it performs
-        other asynchronous operations.
-        """
-        state.set_state(new_state, result=result)
-
-    @run_in_executor
-    def run_task(
-        self, task, state, upstream_states, inputs, ignore_trigger=False, context=None
-    ):
-        task_runner = prefect.engine.TaskRunner(task=task, executor=self)
-        return task_runner.run(
-            state=state,
-            upstream_states=upstream_states,
-            inputs=inputs,
-            ignore_trigger=ignore_trigger,
-            context=prefect.context,
-        )
+    def set_state(self, current_state: State, state: State, data: Any = None) -> State:
+        return type(current_state)(state, data)
 
     def run_flow(
         self,
-        flow,
-        state,
-        task_states,
-        start_tasks,
-        context,
-        parameters=None,
-        task_contexts=None,
-        flow_is_serialized=True,
-        return_all_task_states=False,
+        flow: Flow,
+        state: State,
+        task_states: Dict[Task, State],
+        start_tasks: Iterable[Task],
+        return_tasks: Iterable[Task],
+        parameters: Dict,
+        context: Dict,
     ):
-        def run_flow_in_executor(
-            flow,
-            state,
-            task_states,
-            start_tasks,
-            context,
-            parameters,
-            task_contexts,
-            flow_is_serialized,
-            return_all_task_states,
-        ):
-            if flow_is_serialized:
-                flow = prefect.Flow.deserialize(flow)
-            flow_runner = prefect.engine.FlowRunner(flow=flow, executor=self)
-            return flow_runner.run(
-                state=state,
-                task_states=task_states,
-                start_tasks=start_tasks,
-                context=context,
-                parameters=parameters,
-                task_contexts=task_contexts,
-                return_all_task_states=return_all_task_states,
-            )
+        context = context or {}
+        context.update(prefect.context.to_dict())
+        flow_runner = FlowRunner(flow=flow, executor=self)
 
-        self.submit(
-            run_flow_in_executor,
+        return self.submit(
+            flow_runner.run,
             flow=flow,
             state=state,
             task_states=task_states,
             start_tasks=start_tasks,
+            return_tasks=return_tasks,
             context=context,
             parameters=parameters,
-            task_contexts=task_contexts,
-            flow_is_serialized=flow_is_serialized,
-            return_all_task_states=return_all_task_states,
+        )
+
+    def run_task(
+        self,
+        task: Task,
+        state: State,
+        upstream_states: Dict[Task, State],
+        inputs_map: Dict[str, Task],
+        ignore_trigger=False,
+        context=None,
+    ):
+        context = context or {}
+        context.update(prefect.context.to_dict())
+        task_runner = prefect.engine.TaskRunner(task=task, executor=self)
+
+        return self.submit(
+            task_runner.run,
+            state=state,
+            upstream_states=upstream_states,
+            inputs_map=inputs_map,
+            ignore_trigger=ignore_trigger,
+            context=prefect.context,
         )

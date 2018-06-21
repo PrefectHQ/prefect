@@ -5,12 +5,13 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 import prefect
 import prefect.signals
 import prefect.triggers
-from prefect.utilities.json import Serializable
+from prefect.utilities.json import Serializable, to_qualified_name
 
 from prefect.environments import Environment
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
+    from prefect.engine.state import State
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
@@ -23,12 +24,13 @@ class Task(Serializable):
         description: str = None,
         group: str = None,
         tags: Iterable[str] = None,
-        checkpoint: bool = False,
         max_retries: int = 0,
         retry_delay: timedelta = timedelta(minutes=1),
         timeout: timedelta = None,
-        trigger: Callable = None,
+        trigger: Callable[[Dict["Task", "State"]], bool] = None,
+        propogate_skip: bool = False,
         environment: Environment = None,
+        checkpoint: bool = False,
     ) -> None:
 
         self.name = name or type(self).__name__
@@ -42,12 +44,15 @@ class Task(Serializable):
         self.tags = set(tags or [])
         self.tags.update(prefect.context.get("tags", []))
 
-        self.checkpoint = checkpoint
         self.environment = environment
+        self.checkpoint = checkpoint
+
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
+
         self.trigger = trigger or prefect.triggers.all_successful
+        self.propogate_skip = propogate_skip
 
         flow = prefect.context.get("flow")  # type: Flow
         if flow:
@@ -182,6 +187,7 @@ class Parameter(Task):
         info = super().info()
         info.update(required=self.required, default=self.default)
         return info
+
 
 class TaskResult:
     """

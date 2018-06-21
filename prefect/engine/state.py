@@ -1,13 +1,32 @@
 import datetime
 from prefect.utilities.json import Serializable
-from typing import List, Any
+from typing import List, Any, Dict
 
 
 class State(Serializable):
 
-    _default_state = None # type: str
+    PENDING = _default_state = "PENDING"
+    RETRYING = "RETRYING"
+    SCHEDULED = "SCHEDULED"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    SKIPPED = "SKIPPED"
 
-    def __init__(self, state: str = None, data: Any = None) -> None:
+    _pending_states = frozenset([SCHEDULED, PENDING, RETRYING, SCHEDULED])
+    _finished_states = frozenset([SUCCESS, FAILED, SKIPPED])
+    _successful_states = frozenset([SUCCESS, SKIPPED])
+    _running_states = frozenset([RUNNING])
+
+    def __init__(self, state: str = None, data: Any = None, meta: Dict = None) -> None:
+        """
+        Create a new State object.
+            state (str, optional): Defaults to None. One of the State class's valid state types. If None is provided, the State's default will be used.
+
+            data (Any, optional): Defaults to None. A data payload for the state.
+
+            meta (Dict, optional): Defaults to None. State metadata.
+        """
 
         if state is None:
             state = self._default_state
@@ -16,6 +35,7 @@ class State(Serializable):
         self._validate_state(state)
         self._state = state
         self._data = data
+        self._meta = meta or {}
         self._timestamp = datetime.datetime.utcnow()
 
     def __repr__(self) -> str:
@@ -45,22 +65,6 @@ class State(Serializable):
         if state not in self.all_states():
             raise ValueError('Invalid state: "{}"'.format(state))
 
-
-class FlowState(State):
-
-    PENDING = _default_state = "PENDING"
-    SCHEDULED = "SCHEDULED"
-    RUNNING = "RUNNING"
-    SUCCESS = "SUCCESS"
-    FAILED = "FAILED"
-    SKIPPED = "SKIPPED"
-    SHUTDOWN = "SHUTDOWN"
-
-    _pending_states = frozenset([SCHEDULED, PENDING])
-    _finished_states = frozenset([SUCCESS, FAILED, SKIPPED])
-    _successful_states = frozenset([SUCCESS, SKIPPED])
-    _running_states = frozenset([RUNNING])
-
     def is_pending(self) -> bool:
         return self.state in self._pending_states
 
@@ -78,45 +82,3 @@ class FlowState(State):
 
     def is_skipped(self) -> bool:
         return self.state == self.SKIPPED
-
-
-class TaskState(State):
-
-    PENDING = _default_state = "PENDING"
-    PENDING_RETRY = "PENDING_RETRY"
-    SCHEDULED = "SCHEDULED"
-    RUNNING = "RUNNING"
-    SUCCESS = "SUCCESS"
-    FAILED = "FAILED"
-    SKIPPED = "SKIPPED"
-    SKIP_DOWNSTREAM = "SKIP_DOWNSTREAM"
-    SHUTDOWN = "SHUTDOWN"
-
-    _pending_states = frozenset([PENDING, PENDING_RETRY, SCHEDULED])
-    _running_states = frozenset([RUNNING])
-    _finished_states = frozenset([SUCCESS, FAILED, SKIPPED, SKIP_DOWNSTREAM])
-    _skipped_states = frozenset([SKIPPED, SKIP_DOWNSTREAM])
-    _successful_states = frozenset([SUCCESS, SKIPPED])
-    _failed_states = frozenset([FAILED])
-
-    def is_pending(self) -> bool:
-        return self.state in self._pending_states
-
-    def is_pending_retry(self) -> bool:
-        return self.state == self.PENDING_RETRY
-
-    def is_running(self) -> bool:
-        return self.state in self._running_states
-
-    def is_finished(self) -> bool:
-        return self.state in self._finished_states
-
-    def is_successful(self) -> bool:
-        return self.state in self._successful_states
-
-    def is_failed(self) -> bool:
-        return self.state in self._failed_states
-
-    def is_skipped(self) -> bool:
-        return self.state in self._skipped_states
-
