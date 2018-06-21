@@ -63,7 +63,6 @@ class FlowRunner:
                     self.logger.info("Flow run FAIL")
                     state = self.executor.set_state(state, State.FAILED)
                 except Exception:
-                    raise
                     self.logger.info("Flow run FAIL")
                     state = self.executor.set_state(state, State.FAILED)
 

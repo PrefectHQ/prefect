@@ -77,8 +77,7 @@ class TaskRunner:
                     state = self.executor.set_state(state, state.SKIPPED)
 
                 except Exception as e:
-                    raise
-                    state = self.handle_fail(state, data=str(e))
+                    state = self.handle_fail(state, data=dict(message=str(e)))
 
         return state
 
