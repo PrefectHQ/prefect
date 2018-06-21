@@ -3,7 +3,7 @@ image: "python:3.4"
 stages:
   - test
 
-format:
+check formatting:
   stage: test
   image: "python:3.6"
   script:
@@ -11,13 +11,13 @@ format:
     - black --check .
     - isort --check
 
-lint:
+check linting:
   stage: test
   script:
   - pip install pylint
   - pylint prefect
 
-test:
+run tests:
   stage: test
   script:
     - pip install ".[dev]"
