@@ -11,11 +11,11 @@ check formatting:
     - black --check .
     - isort --check -vb
 
-check linting:
-  stage: test
-  script:
-  - pip install pylint
-  - pylint prefect
+# check linting:
+#   stage: test
+#   script:
+#   - pip install pylint
+#   - pylint prefect
 
 run tests:
   stage: test
