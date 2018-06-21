@@ -1,6 +1,5 @@
 from contextlib import contextmanager
 
-
 from prefect.engine.executors import Executor
 
 _LOCAL_CLUSTER = None

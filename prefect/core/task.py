@@ -5,9 +5,8 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 import prefect
 import prefect.signals
 import prefect.triggers
-from prefect.utilities.json import Serializable, to_qualified_name
-
 from prefect.environments import Environment
+from prefect.utilities.json import Serializable, to_qualified_name
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611

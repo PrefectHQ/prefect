@@ -1,10 +1,11 @@
-import re
 import logging
 import os
 import random
+import re
 import uuid
 from string import ascii_letters, digits, punctuation
 from types import SimpleNamespace
+
 import toml
 from cryptography.fernet import Fernet
 

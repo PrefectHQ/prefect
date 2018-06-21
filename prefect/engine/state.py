@@ -1,6 +1,7 @@
 import datetime
+from typing import Any, Dict, List
+
 from prefect.utilities.json import Serializable
-from typing import List, Any, Dict
 
 
 class State(Serializable):

@@ -1,6 +1,6 @@
 import distributed
-from distributed.utils_test import cluster, loop
 import pytest
+from distributed.utils_test import cluster, loop
 
 import prefect
 import prefect.engine.executors as executors

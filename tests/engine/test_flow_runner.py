@@ -1,10 +1,11 @@
 import pytest
+
 import prefect
-from prefect.core.flow import Flow
 from prefect import Parameter, Task
-from prefect.tasks.core.function_task import FunctionTask
+from prefect.core.flow import Flow
 from prefect.engine import FlowRunner
 from prefect.engine.state import FlowState, TaskState
+from prefect.tasks.core.function_task import FunctionTask
 from prefect.utilities.tests import run_flow_runner_test
 
 

@@ -1,6 +1,6 @@
 import pytest
-from prefect import signals
-from prefect import triggers
+
+from prefect import signals, triggers
 from prefect.engine.state import TaskState
 
 

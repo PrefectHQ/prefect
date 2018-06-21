@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from functools import wraps
-from typing import Union, Any, Dict, Iterable, TypeVar
+from typing import Any, Dict, Iterable, TypeVar, Union
 
 import prefect
 from prefect.core import Flow, Task

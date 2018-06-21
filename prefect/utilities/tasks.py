@@ -1,7 +1,9 @@
-from typing import Any
 from contextlib import contextmanager
-import prefect
+from typing import Any
+
 import wrapt
+
+import prefect
 
 
 @contextmanager

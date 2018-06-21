@@ -1,4 +1,4 @@
-from typing import Iterable, Any
+from typing import Any, Iterable
 
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 

@@ -1,4 +1,5 @@
 import pytest
+
 from prefect.utilities import collections
 
 

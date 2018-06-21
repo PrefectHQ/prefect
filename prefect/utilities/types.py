@@ -1,4 +1,4 @@
-from typing import Type, Union, TypeVar, Tuple
+from typing import Tuple, Type, TypeVar, Union
 
 T = TypeVar("T")
 

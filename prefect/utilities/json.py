@@ -1,18 +1,20 @@
 """
 Facilities for serializing/deserializing Python objects to JSON.
 """
-import sys
-from functools import singledispatch
 import base64
 import datetime
+import inspect
 import json
+import sys
 import types
 import uuid
-import inspect
+from functools import singledispatch
+from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar
+
 import dateutil.parser
 from cryptography.fernet import Fernet
+
 import prefect
-from typing import Type, Any, Dict, Optional, Callable, Generic, TypeVar
 
 JSON_CODECS_KEYS = dict()  # type: Dict[str, 'JSONCodec']
 CODEC_PREFIX = "//"

@@ -1,10 +1,12 @@
 import datetime
+
 import pytest
+
 import prefect
 from prefect.core.task import Task
-from prefect.utilities.tasks import task
 from prefect.engine import TaskRunner
 from prefect.engine.state import TaskState
+from prefect.utilities.tasks import task
 from prefect.utilities.tests import run_task_runner_test
 
 

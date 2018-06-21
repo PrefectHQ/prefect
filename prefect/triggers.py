@@ -2,9 +2,10 @@
 Triggers are functions that determine if task state should change based on
 the state of preceding tasks.
 """
+from typing import TYPE_CHECKING, Dict, Iterable
+
 from prefect import signals
 from prefect.utilities.json import serializable
-from typing import Iterable, TYPE_CHECKING, Dict
 
 if TYPE_CHECKING:
     from prefect.engine.state import State

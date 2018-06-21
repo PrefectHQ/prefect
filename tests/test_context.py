@@ -6,7 +6,7 @@ from prefect import context
 from prefect.utilities.context import (
     ContextAnnotation,
     apply_context_annotations,
-    call_with_context_annotations,
+    call_with_context_annotations
 )
 
 AS_OF_DT = datetime.datetime(2016, 12, 31)

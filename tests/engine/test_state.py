@@ -1,7 +1,9 @@
 import datetime
 import json
-from prefect.engine.state import FlowState, TaskState
+
 import pytest
+
+from prefect.engine.state import FlowState, TaskState
 
 
 class TestFlowState:

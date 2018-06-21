@@ -1,6 +1,6 @@
 import logging
 from contextlib import contextmanager
-from typing import Any, Dict, List, Union, Iterable
+from typing import Any, Dict, Iterable, List, Union
 
 import prefect
 import prefect.signals

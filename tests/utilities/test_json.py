@@ -1,6 +1,8 @@
-import pytest
 import datetime
 import json
+
+import pytest
+
 import prefect.utilities.json as codecs
 
 

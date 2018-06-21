@@ -1,5 +1,6 @@
-import prefect
 import smtplib
+
+import prefect
 
 EMAIL_TEMPLATE = """
     From: {email_from}

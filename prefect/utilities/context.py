@@ -12,11 +12,11 @@ Example:
 
 """
 
-from typing import Iterable, Dict, Any, Union
 import contextlib
 import copy
 import inspect
 from types import SimpleNamespace
+from typing import Any, Dict, Iterable, Union
 
 import wrapt
 

@@ -1,5 +1,5 @@
-from contextlib import contextmanager
 import copy
+from contextlib import contextmanager
 
 import pytest
 

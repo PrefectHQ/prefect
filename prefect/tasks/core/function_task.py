@@ -1,5 +1,6 @@
-import prefect
 import inspect
+
+import prefect
 
 
 class FunctionTask(prefect.Task):

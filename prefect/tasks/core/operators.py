@@ -1,4 +1,5 @@
 from typing import Any
+
 from prefect import Task
 from prefect.utilities.tasks import task_factory
 

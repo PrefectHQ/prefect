@@ -19,12 +19,12 @@ from typing import (
     Optional,
     Set,
     Tuple,
-    Union,
+    Union
 )
 
-from mypy_extensions import TypedDict
 import graphviz
 import jsonpickle
+from mypy_extensions import TypedDict
 
 import prefect
 import prefect.schedules

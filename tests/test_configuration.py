@@ -1,8 +1,10 @@
-import pytest
 import os
 import tempfile
 import uuid
+
+import pytest
 from cryptography.fernet import Fernet
+
 from prefect import configuration
 
 template = b"""

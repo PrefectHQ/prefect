@@ -3,13 +3,13 @@ import logging
 import types
 import uuid
 from contextlib import contextmanager
+from typing import Any, Dict, List
 
 import prefect
 from prefect import signals
-from prefect.utilities.context import call_with_context_annotations
-from prefect.engine.state import State
 from prefect.core import Task
-from typing import Dict, List, Any
+from prefect.engine.state import State
+from prefect.utilities.context import call_with_context_annotations
 
 
 class TaskRunner:

@@ -1,5 +1,5 @@
 import prefect
-from prefect import signals, Task
+from prefect import Task, signals
 from prefect.tasks.core import operators
 from prefect.utilities.tasks import as_task_result
 

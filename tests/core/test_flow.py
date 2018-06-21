@@ -4,7 +4,7 @@ import pytest
 
 import prefect
 from prefect.core.flow import Flow
-from prefect.core.task import Task, Parameter
+from prefect.core.task import Parameter, Task
 from prefect.signals import PrefectError
 from prefect.tasks.core.function_task import FunctionTask
 from prefect.utilities.tasks import task
