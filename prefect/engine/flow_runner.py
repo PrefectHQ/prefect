@@ -109,23 +109,32 @@ class FlowRunner:
         for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
             upstream_states = {}
-            inputs_map = {}
+            upstream_inputs = {}
 
             # -- process each edge to the task
             for edge in self.flow.edges_to(task):
 
                 # extract upstream state to pass to the task trigger
-                upstream_states[edge.upstream_task] = task_states[edge.upstream_task]
+                upstream_states[edge.upstream_task] = self.executor.submit(
+                    lambda s: State(s.state), task_states[edge.upstream_task]
+                )
 
+                # if the upstream task is supposed to pass data, then extract the data
+                # into the inputs dict -- but only if the task was successful (otherwise the
+                # data attribute may contain information for an error state)
+                # TODO add a test for this
                 if edge.key:
-                    inputs_map[edge.key] = edge.upstream_task
+                    upstream_inputs[edge.key] = self.executor.submit(
+                        lambda s: s.data if s.state == State.SUCCESS else None,
+                        task_states[edge.upstream_task],
+                    )
 
             # -- run the task
             task_states[task] = self.executor.run_task(
                 task=task,
                 state=task_states.get(task),
                 upstream_states=upstream_states,
-                inputs_map=inputs_map,
+                inputs=upstream_inputs,
                 ignore_trigger=(task in start_tasks),
             )
 

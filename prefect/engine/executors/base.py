@@ -78,7 +78,7 @@ class Executor(Serializable):
         task: Task,
         state: State,
         upstream_states: Dict[Task, State],
-        inputs_map: Dict[str, Task],
+        inputs: Dict[str, Any],
         ignore_trigger=False,
         context=None,
     ):
@@ -90,7 +90,7 @@ class Executor(Serializable):
             task_runner.run,
             state=state,
             upstream_states=upstream_states,
-            inputs_map=inputs_map,
+            inputs=inputs,
             ignore_trigger=ignore_trigger,
             context=prefect.context,
         )

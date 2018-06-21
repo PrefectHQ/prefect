@@ -29,15 +29,14 @@ class TaskRunner:
         self,
         state: State = None,
         upstream_states: Dict[Task, State] = None,
-        inputs_map: Dict[str, Task] = None,
+        inputs: Dict[str, Any] = None,
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
     ) -> State:
         state = State(state)
         upstream_states = upstream_states or {}
-        inputs_map = inputs_map or {}
-        inputs = {key: upstream_states[task].data for key, task in inputs_map.items()}
         context = context or {}
+        inputs = inputs or {}
 
         # prepare context
         context.update(
@@ -65,18 +64,21 @@ class TaskRunner:
                     pass
 
                 except signals.SUCCESS:
+                    logging.info('SUCCESS')
                     state = self.executor.set_state(state, state.SUCCESS)
 
                 except signals.FAIL as e:
-                    state = self.handle_fail(state, data=str(e))
+                    state = self.handle_fail(state, data=dict(message=str(e)))
 
                 except signals.RETRY:
                     state = self.handle_retry(state)
 
                 except signals.SKIP:
+                    logging.info('SKIP')
                     state = self.executor.set_state(state, state.SKIPPED)
 
                 except Exception as e:
+                    logging.info('Unexpected error while running task.')
                     state = self.handle_fail(state, data=dict(message=str(e)))
 
         return state
@@ -147,6 +149,7 @@ class TaskRunner:
         """
         Checks if a task is eligable for retry; otherwise marks it failed.
         """
+        self.logger.info('Task FAILED')
         run_number = prefect.context.get("run_number", 0)
         if run_number and run_number <= self.task.max_retries + 1:
             return self.handle_retry(state)
@@ -157,6 +160,7 @@ class TaskRunner:
         # TODO exponential backoff based on run_number
         # run_number = prefect.context.get('run_number', 0)
 
+        self.logger.info('Task RETRYING')
         if retry_time is None:
             retry_time = datetime.datetime.utcnow() + self.task.retry_delay
 
