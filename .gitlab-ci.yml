@@ -3,12 +3,13 @@ image: "python:3.4"
 stages:
   - test
 
-black:
+format:
   stage: test
   image: "python:3.6"
   script:
-    - pip install black
+    - pip install black isort
     - black --check .
+    - isort --check
 
 lint:
   stage: test
