@@ -64,7 +64,7 @@ class TaskRunner:
                     pass
 
                 except signals.SUCCESS:
-                    logging.info('SUCCESS')
+                    logging.info("SUCCESS")
                     state = self.executor.set_state(state, state.SUCCESS)
 
                 except signals.FAIL as e:
@@ -74,11 +74,11 @@ class TaskRunner:
                     state = self.handle_retry(state)
 
                 except signals.SKIP:
-                    logging.info('SKIP')
+                    logging.info("SKIP")
                     state = self.executor.set_state(state, state.SKIPPED)
 
                 except Exception as e:
-                    logging.info('Unexpected error while running task.')
+                    logging.info("Unexpected error while running task.")
                     state = self.handle_fail(state, data=dict(message=str(e)))
 
         return state
@@ -149,7 +149,7 @@ class TaskRunner:
         """
         Checks if a task is eligable for retry; otherwise marks it failed.
         """
-        self.logger.info('Task FAILED')
+        self.logger.info("Task FAILED")
         run_number = prefect.context.get("run_number", 0)
         if run_number and run_number <= self.task.max_retries + 1:
             return self.handle_retry(state)
@@ -160,7 +160,7 @@ class TaskRunner:
         # TODO exponential backoff based on run_number
         # run_number = prefect.context.get('run_number', 0)
 
-        self.logger.info('Task RETRYING')
+        self.logger.info("Task RETRYING")
         if retry_time is None:
             retry_time = datetime.datetime.utcnow() + self.task.retry_delay
 

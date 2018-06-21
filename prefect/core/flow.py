@@ -468,7 +468,6 @@ class Flow(Serializable):
         hash_bytes = get_hash("{}:{}".format(self.name, self.version or ""))
         return str(uuid.UUID(bytes=hash_bytes))
 
-
     def generate_task_ids(self) -> Dict["Task", str]:
         final_hashes = {}
 
@@ -568,5 +567,3 @@ def xor(hash1: bytes, hash2: bytes) -> bytes:
     Computes the bitwise XOR between two byte hashes
     """
     return bytes([x ^ y for x, y in zip(hash1, itertools.cycle(hash2))])
-
-
