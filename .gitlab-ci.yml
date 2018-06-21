@@ -9,7 +9,7 @@ check formatting:
   script:
     - pip install black isort
     - black --check .
-    - isort --check
+    - isort --check -vb
 
 check linting:
   stage: test
