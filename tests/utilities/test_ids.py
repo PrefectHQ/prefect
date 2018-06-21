@@ -6,7 +6,7 @@ from prefect.utilities.ids import (
     generate_task_ids,
     get_flow_from_id,
     get_task_from_id,
-    register_flow
+    register_flow,
 )
 
 TASKS = {}
