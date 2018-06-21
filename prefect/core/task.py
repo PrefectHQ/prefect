@@ -16,6 +16,22 @@ if TYPE_CHECKING:
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
 
+def get_task_info(task: "Task") -> Dict[str, Any]:
+    return dict(
+        name=task.name,
+        slug=task.slug,
+        type=to_qualified_name(type(task)),
+        description=task.description,
+        max_retries=task.max_retries,
+        retry_delay=task.retry_delay,
+        timeout=task.timeout,
+        trigger=task.trigger,
+        propogate_skip=task.propogate_skip,
+        environment=task.environment,
+        checkpoint=task.checkpoint,
+    )
+
+
 class Task(Serializable):
     def __init__(
         self,
@@ -134,21 +150,7 @@ class Task(Serializable):
         """
         A description of the task.
         """
-
-        serialized = dict(
-            name=self.name,
-            slug=self.slug,
-            type=type(self).__name__,
-            description=self.description,
-            max_retries=self.max_retries,
-            retry_delay=self.retry_delay,
-            timeout=self.timeout,
-            trigger=self.trigger,
-            checkpoint=self.checkpoint,
-            environment=self.environment,
-        )
-
-        return serialized
+        return get_task_info(self)
 
 
 class Parameter(Task):

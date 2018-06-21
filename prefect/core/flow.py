@@ -1,21 +1,43 @@
 import copy
+import hashlib
 import inspect
+import itertools
+import random
 import tempfile
+import uuid
+from collections import Counter
 from contextlib import contextmanager
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple, Iterator, TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AnyStr,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
+from mypy_extensions import TypedDict
 import graphviz
+import jsonpickle
 
 import prefect
 import prefect.schedules
-from prefect.core.task import Parameter, Task
 from prefect.core.edge import Edge
+from prefect.core.task import Parameter, Task
 from prefect.core.task_result import TaskResult
 from prefect.utilities.functions import cache
 from prefect.utilities.json import Serializable
 from prefect.utilities.tasks import as_task_result
 
 VAR_POSITIONAL = inspect.Parameter.VAR_POSITIONAL
+
+ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
 
 def flow_cache_key(flow: "Flow") -> int:
@@ -26,7 +48,6 @@ def flow_cache_key(flow: "Flow") -> int:
     return hash((frozenset(flow.tasks), frozenset(flow.edges)))
 
 
-
 class Flow(Serializable):
     def __init__(
         self,
@@ -34,7 +55,7 @@ class Flow(Serializable):
         version: str = None,
         schedule: prefect.schedules.Schedule = None,
         description: str = None,
-        environment: prefect.environments.Environment=None,
+        environment: prefect.environments.Environment = None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
     ) -> None:
@@ -117,14 +138,14 @@ class Flow(Serializable):
         """
         return set(t for t in self.tasks if not self.edges_from(t))
 
-    def parameters(self) -> Dict[str, Dict[str, Any]]:
+    def parameters(self, only_required=False) -> Dict[str, ParameterDetails]:
         """
         Returns details about any Parameters of this flow
         """
         return {
             t.name: {"required": t.required, "default": t.default}
             for t in self.tasks
-            if isinstance(t, Parameter)
+            if isinstance(t, Parameter) and (t.required if only_required else True)
         }
 
     # Graph --------------------------------------------------------------------
@@ -386,9 +407,7 @@ class Flow(Serializable):
 
     # Execution  ---------------------------------------------------------------
 
-    def run(
-        self, parameters=None, executor=None, return_all_task_states=False, **kwargs
-    ):
+    def run(self, parameters=None, executor=None, **kwargs):
         """
         Run the flow.
         """
@@ -399,11 +418,7 @@ class Flow(Serializable):
             if p in kwargs:
                 parameters[p] = kwargs.pop(p)
 
-        return runner.run(
-            parameters=parameters,
-            return_all_task_states=return_all_task_states,
-            **kwargs,
-        )
+        return runner.run(parameters=parameters, **kwargs)
 
     # Serialization ------------------------------------------------------------
 
@@ -430,14 +445,6 @@ class Flow(Serializable):
             ],
         )
 
-    def fingerprint(self, seed=None):
-        """
-        Generates a unique fingerprint for the flow and each task it contains.
-        """
-        flow_id = prefect.utilities.ids.generate_flow_id(self, seed=seed)
-        task_ids = prefect.utilities.ids.generate_task_ids(self, seed=seed)
-        return dict(flow_id=flow_id, task_ids=task_ids)
-
     # Visualization ------------------------------------------------------------
 
     def visualize(self):
@@ -451,3 +458,115 @@ class Flow(Serializable):
 
         with tempfile.NamedTemporaryFile() as tmp:
             graph.render(tmp.name, view=True)
+
+    # IDs ------------------------------------------------------------
+
+    def generate_flow_id(self) -> str:
+        """
+        Flows are identified by their name and version.
+        """
+        hash_bytes = get_hash("{}:{}".format(self.name, self.version or ""))
+        return str(uuid.UUID(bytes=hash_bytes))
+
+
+    def generate_task_ids(self) -> Dict["Task", str]:
+        final_hashes = {}
+
+        # --- initial pass
+        # for each task, generate a hash based on that task's attributes
+        hashes = {t: get_hash(t) for t in self.tasks}
+        counter = Counter(hashes.values())
+
+        # --- forward pass #1
+        # for each task in order:
+        # - if the task hash is unique, put it in final_hashes
+        # - if not, hash the task with the hash of all incoming edges
+        # the result is a hash that represents each task in terms of all ancestors since the
+        # last uniquely defined task.
+        for t in self.sorted_tasks():
+            if counter[hashes[t]] == 1:
+                final_hashes[t] = hashes[t]
+                continue
+
+            edge_hashes = sorted(
+                (e.key, hashes[e.upstream_task]) for e in self.edges_to(t)
+            )
+            hashes[t] = get_hash((hashes[t], edge_hashes))
+            counter[hashes[t]] += 1
+
+        # --- backward pass
+        # for each task in reverse order:
+        # - if the task hash is unique, put it in final_hashes
+        # - if not, hash the task with the hash of all outgoing edges
+        # the result is a hash that represents each task in terms of both its ancestors (from
+        # the foward pass) and also any descendents.
+        for t in reversed(self.sorted_tasks()):
+            if counter[hashes[t]] == 1:
+                final_hashes[t] = hashes[t]
+                continue
+
+            edge_hashes = sorted(
+                (e.key, hashes[e.downstream_task]) for e in self.edges_from(t)
+            )
+            hashes[t] = get_hash(str((hashes[t], edge_hashes)))
+            counter[hashes[t]] += 1
+
+        # --- forward pass #2
+        # for each task in order:
+        # - if the task hash is unique, put it in final_hashes
+        # if not, hash the task with the hash of all incoming edges.
+        # define each task in terms of the computational path of every task it's
+        # connected to
+        #
+        # any task that is still a duplicate at this stage is TRULY a duplicate;
+        # there is nothing about its computational path that differentiates it.
+        # We can randomly choose one and modify its hash (and the hash of all
+        # following tasks) without consequence.
+        for t in self.sorted_tasks():
+            if counter[hashes[t]] == 1:
+                final_hashes[t] = hashes[t]
+                continue
+
+            edge_hashes = sorted(
+                (e.key, hashes[e.upstream_task]) for e in self.edges_to(t)
+            )
+            hashes[t] = get_hash(str((hashes[t], edge_hashes)))
+            counter[hashes[t]] += 1
+
+            # duplicate check
+            while counter[hashes[t]] > 1:
+                hashes[t] = get_hash(hashes[t])
+                counter[hashes[t]] += 1
+            final_hashes[t] = hashes[t]
+
+        seed = uuid.UUID(self.generate_flow_id()).bytes
+
+        return {t: str(uuid.UUID(bytes=xor(seed, h))) for t, h in final_hashes.items()}
+
+
+def get_hash(obj: object) -> bytes:
+    """
+    Returns a deterministic set of bytes for a given input.
+    """
+    if isinstance(obj, bytes):
+        return hashlib.md5(obj).digest()
+    elif isinstance(obj, str):
+        return hashlib.md5(obj.encode()).digest()
+    elif isinstance(obj, Task):
+        obj = prefect.core.task.get_task_info(obj)
+    elif isinstance(obj, Edge):
+        obj = dict(
+            upstream=prefect.core.task.get_task_info(obj.upstream_task),
+            downstream=prefect.core.task.get_task_info(obj.downstream_task),
+            key=obj.key,
+        )
+    return hashlib.md5(jsonpickle.dumps(obj).encode()).digest()
+
+
+def xor(hash1: bytes, hash2: bytes) -> bytes:
+    """
+    Computes the bitwise XOR between two byte hashes
+    """
+    return bytes([x ^ y for x, y in zip(hash1, itertools.cycle(hash2))])
+
+
