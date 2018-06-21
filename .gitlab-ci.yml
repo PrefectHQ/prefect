@@ -5,12 +5,15 @@ stages:
 
 black:
   stage: test
+  image: "python:3.6"
   script:
+    - pip install black
     - black --check .
 
 lint:
   stage: test
   script:
+  - pip install pylint
   - pylint prefect
 
 test:
