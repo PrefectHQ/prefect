@@ -6,6 +6,7 @@ install_requires = [
     "croniter",
     "cryptography",
     # 'distributed >= 1.16.1',
+    "jsonpickle",
     "mypy_extensions",
     "python-dateutil",
     "requests",
@@ -13,7 +14,7 @@ install_requires = [
     "toml",
     "typing",
     "typing_extensions",
-    "xxhash",
+    # "xxhash",
 ]
 
 extras = {
