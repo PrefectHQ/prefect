@@ -1,10 +1,11 @@
 import inspect
 
 import prefect
+from typing import Callable
 
 
 class FunctionTask(prefect.Task):
-    def __init__(self, fn, name=None, **kwargs):
+    def __init__(self, fn: Callable, name: str=None, **kwargs) -> None:
         if not callable(fn):
             raise TypeError("fn must be callable.")
 
@@ -21,7 +22,6 @@ class FunctionTask(prefect.Task):
                 "to the original function's *args."
             )
 
-        self.fn = fn
-        self.run = prefect.utilities.context.apply_context_annotations(fn)
+        self.run = fn
 
         super().__init__(name=name, **kwargs)
