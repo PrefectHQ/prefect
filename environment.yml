@@ -2,17 +2,21 @@ name: prefect
 channels:
     - conda-forge
 dependencies:
+    - black
     - click
     - croniter
     - cryptography
     - graphviz
+    - ipdb
     - ipython
     - jsonpickle
     - jupyter
+    - mypy
     - mypy_extensions
     - pip:
         - typing_extensions
     - pre_commit
+    - pylint
     - pytest
     - pytest-env
     - pytest-xdist
