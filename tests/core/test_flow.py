@@ -34,7 +34,7 @@ class TestCreateFlow:
 
     def test_create_flow_with_name(self):
         f1 = Flow()
-        assert f1.name is 'Flow'
+        assert f1.name is "Flow"
 
         f2 = Flow(name="test")
         assert f2.name == "test"
@@ -60,7 +60,6 @@ class TestCreateFlow:
         cron = prefect.schedules.CronSchedule("*")
         f2 = Flow(schedule=cron)
         assert f2.schedule == cron
-
 
 
 def test_add_task():
@@ -169,4 +168,3 @@ def test_merge():
     f2.update(f1)
     assert f2.tasks == set([t1, t2, t3])
     assert len(f2.edges) == 2
-

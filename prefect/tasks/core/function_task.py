@@ -5,7 +5,7 @@ from typing import Callable
 
 
 class FunctionTask(prefect.Task):
-    def __init__(self, fn: Callable, name: str=None, **kwargs) -> None:
+    def __init__(self, fn: Callable, name: str = None, **kwargs) -> None:
         if not callable(fn):
             raise TypeError("fn must be callable.")
 

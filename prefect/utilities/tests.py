@@ -74,7 +74,7 @@ def run_task_runner_test(
     elif isinstance(expected_state, str):
         assert task_state.state == expected_state
     else:
-        raise TypeError('Unrecognized expected_state: {}'.format(expected_state))
+        raise TypeError("Unrecognized expected_state: {}".format(expected_state))
 
     return task_state
 

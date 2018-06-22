@@ -38,5 +38,3 @@ def test_interval_schedule():
         start_date="2017-01-01", interval=datetime.timedelta(days=10)
     )
     assert expected_dates == s.next_n(2, on_or_after=after)
-
-

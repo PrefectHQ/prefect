@@ -93,6 +93,7 @@ def test_all_finished_with_all_failed():
 def test_all_finished_with_mixed_states():
     assert triggers.all_finished(generate_states(success=1, failed=1, skipped=1))
 
+
 def test_all_finished_with_some_pending():
     assert not triggers.all_finished(generate_states(success=1, pending=1))
 

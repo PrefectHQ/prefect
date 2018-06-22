@@ -5,8 +5,9 @@ from prefect.tasks.core.function_task import FunctionTask
 
 
 def test_test_create_constant_task():
-    x = Constant('x')
-    assert x.run() == 'x'
+    x = Constant("x")
+    assert x.run() == "x"
+
 
 def test_automatic_create_constant_task():
     t = FunctionTask(fn=lambda x: x)
