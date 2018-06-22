@@ -58,7 +58,7 @@ def all_finished(upstream_states: Dict["Task", "State"]) -> bool:
     """
     Runs if all tasks finished (either SUCCESS, FAIL, SKIP)
     """
-    return True
+    return all(s.is_finished() for s in upstream_states.values())
 
 
 def any_successful(upstream_states: Dict["Task", "State"]) -> bool:
