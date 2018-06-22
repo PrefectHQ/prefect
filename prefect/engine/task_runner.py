@@ -9,7 +9,6 @@ import prefect
 from prefect import signals
 from prefect.core import Task
 from prefect.engine.state import State
-from prefect.utilities.context import call_with_context_annotations
 
 
 class TaskRunner:
@@ -138,7 +137,7 @@ class TaskRunner:
         self.logger.info("Starting TaskRun.")
         state = self.executor.set_state(state, State.RUNNING)
 
-        result = call_with_context_annotations(self.task.run, **inputs)
+        result = self.task.run(**inputs)
 
         # mark success
         state = self.executor.set_state(state, State.SUCCESS, data=result)
