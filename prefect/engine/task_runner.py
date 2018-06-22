@@ -164,4 +164,4 @@ class TaskRunner:
         if retry_time is None:
             retry_time = datetime.datetime.utcnow() + self.task.retry_delay
 
-        return self.executor.set_state(state, State.PENDING_RETRY, data=retry_time)
+        return self.executor.set_state(state, State.RETRYING, data=retry_time)
