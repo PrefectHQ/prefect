@@ -347,7 +347,8 @@ class ObjectInitArgsCodec(JSONCodec[object, dict]):
         cls = obj["type"]
         kwargs = obj["args"].pop("**kwargs", {})
         args = obj["args"].pop("*args", ())
-        return cls(*args, **obj["args"], **kwargs)
+        kwargs.update(obj["args"])
+        return cls(*args, **kwargs)
 
 
 @register_json_codec()
