@@ -32,7 +32,8 @@ class TaskRunner:
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
     ) -> State:
-        state = State(state)
+        if state is None:
+            state = State()
         upstream_states = upstream_states or {}
         context = context or {}
         inputs = inputs or {}
