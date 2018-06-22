@@ -150,8 +150,8 @@ class TaskRunner:
         Checks if a task is eligable for retry; otherwise marks it failed.
         """
         self.logger.info("Task FAILED")
-        run_number = prefect.context.get("run_number", 0)
-        if run_number and run_number <= self.task.max_retries + 1:
+        run_number = prefect.context.get("run_number", 1)
+        if run_number and run_number <= self.task.max_retries:
             return self.handle_retry(state)
         else:
             return self.executor.set_state(state, State.FAILED, data=data)
