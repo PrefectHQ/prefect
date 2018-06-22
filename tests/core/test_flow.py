@@ -28,32 +28,32 @@ def add_flow():
 class TestCreateFlow:
     """ Test various Flow constructors """
 
-    def test_create_flow_no_args(self):
+    def test_create_flow_with_no_args(self):
         # name is not required
         assert Flow()
 
-    def test_create_flow_name(self):
+    def test_create_flow_with_name(self):
         f1 = Flow()
-        assert f1.name is None
+        assert f1.name is 'Flow'
 
         f2 = Flow(name="test")
         assert f2.name == "test"
 
-    def test_create_flow_version(self):
+    def test_create_flow_with_version(self):
         f1 = Flow()
         assert f1.version is None
 
         f2 = Flow(version="test")
         assert f2.version == "test"
 
-    def test_create_flow_description(self):
+    def test_create_flow_with_description(self):
         f1 = Flow()
         assert f1.description is None
 
         f2 = Flow(description="test")
         assert f2.description == "test"
 
-    def test_create_flow_schedule(self):
+    def test_create_flow_with_schedule(self):
         f1 = Flow()
         assert isinstance(f1.schedule, prefect.schedules.NoSchedule)
 
@@ -61,13 +61,6 @@ class TestCreateFlow:
         f2 = Flow(schedule=cron)
         assert f2.schedule == cron
 
-
-def test_equality():
-    f1 = Flow(name="hi", version=1)
-    f2 = Flow(name="hi", version=1)
-    assert f1 == f2
-    f1.add_task(Task())
-    assert f1 != f2
 
 
 def test_add_task():
@@ -84,12 +77,11 @@ def test_add_task_wrong_type():
         f.add_task(1)
 
 
-def test_add_task_duplicate():
+def test_ok_to_add_a_task_twice():
     f = Flow()
     t = Task()
     f.add_task(t)
-    with pytest.raises(ValueError):
-        f.add_task(t)
+    f.add_task(t)
 
 
 def test_context_manager():
@@ -178,23 +170,3 @@ def test_merge():
     assert f2.tasks == set([t1, t2, t3])
     assert len(f2.edges) == 2
 
-
-def test_serialize(add_flow):
-    serialized = add_flow.serialize()
-    assert serialized["id"] == add_flow.id
-    assert serialized["name"] == add_flow.name
-    assert serialized["version"] == add_flow.version
-    assert len(serialized["tasks"]) == 3
-    assert len(serialized["edges"]) == 2
-
-
-def test_deserialize(add_flow):
-    serialized = add_flow.serialize()
-    f = Flow.deserialize(serialized)
-    assert f.id == add_flow.id
-    assert f.name == add_flow.name
-    assert f.version == add_flow.version
-    assert f.parameters() == add_flow.parameters()
-    assert [t.id for t in f] == [t.id for t in add_flow]
-    assert len(f.tasks) == 3
-    assert len(f.edges) == 2
