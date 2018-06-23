@@ -11,7 +11,7 @@ class LocalExecutor(Executor):
     LocalExecutors serve as their own Executor contexts.
     """
 
-    def submit(self, fn, *args, _client_kwargs=None, **kwargs):
+    def submit(self, fn, *args, **kwargs):
         """
         Runs a function locally
         """

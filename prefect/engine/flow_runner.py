@@ -29,7 +29,8 @@ class FlowRunner:
         context: Dict[str, Any] = None,
     ) -> State:
 
-        state = state or State()
+        if state is None:
+            state = State()
         parameters = parameters or {}
         task_states = task_states or {}
         start_tasks = start_tasks or []

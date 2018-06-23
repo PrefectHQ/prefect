@@ -1,94 +1,136 @@
 import pytest
 
 from prefect import signals, triggers
-from prefect.engine.state import TaskState
+from prefect.engine.state import State
 
 
-def states(
-    success=0, failed=0, skipped=0, skip_downstream=0, pending=0, pending_retry=0
-):
+def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0):
     state_counts = {
-        TaskState.SUCCESS: success,
-        TaskState.FAILED: failed,
-        TaskState.SKIPPED: skipped,
-        TaskState.SKIP_DOWNSTREAM: skip_downstream,
-        TaskState.PENDING: pending,
-        TaskState.PENDING_RETRY: pending_retry,
+        State.SUCCESS: success,
+        State.FAILED: failed,
+        State.SKIPPED: skipped,
+        State.PENDING: pending,
+        State.RETRYING: retrying,
     }
 
     states = {}
     for state, count in state_counts.items():
         for i in range(count):
-            states[str(len(states))] = TaskState(state)
+            states[str(len(states))] = State(state)
     return states
 
 
-def test_all_successful():
+def test_all_successful_with_all_success():
     # True when all successful
-    assert triggers.all_successful(states(success=3))
+    assert triggers.all_successful(generate_states(success=3))
 
+
+def test_all_successful_with_all_success_or_skipped():
     # True when all successful or skipped
-    assert triggers.all_successful(states(success=3, skipped=3))
+    assert triggers.all_successful(generate_states(success=3, skipped=3))
 
+
+def test_all_successful_with_all_failed():
     # Fail when all fail
     with pytest.raises(signals.FAIL):
-        triggers.all_successful(states(failed=3))
+        triggers.all_successful(generate_states(failed=3))
 
+
+def test_all_successful_with_some_failed():
     # Fail when some fail
     with pytest.raises(signals.FAIL):
-        triggers.all_successful(states(failed=3, success=1))
+        triggers.all_successful(generate_states(failed=3, success=1))
 
 
-def test_all_failed():
-    assert triggers.all_failed(states(failed=3))
+def test_all_failed_with_all_failed():
+    assert triggers.all_failed(generate_states(failed=3))
+
+
+def test_all_failed_with_some_success():
     with pytest.raises(signals.FAIL):
-        assert triggers.all_failed(states(failed=3, success=1))
+        assert triggers.all_failed(generate_states(failed=3, success=1))
+
+
+def test_all_failed_with_some_skips():
     with pytest.raises(signals.FAIL):
-        assert triggers.all_failed(states(failed=3, skipped=1))
+        assert triggers.all_failed(generate_states(failed=3, skipped=1))
 
 
-def test_always_run():
-    assert triggers.always_run(states(success=3))
-    assert triggers.always_run(states(failed=3))
-    assert triggers.always_run(states(skip_downstream=3))
+def test_always_run_with_all_success():
+    assert triggers.always_run(generate_states(success=3))
+
+
+def test_always_run_with_all_failed():
+    assert triggers.always_run(generate_states(failed=3))
+
+
+def test_always_run_with_mixed_states():
     assert triggers.always_run(
-        states(success=1, failed=1, skipped=1, skip_downstream=1)
+        generate_states(success=1, failed=1, skipped=1, retrying=1)
     )
 
 
-def test_manual_only():
-    assert not triggers.manual_only(states(success=3))
-    assert not triggers.manual_only(states(failed=3))
-    assert not triggers.manual_only(states(skip_downstream=3))
-    assert not triggers.manual_only(
-        states(success=1, failed=1, skipped=1, skip_downstream=1)
-    )
+def test_manual_only_with_all_success():
+    assert not triggers.manual_only(generate_states(success=3))
 
 
-def test_all_finished():
-    assert triggers.all_finished(states(success=3))
-    assert triggers.all_finished(states(failed=3))
-    assert triggers.all_finished(states(skip_downstream=3))
-    assert triggers.all_finished(
-        states(success=1, failed=1, skipped=1, skip_downstream=1)
-    )
+def test_manual_only_with_all_failed():
+    assert not triggers.manual_only(generate_states(failed=3))
+
+
+def test_manual_only_with_mixed_states():
+    assert not triggers.manual_only(generate_states(success=1, failed=1, skipped=1))
+
+
+def test_all_finished_with_all_success():
+    assert triggers.all_finished(generate_states(success=3))
+
+
+def test_all_finished_with_all_failed():
+    assert triggers.all_finished(generate_states(failed=3))
+
+
+def test_all_finished_with_mixed_states():
+    assert triggers.all_finished(generate_states(success=1, failed=1, skipped=1))
+
+
+def test_all_finished_with_some_pending():
+    assert not triggers.all_finished(generate_states(success=1, pending=1))
+
+
+def test_any_successful_with_all_success():
+    assert triggers.any_successful(generate_states(success=3))
+
+
+def test_any_successful_with_some_success_and_some_skip():
+    assert triggers.any_successful(generate_states(success=3, skipped=3))
+
+
+def test_any_successful_with_some_failed_and_1_success():
+    assert triggers.any_successful(generate_states(failed=3, success=1))
+
+
+def test_any_successful_with_some_failed_and_1_skip():
+    assert triggers.any_successful(generate_states(failed=3, skipped=1))
+
+
+def test_any_successful_with_all_failed():
     with pytest.raises(signals.FAIL):
-        triggers.all_finished(states(success=1, pending=1))
+        triggers.any_successful(generate_states(failed=3))
 
 
-def test_any_successful():
-    assert triggers.any_successful(states(success=3))
-    assert triggers.any_successful(states(success=3, skipped=3))
-    assert triggers.any_successful(states(failed=3, success=1))
-    assert triggers.any_successful(states(failed=3, skipped=1))
+def test_any_failed_with_all_failed():
+    assert triggers.any_failed(generate_states(failed=3))
+
+
+def test_any_failed_with_some_failed_and_some_skipped():
+    assert triggers.any_failed(generate_states(failed=3, skipped=3))
+
+
+def test_any_failed_with_some_failed_and_1_success():
+    assert triggers.any_failed(generate_states(failed=3, success=1))
+
+
+def test_any_failed_with_all_success():
     with pytest.raises(signals.FAIL):
-        triggers.any_successful(states(failed=3))
-
-
-def test_any_failed():
-    assert triggers.any_failed(states(failed=3))
-    assert triggers.any_failed(states(failed=3, skipped=3))
-    assert triggers.any_failed(states(failed=3, success=1))
-    assert triggers.any_failed(states(failed=3, skipped=1))
-    with pytest.raises(signals.FAIL):
-        triggers.any_failed(states(success=3))
+        triggers.any_failed(generate_states(success=3))

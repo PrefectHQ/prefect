@@ -1,15 +1,16 @@
 import pytest
 
-import prefect
-from prefect.core.flow import Flow
 from prefect.tasks.core.constants import Constant
 from prefect.tasks.core.function_task import FunctionTask
 
 
-def test_constant_task():
-    with Flow("test") as flow:
-        t1 = Constant(5, name="constant")
-        t2 = Constant(5, name="constant")
+def test_test_create_constant_task():
+    x = Constant("x")
+    assert x.run() == "x"
 
-    assert t2.name == "constant-2"
-    assert flow.run().result["constant"].result == 5
+
+def test_automatic_create_constant_task():
+    t = FunctionTask(fn=lambda x: x)
+    result = t.set_dependencies(upstream_tasks=[4])
+    assert len(result.flow.tasks) == 2
+    assert any(isinstance(t, Constant) for t in result.flow.tasks)

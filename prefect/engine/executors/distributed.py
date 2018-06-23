@@ -110,14 +110,13 @@ class DistributedExecutor(Executor):
         state["client"] = None
         return state
 
-    def submit(self, fn, *args, _client_kwargs=None, **kwargs):
+    def submit(self, fn, *args, **kwargs):
         """
         Submit a function to the executor for execution. Returns a future.
         """
-        _client_kwargs = _client_kwargs or {}
-        if "pure" not in _client_kwargs:
-            _client_kwargs["pure"] = False
-        return self.client.submit(fn, *args, **kwargs, **_client_kwargs)
+        if "pure" not in kwargs:
+            kwargs["pure"] = False
+        return self.client.submit(fn, *args, **kwargs)
 
     def wait(self, futures, timeout=None):
         """

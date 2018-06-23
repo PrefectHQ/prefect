@@ -16,60 +16,60 @@ class AddTask(Task):
 class TestCreateTask:
     """Test various Task constructors"""
 
-    def test_create_task_no_args(self):
+    def test_create_task_with_no_args(self):
         """Tasks can be created with no arguments"""
         assert Task()
 
-    def test_create_task_name(self):
+    def test_create_task_with_name(self):
         t1 = Task()
         assert t1.name == "Task"
 
         t2 = Task(name="test")
         assert t2.name == "test"
 
-    def test_create_task_slug(self):
+    def test_create_task_with_slug(self):
         t1 = Task()
         assert t1.slug is None
 
         t2 = Task(slug="test")
         assert t2.slug == "test"
 
-    def test_create_task_description(self):
+    def test_create_task_with_description(self):
         t1 = Task()
         assert t1.description is None
 
         t2 = Task(description="test")
         assert t2.description == "test"
 
-    def test_create_task_checkpoint(self):
+    def test_create_task_with_checkpoint(self):
         t1 = Task()
-        assert t1.checkpoint is True
+        assert not t1.checkpoint
 
-        t2 = Task(checkpoint=False)
-        assert t2.checkpoint == False
+        t2 = Task(checkpoint=True)
+        assert t2.checkpoint
 
-    def test_create_task_max_retries(self):
+    def test_create_task_with_max_retries(self):
         t1 = Task()
         assert t1.max_retries == 0
 
         t2 = Task(max_retries=5)
         assert t2.max_retries == 5
 
-    def test_create_task_retry_delay(self):
+    def test_create_task_with_retry_delay(self):
         t1 = Task()
         assert t1.retry_delay == timedelta(minutes=1)
 
         t2 = Task(retry_delay=timedelta(seconds=30))
         assert t2.retry_delay == timedelta(seconds=30)
 
-    def test_create_task_timeout(self):
+    def test_create_task_with_timeout(self):
         t1 = Task()
         assert t1.timeout is None
 
         t2 = Task(timeout=timedelta(seconds=30))
         assert t2.timeout == timedelta(seconds=30)
 
-    def test_create_task_trigger(self):
+    def test_create_task_with_trigger(self):
         t1 = Task()
         assert t1.trigger is prefect.triggers.all_successful
 
