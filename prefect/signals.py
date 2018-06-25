@@ -16,7 +16,7 @@ class SerializationError(PrefectError):
 
 
 class PrefectStateException(Exception):
-    def __init__(self, result=None, *args, **kwargs) -> None:  # type: ignore
+    def __init__(self, *args, result=None, **kwargs) -> None:  # type: ignore
         self.result = result
         super().__init__(*args, **kwargs)
 

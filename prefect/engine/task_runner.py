@@ -68,7 +68,7 @@ class TaskRunner:
                     state = self.executor.set_state(state, state.SUCCESS)
 
                 except signals.FAIL as e:
-                    state = self.handle_fail(state, data=dict(message=str(e)))
+                    state = self.handle_fail(state, data=dict(message=e))
 
                 except signals.RETRY:
                     state = self.handle_retry(state)
@@ -79,7 +79,7 @@ class TaskRunner:
 
                 except Exception as e:
                     logging.info("Unexpected error while running task.")
-                    state = self.handle_fail(state, data=dict(message=str(e)))
+                    state = self.handle_fail(state, data=dict(message=e))
 
         return state
 

@@ -18,13 +18,13 @@ class SuccessTask(Task):
 
 class ErrorTask(Task):
     def run(self):
-        raise ValueError()
+        raise ValueError("custom-error-message")
 
 
 class RaiseFailTask(Task):
     def run(self):
-        raise prefect.signals.FAIL()
-        raise ValueError()
+        raise prefect.signals.FAIL("custom-fail-message")
+        raise ValueError("custom-error-message")
 
 
 class RaiseSkipTask(Task):
@@ -110,3 +110,13 @@ def test_running_task_that_already_finished_doesnt_run():
     run_task_runner_test(
         task=ErrorTask(), state=State(State.FAILED), expected_state=State.FAILED
     )
+
+
+def test_task_runner_preserves_error_type():
+    task_runner = TaskRunner(ErrorTask())
+    result = task_runner.run()
+    data = result.data["message"]
+    if isinstance(data, Exception):
+        assert type(data).__name__ == "ValueError"
+    else:
+        assert "ValueError" in data
