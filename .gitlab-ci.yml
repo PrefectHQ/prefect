@@ -20,4 +20,4 @@ run tests:
   stage: test
   script:
     - pip install ".[dev]"
-    - pytest
+    - pytest -v
