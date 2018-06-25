@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from typing import Any
 
+from toolz import curry
 import wrapt
 
 import prefect
@@ -90,7 +91,8 @@ def task_factory(**task_init_kwargs):
     return inner
 
 
-def task(**task_init_kwargs):
+@curry
+def task(fn, **task_init_kwargs):
     """
     A decorator for creating Tasks from functions.
 
@@ -105,9 +107,8 @@ def task(**task_init_kwargs):
         t2 = hello('bar')
     """
 
-    @wrapt.decorator
-    def inner(fn, instance, args, kwargs):
+    def task_generator(*args, **kwargs):
         task = prefect.tasks.core.function_task.FunctionTask(fn=fn, **task_init_kwargs)
         return task(*args, **kwargs)
 
-    return inner
+    return task_generator
