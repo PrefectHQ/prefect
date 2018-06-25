@@ -4,7 +4,9 @@ from contextlib import contextmanager
 import pytest
 
 import prefect
-from prefect.engine.state import TaskState
+from prefect import Task
+from prefect.engine.state import State
+from typing import Union, Dict, Any
 
 
 @contextmanager
@@ -32,25 +34,25 @@ def raise_run_errors():
 
 
 def run_task_runner_test(
-    task,
-    expected_state,
-    state=None,
-    upstream_states=None,
-    inputs=None,
-    executor=None,
-    context=None,
-):
+    task: Task,
+    expected_state: Union[str, State],
+    state: State = None,
+    upstream_states: Dict[Task, State] = None,
+    inputs: Dict[str, Any] = None,
+    executor: prefect.engine.executors.Executor = None,
+    context: Dict[str, Any] = None,
+) -> State:
     """
     Runs a task and tests that it matches the expected state.
 
     Args:
         task (prefect.Task): the Task to test
 
-        expected_state (prefect.TaskState or str): the expected TaskState
+        expected_state (prefect.State or str): the expected State
 
-        state (prefect.TaskState or str): the starting state for the task.
+        state (prefect.State or str): the starting state for the task.
 
-        upstream_states (dict): a dictionary of {task: TaskState} pairs
+        upstream_states (dict): a dictionary of {task: State} pairs
             representing the task's upstream states
 
         inputs (dict): a dictionary of inputs to the task
@@ -67,9 +69,12 @@ def run_task_runner_test(
         state=state, upstream_states=upstream_states, inputs=inputs, context=context
     )
 
-    assert task_state == expected_state
-    if isinstance(expected_state, TaskState):
-        assert task_state.result == expected_state.result
+    if isinstance(expected_state, State):
+        assert task_state == expected_state
+    elif isinstance(expected_state, str):
+        assert task_state.state == expected_state
+    else:
+        raise TypeError("Unrecognized expected_state: {}".format(expected_state))
 
     return task_state
 
@@ -98,7 +103,7 @@ def run_flow_runner_test(
         state (prefect.FlowState or str): the starting state for the task.
 
         expected_task_states (dict): a dict of expected
-            {task_id: TaskState} (or {task_id: str}) pairs. Passing a
+            {task_id: State} (or {task_id: str}) pairs. Passing a
             dict with Task keys is also ok.
 
         executor (prefect.Executor)
@@ -140,20 +145,20 @@ def run_flow_runner_test(
 
     for task, expected_task_state in expected_task_states.items():
         try:
-            assert flow_state.result[task.id] == expected_task_state
+            assert flow_state.data[task.id] == expected_task_state
         except KeyError:
             pytest.fail(
                 "Task {} with id {} not found in flow result".format(task, task.id)
             )
         except AssertionError:
             pytest.fail(
-                "Actual task state ({ast}) or result ({ar}) did not match "
-                "expected task state ({est}) or result ({er}) "
+                "Actual task state ({ast}) or data ({ar}) did not match "
+                "expected task state ({est}) or data ({er}) "
                 "for task {t} with id {tid}".format(
-                    ast=flow_state.result[task.id].state,
-                    ar=flow_state.result[task.id].result,
-                    est=TaskState(expected_task_state).state,
-                    er=TaskState(expected_task_state).result,
+                    ast=flow_state.data[task.id].state,
+                    ar=flow_state.data[task.id].data,
+                    est=State(expected_task_state).state,
+                    er=State(expected_task_state).data,
                     t=task,
                     tid=task.id,
                 )

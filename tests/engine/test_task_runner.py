@@ -4,119 +4,109 @@ import pytest
 
 import prefect
 from prefect.core.task import Task
+from prefect.tasks.core.function_task import FunctionTask
 from prefect.engine import TaskRunner
-from prefect.engine.state import TaskState
+from prefect.engine.state import State
 from prefect.utilities.tasks import task
 from prefect.utilities.tests import run_task_runner_test
 
 
-@pytest.fixture()
-def task():
-    return prefect.tasks.FunctionTask(fn=lambda: 1)
+class SuccessTask(Task):
+    def run(self):
+        return 1
 
 
-@pytest.fixture()
-def err_task():
-    return prefect.tasks.FunctionTask(fn=lambda: 1 / 0, max_retries=1)
+class ErrorTask(Task):
+    def run(self):
+        raise ValueError()
 
 
-@pytest.fixture()
-def inputs_task():
-    def fn(x, y=10):
-        return 2 * x + y
-
-    return prefect.tasks.FunctionTask(fn=fn, max_retries=1)
+class RaiseFailTask(Task):
+    def run(self):
+        raise prefect.signals.FAIL()
+        raise ValueError()
 
 
-@pytest.fixture
-def cleanup_task():
-    return prefect.tasks.FunctionTask(
-        fn=lambda: "Clean!", trigger=prefect.triggers.any_failed
-    )
+class RaiseSkipTask(Task):
+    def run(self):
+        raise prefect.signals.SKIP()
+        raise ValueError()
 
 
-def test_success(task):
+class RaiseSuccessTask(Task):
+    def run(self):
+        raise prefect.signals.SUCCESS()
+        raise ValueError()
+
+
+class RaiseRetryTask(Task):
+    def run(self):
+        raise prefect.signals.RETRY()
+        raise ValueError()
+
+
+def test_task_that_succeeds_is_marked_success():
     """
     Test running a task that finishes successfully and returns a result
     """
-    state = run_task_runner_test(
-        task=task, expected_state=TaskState(TaskState.SUCCESS, result=1)
-    )
-    assert state.is_finished()
+    run_task_runner_test(task=SuccessTask(), expected_state=State.SUCCESS)
 
 
-def test_error(err_task):
-    """
-    Test running a task that has an error
-    """
-    state = run_task_runner_test(task=err_task, expected_state=TaskState.FAILED)
-    assert state.is_finished()
+def test_task_that_raises_success_is_marked_success():
+    run_task_runner_test(task=RaiseSuccessTask(), expected_state=State.SUCCESS)
 
 
-def test_retry(err_task):
+def test_task_that_has_an_error_is_marked_fail():
+    run_task_runner_test(task=ErrorTask(), expected_state=State.FAILED)
+
+
+def test_task_that_raises_fail_is_marked_fail():
+    run_task_runner_test(task=RaiseFailTask(), expected_state=State.FAILED)
+
+
+def test_task_that_fails_gets_retried_up_to_1_time():
     """
     Test that failed tasks are marked for retry if run_number is available
     """
+    err_task = ErrorTask(max_retries=1)
     state = run_task_runner_test(
-        task=err_task, expected_state=TaskState.PENDING_RETRY, context={"run_number": 1}
+        task=err_task, expected_state=State.RETRYING, context={"run_number": 1}
     )
-    assert isinstance(state.result, datetime.datetime)
+    assert isinstance(state.data, datetime.datetime)
+
+    state = run_task_runner_test(
+        task=err_task,
+        state=state,
+        expected_state=State.FAILED,
+        context={"run_number": 2},
+    )
 
 
-def test_signal():
+def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     """
-    Test running a task that raises a Prefect signal
+    Test that failed tasks are marked for retry if run_number is available
     """
-
-    class FailTask(Task):
-        def run(self):
-            raise prefect.signals.FAIL(3)
-
-    class SkipTask(Task):
-        def run(self):
-            raise prefect.signals.SKIP(3)
-
-    class SuccessTask(Task):
-        def run(self):
-            raise prefect.signals.SUCCESS(3)
-
-    # fail task
-    run_task_runner_test(
-        task=FailTask(), expected_state=TaskState(TaskState.FAILED, result=3)
+    err_task = RaiseRetryTask(max_retries=1)
+    state = run_task_runner_test(
+        task=err_task, expected_state=State.RETRYING, context={"run_number": 1}
     )
 
     state = run_task_runner_test(
-        task=FailTask(max_retries=1),
-        expected_state=TaskState.PENDING_RETRY,
-        context={"run_number": 1},
+        task=err_task,
+        state=state,
+        expected_state=State.RETRYING,
+        context={"run_number": 2},
     )
 
-    assert isinstance(state.result, datetime.datetime)
 
-    # skip task
+def test_task_that_raises_skip_gets_skipped():
+    run_task_runner_test(task=RaiseSkipTask(), expected_state=State.SKIPPED)
+
+
+def test_running_task_that_already_finished_doesnt_run():
     run_task_runner_test(
-        task=SkipTask(), expected_state=TaskState(TaskState.SKIPPED, result=3)
+        task=ErrorTask(), state=State(State.SUCCESS), expected_state=State.SUCCESS
     )
-
-    # success task
     run_task_runner_test(
-        task=SuccessTask(), expected_state=TaskState(TaskState.SUCCESS, result=3)
+        task=ErrorTask(), state=State(State.FAILED), expected_state=State.FAILED
     )
-
-
-def test_run_finished_task(task, err_task):
-    """
-    Tests what happens when we run tasks that are already finished.
-
-    They shouldn't run and the provided state should be returned.
-    """
-    # a successful task initialized as failed should fail
-    state = TaskState(TaskState.FAILED, result=-1)
-    run_task_runner_test(task=task, state=state, expected_state=state)
-
-    # a failing task initialized as successful should be successful
-    state = TaskState(TaskState.SUCCESS, result=1)
-    run_task_runner_test(task=err_task, state=state, expected_state=state)
-
-    state = TaskState(TaskState.SKIPPED, result=-1)
-    run_task_runner_test(task=err_task, state=state, expected_state=state)

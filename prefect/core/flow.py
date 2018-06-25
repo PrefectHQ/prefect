@@ -80,7 +80,7 @@ class Flow(Serializable):
             )
 
         self._prefect_version = prefect.__version__
-        self._cache: dict = {}
+        self._cache = {}
 
         super().__init__()
 
@@ -266,7 +266,7 @@ class Flow(Serializable):
 
     @cache(validation_fn=flow_cache_key)
     def all_downstream_edges(self) -> Dict[Task, Set[Edge]]:
-        edges: Dict[Task, Set[Edge]] = {t: set() for t in self.tasks}
+        edges = {t: set() for t in self.tasks}  # type: Dict[Task, Set[Edge]]
         for edge in self.edges:
             edges[edge.upstream_task].add(edge)
         return edges
@@ -281,9 +281,7 @@ class Flow(Serializable):
         return set(e.upstream_task for e in self.edges_to(task))
 
     def downstream_tasks(self, task: Task) -> Set[Task]:
-        s: Set[Task]
-        s = set(e.downstream_task for e in self.edges_from(task))
-        return s
+        return set(e.downstream_task for e in self.edges_from(task))
 
     def validate(self) -> None:
         """
@@ -298,7 +296,8 @@ class Flow(Serializable):
         # downstream tasks)
         if root_tasks:
             tasks = set(root_tasks)
-            seen: Set[Task] = set()
+            seen = set()  # type: Set[Task]
+
             # while the set of tasks is different from the seen tasks...
             while tasks.difference(seen):
                 # iterate over the new tasks...
@@ -364,7 +363,7 @@ class Flow(Serializable):
         """
         with self.restore_graph_on_error(validate=validate):
 
-            result: TaskResult = as_task_result(task)
+            result = as_task_result(task)  # type: TaskResult
             task = result.task
 
             # validate the task
@@ -433,7 +432,7 @@ class Flow(Serializable):
             parameters=self.parameters(),
             schedule=self.schedule,
             tasks=[
-                dict(**t.serialize(), ref_id=ref_ids["task_ids"][t]) for t in self.tasks
+                dict(ref_id=ref_ids["task_ids"][t], **t.serialize()) for t in self.tasks
             ],
             edges=[
                 dict(

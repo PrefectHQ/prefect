@@ -11,18 +11,6 @@ from prefect.utilities.json import Serializable
 
 
 class Executor(Serializable):
-    """
-    Executors are objects that yield ExecutorClients, which in turn
-    can submit/resolve functions for execution.
-
-    Executor clients are frequently tied to a specific thread, process,
-    node, or cluster and often can't be passed between objects. Therefore it
-    is important that the Executor object itself is thread-safe and
-    serializeable. Prefect classes will never access the executor directly;
-    they will first enter an execution context by calling the executor's
-    client() method and using the resulting object as the executor.
-    """
-
     def __init__(self):
         pass
 
@@ -33,7 +21,7 @@ class Executor(Serializable):
         """
         yield self
 
-    def submit(self, fn, *args, _executor_kwargs=None, **kwargs):
+    def submit(self, fn, *args, **kwargs):
         """
         Submit a function to the executor for execution. Returns a future.
         """

@@ -9,7 +9,6 @@ import prefect
 from prefect import signals
 from prefect.core import Task
 from prefect.engine.state import State
-from prefect.utilities.context import call_with_context_annotations
 
 
 class TaskRunner:
@@ -33,7 +32,8 @@ class TaskRunner:
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
     ) -> State:
-        state = State(state)
+        if state is None:
+            state = State()
         upstream_states = upstream_states or {}
         context = context or {}
         inputs = inputs or {}
@@ -138,7 +138,7 @@ class TaskRunner:
         self.logger.info("Starting TaskRun.")
         state = self.executor.set_state(state, State.RUNNING)
 
-        result = call_with_context_annotations(self.task.run, **inputs)
+        result = self.task.run(**inputs)
 
         # mark success
         state = self.executor.set_state(state, State.SUCCESS, data=result)
@@ -150,8 +150,8 @@ class TaskRunner:
         Checks if a task is eligable for retry; otherwise marks it failed.
         """
         self.logger.info("Task FAILED")
-        run_number = prefect.context.get("run_number", 0)
-        if run_number and run_number <= self.task.max_retries + 1:
+        run_number = prefect.context.get("run_number", 1)
+        if run_number and run_number <= self.task.max_retries:
             return self.handle_retry(state)
         else:
             return self.executor.set_state(state, State.FAILED, data=data)
@@ -164,4 +164,4 @@ class TaskRunner:
         if retry_time is None:
             retry_time = datetime.datetime.utcnow() + self.task.retry_delay
 
-        return self.executor.set_state(state, State.PENDING_RETRY, data=retry_time)
+        return self.executor.set_state(state, State.RETRYING, data=retry_time)
