@@ -41,7 +41,10 @@ class IntervalSchedule(Schedule):
             on_or_after = datetime.utcnow()
 
         # infinite generator of all dates in the series
-        all_dates = (self.start_date + i * self.interval for i in itertools.count(0, 1))
+        all_dates = (
+            self.start_date + i * self.interval
+            for i in itertools.count(start=0, step=1)
+        )
         # filter generator for only dates on or after the requested date
         upcoming_dates = filter(lambda d: d >= on_or_after, all_dates)
         # get the next n items from the generator
