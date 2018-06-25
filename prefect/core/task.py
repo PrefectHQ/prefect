@@ -155,6 +155,10 @@ class Task(Serializable):
 class Parameter(Task):
     """
     A Parameter is a special task that defines a required flow input.
+
+    A parameter's "slug" is automatically -- and immutably -- set to the parameter name.
+    Flows enforce slug uniqueness across all tasks, so this ensures that the flow has
+    no other parameters by the same name.
     """
 
     def __init__(self, name: str, default: Any = None, required: bool = True) -> None:
@@ -174,7 +178,32 @@ class Parameter(Task):
         self.required = required
         self.default = default
 
-        super().__init__(name=name)
+        super().__init__(name=name, slug=name)
+
+    @property  # type: ignore
+    def name(self) -> str:  # type: ignore
+        return self._name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        if hasattr(self, "_name"):
+            raise AttributeError("Parameter name can not be changed")
+        self._name = value  # pylint: disable=W0201
+
+    @property  # type: ignore
+    def slug(self) -> str:  # type: ignore
+        """
+        A Parameter slug is always the same as its name. This information is used by
+        Flow objects to enforce parameter name uniqueness.
+        """
+        return self.name
+
+    @slug.setter
+    def slug(self, value: str) -> None:
+        # slug is a property, so it's not actually set by this method, but the superclass
+        # attempts to set it and we need to allow that without error.
+        if value != self.name:
+            raise AttributeError("Parameter slug must be the same as its name.")
 
     def run(self) -> Any:
         params = prefect.context.get("parameters", {})

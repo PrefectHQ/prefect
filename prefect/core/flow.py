@@ -179,11 +179,7 @@ class Flow(Serializable):
                 "Tasks must be Task instances (received {})".format(type(task))
             )
         elif task not in self.tasks:
-            if isinstance(task, Parameter) and task.name in self.parameters():
-                raise ValueError(
-                    'This flow already has a parameter called "{}"'.format(task.name)
-                )
-            elif task.slug and task.slug in [t.slug for t in self.tasks]:
+            if task.slug and task.slug in [t.slug for t in self.tasks]:
                 raise ValueError(
                     'A task with the slug "{}" already exists in this '
                     "flow.".format(task.slug)
