@@ -35,7 +35,8 @@ pip install .
 ```bash
 git clone https://gitlab.com/prefect/prefect.git
 cd prefect
-pip install -e ".[dev]"
+conda env create
+pip install -e .
 # pre-commit install
 ```
 

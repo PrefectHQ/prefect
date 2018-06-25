@@ -1,0 +1,30 @@
+name: prefect
+channels:
+    - conda-forge
+dependencies:
+    - black
+    - click
+    - croniter
+    - cryptography
+    - distributed
+    - graphviz
+    - ipdb
+    - ipython
+    - jsonpickle
+    - jupyter
+    - mypy
+    - mypy_extensions
+    - pip:
+        - pytest-cov
+        - typing_extensions
+    - pre_commit
+    - pylint
+    - pytest
+    - pytest-env
+    - pytest-xdist
+    - python>=3.4
+    - python-dateutil
+    - requests
+    - toml
+    - typing
+    - wrapt
