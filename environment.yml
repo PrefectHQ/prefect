@@ -15,6 +15,7 @@ dependencies:
     - mypy
     - mypy_extensions
     - pip:
+        - pytest-cov
         - typing_extensions
     - pre_commit
     - pylint
