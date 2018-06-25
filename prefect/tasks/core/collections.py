@@ -1,5 +1,4 @@
 from prefect import Task
-from prefect.utilities.tasks import task_factory
 
 
 class VarArgsTask(Task):
@@ -11,25 +10,21 @@ class VarArgsTask(Task):
         return super().__call__(**kwargs)
 
 
-@task_factory
 class List(VarArgsTask):
     def run(self, **task_results):
         return list(task_results.values())
 
 
-@task_factory
 class Set(VarArgsTask):
     def run(self, **task_results):
         return set(task_results.values())
 
 
-@task_factory
 class Tuple(VarArgsTask):
     def run(self, **task_results):
         return tuple(task_results.values())
 
 
-@task_factory
 class Dict(Task):
     def run(self, *, base_dict=None, **task_results):
         result = {}

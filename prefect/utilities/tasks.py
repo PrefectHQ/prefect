@@ -75,22 +75,6 @@ def as_task_result(x: Any) -> "prefect.core.TaskResult":
 
 
 @curry
-def task_factory(cls, **task_init_kwargs):
-    """
-    A decorator for marking a Task class as a factory.
-
-    Task factories automatically instantiate the class and calls it on the
-    provided arguments, returning a TaskResult.
-    """
-
-    def task_generator(*args, **kwargs):
-        task = cls(**task_init_kwargs)
-        return task(*args, **kwargs)
-
-    return task_generator
-
-
-@curry
 def task(fn: Callable, **task_init_kwargs):
     """
     A decorator for creating Tasks from functions.
