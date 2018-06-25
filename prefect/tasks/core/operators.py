@@ -17,7 +17,7 @@ class GetItem(Task):
         return task_result[self.index]
 
 
-@task_factory()
+@task_factory
 class And(Task):
     """
     Evaluates x and y
@@ -27,7 +27,7 @@ class And(Task):
         return bool(x and y)
 
 
-@task_factory()
+@task_factory
 class Or(Task):
     """
     Evaluates x or y
@@ -37,7 +37,7 @@ class Or(Task):
         return bool(x or y)
 
 
-@task_factory()
+@task_factory
 class Not(Task):
     """
     Evaluates not x
