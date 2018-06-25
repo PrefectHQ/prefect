@@ -64,7 +64,7 @@ class CronSchedule(Schedule):
             on_or_after = datetime.utcnow()
 
         # croniter only supports >, not >=, so we subtract a microsecond
-        on_or_after -= timedelta(microseconds=1)
+        on_or_after -= timedelta(seconds=1)
 
         cron = croniter.croniter(self.cron, on_or_after)
         return list(itertools.islice(cron.all_next(datetime), n))
