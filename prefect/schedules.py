@@ -12,13 +12,8 @@ class Schedule(Serializable):
     Base class for Schedules
     """
 
-    def next_n(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+    def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
         raise NotImplementedError("Must be implemented on Schedule subclasses")
-
-    def next(self) -> datetime:
-        next_dates = self.next_n(n=1, on_or_after=datetime.utcnow())
-        if next_dates:
-            return next_dates[0]
 
 
 class NoSchedule(Schedule):
@@ -26,7 +21,7 @@ class NoSchedule(Schedule):
     No schedule; this Flow will only run on demand.
     """
 
-    def next_n(self_n, n: int, on_or_after: datetime = None) -> List[datetime]:
+    def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
         return []
 
 
@@ -41,7 +36,7 @@ class IntervalSchedule(Schedule):
         self.start_date = start_date
         self.interval = interval
 
-    def next_n(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+    def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
         if on_or_after is None:
             on_or_after = datetime.utcnow()
 
@@ -59,7 +54,7 @@ class CronSchedule(Schedule):
         croniter.croniter(cron)
         self.cron = cron
 
-    def next_n(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+    def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
         if on_or_after is None:
             on_or_after = datetime.utcnow()
 
@@ -74,7 +69,7 @@ class DateSchedule(Schedule):
     def __init__(self, dates: Iterable[datetime]) -> None:
         self.dates = dates
 
-    def next_n(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+    def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
         if on_or_after is None:
             on_or_after = datetime.utcnow()
         dates = sorted([d for d in self.dates if d >= on_or_after])
