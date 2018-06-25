@@ -5,7 +5,7 @@ install_requires = [
     # 'cloudpickle > 0.3.1',  # support for pickling loggers was added after 0.3.1
     "croniter",
     "cryptography",
-    'distributed >= 1.16.1',
+    "distributed >= 1.16.1",
     "graphviz",
     "jsonpickle",
     "mypy_extensions",
