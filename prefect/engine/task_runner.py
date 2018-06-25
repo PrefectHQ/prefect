@@ -100,10 +100,10 @@ class TaskRunner:
             raise signals.DONTRUN("Upstream tasks are not finished.")
 
         # -------------------------------------------------------------
-        # check upstream skips and propogate if appropriate
+        # check upstream skips and propagate if appropriate
         # -------------------------------------------------------------
 
-        if self.task.propogate_skip and any(
+        if self.task.propagate_skip and any(
             s.is_skipped() for s in upstream_states.values()
         ):
             raise signals.SKIP("Upstream tasks skipped.")

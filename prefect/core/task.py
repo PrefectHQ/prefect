@@ -25,7 +25,7 @@ def get_task_info(task: "Task") -> Dict[str, Any]:
         retry_delay=task.retry_delay,
         timeout=task.timeout,
         trigger=task.trigger,
-        propogate_skip=task.propogate_skip,
+        propagate_skip=task.propagate_skip,
         environment=task.environment,
         checkpoint=task.checkpoint,
     )
@@ -43,7 +43,7 @@ class Task(Serializable):
         retry_delay: timedelta = timedelta(minutes=1),
         timeout: timedelta = None,
         trigger: Callable[[Dict["Task", "State"]], bool] = None,
-        propogate_skip: bool = False,
+        propagate_skip: bool = False,
         environment: Environment = None,
         checkpoint: bool = False,
     ) -> None:
@@ -67,7 +67,7 @@ class Task(Serializable):
         self.timeout = timeout
 
         self.trigger = trigger or prefect.triggers.all_successful
-        self.propogate_skip = propogate_skip
+        self.propagate_skip = propagate_skip
 
         flow = prefect.context.get("flow")  # type: Flow
         if flow:
