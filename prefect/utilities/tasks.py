@@ -1,7 +1,7 @@
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, Callable
 
-import wrapt
+from toolz import curry
 
 import prefect
 
@@ -74,23 +74,8 @@ def as_task_result(x: Any) -> "prefect.core.TaskResult":
     #     raise ValueError('Could not create a Task Result from {}'.format(x))
 
 
-def task_factory(**task_init_kwargs):
-    """
-    A decorator for marking a Task class as a factory.
-
-    Task factories automatically instantiate the class and calls it on the
-    provided arguments, returning a TaskResult.
-    """
-
-    @wrapt.decorator
-    def inner(cls, instance, args, kwargs):
-        task = cls(**task_init_kwargs)
-        return task(*args, **kwargs)
-
-    return inner
-
-
-def task(**task_init_kwargs):
+@curry
+def task(fn: Callable, **task_init_kwargs):
     """
     A decorator for creating Tasks from functions.
 
@@ -105,9 +90,8 @@ def task(**task_init_kwargs):
         t2 = hello('bar')
     """
 
-    @wrapt.decorator
-    def inner(fn, instance, args, kwargs):
+    def task_generator(*args, **kwargs):
         task = prefect.tasks.core.function_task.FunctionTask(fn=fn, **task_init_kwargs)
         return task(*args, **kwargs)
 
-    return inner
+    return task_generator
