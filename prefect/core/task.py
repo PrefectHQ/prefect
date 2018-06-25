@@ -180,8 +180,8 @@ class Parameter(Task):
 
         super().__init__(name=name, slug=name)
 
-    @property # type: ignore
-    def name(self) -> str: # type: ignore
+    @property  # type: ignore
+    def name(self) -> str:  # type: ignore
         return self._name
 
     @name.setter
@@ -190,8 +190,8 @@ class Parameter(Task):
             raise AttributeError("Parameter name can not be changed")
         self._name = value  # pylint: disable=W0201
 
-    @property # type: ignore
-    def slug(self) -> str:# type: ignore
+    @property  # type: ignore
+    def slug(self) -> str:  # type: ignore
         """
         A Parameter slug is always the same as its name. This information is used by
         Flow objects to enforce parameter name uniqueness.
