@@ -55,3 +55,10 @@ def test_nested_contexts_properly_restore_parent_context_when_closed():
         with context(a=2):
             assert context.a == 2
         assert context.a == 1
+
+
+def test_context_setdefault_method():
+    assert "a" not in context
+    assert context.setdefault("a", 5) == 5
+    assert "a" in context
+    assert context.setdefault("a", 10) == 5
