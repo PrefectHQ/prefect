@@ -84,7 +84,7 @@ def test_groups():
     t2 = Task(group="test")
     assert t2.group == "test"
 
-    with prefect.context(group="test"):
+    with prefect.context(_group="test"):
         t3 = Task()
         assert t3.group == "test"
 
@@ -99,11 +99,11 @@ def test_tags():
     t3 = Task(tags=["test", "test2", "test"])
     assert t3.tags == set(["test", "test2"])
 
-    with prefect.context(tags=["test"]):
+    with prefect.context(_tags=["test"]):
         t4 = Task()
         assert t4.tags == set(["test"])
 
-    with prefect.context(tags=["test1", "test2"]):
+    with prefect.context(_tags=["test1", "test2"]):
         t5 = Task(tags=["test3"])
         assert t5.tags == set(["test1", "test2", "test3"])
 
