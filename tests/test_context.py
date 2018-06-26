@@ -4,6 +4,7 @@ import pytest
 from prefect import context
 from typing import Any
 
+
 def test_context_sets_variables_inside_context_manager():
     """
     Tests that the context context manager properly sets and removes variables
