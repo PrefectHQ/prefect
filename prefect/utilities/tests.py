@@ -29,13 +29,13 @@ def set_config(keys, value):
 def run_flow_runner_test(
     flow: Flow,
     expected_state: str,
-    state: State=None,
-    task_states: Dict[Task, State]=None,
-    start_tasks: Iterable[Task]=None,
-    expected_task_states: Dict[Task, Union[State, str]]=None,
+    state: State = None,
+    task_states: Dict[Task, State] = None,
+    start_tasks: Iterable[Task] = None,
+    expected_task_states: Dict[Task, Union[State, str]] = None,
     executor=None,
-    parameters: dict=None,
-    context: dict=None,
+    parameters: dict = None,
+    context: dict = None,
 ) -> State:
     """
     Runs a flow and tests that it matches the expected state. If an
@@ -75,7 +75,8 @@ def run_flow_runner_test(
         parameters=parameters,
         task_states=task_states,
         start_tasks=start_tasks,
-        return_tasks=expected_task_states.keys())
+        return_tasks=expected_task_states.keys(),
+    )
 
     if expected_state is not None:
         try:
@@ -107,6 +108,5 @@ def run_flow_runner_test(
             )
         except:
             pytest.fail("Task {} not found in flow state".format(task))
-
 
     return flow_state

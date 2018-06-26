@@ -72,6 +72,7 @@ class TestState:
     def test_states_are_hashable(self):
         assert {State(State.SUCCESS), State(State.FAILED)}
 
+
 class TestStateMethods:
     def test_state_type_methods_with_pending_state(self):
         state = State(State.PENDING)

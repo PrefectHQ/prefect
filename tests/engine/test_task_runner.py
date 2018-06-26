@@ -15,7 +15,6 @@ class ErrorTask(Task):
         raise ValueError("custom-error-message")
 
 
-
 class RaiseFailTask(Task):
     def run(self):
         raise prefect.signals.FAIL("custom-fail-message")
