@@ -46,7 +46,7 @@ class PrefectContext(SimpleNamespace, Serializable):
         del self.__dict__[key]
 
     def __iter__(self) -> Iterable:
-        return self.__dict__.keys()
+        return iter(self.__dict__.keys())
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()
