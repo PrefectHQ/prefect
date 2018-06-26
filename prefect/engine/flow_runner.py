@@ -35,13 +35,16 @@ class FlowRunner:
         task_states = task_states or {}
         start_tasks = start_tasks or []
         context = context or {}
-        return_tasks = set(return_tasks or [])
+        return_tasks = set(return_tasks or self.flow.terminal_tasks())
 
         context.update(
             flow_name=self.flow.name,
             flow_version=self.flow.version,
             parameters=parameters,
         )
+
+        # if the run fails for any reason,
+        return_task_states = {t: task_states.get(t, State()) for t in return_tasks}
 
         with prefect.context(context):
 
@@ -57,15 +60,14 @@ class FlowRunner:
                     )
                 except prefect.signals.DONTRUN:
                     self.logger.info("Flow run DONTRUN")
-                except prefect.signals.SUCCESS:
-                    self.logger.info("Flow run SUCCESS")
-                    state = self.executor.set_state(state, State.SUCCESS)
-                except prefect.signals.FAIL:
-                    self.logger.info("Flow run FAIL")
-                    state = self.executor.set_state(state, State.FAILED)
+                    # set state but no need to go through the executor
+                    state = State(state.state, data=return_task_states)
                 except Exception:
                     self.logger.info("Flow run FAIL")
-                    state = self.executor.set_state(state, State.FAILED)
+                    # set state through executor
+                    state = self.executor.set_state(
+                        state, State.FAILED, data=return_task_states
+                    )
 
         return state
 
@@ -143,26 +145,33 @@ class FlowRunner:
         # Collect results
         # ---------------------------------------------
 
-        # final results come from return_tasks and terminal tasks
-        results = self.executor.wait(
-            {t: task_states[t] for t in return_tasks.union(self.flow.terminal_tasks())}
+        terminal_states = self.executor.wait(
+            {task_states[t] for t in self.flow.terminal_tasks()}
         )
-        terminal_states = {results[t] for t in self.flow.terminal_tasks()}
+        return_states = self.executor.wait({t: task_states[t] for t in return_tasks})
 
         if any(s.is_failed() for s in terminal_states):
             self.logger.info("Flow run FAILED: some terminal tasks failed.")
-            state = self.executor.set_state(state, state=State.FAILED, data=results)
+            state = self.executor.set_state(
+                state, state=State.FAILED, data=return_states
+            )
 
         elif all(s.is_successful() for s in terminal_states):
             self.logger.info("Flow run SUCCESS: all terminal tasks succeeded")
-            state = self.executor.set_state(state, state=State.SUCCESS, data=results)
+            state = self.executor.set_state(
+                state, state=State.SUCCESS, data=return_states
+            )
 
         elif all(s.is_finished() for s in terminal_states):
             self.logger.info("Flow run SUCCESS: all terminal tasks done; none failed.")
-            state = self.executor.set_state(state, state=State.SUCCESS, data=results)
+            state = self.executor.set_state(
+                state, state=State.SUCCESS, data=return_states
+            )
 
         else:
             self.logger.info("Flow run PENDING: terminal tasks are incomplete.")
-            state = self.executor.set_state(state, state=State.PENDING, data=results)
+            state = self.executor.set_state(
+                state, state=State.PENDING, data=return_states
+            )
 
         return state
