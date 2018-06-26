@@ -16,7 +16,7 @@ import contextlib
 import copy
 import inspect
 from types import SimpleNamespace
-from typing import Any, Dict, Iterable, Union
+from typing import Any, Dict, Iterable, Union, Iterator
 
 import wrapt
 
@@ -65,7 +65,9 @@ class PrefectContext(SimpleNamespace, Serializable):
         self.__dict__.clear()
 
     @contextlib.contextmanager
-    def __call__(self, *args: DictOrContextType, **kwargs: Any):
+    def __call__(
+        self, *args: DictOrContextType, **kwargs: Any
+    ) -> Iterator["PrefectContext"]:
         """
         A context manager for setting / resetting the Prefect context
 

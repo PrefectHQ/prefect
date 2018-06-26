@@ -2,7 +2,7 @@
 import pytest
 
 from prefect import context
-
+from typing import Any
 
 def test_context_sets_variables_inside_context_manager():
     """
@@ -37,7 +37,7 @@ def test_call_function_inside_context_can_access_context():
     Test calling a function inside a context
     """
 
-    def test_fn():
+    def test_fn() -> Any:
         return context.x
 
     with pytest.raises(AttributeError):
