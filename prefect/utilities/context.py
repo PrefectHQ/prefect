@@ -86,7 +86,7 @@ class PrefectContext(SimpleNamespace, Serializable):
 
     def setdefault(self, key: str, default: Any) -> Any:
         if key not in self:
-            self.key = default
+            setattr(self, key, default)
         return getattr(self, key)
 
 
