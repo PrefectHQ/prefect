@@ -4,9 +4,9 @@ from contextlib import contextmanager
 import pytest
 
 import prefect
-from prefect import Task
+from prefect import Task, Flow
 from prefect.engine.state import State
-from typing import Union, Dict, Any
+from typing import Union, Dict, Any, Iterable
 
 
 @contextmanager
@@ -26,25 +26,17 @@ def set_config(keys, value):
         prefect.config.__dict__.update(old_config)
 
 
-@contextmanager
-def raise_run_errors():
-    with set_config(["tests", "test_mode"], True):
-        with set_config(["tests", "raise_run_errors"], True):
-            yield
-
-
 def run_flow_runner_test(
-    flow,
-    expected_state=None,
-    state=None,
-    task_states=None,
-    start_tasks=None,
-    expected_task_states=None,
+    flow: Flow,
+    expected_state: str,
+    state: State=None,
+    task_states: Dict[Task, State]=None,
+    start_tasks: Iterable[Task]=None,
+    expected_task_states: Dict[Task, Union[State, str]]=None,
     executor=None,
-    override_task_inputs=None,
-    parameters=None,
-    context=None,
-):
+    parameters: dict=None,
+    context: dict=None,
+) -> State:
     """
     Runs a flow and tests that it matches the expected state. If an
     expected_task_states dict is provided, it will be matched as well.
@@ -52,9 +44,9 @@ def run_flow_runner_test(
     Args:
         flow (prefect.Flow): the Flow to test
 
-        expected_state (prefect.FlowState or str): the expected FlowState
+        expected_state (str): the expected State as a string (no data)
 
-        state (prefect.FlowState or str): the starting state for the task.
+        state (State): the starting state for the flow.
 
         expected_task_states (dict): a dict of expected
             {task_id: State} (or {task_id: str}) pairs. Passing a
@@ -81,15 +73,13 @@ def run_flow_runner_test(
         state=state,
         context=context,
         parameters=parameters,
-        override_task_inputs=override_task_inputs,
         task_states=task_states,
         start_tasks=start_tasks,
-        return_all_task_states=True,
-    )
+        return_tasks=expected_task_states.keys())
 
     if expected_state is not None:
         try:
-            assert flow_state == expected_state
+            assert flow_state.state == expected_state
         except AssertionError:
             pytest.fail(
                 "Flow state ({}) did not match expected state ({})".format(
@@ -99,23 +89,24 @@ def run_flow_runner_test(
 
     for task, expected_task_state in expected_task_states.items():
         try:
-            assert flow_state.data[task.id] == expected_task_state
-        except KeyError:
-            pytest.fail(
-                "Task {} with id {} not found in flow result".format(task, task.id)
-            )
+            if isinstance(expected_task_state, str):
+                assert flow_state.data[task].state == expected_task_state
+            else:
+                assert flow_state.data[task] == expected_task_state
         except AssertionError:
             pytest.fail(
-                "Actual task state ({ast}) or data ({ar}) did not match "
-                "expected task state ({est}) or data ({er}) "
-                "for task {t} with id {tid}".format(
-                    ast=flow_state.data[task.id].state,
-                    ar=flow_state.data[task.id].data,
-                    est=State(expected_task_state).state,
-                    er=State(expected_task_state).data,
-                    t=task,
-                    tid=task.id,
+                "Actual task state ({a_state}) or data ({a_data}) did not match "
+                "expected task state ({e_state}) or data ({e_data}) "
+                'for task "{task}"'.format(
+                    a_state=flow_state.data[task].state,
+                    a_data=flow_state.data[task].data,
+                    e_state=State(expected_task_state).state,
+                    e_data=State(expected_task_state).data,
+                    task=task,
                 )
             )
+        except:
+            pytest.fail("Task {} not found in flow state".format(task))
+
 
     return flow_state
