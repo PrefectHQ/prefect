@@ -96,13 +96,13 @@ def test_context_manager():
 
 
 def test_that_flow_adds_and_removes_itself_from_prefect_context():
-    assert "flow" not in prefect.context
+    assert "_flow" not in prefect.context
     with Flow() as f1:
-        assert prefect.context.flow is f1
+        assert prefect.context._flow is f1
         with Flow() as f2:
-            assert prefect.context.flow is f2
-        assert prefect.context.flow is f1
-    assert "flow" not in prefect.context
+            assert prefect.context._flow is f2
+        assert prefect.context._flow is f1
+    assert "_flow" not in prefect.context
 
 
 def test_edge():

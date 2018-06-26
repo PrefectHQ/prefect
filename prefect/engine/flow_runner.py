@@ -38,9 +38,9 @@ class FlowRunner:
         return_tasks = set(return_tasks or self.flow.terminal_tasks())
 
         context.update(
-            flow_name=self.flow.name,
-            flow_version=self.flow.version,
-            parameters=parameters,
+            _flow_name=self.flow.name,
+            _flow_version=self.flow.version,
+            _parameters=parameters,
         )
 
         # if the run fails for any reason,
@@ -85,7 +85,9 @@ class FlowRunner:
         # ---------------------------------------------
 
         required_params = self.flow.parameters(only_required=True)
-        missing = set(required_params).difference(prefect.context.get("parameters", []))
+        missing = set(required_params).difference(
+            prefect.context.get("_parameters", [])
+        )
         if missing:
             raise ValueError("Required parameters not provided: {}".format(missing))
 
