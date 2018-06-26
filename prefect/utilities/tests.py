@@ -33,52 +33,6 @@ def raise_run_errors():
             yield
 
 
-def run_task_runner_test(
-    task: Task,
-    expected_state: Union[str, State],
-    state: State = None,
-    upstream_states: Dict[Task, State] = None,
-    inputs: Dict[str, Any] = None,
-    executor: prefect.engine.executors.Executor = None,
-    context: Dict[str, Any] = None,
-) -> State:
-    """
-    Runs a task and tests that it matches the expected state.
-
-    Args:
-        task (prefect.Task): the Task to test
-
-        expected_state (prefect.State or str): the expected State
-
-        state (prefect.State or str): the starting state for the task.
-
-        upstream_states (dict): a dictionary of {task: State} pairs
-            representing the task's upstream states
-
-        inputs (dict): a dictionary of inputs to the task
-
-        executor (prefect.Executor)
-
-        context (dict): an optional context for the run
-
-    Returns:
-        The TaskRun state
-    """
-    task_runner = prefect.engine.task_runner.TaskRunner(task=task, executor=executor)
-    task_state = task_runner.run(
-        state=state, upstream_states=upstream_states, inputs=inputs, context=context
-    )
-
-    if isinstance(expected_state, State):
-        assert task_state == expected_state
-    elif isinstance(expected_state, str):
-        assert task_state.state == expected_state
-    else:
-        raise TypeError("Unrecognized expected_state: {}".format(expected_state))
-
-    return task_state
-
-
 def run_flow_runner_test(
     flow,
     expected_state=None,
