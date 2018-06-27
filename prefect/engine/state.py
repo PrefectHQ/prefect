@@ -42,6 +42,15 @@ class State(Serializable):
     def __repr__(self) -> str:
         return "{}({})".format(type(self).__name__, self.state)
 
+    def __eq__(self, other: object) -> bool:
+        if type(self) == type(other):
+            assert isinstance(other, State)  # this assertion is here for MyPy only
+            return (self.state, self.data) == (other.state, other.data)
+        return False
+
+    def __hash__(self) -> int:
+        return id(self)
+
     @property
     def state(self) -> str:
         return self._state

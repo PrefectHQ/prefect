@@ -1,14 +1,8 @@
 import datetime
-
-import pytest
-
 import prefect
 from prefect.core.task import Task
-from prefect.tasks.core.function_task import FunctionTask
 from prefect.engine import TaskRunner
 from prefect.engine.state import State
-from prefect.utilities.tasks import task
-from prefect.utilities.tests import run_task_runner_test
 
 
 class SuccessTask(Task):
@@ -24,44 +18,48 @@ class ErrorTask(Task):
 class RaiseFailTask(Task):
     def run(self):
         raise prefect.signals.FAIL("custom-fail-message")
-        raise ValueError("custom-error-message")
+        raise ValueError("custom-error-message")  # pylint: disable=W0101
 
 
 class RaiseSkipTask(Task):
     def run(self):
         raise prefect.signals.SKIP()
-        raise ValueError()
+        raise ValueError()  # pylint: disable=W0101
 
 
 class RaiseSuccessTask(Task):
     def run(self):
         raise prefect.signals.SUCCESS()
-        raise ValueError()
+        raise ValueError()  # pylint: disable=W0101
 
 
 class RaiseRetryTask(Task):
     def run(self):
         raise prefect.signals.RETRY()
-        raise ValueError()
+        raise ValueError()  # pylint: disable=W0101
 
 
 def test_task_that_succeeds_is_marked_success():
     """
     Test running a task that finishes successfully and returns a result
     """
-    run_task_runner_test(task=SuccessTask(), expected_state=State.SUCCESS)
+    task_runner = TaskRunner(task=SuccessTask())
+    assert task_runner.run().state == State.SUCCESS
 
 
 def test_task_that_raises_success_is_marked_success():
-    run_task_runner_test(task=RaiseSuccessTask(), expected_state=State.SUCCESS)
+    task_runner = TaskRunner(task=RaiseSuccessTask())
+    assert task_runner.run().state == State.SUCCESS
 
 
 def test_task_that_has_an_error_is_marked_fail():
-    run_task_runner_test(task=ErrorTask(), expected_state=State.FAILED)
+    task_runner = TaskRunner(task=ErrorTask())
+    assert task_runner.run().state == State.FAILED
 
 
 def test_task_that_raises_fail_is_marked_fail():
-    run_task_runner_test(task=RaiseFailTask(), expected_state=State.FAILED)
+    task_runner = TaskRunner(task=RaiseFailTask())
+    assert task_runner.run().state == State.FAILED
 
 
 def test_task_that_fails_gets_retried_up_to_1_time():
@@ -69,53 +67,57 @@ def test_task_that_fails_gets_retried_up_to_1_time():
     Test that failed tasks are marked for retry if run_number is available
     """
     err_task = ErrorTask(max_retries=1)
-    state = run_task_runner_test(
-        task=err_task, expected_state=State.RETRYING, context={"run_number": 1}
-    )
+    task_runner = TaskRunner(task=err_task)
+
+    # first run should be retrying
+    state = task_runner.run(context={"run_number": 1})
+    assert state.state == State.RETRYING
     assert isinstance(state.data, datetime.datetime)
 
-    state = run_task_runner_test(
-        task=err_task,
-        state=state,
-        expected_state=State.FAILED,
-        context={"run_number": 2},
-    )
+    # second run should
+    state = task_runner.run(state=state, context={"run_number": 2})
+    assert state.state == State.FAILED
 
 
 def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     """
-    Test that failed tasks are marked for retry if run_number is available
+    Test that tasks that raise a retry signal get retried even if they exceed max_retries
     """
-    err_task = RaiseRetryTask(max_retries=1)
-    state = run_task_runner_test(
-        task=err_task, expected_state=State.RETRYING, context={"run_number": 1}
-    )
+    retry_task = RaiseRetryTask(max_retries=1)
+    task_runner = TaskRunner(task=retry_task)
 
-    state = run_task_runner_test(
-        task=err_task,
-        state=state,
-        expected_state=State.RETRYING,
-        context={"run_number": 2},
-    )
+    # first run should be retrying
+    state = task_runner.run(context={"run_number": 1})
+    assert state.state == State.RETRYING
+    assert isinstance(state.data, datetime.datetime)
+
+    # second run should also be retry because the task raises it explicitly
+    state = task_runner.run(state=state, context={"run_number": 2})
+    assert state.state == State.RETRYING
+    assert isinstance(state.data, datetime.datetime)
 
 
 def test_task_that_raises_skip_gets_skipped():
-    run_task_runner_test(task=RaiseSkipTask(), expected_state=State.SKIPPED)
+    task_runner = TaskRunner(task=RaiseSkipTask())
+    assert task_runner.run().state == State.SKIPPED
 
 
-def test_running_task_that_already_finished_doesnt_run():
-    run_task_runner_test(
-        task=ErrorTask(), state=State(State.SUCCESS), expected_state=State.SUCCESS
-    )
-    run_task_runner_test(
-        task=ErrorTask(), state=State(State.FAILED), expected_state=State.FAILED
-    )
+def test_running_task_that_already_has_finished_state_doesnt_run():
+    task_runner = TaskRunner(task=ErrorTask())
+
+    # pending tasks get run (and fail)
+    assert task_runner.run(state=State(State.PENDING)).state == State.FAILED
+
+    # finished tasks don't run (just return same state)
+    assert task_runner.run(state=State(State.SUCCESS)).state == State.SUCCESS
+    assert task_runner.run(state=State(State.FAILED)).state == State.FAILED
+    assert task_runner.run(state=State(State.SKIPPED)).state == State.SKIPPED
 
 
 def test_task_runner_preserves_error_type():
     task_runner = TaskRunner(ErrorTask())
-    result = task_runner.run()
-    data = result.data["message"]
+    state = task_runner.run()
+    data = state.data["message"]
     if isinstance(data, Exception):
         assert type(data).__name__ == "ValueError"
     else:
