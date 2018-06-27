@@ -13,12 +13,9 @@ Example:
 """
 
 import contextlib
-import copy
-import inspect
 from types import SimpleNamespace
-from typing import Any, Dict, Iterable, Union
+from typing import Any, Dict, Iterable, Union, Iterator
 
-import wrapt
 
 from prefect.utilities.json import Serializable
 
@@ -49,7 +46,7 @@ class PrefectContext(SimpleNamespace, Serializable):
         del self.__dict__[key]
 
     def __iter__(self) -> Iterable:
-        return self.__dict__.keys()
+        return iter(self.__dict__.keys())
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()
@@ -65,7 +62,9 @@ class PrefectContext(SimpleNamespace, Serializable):
         self.__dict__.clear()
 
     @contextlib.contextmanager
-    def __call__(self, *args: DictOrContextType, **kwargs: Any):
+    def __call__(
+        self, *args: DictOrContextType, **kwargs: Any
+    ) -> Iterator["PrefectContext"]:
         """
         A context manager for setting / resetting the Prefect context
 
@@ -74,7 +73,7 @@ class PrefectContext(SimpleNamespace, Serializable):
             with prefect.context(dict(a=1, b=2), c=3):
                 print(prefect.context.a) # 1
         """
-        previous_context = copy.copy(self)
+        previous_context = self.__dict__.copy()
         try:
             self.update(*args, **kwargs)
             yield self

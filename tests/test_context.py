@@ -2,6 +2,7 @@
 import pytest
 
 from prefect import context
+from typing import Any
 
 
 def test_context_sets_variables_inside_context_manager():
@@ -37,7 +38,7 @@ def test_call_function_inside_context_can_access_context():
     Test calling a function inside a context
     """
 
-    def test_fn():
+    def test_fn() -> Any:
         return context.x
 
     with pytest.raises(AttributeError):
@@ -45,3 +46,12 @@ def test_call_function_inside_context_can_access_context():
 
     with context(x=1):
         assert test_fn() == 1
+
+
+def test_nested_contexts_properly_restore_parent_context_when_closed():
+    # issue https://gitlab.com/prefect/prefect/issues/16
+    with context(a=1):
+        assert context.a == 1
+        with context(a=2):
+            assert context.a == 2
+        assert context.a == 1

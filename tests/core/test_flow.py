@@ -95,6 +95,16 @@ def test_context_manager():
     assert t1 not in f2.tasks
 
 
+def test_that_flow_adds_and_removes_itself_from_prefect_context():
+    assert "flow" not in prefect.context
+    with Flow() as f1:
+        assert prefect.context.flow is f1
+        with Flow() as f2:
+            assert prefect.context.flow is f2
+        assert prefect.context.flow is f1
+    assert "flow" not in prefect.context
+
+
 def test_edge():
     f = Flow()
     t1 = Task()
