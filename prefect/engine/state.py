@@ -44,7 +44,7 @@ class State(Serializable):
 
     def __eq__(self, other: object) -> bool:
         if type(self) == type(other):
-            assert isinstance(other, State) # this assertion is here for MyPy only
+            assert isinstance(other, State)  # this assertion is here for MyPy only
             return (self.state, self.data) == (other.state, other.data)
         return False
 
