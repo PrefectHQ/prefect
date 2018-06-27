@@ -62,9 +62,10 @@ class FlowRunner:
                     self.logger.info("Flow run DONTRUN")
                     # set state but no need to go through the executor
                     state = State(state.state, data=return_task_states)
-                except Exception:
+                except Exception as e:
                     self.logger.info("Flow run FAIL")
                     # set state through executor
+                    return_task_states.update(dict(message=e))
                     state = self.executor.set_state(
                         state, State.FAILED, data=return_task_states
                     )
