@@ -52,12 +52,12 @@ class Task(Serializable):
         self.slug = slug
         self.description = description
 
-        self.group = str(group or prefect.context.get("group", ""))
+        self.group = str(group or prefect.context.get("_group", ""))
 
         if isinstance(tags, str):
             tags = [tags]
         self.tags = set(tags or [])
-        self.tags.update(prefect.context.get("tags", []))
+        self.tags.update(prefect.context.get("_tags", []))
 
         self.environment = environment
         self.checkpoint = checkpoint
@@ -69,7 +69,7 @@ class Task(Serializable):
         self.trigger = trigger or prefect.triggers.all_successful
         self.propagate_skip = propagate_skip
 
-        flow = prefect.context.get("flow")  # type: Flow
+        flow = prefect.context.get("_flow")  # type: Flow
         if flow:
             flow.add_task(self)
 
@@ -118,7 +118,7 @@ class Task(Serializable):
         )
         callargs.update(callargs.pop(var_kw_arg, {}))
 
-        flow = prefect.context.get("flow", prefect.core.flow.Flow())
+        flow = prefect.context.get("_flow", prefect.core.flow.Flow())
         return self.set_dependencies(
             flow=flow, upstream_tasks=upstream_tasks, keyword_results=callargs
         )
@@ -133,7 +133,7 @@ class Task(Serializable):
     ) -> "TaskResult":
 
         if flow is None:
-            flow = prefect.context.get("flow", prefect.Flow())
+            flow = prefect.context.get("_flow", prefect.Flow())
 
         return flow.set_dependencies(  # type: ignore
             task=self,
@@ -206,7 +206,7 @@ class Parameter(Task):
             raise AttributeError("Parameter slug must be the same as its name.")
 
     def run(self) -> Any:
-        params = prefect.context.get("parameters", {})
+        params = prefect.context.get("_parameters", {})
         if self.required and self.name not in params:
             raise prefect.signals.FAIL(
                 'Parameter "{}" was required but not provided.'.format(self.name)
