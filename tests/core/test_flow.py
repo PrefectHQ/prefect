@@ -57,7 +57,7 @@ class TestCreateFlow:
         f1 = Flow()
         assert isinstance(f1.schedule, prefect.schedules.NoSchedule)
 
-        cron = prefect.schedules.CronSchedule("*")
+        cron = prefect.schedules.CronSchedule("* * * * *")
         f2 = Flow(schedule=cron)
         assert f2.schedule == cron
 
