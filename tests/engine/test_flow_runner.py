@@ -163,7 +163,6 @@ def test_flow_runner_does_return_when_requested():
     task1 = SuccessTask()
     task2 = SuccessTask()
     flow.add_edge(task1, task2)
-    res = flow.run(return_tasks=[task2])
     run_flow_runner_test(
         flow, expected_state=State.SUCCESS, expected_task_states={task2: State.SUCCESS}
     )
