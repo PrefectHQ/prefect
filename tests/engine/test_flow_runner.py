@@ -165,7 +165,25 @@ def test_flow_runner_does_return_when_requested():
     flow.add_edge(task1, task2)
     res = flow.run(return_tasks=[task2])
     run_flow_runner_test(
-        flow,
-        expected_state=State.SUCCESS,
-        expected_task_states={task2: State.SUCCESS},
+        flow, expected_state=State.SUCCESS, expected_task_states={task2: State.SUCCESS}
     )
+
+
+def test_missing_parameter_creates_pending_task():
+    flow = prefect.Flow()
+    task = AddTask()
+    y = prefect.Parameter("y")
+    task.set_dependencies(flow, keyword_results=dict(x=1, y=y))
+    run_flow_runner_test(
+        flow, expected_state=State.FAILED, expected_task_states={task: State.PENDING}
+    )
+
+
+def test_missing_parameter_error_is_surfaced():
+    flow = prefect.Flow()
+    task = AddTask()
+    y = prefect.Parameter("y")
+    task.set_dependencies(flow, keyword_results=dict(x=1, y=y))
+    msg = flow.run().data["message"]
+    assert isinstance(msg, ValueError)
+    assert "required parameter" in str(msg).lower()

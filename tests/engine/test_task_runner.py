@@ -70,12 +70,12 @@ def test_task_that_fails_gets_retried_up_to_1_time():
     task_runner = TaskRunner(task=err_task)
 
     # first run should be retrying
-    state = task_runner.run(context={"run_number": 1})
+    state = task_runner.run(context={"_task_run_number": 1})
     assert state.state == State.RETRYING
     assert isinstance(state.data, datetime.datetime)
 
     # second run should
-    state = task_runner.run(state=state, context={"run_number": 2})
+    state = task_runner.run(state=state, context={"_task_run_number": 2})
     assert state.state == State.FAILED
 
 
@@ -87,12 +87,12 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     task_runner = TaskRunner(task=retry_task)
 
     # first run should be retrying
-    state = task_runner.run(context={"run_number": 1})
+    state = task_runner.run(context={"_task_run_number": 1})
     assert state.state == State.RETRYING
     assert isinstance(state.data, datetime.datetime)
 
     # second run should also be retry because the task raises it explicitly
-    state = task_runner.run(state=state, context={"run_number": 2})
+    state = task_runner.run(state=state, context={"_task_run_number": 2})
     assert state.state == State.RETRYING
     assert isinstance(state.data, datetime.datetime)
 

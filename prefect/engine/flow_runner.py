@@ -38,9 +38,9 @@ class FlowRunner:
         return_tasks = set(return_tasks or [])
 
         context.update(
-            flow_name=self.flow.name,
-            flow_version=self.flow.version,
-            parameters=parameters,
+            _flow_name=self.flow.name,
+            _flow_version=self.flow.version,
+            _parameters=parameters,
         )
 
         # if the run fails for any reason,
@@ -62,9 +62,10 @@ class FlowRunner:
                     self.logger.info("Flow run DONTRUN")
                     # set state but no need to go through the executor
                     state = State(state.state, data=return_task_states)
-                except Exception:
+                except Exception as e:
                     self.logger.info("Flow run FAIL")
                     # set state through executor
+                    return_task_states.update(dict(message=e))
                     state = self.executor.set_state(
                         state, State.FAILED, data=return_task_states
                     )
@@ -85,7 +86,9 @@ class FlowRunner:
         # ---------------------------------------------
 
         required_params = self.flow.parameters(only_required=True)
-        missing = set(required_params).difference(prefect.context.get("parameters", []))
+        missing = set(required_params).difference(
+            prefect.context.get("_parameters", [])
+        )
         if missing:
             raise ValueError("Required parameters not provided: {}".format(missing))
 
