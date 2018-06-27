@@ -152,20 +152,18 @@ def test_flow_runner_remains_pending_if_tasks_are_retrying():
 def test_missing_parameter_creates_pending_task():
     flow = prefect.Flow()
     task = AddTask()
-    y = prefect.Parameter('y')
+    y = prefect.Parameter("y")
     task.set_dependencies(flow, keyword_results=dict(x=1, y=y))
     run_flow_runner_test(
-        flow,
-        expected_state=State.FAILED,
-        expected_task_states={task: State.PENDING},
+        flow, expected_state=State.FAILED, expected_task_states={task: State.PENDING}
     )
 
 
 def test_missing_parameter_error_is_surfaced():
     flow = prefect.Flow()
     task = AddTask()
-    y = prefect.Parameter('y')
+    y = prefect.Parameter("y")
     task.set_dependencies(flow, keyword_results=dict(x=1, y=y))
-    msg = flow.run().data['message']
+    msg = flow.run().data["message"]
     assert isinstance(msg, ValueError)
-    assert 'required parameter' in str(msg).lower()
+    assert "required parameter" in str(msg).lower()
