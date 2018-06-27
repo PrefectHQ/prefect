@@ -150,7 +150,7 @@ class TaskRunner:
         Checks if a task is eligable for retry; otherwise marks it failed.
         """
         self.logger.info("Task FAILED")
-        run_number = prefect.context.get("__task_run_number__", 1)
+        run_number = prefect.context.get("_task_run_number", 1)
         if run_number and run_number <= self.task.max_retries:
             return self.handle_retry(state)
         else:
@@ -158,7 +158,7 @@ class TaskRunner:
 
     def handle_retry(self, state, retry_time=None):
         # TODO exponential backoff based on run_number
-        # run_number = prefect.context.get('__task_run_number__', 0)
+        # run_number = prefect.context.get('_task_run_number', 0)
 
         self.logger.info("Task RETRYING")
         if retry_time is None:
