@@ -1,7 +1,7 @@
 import prefect
 from prefect import Task, signals
 from prefect.tasks.core import operators
-from prefect.utilities.tasks import as_task_result
+from prefect.utilities.tasks import as_task
 
 __all__ = ["ifelse"]
 
@@ -28,7 +28,7 @@ def switch(condition, patterns, name=None):
     resulting Task continues execution. All other pattern Tasks are skipped.
     """
     if not isinstance(condition, Task):
-        condition = as_task_result(condition)
+        condition = as_task(condition)
 
     for pattern, task in patterns.items():
         eval_cond = EvaluateCondition(raise_if_false=signals.SKIP_DOWNSTREAM)

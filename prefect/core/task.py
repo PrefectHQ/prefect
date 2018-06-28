@@ -69,10 +69,6 @@ class Task(Serializable):
         self.trigger = trigger or prefect.triggers.all_successful
         self.propagate_skip = propagate_skip
 
-        flow = prefect.context.get("_flow")  # type: Flow
-        if flow:
-            flow.add_task(self)
-
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
 
@@ -118,28 +114,36 @@ class Task(Serializable):
         )
         callargs.update(callargs.pop(var_kw_arg, {}))
 
-        flow = prefect.context.get("_flow", prefect.core.flow.Flow())
-        return self.set_dependencies(
-            flow=flow, upstream_tasks=upstream_tasks, keyword_results=callargs
+        flow = prefect.context.get("_flow", None)
+        if not flow:
+            raise ValueError("Could not infer an active Flow context.")
+
+        self.set_dependencies(
+            flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs
         )
+
+        return self
 
     def set_dependencies(
         self,
         flow: "Flow" = None,
         upstream_tasks: Iterable["Task"] = None,
         downstream_tasks: Iterable["Task"] = None,
-        keyword_results: Dict[str, "Task"] = None,
+        keyword_tasks: Dict[str, "Task"] = None,
         validate: bool = True,
     ) -> None:
 
-        if flow is None:
-            flow = prefect.context.get("_flow", prefect.Flow())
+        flow = flow or prefect.context.get("_flow", None)
+        if not flow:
+            raise ValueError(
+                "No Flow was passed, and could not infer an active Flow context."
+            )
 
         flow.set_dependencies(  # type: ignore
             task=self,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
-            keyword_results=keyword_results,
+            keyword_tasks=keyword_tasks,
             validate=validate,
         )
 

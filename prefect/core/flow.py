@@ -32,7 +32,7 @@ from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.utilities.functions import cache
 from prefect.utilities.json import Serializable
-from prefect.utilities.tasks import as_task_result
+from prefect.utilities.tasks import as_task
 
 VAR_POSITIONAL = inspect.Parameter.VAR_POSITIONAL
 
@@ -196,30 +196,28 @@ class Flow(Serializable):
         key: str = None,
         validate: bool = True,
     ) -> None:
-        if isinstance(upstream_task, TaskResult):
-            upstream_task = upstream_task.task
-        if isinstance(downstream_task, TaskResult):
-            downstream_task = downstream_task.task
         if isinstance(downstream_task, Parameter):
-            raise ValueError("Parameters can not have upstream dependencies.")
-
-        if key and key in {e.key for e in self.edges_to(downstream_task)}:
             raise ValueError(
-                'Argument "{a}" for task {t} has already been assigned in '
-                "this flow. If you are trying to call the task again with "
-                "new arguments, call Task.copy() before adding the result "
-                "to this flow.".format(a=key, t=downstream_task)
+                "Parameters must be root tasks and can not have upstream dependencies."
             )
 
-        edge = Edge(
-            upstream_task=upstream_task, downstream_task=downstream_task, key=key
-        )
-
         with self.restore_graph_on_error(validate=validate):
-            if upstream_task not in self.tasks:
-                self.add_task(upstream_task)
-            if downstream_task not in self.tasks:
-                self.add_task(downstream_task)
+            self.add_task(upstream_task)
+            self.add_task(downstream_task)
+
+            # we can only check the downstream task's edges once it has been added to the
+            # flow, so we need to perform this check here and not earlier.
+            if key and key in {e.key for e in self.edges_to(downstream_task)}:
+                raise ValueError(
+                    'Argument "{a}" for task {t} has already been assigned in '
+                    "this flow. If you are trying to call the task again with "
+                    "new arguments, call Task.copy() before adding the result "
+                    "to this flow.".format(a=key, t=downstream_task)
+                )
+
+            edge = Edge(
+                upstream_task=upstream_task, downstream_task=downstream_task, key=key
+            )
             self.edges.add(edge)
 
             # check that the edges are valid keywords by binding them
@@ -246,12 +244,6 @@ class Flow(Serializable):
                         key=edge.key,
                         validate=False,
                     )
-
-    def add_task_results(self, *task_results, validate: bool = True) -> None:
-        with self.restore_graph_on_error(validate=validate):
-            for t in task_results:
-                self.add_task(t.task)
-                self.update(t.flow, validate=False)
 
     @cache(validation_fn=flow_cache_key)
     def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
@@ -340,7 +332,7 @@ class Flow(Serializable):
         task: Task,
         upstream_tasks: Iterable[Task] = None,
         downstream_tasks: Iterable[Task] = None,
-        keyword_results: Mapping[str, Task] = None,
+        keyword_tasks: Mapping[str, Task] = None,
         validate: bool = True,
     ) -> None:
         """
@@ -353,14 +345,11 @@ class Flow(Serializable):
 
             downstream_tasks ([Task]): Tasks that will run after the task runs
 
-            keyword_results ({key: Task}): The results of these tasks
+            keyword_tasks ({key: Task}): The results of these tasks
                 will be provided to the task under the specified keyword
                 arguments.
         """
         with self.restore_graph_on_error(validate=validate):
-
-            result = as_task_result(task)  # type: TaskResult
-            task = result.task
 
             # validate the task
             signature = inspect.signature(task.run)
@@ -378,24 +367,15 @@ class Flow(Serializable):
                     "to *args."
                 )
 
-            # update this flow with the result
-            self.add_task_results(result)
-
             for t in upstream_tasks or []:
-                tr = as_task_result(t)
-                self.add_task_results(tr)
-                self.add_edge(upstream_task=tr, downstream_task=task, validate=False)
+                self.add_edge(upstream_task=t, downstream_task=task, validate=False)
 
             for t in downstream_tasks or []:
-                tr = as_task_result(t)
-                self.add_task_results(tr)
-                self.add_edge(upstream_task=task, downstream_task=tr, validate=False)
+                self.add_edge(upstream_task=task, downstream_task=t, validate=False)
 
-            for key, t in (keyword_results or {}).items():
-                tr = as_task_result(t)
-                self.add_task_results(tr)
+            for key, t in (keyword_tasks or {}).items():
                 self.add_edge(
-                    upstream_task=tr, downstream_task=task, key=key, validate=False
+                    upstream_task=t, downstream_task=task, key=key, validate=False
                 )
 
     # Execution  ---------------------------------------------------------------

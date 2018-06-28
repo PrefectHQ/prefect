@@ -31,47 +31,34 @@ def tags(*tags):
         yield
 
 
-def as_task_result(x: Any) -> "prefect.core.TaskResult":
+def as_task(x: Any) -> "prefect.core.Task":
     """
     Wraps a function, collection, or constant with the appropriate Task type.
     """
-    # utilities are imported first, so TaskResult must be imported here
-
     # task objects
-    if isinstance(x, prefect.core.TaskResult):
+    if isinstance(x, prefect.core.Task):
         return x
-
-    elif isinstance(x, prefect.Task):
-        return prefect.core.TaskResult(task=x, flow=None)
 
     # sequences
     elif isinstance(x, list):
-        return prefect.tasks.collections.List(*[as_task_result(t) for t in x])
+        return prefect.tasks.collections.List(*[as_task(t) for t in x])
     elif isinstance(x, tuple):
-        return prefect.tasks.collections.Tuple(*[as_task_result(t) for t in x])
+        return prefect.tasks.collections.Tuple(*[as_task(t) for t in x])
     elif isinstance(x, set):
-        return prefect.tasks.collections.Set(*[as_task_result(t) for t in x])
+        return prefect.tasks.collections.Set(*[as_task(t) for t in x])
 
     # collections
     elif isinstance(x, dict):
-        task_dict = {k: as_task_result(v) for k, v in x.items()}
+        task_dict = {k: as_task(v) for k, v in x.items()}
         return prefect.tasks.collections.Dict(**task_dict)
 
     # functions
     elif callable(x):
-        return prefect.core.TaskResult(
-            task=prefect.tasks.core.function_task.FunctionTask(fn=x), flow=None
-        )
+        return prefect.tasks.core.function_task.FunctionTask(fn=x)
 
     # constants
     else:
-        return prefect.core.TaskResult(
-            task=prefect.tasks.core.constants.Constant(value=x), flow=None
-        )
-
-    # others - not reachable right now
-    # else:
-    #     raise ValueError('Could not create a Task Result from {}'.format(x))
+        return prefect.tasks.core.constants.Constant(value=x)
 
 
 @curry
