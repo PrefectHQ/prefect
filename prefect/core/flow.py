@@ -30,7 +30,6 @@ import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
-from prefect.core.task_result import TaskResult
 from prefect.utilities.functions import cache
 from prefect.utilities.json import Serializable
 from prefect.utilities.tasks import as_task_result
@@ -248,9 +247,7 @@ class Flow(Serializable):
                         validate=False,
                     )
 
-    def add_task_results(
-        self, *task_results: TaskResult, validate: bool = True
-    ) -> None:
+    def add_task_results(self, *task_results, validate: bool = True) -> None:
         with self.restore_graph_on_error(validate=validate):
             for t in task_results:
                 self.add_task(t.task)
@@ -345,7 +342,7 @@ class Flow(Serializable):
         downstream_tasks: Iterable[Task] = None,
         keyword_results: Mapping[str, Task] = None,
         validate: bool = True,
-    ) -> TaskResult:
+    ) -> None:
         """
         Convenience function for adding task dependencies on upstream tasks.
 
@@ -400,8 +397,6 @@ class Flow(Serializable):
                 self.add_edge(
                     upstream_task=tr, downstream_task=task, key=key, validate=False
                 )
-
-        return TaskResult(task=task, flow=self)
 
     # Execution  ---------------------------------------------------------------
 

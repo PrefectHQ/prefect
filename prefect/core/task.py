@@ -106,7 +106,7 @@ class Task(Serializable):
 
     def __call__(
         self, *args: Any, upstream_tasks: Iterable["Task"] = None, **kwargs: Any
-    ) -> "TaskResult":
+    ) -> "Task":
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
         callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
@@ -130,12 +130,12 @@ class Task(Serializable):
         downstream_tasks: Iterable["Task"] = None,
         keyword_results: Dict[str, "Task"] = None,
         validate: bool = True,
-    ) -> "TaskResult":
+    ) -> None:
 
         if flow is None:
             flow = prefect.context.get("_flow", prefect.Flow())
 
-        return flow.set_dependencies(  # type: ignore
+        flow.set_dependencies(  # type: ignore
             task=self,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
@@ -217,39 +217,3 @@ class Parameter(Task):
         info = super().info()
         info.update(required=self.required, default=self.default)
         return info
-
-
-class TaskResult:
-    """
-    TaskResults represent the execution of a specific task in a given flow.
-    """
-
-    def __init__(self, task: Task, flow: "Flow" = None) -> None:
-        if flow is None:
-            flow = prefect.Flow()
-        flow.add_task(task)
-        self.task = task
-        self.flow = flow
-
-    def __getitem__(self, index: Any) -> "TaskResult":
-        from prefect.tasks.core.operators import GetItem
-
-        index_task = GetItem(index=index, name="{}[{}]".format(self.task.name, index))
-        return index_task(task_result=self)
-
-    def set_dependencies(
-        self,
-        upstream_tasks: Iterable[Task] = None,
-        downstream_tasks: Iterable[Task] = None,
-        keyword_results: Dict[str, Task] = None,
-    ) -> None:
-
-        self.flow.set_dependencies(
-            task=self.task,
-            upstream_tasks=upstream_tasks,
-            downstream_tasks=downstream_tasks,
-            keyword_results=keyword_results,
-        )
-
-    # def wait_for(self, task_results):
-    #     self.set_dependencies(upstream_tasks=task_results)

@@ -4,7 +4,7 @@ from datetime import timedelta
 import pytest
 
 import prefect
-from prefect.core import Flow, Parameter, Task, TaskResult
+from prefect.core import Flow, Parameter, Task
 from prefect.utilities.tasks import task
 
 
@@ -111,11 +111,3 @@ def test_tags():
 def test_inputs():
     """ Test inferring input names """
     assert AddTask().inputs() == ("x", "y")
-
-
-def test_call():
-    """ Test calling Task and returning a TaskResult """
-    a = AddTask()
-    result = a(1, 2)
-    assert isinstance(result, TaskResult)
-    assert len(result.flow.tasks) == 3
