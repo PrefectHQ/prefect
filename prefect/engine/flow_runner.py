@@ -35,7 +35,7 @@ class FlowRunner:
         task_states = task_states or {}
         start_tasks = start_tasks or []
         context = context or {}
-        return_tasks = set(return_tasks or self.flow.terminal_tasks())
+        return_tasks = set(return_tasks or [])
 
         context.update(
             _flow_name=self.flow.name,

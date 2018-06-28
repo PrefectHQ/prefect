@@ -50,7 +50,7 @@ def test_flow_runner_runs_basic_flow_with_1_task():
     task = SuccessTask()
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
-    state = flow_runner.run()
+    state = flow_runner.run(return_tasks=[task])
     # assert state.state == State.SUCCESS
     assert state == State(State.SUCCESS, {task: State(State.SUCCESS, data=1)})
 
@@ -146,6 +146,25 @@ def test_flow_runner_remains_pending_if_tasks_are_retrying():
         flow,
         expected_state=State.PENDING,
         expected_task_states={task1: State.SUCCESS, task2: State.RETRYING},
+    )
+
+
+def test_flow_runner_doesnt_return_by_default():
+    flow = prefect.Flow()
+    task1 = SuccessTask()
+    task2 = SuccessTask()
+    flow.add_edge(task1, task2)
+    res = flow.run()
+    assert res.data == {}
+
+
+def test_flow_runner_does_return_when_requested():
+    flow = prefect.Flow()
+    task1 = SuccessTask()
+    task2 = SuccessTask()
+    flow.add_edge(task1, task2)
+    run_flow_runner_test(
+        flow, expected_state=State.SUCCESS, expected_task_states={task1: State.SUCCESS}
     )
 
 
