@@ -259,4 +259,3 @@ def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():
     with pytest.raises(ValueError) as e:
         f.downstream_tasks(t)
         assert "was not found in Flow" in e
-
