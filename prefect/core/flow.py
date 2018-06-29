@@ -371,6 +371,9 @@ class Flow(Serializable):
                     "to *args."
                 )
 
+            # add the main task (in case it was called with no arguments)
+            self.add_task(task)
+
             # add upstream tasks
             for t in upstream_tasks or []:
                 t = as_task(t)
