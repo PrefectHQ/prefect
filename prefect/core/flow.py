@@ -34,8 +34,6 @@ from prefect.utilities.functions import cache
 from prefect.utilities.json import Serializable
 from prefect.utilities.tasks import as_task
 
-VAR_POSITIONAL = inspect.Parameter.VAR_POSITIONAL
-
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
 
@@ -367,22 +365,6 @@ class Flow(Serializable):
 
             task = as_task(task)
             assert isinstance(task, Task)  # mypy assert
-
-            # validate the task
-            signature = inspect.signature(task.run)
-            varargs = next(
-                (p for p in signature.parameters.values() if p.kind == VAR_POSITIONAL),
-                None,
-            )
-
-            if varargs:
-                raise ValueError(
-                    "Tasks with variable positional arguments (*args) are not "
-                    "supported, because all Prefect arguments are stored as "
-                    "keywords. As a workaround, consider modifying the run() "
-                    "method to accept **kwargs and feeding the values "
-                    "to *args."
-                )
 
             # add the main task (in case it was called with no arguments)
             self.add_task(task)
