@@ -260,9 +260,17 @@ class Flow(Serializable):
         return edges
 
     def edges_to(self, task: Task) -> Set[Edge]:
+        if task not in self.tasks:
+            raise ValueError(
+                "Task {t} was not found in Flow {f}".format(t=task, f=self)
+            )
         return self.all_upstream_edges()[task]
 
     def edges_from(self, task: Task) -> Set[Edge]:
+        if task not in self.tasks:
+            raise ValueError(
+                "Task {t} was not found in Flow {f}".format(t=task, f=self)
+            )
         return self.all_downstream_edges()[task]
 
     def upstream_tasks(self, task: Task) -> Set[Task]:
