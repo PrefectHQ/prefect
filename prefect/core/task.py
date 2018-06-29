@@ -101,7 +101,7 @@ class Task(Serializable):
     # Dependencies -------------------------------------------------------------
 
     def __call__(
-        self, *args: Any, upstream_tasks: Iterable["Task"] = None, **kwargs: Any
+        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
@@ -127,9 +127,9 @@ class Task(Serializable):
     def set_dependencies(
         self,
         flow: "Flow" = None,
-        upstream_tasks: Iterable["Task"] = None,
-        downstream_tasks: Iterable["Task"] = None,
-        keyword_tasks: Dict[str, "Task"] = None,
+        upstream_tasks: Iterable[object] = None,
+        downstream_tasks: Iterable[object] = None,
+        keyword_tasks: Dict[str, object] = None,
         validate: bool = True,
     ) -> None:
 
