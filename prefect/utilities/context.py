@@ -14,8 +14,7 @@ Example:
 
 import contextlib
 from types import SimpleNamespace
-from typing import Any, Dict, Iterable, Union, Iterator
-
+from typing import Any, Dict, Iterable, Iterator, Union
 
 from prefect.utilities.json import Serializable
 

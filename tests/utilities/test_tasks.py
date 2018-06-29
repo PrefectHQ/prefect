@@ -1,5 +1,5 @@
-from prefect.utilities.tasks import task
 from prefect.core import Flow, Task
+from prefect.utilities.tasks import task
 
 
 def test_task_decorator_can_be_used_without_calling():

@@ -1,4 +1,5 @@
 import pytest
+
 from prefect.core import Flow
 from prefect.tasks.core.constants import Constant
 from prefect.tasks.core.function_task import FunctionTask

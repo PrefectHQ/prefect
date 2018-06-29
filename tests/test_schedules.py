@@ -1,5 +1,7 @@
+from datetime import datetime, time, timedelta
+
 import pytest
-from datetime import datetime, timedelta, time
+
 from prefect import schedules
 
 START_DATE = datetime(2018, 1, 1)

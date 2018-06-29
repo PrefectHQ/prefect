@@ -351,7 +351,7 @@ class Flow(Serializable):
         """
 
         # restore the original graph if we encounter an error midway through this operation
-        with self.restore_graph_on_error(validate = validate):
+        with self.restore_graph_on_error(validate=validate):
 
             task = as_task(task)
 
