@@ -260,9 +260,17 @@ class Flow(Serializable):
         return edges
 
     def edges_to(self, task: Task) -> Set[Edge]:
+        if task not in self.tasks:
+            raise ValueError(
+                "Task {t} was not found in Flow {f}".format(t=task, f=self)
+            )
         return self.all_upstream_edges()[task]
 
     def edges_from(self, task: Task) -> Set[Edge]:
+        if task not in self.tasks:
+            raise ValueError(
+                "Task {t} was not found in Flow {f}".format(t=task, f=self)
+            )
         return self.all_downstream_edges()[task]
 
     def upstream_tasks(self, task: Task) -> Set[Task]:
@@ -329,31 +337,36 @@ class Flow(Serializable):
 
     def set_dependencies(
         self,
-        task: Task,
-        upstream_tasks: Iterable[Task] = None,
-        downstream_tasks: Iterable[Task] = None,
-        keyword_tasks: Mapping[str, Task] = None,
+        task: object,
+        upstream_tasks: Iterable[object] = None,
+        downstream_tasks: Iterable[object] = None,
+        keyword_tasks: Mapping[str, object] = None,
         validate: bool = True,
     ) -> None:
         """
         Convenience function for adding task dependencies on upstream tasks.
 
         Args:
-            task (Task): a Task that will become part of the Flow
+            task (Object): a Task that will become part of the Flow. If the task is not a
+                Task subclass, Prefect will attempt to convert it to one.
 
-            upstream_tasks ([Task]): Tasks that will run before the task runs
+            upstream_tasks ([object]): Tasks that will run before the task runs. If any task
+                is not a Task subclass, Prefect will attempt to convert it to one.
 
-            downstream_tasks ([Task]): Tasks that will run after the task runs
+            downstream_tasks ([object]): Tasks that will run after the task runs. If any task
+                is not a Task subclass, Prefect will attempt to convert it to one.
 
-            keyword_tasks ({key: Task}): The results of these tasks
+            keyword_tasks ({key: object}): The results of these tasks
                 will be provided to the task under the specified keyword
-                arguments.
+                arguments. If any task is not a Task subclass, Prefect will attempt to
+                convert it to one.
         """
 
         # restore the original graph if we encounter an error midway through this operation
         with self.restore_graph_on_error(validate=validate):
 
             task = as_task(task)
+            assert isinstance(task, Task)  # mypy assert
 
             # validate the task
             signature = inspect.signature(task.run)
@@ -377,16 +390,19 @@ class Flow(Serializable):
             # add upstream tasks
             for t in upstream_tasks or []:
                 t = as_task(t)
+                assert isinstance(t, Task)  # mypy assert
                 self.add_edge(upstream_task=t, downstream_task=task, validate=False)
 
             # add downstream tasks
             for t in downstream_tasks or []:
                 t = as_task(t)
+                assert isinstance(t, Task)  # mypy assert
                 self.add_edge(upstream_task=task, downstream_task=t, validate=False)
 
             # add data edges to upstream tasks
             for key, t in (keyword_tasks or {}).items():
                 t = as_task(t)
+                assert isinstance(t, Task)  # mypy assert
                 self.add_edge(
                     upstream_task=t, downstream_task=task, key=key, validate=False
                 )

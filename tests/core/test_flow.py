@@ -238,3 +238,24 @@ def test_merge():
     f2.update(f1)
     assert f2.tasks == set([t1, t2, t3])
     assert len(f2.edges) == 2
+
+
+def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():
+    f = Flow()
+    t = Task()
+
+    with pytest.raises(ValueError) as e:
+        f.edges_to(t)
+        assert "was not found in Flow" in e
+
+    with pytest.raises(ValueError) as e:
+        f.edges_from(t)
+        assert "was not found in Flow" in e
+
+    with pytest.raises(ValueError) as e:
+        f.upstream_tasks(t)
+        assert "was not found in Flow" in e
+
+    with pytest.raises(ValueError) as e:
+        f.downstream_tasks(t)
+        assert "was not found in Flow" in e
