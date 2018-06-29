@@ -149,3 +149,8 @@ class TestDotDict:
         d.clear()
         assert len(d) == 0
         assert 'new_key' not in d
+
+    def test_dotdict_splats(self):
+        d = DotDict(data=5)
+        identity = lambda **kwargs: kwargs
+        assert identity(**d) == {'data': 5}
