@@ -76,6 +76,13 @@ class TestCreateTask:
         t2 = Task(trigger=prefect.triggers.all_failed)
         assert t2.trigger == prefect.triggers.all_failed
 
+    def test_class_instantiation_rejects_varargs(self):
+        with pytest.raises(ValueError):
+
+            class VarArgsTask(Task):
+                def run(self, x, *y):
+                    pass
+
 
 def test_groups():
     t1 = Task()
