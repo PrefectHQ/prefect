@@ -51,6 +51,10 @@ class DotDict(MutableMapping):
     def __len__(self):
         return len(self.__dict__)
 
+    def copy(self):
+        "Returns a shallow copy"
+        return type(self)(self.__dict__.copy())
+
 
 def to_dotdict(obj):
     """
