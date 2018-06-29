@@ -1,7 +1,7 @@
 import inspect
+from typing import Callable
 
 import prefect
-from typing import Callable
 
 
 class FunctionTask(prefect.Task):

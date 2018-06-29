@@ -1,8 +1,9 @@
 
+from typing import Any
+
 import pytest
 
 from prefect import context
-from typing import Any
 
 
 def test_context_sets_variables_inside_context_manager():

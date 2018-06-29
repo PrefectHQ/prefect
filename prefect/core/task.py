@@ -69,10 +69,6 @@ class Task(Serializable):
         self.trigger = trigger or prefect.triggers.all_successful
         self.propagate_skip = propagate_skip
 
-        flow = prefect.context.get("_flow")  # type: Flow
-        if flow:
-            flow.add_task(self)
-
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
 
@@ -106,7 +102,7 @@ class Task(Serializable):
 
     def __call__(
         self, *args: Any, upstream_tasks: Iterable["Task"] = None, **kwargs: Any
-    ) -> "TaskResult":
+    ) -> "Task":
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
         callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
@@ -118,28 +114,36 @@ class Task(Serializable):
         )
         callargs.update(callargs.pop(var_kw_arg, {}))
 
-        flow = prefect.context.get("_flow", prefect.core.flow.Flow())
-        return self.set_dependencies(
-            flow=flow, upstream_tasks=upstream_tasks, keyword_results=callargs
+        flow = prefect.context.get("_flow", None)
+        if not flow:
+            raise ValueError("Could not infer an active Flow context.")
+
+        self.set_dependencies(
+            flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs
         )
+
+        return self
 
     def set_dependencies(
         self,
         flow: "Flow" = None,
         upstream_tasks: Iterable["Task"] = None,
         downstream_tasks: Iterable["Task"] = None,
-        keyword_results: Dict[str, "Task"] = None,
+        keyword_tasks: Dict[str, "Task"] = None,
         validate: bool = True,
-    ) -> "TaskResult":
+    ) -> None:
 
-        if flow is None:
-            flow = prefect.context.get("_flow", prefect.Flow())
+        flow = flow or prefect.context.get("_flow", None)
+        if not flow:
+            raise ValueError(
+                "No Flow was passed, and could not infer an active Flow context."
+            )
 
-        return flow.set_dependencies(  # type: ignore
+        flow.set_dependencies(  # type: ignore
             task=self,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
-            keyword_results=keyword_results,
+            keyword_tasks=keyword_tasks,
             validate=validate,
         )
 
@@ -217,39 +221,3 @@ class Parameter(Task):
         info = super().info()
         info.update(required=self.required, default=self.default)
         return info
-
-
-class TaskResult:
-    """
-    TaskResults represent the execution of a specific task in a given flow.
-    """
-
-    def __init__(self, task: Task, flow: "Flow" = None) -> None:
-        if flow is None:
-            flow = prefect.Flow()
-        flow.add_task(task)
-        self.task = task
-        self.flow = flow
-
-    def __getitem__(self, index: Any) -> "TaskResult":
-        from prefect.tasks.core.operators import GetItem
-
-        index_task = GetItem(index=index, name="{}[{}]".format(self.task.name, index))
-        return index_task(task_result=self)
-
-    def set_dependencies(
-        self,
-        upstream_tasks: Iterable[Task] = None,
-        downstream_tasks: Iterable[Task] = None,
-        keyword_results: Dict[str, Task] = None,
-    ) -> None:
-
-        self.flow.set_dependencies(
-            task=self.task,
-            upstream_tasks=upstream_tasks,
-            downstream_tasks=downstream_tasks,
-            keyword_results=keyword_results,
-        )
-
-    # def wait_for(self, task_results):
-    #     self.set_dependencies(upstream_tasks=task_results)
