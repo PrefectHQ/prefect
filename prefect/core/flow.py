@@ -349,7 +349,11 @@ class Flow(Serializable):
                 will be provided to the task under the specified keyword
                 arguments.
         """
-        with self.restore_graph_on_error(validate=validate):
+
+        # restore the original graph if we encounter an error midway through this operation
+        with self.restore_graph_on_error(validate = validate):
+
+            task = as_task(task)
 
             # validate the task
             signature = inspect.signature(task.run)
@@ -367,13 +371,19 @@ class Flow(Serializable):
                     "to *args."
                 )
 
+            # add upstream tasks
             for t in upstream_tasks or []:
+                t = as_task(t)
                 self.add_edge(upstream_task=t, downstream_task=task, validate=False)
 
+            # add downstream tasks
             for t in downstream_tasks or []:
+                t = as_task(t)
                 self.add_edge(upstream_task=task, downstream_task=t, validate=False)
 
+            # add data edges to upstream tasks
             for key, t in (keyword_tasks or {}).items():
+                t = as_task(t)
                 self.add_edge(
                     upstream_task=t, downstream_task=task, key=key, validate=False
                 )
