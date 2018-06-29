@@ -1,12 +1,12 @@
 import copy
 from contextlib import contextmanager
+from typing import Any, Dict, Iterable, Union
 
 import pytest
 
 import prefect
-from prefect import Task, Flow
+from prefect import Flow, Task
 from prefect.engine.state import State
-from typing import Union, Dict, Any, Iterable
 
 
 @contextmanager

@@ -1,4 +1,4 @@
-from prefect.core.task_result import TaskResult
+from prefect.core import Flow, Task
 from prefect.utilities.tasks import task
 
 
@@ -13,8 +13,8 @@ def test_task_decorator_generates_new_tasks_upon_subsequent_calls():
     def fun(x, y):
         return x + y
 
-    res1 = fun(1, 2)
-    res2 = fun(1, 2)
-    assert isinstance(res1, TaskResult)
+    with Flow():
+        res1 = fun(1, 2)
+        res2 = fun(1, 2)
+    assert isinstance(res1, Task)
     assert res1 is not res2
-    assert res1.task is not res2.task

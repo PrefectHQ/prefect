@@ -1,6 +1,7 @@
 import datetime
+
 import prefect
-from prefect.core import Task, Flow
+from prefect.core import Flow, Task
 from prefect.engine import FlowRunner
 from prefect.engine.state import State
 from prefect.utilities.tests import run_flow_runner_test
@@ -172,7 +173,7 @@ def test_missing_parameter_creates_pending_task():
     flow = prefect.Flow()
     task = AddTask()
     y = prefect.Parameter("y")
-    task.set_dependencies(flow, keyword_results=dict(x=1, y=y))
+    task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
     run_flow_runner_test(
         flow, expected_state=State.FAILED, expected_task_states={task: State.PENDING}
     )
@@ -182,7 +183,7 @@ def test_missing_parameter_error_is_surfaced():
     flow = prefect.Flow()
     task = AddTask()
     y = prefect.Parameter("y")
-    task.set_dependencies(flow, keyword_results=dict(x=1, y=y))
+    task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
     msg = flow.run().data["message"]
     assert isinstance(msg, ValueError)
     assert "required parameter" in str(msg).lower()
