@@ -118,5 +118,34 @@ class TestDotDict:
         with pytest.raises(AttributeError):
             d.nothing
 
+    def test_iter(self):
+        d = DotDict(data=5, chris='best')
+        res = set()
+        for item in d:
+            res.add(item)
+        assert res == {'data', 'chris'}
+
     def test_setdefault_works(self):
-        pass
+        d = DotDict(chris='best')
+        d.setdefault('data', 5)
+        assert d['data'] == 5
+        assert d['chris'] == 'best'
+
+    def test_items(self):
+        d = DotDict(data=5, chris='best')
+        res = set()
+        for k, v in d.items():
+            res.add((k, v))
+        assert res == {('data', 5), ('chris', 'best')}
+
+    def test_clear_clears_keys_and_attrs(self):
+        d = DotDict(data=5, chris='best')
+        assert 'data' in d
+        d.clear()
+        assert 'data' not in d
+        assert len(d) == 0
+        d.new_key = 63
+        assert 'new_key' in d
+        d.clear()
+        assert len(d) == 0
+        assert 'new_key' not in d
