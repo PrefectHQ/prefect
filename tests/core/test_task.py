@@ -78,6 +78,7 @@ class TestCreateTask:
 
     def test_class_instantiation_rejects_varargs(self):
         with pytest.raises(ValueError):
+
             class VarArgsTask(Task):
                 def run(self, x, *y):
                     pass

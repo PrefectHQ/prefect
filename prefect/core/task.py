@@ -33,7 +33,7 @@ def get_task_info(task: "Task") -> Dict[str, Any]:
 
 class SignatureValidator(type):
     def __new__(cls, name, parents, methods):
-        run = methods.get('run', lambda : None)
+        run = methods.get("run", lambda: None)
         run_sig = inspect.getfullargspec(run)
         if run_sig.varargs:
             raise ValueError(
@@ -43,7 +43,7 @@ class SignatureValidator(type):
                 "method to accept **kwargs and feeding the values "
                 "to *args."
             )
-        # necessary to ensure classes which inherit from parent class
+        # necessary to ensure classes that inherit from parent class
         # also get passed through __new__
         return type.__new__(cls, name, parents, methods)
 
