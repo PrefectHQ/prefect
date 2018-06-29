@@ -31,7 +31,24 @@ def get_task_info(task: "Task") -> Dict[str, Any]:
     )
 
 
-class Task(Serializable):
+class SignatureValidator(type):
+    def __new__(cls, name, parents, methods):
+        run = methods.get('run', lambda : None)
+        run_sig = inspect.getfullargspec(run)
+        if run_sig.varargs:
+            raise ValueError(
+                "Tasks with variable positional arguments (*args) are not "
+                "supported, because all Prefect arguments are stored as "
+                "keywords. As a workaround, consider modifying the run() "
+                "method to accept **kwargs and feeding the values "
+                "to *args."
+            )
+        # necessary to ensure classes which inherit from parent class
+        # also get passed through __new__
+        return type.__new__(cls, name, parents, methods)
+
+
+class Task(Serializable, metaclass=SignatureValidator):
     def __init__(
         self,
         name: str = None,

@@ -112,18 +112,6 @@ def test_set_dependencies_converts_arguments_to_tasks():
     assert len(f.tasks) == 4
 
 
-def test_set_dependencies_rejects_varargs():
-    class VarArgsTask(Task):
-        def run(self, x, *y):
-            pass
-
-    f = Flow()
-    t1 = VarArgsTask()
-
-    with pytest.raises(ValueError):
-        f.set_dependencies(task=t1, upstream_tasks=[1])
-
-
 def test_calling_a_task_in_context_adds_it_to_flow():
     with Flow() as flow:
         t = Task()
