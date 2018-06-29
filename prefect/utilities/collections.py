@@ -36,7 +36,7 @@ class DotDict(MutableMapping):
 
     def __setitem__(self, key, value):
         if hasattr(MutableMapping, key):
-            raise ValueError('no sir')
+            raise ValueError("no sir")
         self.__dict__[key] = value
 
     def __setattr__(self, attr, value):
