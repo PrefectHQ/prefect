@@ -47,7 +47,7 @@ class Executor(Serializable):
         context: Dict,
     ):
         context = context or {}
-        context.update(prefect.context.to_dict())
+        context.update(prefect.context)
         flow_runner = FlowRunner(flow=flow, executor=self)
 
         return self.submit(
@@ -71,7 +71,7 @@ class Executor(Serializable):
         context=None,
     ):
         context = context or {}
-        context.update(prefect.context.to_dict())
+        context.update(prefect.context)
         task_runner = prefect.engine.TaskRunner(task=task, executor=self)
 
         return self.submit(
