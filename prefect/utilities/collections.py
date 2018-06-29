@@ -1,3 +1,6 @@
+from collections.abc import MutableMapping
+
+
 def merge_dicts(d1: dict, d2: dict) -> dict:
     """
     Updates d1 from d2 by replacing each (k, v1) pair in d1 with the
@@ -17,17 +20,36 @@ def merge_dicts(d1: dict, d2: dict) -> dict:
     return new_dict
 
 
-class DotDict(dict):
+class DotDict(MutableMapping):
     """
     A dict that also supports attribute ("dot") access
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__dict__ = self
+        if args:
+            arg_dict = args[0]
+            self.update(arg_dict)
+        self.update(kwargs)
 
-    def __repr__(self):
-        return "DotDict({})".format(super().__repr__())
+    def __getitem__(self, key):
+        return self.__dict__[key]
+
+    def __setitem__(self, key, value):
+        if hasattr(MutableMapping, key):
+            raise ValueError('no sir')
+        self.__dict__[key] = value
+
+    def __setattr__(self, attr, value):
+        self[attr] = value
+
+    def __iter__(self):
+        return iter(self.__dict__.keys())
+
+    def __delitem__(self, key):
+        del self.__dict__[key]
+
+    def __len__(self):
+        return len(self.__dict__)
 
 
 def to_dotdict(obj):
