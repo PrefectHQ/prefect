@@ -1,14 +1,40 @@
 version: 2
 jobs:
-  test:
+  run_tests:
     docker:
       - image: python:3.4
 
     steps:
       - checkout
+
       - run:
-          name: install prefect
+          name: Install prefect
           command: pip install ".[dev]"
+
       - run:
-          name: run tests
+          name: Run tests
           command: pytest -v
+
+  check_formatting:
+    docker:
+      - image: python:3.6
+
+    steps:
+      - checkout
+
+      - run:
+          name: Install Black
+          command: pip install black
+
+      - run:
+          name: Run Black
+          command: black --check .
+
+workflows:
+    version: 2
+    run_all:
+        jobs:
+            - check_formatting
+            - run_tests:
+                requires:
+                  - check_formatting
