@@ -18,9 +18,7 @@ install_requires = [
     # "xxhash",
 ]
 
-extras = {
-    "dev": ["pytest", "pytest-env", "pytest-xdist"]
-}
+extras = {"dev": ["pytest", "pytest-env", "pytest-xdist"]}
 
 setup(
     name="prefect",
