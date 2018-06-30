@@ -19,9 +19,7 @@ install_requires = [
 ]
 
 extras = {
-    # 's3': ['awsfs'],
-    # 'gcs': ['https://github.com/martindurant/gcsfs.git'],
-    "dev": ["pytest", "pytest-env", "pytest-xdist", "pre-commit"]
+    "dev": ["pytest", "pytest-env", "pytest-xdist"]
 }
 
 setup(
@@ -32,7 +30,7 @@ setup(
     long_description=open("README.md").read(),
     url="https://gitlab.com/prefect/prefect",
     author="Jeremiah Lowin",
-    author_email="jlowin@prefect.io",
+    author_email="jeremiah@prefect.io",
     install_requires=install_requires,
     extras_require=extras,
     scripts=[],
