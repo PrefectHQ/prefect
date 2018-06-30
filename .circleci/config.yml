@@ -1,0 +1,14 @@
+version: 2
+jobs:
+  test:
+    docker:
+      - image: python:3.4
+
+    steps:
+      - checkout
+      - run:
+          name: install prefect
+          command: pip install ".[dev]"
+      - run:
+          name: run tests
+          command: pytest -v
