@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  test:
+  run_tests:
     docker:
       - image: python:3.4
 
@@ -15,7 +15,7 @@ jobs:
           name: Run tests
           command: pytest -v
 
-  formatting:
+  check_formatting:
     docker:
       - image: python:3.6
 
@@ -34,5 +34,5 @@ workflows:
     version: 2
     run_all:
         jobs:
-           - test
-           - formatting
+           - check_formatting
+           - run_tests
