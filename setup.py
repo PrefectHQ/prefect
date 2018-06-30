@@ -28,7 +28,7 @@ setup(
     version="0.2",
     description="",
     long_description=open("README.md").read(),
-    url="https://gitlab.com/prefect/prefect",
+    url="https://www.github.com/prefecthq/prefect",
     author="Jeremiah Lowin",
     author_email="jeremiah@prefect.io",
     install_requires=install_requires,
