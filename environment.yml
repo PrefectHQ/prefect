@@ -17,7 +17,6 @@ dependencies:
     - pip:
         - pytest-cov
         - typing_extensions
-    - pre_commit
     - pylint
     - pytest
     - pytest-env
