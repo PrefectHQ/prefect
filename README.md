@@ -24,7 +24,7 @@ Prefect requires Python 3.4+.
 
 ### Install
 ```
-git clone https://gitlab.com/prefect/prefect.git
+git clone https://gitlab.com/PrefectHQ/prefect.git
 cd prefect
 pip install .
 ```
@@ -35,7 +35,7 @@ pip install .
 ### Install
 
 ```bash
-git clone https://gitlab.com/prefect/prefect.git
+git clone https://gitlab.com/PrefectHQ/prefect.git
 cd prefect
 conda env create
 pip install -e .
