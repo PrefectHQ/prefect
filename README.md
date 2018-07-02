@@ -24,7 +24,7 @@ Prefect requires Python 3.4+.
 
 ### Install
 ```
-git clone https://gitlab.com/prefect/prefect.git
+git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
 pip install .
 ```
@@ -35,23 +35,11 @@ pip install .
 ### Install
 
 ```bash
-git clone https://gitlab.com/prefect/prefect.git
+git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
 conda env create
 pip install -e .
-# pre-commit install
 ```
-
-<!-- ### Pre-commit
-Prefect enforces [Black](https://github.com/ambv/black) and
-[isort](https://github.com/timothycrosley/isort) formatting on every commit, using
-[pre-commit](https://pre-commit.com/). If a commit violates a pre-commit requirement,
-the commit will fail and the responsible files will be updated automatically. The
-changes can then be recommitted successfully.
-
-For example, if a modified file doesn't conform to Black standards, the commit will fail
-(and the error message should indicate why). Black will automatically be run on the file
-to fix any errors, and another attempt to commit will be successful. -->
 
 ### Unit Tests
 
