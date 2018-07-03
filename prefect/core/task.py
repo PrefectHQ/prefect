@@ -71,10 +71,10 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         self.group = str(group or prefect.context.get("_group", ""))
 
+        # avoid silently iterating over a string
         if isinstance(tags, str):
-            tags = [tags]
-        self.tags = set(tags or [])
-        self.tags.update(prefect.context.get("_tags", []))
+            raise TypeError("Tags should be a set of tags, not a string.")
+        self.tags = set(tags or prefect.context.get("_tags", []))
 
         self.environment = environment
         self.checkpoint = checkpoint

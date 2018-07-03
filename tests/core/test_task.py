@@ -100,8 +100,8 @@ def test_tags():
     t1 = Task()
     assert t1.tags == set()
 
-    t2 = Task(tags="test")
-    assert t2.tags == set(["test"])
+    with pytest.raises(TypeError):
+        Task(tags="test")
 
     t3 = Task(tags=["test", "test2", "test"])
     assert t3.tags == set(["test", "test2"])
@@ -112,7 +112,7 @@ def test_tags():
 
     with prefect.context(_tags=["test1", "test2"]):
         t5 = Task(tags=["test3"])
-        assert t5.tags == set(["test1", "test2", "test3"])
+        assert t5.tags == set(["test3"])
 
 
 def test_inputs():
