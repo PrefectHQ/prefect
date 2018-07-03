@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 from toolz import curry
 
@@ -7,27 +7,26 @@ import prefect
 
 
 @contextmanager
-def group(name: str) -> None:
+def group(name: str, append: bool = False) -> Iterator[None]:
     """
     Context manager for setting a task group.
     """
-    current_group = prefect.context.get("group", "")
-    if current_group:
-        name = current_group + "." + name
-    with prefect.context(group=name):
+    if append:
+        current_group = prefect.context.get("_group", "")
+        if current_group:
+            name = current_group + "/" + name
+    with prefect.context(_group=name):
         yield
 
 
 @contextmanager
-def tags(*tags):
+def tags(*tags: str) -> Iterator[None]:
     """
     Context manager for setting task tags.
     """
-    tags = set(tags)
-    current_tags = prefect.context.get("tags", set())
-    if current_tags:
-        tags = tags.update(current_tags)
-    with prefect.context(tags=tags):
+    tags_set = set(tags)
+    tags_set.update(prefect.context.get("_tags", set()))
+    with prefect.context(_tags=tags_set):
         yield
 
 
