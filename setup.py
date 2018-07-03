@@ -23,7 +23,7 @@ extras = {"dev": ["pytest", "pytest-env", "pytest-xdist"]}
 setup(
     name="prefect",
     # corresponds to __version__
-    version="0.2",
+    version="0.2.0",
     description="",
     long_description=open("README.md").read(),
     url="https://www.github.com/prefecthq/prefect",
