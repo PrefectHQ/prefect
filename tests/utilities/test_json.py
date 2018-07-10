@@ -3,10 +3,10 @@ import json
 
 import pytest
 
-import prefect.utilities.json as codecs
+import prefect.utilities.json as json_utils
 
 
-@codecs.serializable
+@json_utils.serializable
 def a_test_fn():
     pass
 
@@ -20,31 +20,46 @@ class EqMixin:
         return type(self) == type(other) and self.__dict__ == other.__dict__
 
 
+def test_overwriting_json_codec_raises_warning():
+    @json_utils.register_json_codec()
+    class TestCodec(json_utils.JSONCodec):
+        codec_key = "test"
+
+    warning_match = "A JSONCodec was already registered for the codec_key"
+    with pytest.warns(UserWarning, match=warning_match):
+
+        @json_utils.register_json_codec()
+        class TestCodec(json_utils.JSONCodec):
+            codec_key = "test"
+
+
 class TestObjectFromQualifiedName:
     class NestedClass:
         pass
 
     def test_local_obj(self):
-        obj = codecs.from_qualified_name(codecs.to_qualified_name(a_test_fn))
+        obj = json_utils.from_qualified_name(json_utils.to_qualified_name(a_test_fn))
         assert obj == a_test_fn
 
     def test_nested_obj(self):
-        obj = codecs.from_qualified_name(codecs.to_qualified_name(self.NestedClass))
+        obj = json_utils.from_qualified_name(
+            json_utils.to_qualified_name(self.NestedClass)
+        )
         assert obj == self.NestedClass
 
     def test_renamed_obj(self):
         from prefect.utilities.json import JSONCodec as jc
 
-        assert codecs.from_qualified_name(codecs.to_qualified_name(jc)) == jc
+        assert json_utils.from_qualified_name(json_utils.to_qualified_name(jc)) == jc
 
     def test_bad_obj(self):
         with pytest.raises(ValueError):
-            codecs.from_qualified_name("not.a.real.object")
+            json_utils.from_qualified_name("not.a.real.object")
 
     def test_unimported_obj(self):
         with pytest.raises(ValueError):
             # need a real module that hasn't been imported anywhere
-            codecs.from_qualified_name("MODULE.path")
+            json_utils.from_qualified_name("MODULE.path")
 
 
 class TestTypeCodecs:
@@ -80,7 +95,7 @@ class TestTypeCodecs:
 
     def test_json_codec_encrypted(self):
         x = 1
-        j = json.dumps(codecs.EncryptedCodec(x))
+        j = json.dumps(json_utils.EncryptedCodec(x))
         assert len(default_load_json(j)["//encrypted"]) > 20
         assert x == json.loads(j)
 
@@ -116,13 +131,13 @@ class TestObjectSerialization:
     def test_object_attrs_codec(self):
         x = self.ObjectWithAttrs(1, 2)
 
-        dict_codec = codecs.ObjectAttributesCodec(x)
+        dict_codec = json_utils.ObjectAttributesCodec(x)
         assert dict_codec.attrs == list(x.__dict__.keys())
         dict_j = default_load_json(json.dumps(dict_codec))
         assert dict_j["//obj_attrs"]["attrs"] == x.__dict__
         assert json.loads(json.dumps(dict_codec)) == x
 
-        attr_codec = codecs.ObjectAttributesCodec(x, attributes_list=["a"])
+        attr_codec = json_utils.ObjectAttributesCodec(x, attributes_list=["a"])
         assert attr_codec.attrs == ["a"]
         attr_j = default_load_json(json.dumps(attr_codec))
         assert attr_j["//obj_attrs"]["attrs"] == {"a": x.a}
@@ -137,7 +152,7 @@ class TestObjectSerialization:
         """
 
         x = self.ObjectWithAttrs(1, datetime.datetime(2000, 1, 1))
-        j = json.dumps(codecs.ObjectAttributesCodec(x))
+        j = json.dumps(json_utils.ObjectAttributesCodec(x))
 
         assert x == json.loads(j)
         assert isinstance(json.loads(j), self.ObjectWithAttrs)
@@ -181,36 +196,36 @@ class TestObjectInitArgsSerialization:
 
     def test_two_args(self):
         x = self.InitTwoArgs(1, 2)
-        assert json.loads(json.dumps(codecs.ObjectInitArgsCodec(x))) == x
+        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
 
     def test_two_args_underscore(self):
         x = self.InitTwoArgsUnderscore(1, 2)
-        assert json.loads(json.dumps(codecs.ObjectInitArgsCodec(x))) == x
+        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
 
     def test_two_args_not_stored(self):
         x = self.InitTwoArgsNotStored(1, 2)
         with pytest.raises(ValueError):
-            json.loads(json.dumps(codecs.ObjectInitArgsCodec(x)))
+            json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x)))
 
     def test_two_args_prefer_underscore(self):
         x = self.InitTwoArgsPreferUnderscore(1, 2)
-        assert json.loads(json.dumps(codecs.ObjectInitArgsCodec(x))) == x
+        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
 
     def test_init_arg_dict(self):
         x = self.InitArgDict(1, 2)
-        assert json.loads(json.dumps(codecs.ObjectInitArgsCodec(x))) == x
+        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
 
     def test_init_kwargs(self):
         x = self.InitKwargs(a=1, b=2)
-        assert json.loads(json.dumps(codecs.ObjectInitArgsCodec(x))) == x
+        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
 
     def test_init_kwargs_dict(self):
         x = self.InitKwargsDict(a=1, b=2)
-        assert json.loads(json.dumps(codecs.ObjectInitArgsCodec(x))) == x
+        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
 
 
 class TestSerializableClass:
-    class SerializableObj(codecs.Serializable, EqMixin):
+    class SerializableObj(json_utils.Serializable, EqMixin):
         def __init__(self, a, b):
             self.a = a
             self.b = b
@@ -222,5 +237,5 @@ class TestSerializableClass:
 
         x = self.SerializableObj(1, datetime.datetime(2000, 1, 1))
 
-        assert x._json_codec is codecs.ObjectAttributesCodec
+        assert x._json_codec is json_utils.ObjectAttributesCodec
         assert x == json.loads(json.dumps(x))
