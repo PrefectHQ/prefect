@@ -27,9 +27,7 @@ class Context(DotDict):
         return "<Context>"
 
     @contextlib.contextmanager
-    def __call__(
-        self, *args: MutableMapping, **kwargs: Any
-    ) -> Iterator["Context"]:
+    def __call__(self, *args: MutableMapping, **kwargs: Any) -> Iterator["Context"]:
         """
         A context manager for setting / resetting the Prefect context
 
