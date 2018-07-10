@@ -1,20 +1,8 @@
 version: 2
 jobs:
-  run_tests:
-    docker:
-      - image: python:3.4
-
-    steps:
-      - checkout
-
-      - run:
-          name: Install prefect
-          command: pip install ".[dev]"
-
-      - run:
-          name: Run tests
-          command: pytest -v
-
+  # ----------------------------------
+  # Check formatting
+  # ----------------------------------
   check_formatting:
     docker:
       - image: python:3.6
@@ -30,11 +18,60 @@ jobs:
           name: Run Black
           command: black --check .
 
+  # ----------------------------------
+  # Run unit tests in Python 3.4-3.7
+  # ----------------------------------
+  test-3.4:
+    docker:
+      - image: python:3.4
+
+    # store steps as an alias to reuse them with different python versions
+    steps: &run_test_steps
+      - checkout
+
+      - run:
+          name: Install prefect
+          command: pip install ".[dev]"
+
+      - run:
+          name: Run tests
+          command: pytest -v
+
+  test-3.5:
+    docker:
+      - image: python:3.5
+    steps: *run_test_steps
+
+  test-3.6:
+    docker:
+      - image: python:3.6
+    steps: *run_test_steps
+
+  test-3.7:
+    docker:
+      - image: python:3.7
+    steps: *run_test_steps
+
+
 workflows:
-    version: 2
-    run_all:
-        jobs:
+  version: 2
+  run_all:
+    jobs:
+      - check_formatting
+
+      - test-3.4:
+          requires:
             - check_formatting
-            - run_tests:
-                requires:
-                  - check_formatting
+
+      - test-3.5:
+          requires:
+            - check_formatting
+
+      - test-3.6:
+          requires:
+            - check_formatting
+
+      - test-3.7:
+          requires:
+            - check_formatting
+
