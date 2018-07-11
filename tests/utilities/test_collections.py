@@ -161,4 +161,3 @@ class TestDotDict:
         assert dotdict.a == 1
         assert dotdict.b[1].c == 3
         assert dotdict.d.e[0].f == 4
-
