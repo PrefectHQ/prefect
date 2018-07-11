@@ -67,9 +67,7 @@ def to_dotdict(obj):
     if isinstance(obj, (list, tuple, set)):
         return type(obj)([to_dotdict(d) for d in obj])
     elif isinstance(obj, dict):
-        for key, value in list(obj.items()):
-            obj[key] = to_dotdict(value)
-        return obj
+        return DotDict({k: to_dotdict(v) for k, v in obj.items()})
     return obj
 
 
