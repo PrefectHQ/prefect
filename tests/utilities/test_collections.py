@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.utilities import collections
-from prefect.utilities.collections import DotDict
+from prefect.utilities.collections import DotDict, to_dotdict
 
 
 @pytest.fixture
@@ -153,3 +153,11 @@ class TestDotDict:
         d = DotDict(data=5)
         identity = lambda **kwargs: kwargs
         assert identity(**d) == {"data": 5}
+
+    def test_to_dotdict(self):
+        orig_d = dict(a=1, b=[2, dict(c=3)], d=dict(e=[dict(f=4)]))
+        dotdict = to_dotdict(orig_d)
+        assert isinstance(dotdict, DotDict)
+        assert dotdict.a == 1
+        assert dotdict.b[1].c == 3
+        assert dotdict.d.e[0].f == 4
