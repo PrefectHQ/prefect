@@ -155,8 +155,10 @@ class TestDotDict:
         assert identity(**d) == {"data": 5}
 
     def test_to_dotdict(self):
-        d = to_dotdict(dict(a=1, b=[2, dict(c=3)], d=dict(e=[dict(f=4)])))
-        assert d.a == 1
-        assert d.b[1].c == 3
-        assert d.d.e[0].f == 4
+        orig_d = dict(a=1, b=[2, dict(c=3)], d=dict(e=[dict(f=4)]))
+        dotdict = to_dotdict(orig_d)
+        assert isinstance(dotdict, DotDict)
+        assert dotdict.a == 1
+        assert dotdict.b[1].c == 3
+        assert dotdict.d.e[0].f == 4
 
