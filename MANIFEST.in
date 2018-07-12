@@ -1,2 +1,1 @@
-include README.md
-graft prefect/config_templates
+include prefect/prefect.toml
