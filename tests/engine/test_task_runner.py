@@ -3,7 +3,7 @@ import datetime
 import prefect
 from prefect.core.task import Task
 from prefect.engine import TaskRunner
-from prefect.engine.state import State
+from prefect.engine.state import State, Success, Failed, Retrying, Skipped, Pending
 
 
 class SuccessTask(Task):
@@ -45,22 +45,22 @@ def test_task_that_succeeds_is_marked_success():
     Test running a task that finishes successfully and returns a result
     """
     task_runner = TaskRunner(task=SuccessTask())
-    assert task_runner.run().state == State.SUCCESS
+    assert isinstance(task_runner.run(), Success)
 
 
 def test_task_that_raises_success_is_marked_success():
     task_runner = TaskRunner(task=RaiseSuccessTask())
-    assert task_runner.run().state == State.SUCCESS
+    assert isinstance(task_runner.run(), Success)
 
 
 def test_task_that_has_an_error_is_marked_fail():
     task_runner = TaskRunner(task=ErrorTask())
-    assert task_runner.run().state == State.FAILED
+    assert isinstance(task_runner.run(), Failed)
 
 
 def test_task_that_raises_fail_is_marked_fail():
     task_runner = TaskRunner(task=RaiseFailTask())
-    assert task_runner.run().state == State.FAILED
+    assert isinstance(task_runner.run(), Failed)
 
 
 def test_task_that_fails_gets_retried_up_to_1_time():
@@ -72,12 +72,12 @@ def test_task_that_fails_gets_retried_up_to_1_time():
 
     # first run should be retrying
     state = task_runner.run(context={"_task_run_number": 1})
-    assert state.state == State.RETRYING
+    assert isinstance(state, Retrying)
     assert isinstance(state.data, datetime.datetime)
 
     # second run should
     state = task_runner.run(state=state, context={"_task_run_number": 2})
-    assert state.state == State.FAILED
+    assert isinstance(state, Failed)
 
 
 def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
@@ -89,30 +89,30 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
 
     # first run should be retrying
     state = task_runner.run(context={"_task_run_number": 1})
-    assert state.state == State.RETRYING
+    assert isinstance(state, Retrying)
     assert isinstance(state.data, datetime.datetime)
 
     # second run should also be retry because the task raises it explicitly
     state = task_runner.run(state=state, context={"_task_run_number": 2})
-    assert state.state == State.RETRYING
+    assert isinstance(state, Retrying)
     assert isinstance(state.data, datetime.datetime)
 
 
 def test_task_that_raises_skip_gets_skipped():
     task_runner = TaskRunner(task=RaiseSkipTask())
-    assert task_runner.run().state == State.SKIPPED
+    assert isinstance(task_runner.run(), Skipped)
 
 
 def test_running_task_that_already_has_finished_state_doesnt_run():
     task_runner = TaskRunner(task=ErrorTask())
 
     # pending tasks get run (and fail)
-    assert task_runner.run(state=State(State.PENDING)).state == State.FAILED
+    assert isinstance(task_runner.run(state=Pending()), Failed)
 
     # finished tasks don't run (just return same state)
-    assert task_runner.run(state=State(State.SUCCESS)).state == State.SUCCESS
-    assert task_runner.run(state=State(State.FAILED)).state == State.FAILED
-    assert task_runner.run(state=State(State.SKIPPED)).state == State.SKIPPED
+    assert isinstance(task_runner.run(state=Success()), Success)
+    assert isinstance(task_runner.run(state=Failed()), Failed)
+    assert isinstance(task_runner.run(state=Skipped()), Skipped)
 
 
 def test_task_runner_preserves_error_type():

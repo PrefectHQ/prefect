@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 import prefect
 from prefect import signals
 from prefect.core import Task
-from prefect.engine.state import Failed, State, Success, Pending, Running, Retrying
+from prefect.engine.state import Failed, State, Success, Pending, Running, Retrying, Skipped
 
 
 class TaskRunner:
@@ -75,7 +75,7 @@ class TaskRunner:
 
                 except signals.SKIP:
                     logging.info("SKIP")
-                    state = self.executor.set_state(state, state.SKIPPED)
+                    state = self.executor.set_state(state, Skipped)
 
                 except Exception as e:
                     logging.info("Unexpected error while running task.")
