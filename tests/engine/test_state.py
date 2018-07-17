@@ -3,7 +3,16 @@ import json
 
 import pytest
 
-from prefect.engine.state import State, Success, Retrying, Running, Failed, Skipped, Pending, Scheduled
+from prefect.engine.state import (
+    State,
+    Success,
+    Retrying,
+    Running,
+    Failed,
+    Skipped,
+    Pending,
+    Scheduled,
+)
 
 
 class TestState:

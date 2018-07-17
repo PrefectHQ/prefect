@@ -8,7 +8,15 @@ from typing import Any, Dict, List
 import prefect
 from prefect import signals
 from prefect.core import Task
-from prefect.engine.state import Failed, State, Success, Pending, Running, Retrying, Skipped
+from prefect.engine.state import (
+    Failed,
+    State,
+    Success,
+    Pending,
+    Running,
+    Retrying,
+    Skipped,
+)
 
 
 class TaskRunner:

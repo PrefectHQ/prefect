@@ -3,7 +3,17 @@ import datetime
 import prefect
 from prefect.core import Flow, Task
 from prefect.engine import FlowRunner
-from prefect.engine.state import State, Pending, Retrying, Scheduled, Running, Finished, Success, Failed, Skipped
+from prefect.engine.state import (
+    State,
+    Pending,
+    Retrying,
+    Scheduled,
+    Running,
+    Finished,
+    Success,
+    Failed,
+    Skipped,
+)
 from prefect.utilities.tests import run_flow_runner_test
 
 
@@ -66,10 +76,7 @@ def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
     run_flow_runner_test(
         flow,
         expected_state=Success,
-        expected_task_states={
-            task1: Success(data=1),
-            task2: Success(data=1),
-        },
+        expected_task_states={task1: Success(data=1), task2: Success(data=1)},
     )
 
 
@@ -83,10 +90,7 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks():
     run_flow_runner_test(
         flow,
         expected_state=Success,
-        expected_task_states={
-            task1: Success(data=1),
-            task2: Success(data=1),
-        },
+        expected_task_states={task1: Success(data=1), task2: Success(data=1)},
     )
 
 
@@ -98,9 +102,7 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails
     flow.add_edge(task1, task2)
 
     run_flow_runner_test(
-        flow,
-        expected_state=Failed,
-        expected_task_states={task1: Failed, task2: Failed},
+        flow, expected_state=Failed, expected_task_states={task1: Failed, task2: Failed}
     )
 
 

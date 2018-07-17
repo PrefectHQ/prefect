@@ -5,7 +5,6 @@ from prefect.utilities.json import Serializable
 
 
 class State(Serializable):
-
     def __init__(self, data: Any = None) -> None:
         """
         Create a new State object.
@@ -71,23 +70,30 @@ class State(Serializable):
 class Pending(State):
     pass
 
+
 class Retrying(Pending):
     pass
+
 
 class Scheduled(Pending):
     pass
 
+
 class Running(State):
     pass
+
 
 class Finished(State):
     pass
 
+
 class Success(Finished):
     pass
 
+
 class Failed(Finished):
     pass
+
 
 class Skipped(Success):
     pass
