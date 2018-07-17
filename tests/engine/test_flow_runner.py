@@ -105,6 +105,19 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails
     assert isinstance(flow_state.data[task2], Failed)
 
 
+def test_flow_runner_runs_flow_with_2_dependent_tasks_and_first_task_fails_and_second_has_trigger():
+    flow = prefect.Flow()
+    task1 = ErrorTask()
+    task2 = SuccessTask(trigger=prefect.triggers.all_failed)
+
+    flow.add_edge(task1, task2)
+
+    flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
+    assert isinstance(flow_state, Success) # flow state is determined by terminal states
+    assert isinstance(flow_state.data[task1], Failed)
+    assert isinstance(flow_state.data[task2], Success)
+
+
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fails():
     flow = prefect.Flow()
     task1 = SuccessTask()
@@ -160,9 +173,9 @@ def test_flow_runner_does_return_when_requested():
     task1 = SuccessTask()
     task2 = SuccessTask()
     flow.add_edge(task1, task2)
-    run_flow_runner_test(
-        flow, expected_state=Success, expected_task_states={task1: Success}
-    )
+    flow_state = FlowRunner(flow=flow).run(return_tasks=[task1])
+    assert isinstance(flow_state, Success)
+    assert isinstance(flow_state.data[task1], Success)
 
 
 def test_missing_parameter_creates_pending_task():
@@ -170,9 +183,9 @@ def test_missing_parameter_creates_pending_task():
     task = AddTask()
     y = prefect.Parameter("y")
     task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
-    run_flow_runner_test(
-        flow, expected_state=Failed, expected_task_states={task: Pending}
-    )
+    flow_state = FlowRunner(flow=flow).run(return_tasks=[task])
+    assert isinstance(flow_state, Failed)
+    assert isinstance(flow_state.data[task], Pending)
 
 
 def test_missing_parameter_error_is_surfaced():
