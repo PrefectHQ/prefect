@@ -6,54 +6,28 @@ from prefect.utilities.json import Serializable
 
 class State(Serializable):
 
-    PENDING = _default_state = "PENDING"
-    RETRYING = "RETRYING"
-    SCHEDULED = "SCHEDULED"
-    RUNNING = "RUNNING"
-    SUCCESS = "SUCCESS"
-    FAILED = "FAILED"
-    SKIPPED = "SKIPPED"
-
-    _pending_states = frozenset([SCHEDULED, PENDING, RETRYING, SCHEDULED])
-    _finished_states = frozenset([SUCCESS, FAILED, SKIPPED])
-    _successful_states = frozenset([SUCCESS, SKIPPED])
-    _running_states = frozenset([RUNNING])
-
-    def __init__(self, state: str = None, data: Any = None, meta: Dict = None) -> None:
+    def __init__(self, data: Any = None) -> None:
         """
         Create a new State object.
             state (str, optional): Defaults to None. One of the State class's valid state types. If None is provided, the State's default will be used.
 
             data (Any, optional): Defaults to None. A data payload for the state.
-
-            meta (Dict, optional): Defaults to None. State metadata.
         """
 
-        if state is None:
-            state = self._default_state
-        assert state is not None
-
-        self._validate_state(state)
-        self._state = state
         self._data = data
-        self._meta = meta or {}
         self._timestamp = datetime.datetime.utcnow()
 
     def __repr__(self) -> str:
-        return "{}({})".format(type(self).__name__, self.state)
+        return "{}()".format(type(self).__name__)
 
     def __eq__(self, other: object) -> bool:
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
-            return (self.state, self.data) == (other.state, other.data)
+            return self.data == other.data
         return False
 
     def __hash__(self) -> int:
         return id(self)
-
-    @property
-    def state(self) -> str:
-        return self._state
 
     @property
     def data(self) -> Any:
@@ -76,19 +50,44 @@ class State(Serializable):
             raise ValueError('Invalid state: "{}"'.format(state))
 
     def is_pending(self) -> bool:
-        return self.state in self._pending_states
+        return isinstance(self, Pending)
 
     def is_running(self) -> bool:
-        return self.state in self._running_states
+        return isinstance(self, Running)
 
     def is_finished(self) -> bool:
-        return self.state in self._finished_states
+        return isinstance(self, Finished)
 
     def is_successful(self) -> bool:
-        return self.state in self._successful_states
+        return isinstance(self, Success)
 
     def is_failed(self) -> bool:
-        return self.state == self.FAILED
+        return isinstance(self, Failed)
 
     def is_skipped(self) -> bool:
-        return self.state == self.SKIPPED
+        return isinstance(self, Skipped)
+
+
+class Pending(State):
+    pass
+
+class Retrying(Pending):
+    pass
+
+class Scheduled(Pending):
+    pass
+
+class Running(Pending):
+    pass
+
+class Finished(State):
+    pass
+
+class Success(Finished):
+    pass
+
+class Failed(Finished):
+    pass
+
+class Skipped(Success):
+    pass

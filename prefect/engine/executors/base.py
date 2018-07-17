@@ -34,7 +34,7 @@ class Executor(Serializable):
         raise NotImplementedError()
 
     def set_state(self, current_state: State, state: State, data: Any = None) -> State:
-        return type(current_state)(state, data)
+        return state(data)
 
     def run_flow(
         self,

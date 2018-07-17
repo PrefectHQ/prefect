@@ -1,22 +1,22 @@
 import pytest
 
 from prefect import signals, triggers
-from prefect.engine.state import State
+from prefect.engine.state import State, Success, Failed, Skipped, Pending, Retrying
 
 
 def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0):
     state_counts = {
-        State.SUCCESS: success,
-        State.FAILED: failed,
-        State.SKIPPED: skipped,
-        State.PENDING: pending,
-        State.RETRYING: retrying,
+        Success: success,
+        Failed: failed,
+        Skipped: skipped,
+        Pending: pending,
+        Retrying: retrying,
     }
 
     states = {}
     for state, count in state_counts.items():
         for i in range(count):
-            states[str(len(states))] = State(state)
+            states[str(len(states))] = state()
     return states
 
 

@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 import prefect
 from prefect import signals
 from prefect.core import Task
-from prefect.engine.state import State
+from prefect.engine.state import State, Success, Pending, Running
 
 
 class TaskRunner:
@@ -33,7 +33,7 @@ class TaskRunner:
         context: Dict[str, Any] = None,
     ) -> State:
         if state is None:
-            state = State()
+            state = Pending()
         upstream_states = upstream_states or {}
         context = context or {}
         inputs = inputs or {}
@@ -60,12 +60,12 @@ class TaskRunner:
                         ignore_trigger=ignore_trigger,
                     )
 
-                except signals.DONTRUN:
+                except signals.DONTRUN as e:
                     pass
 
                 except signals.SUCCESS:
                     logging.info("SUCCESS")
-                    state = self.executor.set_state(state, state.SUCCESS)
+                    state = self.executor.set_state(state, Success)
 
                 except signals.FAIL as e:
                     state = self.handle_fail(state, data=dict(message=e))
@@ -136,12 +136,12 @@ class TaskRunner:
         # -------------------------------------------------------------
 
         self.logger.info("Starting TaskRun.")
-        state = self.executor.set_state(state, State.RUNNING)
+        state = self.executor.set_state(state, Running)
 
         result = self.task.run(**inputs)
 
         # mark success
-        state = self.executor.set_state(state, State.SUCCESS, data=result)
+        state = self.executor.set_state(state, Success, data=result)
 
         return state
 
