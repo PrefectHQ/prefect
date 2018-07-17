@@ -77,7 +77,7 @@ class Retrying(Pending):
 class Scheduled(Pending):
     pass
 
-class Running(Pending):
+class Running(State):
     pass
 
 class Finished(State):
