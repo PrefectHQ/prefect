@@ -73,11 +73,10 @@ def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
     flow.add_task(task1)
     flow.add_task(task2)
 
-    run_flow_runner_test(
-        flow,
-        expected_state=Success,
-        expected_task_states={task1: Success(data=1), task2: Success(data=1)},
-    )
+    flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
+    assert isinstance(flow_state, Success)
+    assert flow_state.data[task1] == Success(data=1)
+    assert flow_state.data[task2] == Success(data=1)
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks():
@@ -87,11 +86,10 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks():
 
     flow.add_edge(task1, task2)
 
-    run_flow_runner_test(
-        flow,
-        expected_state=Success,
-        expected_task_states={task1: Success(data=1), task2: Success(data=1)},
-    )
+    flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
+    assert isinstance(flow_state, Success)
+    assert flow_state.data[task1] == Success(data=1)
+    assert flow_state.data[task2] == Success(data=1)
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails():
@@ -101,9 +99,10 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails
 
     flow.add_edge(task1, task2)
 
-    run_flow_runner_test(
-        flow, expected_state=Failed, expected_task_states={task1: Failed, task2: Failed}
-    )
+    flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
+    assert isinstance(flow_state, Failed)
+    assert isinstance(flow_state.data[task1], Failed)
+    assert isinstance(flow_state.data[task2], Failed)
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fails():
@@ -113,11 +112,10 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fail
 
     flow.add_edge(task1, task2)
 
-    run_flow_runner_test(
-        flow,
-        expected_state=Failed,
-        expected_task_states={task1: Success, task2: Failed},
-    )
+    flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
+    assert isinstance(flow_state, Failed)
+    assert isinstance(flow_state.data[task1], Success)
+    assert isinstance(flow_state.data[task2], Failed)
 
 
 def test_flow_runner_returns_task_states_even_if_it_doesnt_run():
@@ -128,12 +126,10 @@ def test_flow_runner_returns_task_states_even_if_it_doesnt_run():
 
     flow.add_edge(task1, task2)
 
-    run_flow_runner_test(
-        flow,
-        state=Success(),
-        expected_state=Success,
-        expected_task_states={task1: Pending, task2: Pending},
-    )
+    flow_state = FlowRunner(flow=flow).run(state=Success(), return_tasks=[task1, task2])
+    assert isinstance(flow_state, Success)
+    assert isinstance(flow_state.data[task1], Pending)
+    assert isinstance(flow_state.data[task2], Pending)
 
 
 def test_flow_runner_remains_pending_if_tasks_are_retrying():
@@ -144,11 +140,10 @@ def test_flow_runner_remains_pending_if_tasks_are_retrying():
 
     flow.add_edge(task1, task2)
 
-    run_flow_runner_test(
-        flow,
-        expected_state=Pending,
-        expected_task_states={task1: Success, task2: Retrying},
-    )
+    flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
+    assert isinstance(flow_state, Pending)
+    assert isinstance(flow_state.data[task1], Success)
+    assert isinstance(flow_state.data[task2], Retrying)
 
 
 def test_flow_runner_doesnt_return_by_default():
