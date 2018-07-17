@@ -12,12 +12,17 @@ from prefect.engine.state import (
     Skipped,
     Pending,
     Scheduled,
+    TriggerFailed,
 )
 
 
 class TestState:
     def test_create_state_with_no_args(self):
         state = State()
+        assert state.data is None
+
+    def test_create_pending_with_no_args(self):
+        state = Pending()
         assert state.data is None
 
     def test_create_state_with_state_and_data(self):
@@ -108,6 +113,15 @@ class TestStateMethods:
         assert state.is_finished()
         assert not state.is_successful()
         assert state.is_failed()
+        assert not state.is_skipped()
+
+    def test_state_type_methods_with_trigger_failed_state(self):
+        state = TriggerFailed()
+        assert not state.is_pending()
+        assert not state.is_running()
+        assert state.is_finished()
+        assert not state.is_successful()
+        assert not state.is_failed()
         assert not state.is_skipped()
 
     def test_state_type_methods_with_skipped_state(self):
