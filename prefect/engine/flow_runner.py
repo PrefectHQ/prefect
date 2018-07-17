@@ -155,26 +155,18 @@ class FlowRunner:
 
         if any(s.is_failed() for s in terminal_states):
             self.logger.info("Flow run FAILED: some terminal tasks failed.")
-            state = self.executor.set_state(
-                state, state=Failed, data=return_states
-            )
+            state = self.executor.set_state(state, state=Failed, data=return_states)
 
         elif all(s.is_successful() for s in terminal_states):
             self.logger.info("Flow run SUCCESS: all terminal tasks succeeded")
-            state = self.executor.set_state(
-                state, state=Success, data=return_states
-            )
+            state = self.executor.set_state(state, state=Success, data=return_states)
 
         elif all(s.is_finished() for s in terminal_states):
             self.logger.info("Flow run SUCCESS: all terminal tasks done; none failed.")
-            state = self.executor.set_state(
-                state, state=Success, data=return_states
-            )
+            state = self.executor.set_state(state, state=Success, data=return_states)
 
         else:
             self.logger.info("Flow run PENDING: terminal tasks are incomplete.")
-            state = self.executor.set_state(
-                state, state=Pending, data=return_states
-            )
+            state = self.executor.set_state(state, state=Pending, data=return_states)
 
         return state
