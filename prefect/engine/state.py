@@ -94,6 +94,8 @@ class Success(Finished):
 class Failed(Finished):
     pass
 
+class TriggerFailed(Finished):
+    pass
 
 class Skipped(Success):
     pass
