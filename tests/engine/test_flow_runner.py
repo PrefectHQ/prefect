@@ -65,10 +65,10 @@ def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
 
     run_flow_runner_test(
         flow,
-        expected_state=State.SUCCESS,
+        expected_state=Success,
         expected_task_states={
-            task1: State(State.SUCCESS, data=1),
-            task2: State(State.SUCCESS, data=1),
+            task1: Success(data=1),
+            task2: Success(data=1),
         },
     )
 
@@ -82,10 +82,10 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks():
 
     run_flow_runner_test(
         flow,
-        expected_state=State.SUCCESS,
+        expected_state=Success,
         expected_task_states={
-            task1: State(State.SUCCESS, data=1),
-            task2: State(State.SUCCESS, data=1),
+            task1: Success(data=1),
+            task2: Success(data=1),
         },
     )
 
@@ -99,8 +99,8 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails
 
     run_flow_runner_test(
         flow,
-        expected_state=State.FAILED,
-        expected_task_states={task1: State.FAILED, task2: State.FAILED},
+        expected_state=Failed,
+        expected_task_states={task1: Failed, task2: Failed},
     )
 
 
@@ -113,8 +113,8 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fail
 
     run_flow_runner_test(
         flow,
-        expected_state=State.FAILED,
-        expected_task_states={task1: State.SUCCESS, task2: State.FAILED},
+        expected_state=Failed,
+        expected_task_states={task1: Success, task2: Failed},
     )
 
 
@@ -128,9 +128,9 @@ def test_flow_runner_returns_task_states_even_if_it_doesnt_run():
 
     run_flow_runner_test(
         flow,
-        state=State(State.SUCCESS),
-        expected_state=State.SUCCESS,
-        expected_task_states={task1: State.PENDING, task2: State.PENDING},
+        state=Success(),
+        expected_state=Success,
+        expected_task_states={task1: Pending, task2: Pending},
     )
 
 
@@ -144,8 +144,8 @@ def test_flow_runner_remains_pending_if_tasks_are_retrying():
 
     run_flow_runner_test(
         flow,
-        expected_state=State.PENDING,
-        expected_task_states={task1: State.SUCCESS, task2: State.RETRYING},
+        expected_state=Pending,
+        expected_task_states={task1: Success, task2: Retrying},
     )
 
 
@@ -164,7 +164,7 @@ def test_flow_runner_does_return_when_requested():
     task2 = SuccessTask()
     flow.add_edge(task1, task2)
     run_flow_runner_test(
-        flow, expected_state=State.SUCCESS, expected_task_states={task1: State.SUCCESS}
+        flow, expected_state=Success, expected_task_states={task1: Success}
     )
 
 
@@ -174,7 +174,7 @@ def test_missing_parameter_creates_pending_task():
     y = prefect.Parameter("y")
     task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
     run_flow_runner_test(
-        flow, expected_state=State.FAILED, expected_task_states={task: State.PENDING}
+        flow, expected_state=Failed, expected_task_states={task: Pending}
     )
 
 

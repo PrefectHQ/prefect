@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 import prefect
 from prefect import signals
 from prefect.core import Task
-from prefect.engine.state import State, Success, Pending, Running
+from prefect.engine.state import Failed, State, Success, Pending, Running, Retrying
 
 
 class TaskRunner:
@@ -154,7 +154,7 @@ class TaskRunner:
         if run_number and run_number <= self.task.max_retries:
             return self.handle_retry(state)
         else:
-            return self.executor.set_state(state, State.FAILED, data=data)
+            return self.executor.set_state(state, Failed, data=data)
 
     def handle_retry(self, state, retry_time=None):
         # TODO exponential backoff based on run_number
@@ -164,4 +164,4 @@ class TaskRunner:
         if retry_time is None:
             retry_time = datetime.datetime.utcnow() + self.task.retry_delay
 
-        return self.executor.set_state(state, State.RETRYING, data=retry_time)
+        return self.executor.set_state(state, Retrying, data=retry_time)
