@@ -89,6 +89,7 @@ class TaskRunner:
                     logging.info("Unexpected error while running task.")
                     state = self.handle_fail(state, data=dict(message=e))
 
+        print(self.task, state)
         return state
 
     def _run(
