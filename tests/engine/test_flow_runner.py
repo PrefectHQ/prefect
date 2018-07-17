@@ -3,7 +3,7 @@ import datetime
 import prefect
 from prefect.core import Flow, Task
 from prefect.engine import FlowRunner
-from prefect.engine.state import State
+from prefect.engine.state import State, Pending, Retrying, Scheduled, Running, Finished, Success, Failed, Skipped
 from prefect.utilities.tests import run_flow_runner_test
 
 
@@ -52,8 +52,7 @@ def test_flow_runner_runs_basic_flow_with_1_task():
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
     state = flow_runner.run(return_tasks=[task])
-    # assert state.state == State.SUCCESS
-    assert state == State(State.SUCCESS, {task: State(State.SUCCESS, data=1)})
+    assert state == Success({task: Success(data=1)})
 
 
 def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
