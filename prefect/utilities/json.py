@@ -8,6 +8,7 @@ import json
 import sys
 import types
 import uuid
+import warnings
 from functools import singledispatch
 from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar
 
@@ -62,16 +63,12 @@ def register_json_codec(register_type: Type = None) -> Callable:
 
     def _register(codec_class: "JSONCodec") -> "JSONCodec":
 
-        full_codec_key = CODEC_PREFIX + codec_class.codec_key
-
-        # register the codec key
-        if full_codec_key in JSON_CODECS_KEYS:
-            raise ValueError(
-                'A JSON codec is already registered for codec_key "{}"'.format(
-                    codec_class.codec_key
-                )
+        if CODEC_PREFIX + codec_class.codec_key in JSON_CODECS_KEYS:
+            warnings.warn(
+                'A JSONCodec was already registered for the codec_key "{}", '
+                "and has been overwritten.".format(codec_class.codec_key)
             )
-        JSON_CODECS_KEYS[full_codec_key] = codec_class
+        JSON_CODECS_KEYS[CODEC_PREFIX + codec_class.codec_key] = codec_class
 
         # register the dispatch type
         if register_type:
