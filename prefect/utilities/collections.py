@@ -14,7 +14,9 @@ def merge_dicts(d1: MutableMapping, d2: MutableMapping) -> MutableMapping:
     new_dict = d1.copy()
 
     for k, v in d2.items():
-        if isinstance(new_dict.get(k), MutableMapping) and isinstance(v, MutableMapping):
+        if isinstance(new_dict.get(k), MutableMapping) and isinstance(
+            v, MutableMapping
+        ):
             new_dict[k] = merge_dicts(new_dict[k], d2[k])
         else:
             new_dict[k] = d2[k]
