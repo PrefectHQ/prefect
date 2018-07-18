@@ -101,7 +101,7 @@ def dict_to_flatdict(dct: dict, parent: CompoundKey = None) -> dict:
     return dict(items)
 
 
-def flatdict_to_dict(dct: dict, dct_class: type = None) -> dict:
+def flatdict_to_dict(dct: dict, dct_class: type = None) -> MutableMapping:
     """Converts a flattened dictionary back to a nested dictionary.
 
     Args:
