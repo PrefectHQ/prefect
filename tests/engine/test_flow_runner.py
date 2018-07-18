@@ -114,7 +114,9 @@ def test_flow_runner_runs_flow_with_2_dependent_tasks_and_first_task_fails_and_s
     flow.add_edge(task1, task2)
 
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
-    assert isinstance(flow_state, Success) # flow state is determined by terminal states
+    assert isinstance(
+        flow_state, Success
+    )  # flow state is determined by terminal states
     assert isinstance(flow_state.data[task1], Failed)
     assert isinstance(flow_state.data[task2], Success)
 
