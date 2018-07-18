@@ -121,6 +121,20 @@ def test_flow_runner_runs_flow_with_2_dependent_tasks_and_first_task_fails_and_s
     assert isinstance(flow_state.data[task2], Success)
 
 
+def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails_with_FAIL():
+    flow = prefect.Flow()
+    task1 = RaiseFailTask()
+    task2 = SuccessTask()
+
+    flow.add_edge(task1, task2)
+
+    flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
+    assert isinstance(flow_state, Failed)
+    assert isinstance(flow_state.data[task1], Failed)
+    assert not isinstance(flow_state.data[task1], TriggerFailed)
+    assert isinstance(flow_state.data[task2], TriggerFailed)
+
+
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fails():
     flow = prefect.Flow()
     task1 = SuccessTask()

@@ -3,7 +3,7 @@ import datetime
 import prefect
 from prefect.core.task import Task
 from prefect.engine import TaskRunner
-from prefect.engine.state import State, Success, Failed, Retrying, Skipped, Pending
+from prefect.engine.state import State, Success, Failed, Retrying, Skipped, Pending, TriggerFailed
 
 
 class SuccessTask(Task):
@@ -61,6 +61,7 @@ def test_task_that_has_an_error_is_marked_fail():
 def test_task_that_raises_fail_is_marked_fail():
     task_runner = TaskRunner(task=RaiseFailTask())
     assert isinstance(task_runner.run(), Failed)
+    assert not isinstance(task_runner.run(), TriggerFailed)
 
 
 def test_task_that_fails_gets_retried_up_to_1_time():
