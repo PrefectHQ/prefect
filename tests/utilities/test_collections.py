@@ -21,10 +21,12 @@ def test_flatten_dict(nested_dict):
     }
 
 
-def test_nest_flattened_dict(nested_dict):
+def test_restore_flattened_dict(nested_dict):
     flat = collections.dict_to_flatdict(nested_dict)
-    nested = collections.flatdict_to_dict(flat)
-    assert nested == nested_dict
+    restored = collections.flatdict_to_dict(flat)
+    assert restored == nested_dict
+
+
 def test_restore_flattened_dict_with_dict_class():
     nested_dict = DotDict(a=DotDict(x=1), b=DotDict(y=2))
     flat = collections.dict_to_flatdict(nested_dict)

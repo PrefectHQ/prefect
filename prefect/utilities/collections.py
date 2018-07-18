@@ -1,5 +1,5 @@
 from collections.abc import MutableMapping
-
+from typing import Any
 
 def merge_dicts(d1: dict, d2: dict) -> dict:
     """
@@ -56,7 +56,7 @@ class DotDict(MutableMapping):
         return type(self)(self.__dict__.copy())
 
 
-def to_dotdict(obj):
+def to_dotdict(obj: Any) -> DotDict:
     """
     Given a obj formatted as a dictionary, returns an object
     that also supports "dot" access:
@@ -75,7 +75,7 @@ class CompoundKey(tuple):
     pass
 
 
-def dict_to_flatdict(dct, parent=None):
+def dict_to_flatdict(dct: dict, parent: CompoundKey = None) -> dict:
     """Converts a (nested) dictionary to a flattened representation.
 
     Each key
