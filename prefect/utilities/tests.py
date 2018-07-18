@@ -28,9 +28,11 @@ def set_config(keys, value):
 
 @contextmanager
 def raise_on_fail():
-    prefect.context['_raise_on_fail'] = True
-    yield
-    del prefect.context._raise_on_fail
+    prefect.context["_raise_on_fail"] = True
+    try:
+        yield
+    finally:
+        del prefect.context._raise_on_fail
 
 
 def run_flow_runner_test(
