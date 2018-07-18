@@ -2,7 +2,7 @@ from collections.abc import MutableMapping
 from typing import Any
 
 
-def merge_dicts(d1: dict, d2: dict) -> dict:
+def merge_dicts(d1: MutableMapping, d2: MutableMapping) -> MutableMapping:
     """
     Updates d1 from d2 by replacing each (k, v1) pair in d1 with the
     corresponding (k, v2) pair in d2.
@@ -14,7 +14,7 @@ def merge_dicts(d1: dict, d2: dict) -> dict:
     new_dict = d1.copy()
 
     for k, v in d2.items():
-        if isinstance(new_dict.get(k), dict) and isinstance(v, dict):
+        if isinstance(new_dict.get(k), MutableMapping) and isinstance(v, MutableMapping):
             new_dict[k] = merge_dicts(new_dict[k], d2[k])
         else:
             new_dict[k] = d2[k]
