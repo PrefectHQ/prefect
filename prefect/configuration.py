@@ -154,16 +154,16 @@ def load_config_file(path: str, env_var_prefix: str = ENV_VAR_PREFIX) -> Config:
 def load_configuration(
     default_config_path: str, user_config_path: str, env_var_prefix: str = None
 ) -> Config:
-    default_config = load_config_file(
-        default_config_path, env_var_prefix=env_var_prefix
-    )
-    try:
-        create_user_config(user_config_path)
-    except Exception:
-        pass
-    user_config = load_config_file(user_config_path, env_var_prefix=env_var_prefix)
 
-    config = collections.merge_dicts(default_config, user_config)
+    # load default config
+    config = load_config_file(default_config_path, env_var_prefix=env_var_prefix or "")
+
+    # if user config exists, load and merge it with default config
+    if os.path.isfile(user_config_path):
+        user_config = load_config_file(
+            user_config_path, env_var_prefix=env_var_prefix or ""
+        )
+        config = collections.merge_dicts(config, user_config)
 
     validate_config(config)
 
