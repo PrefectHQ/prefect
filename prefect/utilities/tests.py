@@ -26,6 +26,13 @@ def set_config(keys, value):
         prefect.config.__dict__.update(old_config)
 
 
+@contextmanager
+def raise_on_fail():
+    prefect.context['_raise_on_fail'] = True
+    yield
+    del prefect.context._raise_on_fail
+
+
 def run_flow_runner_test(
     flow: Flow,
     expected_state: str,
