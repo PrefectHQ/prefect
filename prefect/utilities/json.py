@@ -254,24 +254,6 @@ def serializable(fn: Callable) -> Callable:
 
 
 @register_json_codec()
-class EncryptedCodec(JSONCodec[J, str]):
-
-    codec_key = "encrypted"
-
-    def serialize(self) -> str:
-        key = prefect.config.security.encryption_key
-        payload = base64.b64encode(json.dumps(self.value).encode())
-        return Fernet(key).encrypt(payload).decode()
-
-    @staticmethod
-    def deserialize(obj: str) -> J:
-        key = prefect.config.security.encryption_key
-        decrypted = Fernet(key).decrypt(obj.encode())
-        decoded = base64.b64decode(decrypted).decode()
-        return json.loads(decoded)
-
-
-@register_json_codec()
 class ObjectInitArgsCodec(JSONCodec[object, dict]):
     """
     Serializes an object by storing its class and a dict of initialization args.
