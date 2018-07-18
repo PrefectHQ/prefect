@@ -93,12 +93,6 @@ class TestTypeCodecs:
         j = json.dumps(x)
         assert x == json.loads(j)
 
-    def test_json_codec_encrypted(self):
-        x = 1
-        j = json.dumps(json_utils.EncryptedCodec(x))
-        assert len(default_load_json(j)["//encrypted"]) > 20
-        assert x == json.loads(j)
-
     def test_json_codec_set(self):
         x = set([3, 4, 5])
         j = json.dumps(x)
