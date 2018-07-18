@@ -77,7 +77,6 @@ class TestStateMethods:
         assert not state.is_finished()
         assert not state.is_successful()
         assert not state.is_failed()
-        assert not state.is_skipped()
 
     def test_state_type_methods_with_scheduled_state(self):
         state = Scheduled()
@@ -86,7 +85,6 @@ class TestStateMethods:
         assert not state.is_finished()
         assert not state.is_successful()
         assert not state.is_failed()
-        assert not state.is_skipped()
 
     def test_state_type_methods_with_running_state(self):
         state = Running()
@@ -95,7 +93,6 @@ class TestStateMethods:
         assert not state.is_finished()
         assert not state.is_successful()
         assert not state.is_failed()
-        assert not state.is_skipped()
 
     def test_state_type_methods_with_success_state(self):
         state = Success()
@@ -104,7 +101,6 @@ class TestStateMethods:
         assert state.is_finished()
         assert state.is_successful()
         assert not state.is_failed()
-        assert not state.is_skipped()
 
     def test_state_type_methods_with_failed_state(self):
         state = Failed()
@@ -113,7 +109,6 @@ class TestStateMethods:
         assert state.is_finished()
         assert not state.is_successful()
         assert state.is_failed()
-        assert not state.is_skipped()
 
     def test_state_type_methods_with_trigger_failed_state(self):
         state = TriggerFailed()
@@ -122,7 +117,6 @@ class TestStateMethods:
         assert state.is_finished()
         assert not state.is_successful()
         assert state.is_failed()
-        assert not state.is_skipped()
 
     def test_state_type_methods_with_skipped_state(self):
         state = Skipped()
@@ -131,4 +125,3 @@ class TestStateMethods:
         assert state.is_finished()
         assert state.is_successful()
         assert not state.is_failed()
-        assert state.is_skipped()

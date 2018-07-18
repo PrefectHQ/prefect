@@ -61,9 +61,6 @@ class State(Serializable):
     def is_failed(self) -> bool:
         return isinstance(self, Failed)
 
-    def is_skipped(self) -> bool:
-        return isinstance(self, Skipped)
-
 
 class Pending(State):
     pass
