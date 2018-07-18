@@ -61,6 +61,8 @@ class TaskRunner:
             # prepare executor
             with self.executor.start():
 
+                raise_on_fail = prefect.context.get("_raise_on_fail", False)
+
                 try:
                     state = self._run(
                         state=state,
@@ -77,7 +79,9 @@ class TaskRunner:
                     state = self.executor.set_state(state, Success)
 
                 except signals.FAIL as e:
-                    state = self.handle_fail(state, data=dict(message=e))
+                    state = self.handle_fail(
+                        state, fail_mode=e, raise_on_fail=raise_on_fail
+                    )
 
                 except signals.RETRY:
                     state = self.handle_retry(state)
@@ -88,7 +92,9 @@ class TaskRunner:
 
                 except Exception as e:
                     logging.info("Unexpected error while running task.")
-                    state = self.handle_fail(state, data=dict(message=e))
+                    state = self.handle_fail(
+                        state, fail_mode=e, raise_on_fail=raise_on_fail
+                    )
 
         return state
 
@@ -155,18 +161,28 @@ class TaskRunner:
 
         return state
 
-    def handle_fail(self, state, data=None):
+    def handle_fail(self, state, fail_mode=None, raise_on_fail=False):
         """
         Checks if a task is eligable for retry; otherwise marks it failed.
         """
         self.logger.info("Task FAILED")
-        if "Trigger failed" in str(data.get("message")):
-            return self.executor.set_state(state, TriggerFailed, data=data)
+        if "Trigger failed" in str(fail_mode):
+            state = self.executor.set_state(
+                state, TriggerFailed, data=dict(message=fail_mode)
+            )
+            if raise_on_fail:
+                raise fail_mode
+            else:
+                return state
         run_number = prefect.context.get("_task_run_number", 1)
         if run_number and run_number <= self.task.max_retries:
             return self.handle_retry(state)
         else:
-            return self.executor.set_state(state, Failed, data=data)
+            state = self.executor.set_state(state, Failed, data=dict(message=fail_mode))
+            if raise_on_fail:
+                raise fail_mode
+            else:
+                return state
 
     def handle_retry(self, state, retry_time=None):
         # TODO exponential backoff based on run_number
