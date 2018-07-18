@@ -61,7 +61,7 @@ class TaskRunner:
             # prepare executor
             with self.executor.start():
 
-                raise_on_fail = prefect.context.get('_raise_on_fail', False)
+                raise_on_fail = prefect.context.get("_raise_on_fail", False)
 
                 try:
                     state = self._run(
@@ -79,7 +79,9 @@ class TaskRunner:
                     state = self.executor.set_state(state, Success)
 
                 except signals.FAIL as e:
-                    state = self.handle_fail(state, fail_mode=e, raise_on_fail=raise_on_fail)
+                    state = self.handle_fail(
+                        state, fail_mode=e, raise_on_fail=raise_on_fail
+                    )
 
                 except signals.RETRY:
                     state = self.handle_retry(state)
@@ -90,7 +92,9 @@ class TaskRunner:
 
                 except Exception as e:
                     logging.info("Unexpected error while running task.")
-                    state = self.handle_fail(state, fail_mode=e, raise_on_fail=raise_on_fail)
+                    state = self.handle_fail(
+                        state, fail_mode=e, raise_on_fail=raise_on_fail
+                    )
 
         return state
 
@@ -163,7 +167,9 @@ class TaskRunner:
         """
         self.logger.info("Task FAILED")
         if "Trigger failed" in str(fail_mode):
-            state = self.executor.set_state(state, TriggerFailed, data=dict(message=fail_mode))
+            state = self.executor.set_state(
+                state, TriggerFailed, data=dict(message=fail_mode)
+            )
             if raise_on_fail:
                 raise fail_mode
             else:

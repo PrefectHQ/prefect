@@ -50,7 +50,7 @@ class FlowRunner:
 
             with self.executor.start():
 
-                raise_on_fail = prefect.context.get('_raise_on_fail', False)
+                raise_on_fail = prefect.context.get("_raise_on_fail", False)
 
                 try:
                     state = self._run(
