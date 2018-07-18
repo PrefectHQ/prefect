@@ -24,15 +24,23 @@ template = b"""
     interpolated_path = "$PATH"
     not_interpolated_path = "xxx$PATHxxx"
 
+    [logging]
+    format = "log-format"
+
     """
 
 
 @pytest.fixture
-def config():
-    with tempfile.NamedTemporaryFile() as default_config:
-        default_config.write(template)
-        default_config.seek(0)
-        return configuration.load_config_file(path=default_config.name)
+def test_config_file_path():
+    with tempfile.NamedTemporaryFile() as test_config:
+        test_config.write(template)
+        test_config.seek(0)
+        yield test_config.name
+
+
+@pytest.fixture
+def config(test_config_file_path):
+    return configuration.load_config_file(path=test_config_file_path)
 
 
 def test_keys(config):
@@ -64,6 +72,23 @@ def test_env_var_interpolation(config):
     assert config.env_vars.not_interpolated_path == "xxx$PATHxxx"
 
 
-def test_env_var_overrides():
+def test_env_var_overrides(test_config_file_path):
     os.environ["PREFECT__ENV_VARS__TEST"] = "OVERRIDE!"
-    assert config().env_vars.test == "OVERRIDE!"
+    assert config(test_config_file_path).env_vars.test == "OVERRIDE!"
+
+
+def test_load_user_config_and_update_default(test_config_file_path):
+    config = configuration.load_configuration(
+        default_config_path=configuration.DEFAULT_CONFIG,
+        user_config_path=test_config_file_path,
+    )
+    assert "logging" in config
+
+    # this comes from default
+    assert config.logging.level == "INFO"
+    # this comes from user
+    assert config.logging.format == "log-format"
+
+    # this comes from user
+    assert "general" in config
+    assert config.general.nested.x == 1
