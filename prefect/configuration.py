@@ -110,18 +110,24 @@ def load_config_file(path: str, env_var_prefix: str = ENV_VAR_PREFIX) -> Config:
     # --------------------- Interpolate other config keys -----------------
     # TOML doesn't support references to other keys... but we do!
     # This has the potential to lead to nasty recursions, so we check at most 10 times.
+    # we use a set called "keys_to_check" to track only the ones of interest, so we aren't
+    # checking every key every time.
+    keys_to_check = set(flat_config.keys())
+
     for _ in range(10):
 
         # iterate over every key and value to check if the value uses interpolation
-        for k, v in list(flat_config.items()):
+        for k in list(keys_to_check):
 
             # if the value isn't a string, it can't be a reference, so we exit
-            if not isinstance(v, str):
+            if not isinstance(flat_config[k], str):
+                keys_to_check.remove(k)
                 continue
 
             # see if the ${...} syntax was used in the value and exit if it wasn't
-            match = INTERPOLATION_REGEX.search(v)
+            match = INTERPOLATION_REGEX.search(flat_config[k])
             if not match:
+                keys_to_check.remove(k)
                 continue
 
             # the matched_string includes "${}"; the matched_key is just the inner value
@@ -134,11 +140,11 @@ def load_config_file(path: str, env_var_prefix: str = ENV_VAR_PREFIX) -> Config:
             ref_value = flat_config[ref_key]
 
             # if the matched was the entire value, replace it with the interpolated value
-            if v == matched_string:
+            if flat_config[k] == matched_string:
                 flat_config[k] = ref_value
             # if it was a partial match, then drop the interpolated value into the string
             else:
-                flat_config[k] = v.replace(matched_string, str(ref_value), 1)
+                flat_config[k] = flat_config[k].replace(matched_string, str(ref_value), 1)
 
     return collections.flatdict_to_dict(flat_config, dct_class=Config)
 
