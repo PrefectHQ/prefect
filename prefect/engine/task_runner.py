@@ -113,7 +113,7 @@ class TaskRunner:
         # -------------------------------------------------------------
 
         if self.task.propagate_skip and any(
-            s.is_skipped() for s in upstream_states.values()
+            isinstance(s, Skipped) for s in upstream_states.values()
         ):
             raise signals.SKIP("Upstream tasks skipped.")
 
