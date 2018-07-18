@@ -100,7 +100,7 @@ def dict_to_flatdict(dct, parent=None):
     return dict(items)
 
 
-def flatdict_to_dict(dct):
+def flatdict_to_dict(dct: dict, dct_class: type = None) -> dict:
     """Converts a flattened dictionary back to a nested dictionary.
 
     Args:
@@ -109,12 +109,12 @@ def flatdict_to_dict(dct):
 
     """
 
-    result = {}
+    result = (dct_class or dict)()
     for k, v in dct.items():
         if isinstance(k, CompoundKey):
             current_dict = result
             for ki in k[:-1]:
-                current_dict = current_dict.setdefault(ki, {})
+                current_dict = current_dict.setdefault(ki, (dct_class or dict)())
             current_dict[k[-1]] = v
         else:
             result[k] = v
