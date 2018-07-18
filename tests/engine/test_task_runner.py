@@ -3,7 +3,15 @@ import datetime
 import prefect
 from prefect.core.task import Task
 from prefect.engine import TaskRunner
-from prefect.engine.state import State, Success, Failed, Retrying, Skipped, Pending, TriggerFailed
+from prefect.engine.state import (
+    State,
+    Success,
+    Failed,
+    Retrying,
+    Skipped,
+    Pending,
+    TriggerFailed,
+)
 
 
 class SuccessTask(Task):
