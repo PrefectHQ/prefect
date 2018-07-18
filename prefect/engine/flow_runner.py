@@ -50,6 +50,8 @@ class FlowRunner:
 
             with self.executor.start():
 
+                raise_on_fail = prefect.context.get('_raise_on_fail', False)
+
                 try:
                     state = self._run(
                         state=state,
@@ -62,6 +64,8 @@ class FlowRunner:
                     self.logger.info("Flow run DONTRUN")
                     # set state but no need to go through the executor
                     state = type(state)(return_task_states)
+                    if raise_on_fail:
+                        raise e
                 except Exception as e:
                     self.logger.info("Flow run FAIL")
                     # set state through executor
@@ -69,6 +73,8 @@ class FlowRunner:
                     state = self.executor.set_state(
                         state, Failed, data=return_task_states
                     )
+                    if raise_on_fail:
+                        raise e
 
         return state
 
