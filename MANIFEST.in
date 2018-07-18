@@ -1,1 +1,1 @@
-include prefect/prefect.toml
+include prefect/config.toml
