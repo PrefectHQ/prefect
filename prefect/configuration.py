@@ -1,59 +1,24 @@
 import logging
 import os
-import random
 import re
-import uuid
-from string import ascii_letters, digits, punctuation
-from types import SimpleNamespace
 
 import toml
-from cryptography.fernet import Fernet
 
 import prefect
 from prefect.utilities import collections
 
-DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), "prefect.toml")
-USER_CONFIG = "~/.prefect/prefect.toml"
+DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), "config.toml")
+USER_CONFIG = "~/.prefect/config.toml"
 ENV_VAR_PREFIX = "PREFECT"
 INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 
 
-class Config(SimpleNamespace):
-    def __repr__(self):
-        return "<Config: {}>".format(", ".join(sorted(self.sections())))
-
-    def __iter__(self):
-        return self.sections()
-
-    def get(self, key, default=None):
-        return self.__dict__.get(key, default)
-
-    def sections(self):
-        return self.__dict__.keys()
-
-    def to_dict(self):
-        dct = {}
-        for k, v in self.__dict__.items():
-            if isinstance(v, SimpleNamespace):
-                v = v.to_dict()
-            dct[k] = v
-        return dct
-
-    @classmethod
-    def from_dict(cls, dct, recursive=True):
-        if not isinstance(dct, dict):
-            return dct
-        for key, value in list(dct.items()):
-            if isinstance(value, dict):
-                dct[key] = cls.from_dict(value, recursive=recursive)
-            elif isinstance(value, (list, tuple, set)):
-                dct[key] = type(value)(
-                    [cls.from_dict(v, recursive=recursive) for v in value]
-                )
-        return cls(**dct)
+class Config(collections.DotDict):
+    def __repr__(self) -> str:
+        return "<Config: {}>".format(", ".join(sorted(self.keys())))
 
 
-def expand(env_var):
+def interpolate_env_var(env_var: str) -> str:
     """
     Expands (potentially nested) env vars by repeatedly applying
     `expandvars` and `expanduser` until interpolation stops having
@@ -69,51 +34,24 @@ def expand(env_var):
             env_var = substituted
 
 
-def create_user_config(path, source=DEFAULT_CONFIG):
+def create_user_config(dest_path: str, source_path: str = DEFAULT_CONFIG) -> None:
     """
-    Copies the default configuration to a user-customizable file
+    Copies the default configuration to a user-customizable file at `dest_path`
     """
-    config_file = expand(path)
-    if os.path.isfile(config_file):
-        raise ValueError("File already exists: {}".format(config_file))
-    os.makedirs(os.path.dirname(config_file), exist_ok=True)
+    dest_path = interpolate_env_var(dest_path)
+    if os.path.isfile(dest_path):
+        raise ValueError("File already exists: {}".format(dest_path))
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
 
-    def quote(s):
-        return '"' + s + '"'
-
-    with open(config_file, "w") as fw:
-        with open(source, "r") as fr:
-            src = fr.read()
-            counter = 0
-
-            while '"<<FERNET KEY>>"' in src:
-                key = Fernet.generate_key().decode()
-                src = src.replace('"<<FERNET KEY>>"', quote(key), 1)
-                counter += 1
-                if counter > 100:
-                    raise ValueError("Unexpected interpolation error.")
-
-            while '"<<SECRET>>"' in src:
-                chars = ascii_letters + digits + "!@#$%^&*()[]<>,.-"
-                secret = "".join(random.choice(chars) for i in range(32))
-                src = src.replace('"<<SECRET>>"', quote(secret), 1)
-                counter += 1
-                if counter > 100:
-                    raise ValueError("Unexpected interpolation error.")
-
-            while '"<<UUID>>"' in src:
-                src = src.replace('"<<UUID>>"', quote(str(uuid.uuid4())), 1)
-                counter += 1
-                if counter > 100:
-                    raise ValueError("Unexpected interpolation error.")
-
-            fw.write(src)
+    with open(dest_path, "w") as dest:
+        with open(source_path, "r") as source:
+            dest.write(source.read())
 
 
 # Logging ---------------------------------------------------------------------
 
 
-def configure_logging(logger_name):
+def configure_logging(logger_name: str) -> None:
     logger = logging.getLogger(logger_name)
     handler = logging.StreamHandler()
     formatter = logging.Formatter(config.logging.format)
@@ -125,75 +63,117 @@ def configure_logging(logger_name):
 # Validation ------------------------------------------------------------------
 
 
-def validate_config(config):
+def validate_config(config: Config) -> None:
+    """
+    Placeholder for future config validation. For example, invalid values could raise an error.
+    """
     pass
 
 
 # Load configuration ----------------------------------------------------------
 
 
-def load_config_file(path, existing_config=None):
+def load_config_file(path: str, env_var_prefix: str = ENV_VAR_PREFIX) -> Config:
+    """
+    Loads a configuration file from a path, optionally merging it into an existing
+    configuration.
+    """
 
-    config = toml.load(expand(path))
+    # load the configuration file
+    config = toml.load(interpolate_env_var(path))
+
+    # toml supports nested dicts, so we work with a flattened representation to do any
+    # requested interpolation
     flat_config = collections.dict_to_flatdict(config)
 
-    # set configuration from env vars
+    # --------------------- Interpolate env vars -----------------------
+    # check if any env var sets a configuration value with the format:
+    # [ENV_VAR_PREFIX]__[Section]__[Optional Sub-Sections...]__[Key] = Value
     for env_var in os.environ:
-        if not env_var.startswith(ENV_VAR_PREFIX):
-            continue
-        sections = collections.CompoundKey(env_var.lower().split("__")[1:])
-        if sections:
-            flat_config[sections] = expand(os.getenv(env_var))
+        if env_var.startswith(env_var_prefix + "__"):
 
-    # expand configuration referencing env vars
+            # strip the prefix off the env var
+            env_var_option = env_var[len(env_var_prefix + "__") :]
+
+            # make sure the resulting env var has at least one delimitied section and key
+            if "__" not in env_var:
+                continue
+
+            # place the env var in the flat config as a compound key
+            config_option = collections.CompoundKey(env_var_option.lower().split("__"))
+            flat_config[config_option] = interpolate_env_var(os.getenv(env_var))
+
+    # interpolate any env vars referenced
     for k, v in list(flat_config.items()):
-        flat_config[k] = expand(v)
+        flat_config[k] = interpolate_env_var(v)
 
-    # process interpolation of any variable referencing another with ${}
-    # process up to 10 links
-    for i in range(10):
-        for k, v in list(flat_config.items()):
-            if not isinstance(v, str):
+    # --------------------- Interpolate other config keys -----------------
+    # TOML doesn't support references to other keys... but we do!
+    # This has the potential to lead to nasty recursions, so we check at most 10 times.
+    # we use a set called "keys_to_check" to track only the ones of interest, so we aren't
+    # checking every key every time.
+    keys_to_check = set(flat_config.keys())
+
+    for _ in range(10):
+
+        # iterate over every key and value to check if the value uses interpolation
+        for k in list(keys_to_check):
+
+            # if the value isn't a string, it can't be a reference, so we exit
+            if not isinstance(flat_config[k], str):
+                keys_to_check.remove(k)
                 continue
-            match = INTERPOLATION_REGEX.search(v)
+
+            # see if the ${...} syntax was used in the value and exit if it wasn't
+            match = INTERPOLATION_REGEX.search(flat_config[k])
             if not match:
+                keys_to_check.remove(k)
                 continue
-            ref_key = collections.CompoundKey(match.group(1).split("."))
+
+            # the matched_string includes "${}"; the matched_key is just the inner value
+            matched_string = match.group(0)
+            matched_key = match.group(1)
+
+            # get the referenced key from the config value
+            ref_key = collections.CompoundKey(matched_key.split("."))
+            # get the value corresponding to the referenced key
             ref_value = flat_config[ref_key]
-            if v == match.group(0):
+
+            # if the matched was the entire value, replace it with the interpolated value
+            if flat_config[k] == matched_string:
                 flat_config[k] = ref_value
+            # if it was a partial match, then drop the interpolated value into the string
             else:
-                flat_config[k] = v.replace(match.group(0), str(ref_value), 1)
+                flat_config[k] = flat_config[k].replace(
+                    matched_string, str(ref_value), 1
+                )
 
-    config = collections.flatdict_to_dict(flat_config)
-
-    if existing_config is not None:
-        config = collections.merge_dicts(existing_config.to_dict(), config)
-
-    return Config.from_dict(config)
+    return collections.flatdict_to_dict(flat_config, dct_class=Config)
 
 
-def load_configuration(default_config, user_config, env_var=None):
-    user_config_path = os.getenv(env_var, user_config)
-    config = load_config_file(default_config)
+def load_configuration(
+    default_config_path: str, user_config_path: str, env_var_prefix: str = None
+) -> Config:
+    default_config = load_config_file(
+        default_config_path, env_var_prefix=env_var_prefix
+    )
     try:
         create_user_config(user_config_path)
     except Exception:
         pass
-    config = load_config_file(user_config_path, existing_config=config)
+    user_config = load_config_file(user_config_path, env_var_prefix=env_var_prefix)
+
+    config = collections.merge_dicts(default_config, user_config)
+
+    validate_config(config)
+
     return config
 
 
 config = load_configuration(
-    default_config=DEFAULT_CONFIG, user_config=USER_CONFIG, env_var="PREFECT_CONFIG"
+    default_config_path=DEFAULT_CONFIG,
+    user_config_path=USER_CONFIG,
+    env_var_prefix=ENV_VAR_PREFIX,
 )
-
-# load unit test configuration
-if config.tests.test_mode:
-    config = load_configuration(
-        default_config=DEFAULT_CONFIG,
-        user_config=os.path.join(os.path.dirname(__file__), "prefect_tests.toml"),
-        env_var="PREFECT_TESTS_CONFIG",
-    )
 
 configure_logging(logger_name="Prefect")

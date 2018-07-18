@@ -21,10 +21,22 @@ def test_flatten_dict(nested_dict):
     }
 
 
-def test_nest_flattened_dict(nested_dict):
+def test_restore_flattened_dict(nested_dict):
     flat = collections.dict_to_flatdict(nested_dict)
-    nested = collections.flatdict_to_dict(flat)
-    assert nested == nested_dict
+    restored = collections.flatdict_to_dict(flat)
+    assert restored == nested_dict
+
+
+def test_restore_flattened_dict_with_dict_class():
+    nested_dict = DotDict(a=DotDict(x=1), b=DotDict(y=2))
+    flat = collections.dict_to_flatdict(nested_dict)
+    restored = collections.flatdict_to_dict(flat)
+    assert isinstance(restored, dict)
+
+    restored_dotdict = collections.flatdict_to_dict(flat, dct_class=DotDict)
+    assert isinstance(restored_dotdict, DotDict)
+    assert isinstance(restored_dotdict.a, DotDict)
+    assert restored_dotdict.a == nested_dict.a
 
 
 @pytest.fixture(params=[dict(another=500), DotDict(another=500)])
