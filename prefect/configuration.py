@@ -144,7 +144,9 @@ def load_config_file(path: str, env_var_prefix: str = ENV_VAR_PREFIX) -> Config:
                 flat_config[k] = ref_value
             # if it was a partial match, then drop the interpolated value into the string
             else:
-                flat_config[k] = flat_config[k].replace(matched_string, str(ref_value), 1)
+                flat_config[k] = flat_config[k].replace(
+                    matched_string, str(ref_value), 1
+                )
 
     return collections.flatdict_to_dict(flat_config, dct_class=Config)
 
