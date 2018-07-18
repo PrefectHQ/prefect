@@ -73,7 +73,7 @@ def validate_config(config: Config) -> None:
 # Load configuration ----------------------------------------------------------
 
 
-def load_config_file(path: str, env_var_prefix: str=ENV_VAR_PREFIX) -> Config:
+def load_config_file(path: str, env_var_prefix: str = ENV_VAR_PREFIX) -> Config:
     """
     Loads a configuration file from a path, optionally merging it into an existing
     configuration.
@@ -141,7 +141,6 @@ def load_config_file(path: str, env_var_prefix: str=ENV_VAR_PREFIX) -> Config:
                 flat_config[k] = v.replace(matched_string, str(ref_value), 1)
 
     return collections.flatdict_to_dict(flat_config, dct_class=Config)
-
 
 
 def load_configuration(

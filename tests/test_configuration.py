@@ -34,19 +34,23 @@ def config():
         default_config.seek(0)
         return configuration.load_config_file(path=default_config.name)
 
+
 def test_keys(config):
-    assert 'general' in config
-    assert 'nested' in config.general
-    assert 'x' not in config
+    assert "general" in config
+    assert "nested" in config.general
+    assert "x" not in config
+
 
 def test_general(config):
     assert config.general.x == 1
     assert config.general.y == "hi"
 
+
 def test_general_nested(config):
     assert config.general.nested.x == config.general.x == 1
     assert config.general.nested.x_interpolated == "1 + 1"
     assert config.general.nested.y == "hi or bye"
+
 
 def test_interpolation(config):
     assert config.interpolation.value == config.general.nested.x == 1
@@ -55,8 +59,9 @@ def test_interpolation(config):
 def test_env_var_expansion(config):
     assert config.env_vars.interpolated_path == os.getenv("PATH")
 
+
 def test_env_var_interpolation(config):
-    assert config.env_vars.not_interpolated_path == 'xxx$PATHxxx'
+    assert config.env_vars.not_interpolated_path == "xxx$PATHxxx"
 
 
 def test_env_var_overrides():
