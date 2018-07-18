@@ -156,11 +156,13 @@ def load_configuration(
 ) -> Config:
 
     # load default config
-    config = load_config_file(default_config_path, env_var_prefix=env_var_prefix)
+    config = load_config_file(default_config_path, env_var_prefix=env_var_prefix or "")
 
     # if user config exists, load and merge it with default config
     if os.path.isfile(user_config_path):
-        user_config = load_config_file(user_config_path, env_var_prefix=env_var_prefix)
+        user_config = load_config_file(
+            user_config_path, env_var_prefix=env_var_prefix or ""
+        )
         config = collections.merge_dicts(config, user_config)
 
     validate_config(config)
