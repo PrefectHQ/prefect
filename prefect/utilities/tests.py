@@ -80,8 +80,9 @@ def run_flow_runner_test(
 
     if expected_state is not None:
         try:
-            assert flow_state.state == expected_state
+            assert isinstance(flow_state, expected_state)
         except AssertionError:
+            print(flow_state.data)
             pytest.fail(
                 "Flow state ({}) did not match expected state ({})".format(
                     flow_state, expected_state
@@ -90,8 +91,8 @@ def run_flow_runner_test(
 
     for task, expected_task_state in expected_task_states.items():
         try:
-            if isinstance(expected_task_state, str):
-                assert flow_state.data[task].state == expected_task_state
+            if isinstance(expected_task_state, type):
+                assert isinstance(flow_state.data[task], expected_task_state)
             else:
                 assert flow_state.data[task] == expected_task_state
         except AssertionError:
@@ -99,10 +100,10 @@ def run_flow_runner_test(
                 "Actual task state ({a_state}) or data ({a_data}) did not match "
                 "expected task state ({e_state}) or data ({e_data}) "
                 'for task "{task}"'.format(
-                    a_state=flow_state.data[task].state,
+                    a_state=flow_state.data[task],
                     a_data=flow_state.data[task].data,
-                    e_state=State(expected_task_state).state,
-                    e_data=State(expected_task_state).data,
+                    e_state=expected_task_state,
+                    e_data=expected_task_state.data,
                     task=task,
                 )
             )
