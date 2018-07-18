@@ -8,8 +8,6 @@ class State(Serializable):
     def __init__(self, data: Any = None) -> None:
         """
         Create a new State object.
-            state (str, optional): Defaults to None. One of the State class's valid state types. If None is provided, the State's default will be used.
-
             data (Any, optional): Defaults to None. A data payload for the state.
         """
 
@@ -94,8 +92,10 @@ class Success(Finished):
 class Failed(Finished):
     pass
 
-class TriggerFailed(Finished):
+
+class TriggerFailed(Failed):
     pass
+
 
 class Skipped(Success):
     pass

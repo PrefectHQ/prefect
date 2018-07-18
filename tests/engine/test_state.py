@@ -121,7 +121,7 @@ class TestStateMethods:
         assert not state.is_running()
         assert state.is_finished()
         assert not state.is_successful()
-        assert not state.is_failed()
+        assert state.is_failed()
         assert not state.is_skipped()
 
     def test_state_type_methods_with_skipped_state(self):

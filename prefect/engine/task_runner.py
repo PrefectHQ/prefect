@@ -16,6 +16,7 @@ from prefect.engine.state import (
     Running,
     Retrying,
     Skipped,
+    TriggerFailed,
 )
 
 
@@ -76,7 +77,7 @@ class TaskRunner:
                     state = self.executor.set_state(state, Success)
 
                 except signals.FAIL as e:
-                    state = self.handle_fail(state, data=dict(message=e))
+                    state = TriggerFailed(data=dict(message=e))
 
                 except signals.RETRY:
                     state = self.handle_retry(state)
@@ -120,6 +121,7 @@ class TaskRunner:
         # check trigger
         # -------------------------------------------------------------
 
+        # NOTE: task.trigger() can sometimes raise a signals.FAIL itself
         if not ignore_trigger and not self.task.trigger(upstream_states):
             raise signals.DONTRUN("Trigger failed")
 

@@ -13,6 +13,7 @@ from prefect.engine.state import (
     Success,
     Failed,
     Skipped,
+    TriggerFailed,
 )
 from prefect.utilities.tests import run_flow_runner_test
 
@@ -102,7 +103,7 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
     assert isinstance(flow_state, Failed)
     assert isinstance(flow_state.data[task1], Failed)
-    assert isinstance(flow_state.data[task2], Failed)
+    assert isinstance(flow_state.data[task2], TriggerFailed)
 
 
 def test_flow_runner_runs_flow_with_2_dependent_tasks_and_first_task_fails_and_second_has_trigger():
