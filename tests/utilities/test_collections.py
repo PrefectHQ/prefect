@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.utilities import collections
-from prefect.utilities.collections import DotDict, to_dotdict
+from prefect.utilities.collections import DotDict, to_dotdict, merge_dicts
 
 
 @pytest.fixture
@@ -173,3 +173,39 @@ class TestDotDict:
         assert dotdict.a == 1
         assert dotdict.b[1].c == 3
         assert dotdict.d.e[0].f == 4
+
+
+@pytest.mark.parametrize("dct_class", [dict, DotDict])
+def test_merge_simple_dicts(dct_class):
+    a = dct_class(x=1, y=2, z=3)
+    b = dct_class(z=100, a=101)
+
+    # merge b into a
+    assert merge_dicts(a, b) == dct_class(x=1, y=2, z=100, a=101)
+
+    # merge a into b
+    assert merge_dicts(b, a) == dct_class(x=1, y=2, z=3, a=101)
+
+
+@pytest.mark.parametrize("dct_class", [dict, DotDict])
+def test_merge_nested_dicts_reverse_order(dct_class):
+    a = dct_class(x=dct_class(one=1, two=2), y=dct_class(three=3, four=4), z=0)
+    b = dct_class(x=dct_class(one=1, two=20), y=dct_class(four=40, five=5))
+    # merge b into a
+    assert merge_dicts(a, b) == dct_class(
+        x=dct_class(one=1, two=20), y=dct_class(three=3, four=40, five=5), z=0
+    )
+
+    assert merge_dicts(b, a) == dct_class(
+        x=dct_class(one=1, two=2), y=dct_class(three=3, four=4, five=5), z=0
+    )
+
+
+@pytest.mark.parametrize("dct_class", [dict, DotDict])
+def test_merge_nested_dicts_with_empty_section(dct_class):
+    a = dct_class(x=dct_class(one=1, two=2), y=dct_class(three=3, four=4))
+    b = dct_class(x=dct_class(one=1, two=2), y=dct_class())
+    # merge b into a
+    assert merge_dicts(a, b) == a
+    # merge a into b
+    assert merge_dicts(b, a) == a
