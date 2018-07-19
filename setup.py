@@ -16,7 +16,6 @@ install_requires = [
     "toml",
     "typing",
     "typing_extensions",
-    "versioneer",
 ]
 
 extras = {"dev": ["pytest", "pytest-env", "pytest-xdist"]}
