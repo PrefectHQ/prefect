@@ -166,10 +166,8 @@ class TaskRunner:
         Checks if a task is eligable for retry; otherwise marks it failed.
         """
         self.logger.info("Task FAILED")
-        if "Trigger failed" in str(fail_mode):
-            state = self.executor.set_state(
-                state, TriggerFailed, data=dict(message=fail_mode)
-            )
+        if isinstance(fail_mode, signals.TRIGGERFAIL):
+            state = self.executor.set_state(state, TriggerFailed, message=fail_mode)
             if raise_on_fail:
                 raise fail_mode
             else:
@@ -178,7 +176,7 @@ class TaskRunner:
         if run_number and run_number <= self.task.max_retries:
             return self.handle_retry(state)
         else:
-            state = self.executor.set_state(state, Failed, data=dict(message=fail_mode))
+            state = self.executor.set_state(state, Failed, message=fail_mode)
             if raise_on_fail:
                 raise fail_mode
             else:

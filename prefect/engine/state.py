@@ -1,23 +1,28 @@
 import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from prefect.utilities.json import Serializable
 
 
 class State(Serializable):
-    def __init__(self, data: Any = None) -> None:
+    def __init__(self, data: Any = None, message: Union[str, Exception] = None) -> None:
         """
         Create a new State object.
             data (Any, optional): Defaults to None. A data payload for the state.
+            message (str or Exception, optional): Defaults to None. A message about the
+                state, which could be an Exception (or Signal) that caused it.
         """
-
-        self._data = data
+        self.data = data
+        self.message = message
         self._timestamp = datetime.datetime.utcnow()
 
     def __repr__(self) -> str:
-        return "{}()".format(type(self).__name__)
+        return "<{}>".format(type(self).__name__)
 
     def __eq__(self, other: object) -> bool:
+        """
+        Equality depends on state type and data, not message or timestamp
+        """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
             return self.data == other.data
@@ -27,24 +32,8 @@ class State(Serializable):
         return id(self)
 
     @property
-    def data(self) -> Any:
-        return self._data
-
-    @property
     def timestamp(self) -> datetime.datetime:
         return self._timestamp
-
-    @classmethod
-    def all_states(cls) -> List[str]:
-        """
-        States are class instances with uppercase names that refer to their own name as a
-        string
-        """
-        return [k for k, v in cls.__dict__.items() if k == v and k == k.upper()]
-
-    def _validate_state(self, state: str) -> bool:
-        if state not in self.all_states():
-            raise ValueError('Invalid state: "{}"'.format(state))
 
     def is_pending(self) -> bool:
         return isinstance(self, Pending)
@@ -62,37 +51,52 @@ class State(Serializable):
         return isinstance(self, Failed)
 
 
+# -------------------------------------------------------------------
+# Pending States
+# -------------------------------------------------------------------
+
+
 class Pending(State):
-    pass
-
-
-class Retrying(Pending):
-    pass
+    """Base pending state"""
 
 
 class Scheduled(Pending):
-    pass
+    """Pending state indicating the object has been scheduled to run"""
+
+
+class Retrying(Scheduled):
+    """Pending state indicating the object has been scheduled to be retried"""
+
+
+# -------------------------------------------------------------------
+# Running States
+# -------------------------------------------------------------------
 
 
 class Running(State):
-    pass
+    """Base running state"""
+
+
+# -------------------------------------------------------------------
+# Finished States
+# -------------------------------------------------------------------
 
 
 class Finished(State):
-    pass
+    """Base finished state"""
 
 
 class Success(Finished):
-    pass
+    """Finished state indicating success"""
 
 
 class Failed(Finished):
-    pass
+    """Finished state indicating failure"""
 
 
 class TriggerFailed(Failed):
-    pass
+    """Finished state indicating failure due to trigger"""
 
 
 class Skipped(Success):
-    pass
+    """Finished state indicating success on account of being skipped"""

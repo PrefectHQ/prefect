@@ -63,15 +63,16 @@ class FlowRunner:
                 except prefect.signals.DONTRUN as e:
                     self.logger.info("Flow run DONTRUN")
                     # set state but no need to go through the executor
-                    state = type(state)(return_task_states)
+                    state = type(state)(
+                        message="DONTRUN signal raised", data=return_task_states
+                    )
                     if raise_on_fail:
                         raise e
                 except Exception as e:
                     self.logger.info("Flow run FAIL")
                     # set state through executor
-                    return_task_states.update(dict(message=e))
                     state = self.executor.set_state(
-                        state, Failed, data=return_task_states
+                        state, Failed, message=e, data=return_task_states
                     )
                     if raise_on_fail:
                         raise e
@@ -161,18 +162,29 @@ class FlowRunner:
 
         if any(s.is_failed() for s in terminal_states):
             self.logger.info("Flow run FAILED: some terminal tasks failed.")
-            state = self.executor.set_state(state, state=Failed, data=return_states)
+            state = self.executor.set_state(
+                state,
+                state=Failed,
+                message="Some terminal tasks failed.",
+                data=return_states,
+            )
 
         elif all(s.is_successful() for s in terminal_states):
             self.logger.info("Flow run SUCCESS: all terminal tasks succeeded")
-            state = self.executor.set_state(state, state=Success, data=return_states)
-
-        elif all(s.is_finished() for s in terminal_states):
-            self.logger.info("Flow run SUCCESS: all terminal tasks done; none failed.")
-            state = self.executor.set_state(state, state=Success, data=return_states)
+            state = self.executor.set_state(
+                state,
+                state=Success,
+                message="All terminal tasks succeeded.",
+                data=return_states,
+            )
 
         else:
             self.logger.info("Flow run PENDING: terminal tasks are incomplete.")
-            state = self.executor.set_state(state, state=Pending, data=return_states)
+            state = self.executor.set_state(
+                state,
+                state=Pending,
+                message="Some terminal tasks are still pending.",
+                data=return_states,
+            )
 
         return state

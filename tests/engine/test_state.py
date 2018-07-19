@@ -8,6 +8,7 @@ from prefect.engine.state import (
     Success,
     Retrying,
     Running,
+    Finished,
     Failed,
     Skipped,
     Pending,
@@ -15,58 +16,134 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 
+all_states = [
+    State,
+    Pending,
+    Running,
+    Finished,
+    Success,
+    Skipped,
+    Failed,
+    TriggerFailed,
+    Scheduled,
+    Retrying,
+]
 
-class TestState:
-    def test_create_state_with_no_args(self):
-        state = State()
-        assert state.data is None
 
-    def test_create_pending_with_no_args(self):
-        state = Pending()
-        assert state.data is None
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_no_args(cls):
+    state = cls()
+    assert state.data is None
+    assert state.message is None
 
-    def test_create_state_with_state_and_data(self):
-        data = {"hi": 5}
-        state = Running(data)
-        assert state.data == data
 
-    def test_timestamp(self):
-        state = Success()
-        assert (datetime.datetime.utcnow() - state.timestamp).total_seconds() < 0.001
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_positional_data_arg(cls):
+    state = cls(1)
+    assert state.data == 1
+    assert state.message is None
 
-    def test_state_protected(self):
-        state = State()
-        with pytest.raises(AttributeError):
-            state.state = State.SUCCESS
 
-    def test_data_protected(self):
-        state = State()
-        with pytest.raises(AttributeError):
-            state.data = 1
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_data_and_message(cls):
+    state = cls(message="x", data="y")
+    assert state.data == "y"
+    assert state.message == "x"
 
-    def test_timestamp_protected(self):
-        state = Success()
-        with pytest.raises(AttributeError):
-            state.timestamp = 1
 
-    def test_serialize(self):
-        state = Success(data=dict(hi=5, bye=6))
-        j = json.dumps(state)
-        new_state = json.loads(j)
-        assert isinstance(new_state, State)
-        assert isinstance(new_state, Success)
-        assert new_state.data == state.data
-        assert new_state.timestamp == state.timestamp
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_data_and_error(cls):
+    try:
+        1 / 0
+    except Exception as e:
+        state = cls(data="oh no!", message=e)
+    assert state.data == "oh no!"
+    assert isinstance(state.message, Exception)
+    assert "division by zero" in str(state.message)
 
-    def test_state_equality(self):
-        assert State() == State()
-        assert Success() == Success()
-        assert Success(data=1) == Success(data=1)
-        assert not State() == Success()
-        assert not Success(data=1) == Success(data=2)
 
-    def test_states_are_hashable(self):
-        assert {Success(), Failed()}
+def test_timestamp_is_created_at_creation():
+    state = Success()
+    assert (datetime.datetime.utcnow() - state.timestamp).total_seconds() < 0.001
+
+
+def test_timestamp_protected():
+    state = Success()
+    with pytest.raises(AttributeError):
+        state.timestamp = 1
+
+
+def test_timestamp_is_serialized():
+    state = Success()
+    deserialized_state = json.loads(json.dumps(state))
+    assert state.timestamp == deserialized_state.timestamp
+
+
+def test_serialize():
+    state = Success(data=dict(hi=5, bye=6))
+    j = json.dumps(state)
+    new_state = json.loads(j)
+    assert isinstance(new_state, Success)
+    assert new_state.data == state.data
+    assert new_state.timestamp == state.timestamp
+
+
+def test_state_equality():
+    assert State() == State()
+    assert Success() == Success()
+    assert Success(data=1) == Success(data=1)
+    assert not State() == Success()
+    assert not Success(data=1) == Success(data=2)
+
+
+def test_state_equality_ignores_message():
+    assert State(data=1, message="x") == State(data=1, message="y")
+    assert State(data=1, message="x") != State(data=2, message="x")
+
+
+def test_state_equality_with_nested_states():
+    s1 = State(data=Success(1))
+    s2 = State(data=Success(2))
+    s3 = State(data=Success(1))
+    assert s1 != s2
+    assert s1 == s3
+
+
+def test_states_are_hashable():
+    assert {State(), Pending(), Success()}
+
+
+def test_states_with_mutable_attrs_are_hashable():
+    assert {State(data=[1]), Pending(data=dict(a=1))}
+
+
+class TestStateHierarchy:
+    def test_scheduled_is_pending(self):
+        assert issubclass(Scheduled, Pending)
+
+    def test_retrying_is_pending(self):
+        assert issubclass(Retrying, Pending)
+
+    def test_retrying_is_scheduled(self):
+        assert issubclass(Retrying, Scheduled)
+
+    def test_success_is_finished(self):
+        assert issubclass(Success, Finished)
+
+    def test_failed_is_finished(self):
+        assert issubclass(Failed, Finished)
+
+    def test_trigger_failed_is_finished(self):
+        assert issubclass(TriggerFailed, Finished)
+
+    def test_skipped_is_finished(self):
+        assert issubclass(Skipped, Finished)
+
+    def test_skipped_is_success(self):
+        assert issubclass(Skipped, Success)
+
+    def test_trigger_failed_is_failed(self):
+        assert issubclass(TriggerFailed, Failed)
 
 
 class TestStateMethods:
@@ -103,7 +180,7 @@ class TestStateMethods:
         assert not state.is_failed()
 
     def test_state_type_methods_with_failed_state(self):
-        state = Failed()
+        state = Failed(message="")
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -111,7 +188,7 @@ class TestStateMethods:
         assert state.is_failed()
 
     def test_state_type_methods_with_trigger_failed_state(self):
-        state = TriggerFailed()
+        state = TriggerFailed(message="")
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
