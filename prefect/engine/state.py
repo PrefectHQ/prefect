@@ -5,13 +5,13 @@ from prefect.utilities.json import Serializable
 
 
 class State(Serializable):
-
-    def __init__(self, data: Any = None) -> None:
+    def __init__(self, message: str = None, data: Any = None) -> None:
         """
         Create a new State object.
+            message (str, optional): Defaults to None. A message about the state.
             data (Any, optional): Defaults to None. A data payload for the state.
         """
-
+        self.message = message
         self.data = data
         self._timestamp = datetime.datetime.utcnow()
 
@@ -59,26 +59,24 @@ class State(Serializable):
 class Pending(State):
     """Base pending state"""
 
-    pass
-
 
 class Scheduled(Pending):
     """Pending state indicating the object has been scheduled to run"""
 
-    def __init__(self, scheduled_time: datetime.datetime, data: Any = None) -> None:
+    def __init__(
+        self, scheduled_time: datetime.datetime, message: str = None, data: Any = None
+    ) -> None:
         """
         Args:
             scheduled_time (datetime.datetime): the time the state is scheduled to run
             data (any, optional): a data payload
         """
         self.scheduled_time = scheduled_time
-        super().__init__(data=data)
+        super().__init__(message=message, data=data)
 
 
 class Retrying(Scheduled):
     """Pending state indicating the object has been scheduled to be retried"""
-
-    pass
 
 
 # -------------------------------------------------------------------
@@ -89,8 +87,6 @@ class Retrying(Scheduled):
 class Running(State):
     """Base running state"""
 
-    pass
-
 
 # -------------------------------------------------------------------
 # Finished States
@@ -100,36 +96,19 @@ class Running(State):
 class Finished(State):
     """Base finished state"""
 
-    pass
-
 
 class Success(Finished):
     """Finished state indicating success"""
-
-    pass
 
 
 class Failed(Finished):
     """Finished state indicating failure"""
 
-    def __init__(self, message: str, data: Any = None) -> None:
-        """
-        Args:
-            message (str): a message indicating why the state failed
-            data (any, optional): a data payload
-
-        """
-        self.message = message
-        super().__init__(data=data)
-
 
 class TriggerFailed(Failed):
     """Finished state indicating failure due to trigger"""
-
-    pass
 
 
 class Skipped(Success):
     """Finished state indicating success on account of being skipped"""
 
-    pass
