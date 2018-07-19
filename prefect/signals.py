@@ -20,6 +20,12 @@ class PrefectStateException(Exception):
         self.result = result
         super().__init__(*args, **kwargs)
 
+class TRIGGERFAIL(PrefectStateException):
+    """
+    Indicates that a task failed.
+    """
+
+    pass
 
 class FAIL(PrefectStateException):
     """
