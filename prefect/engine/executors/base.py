@@ -34,7 +34,11 @@ class Executor(Serializable):
         raise NotImplementedError()
 
     def set_state(
-        self, current_state: State, state: State, data: Any = None, message: Union[str, Exception] = None
+        self,
+        current_state: State,
+        state: State,
+        data: Any = None,
+        message: Union[str, Exception] = None,
     ) -> State:
         return state(data=data, message=message)
 
