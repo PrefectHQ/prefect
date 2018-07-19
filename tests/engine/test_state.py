@@ -84,9 +84,11 @@ def test_state_equality():
     assert not State() == Success()
     assert not Success(data=1) == Success(data=2)
 
+
 def test_state_equality_ignores_message():
-    assert State(data=1, message='x') == State(data =1, message='y')
-    assert State(data=1, message='x') != State(data =2, message='x')
+    assert State(data=1, message="x") == State(data=1, message="y")
+    assert State(data=1, message="x") != State(data=2, message="x")
+
 
 def test_state_equality_with_nested_states():
     s1 = State(data=Success(1))
