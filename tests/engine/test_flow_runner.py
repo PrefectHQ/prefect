@@ -63,7 +63,7 @@ def test_flow_runner_runs_basic_flow_with_1_task():
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
     state = flow_runner.run(return_tasks=[task])
-    assert state == Success({task: Success(data=1)})
+    assert state == Success(data={task: Success(data=1)})
 
 
 def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
@@ -210,6 +210,6 @@ def test_missing_parameter_error_is_surfaced():
     task = AddTask()
     y = prefect.Parameter("y")
     task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
-    msg = flow.run().data["message"]
+    msg = flow.run().message
     assert isinstance(msg, ValueError)
     assert "required parameter" in str(msg).lower()
