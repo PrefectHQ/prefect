@@ -99,4 +99,3 @@ class TriggerFailed(Failed):
 
 class Skipped(Success):
     """Finished state indicating success on account of being skipped"""
-

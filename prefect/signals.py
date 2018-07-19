@@ -66,4 +66,3 @@ class DONTRUN(PrefectStateException):
     """
     Indicates that a task should not run and its state should not be modified.
     """
-
