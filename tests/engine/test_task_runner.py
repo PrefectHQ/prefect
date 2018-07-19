@@ -127,8 +127,8 @@ def test_running_task_that_already_has_finished_state_doesnt_run():
 def test_task_runner_preserves_error_type():
     task_runner = TaskRunner(ErrorTask())
     state = task_runner.run()
-    data = state.data["message"]
-    if isinstance(data, Exception):
-        assert type(data).__name__ == "ValueError"
+    msg = state.message
+    if isinstance(msg, Exception):
+        assert type(msg).__name__ == "ValueError"
     else:
-        assert "ValueError" in data
+        assert "ValueError" in msg
