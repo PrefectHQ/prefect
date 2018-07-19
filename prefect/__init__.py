@@ -16,3 +16,7 @@ import prefect.flows
 import prefect.engine
 from prefect.utilities.tasks import task
 from prefect.client import Client
+
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions

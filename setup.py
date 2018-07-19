@@ -1,3 +1,4 @@
+import versioneer
 from setuptools import find_packages, setup
 
 install_requires = [
@@ -23,6 +24,8 @@ extras = {"dev": ["pytest", "pytest-env", "pytest-xdist"]}
 setup(
     name="prefect",
     # corresponds to __version__
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     version="0.2.0",
     description="",
     long_description=open("README.md").read(),
