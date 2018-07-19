@@ -10,7 +10,8 @@ from prefect.engine.state import State
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.json import Serializable
 
-Future = TypeVar('Future')
+Future = TypeVar("Future")
+
 
 class Executor(Serializable):
     def __init__(self):
@@ -29,7 +30,7 @@ class Executor(Serializable):
         """
         raise NotImplementedError()
 
-    def wait(self, futures: List[Future], timeout: datetime.timedelta=None) -> Any:
+    def wait(self, futures: List[Future], timeout: datetime.timedelta = None) -> Any:
         """
         Resolves futures to their values. Blocks until the future is complete.
         """
@@ -90,13 +91,16 @@ class Executor(Serializable):
             context=context,
         )
 
-        # if the checked state is the same as the original state, a DONTRUN signal was
-        # raised
-        if checked_state is state:
+        # if check_task returns None, then the state should not be changed
+        if not checked_state:
             return state
 
         final_state = self.submit(
             task_runner.run_task, state=checked_state, inputs=inputs, context=context
         )
+
+        # if run_task returns None, then the state should not be changed
+        if not final_state:
+            return checked_state
 
         return final_state

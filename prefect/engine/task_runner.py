@@ -31,15 +31,23 @@ class TaskRunner:
         """
         This context manager traps Prefect Signals and creates the appropriate state objects.
 
-        Because context managers can't return values, the result of calling this context is
-        a function that yields the state object.
+        However, context managers can't return objects that are created after the
+        context manager yields. Therefore, this context manager yields a function that can
+        be called after the context manager has been exited. The function will return any
+        state objects created by the context manager (or None, in the case of no new state).
         """
+        context_exited = False
         state = None
 
         def trapped_state_handler() -> Union[State, None]:
             """
             Returns the state object that is created in this context manager.
             """
+            if not context_exited:
+                raise ValueError(
+                    'The state handler was called while the handle_signals() context was '
+                    'still open. Wait to call this function until after the context has been '
+                    'exited.')
             return state
 
         with prefect.context(context or {}):
@@ -74,13 +82,21 @@ class TaskRunner:
                 logging.debug("Unexpected error while running task.")
                 state = self.retry_or_fail(message=e)
 
+            finally:
+                context_exited = True
+
     def check_task(
         self,
         state: State,
         upstream_states: Dict[Task, State],
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
-    ) -> State:
+    ) -> Union[State, None]:
+        """
+        Checks if a task is ready to run.
+
+        Returns either a new state for the task or None if the state should not change.
+        """
 
         with self.handle_signals(context=context) as trapped_state_handler:
 
