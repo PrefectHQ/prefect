@@ -45,10 +45,21 @@ def test_create_state_with_positional_data_arg(cls):
 
 
 @pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_message_and_data(cls):
+def test_create_state_with_data_and_message(cls):
     state = cls(message="x", data="y")
     assert state.data == "y"
     assert state.message == "x"
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_data_and_error(cls):
+    try:
+        1 / 0
+    except Exception as e:
+        state = cls(data="oh no!", message=e)
+    assert state.data == "oh no!"
+    assert isinstance(state.message, Exception)
+    assert "division by zero" in str(state.message)
 
 
 def test_timestamp_is_created_at_creation():
