@@ -11,15 +11,19 @@ if TYPE_CHECKING:
     from prefect.core import Task
 
 
-def always_run(upstream_states: Dict["Task", "State"]) -> bool:
+def all_finished(upstream_states: Dict["Task", "State"]) -> bool:
     """
-    This task will run no matter what the upstream states are.
+    This task will run no matter what the upstream states are, as long as they are finished.
     """
+    if not all(s.is_finished() for s in upstream_states.values()):
+        raise signals.TRIGGERFAIL(
+            'Trigger was "all_finished" but some of the upstream tasks were not finished.'
+        )
 
     return True
 
 
-def never_run(upstream_states: Dict["Task", "State"]) -> bool:
+def manual_only(upstream_states: Dict["Task", "State"]) -> bool:
     """
     This task will never run automatically. It will only run if it is
     specifically instructed, either by ignoring the trigger or adding it
@@ -27,12 +31,12 @@ def never_run(upstream_states: Dict["Task", "State"]) -> bool:
 
     Note this doesn't raise a failure, it simply doesn't run the task.
     """
-    raise signals.DONTRUN('Trigger function is "never run"')
+    raise signals.DONTRUN('Trigger function is "manual_only"')
 
 
 # aliases
-all_finished = always_run
-manual_only = never_run
+always_run = all_finished
+never_run = manual_only
 
 
 def all_successful(upstream_states: Dict["Task", "State"]) -> bool:
