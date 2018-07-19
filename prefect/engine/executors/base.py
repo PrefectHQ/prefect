@@ -1,6 +1,7 @@
+import datetime
 from contextlib import contextmanager
 from functools import wraps
-from typing import Any, Dict, Iterable, TypeVar, Union
+from typing import Any, Dict, Iterable, TypeVar, Union, Callable, List
 
 import prefect
 from prefect.core import Flow, Task
@@ -9,6 +10,7 @@ from prefect.engine.state import State
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.json import Serializable
 
+Future = TypeVar('Future')
 
 class Executor(Serializable):
     def __init__(self):
@@ -21,13 +23,13 @@ class Executor(Serializable):
         """
         yield self
 
-    def submit(self, fn, *args, **kwargs):
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:
         """
         Submit a function to the executor for execution. Returns a future.
         """
         raise NotImplementedError()
 
-    def wait(self, futures, timeout=None):
+    def wait(self, futures: List[Future], timeout: datetime.timedelta=None) -> Any:
         """
         Resolves futures to their values. Blocks until the future is complete.
         """
@@ -77,14 +79,24 @@ class Executor(Serializable):
         context=None,
     ):
         context = context or {}
-        context.update(prefect.context)
-        task_runner = prefect.engine.TaskRunner(task=task, executor=self)
+        context.update(prefect.context, _executor=self)
+        task_runner = prefect.engine.TaskRunner(task=task)
 
-        return self.submit(
-            task_runner.run,
+        checked_state = self.submit(
+            task_runner.check_task,
             state=state,
             upstream_states=upstream_states,
-            inputs=inputs,
             ignore_trigger=ignore_trigger,
-            context=prefect.context,
+            context=context,
         )
+
+        # if the checked state is the same as the original state, a DONTRUN signal was
+        # raised
+        if checked_state is state:
+            return state
+
+        final_state = self.submit(
+            task_runner.run_task, state=checked_state, inputs=inputs, context=context
+        )
+
+        return final_state

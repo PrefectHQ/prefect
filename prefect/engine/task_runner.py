@@ -17,177 +17,181 @@ from prefect.engine.state import (
     Retrying,
     Skipped,
     TriggerFailed,
+    MessageType,
 )
 
 
 class TaskRunner:
-    def __init__(
-        self,
-        task: Task,
-        executor: "prefect.engine.executors.Executor" = None,
-        logger_name: str = None,
-    ) -> None:
+    def __init__(self, task: Task, logger_name: str = None) -> None:
         self.task = task
-        if executor is None:
-            executor = prefect.engine.executors.LocalExecutor()
-        self.executor = executor
         self.logger = logging.getLogger(logger_name)
 
-    def run(
-        self,
-        state: State = None,
-        upstream_states: Dict[Task, State] = None,
-        inputs: Dict[str, Any] = None,
-        ignore_trigger: bool = False,
-        context: Dict[str, Any] = None,
-    ) -> State:
-        if state is None:
-            state = Pending()
-        upstream_states = upstream_states or {}
-        context = context or {}
-        inputs = inputs or {}
+    @contextmanager
+    def handle_signals(self, context=None):
+        """
+        This context manager traps Prefect Signals and creates the appropriate state objects.
 
-        # prepare context
-        context.update(
-            _task_name=self.task.name,
-            _task_max_retries=self.task.max_retries,
-            _task_run_upstream_states=upstream_states,
-            _task_run_inputs=inputs,
-        )
+        Because context managers can't return values, the result of calling this context is
+        a function that yields the state object.
+        """
+        state = None
 
-        # set up context
-        with prefect.context(context):
+        def retrieve_state_fn(state_from_context) -> State:
+            """
+            Checks if one of the signal handlers overwrote state and, if so, returns it.
+            Otherwise, returns the passed state object.
+            """
+            return state or state_from_context
 
-            # prepare executor
-            with self.executor.start():
+        with prefect.context(context or {}):
+            try:
+                yield retrieve_state_fn
 
-                raise_on_fail = prefect.context.get("_raise_on_fail", False)
+            except signals.DONTRUN as e:
+                logging.debug("DONTRUN signal raised")
 
-                try:
-                    state = self._run(
-                        state=state,
-                        upstream_states=upstream_states,
-                        inputs=inputs,
-                        ignore_trigger=ignore_trigger,
-                    )
+            except signals.SUCCESS as e:
+                logging.debug("SUCCESS signal raised.")
+                state = Success(data=e.result, message=e)
 
-                except signals.DONTRUN as e:
-                    pass
+            except signals.TRIGGERFAIL as e:
+                logging.debug("TRIGGERFAIL signal raised.")
+                state = TriggerFailed(data=e.result, message=e)
 
-                except signals.SUCCESS:
-                    logging.info("SUCCESS")
-                    state = self.executor.set_state(state, Success)
+            except signals.FAIL as e:
+                logging.debug("FAIL signal raised.")
+                state = self.retry_or_fail(data=e.result, message=e)
 
-                except signals.FAIL as e:
-                    state = self.handle_fail(
-                        state, fail_mode=e, raise_on_fail=raise_on_fail
-                    )
+            except signals.RETRY:
+                # raising a retry signal always retries, no matter what "max retries" is set to
+                logging.debug("RETRY signal raised.")
+                state = self.retry_or_fail(force_retry=True)
 
-                except signals.RETRY:
-                    state = self.handle_retry(state)
+            except signals.SKIP:
+                logging.debug("SKIP signal raised.")
+                state = Skipped(data=e.result, message=e)
 
-                except signals.SKIP:
-                    logging.info("SKIP")
-                    state = self.executor.set_state(state, Skipped)
+            except Exception as e:
+                logging.debug("Unexpected error while running task.")
+                state = self.retry_or_fail(message=e)
 
-                except Exception as e:
-                    logging.info("Unexpected error while running task.")
-                    state = self.handle_fail(
-                        state, fail_mode=e, raise_on_fail=raise_on_fail
-                    )
 
-        return state
-
-    def _run(
+    def check_task(
         self,
         state: State,
         upstream_states: Dict[Task, State],
-        inputs: Dict[str, Any],
-        ignore_trigger: bool,
-    ):
+        ignore_trigger: bool = False,
+        context: Dict[str, Any] = None,
+    ) -> State:
 
-        # -------------------------------------------------------------
-        # check upstream tasks
-        # -------------------------------------------------------------
+        with self.handle_signals(context=context) as state_handler:
 
-        # make sure all upstream tasks are finished
-        if not all(s.is_finished() for s in upstream_states.values()):
-            raise signals.DONTRUN("Upstream tasks are not finished.")
+            # prepare context
+            context.update(
+                _task_name=self.task.name,
+                _task_max_retries=self.task.max_retries,
+                _task_run_upstream_states=upstream_states,
+            )
 
-        # -------------------------------------------------------------
-        # check upstream skips and propagate if appropriate
-        # -------------------------------------------------------------
+            # ---------------------------------------------------------
+            # check upstream tasks
+            # ---------------------------------------------------------
 
-        if self.task.propagate_skip and any(
-            isinstance(s, Skipped) for s in upstream_states.values()
-        ):
-            raise signals.SKIP("Upstream tasks skipped.")
+            # make sure all upstream tasks are finished
+            if not all(s.is_finished() for s in upstream_states.values()):
+                raise signals.DONTRUN("Upstream tasks are not finished.")
 
-        # -------------------------------------------------------------
-        # check trigger
-        # -------------------------------------------------------------
+            # ---------------------------------------------------------
+            # check upstream skips and propagate if appropriate
+            # ---------------------------------------------------------
 
-        # NOTE: task.trigger() can sometimes raise a signals.FAIL itself
-        if not ignore_trigger and not self.task.trigger(upstream_states):
-            raise signals.DONTRUN("Trigger failed")
+            if self.task.propagate_skip and any(
+                isinstance(s, Skipped) for s in upstream_states.values()
+            ):
+                return Skipped(
+                    message="Upstream task skipped and propagate_skip = True."
+                )
 
-        # -------------------------------------------------------------
-        # check this task's state
-        # -------------------------------------------------------------
+            # ---------------------------------------------------------
+            # check trigger
+            # ---------------------------------------------------------
 
-        # this task is already running
-        if state.is_running():
-            raise signals.DONTRUN("Task is already running.")
+            # triggers should return True or raise a signal, but just in case we raise
+            # trigger failed here
+            if not ignore_trigger and not self.task.trigger(upstream_states):
+                raise signals.TriggerFailed("Trigger failed")
 
-        # this task is already finished
-        elif state.is_finished():
-            raise signals.DONTRUN("Task is already finished.")
+            # ---------------------------------------------------------
+            # check this task's state
+            # ---------------------------------------------------------
 
-        # this task is not pending
-        elif not state.is_pending():
-            raise signals.DONTRUN("Task is not ready to run (state {}).".format(state))
+            # this task is already running
+            if state.is_running():
+                raise signals.DONTRUN("Task is already running.")
 
-        # -------------------------------------------------------------
-        # start!
-        # -------------------------------------------------------------
+            # this task is already finished
+            elif state.is_finished():
+                raise signals.DONTRUN("Task is already finished.")
 
-        self.logger.info("Starting TaskRun.")
-        state = self.executor.set_state(state, Running)
+            # this task is not pending
+            elif not state.is_pending():
+                raise signals.DONTRUN(
+                    "Task is not ready to run (state {}).".format(state)
+                )
 
-        result = self.task.run(**inputs)
+            # ---------------------------------------------------------
+            # We can start!
+            # ---------------------------------------------------------
 
-        # mark success
-        state = self.executor.set_state(state, Success, data=result)
+            return Running()
 
-        return state
+        # ---------------------------------------------------------
+        # If we reach this point, it means a signal was raised and must be
+        # retrieved from the handler function
+        # ---------------------------------------------------------
 
-    def handle_fail(self, state, fail_mode=None, raise_on_fail=False):
-        """
-        Checks if a task is eligable for retry; otherwise marks it failed.
-        """
-        self.logger.info("Task FAILED")
-        if isinstance(fail_mode, signals.TRIGGERFAIL):
-            state = self.executor.set_state(state, TriggerFailed, message=fail_mode)
-            if raise_on_fail:
-                raise fail_mode
-            else:
-                return state
-        run_number = prefect.context.get("_task_run_number", 1)
-        if run_number and run_number <= self.task.max_retries:
-            return self.handle_retry(state)
-        else:
-            state = self.executor.set_state(state, Failed, message=fail_mode)
-            if raise_on_fail:
-                raise fail_mode
-            else:
-                return state
+        return state_handler(state)
 
-    def handle_retry(self, state, retry_time=None):
+    def run_task(
+        self,
+        state: State,
+        inputs: Dict[str, Any] = None,
+        context: Dict[str, Any] = None,
+    ) -> State:
+
+        if not state.is_running():
+            return state
+
+        with self.handle_signals(context=context) as state_handler:
+            self.logger.debug("Starting TaskRun")
+
+            result = self.task.run(**inputs)
+
+            state = Success(data=result, message="Task run succeeded.")
+
+        # ---------------------------------------------------------
+        # If we reach this point, it means a signal was caught and must be
+        # retrieved from the handler function
+        # ---------------------------------------------------------
+
+        return state_handler(state)
+
+    def retry_or_fail(
+        self, data: Any = None, message: MessageType = None, force_retry: bool = False
+    ) -> State:
         # TODO exponential backoff based on run_number
         # run_number = prefect.context.get('_task_run_number', 0)
 
-        self.logger.info("Task RETRYING")
-        if retry_time is None:
+        run_number = prefect.context.get("_task_run_number", 1)
+        if force_retry or run_number <= self.task.max_retries:
+            msg = "Retrying Task (after attempt {n} of {m})".format(
+                n=run_number, m=self.task.max_retries + 1
+            )
+            self.logger.info(msg)
             retry_time = datetime.datetime.utcnow() + self.task.retry_delay
-
-        return self.executor.set_state(state, Retrying, data=retry_time)
+            return Retrying(
+                data=dict(retry_time=retry_time, last_run_number=run_number),
+                message=msg,
+            )
+        else:
+            return Failed(data=data, message=message)
