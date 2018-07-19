@@ -15,10 +15,6 @@ class State(Serializable):
         self.message = message
         self._timestamp = datetime.datetime.utcnow()
 
-    @property
-    def timestamp(self) -> datetime.datetime:
-        return self._timestamp
-
     def __repr__(self) -> str:
         return "<{}>".format(type(self).__name__)
 
@@ -31,8 +27,12 @@ class State(Serializable):
             return self.data == other.data
         return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return id(self)
+
+    @property
+    def timestamp(self) -> datetime.datetime:
+        return self._timestamp
 
     def is_pending(self) -> bool:
         return isinstance(self, Pending)
