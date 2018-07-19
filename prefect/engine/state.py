@@ -5,14 +5,14 @@ from prefect.utilities.json import Serializable
 
 
 class State(Serializable):
-    def __init__(self, message: str = None, data: Any = None) -> None:
+    def __init__(self, data: Any = None, message: str = None) -> None:
         """
         Create a new State object.
-            message (str, optional): Defaults to None. A message about the state.
             data (Any, optional): Defaults to None. A data payload for the state.
+            message (str, optional): Defaults to None. A message about the state.
         """
-        self.message = message
         self.data = data
+        self.message = message
         self._timestamp = datetime.datetime.utcnow()
 
     @property
@@ -64,7 +64,7 @@ class Scheduled(Pending):
     """Pending state indicating the object has been scheduled to run"""
 
     def __init__(
-        self, scheduled_time: datetime.datetime, message: str = None, data: Any = None
+        self, scheduled_time: datetime.datetime, data: Any = None, message: str = None
     ) -> None:
         """
         Args:
@@ -72,7 +72,7 @@ class Scheduled(Pending):
             data (any, optional): a data payload
         """
         self.scheduled_time = scheduled_time
-        super().__init__(message=message, data=data)
+        super().__init__(data=data, message=message)
 
 
 class Retrying(Scheduled):
