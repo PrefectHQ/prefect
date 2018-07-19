@@ -1,15 +1,16 @@
 import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from prefect.utilities.json import Serializable
 
 
 class State(Serializable):
-    def __init__(self, data: Any = None, message: str = None) -> None:
+    def __init__(self, data: Any = None, message: Union[str, Exception] = None) -> None:
         """
         Create a new State object.
             data (Any, optional): Defaults to None. A data payload for the state.
-            message (str, optional): Defaults to None. A message about the state.
+            message (str or Exception, optional): Defaults to None. A message about the
+                state, which could be an Exception (or Signal) that caused it.
         """
         self.data = data
         self.message = message
