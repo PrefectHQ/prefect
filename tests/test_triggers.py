@@ -16,7 +16,10 @@ def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0):
     states = {}
     for state, count in state_counts.items():
         for i in range(count):
-            states[str(len(states))] = state()
+            if state is Retrying:
+                states[str(len(states))] = state(scheduled_time=None)
+            else:
+                states[str(len(states))] = state()
     return states
 
 
@@ -32,13 +35,13 @@ def test_all_successful_with_all_success_or_skipped():
 
 def test_all_successful_with_all_failed():
     # Fail when all fail
-    with pytest.raises(signals.FAIL):
+    with pytest.raises(signals.TRIGGERFAIL):
         triggers.all_successful(generate_states(failed=3))
 
 
 def test_all_successful_with_some_failed():
     # Fail when some fail
-    with pytest.raises(signals.FAIL):
+    with pytest.raises(signals.TRIGGERFAIL):
         triggers.all_successful(generate_states(failed=3, success=1))
 
 
@@ -47,12 +50,12 @@ def test_all_failed_with_all_failed():
 
 
 def test_all_failed_with_some_success():
-    with pytest.raises(signals.FAIL):
+    with pytest.raises(signals.TRIGGERFAIL):
         assert triggers.all_failed(generate_states(failed=3, success=1))
 
 
 def test_all_failed_with_some_skips():
-    with pytest.raises(signals.FAIL):
+    with pytest.raises(signals.TRIGGERFAIL):
         assert triggers.all_failed(generate_states(failed=3, skipped=1))
 
 
@@ -65,21 +68,24 @@ def test_always_run_with_all_failed():
 
 
 def test_always_run_with_mixed_states():
-    assert triggers.always_run(
-        generate_states(success=1, failed=1, skipped=1, retrying=1)
-    )
+
+    with pytest.raises(signals.TRIGGERFAIL):
+        triggers.always_run(generate_states(success=1, failed=1, skipped=1, retrying=1))
 
 
 def test_manual_only_with_all_success():
-    assert not triggers.manual_only(generate_states(success=3))
+    with pytest.raises(signals.DONTRUN):
+        triggers.manual_only(generate_states(success=3))
 
 
 def test_manual_only_with_all_failed():
-    assert not triggers.manual_only(generate_states(failed=3))
+    with pytest.raises(signals.DONTRUN):
+        triggers.manual_only(generate_states(failed=3))
 
 
 def test_manual_only_with_mixed_states():
-    assert not triggers.manual_only(generate_states(success=1, failed=1, skipped=1))
+    with pytest.raises(signals.DONTRUN):
+        triggers.manual_only(generate_states(success=1, failed=1, skipped=1))
 
 
 def test_all_finished_with_all_success():
@@ -95,7 +101,8 @@ def test_all_finished_with_mixed_states():
 
 
 def test_all_finished_with_some_pending():
-    assert not triggers.all_finished(generate_states(success=1, pending=1))
+    with pytest.raises(signals.TRIGGERFAIL):
+        triggers.all_finished(generate_states(success=1, pending=1))
 
 
 def test_any_successful_with_all_success():
@@ -115,7 +122,7 @@ def test_any_successful_with_some_failed_and_1_skip():
 
 
 def test_any_successful_with_all_failed():
-    with pytest.raises(signals.FAIL):
+    with pytest.raises(signals.TRIGGERFAIL):
         triggers.any_successful(generate_states(failed=3))
 
 
@@ -132,5 +139,5 @@ def test_any_failed_with_some_failed_and_1_success():
 
 
 def test_any_failed_with_all_success():
-    with pytest.raises(signals.FAIL):
+    with pytest.raises(signals.TRIGGERFAIL):
         triggers.any_failed(generate_states(success=3))
