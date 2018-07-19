@@ -3,21 +3,21 @@ import logging
 import types
 import uuid
 from contextlib import contextmanager
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, Iterator, List, MutableMapping, Union
 
 import prefect
 from prefect import signals
 from prefect.core import Task
 from prefect.engine.state import (
     Failed,
+    MessageType,
+    Pending,
+    Retrying,
+    Running,
+    Skipped,
     State,
     Success,
-    Pending,
-    Running,
-    Retrying,
-    Skipped,
     TriggerFailed,
-    MessageType,
 )
 
 
@@ -27,7 +27,7 @@ class TaskRunner:
         self.logger = logging.getLogger(logger_name)
 
     @contextmanager
-    def handle_signals(self, context=None):
+    def handle_signals(self, context: MutableMapping = None) -> Iterator[Callable]:
         """
         This context manager traps Prefect Signals and creates the appropriate state objects.
 
@@ -36,19 +36,18 @@ class TaskRunner:
         """
         state = None
 
-        def retrieve_state_fn(state_from_context) -> State:
+        def trapped_state_handler() -> Union[State, None]:
             """
-            Checks if one of the signal handlers overwrote state and, if so, returns it.
-            Otherwise, returns the passed state object.
+            Returns the state object that is created in this context manager.
             """
-            return state or state_from_context
+            return state
 
         with prefect.context(context or {}):
             try:
-                yield retrieve_state_fn
+                yield trapped_state_handler
 
             except signals.DONTRUN as e:
-                logging.debug("DONTRUN signal raised")
+                logging.debug("DONTRUN signal raised: {}".format(e))
 
             except signals.SUCCESS as e:
                 logging.debug("SUCCESS signal raised.")
@@ -75,7 +74,6 @@ class TaskRunner:
                 logging.debug("Unexpected error while running task.")
                 state = self.retry_or_fail(message=e)
 
-
     def check_task(
         self,
         state: State,
@@ -84,7 +82,7 @@ class TaskRunner:
         context: Dict[str, Any] = None,
     ) -> State:
 
-        with self.handle_signals(context=context) as state_handler:
+        with self.handle_signals(context=context) as trapped_state_handler:
 
             # prepare context
             context.update(
@@ -108,9 +106,7 @@ class TaskRunner:
             if self.task.propagate_skip and any(
                 isinstance(s, Skipped) for s in upstream_states.values()
             ):
-                return Skipped(
-                    message="Upstream task skipped and propagate_skip = True."
-                )
+                return Skipped(message="Upstream task was skipped.")
 
             # ---------------------------------------------------------
             # check trigger
@@ -119,7 +115,7 @@ class TaskRunner:
             # triggers should return True or raise a signal, but just in case we raise
             # trigger failed here
             if not ignore_trigger and not self.task.trigger(upstream_states):
-                raise signals.TriggerFailed("Trigger failed")
+                return TriggerFailed(message="Trigger failed.")
 
             # ---------------------------------------------------------
             # check this task's state
@@ -136,7 +132,7 @@ class TaskRunner:
             # this task is not pending
             elif not state.is_pending():
                 raise signals.DONTRUN(
-                    "Task is not ready to run (state {}).".format(state)
+                    "Task is not ready to run (state is {}).".format(state)
                 )
 
             # ---------------------------------------------------------
@@ -150,7 +146,7 @@ class TaskRunner:
         # retrieved from the handler function
         # ---------------------------------------------------------
 
-        return state_handler(state)
+        return trapped_state_handler()
 
     def run_task(
         self,
@@ -162,19 +158,19 @@ class TaskRunner:
         if not state.is_running():
             return state
 
-        with self.handle_signals(context=context) as state_handler:
+        with self.handle_signals(context=context) as trapped_state_handler:
             self.logger.debug("Starting TaskRun")
 
-            result = self.task.run(**inputs)
+            result = self.task.run(**inputs) # type: ignore
 
-            state = Success(data=result, message="Task run succeeded.")
+            return Success(data=result, message="Task run succeeded.")
 
         # ---------------------------------------------------------
         # If we reach this point, it means a signal was caught and must be
         # retrieved from the handler function
         # ---------------------------------------------------------
 
-        return state_handler(state)
+        return trapped_state_handler()
 
     def retry_or_fail(
         self, data: Any = None, message: MessageType = None, force_retry: bool = False
