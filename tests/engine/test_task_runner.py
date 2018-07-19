@@ -82,7 +82,7 @@ def test_task_that_fails_gets_retried_up_to_1_time():
     # first run should be retrying
     state = task_runner.run(context={"_task_run_number": 1})
     assert isinstance(state, Retrying)
-    assert isinstance(state.scheduled_time, datetime.datetime)
+    assert isinstance(state.data, datetime.datetime)
 
     # second run should
     state = task_runner.run(state=state, context={"_task_run_number": 2})
@@ -99,12 +99,12 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     # first run should be retrying
     state = task_runner.run(context={"_task_run_number": 1})
     assert isinstance(state, Retrying)
-    assert isinstance(state.scheduled_time, datetime.datetime)
+    assert isinstance(state.data, datetime.datetime)
 
     # second run should also be retry because the task raises it explicitly
     state = task_runner.run(state=state, context={"_task_run_number": 2})
     assert isinstance(state, Retrying)
-    assert isinstance(state.scheduled_time, datetime.datetime)
+    assert isinstance(state.data, datetime.datetime)
 
 
 def test_task_that_raises_skip_gets_skipped():
