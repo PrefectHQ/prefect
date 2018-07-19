@@ -22,8 +22,16 @@ from prefect.engine.state import (
 )
 def test_create_state_with_no_args(cls):
     state = cls()
-    assert state.message is None
     assert state.data is None
+    assert state.message is None
+
+@pytest.mark.parametrize(
+    "cls", [State, Pending, Running, Finished, Success, Skipped, Failed, TriggerFailed]
+)
+def test_create_state_with_positional_data_arg(cls):
+    state = cls(1)
+    assert state.data == 1
+    assert state.message is None
 
 
 @pytest.mark.parametrize(
@@ -31,8 +39,8 @@ def test_create_state_with_no_args(cls):
 )
 def test_create_state_with_message_and_data(cls):
     state = cls(message='x', data='y')
-    assert state.message == 'x'
     assert state.data == 'y'
+    assert state.message == 'x'
 
 @pytest.mark.parametrize("cls", [Scheduled, Retrying])
 def test_create_state_with_no_args_fails(cls):
