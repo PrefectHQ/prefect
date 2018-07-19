@@ -16,44 +16,39 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 
+all_states = [
+    State,
+    Pending,
+    Running,
+    Finished,
+    Success,
+    Skipped,
+    Failed,
+    TriggerFailed,
+    Scheduled,
+    Retrying,
+]
 
-@pytest.mark.parametrize(
-    "cls", [State, Pending, Running, Finished, Success, Skipped, Failed, TriggerFailed]
-)
+
+@pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_no_args(cls):
     state = cls()
     assert state.data is None
     assert state.message is None
 
-@pytest.mark.parametrize(
-    "cls", [State, Pending, Running, Finished, Success, Skipped, Failed, TriggerFailed]
-)
+
+@pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_positional_data_arg(cls):
     state = cls(1)
     assert state.data == 1
     assert state.message is None
 
 
-@pytest.mark.parametrize(
-    "cls", [State, Pending, Running, Finished, Success, Skipped, Failed, TriggerFailed]
-)
+@pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_message_and_data(cls):
-    state = cls(message='x', data='y')
-    assert state.data == 'y'
-    assert state.message == 'x'
-
-@pytest.mark.parametrize("cls", [Scheduled, Retrying])
-def test_create_state_with_no_args_fails(cls):
-    with pytest.raises(TypeError):
-        state = cls()
-
-
-@pytest.mark.parametrize("cls", [Scheduled, Retrying])
-def create_scheduled_with_datetime(cls):
-    scheduled_time = datetime.datetime(2018, 1, 1)
-    state = cls(scheduled_time=scheduled_time, data=5)
-    assert state.scheduled_time == scheduled_time
-    assert state.data == 5
+    state = cls(message="x", data="y")
+    assert state.data == "y"
+    assert state.message == "x"
 
 
 def test_timestamp_is_created_at_creation():
@@ -88,6 +83,17 @@ def test_state_equality():
     assert Success(data=1) == Success(data=1)
     assert not State() == Success()
     assert not Success(data=1) == Success(data=2)
+
+def test_state_equality_ignores_message():
+    assert State(data=1, message='x') == State(data =1, message='y')
+    assert State(data=1, message='x') != State(data =2, message='x')
+
+def test_state_equality_with_nested_states():
+    s1 = State(data=Success(1))
+    s2 = State(data=Success(2))
+    s3 = State(data=Success(1))
+    assert s1 != s2
+    assert s1 == s3
 
 
 def test_states_are_hashable():
@@ -137,7 +143,7 @@ class TestStateMethods:
         assert not state.is_failed()
 
     def test_state_type_methods_with_scheduled_state(self):
-        state = Scheduled(scheduled_time=datetime.datetime.utcnow())
+        state = Scheduled()
         assert state.is_pending()
         assert not state.is_running()
         assert not state.is_finished()

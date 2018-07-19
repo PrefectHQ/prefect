@@ -23,13 +23,12 @@ class State(Serializable):
         return "<{}>".format(type(self).__name__)
 
     def __eq__(self, other: object) -> bool:
+        """
+        Equality depends on state type and data, not message or timestamp
+        """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
-            self_dct = self.__dict__.copy()
-            self_dct.pop("_timestamp")
-            other_dct = other.__dict__.copy()
-            other_dct.pop("_timestamp")
-            return self_dct == other_dct
+            return self.data == other.data
         return False
 
     def __hash__(self):
@@ -62,17 +61,6 @@ class Pending(State):
 
 class Scheduled(Pending):
     """Pending state indicating the object has been scheduled to run"""
-
-    def __init__(
-        self, scheduled_time: datetime.datetime, data: Any = None, message: str = None
-    ) -> None:
-        """
-        Args:
-            scheduled_time (datetime.datetime): the time the state is scheduled to run
-            data (any, optional): a data payload
-        """
-        self.scheduled_time = scheduled_time
-        super().__init__(data=data, message=message)
 
 
 class Retrying(Scheduled):
