@@ -17,13 +17,24 @@ from prefect.engine.state import (
 )
 
 
-@pytest.mark.parametrize("cls", [State, Pending, Running, Finished, Success, Skipped])
+@pytest.mark.parametrize(
+    "cls", [State, Pending, Running, Finished, Success, Skipped, Failed, TriggerFailed]
+)
 def test_create_state_with_no_args(cls):
-    state = cls(data=5)
-    assert state.data == 5
+    state = cls()
+    assert state.message is None
+    assert state.data is None
 
 
-@pytest.mark.parametrize("cls", [Scheduled, Retrying, Failed, TriggerFailed])
+@pytest.mark.parametrize(
+    "cls", [State, Pending, Running, Finished, Success, Skipped, Failed, TriggerFailed]
+)
+def test_create_state_with_message_and_data(cls):
+    state = cls(message='x', data='y')
+    assert state.message == 'x'
+    assert state.data == 'y'
+
+@pytest.mark.parametrize("cls", [Scheduled, Retrying])
 def test_create_state_with_no_args_fails(cls):
     with pytest.raises(TypeError):
         state = cls()
@@ -35,19 +46,6 @@ def create_scheduled_with_datetime(cls):
     state = cls(scheduled_time=scheduled_time, data=5)
     assert state.scheduled_time == scheduled_time
     assert state.data == 5
-
-
-@pytest.mark.parametrize("cls", [Failed, TriggerFailed])
-def create_failed_with_message(cls):
-    state = cls(message="hi", data=5)
-    assert state.message == "hi"
-    assert state.data == 5
-
-
-def test_create_state_with_state_and_data():
-    data = {"hi": 5}
-    state = Running(data)
-    assert state.data == data
 
 
 def test_timestamp_is_created_at_creation():
