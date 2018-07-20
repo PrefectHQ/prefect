@@ -25,7 +25,6 @@ setup(
     # corresponds to __version__
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
-    version="0.2.0",
     description="",
     long_description=open("README.md").read(),
     url="https://www.github.com/prefecthq/prefect",
