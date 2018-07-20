@@ -16,7 +16,7 @@ def handle_signals(method: Callable) -> Callable:
     The handler attempts to run the method, and if a signal is raised, the appropriate
     state is returned.
 
-    If DONTRUN is raised, it is re-raised because no new state should be set in that case.
+    If DONTRUN is raised, the handler returns None to indicate there was no state change.
     """
 
     def inner(self, *args, **kwargs) -> State:
@@ -29,7 +29,7 @@ def handle_signals(method: Callable) -> Callable:
         # DONTRUN is re-raised to be caught elsewhere
         except signals.DONTRUN as exc:
             logging.debug("DONTRUN signal raised: {}".format(exc))
-            raise exc
+            return None
 
         except signals.FAIL as exc:
             logging.debug("FAIL signal raised.")
@@ -70,19 +70,24 @@ class FlowRunner:
 
         state = state or Pending()
 
-        try:
-            checked_state = self._check_state(state=state, parameters=parameters)
-            return self._run_flow(
-                state=checked_state,
-                task_states=task_states or {},
-                start_tasks=start_tasks or {},
-                return_tasks=set(return_tasks or []),
-                parameters=parameters or {},
-                executor=executor or prefect.engine.executors.LocalExecutor(),
-            )
-        except signals.DONTRUN:
+        checked_state = self._check_state(state=state, parameters=parameters)
+
+        if not checked_state:
             return state
 
+        final_state = self._run_flow(
+            state=checked_state,
+            task_states=task_states or {},
+            start_tasks=start_tasks or {},
+            return_tasks=set(return_tasks or []),
+            parameters=parameters or {},
+            executor=executor or prefect.engine.executors.LocalExecutor(),
+        )
+
+        if not final_state:
+            return checked_state
+
+        return final_state
 
     @handle_signals
     def _check_state(self, state: State, parameters: Dict[str, Any]):
