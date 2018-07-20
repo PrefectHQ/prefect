@@ -31,19 +31,19 @@ class Executor(Serializable):
         raise NotImplementedError()
 
     def submit_with_context(
-        self, fn: Callable, *args: Any, context, **kwargs: Any
+        self, fn: Callable, *args: Any, context: Dict, **kwargs: Any
     ) -> Future:
         """
-        Submit a function to the executor for execution within a specific Prefect context.
+        Submit a function to the executor that will be run in a specific Prefect context.
 
         Returns a Future.
         """
 
-        def fn_with_context(*args, **kwargs):
+        def run_fn_in_context(*args, context, **kwargs):
             with prefect.context(context):
                 return fn(*args, **kwargs)
 
-        return self.submit(fn_with_context, *args, **kwargs)
+        return self.submit(run_fn_in_context, *args, context=context, **kwargs)
 
     def wait(self, futures: List[Future], timeout: datetime.timedelta = None) -> Any:
         """
@@ -60,7 +60,7 @@ class Executor(Serializable):
         return_tasks: Iterable[Task],
         parameters: Dict,
         context: Dict,
-    ):
+    ) -> Future:
         context = context or {}
         context.update(prefect.context)
         flow_runner = FlowRunner(flow=flow)
@@ -71,9 +71,9 @@ class Executor(Serializable):
             task_states=task_states,
             start_tasks=start_tasks,
             return_tasks=return_tasks,
-            context=context,
             parameters=parameters,
             executor=self,
+            context=context,
         )
 
     def run_task(
@@ -84,7 +84,7 @@ class Executor(Serializable):
         inputs: Dict[str, Any],
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
-    ):
+    ) -> Future:
         context = context or {}
         context.update(prefect.context, _executor=self)
         task_runner = prefect.engine.TaskRunner(task=task)
