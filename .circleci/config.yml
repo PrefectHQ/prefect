@@ -21,37 +21,20 @@ jobs:
   # ----------------------------------
   # Run unit tests in Python 3.4-3.7
   # ----------------------------------
-  test-3.4:
+  toxify:
     docker:
-      - image: python:3.4
+      - image: python:3.6
 
-    # store steps as an alias to reuse them with different python versions
-    steps: &run_test_steps
+    steps:
       - checkout
 
       - run:
-          name: Install prefect
-          command: pip install ".[dev]"
+          name: Install Tox
+          command: pip install tox
 
       - run:
-          name: Run tests
-          command: pytest -v
-
-  test-3.5:
-    docker:
-      - image: python:3.5
-    steps: *run_test_steps
-
-  test-3.6:
-    docker:
-      - image: python:3.6
-    steps: *run_test_steps
-
-  test-3.7:
-    docker:
-      - image: python:3.7
-    steps: *run_test_steps
-
+          name: Run Tox
+          command: tox
 
 workflows:
   version: 2
@@ -59,19 +42,6 @@ workflows:
     jobs:
       - check_formatting
 
-      - test-3.4:
+      - toxify:
           requires:
             - check_formatting
-
-      - test-3.5:
-          requires:
-            - check_formatting
-
-      - test-3.6:
-          requires:
-            - check_formatting
-
-      - test-3.7:
-          requires:
-            - check_formatting
-
