@@ -1,7 +1,7 @@
 import pytest
 
 from prefect import signals, triggers
-from prefect.engine.state import State, Success, Failed, Skipped, Pending, Retrying
+from prefect.engine.state import Failed, Pending, Retrying, Skipped, State, Success
 
 
 def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0):

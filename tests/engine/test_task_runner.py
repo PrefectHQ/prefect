@@ -13,7 +13,7 @@ from prefect.engine.state import (
     Skipped,
     State,
     Success,
-    TriggerFailed
+    TriggerFailed,
 )
 from prefect.utilities.tests import raise_on_fail
 
@@ -136,7 +136,6 @@ def test_task_that_is_running_doesnt_run():
     task_runner = TaskRunner(task=SuccessTask())
     initial_state = Running()
     assert task_runner.run(state=initial_state) is initial_state
-
 
 
 def test_running_task_that_already_has_finished_state_doesnt_run():

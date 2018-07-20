@@ -1,12 +1,11 @@
 from contextlib import contextmanager
+
 import pytest
 
 import prefect
-
-from prefect.utilities.tests import raise_on_fail
 from prefect.core import Flow, Task
-from prefect.engine import TaskRunner, FlowRunner
-from prefect.engine import state
+from prefect.engine import FlowRunner, TaskRunner, state
+from prefect.utilities.tests import raise_on_fail
 
 
 class SuccessTask(Task):

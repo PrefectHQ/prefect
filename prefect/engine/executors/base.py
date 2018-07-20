@@ -1,7 +1,7 @@
 import datetime
 from contextlib import contextmanager
 from functools import wraps
-from typing import Any, Dict, Iterable, TypeVar, Union, Callable, List
+from typing import Any, Callable, Dict, Iterable, List, TypeVar, Union
 
 import prefect
 from prefect.core import Flow, Task
@@ -92,5 +92,5 @@ class Executor(Serializable):
             upstream_states=upstream_states,
             inputs=inputs,
             ignore_trigger=ignore_trigger,
-            context=context
+            context=context,
         )
