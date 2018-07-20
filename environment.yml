@@ -16,6 +16,7 @@ dependencies:
     - mypy_extensions
     - pip:
         - pytest-cov
+        - tox
         - typing_extensions
     - pylint
     - pytest

@@ -33,7 +33,8 @@ setup(
     install_requires=install_requires,
     extras_require=extras,
     scripts=[],
-    packages=find_packages(),
+    packages=find_packages(where='src'),
+    package_dir={'': 'src'},
     include_package_data=True,
     entry_points={"console_scripts": ["prefect=prefect.cli:cli"]},
 )
