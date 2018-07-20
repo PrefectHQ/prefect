@@ -18,7 +18,7 @@ install_requires = [
     "typing_extensions",
 ]
 
-extras = {"dev": ["pytest", "pytest-env", "pytest-xdist"]}
+extras = {"dev": ["pytest", "pytest-env", "pytest-xdist", "tox"]}
 
 setup(
     name="prefect",
@@ -33,8 +33,8 @@ setup(
     install_requires=install_requires,
     extras_require=extras,
     scripts=[],
-    packages=find_packages(where='src'),
-    package_dir={'': 'src'},
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     include_package_data=True,
     entry_points={"console_scripts": ["prefect=prefect.cli:cli"]},
 )
