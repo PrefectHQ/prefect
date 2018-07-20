@@ -148,22 +148,33 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fail
     assert isinstance(flow_state.data[task2], Failed)
 
 
-def test_flow_runner_returns_task_states_even_if_it_doesnt_run():
-    # https://gitlab.com/prefect/prefect/issues/15
+def test_flow_runner_does_not_return_task_states_when_it_doesnt_run():
     flow = prefect.Flow()
     task1 = SuccessTask()
     task2 = ErrorTask()
 
     flow.add_edge(task1, task2)
 
-    flow_state = FlowRunner(flow=flow).run(state=Success(), return_tasks=[task1, task2])
+    flow_state = FlowRunner(flow=flow).run(state=Success(data=5), return_tasks=[task1, task2])
+    assert isinstance(flow_state, Success)
+    assert flow_state.data == 5
+
+def test_flow_run_method_returns_task_states_even_if_it_doesnt_run():
+    # https://github.com/PrefectHQ/prefect/issues/19
+    flow = prefect.Flow()
+    task1 = SuccessTask()
+    task2 = ErrorTask()
+
+    flow.add_edge(task1, task2)
+
+    flow_state = flow.run(state=Success(), return_tasks=[task1, task2])
     assert isinstance(flow_state, Success)
     assert isinstance(flow_state.data[task1], Pending)
     assert isinstance(flow_state.data[task2], Pending)
 
 
 def test_flow_runner_remains_pending_if_tasks_are_retrying():
-    # https://gitlab.com/prefect/prefect/issues/15
+    # https://github.com/PrefectHQ/prefect/issues/19
     flow = prefect.Flow()
     task1 = SuccessTask()
     task2 = ErrorTask(max_retries=1)
@@ -195,12 +206,21 @@ def test_flow_runner_does_return_when_requested():
     assert isinstance(flow_state.data[task1], Success)
 
 
-def test_missing_parameter_creates_pending_task():
+def test_missing_parameter_returns_failed_with_no_data():
     flow = prefect.Flow()
     task = AddTask()
     y = prefect.Parameter("y")
     task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task])
+    assert isinstance(flow_state, Failed)
+    assert flow_state.data is None
+
+def test_missing_parameter_returns_failed_with_pending_tasks_if_called_from_flow():
+    flow = prefect.Flow()
+    task = AddTask()
+    y = prefect.Parameter("y")
+    task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
+    flow_state = flow.run(return_tasks=[task])
     assert isinstance(flow_state, Failed)
     assert isinstance(flow_state.data[task], Pending)
 
@@ -211,5 +231,4 @@ def test_missing_parameter_error_is_surfaced():
     y = prefect.Parameter("y")
     task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
     msg = flow.run().message
-    assert isinstance(msg, ValueError)
-    assert "required parameter" in str(msg).lower()
+    assert "required parameter" in msg.lower()

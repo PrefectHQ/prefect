@@ -19,9 +19,6 @@ class Executor(Serializable):
 
     @contextmanager
     def start(self):
-        """
-        This method is called
-        """
         yield self
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:

@@ -134,6 +134,9 @@ class FlowRunner:
 
         with self.flow_context(_parameters=parameters):
 
+            if not state.is_running():
+                raise signals.DONTRUN('Flow run is no longer running.')
+
             # -- process each task in order
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
