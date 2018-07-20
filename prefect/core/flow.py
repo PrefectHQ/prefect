@@ -391,18 +391,31 @@ class Flow(Serializable):
 
     # Execution  ---------------------------------------------------------------
 
-    def run(self, parameters=None, executor=None, **kwargs):
+    def run(
+        self,
+        parameters: Dict[str, Any] = None,
+        return_tasks: Iterable[Task] = None,
+        **kwargs
+    ) -> "prefect.engine.state.State":
         """
         Run the flow.
         """
-        runner = prefect.engine.flow_runner.FlowRunner(flow=self, executor=executor)
+        runner = prefect.engine.flow_runner.FlowRunner(flow=self)
 
         parameters = parameters or {}
         for p in self.parameters():
             if p in kwargs:
                 parameters[p] = kwargs.pop(p)
 
-        return runner.run(parameters=parameters, **kwargs)
+        state = runner.run(parameters=parameters, return_tasks=return_tasks, **kwargs)
+
+        # state always should return a dict of tasks
+        if not isinstance(state.data, dict):
+            state.data = {}
+        for task in return_tasks or []:
+            if task not in state.data:
+                state.data[task] = prefect.engine.state.Pending(message="Task not run.")
+        return state
 
     # Serialization ------------------------------------------------------------
 

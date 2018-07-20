@@ -188,7 +188,7 @@ class TaskRunner:
         """
 
         if not state.is_running():
-            raise signals.DONTRUN("Task is not in a running state.")
+            raise signals.DONTRUN("Task is no longer running.")
 
         try:
             self.logger.debug("Starting TaskRun")
