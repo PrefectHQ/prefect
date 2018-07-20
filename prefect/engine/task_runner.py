@@ -29,7 +29,7 @@ def handle_signals(method: Callable) -> Callable:
     The handler attempts to run the method, and if a signal is raised, the appropriate
     state is returned.
 
-    If DONTRUN is raised, it is re-raised because no new state should be set in that case.
+    If DONTRUN is raised, the handler returns None to indicate there is no state change.
     """
 
     def inner(self, *args, **kwargs) -> State:
@@ -39,10 +39,9 @@ def handle_signals(method: Callable) -> Callable:
         try:
             return method(self, *args, **kwargs)
 
-        # DONTRUN is re-raised to be caught elsewhere
         except signals.DONTRUN as exc:
             logging.debug("DONTRUN signal raised: {}".format(exc))
-            raise exc
+            return None
 
         except signals.SUCCESS as exc:
             logging.debug("SUCCESS signal raised.")
@@ -97,16 +96,19 @@ class TaskRunner:
     ) -> State:
         state = state or Pending()
 
-        try:
-            checked_state = self._check_state(
-                state=state,
-                upstream_states=upstream_states or {},
-                ignore_trigger=ignore_trigger,
-            )
-            return self._run_task(state=checked_state, inputs=inputs or {})
-
-        except signals.DONTRUN:
+        checked_state = self._check_state(
+            state=state,
+            upstream_states=upstream_states or {},
+            ignore_trigger=ignore_trigger,
+        )
+        if not checked_state:
             return state
+
+        final_state = self._run_task(state=checked_state, inputs=inputs or {})
+        if not final_state:
+            return checked_state
+
+        return final_state
 
     @handle_signals
     def _check_state(
