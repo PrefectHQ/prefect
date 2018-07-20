@@ -1,23 +1,62 @@
 import logging
 from contextlib import contextmanager
-from typing import Any, Dict, Iterable, List, Union
+from typing import Any, Dict, Iterable, List, Union, Iterator, Callable
 
 import prefect
-import prefect.signals
+from prefect import signals
 from prefect.core import Flow, Task
 from prefect.engine.state import State, Failed, Pending, Running, Success
 
 
+def handle_signals(method: Callable) -> Callable:
+    """
+    This handler is used to decorate methods that return States but might raise
+    Prefect signals.
+
+    The handler attempts to run the method, and if a signal is raised, the appropriate
+    state is returned.
+
+    If DONTRUN is raised, it is re-raised because no new state should be set in that case.
+    """
+
+    def inner(self, *args, **kwargs) -> State:
+
+        raise_on_fail = prefect.context.get("_raise_on_fail", False)
+
+        try:
+            return method(self, *args, **kwargs)
+
+        # DONTRUN is re-raised to be caught elsewhere
+        except signals.DONTRUN as exc:
+            logging.debug("DONTRUN signal raised: {}".format(exc))
+            raise exc
+
+        except signals.FAIL as exc:
+            logging.debug("FAIL signal raised.")
+            if raise_on_fail:
+                raise exc
+            return Failed(data=exc.result, message=exc)
+
+        except Exception as exc:
+            logging.debug("Unexpected error while running flow.")
+            if raise_on_fail:
+                raise exc
+            return Failed(message=exc)
+
+    return inner
+
+
 class FlowRunner:
-    def __init__(
-        self,
-        flow: Flow,
-        executor: "prefect.engine.executors.Executor" = None,
-        logger_name: str = None,
-    ) -> None:
+    def __init__(self, flow: Flow, logger_name: str = None) -> None:
         self.flow = flow
-        self.executor = executor or prefect.engine.executors.LocalExecutor()
         self.logger = logging.getLogger(logger_name)
+
+    @contextmanager
+    def flow_context(self, **kwargs: Any) -> Iterator[None]:
+        with prefect.context(
+            _flow_name=self.flow.name, _flow_version=self.flow.version, **kwargs
+        ):
+            yield
 
     def run(
         self,
@@ -26,165 +65,125 @@ class FlowRunner:
         start_tasks: Iterable[Task] = None,
         return_tasks: Iterable[Task] = None,
         parameters: Dict[str, Any] = None,
-        context: Dict[str, Any] = None,
+        executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
 
-        if state is None:
-            state = Pending()
-        parameters = parameters or {}
-        task_states = task_states or {}
-        start_tasks = start_tasks or []
-        context = context or {}
-        return_tasks = set(return_tasks or [])
+        state = state or Pending()
 
-        context.update(
-            _flow_name=self.flow.name,
-            _flow_version=self.flow.version,
-            _parameters=parameters,
-        )
+        try:
+            checked_state = self._check_state(state=state, parameters=parameters)
+            return self._run_flow(
+                state=checked_state,
+                task_states=task_states or {},
+                start_tasks=start_tasks or {},
+                return_tasks=set(return_tasks or []),
+                parameters=parameters or {},
+                executor=executor or prefect.engine.executors.LocalExecutor(),
+            )
+        except signals.DONTRUN:
+            return state
 
-        # if the run fails for any reason,
-        return_task_states = {t: task_states.get(t, Pending()) for t in return_tasks}
 
-        with prefect.context(context):
+    @handle_signals
+    def _check_state(self, state: State, parameters: Dict[str, Any]):
 
-            with self.executor.start():
+        with self.flow_context():
+            # ---------------------------------------------
+            # Check for required parameters
+            # ---------------------------------------------
 
-                raise_on_fail = prefect.context.get("_raise_on_fail", False)
+            required_parameters = self.flow.parameters(only_required=True)
+            missing = set(required_parameters).difference(parameters)
+            if missing:
+                return Failed(
+                    message="Required parameters were not provided: {}".format(missing)
+                )
 
-                try:
-                    state = self._run(
-                        state=state,
-                        task_states=task_states,
-                        start_tasks=start_tasks,
-                        return_tasks=return_tasks,
-                        parameters=parameters,
-                    )
-                except prefect.signals.DONTRUN as e:
-                    self.logger.info("Flow run DONTRUN")
-                    # set state but no need to go through the executor
-                    state = type(state)(
-                        message="DONTRUN signal raised", data=return_task_states
-                    )
-                    if raise_on_fail:
-                        raise e
-                except Exception as e:
-                    self.logger.info("Flow run FAIL")
-                    # set state through executor
-                    state = self.executor.set_state(
-                        state, Failed, message=e, data=return_task_states
-                    )
-                    if raise_on_fail:
-                        raise e
+            # ---------------------------------------------
+            # Check if the flow run is ready to run
+            # ---------------------------------------------
 
-        return state
+            # the flow run is already finished
+            if state.is_finished():
+                raise signals.DONTRUN("Flow run has already finished.")
 
-    def _run(
+            # the flow run must be either pending or running (possibly redundant with above)
+            elif not (state.is_pending() or state.is_running()):
+                raise signals.DONTRUN("Flow is not ready to run.")
+
+            # ---------------------------------------------
+            # Start!
+            # ---------------------------------------------
+            return Running()
+
+    @handle_signals
+    def _run_flow(
         self,
         state: State,
         task_states: Dict[Task, State],
         start_tasks: Iterable[Task],
         return_tasks: Iterable[Task],
-        parameters: Dict[str, Any],
+        parameters: Dict[str, Any] = None,
+        executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
 
-        # ---------------------------------------------
-        # Check for required parameters
-        # ---------------------------------------------
+        with self.flow_context(_parameters=parameters):
 
-        required_params = self.flow.parameters(only_required=True)
-        missing = set(required_params).difference(
-            prefect.context.get("_parameters", [])
-        )
-        if missing:
-            raise ValueError("Required parameters not provided: {}".format(missing))
+            # -- process each task in order
+            for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
-        # ---------------------------------------------
-        # Check if the flow run is ready to run
-        # ---------------------------------------------
+                upstream_states = {}
+                upstream_inputs = {}
 
-        # this flow run is already finished
-        if state.is_finished():
-            raise prefect.signals.DONTRUN("Flow run has already finished.")
+                # -- process each edge to the task
+                for edge in self.flow.edges_to(task):
 
-        # this must be pending or running
-        elif not (state.is_pending() or state.is_running()):
-            raise prefect.signals.DONTRUN("Flow is not ready to run.")
+                    # upstream states to pass to the task trigger
+                    upstream_states[edge.upstream_task] = task_states[
+                        edge.upstream_task
+                    ]
 
-        # ---------------------------------------------
-        # Start!
-        # ---------------------------------------------
+                    # extract data from upstream states that pass data
+                    # note this will extract data even if the upstream state wasn't successful
+                    if edge.key:
+                        upstream_inputs[edge.key] = executor.submit(
+                            lambda s: s.data, task_states[edge.upstream_task]
+                        )
 
-        # update state
-        state = self.executor.set_state(state, Running)
-
-        # -- process each task in order
-        for task in self.flow.sorted_tasks(root_tasks=start_tasks):
-
-            upstream_states = {}
-            upstream_inputs = {}
-
-            # -- process each edge to the task
-            for edge in self.flow.edges_to(task):
-
-                # extract upstream state to pass to the task trigger
-                upstream_states[edge.upstream_task] = self.executor.submit(
-                    lambda s: type(s)(), task_states[edge.upstream_task]
+                # -- run the task
+                task_states[task] = executor.run_task(
+                    task=task,
+                    state=task_states.get(task),
+                    upstream_states=upstream_states,
+                    inputs=upstream_inputs,
+                    ignore_trigger=(task in start_tasks),
                 )
 
-                # if the upstream task is supposed to pass data, then extract the data
-                # into the inputs dict -- but only if the task was successful (otherwise the
-                # data attribute may contain information for an error state)
-                # TODO add a test for this
-                if edge.key:
-                    upstream_inputs[edge.key] = self.executor.submit(
-                        lambda s: s.data if s.is_successful() else None,
-                        task_states[edge.upstream_task],
-                    )
+            # ---------------------------------------------
+            # Collect results
+            # ---------------------------------------------
 
-            # -- run the task
-            task_states[task] = self.executor.run_task(
-                task=task,
-                state=task_states.get(task),
-                upstream_states=upstream_states,
-                inputs=upstream_inputs,
-                ignore_trigger=(task in start_tasks),
+            terminal_states = executor.wait(
+                {task_states[t] for t in self.flow.terminal_tasks()}
             )
+            return_states = executor.wait({t: task_states[t] for t in return_tasks})
 
-        # ---------------------------------------------
-        # Collect results
-        # ---------------------------------------------
+            if any(s.is_failed() for s in terminal_states):
+                self.logger.info("Flow run FAILED: some terminal tasks failed.")
+                state = Failed(
+                    message="Some terminal tasks failed.", data=return_states
+                )
 
-        terminal_states = self.executor.wait(
-            {task_states[t] for t in self.flow.terminal_tasks()}
-        )
-        return_states = self.executor.wait({t: task_states[t] for t in return_tasks})
+            elif all(s.is_successful() for s in terminal_states):
+                self.logger.info("Flow run SUCCESS: all terminal tasks succeeded")
+                state = Success(
+                    message="All terminal tasks succeeded.", data=return_states
+                )
 
-        if any(s.is_failed() for s in terminal_states):
-            self.logger.info("Flow run FAILED: some terminal tasks failed.")
-            state = self.executor.set_state(
-                state,
-                state=Failed,
-                message="Some terminal tasks failed.",
-                data=return_states,
-            )
+            else:
+                self.logger.info("Flow run PENDING: terminal tasks are incomplete.")
+                state = Pending(
+                    message="Some terminal tasks are still pending.", data=return_states
+                )
 
-        elif all(s.is_successful() for s in terminal_states):
-            self.logger.info("Flow run SUCCESS: all terminal tasks succeeded")
-            state = self.executor.set_state(
-                state,
-                state=Success,
-                message="All terminal tasks succeeded.",
-                data=return_states,
-            )
-
-        else:
-            self.logger.info("Flow run PENDING: terminal tasks are incomplete.")
-            state = self.executor.set_state(
-                state,
-                state=Pending,
-                message="Some terminal tasks are still pending.",
-                data=return_states,
-            )
-
-        return state
+            return state

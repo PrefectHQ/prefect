@@ -30,20 +30,26 @@ class Executor(Serializable):
         """
         raise NotImplementedError()
 
+    def submit_with_context(
+        self, fn: Callable, *args: Any, context, **kwargs: Any
+    ) -> Future:
+        """
+        Submit a function to the executor for execution within a specific Prefect context.
+
+        Returns a Future.
+        """
+
+        def fn_with_context(*args, **kwargs):
+            with prefect.context(context):
+                return fn(*args, **kwargs)
+
+        return self.submit(fn_with_context, *args, **kwargs)
+
     def wait(self, futures: List[Future], timeout: datetime.timedelta = None) -> Any:
         """
         Resolves futures to their values. Blocks until the future is complete.
         """
         raise NotImplementedError()
-
-    def set_state(
-        self,
-        current_state: State,
-        state: State,
-        data: Any = None,
-        message: Union[str, Exception] = None,
-    ) -> State:
-        return state(data=data, message=message)
 
     def run_flow(
         self,
@@ -57,17 +63,17 @@ class Executor(Serializable):
     ):
         context = context or {}
         context.update(prefect.context)
-        flow_runner = FlowRunner(flow=flow, executor=self)
+        flow_runner = FlowRunner(flow=flow)
 
-        return self.submit(
+        return self.submit_with_context(
             flow_runner.run,
-            flow=flow,
             state=state,
             task_states=task_states,
             start_tasks=start_tasks,
             return_tasks=return_tasks,
             context=context,
             parameters=parameters,
+            executor=self,
         )
 
     def run_task(
