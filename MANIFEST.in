@@ -1,1 +1,3 @@
-include prefect/config.toml
+include versioneer.py
+include src/prefect/_version.py
+include src/prefect/config.toml

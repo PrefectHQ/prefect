@@ -7,7 +7,7 @@ import toml
 import prefect
 from prefect.utilities import collections
 
-DEFAULT_CONFIG = os.path.join(os.path.dirname(prefect.__file__), "config.toml")
+DEFAULT_CONFIG = os.path.join(os.path.dirname(__file__), "config.toml")
 USER_CONFIG = "~/.prefect/config.toml"
 ENV_VAR_PREFIX = "PREFECT"
 INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
