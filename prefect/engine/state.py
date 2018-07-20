@@ -19,7 +19,7 @@ class State(Serializable):
         self._timestamp = datetime.datetime.utcnow()
 
     def __repr__(self) -> str:
-        return "<{}>".format(type(self).__name__)
+        return "<State: {}>".format(type(self).__name__)
 
     def __eq__(self, other: object) -> bool:
         """
