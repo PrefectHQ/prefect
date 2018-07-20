@@ -1,11 +1,11 @@
 import logging
 from contextlib import contextmanager
-from typing import Any, Dict, Iterable, List, Union, Iterator, Callable
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Union
 
 import prefect
 from prefect import signals
 from prefect.core import Flow, Task
-from prefect.engine.state import State, Failed, Pending, Running, Success
+from prefect.engine.state import Failed, Pending, Running, State, Success
 
 
 def handle_signals(method: Callable) -> Callable:
@@ -26,7 +26,6 @@ def handle_signals(method: Callable) -> Callable:
         try:
             return method(self, *args, **kwargs)
 
-        # DONTRUN is re-raised to be caught elsewhere
         except signals.DONTRUN as exc:
             logging.debug("DONTRUN signal raised: {}".format(exc))
             return None
@@ -135,7 +134,7 @@ class FlowRunner:
         with self.flow_context(_parameters=parameters):
 
             if not state.is_running():
-                raise signals.DONTRUN('Flow run is no longer running.')
+                raise signals.DONTRUN("Flow run is no longer running.")
 
             # -- process each task in order
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):

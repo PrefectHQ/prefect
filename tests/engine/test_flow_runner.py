@@ -4,15 +4,15 @@ import prefect
 from prefect.core import Flow, Task
 from prefect.engine import FlowRunner
 from prefect.engine.state import (
-    State,
+    Failed,
+    Finished,
     Pending,
     Retrying,
-    Scheduled,
     Running,
-    Finished,
-    Success,
-    Failed,
+    Scheduled,
     Skipped,
+    State,
+    Success,
     TriggerFailed,
 )
 from prefect.utilities.tests import run_flow_runner_test
@@ -155,9 +155,12 @@ def test_flow_runner_does_not_return_task_states_when_it_doesnt_run():
 
     flow.add_edge(task1, task2)
 
-    flow_state = FlowRunner(flow=flow).run(state=Success(data=5), return_tasks=[task1, task2])
+    flow_state = FlowRunner(flow=flow).run(
+        state=Success(data=5), return_tasks=[task1, task2]
+    )
     assert isinstance(flow_state, Success)
     assert flow_state.data == 5
+
 
 def test_flow_run_method_returns_task_states_even_if_it_doesnt_run():
     # https://github.com/PrefectHQ/prefect/issues/19
@@ -214,6 +217,7 @@ def test_missing_parameter_returns_failed_with_no_data():
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task])
     assert isinstance(flow_state, Failed)
     assert flow_state.data is None
+
 
 def test_missing_parameter_returns_failed_with_pending_tasks_if_called_from_flow():
     flow = prefect.Flow()
