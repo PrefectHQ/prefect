@@ -23,54 +23,57 @@ from prefect.engine.state import (
 
 def handle_signals(method: Callable) -> Callable:
     """
-    Decorator that attempts to call a method that returns a State and traps any
-    exceptions it raises, including Prefect signals. If a signal is raised, the
-    decorator returns an appropriate State class.
+    This handler is used to decorate methods that return States but might raise
+    Prefect signals.
+
+    The handler attempts to run the method, and if a signal is raised, the appropriate
+    state is returned.
+
+    If DONTRUN is raised, it is re-raised because no new state should be set in that case.
     """
 
-    def inner(self, *args, **kwargs) -> Union[State, None]:
+    def inner(self, *args, **kwargs) -> State:
 
-        state = None
         raise_on_fail = prefect.context.get("_raise_on_fail", False)
 
         try:
-            state = method(self, *args, **kwargs)
+            return method(self, *args, **kwargs)
 
+        # DONTRUN is re-raised to be caught elsewhere
         except signals.DONTRUN as exc:
             logging.debug("DONTRUN signal raised: {}".format(exc))
+            raise exc
 
         except signals.SUCCESS as exc:
             logging.debug("SUCCESS signal raised.")
-            state = Success(data=exc.result, message=exc)
+            return Success(data=exc.result, message=exc)
 
         except signals.TRIGGERFAIL as exc:
             logging.debug("TRIGGERFAIL signal raised.")
-            state = TriggerFailed(data=exc.result, message=exc)
             if raise_on_fail:
                 raise exc
+            return TriggerFailed(data=exc.result, message=exc)
 
         except signals.FAIL as exc:
             logging.debug("FAIL signal raised.")
-            state = self.retry_or_fail(data=exc.result, message=exc)
             if raise_on_fail:
                 raise exc
+            return self.retry_or_fail(data=exc.result, message=exc)
 
         except signals.RETRY:
             # raising a retry signal always retries, no matter what "max retries" is set to
             logging.debug("RETRY signal raised.")
-            state = self.retry_or_fail(force_retry=True)
+            return self.retry_or_fail(force_retry=True)
 
         except signals.SKIP as exc:
             logging.debug("SKIP signal raised.")
-            state = Skipped(data=exc.result, message=exc)
+            return Skipped(data=exc.result, message=exc)
 
         except Exception as exc:
             logging.debug("Unexpected error while running task.")
-            state = self.retry_or_fail(message=exc)
             if raise_on_fail:
                 raise exc
-
-        return state
+            return self.retry_or_fail(message=exc)
 
     return inner
 
@@ -80,6 +83,11 @@ class TaskRunner:
         self.task = task
         self.logger = logging.getLogger(logger_name)
 
+    @contextmanager
+    def task_context(self, **kwargs: Any) -> Iterator[None]:
+        with prefect.context(_task_name=self.task.name, **kwargs):
+            yield
+
     def run(
         self,
         state: State = None,
@@ -87,107 +95,107 @@ class TaskRunner:
         inputs: Dict[str, Any] = None,
         ignore_trigger: bool = False,
     ) -> State:
-        initial_state = state or Pending()
+        state = state or Pending()
 
-        checked_state = self.check_task(
-            state=initial_state,
-            upstream_states=upstream_states or {},
-            ignore_trigger=ignore_trigger,
-        )
+        try:
+            checked_state = self._check_state(
+                state=state,
+                upstream_states=upstream_states or {},
+                ignore_trigger=ignore_trigger,
+            )
+            return self._run_task(state=checked_state, inputs=inputs or {})
 
-        if not checked_state:
-            return initial_state
-
-        final_state = self.run_task(state=checked_state, inputs=inputs or {})
-
-        if not final_state:
-            return checked_state
-
-        return final_state
+        except signals.DONTRUN:
+            return state
 
     @handle_signals
-    def check_task(
+    def _check_state(
         self,
         state: State,
         upstream_states: Dict[Task, State],
         ignore_trigger: bool = False,
-    ) -> Union[State, None]:
+    ) -> State:
         """
         Checks if a task is ready to run.
 
-        Returns either a new state for the task or None if the state should not change.
+        This method accepts an initial state and returns the next state that the task
+        should take. If it should not change state, it returns None.
         """
+        with self.task_context():
+            # ---------------------------------------------------------
+            # check upstream tasks
+            # ---------------------------------------------------------
 
-        # ---------------------------------------------------------
-        # check upstream tasks
-        # ---------------------------------------------------------
+            # make sure all upstream tasks are finished
+            if not all(s.is_finished() for s in upstream_states.values()):
+                raise signals.DONTRUN("Upstream tasks are not finished.")
 
-        # make sure all upstream tasks are finished
-        if not all(s.is_finished() for s in upstream_states.values()):
-            raise signals.DONTRUN("Upstream tasks are not finished.")
+            # ---------------------------------------------------------
+            # check upstream skips and propagate if appropriate
+            # ---------------------------------------------------------
 
-        # ---------------------------------------------------------
-        # check upstream skips and propagate if appropriate
-        # ---------------------------------------------------------
+            if self.task.propagate_skip and any(
+                isinstance(s, Skipped) for s in upstream_states.values()
+            ):
+                return Skipped(message="Upstream task was skipped.")
 
-        if self.task.propagate_skip and any(
-            isinstance(s, Skipped) for s in upstream_states.values()
-        ):
-            return Skipped(message="Upstream task was skipped.")
+            # ---------------------------------------------------------
+            # check trigger
+            # ---------------------------------------------------------
 
-        # ---------------------------------------------------------
-        # check trigger
-        # ---------------------------------------------------------
+            # triggers should return True or raise a signal, but just in case we raise
+            # trigger failed here
+            if not ignore_trigger and not self.task.trigger(upstream_states):
+                return TriggerFailed(message="Trigger failed.")
 
-        # triggers should return True or raise a signal, but just in case we raise
-        # trigger failed here
-        if not ignore_trigger and not self.task.trigger(upstream_states):
-            return TriggerFailed(message="Trigger failed.")
+            # ---------------------------------------------------------
+            # check this task's state
+            # ---------------------------------------------------------
 
-        # ---------------------------------------------------------
-        # check this task's state
-        # ---------------------------------------------------------
+            # state is missing
+            if not state:
+                raise signals.DONTRUN("Missing State.")
 
-        # state is missing
-        if not state:
-            raise signals.DONTRUN("Missing State.")
+            # this task is already running
+            elif state.is_running():
+                raise signals.DONTRUN("Task is already running.")
 
-        # this task is already running
-        elif state.is_running():
-            raise signals.DONTRUN("Task is already running.")
+            # this task is already finished
+            elif state.is_finished():
+                raise signals.DONTRUN("Task is already finished.")
 
-        # this task is already finished
-        elif state.is_finished():
-            raise signals.DONTRUN("Task is already finished.")
+            # this task is not pending
+            elif not state.is_pending():
+                raise signals.DONTRUN(
+                    "Task is not ready to run (state is {}).".format(state)
+                )
 
-        # this task is not pending
-        elif not state.is_pending():
-            raise signals.DONTRUN(
-                "Task is not ready to run (state is {}).".format(state)
-            )
+            # ---------------------------------------------------------
+            # We can start!
+            # ---------------------------------------------------------
 
-        # ---------------------------------------------------------
-        # We can start!
-        # ---------------------------------------------------------
-
-        return Running()
+            return Running()
 
     @handle_signals
-    def run_task(
-        self, state: State, inputs: Dict[str, Any] = None
-    ) -> Union[State, None]:
+    def _run_task(self, state: State, inputs: Dict[str, Any] = None) -> State:
         """
         Runs a task.
 
-        Returns either a new state for the task or None if the task state should not change.
+        This method accepts an initial state and returns the next state that the task
+        should take. If it should not change state, it returns None.
         """
 
-        if not state or not state.is_running():
-            raise signals.DONTRUN("Task is not running.")
+        if not state.is_running():
+            raise signals.DONTRUN("Task is not in a running state.")
 
-        self.logger.debug("Starting TaskRun")
-
-        result = self.task.run(**inputs)  # type: ignore
+        try:
+            self.logger.debug("Starting TaskRun")
+            result = self.task.run(**inputs)  # type: ignore
+        except signals.DONTRUN as exc:
+            return Skipped(
+                message="DONTRUN was raised inside a task and interpreted as SKIP. "
+                "Message was: {}".format(str(exc))
+            )
 
         return Success(data=result, message="Task run succeeded.")
 

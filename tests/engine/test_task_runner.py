@@ -1,18 +1,20 @@
 import datetime
 
+import pytest
+
 import prefect
 from prefect.core.task import Task
 from prefect.engine import TaskRunner
 from prefect.engine.state import (
+    Failed,
+    Pending,
+    Retrying,
+    Running,
+    Skipped,
     State,
     Success,
-    Failed,
-    Retrying,
-    Skipped,
-    Pending,
-    TriggerFailed,
+    TriggerFailed
 )
-
 from prefect.utilities.tests import raise_on_fail
 
 
@@ -48,6 +50,15 @@ class RaiseRetryTask(Task):
     def run(self):
         raise prefect.signals.RETRY()
         raise ValueError()  # pylint: disable=W0101
+
+
+class RaiseDontRunTask(Task):
+    """
+    This task is just for testing -- raising DONTRUN inside a task is considered bad
+    """
+
+    def run(self):
+        raise prefect.signals.DONTRUN()
 
 
 def test_task_that_succeeds_is_marked_success():
@@ -121,6 +132,13 @@ def test_task_that_raises_skip_gets_skipped():
     assert isinstance(task_runner.run(), Skipped)
 
 
+def test_task_that_is_running_doesnt_run():
+    task_runner = TaskRunner(task=SuccessTask())
+    initial_state = Running()
+    assert task_runner.run(state=initial_state) is initial_state
+
+
+
 def test_running_task_that_already_has_finished_state_doesnt_run():
     task_runner = TaskRunner(task=ErrorTask())
 
@@ -141,3 +159,19 @@ def test_task_runner_preserves_error_type():
         assert type(msg).__name__ == "ValueError"
     else:
         assert "ValueError" in msg
+
+
+def test_task_runner_raise_on_fail_when_task_errors():
+    with raise_on_fail():
+        with pytest.raises(ValueError):
+            TaskRunner(ErrorTask()).run()
+
+
+def test_task_runner_raise_on_fail_when_task_signals():
+    with raise_on_fail():
+        with pytest.raises(prefect.signals.FAIL):
+            TaskRunner(RaiseFailTask()).run()
+
+
+def test_tasks_that_raise_DONTRUN_are_treated_as_skipped():
+    assert isinstance(TaskRunner(task=RaiseDontRunTask()).run(), Skipped)

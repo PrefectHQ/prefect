@@ -76,31 +76,18 @@ class Executor(Serializable):
         state: State,
         upstream_states: Dict[Task, State],
         inputs: Dict[str, Any],
-        ignore_trigger=False,
-        context=None,
+        ignore_trigger: bool = False,
+        context: Dict[str, Any] = None,
     ):
         context = context or {}
         context.update(prefect.context, _executor=self)
         task_runner = prefect.engine.TaskRunner(task=task)
 
-        checked_state = self.submit(
-            task_runner.check_task,
+        return self.submit_with_context(
+            task_runner.run,
             state=state,
             upstream_states=upstream_states,
+            inputs=inputs,
             ignore_trigger=ignore_trigger,
-            context=context,
+            context=context
         )
-
-        # if check_task returns None, then the state should not be changed
-        if not checked_state:
-            return state
-
-        final_state = self.submit(
-            task_runner.run_task, state=checked_state, inputs=inputs, context=context
-        )
-
-        # if run_task returns None, then the state should not be changed
-        if not final_state:
-            return checked_state
-
-        return final_state
