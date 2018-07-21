@@ -68,6 +68,7 @@ class FlowRunner:
     ) -> State:
 
         state = state or Pending()
+        parameters = parameters or {}
 
         checked_state = self._check_state(state=state, parameters=parameters)
 
@@ -79,7 +80,7 @@ class FlowRunner:
             task_states=task_states or {},
             start_tasks=start_tasks or {},
             return_tasks=set(return_tasks or []),
-            parameters=parameters or {},
+            parameters=parameters,
             executor=executor or prefect.engine.executors.LocalExecutor(),
         )
 
@@ -97,10 +98,14 @@ class FlowRunner:
             # ---------------------------------------------
 
             required_parameters = self.flow.parameters(only_required=True)
-            missing = set(required_parameters).difference(parameters)
+            # when required_parameters is an empty dict, the following line will
+            # run correctly under Python 3.6+ no matter what parameters is.
+            # the extra "or {}" is just a safeguard against this subtle behavior change
+            missing = set(required_parameters).difference(parameters or {})
             if missing:
-                return Failed(
-                    message="Required parameters were not provided: {}".format(missing)
+                # raise instead of return Failed so that the raise_on_fail context works
+                raise signals.FAIL(
+                    "Required parameters were not provided: {}".format(missing)
                 )
 
             # ---------------------------------------------

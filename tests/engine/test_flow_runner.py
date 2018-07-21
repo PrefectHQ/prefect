@@ -199,7 +199,7 @@ def test_flow_runner_doesnt_return_by_default():
     assert res.data == {}
 
 
-def test_flow_runner_does_return_when_requested():
+def test_flow_runner_does_return_tasks_when_requested():
     flow = prefect.Flow()
     task1 = SuccessTask()
     task2 = SuccessTask()
@@ -207,6 +207,16 @@ def test_flow_runner_does_return_when_requested():
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task1])
     assert isinstance(flow_state, Success)
     assert isinstance(flow_state.data[task1], Success)
+
+
+def test_required_parameters_must_be_provided():
+    flow = prefect.Flow()
+    y = prefect.Parameter("y")
+    flow.add_task(y)
+    flow_state = FlowRunner(flow=flow).run()
+    assert isinstance(flow_state, Failed)
+    assert isinstance(flow_state.message, prefect.signals.FAIL)
+    assert "required parameter" in str(flow_state.message).lower()
 
 
 def test_missing_parameter_returns_failed_with_no_data():
@@ -235,4 +245,5 @@ def test_missing_parameter_error_is_surfaced():
     y = prefect.Parameter("y")
     task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
     msg = flow.run().message
-    assert "required parameter" in msg.lower()
+    assert isinstance(msg, prefect.signals.FAIL)
+    assert "required parameter" in str(msg).lower()
