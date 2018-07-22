@@ -1,4 +1,4 @@
-from prefect.signals import PrefectStateException
+from prefect.engine.signals import PrefectStateException
 
 
 def test_exceptions_are_displayed_with_messages():

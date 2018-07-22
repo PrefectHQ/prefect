@@ -6,7 +6,7 @@ import prefect.utilities
 from prefect.utilities.context import context
 
 import prefect.environments
-import prefect.signals
+import prefect.engine.signals
 import prefect.schedules
 import prefect.triggers
 

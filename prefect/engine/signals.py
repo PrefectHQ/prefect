@@ -1,21 +1,12 @@
-class PrefectError(Exception):
-    pass
+
+"""
+These classes are used to signal state changes when tasks or flows are running
+"""
+
+from prefect.utilities.exceptions import PrefectError
 
 
-class ContextError(KeyError, PrefectError):
-    pass
-
-
-class SerializationError(PrefectError):
-    pass
-
-
-# ------------------------------------------------------------------------------
-# These classes are used to signal state changes when tasks or flows are running
-# ------------------------------------------------------------------------------
-
-
-class PrefectStateException(Exception):
+class PrefectStateException(PrefectError):
     def __init__(self, *args, result=None, **kwargs) -> None:  # type: ignore
         self.result = result
         super().__init__(*args, **kwargs)

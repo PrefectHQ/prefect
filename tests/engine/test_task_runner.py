@@ -30,25 +30,25 @@ class ErrorTask(Task):
 
 class RaiseFailTask(Task):
     def run(self):
-        raise prefect.signals.FAIL("custom-fail-message")
+        raise prefect.engine.signals.FAIL("custom-fail-message")
         raise ValueError("custom-error-message")  # pylint: disable=W0101
 
 
 class RaiseSkipTask(Task):
     def run(self):
-        raise prefect.signals.SKIP()
+        raise prefect.engine.signals.SKIP()
         raise ValueError()  # pylint: disable=W0101
 
 
 class RaiseSuccessTask(Task):
     def run(self):
-        raise prefect.signals.SUCCESS()
+        raise prefect.engine.signals.SUCCESS()
         raise ValueError()  # pylint: disable=W0101
 
 
 class RaiseRetryTask(Task):
     def run(self):
-        raise prefect.signals.RETRY()
+        raise prefect.engine.signals.RETRY()
         raise ValueError()  # pylint: disable=W0101
 
 
@@ -58,7 +58,7 @@ class RaiseDontRunTask(Task):
     """
 
     def run(self):
-        raise prefect.signals.DONTRUN()
+        raise prefect.engine.signals.DONTRUN()
 
 
 def test_task_that_succeeds_is_marked_success():
@@ -168,7 +168,7 @@ def test_task_runner_raise_on_fail_when_task_errors():
 
 def test_task_runner_raise_on_fail_when_task_signals():
     with raise_on_fail():
-        with pytest.raises(prefect.signals.FAIL):
+        with pytest.raises(prefect.engine.signals.FAIL):
             TaskRunner(RaiseFailTask()).run()
 
 

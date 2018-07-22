@@ -1,6 +1,7 @@
 import pytest
 
-from prefect import signals, triggers
+from prefect import triggers
+from prefect.engine import signals
 from prefect.engine.state import Failed, Pending, Retrying, Skipped, State, Success
 
 

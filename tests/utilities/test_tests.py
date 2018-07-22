@@ -15,7 +15,7 @@ class SuccessTask(Task):
 
 class BusinessTask(Task):
     def run(self):
-        raise prefect.signals.FAIL("needs more blockchain!")
+        raise prefect.engine.signals.FAIL("needs more blockchain!")
 
 
 class MathTask(Task):
@@ -34,7 +34,7 @@ def test_raise_on_fail_raises_basic_error():
 def test_raise_on_fail_raises_basic_prefect_signal():
     flow = Flow()
     flow.add_task(BusinessTask())
-    with pytest.raises(prefect.signals.FAIL) as error:
+    with pytest.raises(prefect.engine.signals.FAIL) as error:
         with raise_on_fail():
             flow.run()
     assert "needs more blockchain!" in str(error)
@@ -49,7 +49,7 @@ def test_raise_on_fail_works_at_the_task_level_with_error():
 
 def test_raise_on_fail_works_at_the_task_level_with_signal():
     taskrunner = TaskRunner(task=BusinessTask())
-    with pytest.raises(prefect.signals.FAIL) as error:
+    with pytest.raises(prefect.engine.signals.FAIL) as error:
         with raise_on_fail():
             taskrunner.run()
     assert "needs more blockchain!" in str(error)
