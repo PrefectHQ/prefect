@@ -1,5 +1,6 @@
-import pytest
 import datetime
+
+import pytest
 
 import prefect
 from prefect.core import Flow, Task
@@ -293,9 +294,9 @@ class TestFlowRunner_get_pre_run_state:
             FlowRunner(flow=flow).get_pre_run_state(state=MyState())
         assert "not ready to run" in str(exc.value).lower()
 
-class TestFlowRunner_get_run_state:
 
-    @pytest.mark.parametrize('state', [Pending(), Failed(), Success()])
+class TestFlowRunner_get_run_state:
+    @pytest.mark.parametrize("state", [Pending(), Failed(), Success()])
     def test_raises_dontrun_if_not_running(self, state):
         flow = prefect.Flow()
         task1 = SuccessTask()

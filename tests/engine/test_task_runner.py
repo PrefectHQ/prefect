@@ -7,13 +7,13 @@ from prefect.core.task import Task
 from prefect.engine import TaskRunner, signals
 from prefect.engine.state import (
     Failed,
+    Finished,
     Pending,
     Retrying,
     Running,
-    Skipped,
-    Finished,
-    State,
     Scheduled,
+    Skipped,
+    State,
     Success,
     TriggerFailed,
 )
@@ -297,6 +297,7 @@ class TestTaskRunner_get_run_state:
         state = runner.get_run_state(state=Running())
         assert state == Success(data=1)
         assert "succeeded" in state.message.lower()
+
     def test_runs_task_with_inputs(self):
         runner = TaskRunner(AddTask())
         state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
@@ -307,31 +308,25 @@ class TestTaskRunner_get_run_state:
         state = runner.get_run_state(state=Running())
         assert isinstance(state, Failed)
         assert isinstance(state.message, TypeError)
-        assert 'required positional arguments' in str(state.message).lower()
+        assert "required positional arguments" in str(state.message).lower()
 
     def test_raise_dontrun_results_in_skip(self):
         class DontRunTask:
             def run(self):
                 raise signals.DONTRUN()
+
         runner = TaskRunner(DontRunTask())
         state = runner.get_run_state(state=Running())
         assert isinstance(state, Skipped)
-        assert 'dontrun was raised' in str(state.message).lower()
+        assert "dontrun was raised" in str(state.message).lower()
+
 
 class TestTaskRunner_get_post_run_state:
     """
     Tests the TaskRunner's get_post_run_state() method
     """
 
-    @pytest.mark.parametrize(
-        "state",
-        [
-            Pending(),
-            Retrying(),
-            Scheduled(),
-            Running(),
-        ],
-    )
+    @pytest.mark.parametrize("state", [Pending(), Retrying(), Scheduled(), Running()])
     def test_raises_dontrun_if_state_is_not_finished(self, state):
         runner = TaskRunner(SuccessTask())
         with pytest.raises(signals.DONTRUN) as exc:
@@ -339,14 +334,7 @@ class TestTaskRunner_get_post_run_state:
         assert "not in a finished state" in str(exc.value).lower()
 
     @pytest.mark.parametrize(
-        "state",
-        [
-            Finished(),
-            TriggerFailed(),
-            Success(),
-            Skipped(),
-            Failed()
-        ],
+        "state", [Finished(), TriggerFailed(), Success(), Skipped(), Failed()]
     )
     def test_raises_dontrun_if_state_is_finished_but_not_retry_eligable(self, state):
         runner = TaskRunner(SuccessTask())
@@ -355,8 +343,10 @@ class TestTaskRunner_get_post_run_state:
         assert "requires no further processing" in str(exc.value).lower()
 
     def test_returns_retry_if_failed_and_retry_eligable(self):
-        runner = TaskRunner(ErrorTask(max_retries=1, retry_delay = datetime.timedelta(minutes=1)))
-        with prefect.context(_task_run_number = 1):
+        runner = TaskRunner(
+            ErrorTask(max_retries=1, retry_delay=datetime.timedelta(minutes=1))
+        )
+        with prefect.context(_task_run_number=1):
             state = runner.get_post_run_state(state=Failed())
         assert isinstance(state, Retrying)
         assert (state.data - datetime.datetime.utcnow()) < datetime.timedelta(minutes=1)

@@ -220,4 +220,3 @@ class TaskRunner:
         )
         self.logger.info(msg)
         return Retrying(data=retry_time, message=msg)
-
