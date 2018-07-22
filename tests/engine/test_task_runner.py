@@ -15,7 +15,7 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
-from prefect.utilities.tests import raise_on_fail
+from prefect.utilities.tests import raise_on_exception
 
 
 class SuccessTask(Task):
@@ -160,14 +160,14 @@ def test_task_runner_preserves_error_type():
         assert "ValueError" in msg
 
 
-def test_task_runner_raise_on_fail_when_task_errors():
-    with raise_on_fail():
+def test_task_runner_raise_on_exception_when_task_errors():
+    with raise_on_exception():
         with pytest.raises(ValueError):
             TaskRunner(ErrorTask()).run()
 
 
-def test_task_runner_raise_on_fail_when_task_signals():
-    with raise_on_fail():
+def test_task_runner_raise_on_exception_when_task_signals():
+    with raise_on_exception():
         with pytest.raises(prefect.engine.signals.FAIL):
             TaskRunner(RaiseFailTask()).run()
 
