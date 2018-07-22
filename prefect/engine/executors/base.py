@@ -42,4 +42,3 @@ class Executor(Serializable):
                 return fn(*args, **kwargs)
 
         return self.submit(run_fn_in_context, *args, context=context, **kwargs)
-

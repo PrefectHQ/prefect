@@ -4,10 +4,10 @@ from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Union
 
 import prefect
-from prefect.engine import signals
-from prefect.engine.task_runner import TaskRunner
 from prefect.core import Flow, Task
+from prefect.engine import signals
 from prefect.engine.state import Failed, Pending, Running, State, Success
+from prefect.engine.task_runner import TaskRunner
 
 
 def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
@@ -20,6 +20,7 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
 
     If DONTRUN is raised, the handler does not trap it, but re-raises it.
     """
+
     @functools.wraps(method)
     def inner(*args: Any, **kwargs: Any) -> State:
 
@@ -52,7 +53,9 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
 
 
 class FlowRunner:
-    def __init__(self, flow: Flow, task_runner_cls=None, logger_name: str = None) -> None:
+    def __init__(
+        self, flow: Flow, task_runner_cls=None, logger_name: str = None
+    ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
         self.logger = logging.getLogger(logger_name or type(self).__name__)

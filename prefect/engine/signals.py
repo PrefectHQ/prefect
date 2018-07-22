@@ -3,8 +3,8 @@
 These classes are used to signal state changes when tasks or flows are running
 """
 
-from prefect.utilities.exceptions import PrefectError
 from prefect.engine import state
+from prefect.utilities.exceptions import PrefectError
 
 
 class PrefectStateSignal(PrefectError):
@@ -45,7 +45,6 @@ class RETRY(PrefectStateSignal):
     """
 
     _state_cls = state.Retrying
-
 
 
 class SKIP(PrefectStateSignal):
