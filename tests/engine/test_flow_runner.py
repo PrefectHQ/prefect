@@ -1,8 +1,9 @@
+import pytest
 import datetime
 
 import prefect
 from prefect.core import Flow, Task
-from prefect.engine import FlowRunner
+from prefect.engine import FlowRunner, signals
 from prefect.engine.state import (
     Failed,
     Finished,
@@ -247,3 +248,60 @@ def test_missing_parameter_error_is_surfaced():
     msg = flow.run().message
     assert isinstance(msg, prefect.engine.signals.FAIL)
     assert "required parameter" in str(msg).lower()
+
+
+class TestFlowRunner_get_pre_run_state:
+    def test_runs_as_expected(self):
+        flow = prefect.Flow()
+        task1 = SuccessTask()
+        task2 = SuccessTask()
+        flow.add_edge(task1, task2)
+
+        state = FlowRunner(flow=flow).get_pre_run_state(state=Pending())
+        assert isinstance(state, Running)
+
+    def test_raises_fail_if_required_parameters_missing(self):
+        flow = prefect.Flow()
+        y = prefect.Parameter("y")
+        flow.add_task(y)
+        flow_state = FlowRunner(flow=flow).get_pre_run_state(state=Pending())
+        assert isinstance(flow_state, Failed)
+        assert isinstance(flow_state.message, prefect.engine.signals.FAIL)
+        assert "required parameter" in str(flow_state.message).lower()
+
+    @pytest.mark.parametrize("state", [Success(), Failed()])
+    def test_raise_dontrun_if_state_is_finished(self, state):
+        flow = prefect.Flow()
+        task1 = SuccessTask()
+        task2 = SuccessTask()
+        flow.add_edge(task1, task2)
+
+        with pytest.raises(signals.DONTRUN) as exc:
+            FlowRunner(flow=flow).get_pre_run_state(state=state)
+        assert "already finished" in str(exc.value).lower()
+
+    def test_raise_dontrun_for_unknown_state(self):
+        class MyState(State):
+            pass
+
+        flow = prefect.Flow()
+        task1 = SuccessTask()
+        task2 = SuccessTask()
+        flow.add_edge(task1, task2)
+
+        with pytest.raises(signals.DONTRUN) as exc:
+            FlowRunner(flow=flow).get_pre_run_state(state=MyState())
+        assert "not ready to run" in str(exc.value).lower()
+
+class TestFlowRunner_get_run_state:
+
+    @pytest.mark.parametrize('state', [Pending(), Failed(), Success()])
+    def test_raises_dontrun_if_not_running(self, state):
+        flow = prefect.Flow()
+        task1 = SuccessTask()
+        task2 = SuccessTask()
+        flow.add_edge(task1, task2)
+
+        with pytest.raises(signals.DONTRUN) as exc:
+            FlowRunner(flow=flow).get_run_state(state=state)
+        assert "not in a running state" in str(exc.value).lower()
