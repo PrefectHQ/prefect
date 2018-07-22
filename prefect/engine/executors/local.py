@@ -1,6 +1,4 @@
-from contextlib import contextmanager
-
-from prefect.engine.executors import Executor
+from prefect.engine.executors.base import Executor
 
 
 class LocalExecutor(Executor):
