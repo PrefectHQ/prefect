@@ -6,26 +6,23 @@ from typing import Any, Callable, Dict, Iterable, List, TypeVar, Union
 import prefect
 from prefect.utilities.json import Serializable
 
-Future = TypeVar("Future")
-
 
 class Executor(Serializable):
-
     @contextmanager
-    def start(self):
+    def start(self) -> Iterable[None]:
         """
         Any initialization this executor needs to perform should be done in this
         context manager, and torn down after yielding.
         """
         yield
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         """
         Submit a function to the executor for execution. Returns a future
         """
         raise NotImplementedError()
 
-    def wait(self, futures: List[Future], timeout: datetime.timedelta = None) -> Any:
+    def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """
         Resolves futures to their values. Blocks until the future is complete.
         """
@@ -33,11 +30,11 @@ class Executor(Serializable):
 
     def submit_with_context(
         self, fn: Callable, *args: Any, context: Dict, **kwargs: Any
-    ) -> Future:
+    ) -> Any:
         """
         Submit a function to the executor that will be run in a specific Prefect context.
 
-        Returns a Future.
+        Returns a Any.
         """
 
         def run_fn_in_context(*args, context, **kwargs):
