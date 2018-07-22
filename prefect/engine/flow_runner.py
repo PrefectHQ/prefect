@@ -150,7 +150,7 @@ class FlowRunner:
         executor = executor or prefect.engine.executors.LocalExecutor()
 
         if not state.is_running():
-            raise signals.DONTRUN("Flow is not in a RUNNING state.")
+            raise signals.DONTRUN("Flow is not in a Running state.")
 
         # -- process each task in order
 

@@ -140,10 +140,9 @@ class TaskRunner:
         # check trigger
         # ---------------------------------------------------------
 
-        # triggers should return True or raise a signal, but just in case we raise
-        # trigger failed here
+        # the trigger itself could raise a failure, but we raise TriggerFailed just in case
         if not ignore_trigger and not self.task.trigger(upstream_states):
-            return TriggerFailed(message="Trigger failed.")
+            raise signals.TRIGGERFAIL(message="Trigger failed.")
 
         # ---------------------------------------------------------
         # check this task's state
@@ -160,7 +159,7 @@ class TaskRunner:
         # this task is not pending
         elif not state.is_pending():
             raise signals.DONTRUN(
-                "Task is not ready to run (state is {}).".format(state)
+                "Task is not ready to run or state was unrecognized ({}).".format(state)
             )
 
         # ---------------------------------------------------------
@@ -199,13 +198,16 @@ class TaskRunner:
         """
         If the final state failed, this method checks to see if it should be retried.
         """
+        if not state.is_finished():
+            raise signals.DONTRUN("Task is not in a Finished state.")
 
         # check failed states for retry (except for TriggerFailed, which doesn't retry)
         if isinstance(state, Failed) and not isinstance(state, TriggerFailed):
             run_number = prefect.context.get("_task_run_number", 1)
             if run_number <= self.task.max_retries:
                 return self.get_retry_state()
-        return state
+
+        raise signals.DONTRUN("State requires no further processing.")
 
     def get_retry_state(self):
         """
@@ -217,6 +219,5 @@ class TaskRunner:
             n=run_number, m=self.task.max_retries + 1
         )
         self.logger.info(msg)
-        return Retrying(
-            data=dict(retry_time=retry_time, last_run_number=run_number), message=msg
-        )
+        return Retrying(data=retry_time, message=msg)
+
