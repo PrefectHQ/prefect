@@ -35,25 +35,25 @@ class ErrorTask(Task):
 
 class RaiseFailTask(Task):
     def run(self):
-        raise prefect.signals.FAIL("custom-fail-message")
+        raise prefect.engine.signals.FAIL("custom-fail-message")
         raise ValueError("custom-error-message")  # pylint: disable=W0101
 
 
 class RaiseSkipTask(Task):
     def run(self):
-        raise prefect.signals.SKIP()
+        raise prefect.engine.signals.SKIP()
         raise ValueError()  # pylint: disable=W0101
 
 
 class RaiseSuccessTask(Task):
     def run(self):
-        raise prefect.signals.SUCCESS()
+        raise prefect.engine.signals.SUCCESS()
         raise ValueError()  # pylint: disable=W0101
 
 
 class RaiseRetryTask(Task):
     def run(self):
-        raise prefect.signals.RETRY()
+        raise prefect.engine.signals.RETRY()
         raise ValueError()  # pylint: disable=W0101
 
 
@@ -215,7 +215,7 @@ def test_required_parameters_must_be_provided():
     flow.add_task(y)
     flow_state = FlowRunner(flow=flow).run()
     assert isinstance(flow_state, Failed)
-    assert isinstance(flow_state.message, prefect.signals.FAIL)
+    assert isinstance(flow_state.message, prefect.engine.signals.FAIL)
     assert "required parameter" in str(flow_state.message).lower()
 
 
@@ -245,5 +245,5 @@ def test_missing_parameter_error_is_surfaced():
     y = prefect.Parameter("y")
     task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
     msg = flow.run().message
-    assert isinstance(msg, prefect.signals.FAIL)
+    assert isinstance(msg, prefect.engine.signals.FAIL)
     assert "required parameter" in str(msg).lower()
