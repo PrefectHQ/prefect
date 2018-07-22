@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterator, List, MutableMapping, Union
 
 import prefect
-from prefect import signals
+from prefect.engine import signals
 from prefect.core import Task
 from prefect.engine.state import (
     Failed,
