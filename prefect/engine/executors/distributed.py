@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 
+import prefect
 from prefect.engine.executors import Executor
 
 _LOCAL_CLUSTER = None
@@ -96,19 +97,16 @@ class DistributedExecutor(Executor):
 
     @contextmanager
     def start(self):
-        if not self.client:
-            old_client = self.client
+
+        if self.client:
+            with prefect.context({self.executor_id: self.client}):
+                yield
+        else:
             with distributed_client(
                 address=self.address, separate_thread=self.separate_thread
             ) as client:
-                self.client = client
-                yield self
-            self.client = old_client
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state["client"] = None
-        return state
+                with prefect.context({self.executor_id: client}):
+                    yield
 
     def submit(self, fn, *args, **kwargs):
         """
@@ -116,10 +114,18 @@ class DistributedExecutor(Executor):
         """
         if "pure" not in kwargs:
             kwargs["pure"] = False
-        return self.client.submit(fn, *args, **kwargs)
+        if self.executor_id not in prefect.context:
+            raise ValueError(
+                "This executor must be run in a DistributedExecutor.start() context"
+            )
+        return prefect.context[self.executor_id].submit(fn, *args, **kwargs)
 
     def wait(self, futures, timeout=None):
         """
         Resolves futures to their values. Blocks until the future is complete.
         """
-        return self.client.gather(futures)
+        if self.executor_id not in prefect.context:
+            raise ValueError(
+                "This executor must be run in a DistributedExecutor.start() context"
+            )
+        return prefect.context[self.executor_id].gather(futures)

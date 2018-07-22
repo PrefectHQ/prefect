@@ -1,7 +1,7 @@
 import pytest
 
 import prefect
-from prefect.engine.executors import DaskExecutor, Executor, LocalExecutor
+from prefect.engine.executors import Executor, LocalExecutor
 
 
 class TestBaseExecutor:
