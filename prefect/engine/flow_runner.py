@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Union
 
 import prefect
-from prefect import signals
+from prefect.engine import signals
 from prefect.core import Flow, Task
 from prefect.engine.state import Failed, Pending, Running, State, Success
 

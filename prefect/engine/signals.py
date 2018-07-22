@@ -4,18 +4,25 @@ These classes are used to signal state changes when tasks or flows are running
 """
 
 from prefect.utilities.exceptions import PrefectError
+from prefect.engine import state
 
 
-class PrefectStateException(PrefectError):
-    def __init__(self, *args, result=None, **kwargs) -> None:  # type: ignore
-        self.result = result
-        super().__init__(*args, **kwargs)
+class PrefectStateSignal(PrefectError):
+    _state_cls = state.State
+
+    def __init__(self, message=None, data=None, **kwargs) -> None:  # type: ignore
+        self.data = data
+        self.message = self
+        self.state = self._state_cls(data=data, message=message)
+        super().__init__(message, **kwargs)
 
 
-class FAIL(PrefectStateException):
+class FAIL(PrefectStateSignal):
     """
     Indicates that a task failed.
     """
+
+    _state_cls = state.Failed
 
 
 class TRIGGERFAIL(FAIL):
@@ -23,37 +30,36 @@ class TRIGGERFAIL(FAIL):
     Indicates that a task trigger failed.
     """
 
+    _state_cls = state.TriggerFailed
 
-class SUCCESS(PrefectStateException):
+
+class SUCCESS(PrefectStateSignal):
     """
     Indicates that a task succeeded.
     """
 
+    _state_cls = state.Success
 
-class RETRY(PrefectStateException):
+
+class RETRY(PrefectStateSignal):
     """
     Used to indicate that a task should be retried
     """
 
+    _state_cls = state.Retrying
 
-class SKIP(PrefectStateException):
+
+
+class SKIP(PrefectStateSignal):
     """
     Indicates that a task was skipped. By default, downstream tasks will
     act as if skipped tasks succeeded.
     """
 
-
-class SKIP_DOWNSTREAM(PrefectStateException):
-    """
-    Indicates that a task *and all downstream tasks* should be skipped.
-
-    Downstream tasks will still evaluate their trigger functions, giving them
-    a chance to interrupt the chain, but if the trigger fails they will also
-    enter a SKIP_DOWNSTREAM state.
-    """
+    _state_cls = state.Skipped
 
 
-class DONTRUN(PrefectStateException):
+class DONTRUN(PrefectStateSignal):
     """
     Indicates that a task should not run and its state should not be modified.
     """
