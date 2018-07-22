@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from contextlib import contextmanager
 from functools import wraps
 from typing import Any, Callable, Dict, Iterable, List, TypeVar, Union
@@ -8,6 +9,9 @@ from prefect.utilities.json import Serializable
 
 
 class Executor(Serializable):
+    def __init__(self):
+        self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
+
     @contextmanager
     def start(self) -> Iterable[None]:
         """
