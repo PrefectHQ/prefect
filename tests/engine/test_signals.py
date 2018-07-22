@@ -1,20 +1,21 @@
 import pytest
-from prefect.engine.state import (
-    State,
-    Failed,
-    TriggerFailed,
-    Success,
-    Retrying,
-    Skipped,
-)
+
 from prefect.engine.signals import (
-    PrefectStateSignal,
+    DONTRUN,
     FAIL,
-    TRIGGERFAIL,
-    SUCCESS,
     RETRY,
     SKIP,
-    DONTRUN,
+    SUCCESS,
+    TRIGGERFAIL,
+    PrefectStateSignal,
+)
+from prefect.engine.state import (
+    Failed,
+    Retrying,
+    Skipped,
+    State,
+    Success,
+    TriggerFailed,
 )
 
 
@@ -41,14 +42,17 @@ def test_signals_create_states_with_data():
     assert exc.value.state.data is 5
 
 
-@pytest.mark.parametrize('signal,state', [
-    (FAIL, Failed),
-    (TRIGGERFAIL, TriggerFailed),
-    (SUCCESS, Success),
-    (RETRY, Retrying),
-    (SKIP, Skipped),
-    (DONTRUN, State)
-])
+@pytest.mark.parametrize(
+    "signal,state",
+    [
+        (FAIL, Failed),
+        (TRIGGERFAIL, TriggerFailed),
+        (SUCCESS, Success),
+        (RETRY, Retrying),
+        (SKIP, Skipped),
+        (DONTRUN, State),
+    ],
+)
 def test_signals_creates_correct_states(signal, state):
     with pytest.raises(Exception) as exc:
         raise signal(state.__name__, data=1)

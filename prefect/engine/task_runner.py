@@ -1,5 +1,5 @@
-import functools
 import datetime
+import functools
 import logging
 import types
 import uuid
@@ -7,8 +7,8 @@ from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterator, List, MutableMapping, Union
 
 import prefect
-from prefect.engine import signals
 from prefect.core import Task
+from prefect.engine import signals
 from prefect.engine.state import (
     Failed,
     MessageType,
@@ -34,7 +34,7 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
     """
 
     @functools.wraps(method)
-    def inner(self: 'TaskRunner', *args: Any, **kwargs: Any) -> State:
+    def inner(self: "TaskRunner", *args: Any, **kwargs: Any) -> State:
 
         raise_on_exception = prefect.context.get("_raise_on_exception", False)
 

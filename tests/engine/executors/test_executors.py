@@ -1,11 +1,7 @@
-import concurrent.futures
-import prefect
 import pytest
-from prefect.engine.executors import (
-    Executor,
-    LocalExecutor,
-    DaskExecutor
-)
+
+import prefect
+from prefect.engine.executors import DaskExecutor, Executor, LocalExecutor
 
 
 class TestBaseExecutor:
@@ -57,4 +53,3 @@ class TestLocalExecutor:
         """LocalExecutor's wait() method just returns its input"""
         assert LocalExecutor().wait(1) == 1
         assert LocalExecutor().wait(prefect) is prefect
-
