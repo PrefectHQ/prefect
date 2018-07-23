@@ -27,8 +27,8 @@ def set_config(keys, value):
 
 
 @contextmanager
-def raise_on_fail():
-    with prefect.context(_raise_on_fail=True):
+def raise_on_exception():
+    with prefect.context(_raise_on_exception=True):
         yield
 
 
