@@ -409,8 +409,9 @@ class Flow(Serializable):
 
         state = runner.run(parameters=parameters, return_tasks=return_tasks, **kwargs)
 
-        # state always should return a dict of tasks
-        if not isinstance(state.data, dict):
+        # state always should return a dict of tasks. If it's None (meaning the run was
+        # interrupted before any tasks were executed), we set the dict manually.
+        if state.data is None:
             state.data = {}
         for task in return_tasks or []:
             if task not in state.data:
