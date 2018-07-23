@@ -4,7 +4,7 @@ the state of preceding tasks.
 """
 from typing import TYPE_CHECKING, Dict, Iterable
 
-from prefect import signals
+from prefect.engine import signals
 
 if TYPE_CHECKING:
     from prefect.engine.state import State
