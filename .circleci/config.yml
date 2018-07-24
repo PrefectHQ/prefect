@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - checkout
-
+      - setup_remote_docker
       - run:
           name: Install Black
           command: pip install black
