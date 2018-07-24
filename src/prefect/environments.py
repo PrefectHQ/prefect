@@ -86,7 +86,7 @@ class Container(Environment):
         container = self.client.images.build(path=path, tag=self.tag, forcerm=True)
 
         # Remove the temporary Dockerfile
-        os.remove(f"{path}/Dockerfile")
+        os.remove("{}/Dockerfile".format(path))
 
         return container
 
@@ -138,17 +138,17 @@ class Container(Environment):
         Returns:
             None
         """
-        path = f"{os.path.dirname(os.path.realpath(__file__))}/Dockerfile"
+        path = "{}/Dockerfile".format(os.path.dirname(os.path.realpath(__file__)))
         dockerfile = open(path, "w+")
 
         # Generate RUN pip install commands for python dependencies
         pip_installs = ""
         for dependency in self.python_dependencies:
-            pip_installs += f"RUN python3.6 -m pip install {dependency}\n"
+            pip_installs += "RUN python3.6 -m pip install {}\n".format(dependency)
 
         file_contents = textwrap.dedent(
-            f"""\
-            FROM {self.image}
+            """\
+            FROM {}
 
             RUN apt-get update
             RUN apt-get install -y software-properties-common
@@ -157,11 +157,13 @@ class Container(Environment):
             RUN apt-get install -y build-essential python3.6 python3-pip
             RUN python3.6 -m pip install pip --upgrade
             RUN python3.6 -m pip install wheel
-            {pip_installs}
+            {}
 
             RUN echo "pip install prefect"
             RUN echo "add the flow code"
-        """
+        """.format(
+                self.image, pip_installs
+            )
         )
 
         dockerfile.write(file_contents)
