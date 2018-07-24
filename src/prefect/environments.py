@@ -146,6 +146,10 @@ class Container(Environment):
         for dependency in self.python_dependencies:
             pip_installs += "RUN python3.6 -m pip install {}\n".format(dependency)
 
+        env_vars = ""
+        for secret in self.secrets:
+            env_vars += "ENV {} {}\n".format(secret.name, secret.value)
+
         file_contents = textwrap.dedent(
             """\
             FROM {}
@@ -158,11 +162,12 @@ class Container(Environment):
             RUN python3.6 -m pip install pip --upgrade
             RUN python3.6 -m pip install wheel
             {}
+            {}
 
             RUN echo "pip install prefect"
             RUN echo "add the flow code"
         """.format(
-                self.image, pip_installs
+                self.image, env_vars, pip_installs
             )
         )
 
