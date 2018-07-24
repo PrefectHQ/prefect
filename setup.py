@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+import versioneer
+
 
 install_requires = [
     "click",
@@ -23,8 +25,8 @@ extras = {"dev": ["pytest", "pytest-env", "pytest-xdist"]}
 
 setup(
     name="prefect",
-    # corresponds to __version__
-    version="0.2.0",
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     description="",
     long_description=open("README.md").read(),
     url="https://www.github.com/prefecthq/prefect",
@@ -33,7 +35,8 @@ setup(
     install_requires=install_requires,
     extras_require=extras,
     scripts=[],
-    packages=find_packages(),
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     include_package_data=True,
     entry_points={"console_scripts": ["prefect=prefect.cli:cli"]},
 )

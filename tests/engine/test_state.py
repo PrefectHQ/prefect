@@ -4,15 +4,15 @@ import json
 import pytest
 
 from prefect.engine.state import (
-    State,
-    Success,
+    Failed,
+    Finished,
+    Pending,
     Retrying,
     Running,
-    Finished,
-    Failed,
-    Skipped,
-    Pending,
     Scheduled,
+    Skipped,
+    State,
+    Success,
     TriggerFailed,
 )
 
