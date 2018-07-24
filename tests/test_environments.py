@@ -84,5 +84,5 @@ def test_build_image():
 
 def test_run_container():
     container = Container(image="ubuntu:16.04")
-    container.run()
-    assert True
+    container_running = container.run()
+    assert container_running

@@ -59,6 +59,7 @@ class Container(Environment):
         self.tag = tag
         self._python_dependencies = python_dependencies
         self.client = docker.from_env()
+        self.running_container_id = None
 
         super().__init__(secrets=secrets)
 
@@ -96,10 +97,18 @@ class Container(Environment):
             None
 
         Returns:
-            None
+            A docker.models.containers.Container object
 
         """
-        self.client.containers.run(self.tag, "echo 'flow.run placeholder'", detach=True)
+
+        # Kill instance of this container currently running
+        if self.running_container_id:
+            self.client.containers.get(self.running_container_id).kill()
+
+        running_container = self.client.containers.run(self.tag, detach=True)
+        self.running_container_id = running_container.id
+
+        return running_container
 
     def pull_image(self) -> None:
         """Pull the image specified so it can be built.
@@ -149,11 +158,10 @@ class Container(Environment):
             RUN python3.6 -m pip install pip --upgrade
             RUN python3.6 -m pip install wheel
             {pip_installs}
+
+            RUN echo "pip install prefect"
+            RUN echo "add the flow code"
         """
         )
 
         dockerfile.write(file_contents)
-
-
-# How will the docker file get the flow code in it?
-# How should we go about installing prefect?
