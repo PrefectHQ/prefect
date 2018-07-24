@@ -6,7 +6,7 @@ import prefect
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
-from prefect.tasks.core.function_task import FunctionTask
+from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.tasks import task
 
 
