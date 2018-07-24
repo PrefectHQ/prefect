@@ -57,9 +57,7 @@ class Container(Environment):
 
         self.image = image
         self.tag = tag
-
         self._python_dependencies = python_dependencies
-
         self.client = docker.from_env()
 
         super().__init__(secrets=secrets)
@@ -71,24 +69,38 @@ class Container(Environment):
 
     def build(self) -> tuple:
         """Build the Docker container"""
-        self.pull_image()
-
         path = os.path.dirname(os.path.realpath(__file__))
 
+        self.pull_image()
         self.create_dockerfile()
 
-        return self.client.images.build(path=path, tag=self.tag, forcerm=True)
+        container = self.client.images.build(path=path, tag=self.tag, forcerm=True)
+
+        # Remove the temporary Dockerfile
+        os.remove(f"{path}/Dockerfile")
+
+        return container
 
     def run(self) -> None:
         """Run the flow in the Docker container"""
         self.client.containers.run(self.tag, "echo 'flow.run placeholder'", detach=True)
 
     def pull_image(self) -> None:
-        """Pull the image specified so it can be built"""
+        """Pull the image specified so it can be built.
+
+        In order for the docker python library to use a base image it must be pulled
+        from either the main docker registry or a separate registry that must be set in
+        the environment variables.
+        """
         self.client.images.pull(self.image)
 
     def create_dockerfile(self) -> None:
-        """Creates a dockerfile to use as the container"""
+        """Creates a dockerfile to use as the container.
+
+        In order for the docker python library to build a container it needs a
+        Dockerfile that it can use to define the container. This function takes the
+        image and python_dependencies then writes them to a file called Dockerfile.
+        """
         path = f"{os.path.dirname(os.path.realpath(__file__))}/Dockerfile"
         dockerfile = open(path, "w+")
 
