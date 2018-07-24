@@ -76,7 +76,7 @@ def test_containet_tag_none():
     assert container.tag == "test"
 
 
-@pytest.skip()
+@pytest.mark.skipif()
 def test_build_image():
     container = Container(
         image="ubuntu:16.04", python_dependencies=["docker", "raven", "toml"]
@@ -85,7 +85,7 @@ def test_build_image():
     assert image
 
 
-@pytest.skip()
+@pytest.mark.skipif()
 def test_run_container():
     container = Container(image="ubuntu:16.04")
     container_running = container.run()
