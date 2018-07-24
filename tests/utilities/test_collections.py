@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.utilities import collections
-from prefect.utilities.collections import DotDict, to_dotdict, merge_dicts
+from prefect.utilities.collections import DotDict, merge_dicts, to_dotdict
 
 
 @pytest.fixture

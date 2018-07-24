@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 
 import prefect
-import prefect.signals
+import prefect.engine.signals
 import prefect.triggers
 from prefect.environments import Environment
 from prefect.utilities.json import Serializable, to_qualified_name
@@ -229,7 +229,7 @@ class Parameter(Task):
     def run(self) -> Any:
         params = prefect.context.get("_parameters", {})
         if self.required and self.name not in params:
-            raise prefect.signals.FAIL(
+            raise prefect.engine.signals.FAIL(
                 'Parameter "{}" was required but not provided.'.format(self.name)
             )
         return params.get(self.name, self.default)

@@ -3,9 +3,11 @@ from typing import Any, Dict, List, Union
 
 from prefect.utilities.json import Serializable
 
+MessageType = Union[str, Exception]
+
 
 class State(Serializable):
-    def __init__(self, data: Any = None, message: Union[str, Exception] = None) -> None:
+    def __init__(self, data: Any = None, message: MessageType = None) -> None:
         """
         Create a new State object.
             data (Any, optional): Defaults to None. A data payload for the state.
@@ -17,7 +19,10 @@ class State(Serializable):
         self._timestamp = datetime.datetime.utcnow()
 
     def __repr__(self) -> str:
-        return "<{}>".format(type(self).__name__)
+        if self.message:
+            return '{}("{}")'.format(type(self).__name__, self.message)
+        else:
+            return "{}()".format(type(self).__name__)
 
     def __eq__(self, other: object) -> bool:
         """
