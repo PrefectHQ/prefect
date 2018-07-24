@@ -59,7 +59,7 @@ class Container(Environment):
         self.tag = tag
         self._python_dependencies = python_dependencies
         # self.client = docker.from_env()
-        self.client = docker.DockerClient(base_url='unix://var/run/docker.sock')
+        self.client = docker.DockerClient(base_url="unix://var/run/docker.sock")
         self.running_container_id = None
 
         super().__init__(secrets=secrets)
