@@ -62,12 +62,15 @@ def test_create_container():
 
 
 def test_container_image():
-    pass
+    container = Container(image="test")
+    assert container.image == "test"
 
 
 def test_container_name():
-    pass
+    container = Container(image="test", name="test_name")
+    assert container.name == "test_name"
 
 
 def test_containet_name_none():
-    pass
+    container = Container(image="test")
+    assert container.name == "test"
