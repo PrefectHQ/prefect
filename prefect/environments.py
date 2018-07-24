@@ -68,7 +68,15 @@ class Container(Environment):
         return self._python_dependencies
 
     def build(self) -> tuple:
-        """Build the Docker container"""
+        """Build the Docker container
+
+        Args:
+            None
+
+        Returns:
+            tuple with (docker.models.images.Image, iterable logs)
+
+        """
         path = os.path.dirname(os.path.realpath(__file__))
 
         self.pull_image()
@@ -82,7 +90,15 @@ class Container(Environment):
         return container
 
     def run(self) -> None:
-        """Run the flow in the Docker container"""
+        """Run the flow in the Docker container
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        """
         self.client.containers.run(self.tag, "echo 'flow.run placeholder'", detach=True)
 
     def pull_image(self) -> None:
@@ -91,6 +107,12 @@ class Container(Environment):
         In order for the docker python library to use a base image it must be pulled
         from either the main docker registry or a separate registry that must be set in
         the environment variables.
+
+        Args:
+            None
+
+        Returns:
+            None
         """
         self.client.images.pull(self.image)
 
@@ -100,11 +122,17 @@ class Container(Environment):
         In order for the docker python library to build a container it needs a
         Dockerfile that it can use to define the container. This function takes the
         image and python_dependencies then writes them to a file called Dockerfile.
+
+        Args:
+            None
+
+        Returns:
+            None
         """
         path = f"{os.path.dirname(os.path.realpath(__file__))}/Dockerfile"
         dockerfile = open(path, "w+")
 
-        # Generate pip install run commands for python dependencies
+        # Generate RUN pip install commands for python dependencies
         pip_installs = ""
         for dependency in self.python_dependencies:
             pip_installs += f"RUN python3.6 -m pip install {dependency}\n"
