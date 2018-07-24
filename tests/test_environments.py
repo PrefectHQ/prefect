@@ -77,7 +77,7 @@ def test_containet_tag_none():
 
 
 def test_build_image():
-    container = Container(image="ubuntu:16.04")
+    container = Container(image="ubuntu:16.04", python_dependencies=["docker", "raven", "toml"])
     image = container.build()
     assert image
 
