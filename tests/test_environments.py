@@ -66,11 +66,23 @@ def test_container_image():
     assert container.image == "test"
 
 
-def test_container_name():
-    container = Container(image="test", name="test_name")
-    assert container.name == "test_name"
+def test_container_tag():
+    container = Container(image="test", name="test_tag")
+    assert container.tag == "test_tag"
 
 
-def test_containet_name_none():
+def test_containet_tag_none():
     container = Container(image="test")
-    assert container.name == "test"
+    assert container.tag == "test"
+
+
+def test_build_image():
+    container = Container(image="ubuntu:16.04")
+    image = container.build()
+    assert image
+
+
+def test_run_container():
+    container = Container(image="ubuntu:16.04")
+    container.run()
+    assert True
