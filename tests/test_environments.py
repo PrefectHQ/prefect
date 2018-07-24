@@ -67,7 +67,7 @@ def test_container_image():
 
 
 def test_container_tag():
-    container = Container(image="test", name="test_tag")
+    container = Container(image="test", tag="test_tag")
     assert container.tag == "test_tag"
 
 
