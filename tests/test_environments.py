@@ -1,7 +1,7 @@
 import pytest
 
-from prefect import Flow
-from prefect.environments import Environment, Container, Secret
+from prefect.src import Flow
+from prefect.src.environments import Environment, Container, Secret
 
 #################################
 ##### Secret Tests
@@ -77,7 +77,9 @@ def test_containet_tag_none():
 
 
 def test_build_image():
-    container = Container(image="ubuntu:16.04", python_dependencies=["docker", "raven", "toml"])
+    container = Container(
+        image="ubuntu:16.04", python_dependencies=["docker", "raven", "toml"]
+    )
     image = container.build()
     assert image
 
