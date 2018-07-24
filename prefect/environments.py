@@ -104,6 +104,11 @@ class Container(Environment):
         path = f"{os.path.dirname(os.path.realpath(__file__))}/Dockerfile"
         dockerfile = open(path, "w+")
 
+        # Generate pip install run commands for python dependencies
+        pip_installs = ""
+        for dependency in self.python_dependencies:
+            pip_installs += f"RUN python3.6 -m pip install {dependency}\n"
+
         file_contents = textwrap.dedent(
             f"""\
             FROM {self.image}
@@ -115,10 +120,12 @@ class Container(Environment):
             RUN apt-get install -y build-essential python3.6 python3-pip
             RUN python3.6 -m pip install pip --upgrade
             RUN python3.6 -m pip install wheel
+            {pip_installs}
         """
         )
 
         dockerfile.write(file_contents)
+
 
 # How will the docker file get the flow code in it?
 # How should we go about installing prefect?
