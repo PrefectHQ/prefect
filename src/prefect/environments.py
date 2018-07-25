@@ -8,6 +8,9 @@ import docker
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 
+__all__ = ['Environment', 'Container']
+
+
 class Secret(Serializable):
     _json_codec = ObjectAttributesCodec
 

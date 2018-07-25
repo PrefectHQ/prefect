@@ -18,7 +18,13 @@ OUTLINE = [{"page": "core/edges.md",
            {"page": "engine/state.md",
             "module": prefect.engine.state},
            {"page": "engine/signals.md",
-             "module": prefect.engine.signals}]
+             "module": prefect.engine.signals},
+           {"page": "engine/flow_runner.md",
+            "module": prefect.engine.flow_runner},
+           {"page": "engine/task_runner.md",
+            "module": prefect.engine.task_runner},
+           {"page": "environments.md",
+             "module": prefect.environments}]
 
 
 def preprocess(f):

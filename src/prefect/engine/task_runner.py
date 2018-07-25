@@ -22,6 +22,9 @@ from prefect.engine.state import (
 )
 
 
+__all__ = ['TaskRunner']
+
+
 def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
     """
     This handler is used to decorate methods that return States but might raise
