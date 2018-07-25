@@ -1,4 +1,5 @@
 import os
+import tempfile
 import textwrap
 from typing import Any, Iterable
 
@@ -78,23 +79,22 @@ class Container(Environment):
             tuple with (docker.models.images.Image, iterable logs)
 
         """
-        path = os.path.dirname(os.path.realpath(__file__))
+        with tempfile.TemporaryDirectory() as tempdir:
+            self.pull_image()
+            self.create_dockerfile(directory=tempdir)
 
-        self.pull_image()
-        self.create_dockerfile()
+            container = self.client.images.build(
+                path=tempdir, tag=self.tag, forcerm=True
+            )
 
-        container = self.client.images.build(path=path, tag=self.tag, forcerm=True)
+            return container
 
-        # Remove the temporary Dockerfile
-        os.remove("{}/Dockerfile".format(path))
-
-        return container
-
-    def run(self) -> None:
+    def run(self, command: str = None, tty: bool = False) -> None:
         """Run the flow in the Docker container
 
         Args:
-            None
+            command: An initial command that will be executed on container run
+            tty: Sets whether the container stays active once it is started
 
         Returns:
             A docker.models.containers.Container object
@@ -105,7 +105,9 @@ class Container(Environment):
         if self.running_container_id:
             self.client.containers.get(self.running_container_id).kill()
 
-        running_container = self.client.containers.run(self.tag, detach=True)
+        running_container = self.client.containers.run(
+            self.tag, command=command, tty=tty, detach=True
+        )
         self.running_container_id = running_container.id
 
         return running_container
@@ -125,7 +127,7 @@ class Container(Environment):
         """
         self.client.images.pull(self.image)
 
-    def create_dockerfile(self) -> None:
+    def create_dockerfile(self, directory: str = None) -> None:
         """Creates a dockerfile to use as the container.
 
         In order for the docker python library to build a container it needs a
@@ -133,42 +135,42 @@ class Container(Environment):
         image and python_dependencies then writes them to a file called Dockerfile.
 
         Args:
-            None
+            directory: A directory where the Dockerfile will be created
 
         Returns:
             None
         """
-        path = "{}/Dockerfile".format(os.path.dirname(os.path.realpath(__file__)))
-        dockerfile = open(path, "w+")
+        path = "{}/Dockerfile".format(directory)
+        with open(path, "w+") as dockerfile:
 
-        # Generate RUN pip install commands for python dependencies
-        pip_installs = ""
-        for dependency in self.python_dependencies:
-            pip_installs += "RUN python3.6 -m pip install {}\n".format(dependency)
+            # Generate RUN pip install commands for python dependencies
+            pip_installs = ""
+            if self.python_dependencies:
+                pip_installs = r"RUN pip install " + " \\\n".join(
+                    self.python_dependencies
+                )
 
-        env_vars = ""
-        for secret in self.secrets:
-            env_vars += "ENV {} {}\n".format(secret.name, secret.value)
+            # Generate the creation of environment variables from Secrets
+            env_vars = ""
+            if self.secrets:
+                env_vars += "ENV "
+                for secret in self.secrets:
+                    env_vars += "{}={} \\\n".format(secret.name, secret.value)
 
-        file_contents = textwrap.dedent(
-            """\
-            FROM {}
+            file_contents = textwrap.dedent(
+                """\
+                FROM {}
 
-            RUN apt-get update
-            RUN apt-get install -y software-properties-common
-            RUN add-apt-repository ppa:jonathonf/python-3.6
-            RUN apt-get update
-            RUN apt-get install -y build-essential python3.6 python3-pip
-            RUN python3.6 -m pip install pip --upgrade
-            RUN python3.6 -m pip install wheel
-            {}
-            {}
+                RUN pip install pip --upgrade
+                RUN pip install wheel
+                {}
+                {}
 
-            RUN echo "pip install prefect"
-            RUN echo "add the flow code"
-        """.format(
-                self.image, env_vars, pip_installs
+                # RUN echo "pip install prefect"
+                # RUN echo "add the flow code"
+            """.format(
+                    self.image, env_vars, pip_installs
+                )
             )
-        )
 
-        dockerfile.write(file_contents)
+            dockerfile.write(file_contents)
