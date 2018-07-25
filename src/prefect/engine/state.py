@@ -10,13 +10,13 @@ MessageType = Union[str, Exception]
 
 
 class State(Serializable):
+    """
+    Create a new State object.
+        data (Any, optional): Defaults to None. A data payload for the state.
+        message (str or Exception, optional): Defaults to None. A message about the
+            state, which could be an Exception (or Signal) that caused it.
+    """
     def __init__(self, data: Any = None, message: MessageType = None) -> None:
-        """
-        Create a new State object.
-            data (Any, optional): Defaults to None. A data payload for the state.
-            message (str or Exception, optional): Defaults to None. A message about the
-                state, which could be an Exception (or Signal) that caused it.
-        """
         self.data = data
         self.message = message
         self._timestamp = datetime.datetime.utcnow()
