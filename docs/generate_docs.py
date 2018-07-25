@@ -93,6 +93,8 @@ def collect_items(page):
 
 
 if __name__ == '__main__':
+    assert os.path.basename(os.getcwd()) == 'docs', 'Only run this script from inside the docs/ directory!'
+
     for page in OUTLINE:
         # collect what to document
         fname, items = collect_items(page)
