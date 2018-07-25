@@ -6,6 +6,11 @@ from typing import TYPE_CHECKING, Dict, Iterable
 
 from prefect.engine import signals
 
+
+__all__ = ['all_finished', 'manual_only', 'always_run', 'never_run',
+           'all_successful', 'all_failed', 'any_successful', 'any_failed']
+
+
 if TYPE_CHECKING:
     from prefect.engine.state import State
     from prefect.core import Task

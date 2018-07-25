@@ -2,6 +2,9 @@ from prefect.core.task import Task
 from prefect.utilities.strings import is_valid_identifier
 
 
+__all__ = ['Edge']
+
+
 class Edge:
     def __init__(
         self, upstream_task: Task, downstream_task: Task, key: str = None

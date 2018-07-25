@@ -3,6 +3,9 @@ from typing import Any, Dict, List, Union
 
 from prefect.utilities.json import Serializable
 
+__all__ = ['State']
+
+
 MessageType = Union[str, Exception]
 
 
