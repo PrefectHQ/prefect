@@ -8,6 +8,7 @@ install_requires = [
     "croniter",
     "cryptography",
     "distributed >= 1.16.1",
+    "docker >= 3.4.1, < 3.5",
     "graphviz",
     "jsonpickle",
     "mypy_extensions",
