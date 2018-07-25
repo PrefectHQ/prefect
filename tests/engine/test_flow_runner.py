@@ -68,6 +68,16 @@ def test_flow_runner_runs_basic_flow_with_1_task():
     assert state == Success(data={task: Success(data=1)})
 
 
+def test_flow_runner_with_invalid_return_tasks():
+    flow = prefect.Flow()
+    task = SuccessTask()
+    flow.add_task(task)
+    flow_runner = FlowRunner(flow=flow)
+    state = flow_runner.run(return_tasks=[1])
+    assert isinstance(state, Failed)
+    assert isinstance(state.message, KeyError)
+
+
 def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
     flow = prefect.Flow()
     task1 = SuccessTask()
