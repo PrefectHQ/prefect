@@ -80,7 +80,7 @@ def test_container_tag_none():
 @pytest.mark.skipif(os.getenv("SKIP_DOCKER_ENVIRONMENT_TESTS"))
 def test_build_image():
     container = Container(
-        image="python:3.6", python_dependencies=["docker", "raven", "toml"]
+        image="python:3.6-alpine", python_dependencies=["docker", "raven", "toml"]
     )
     image = container.build()
     assert image
@@ -88,14 +88,14 @@ def test_build_image():
 
 @pytest.mark.skipif(os.getenv("SKIP_DOCKER_ENVIRONMENT_TESTS"))
 def test_run_container():
-    container = Container(image="python:3.6")
+    container = Container(image="python:3.6-alpine")
     container_running = container.run()
     assert container_running
 
 
 @pytest.mark.skipif(os.getenv("SKIP_DOCKER_ENVIRONMENT_TESTS"))
 def test_check_pip_installs():
-    container = Container(image="python:3.6", python_dependencies=["docker"])
+    container = Container(image="python:3.6-alpine", python_dependencies=["docker"])
     container_running = container.run(tty=True)
 
     pip_output = container_running.exec_run("pip freeze")
@@ -109,7 +109,7 @@ def test_environment_variables():
     secret = Secret("TEST")
     secret.value = "test_value"
 
-    container = Container(image="python:3.6", secrets=[secret])
+    container = Container(image="python:3.6-alpine", secrets=[secret])
     container.build()
     container_running = container.run(tty=True)
 
