@@ -2,7 +2,7 @@ from prefect.core.task import Task
 from prefect.utilities.strings import is_valid_identifier
 
 
-__all__ = ['Edge']
+__all__ = ["Edge"]
 
 
 class Edge:
@@ -31,6 +31,7 @@ class Edge:
     The key indicates that the result of the upstream task should be passed
     to the downstream task under the key.
     """
+
     def __init__(
         self, upstream_task: Task, downstream_task: Task, key: str = None
     ) -> None:

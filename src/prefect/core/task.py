@@ -8,7 +8,7 @@ import prefect.triggers
 from prefect.environments import Environment
 from prefect.utilities.json import Serializable, to_qualified_name
 
-__all__ = ['Task', 'Parameter']
+__all__ = ["Task", "Parameter"]
 
 
 if TYPE_CHECKING:

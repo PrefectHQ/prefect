@@ -10,7 +10,7 @@ from prefect.engine.state import Failed, Pending, Running, State, Success
 from prefect.engine.task_runner import TaskRunner
 
 
-__all__ = ['FlowRunner']
+__all__ = ["FlowRunner"]
 
 
 def handle_signals(method: Callable[..., State]) -> Callable[..., State]:

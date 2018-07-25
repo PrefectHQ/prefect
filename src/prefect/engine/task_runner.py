@@ -22,7 +22,7 @@ from prefect.engine.state import (
 )
 
 
-__all__ = ['TaskRunner']
+__all__ = ["TaskRunner"]
 
 
 def handle_signals(method: Callable[..., State]) -> Callable[..., State]:

@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Union
 
 from prefect.utilities.json import Serializable
 
-__all__ = ['State']
+__all__ = ["State"]
 
 
 MessageType = Union[str, Exception]
@@ -16,6 +16,7 @@ class State(Serializable):
         message (str or Exception, optional): Defaults to None. A message about the
             state, which could be an Exception (or Signal) that caused it.
     """
+
     def __init__(self, data: Any = None, message: MessageType = None) -> None:
         self.data = data
         self.message = message

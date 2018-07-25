@@ -34,7 +34,7 @@ from prefect.utilities.functions import cache
 from prefect.utilities.json import Serializable
 from prefect.utilities.tasks import as_task
 
-__all__ = ['Flow']
+__all__ = ["Flow"]
 
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
