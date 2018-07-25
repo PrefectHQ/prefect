@@ -6,6 +6,7 @@ from prefect.utilities.context import context
 import prefect.environments
 import prefect.engine.signals
 import prefect.schedules
+import prefect.serializers
 import prefect.triggers
 
 from prefect.core import Task, Flow, Parameter
