@@ -65,7 +65,7 @@ def get_source(obj):
 @preprocess
 def format_header(obj, level=1):
     class_sig = format_signature(obj)
-    header = "#" * level
+    header = "#" + "#" * level
     is_class = "_class_" if inspect.isclass(obj) else ""
     class_name = f"**```{create_absolute_path(obj)}.{obj.__qualname__}```**"
     call_sig = (
