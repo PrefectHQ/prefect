@@ -1,3 +1,4 @@
+import os
 import pytest
 
 from prefect import Flow
@@ -71,22 +72,50 @@ def test_container_tag():
     assert container.tag == "test_tag"
 
 
-def test_containet_tag_none():
+def test_container_tag_none():
     container = Container(image="test")
     assert container.tag == "test"
 
 
-@pytest.mark.skipif()
+@pytest.mark.skipif(os.getenv("SKIP_DOCKER_ENVIRONMENT_TESTS"))
 def test_build_image():
     container = Container(
-        image="ubuntu:16.04", python_dependencies=["docker", "raven", "toml"]
+        image="python:3.6", python_dependencies=["docker", "raven", "toml"]
     )
     image = container.build()
     assert image
 
 
-@pytest.mark.skipif()
+@pytest.mark.skipif(os.getenv("SKIP_DOCKER_ENVIRONMENT_TESTS"))
 def test_run_container():
-    container = Container(image="ubuntu:16.04")
+    container = Container(image="python:3.6")
     container_running = container.run()
     assert container_running
+
+
+@pytest.mark.skipif(os.getenv("SKIP_DOCKER_ENVIRONMENT_TESTS"))
+def test_check_pip_installs():
+    container = Container(image="python:3.6", python_dependencies=["docker"])
+    container_running = container.run(tty=True)
+
+    pip_output = container_running.exec_run("pip freeze")
+    assert b"docker" in pip_output[1]
+
+    container_running.kill()
+
+
+@pytest.mark.skipif(os.getenv("SKIP_DOCKER_ENVIRONMENT_TESTS"))
+def test_environment_variables():
+    secret = Secret("TEST")
+    secret.value = "test_value"
+
+    container = Container(image="python:3.6", secrets=[secret])
+    container.build()
+    container_running = container.run(tty=True)
+
+    echo_output = container_running.exec_run(
+        "python -c 'import os; print(os.getenv(\"TEST\"))'"
+    )
+    assert b"test_value\n" == echo_output[1]
+
+    container_running.kill()
