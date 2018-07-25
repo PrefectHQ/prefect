@@ -44,8 +44,8 @@ It will automatically check for cycles when restored.
 
 ```python
 with flow.restore_graph_on_error():
-    # this will raise an error, but the flow graph will not be modified
-    add_cycle_to_graph(flow)
+# this will raise an error, but the flow graph will not be modified
+add_cycle_to_graph(flow)
 ```
 
  ##  **```prefect.core.flow.Flow.root_tasks```**```()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/flow.py#L128)</span>
@@ -62,19 +62,19 @@ Run the flow.
 Convenience function for adding task dependencies on upstream tasks.
 
 Args:
-    task (Object): a Task that will become part of the Flow. If the task is not a
-        Task subclass, Prefect will attempt to convert it to one.
+task (Object): a Task that will become part of the Flow. If the task is not a
+Task subclass, Prefect will attempt to convert it to one.
 
-    upstream_tasks ([object]): Tasks that will run before the task runs. If any task
-        is not a Task subclass, Prefect will attempt to convert it to one.
+upstream_tasks ([object]): Tasks that will run before the task runs. If any task
+is not a Task subclass, Prefect will attempt to convert it to one.
 
-    downstream_tasks ([object]): Tasks that will run after the task runs. If any task
-        is not a Task subclass, Prefect will attempt to convert it to one.
+downstream_tasks ([object]): Tasks that will run after the task runs. If any task
+is not a Task subclass, Prefect will attempt to convert it to one.
 
-    keyword_tasks ({key: object}): The results of these tasks
-        will be provided to the task under the specified keyword
-        arguments. If any task is not a Task subclass, Prefect will attempt to
-        convert it to one.
+keyword_tasks ({key: object}): The results of these tasks
+will be provided to the task under the specified keyword
+arguments. If any task is not a Task subclass, Prefect will attempt to
+convert it to one.
 
  ##  **```prefect.core.flow.Flow.sorted_tasks```**```(root_tasks=None)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/flow.py#L291)</span>
 

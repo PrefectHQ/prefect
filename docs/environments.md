@@ -12,10 +12,10 @@ Container class used to represent a Docker container
 Build the Docker container
 
 Args:
-    None
+None
 
 Returns:
-    tuple with (docker.models.images.Image, iterable logs)
+tuple with (docker.models.images.Image, iterable logs)
 
  ##  **```prefect.environments.Container.create_dockerfile```**```(directory=None)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/environments.py#L133)</span>
 Creates a dockerfile to use as the container.
@@ -25,10 +25,10 @@ Dockerfile that it can use to define the container. This function takes the
 image and python_dependencies then writes them to a file called Dockerfile.
 
 Args:
-    directory: A directory where the Dockerfile will be created
+directory: A directory where the Dockerfile will be created
 
 Returns:
-    None
+None
 
  ##  **```prefect.environments.Container.pull_image```**```()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/environments.py#L118)</span>
 Pull the image specified so it can be built.
@@ -38,19 +38,19 @@ from either the main docker registry or a separate registry that must be set in
 the environment variables.
 
 Args:
-    None
+None
 
 Returns:
-    None
+None
 
  ##  **```prefect.environments.Container.run```**```(command=None, tty=False)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/environments.py#L95)</span>
 Run the flow in the Docker container
 
 Args:
-    command: An initial command that will be executed on container run
-    tty: Sets whether the container stays active once it is started
+command: An initial command that will be executed on container run
+tty: Sets whether the container stays active once it is started
 
 Returns:
-    A docker.models.containers.Container object
+A docker.models.containers.Container object
 
 

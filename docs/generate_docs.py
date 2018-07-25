@@ -75,7 +75,10 @@ def format_header(obj, level=1):
 
 
 def format_doc(doc):
-    pdoc = doc or ""
+    lines = (doc or "").split("\n")
+    pdoc = "\n".join(
+        [line.lstrip("    ") for line in lines]
+    )  # remove heavy indentation to prevent code block formatting
     return pdoc + "\n\n"
 
 
