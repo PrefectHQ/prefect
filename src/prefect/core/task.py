@@ -61,7 +61,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         timeout: timedelta = None,
         trigger: Callable[[Dict["Task", "State"]], bool] = None,
         propagate_skip: bool = False,
-        environment: Environment = None,
         checkpoint: bool = False,
     ) -> None:
 
@@ -76,7 +75,6 @@ class Task(Serializable, metaclass=SignatureValidator):
             raise TypeError("Tags should be a set of tags, not a string.")
         self.tags = set(tags or prefect.context.get("_tags", []))
 
-        self.environment = environment
         self.checkpoint = checkpoint
 
         self.max_retries = max_retries
