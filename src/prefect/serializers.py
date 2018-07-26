@@ -11,6 +11,7 @@ class Serializer:
     def deserialize(cls, key: str) -> Any:
         raise NotImplementedError()
 
+
 class JSONSerializer:
     @classmethod
     def serialize(cls, object: Any) -> str:

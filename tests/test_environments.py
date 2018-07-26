@@ -1,8 +1,9 @@
 import os
+
 import pytest
 
 from prefect import Flow
-from prefect.environments import Environment, Container, Secret
+from prefect.environments import Container, Environment, Secret
 
 #################################
 ##### Secret Tests
