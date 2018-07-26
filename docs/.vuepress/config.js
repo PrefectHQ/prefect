@@ -6,10 +6,19 @@ module.exports = {
     editLinks: true,
     // repoLabel: 'GitHub',
     sidebar: [
-      '/',
-      'concepts',
-      'utilities',
-      'api',
+      {title: 'Overview',
+       collapsable: false,
+       children: [
+                  '/',
+                  'concepts',
+                  'utilities'
+                 ]},
+      {title: 'API Documentation',
+       collapsable: true,
+       children: [
+                  'api/environments',
+                  'api/triggers'
+                 ]}
     ]
   }
 }

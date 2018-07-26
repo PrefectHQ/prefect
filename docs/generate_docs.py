@@ -11,12 +11,12 @@ OUTLINE = [
     {"page": "core/edges.md", "module": prefect.core.edge},
     {"page": "core/flows.md", "module": prefect.core.flow},
     {"page": "core/tasks.md", "module": prefect.core.task},
-    {"page": "triggers.md", "module": prefect.triggers},
+    {"page": "triggers.md", "module": prefect.triggers, "title": 'Triggers'},
     {"page": "engine/state.md", "module": prefect.engine.state},
-    {"page": "engine/signals.md", "module": prefect.engine.signals},
+    {"page": "engine/signals.md", "module": prefect.engine.signals, "title": "Signals"},
     {"page": "engine/flow_runner.md", "module": prefect.engine.flow_runner},
     {"page": "engine/task_runner.md", "module": prefect.engine.task_runner},
-    {"page": "environments.md", "module": prefect.environments},
+    {"page": "environments.md", "module": prefect.environments, "title": "Environments"},
 ]
 
 
@@ -67,9 +67,9 @@ def format_header(obj, level=1):
     class_sig = format_signature(obj)
     header = "##" + "#" * level
     is_class = "_class_" if inspect.isclass(obj) else ""
-    class_name = f"**```{create_absolute_path(obj)}.{obj.__qualname__}```**"
+    class_name = f"{create_absolute_path(obj)}.{obj.__qualname__}"
     call_sig = (
-        f" {header} {is_class} {class_name}```({class_sig})```{get_source(obj)}\n"
+        f" {header} {is_class} ```{class_name}({class_sig})```{get_source(obj)}\n"
     )
     return call_sig
 
@@ -106,6 +106,10 @@ if __name__ == "__main__":
         if directory:
             os.makedirs(directory, exist_ok=True)
         with open(fname, "w") as f:
+            f.write('---\nsidebarDepth: 1\n---\n\n')
+            title = page.get('title')
+            if title: # this would be a good place to have assignments
+                f.write(f'# {title}\n---\n')
             for obj in items:
                 f.write(format_header(obj))
                 f.write(format_doc(inspect.getdoc(obj)))
