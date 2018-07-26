@@ -30,19 +30,11 @@ import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
-from prefect.utilities.functions import cache
 from prefect.utilities.json import Serializable
 from prefect.utilities.tasks import as_task
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
-
-def flow_cache_key(flow: "Flow") -> int:
-    """
-    Returns a cache key that can be used to determine if the cache is stale.
-    """
-
-    return hash((frozenset(flow.tasks), frozenset(flow.edges)))
 
 
 class Flow(Serializable):
@@ -77,7 +69,7 @@ class Flow(Serializable):
             )
 
         self._prefect_version = prefect.__version__
-        self._cache = {}
+
 
         super().__init__()
 
@@ -122,7 +114,6 @@ class Flow(Serializable):
 
     # Introspection ------------------------------------------------------------
 
-    @cache(validation_fn=flow_cache_key)
     def root_tasks(self) -> Set[Task]:
         """
         Returns the root tasks of the Flow -- tasks that have no upstream
@@ -130,7 +121,6 @@ class Flow(Serializable):
         """
         return set(t for t in self.tasks if not self.edges_to(t))
 
-    @cache(validation_fn=flow_cache_key)
     def terminal_tasks(self) -> Set[Task]:
         """
         Returns the terminal tasks of the Flow -- tasks that have no downstream
@@ -247,14 +237,12 @@ class Flow(Serializable):
                         validate=False,
                     )
 
-    @cache(validation_fn=flow_cache_key)
     def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
         edges = {t: set() for t in self.tasks}  # type: Dict[Task, Set[Edge]]
         for edge in self.edges:
             edges[edge.downstream_task].add(edge)
         return edges
 
-    @cache(validation_fn=flow_cache_key)
     def all_downstream_edges(self) -> Dict[Task, Set[Edge]]:
         edges = {t: set() for t in self.tasks}  # type: Dict[Task, Set[Edge]]
         for edge in self.edges:
@@ -287,7 +275,6 @@ class Flow(Serializable):
         """
         self.sorted_tasks()
 
-    @cache(validation_fn=flow_cache_key)
     def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
 
         # begin by getting all tasks under consideration (root tasks and all
