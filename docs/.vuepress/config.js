@@ -5,20 +5,20 @@ module.exports = {
     repo: 'prefecthq/prefect/tree/master/docs',
     editLinks: true,
     // repoLabel: 'GitHub',
-    sidebar: [
-      {title: 'Overview',
-       collapsable: false,
-       children: [
-                  '/',
-                  'concepts',
-                  'utilities'
-                 ]},
-      {title: 'API Documentation',
-       collapsable: true,
-       children: [
-                  'api/environments',
-                  'api/triggers'
-                 ]}
-    ]
+    nav: [{ text: "Overview", link: '/'},
+          { text: "API", link: '/api/' }],
+    sidebar: {
+      '/api/': [
+        {title: 'prefect',
+         collapsable: false,
+         children: ['', 'environments', 'triggers']},
+
+        {title: 'prefect.core',
+         collapsable: false,
+         children: ['core/', 'core/edges', 'core/flows']}
+
+      ],
+      '/': ['', 'concepts', 'utilities'],
+    }
   }
 }
