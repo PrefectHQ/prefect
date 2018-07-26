@@ -2,7 +2,9 @@
 sidebarDepth: 1
 ---
 
- ### _class_ ```prefect.core.task.Task(name=None, slug=None, description=None, group=None, tags=None, max_retries=0, retry_delay=0:01:00, timeout=None, trigger=None, propagate_skip=False, checkpoint=False)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/task.py#L54)</span>
+ ## Task
+
+### _class_ ```prefect.core.task.Task(name=None, slug=None, description=None, group=None, tags=None, max_retries=0, retry_delay=0:01:00, timeout=None, trigger=None, propagate_skip=False, checkpoint=False)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/task.py#L54)</span>
 A class that automatically uses a specified JSONCodec to serialize itself.
 
  ####  ```prefect.core.task.Task.info()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/task.py#L170)</span>
@@ -33,7 +35,9 @@ context.is_waiting to see if it was placed in a WAIT.
 
 
 
- ### _class_ ```prefect.core.task.Parameter(namedefault=None, required=True)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/task.py#L177)</span>
+ ## Parameter
+
+### _class_ ```prefect.core.task.Parameter(name, default=None, required=True)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/task.py#L177)</span>
 A Parameter is a special task that defines a required flow input.
 
 A parameter's "slug" is automatically -- and immutably -- set to the parameter name.

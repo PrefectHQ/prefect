@@ -11,12 +11,18 @@ OUTLINE = [
     {"page": "core/edges.md", "module": prefect.core.edge},
     {"page": "core/flows.md", "module": prefect.core.flow},
     {"page": "core/tasks.md", "module": prefect.core.task},
-    {"page": "triggers.md", "module": prefect.triggers, "title": 'Triggers'},
+    {"page": "triggers.md", "module": prefect.triggers, "title": "Triggers"},
     {"page": "engine/state.md", "module": prefect.engine.state},
     {"page": "engine/signals.md", "module": prefect.engine.signals, "title": "Signals"},
     {"page": "engine/flow_runner.md", "module": prefect.engine.flow_runner},
     {"page": "engine/task_runner.md", "module": prefect.engine.task_runner},
-    {"page": "environments.md", "module": prefect.environments, "title": "Environments"},
+    {"page": "engine/executors/base.md", "module": prefect.engine.executors.base},
+    {"page": "engine/executors/local.md", "module": prefect.engine.executors.local},
+    {
+        "page": "environments.md",
+        "module": prefect.environments,
+        "title": "Environments",
+    },
 ]
 
 
@@ -33,14 +39,24 @@ def preprocess(f):
 @preprocess
 def format_signature(obj):
     assert callable(obj), f"{obj} is not callable, cannot format signature."
+    # collect data
     sig = inspect.getfullargspec(obj)
     args, defaults = sig.args, sig.defaults or []
+    varargs, varkwargs = sig.varargs, sig.varkw
+
     if args[0] == "self":
         args = args[1:]  # remove self from displayed signature
-    standalone = args[: -len(defaults)]  # true args
-    kwargs = zip(args[-len(defaults) :], defaults)
-    psig = ", ".join(standalone)
-    psig += ", ".join([f"{name}={val}" for name, val in kwargs])
+
+    standalone = args[: -len(defaults)] if defaults else args  # true args
+    kwargs = list(zip(args[-len(defaults) :], defaults))  # true kwargs
+    varargs = [f"*{varargs}"] if varargs else []
+    varkwargs = [f"*{varkwargs}"] if varkwargs else []
+
+    # NOTE: I assume the call signature is f(x, y, ..., *args, z=1, ...,
+    # **kwargs) and NOT f(*args, x, y, ...)
+    psig = ", ".join(
+        standalone + varargs + [f"{name}={val}" for name, val in kwargs] + varkwargs
+    )
     return psig
 
 
@@ -63,9 +79,12 @@ def get_source(obj):
 
 
 @preprocess
-def format_header(obj, level=1):
+def format_subheader(obj, level=1):
     class_sig = format_signature(obj)
-    header = "##" + "#" * level
+    if level == 1:
+        header = f"## {obj.__name__}\n\n###"
+    else:
+        header = "##" + "#" * level
     is_class = "_class_" if inspect.isclass(obj) else ""
     class_name = f"{create_absolute_path(obj)}.{obj.__qualname__}"
     call_sig = (
@@ -101,17 +120,19 @@ if __name__ == "__main__":
     for page in OUTLINE:
         # collect what to document
         fname, items = collect_items(page)
-        fname = f'api/{fname}'
+        fname = f"api/{fname}"
         directory = os.path.dirname(fname)
         if directory:
             os.makedirs(directory, exist_ok=True)
         with open(fname, "w") as f:
-            f.write('---\nsidebarDepth: 1\n---\n\n')
-            title = page.get('title')
-            if title: # this would be a good place to have assignments
-                f.write(f'# {title}\n---\n')
+            # PAGE TITLE / SETUP
+            f.write("---\nsidebarDepth: 1\n---\n\n")
+            title = page.get("title")
+            if title:  # this would be a good place to have assignments
+                f.write(f"# {title}\n---\n")
+
             for obj in items:
-                f.write(format_header(obj))
+                f.write(format_subheader(obj))
                 f.write(format_doc(inspect.getdoc(obj)))
 
                 # document methods
@@ -121,7 +142,7 @@ if __name__ == "__main__":
                     and obj.__name__ in x.__qualname__,
                 ):
                     if not name.startswith("_"):
-                        f.write(format_header(method, level=2))
+                        f.write(format_subheader(method, level=2))
                         f.write(format_doc(inspect.getdoc(method)))
 
                 f.write("\n")

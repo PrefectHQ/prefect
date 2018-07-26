@@ -2,7 +2,9 @@
 sidebarDepth: 1
 ---
 
- ### _class_ ```prefect.engine.state.State(data=None, message=None)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/engine/state.py#L12)</span>
+ ## State
+
+### _class_ ```prefect.engine.state.State(data=None, message=None)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/engine/state.py#L12)</span>
 Create a new State object.
 data (Any, optional): Defaults to None. A data payload for the state.
 message (str or Exception, optional): Defaults to None. A message about the

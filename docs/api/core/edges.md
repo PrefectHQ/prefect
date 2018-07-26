@@ -2,7 +2,9 @@
 sidebarDepth: 1
 ---
 
- ### _class_ ```prefect.core.edge.Edge(upstream_task, downstream_taskkey=None)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/edge.py#L8)</span>
+ ## Edge
+
+### _class_ ```prefect.core.edge.Edge(upstream_task, downstream_task, key=None)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/edge.py#L8)</span>
 Edges represent connections between Tasks.
 
 At a minimum, edges link an upstream_task and a downstream_task
