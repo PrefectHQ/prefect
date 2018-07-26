@@ -36,7 +36,6 @@ from prefect.utilities.tasks import as_task
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
 
-
 class Flow(Serializable):
     def __init__(
         self,
@@ -69,7 +68,6 @@ class Flow(Serializable):
             )
 
         self._prefect_version = prefect.__version__
-
 
         super().__init__()
 
