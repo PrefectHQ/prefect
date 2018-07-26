@@ -74,6 +74,9 @@ class FlowRunner:
 
         state = state or Pending()
         context = context or {}
+        return_tasks = return_tasks or []
+        if set(return_tasks).difference(self.flow.tasks):
+            raise ValueError("Some tasks in return_tasks were not found in the flow.")
 
         context.update(
             _flow_name=self.flow.name,

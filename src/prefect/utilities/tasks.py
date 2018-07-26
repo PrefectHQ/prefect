@@ -53,7 +53,7 @@ def as_task(x: Any) -> "prefect.core.Task":
 
     # functions
     elif callable(x):
-        return prefect.tasks.core.function_task.FunctionTask(fn=x)
+        return prefect.tasks.core.function.FunctionTask(fn=x)
 
     # constants
     else:
@@ -77,7 +77,7 @@ def task(fn: Callable, **task_init_kwargs):
     """
 
     def task_generator(*args, **kwargs):
-        task = prefect.tasks.core.function_task.FunctionTask(fn=fn, **task_init_kwargs)
+        task = prefect.tasks.core.function.FunctionTask(fn=fn, **task_init_kwargs)
         return task(*args, **kwargs)
 
     return task_generator

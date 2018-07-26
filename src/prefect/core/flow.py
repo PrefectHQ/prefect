@@ -173,7 +173,7 @@ class Flow(Serializable):
             self.tasks, self.edges = tasks, edges
             raise
 
-    def add_task(self, task: Task) -> None:
+    def add_task(self, task: Task) -> Task:
         if not isinstance(task, Task):
             raise TypeError(
                 "Tasks must be Task instances (received {})".format(type(task))
@@ -187,13 +187,15 @@ class Flow(Serializable):
 
         self.tasks.add(task)
 
+        return task
+
     def add_edge(
         self,
         upstream_task: Task,
         downstream_task: Task,
         key: str = None,
         validate: bool = True,
-    ) -> None:
+    ) -> Edge:
         if isinstance(downstream_task, Parameter):
             raise ValueError(
                 "Parameters must be root tasks and can not have upstream dependencies."
@@ -226,6 +228,8 @@ class Flow(Serializable):
                     if e.key is not None
                 }
                 inspect.signature(downstream_task.run).bind_partial(**edge_keys)
+
+        return edge
 
     def update(self, flow: "Flow", validate: bool = True) -> None:
         with self.restore_graph_on_error(validate=validate):
