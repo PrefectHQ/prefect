@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
-import versioneer
 
+import versioneer
 
 install_requires = [
     "click",

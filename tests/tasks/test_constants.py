@@ -2,7 +2,7 @@ import pytest
 
 from prefect.core import Flow
 from prefect.tasks.core.constants import Constant
-from prefect.tasks.core.function_task import FunctionTask
+from prefect.tasks.core.function import FunctionTask
 
 
 def test_test_create_constant_task():
