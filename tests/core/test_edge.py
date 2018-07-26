@@ -1,9 +1,12 @@
 import pytest
+
 from prefect.core import Edge, Flow, Task
+
 
 class TaskWithKey(Task):
     def run(self, a_key):
         return a_key
+
 
 def test_edge_key_must_be_valid():
     assert Edge(Task(), Task(), key=None)
@@ -35,15 +38,16 @@ def test_edge_hashes_match():
 
     t1 = Task()
     t2 = Task()
-    e1 = Edge(t1, t2, key='a_key')
-    e2 = Edge(t1, t2, key='a_key')
+    e1 = Edge(t1, t2, key="a_key")
+    e2 = Edge(t1, t2, key="a_key")
     assert hash(e1) == hash(e2)
     assert hash(Edge(Task(), Task(), key=None)) != hash(Edge(Task(), Task(), key=None))
+
 
 def test_new_edge_objects_can_test_membership_in_flow():
     flow = Flow()
     t1 = TaskWithKey()
     t2 = TaskWithKey()
-    flow.add_edge(t1, t2, key='a_key')
+    flow.add_edge(t1, t2, key="a_key")
 
-    assert Edge(t1, t2, key='a_key') in flow.edges
+    assert Edge(t1, t2, key="a_key") in flow.edges

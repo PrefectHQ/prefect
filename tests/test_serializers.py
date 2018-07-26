@@ -1,6 +1,7 @@
-import json
-import prefect.serializers as serializers
 import datetime
+import json
+
+import prefect.serializers as serializers
 
 
 def test_JSONSerializer_on_simple_string():
