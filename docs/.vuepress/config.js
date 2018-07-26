@@ -2,7 +2,7 @@ module.exports = {
   title: 'Prefect',
   description: 'Practice Makes Prefect',
   themeConfig: {
-    repo: 'prefecthq/prefect/docs',
+    repo: 'prefecthq/prefect/tree/master/docs',
     editLinks: true,
     // repoLabel: 'GitHub',
     sidebar: [
