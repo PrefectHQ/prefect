@@ -326,4 +326,3 @@ class TestFlowRunner_get_run_state:
         with pytest.raises(signals.DONTRUN) as exc:
             FlowRunner(flow=flow).get_run_state(state=state)
         assert "not in a running state" in str(exc.value).lower()
-

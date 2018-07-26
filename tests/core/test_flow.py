@@ -283,6 +283,7 @@ def test_sorted_tasks():
     f.add_edge(t3, t4)
     assert f.sorted_tasks() == (t1, t2, t3, t4)
 
+
 def test_sorted_tasks_with_ambiguous_sort():
     """
     t1 -> bottleneck
@@ -300,7 +301,7 @@ def test_sorted_tasks_with_ambiguous_sort():
     t4 = Task("4")
     t5 = Task("5")
     t6 = Task("6")
-    bottleneck = Task('bottleneck')
+    bottleneck = Task("bottleneck")
     f.add_edge(t1, bottleneck)
     f.add_edge(t2, bottleneck)
     f.add_edge(t3, bottleneck)
@@ -312,6 +313,7 @@ def test_sorted_tasks_with_ambiguous_sort():
     assert set(tasks[:3]) == set([t1, t2, t3])
     assert list(tasks)[3] is bottleneck
     assert set(tasks[4:]) == set([t4, t5, t6])
+
 
 def test_sorted_tasks_with_start_task():
     """
