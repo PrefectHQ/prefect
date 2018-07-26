@@ -59,27 +59,30 @@ def test_nested_contexts_properly_restore_parent_context_when_closed():
 
 
 def test_context_setdefault_method():
-    assert "a" not in context
-    assert context.setdefault("a", 5) == 5
-    assert "a" in context
-    assert context.setdefault("a", 10) == 5
+    with context():  # run in contextmanager to automatically clear when finished
+        assert "a" not in context
+        assert context.setdefault("a", 5) == 5
+        assert "a" in context
+        assert context.setdefault("a", 10) == 5
+
 
 def test_modify_context_by_assigning_attributes_inside_contextmanager():
-    assert 'a' not in context
+    assert "a" not in context
     with context(a=1):
         assert context.a == 1
 
         context.a = 2
         assert context.a == 2
 
-    assert 'a' not in context
+    assert "a" not in context
+
 
 def test_modify_context_by_calling_update_inside_contextmanager():
-    assert 'a' not in context
+    assert "a" not in context
     with context(a=1):
         assert context.a == 1
 
         context.update(a=2)
         assert context.a == 2
 
-    assert 'a' not in context
+    assert "a" not in context
