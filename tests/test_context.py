@@ -63,3 +63,23 @@ def test_context_setdefault_method():
     assert context.setdefault("a", 5) == 5
     assert "a" in context
     assert context.setdefault("a", 10) == 5
+
+def test_modify_context_by_assigning_attributes_inside_contextmanager():
+    assert 'a' not in context
+    with context(a=1):
+        assert context.a == 1
+
+        context.a = 2
+        assert context.a == 2
+
+    assert 'a' not in context
+
+def test_modify_context_by_calling_update_inside_contextmanager():
+    assert 'a' not in context
+    with context(a=1):
+        assert context.a == 1
+
+        context.update(a=2)
+        assert context.a == 2
+
+    assert 'a' not in context
