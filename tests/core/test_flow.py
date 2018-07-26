@@ -267,3 +267,66 @@ def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():
     with pytest.raises(ValueError) as e:
         f.downstream_tasks(t)
         assert "was not found in Flow" in e
+
+
+def test_sorted_tasks():
+    """
+    t1 -> t2 -> t3 -> t4
+    """
+    f = Flow()
+    t1 = Task("1")
+    t2 = Task("2")
+    t3 = Task("3")
+    t4 = Task("4")
+    f.add_edge(t1, t2)
+    f.add_edge(t2, t3)
+    f.add_edge(t3, t4)
+    assert f.sorted_tasks() == (t1, t2, t3, t4)
+
+def test_sorted_tasks_with_ambiguous_sort():
+    """
+    t1 -> bottleneck
+    t2 -> bottleneck
+    t3 -> bottleneck
+           bottleneck -> t4
+           bottleneck -> t5
+           bottleneck -> t6
+    """
+
+    f = Flow()
+    t1 = Task("1")
+    t2 = Task("2")
+    t3 = Task("3")
+    t4 = Task("4")
+    t5 = Task("5")
+    t6 = Task("6")
+    bottleneck = Task('bottleneck')
+    f.add_edge(t1, bottleneck)
+    f.add_edge(t2, bottleneck)
+    f.add_edge(t3, bottleneck)
+    f.add_edge(bottleneck, t4)
+    f.add_edge(bottleneck, t5)
+    f.add_edge(bottleneck, t6)
+
+    tasks = f.sorted_tasks()
+    assert set(tasks[:3]) == set([t1, t2, t3])
+    assert list(tasks)[3] is bottleneck
+    assert set(tasks[4:]) == set([t4, t5, t6])
+
+def test_sorted_tasks_with_start_task():
+    """
+    t1 -> t2 -> t3 -> t4
+                  t3 -> t5
+    """
+    f = Flow()
+    t1 = Task("1")
+    t2 = Task("2")
+    t3 = Task("3")
+    t4 = Task("4")
+    t5 = Task("5")
+    f.add_edge(t1, t2)
+    f.add_edge(t2, t3)
+    f.add_edge(t3, t4)
+    f.add_edge(t3, t5)
+    assert set(f.sorted_tasks(root_tasks=[])) == set([t1, t2, t3, t4, t5])
+    assert set(f.sorted_tasks(root_tasks=[t3])) == set([t3, t4, t5])
