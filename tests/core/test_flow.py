@@ -3,6 +3,7 @@ import datetime
 import pytest
 
 import prefect
+from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
@@ -67,6 +68,13 @@ def test_add_task_to_flow():
     t = Task()
     f.add_task(t)
     assert t in f.tasks
+
+
+def test_add_task_returns_task():
+    f = Flow()
+    t = Task()
+    t2 = f.add_task(t)
+    assert t2 is t
 
 
 def test_add_task_raise_an_error_if_the_task_is_not_a_task_class():
@@ -153,7 +161,7 @@ def test_that_flow_adds_and_removes_itself_from_prefect_context():
     assert "_flow" not in prefect.context
 
 
-def test_edge():
+def test_add_edge():
     f = Flow()
     t1 = Task()
     t2 = Task()
@@ -163,6 +171,18 @@ def test_edge():
     assert f.downstream_tasks(t2) == set()
     assert f.downstream_tasks(t1) == set([t2])
     assert f.edges_to(t2) == f.edges_from(t1)
+
+
+def test_add_edge_returns_edge():
+    f = Flow()
+    t1 = Task()
+    t2 = Task()
+    edge = Edge(t1, t2)
+    added_edge = f.add_edge(upstream_task=t1, downstream_task=t2)
+
+    assert edge == added_edge
+    assert added_edge in f.edges
+    assert edge in f.edges
 
 
 def test_iter():
