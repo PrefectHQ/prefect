@@ -74,6 +74,9 @@ class FlowRunner:
 
         state = state or Pending()
         context = context or {}
+        return_tasks = return_tasks or []
+        if set(return_tasks).difference(self.flow.tasks):
+            raise ValueError("Some elements of return_tasks were not ")
 
         context.update(
             _flow_name=self.flow.name,
