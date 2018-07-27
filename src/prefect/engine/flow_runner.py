@@ -182,7 +182,7 @@ class FlowRunner:
                             lambda s: s.data, task_states[edge.upstream_task]
                         )
 
-                if task in start_tasks and hasattr(task_states.get(task), "data"):
+                if task in start_tasks and task in task_states:
                     upstream_inputs.update(task_states[task].data.get("cached_inputs"))
 
                 # -- run the task
