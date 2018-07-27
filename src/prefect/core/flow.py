@@ -409,23 +409,32 @@ class Flow(Serializable):
 
     # Serialization ------------------------------------------------------------
 
-    def serialize(self, seed=None) -> dict:
-        ref_ids = self.fingerprint(seed=seed)
+    def _generate_obj_ids(self) -> dict:
+        obj_ids = {}
+        for task in self.tasks:
+            obj_ids[task] = str(uuid.uuid4())
+
+        return obj_ids
+
+    def serialize(self) -> dict:
+
+        # Generate obj_ids for the tasks
+        obj_ids = self.obj_ids()
 
         return dict(
-            ref_id=ref_ids["flow_id"],
             name=self.name,
             version=self.version,
             description=self.description,
+            is_default=self.is_default,
+            environment=self.environment,
+            state=self.state,
             parameters=self.parameters(),
             schedule=self.schedule,
-            tasks=[
-                dict(ref_id=ref_ids["task_ids"][t], **t.serialize()) for t in self.tasks
-            ],
+            tasks=[dict(obj_id=obj_ids[t], **t.serialize()) for t in self.tasks],
             edges=[
                 dict(
-                    upstream_ref_id=ref_ids["task_ids"][e.upstream_task],
-                    downstream_ref_id=ref_ids["task_ids"][e.downstream_task],
+                    upstream_task_obj_id=obj_ids[e.upstream_task],
+                    downstream_task_obj_id=obj_ids[e.downstream_task],
                     key=e.key,
                 )
                 for e in self.edges
