@@ -33,21 +33,21 @@ all_states = [
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_no_args(cls):
     state = cls()
-    assert state.data is None
+    assert state.result is None
     assert state.message is None
 
 
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_positional_data_arg(cls):
     state = cls(1)
-    assert state.data == 1
+    assert state.result == 1
     assert state.message is None
 
 
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_data_and_message(cls):
-    state = cls(message="x", data="y")
-    assert state.data == "y"
+    state = cls(message="x", result="y")
+    assert state.result == "y"
     assert state.message == "x"
 
 
@@ -56,8 +56,8 @@ def test_create_state_with_data_and_error(cls):
     try:
         1 / 0
     except Exception as e:
-        state = cls(data="oh no!", message=e)
-    assert state.data == "oh no!"
+        state = cls(result="oh no!", message=e)
+    assert state.result == "oh no!"
     assert isinstance(state.message, Exception)
     assert "division by zero" in str(state.message)
 
@@ -80,31 +80,31 @@ def test_timestamp_is_serialized():
 
 
 def test_serialize():
-    state = Success(data=dict(hi=5, bye=6))
+    state = Success(result=dict(hi=5, bye=6))
     j = json.dumps(state)
     new_state = json.loads(j)
     assert isinstance(new_state, Success)
-    assert new_state.data == state.data
+    assert new_state.result == state.result
     assert new_state.timestamp == state.timestamp
 
 
 def test_state_equality():
     assert State() == State()
     assert Success() == Success()
-    assert Success(data=1) == Success(data=1)
+    assert Success(result=1) == Success(result=1)
     assert not State() == Success()
-    assert not Success(data=1) == Success(data=2)
+    assert not Success(result=1) == Success(result=2)
 
 
 def test_state_equality_ignores_message():
-    assert State(data=1, message="x") == State(data=1, message="y")
-    assert State(data=1, message="x") != State(data=2, message="x")
+    assert State(result=1, message="x") == State(result=1, message="y")
+    assert State(result=1, message="x") != State(result=2, message="x")
 
 
 def test_state_equality_with_nested_states():
-    s1 = State(data=Success(1))
-    s2 = State(data=Success(2))
-    s3 = State(data=Success(1))
+    s1 = State(result=Success(1))
+    s2 = State(result=Success(2))
+    s3 = State(result=Success(1))
     assert s1 != s2
     assert s1 == s3
 
@@ -114,7 +114,7 @@ def test_states_are_hashable():
 
 
 def test_states_with_mutable_attrs_are_hashable():
-    assert {State(data=[1]), Pending(data=dict(a=1))}
+    assert {State(result=[1]), Pending(result=dict(a=1))}
 
 
 class TestStateHierarchy:

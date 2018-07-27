@@ -101,10 +101,7 @@ class TaskRunner:
             # the most recently computed state
             except signals.DONTRUN as exc:
                 if "manual_only" in str(exc):
-                    if not isinstance(state.data, dict):
-                        state.data = {"cached_inputs": inputs or {}}
-                    else:
-                        state.data["cached_inputs"] = inputs
+                    state.cached_inputs = inputs or {}
                 pass
 
         return state
@@ -196,7 +193,7 @@ class TaskRunner:
                 "Message was: {}".format(str(exc))
             )
 
-        return Success(data=result, message="Task run succeeded.")
+        return Success(result=result, message="Task run succeeded.")
 
     @handle_signals
     def get_post_run_state(self, state: State, inputs: Dict[str, Any] = None) -> State:
@@ -224,6 +221,4 @@ class TaskRunner:
             n=run_number, m=self.task.max_retries + 1
         )
         self.logger.info(msg)
-        return Retrying(
-            data=dict(retry_time=retry_time, cached_inputs=inputs), message=msg
-        )
+        return Retrying(retry_time=retry_time, cached_inputs=inputs, message=msg)

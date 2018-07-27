@@ -179,11 +179,11 @@ class FlowRunner:
                     # note this will extract data even if the upstream state wasn't successful
                     if edge.key:
                         upstream_inputs[edge.key] = executor.submit(
-                            lambda s: s.data, task_states[edge.upstream_task]
+                            lambda s: s.result, task_states[edge.upstream_task]
                         )
 
                 if task in start_tasks and task in task_states:
-                    upstream_inputs.update(task_states[task].data.get("cached_inputs"))
+                    upstream_inputs.update(task_states[task].cached_inputs)
 
                 # -- run the task
                 task_runner = self.task_runner_cls(task=task)
@@ -208,19 +208,20 @@ class FlowRunner:
             if any(s.is_failed() for s in terminal_states):
                 self.logger.info("Flow run FAILED: some terminal tasks failed.")
                 state = Failed(
-                    message="Some terminal tasks failed.", data=return_states
+                    message="Some terminal tasks failed.", result=return_states
                 )
 
             elif all(s.is_successful() for s in terminal_states):
                 self.logger.info("Flow run SUCCESS: all terminal tasks succeeded")
                 state = Success(
-                    message="All terminal tasks succeeded.", data=return_states
+                    message="All terminal tasks succeeded.", result=return_states
                 )
 
             else:
                 self.logger.info("Flow run PENDING: terminal tasks are incomplete.")
                 state = Pending(
-                    message="Some terminal tasks are still pending.", data=return_states
+                    message="Some terminal tasks are still pending.",
+                    result=return_states,
                 )
 
             return state
