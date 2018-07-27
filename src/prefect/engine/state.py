@@ -7,16 +7,24 @@ MessageType = Union[str, Exception]
 
 
 class State(Serializable):
-    def __init__(self, data: Any = None, message: MessageType = None) -> None:
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        retry_time: datetime.datetime = None,
+        cached_inputs: Dict[str, Any] = None,
+    ) -> None:
         """
         Create a new State object.
-            data (Any, optional): Defaults to None. A data payload for the state.
+            result (Any, optional): Defaults to None. A data payload for the state.
             message (str or Exception, optional): Defaults to None. A message about the
                 state, which could be an Exception (or Signal) that caused it.
         """
-        self.data = data
+        self.result = result
         self.message = message
         self._timestamp = datetime.datetime.utcnow()
+        self.retry_time = retry_time
+        self.cached_inputs = cached_inputs
 
     def __repr__(self) -> str:
         if self.message:
@@ -30,7 +38,7 @@ class State(Serializable):
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
-            return self.data == other.data
+            return self.result == other.result
         return False
 
     def __hash__(self) -> int:

@@ -31,7 +31,7 @@ def test_signals_create_states():
     assert isinstance(exc.value.state, State)
     assert exc.value.state.message is exc.value
     assert str(exc.value.state.message) == "message"
-    assert exc.value.state.data is None
+    assert exc.value.state.result is None
 
 
 def test_signals_create_states_with_data():
@@ -39,7 +39,7 @@ def test_signals_create_states_with_data():
         raise PrefectStateSignal(data=5)
     assert isinstance(exc.value.state, State)
     assert exc.value.state.message is exc.value
-    assert exc.value.state.data is 5
+    assert exc.value.state.result is 5
 
 
 @pytest.mark.parametrize(
@@ -59,5 +59,5 @@ def test_signals_creates_correct_states(signal, state):
     assert isinstance(exc.value, signal)
     assert type(exc.value.state) is state
     assert exc.value.state.message is exc.value
-    assert exc.value.state.data == 1
+    assert exc.value.state.result == 1
     assert str(exc.value.state.message) == state.__name__
