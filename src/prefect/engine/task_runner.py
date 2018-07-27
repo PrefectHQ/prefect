@@ -51,7 +51,7 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
             logging.debug("RETRY signal raised")
             if raise_on_exception:
                 raise exc
-            return self.get_retry_state()
+            return self.get_retry_state(inputs=kwargs.get("inputs"))
 
         # PrefectStateSignals are trapped and turned into States
         except signals.PrefectStateSignal as exc:
