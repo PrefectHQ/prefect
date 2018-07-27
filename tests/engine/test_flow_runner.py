@@ -17,7 +17,7 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
-from prefect.utilities.tests import run_flow_runner_test
+from prefect.utilities.tests import raise_on_exception, run_flow_runner_test
 
 
 class SuccessTask(Task):
@@ -326,3 +326,83 @@ class TestFlowRunner_get_run_state:
         with pytest.raises(signals.DONTRUN) as exc:
             FlowRunner(flow=flow).get_run_state(state=state)
         assert "not in a running state" in str(exc.value).lower()
+
+
+class TestStartTasks:
+    def test_start_tasks_doesnt_have_access_to_previous_states(self):
+        f = Flow()
+        t1, t2 = Task("1"), Task("2")
+        f.add_edge(t1, t2)
+        FlowRunner(flow=f).run()
+        with raise_on_exception():
+            with pytest.raises(KeyError):
+                FlowRunner(flow=f).run(start_tasks=[t2])
+
+    def test_start_tasks_ignores_triggers(self):
+        f = Flow()
+        t1, t2 = SuccessTask(), SuccessTask()
+        f.add_edge(t1, t2)
+        with raise_on_exception():
+            state = FlowRunner(flow=f).run(task_states={t1: Failed()}, start_tasks=[t2])
+        assert isinstance(state, Success)
+
+
+@pytest.fixture
+def count_task():
+    class CountTask(Task):
+        call_count = 0
+        def run(self):
+            self.call_count += 1
+            return self.call_count
+    return CountTask
+
+
+@pytest.fixture
+def return_task():
+    class ReturnTask(Task):
+        called = False
+        def run(self, x):
+            if called is False:
+                raise ValueError("Must call twice.")
+            return x
+    return ReturnTask
+
+
+class TestInputCacheing:
+    def test_retries_use_cached_inputs(self, count_task, return_task):
+        with Flow() as f:
+            a = count_task()
+            b = return_task(max_retries=1)
+            result = b(a())
+
+        first_state = FlowRunner(flow=f).run(return_tasks=[result])
+        assert isinstance(first_state, Pending)
+        with raise_on_exception(): # without cacheing we'd expect a KeyError
+            second_state = FlowRunner(flow=f).run(return_tasks=[b], start_tasks=[b],
+                                                  task_states={b: first_state.data[result]})
+        assert isinstance(second_state, Success)
+        assert second_state.data[b].data == 1
+
+    def test_retries_only_uses_cache_data(self, return_task):
+        with Flow() as f:
+            t1 = Task()
+            t2 = return_task()
+            result = t2(t1())
+
+        state = FlowRunner(flow=f).run(task_states={t2: Retrying(data={'input_cache': {'x': 5}})},
+                                       start_tasks=[t2], return_tasks=[t2])
+        assert isinstance(state, Success)
+        assert state.data[t2].data == 5
+
+    def test_retries_caches_parameters_as_well(self, return_task):
+        with Flow() as f:
+            x = Parameter("x")
+            a = return_task()
+            result = a(x)
+
+        first_state = FlowRunner(flow=f).run(parameters=dict(x=1), return_tasks=[a])
+        assert isinstance(first_state, Failed)
+        second_state = FlowRunner(flow=f).run(parameters=dict(x=2), return_tasks=[a],
+                                              start_tasks=[a], task_states=dict(a=first_state.data[a]))
+        assert isinstance(second_state, Success)
+        assert second_state.data[a].data == 1
