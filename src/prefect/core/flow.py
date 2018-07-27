@@ -419,15 +419,13 @@ class Flow(Serializable):
     def serialize(self) -> dict:
 
         # Generate obj_ids for the tasks
-        obj_ids = self.obj_ids()
+        obj_ids = self._generate_obj_ids()
 
         return dict(
             name=self.name,
             version=self.version,
             description=self.description,
-            is_default=self.is_default,
             environment=self.environment,
-            state=self.state,
             parameters=self.parameters(),
             schedule=self.schedule,
             tasks=[dict(obj_id=obj_ids[t], **t.serialize()) for t in self.tasks],
