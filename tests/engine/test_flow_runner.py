@@ -369,6 +369,7 @@ class TestInputCacheing:
         assert isinstance(second_state, Success)
         assert second_state.data[result].data == 1
 
+#TODO: write test that input_cache is priotized even for a full flow-run
     def test_retries_only_uses_cache_data(self):
         with Flow() as f:
             t1 = Task()
@@ -387,8 +388,8 @@ class TestInputCacheing:
             result = a(x)
 
         first_state = FlowRunner(flow=f).run(parameters=dict(x=1), return_tasks=[a])
-        assert isinstance(first_state, Failed)
+        assert isinstance(first_state, Pending)
         second_state = FlowRunner(flow=f).run(parameters=dict(x=2), return_tasks=[a],
-                                              start_tasks=[a], task_states=dict(a=first_state.data[a]))
+                                              start_tasks=[a], task_states={a: first_state.data[a]})
         assert isinstance(second_state, Success)
         assert second_state.data[a].data == 1
