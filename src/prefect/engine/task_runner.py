@@ -95,7 +95,7 @@ class TaskRunner:
                     ignore_trigger=ignore_trigger,
                 )
                 state = self.get_run_state(state=state, inputs=inputs)
-                state = self.get_post_run_state(state=state)
+                state = self.get_post_run_state(state=state, inputs=inputs)
 
             # a DONTRUN signal at any point breaks the chain and we return
             # the most recently computed state
@@ -194,7 +194,7 @@ class TaskRunner:
         return Success(data=result, message="Task run succeeded.")
 
     @handle_signals
-    def get_post_run_state(self, state: State) -> State:
+    def get_post_run_state(self, state: State, inputs: Dict[str, Any] = None) -> State:
         """
         If the final state failed, this method checks to see if it should be retried.
         """
@@ -205,11 +205,11 @@ class TaskRunner:
         if isinstance(state, Failed) and not isinstance(state, TriggerFailed):
             run_number = prefect.context.get("_task_run_number", 1)
             if run_number <= self.task.max_retries:
-                return self.get_retry_state()
+                return self.get_retry_state(inputs=inputs)
 
         raise signals.DONTRUN("State requires no further processing.")
 
-    def get_retry_state(self):
+    def get_retry_state(self, inputs: Dict[str, Any] = None) -> State:
         """
         Returns a Retry state with the appropriate retry_time and last_run_number set.
         """
@@ -219,4 +219,4 @@ class TaskRunner:
             n=run_number, m=self.task.max_retries + 1
         )
         self.logger.info(msg)
-        return Retrying(data=retry_time, message=msg)
+        return Retrying(data=dict(retry_time=retry_time, input_cache=inputs), message=msg)
