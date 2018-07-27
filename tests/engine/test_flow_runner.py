@@ -17,6 +17,7 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
+from prefect.triggers import manual_only
 from prefect.utilities.tests import raise_on_exception, run_flow_runner_test
 
 
@@ -32,6 +33,7 @@ class AddTask(Task):
 
 class CountTask(Task):
     call_count = 0
+
     def run(self):
         self.call_count += 1
         return self.call_count
@@ -68,6 +70,7 @@ class RaiseRetryTask(Task):
 
 class ReturnTask(Task):
     called = False
+
     def run(self, x):
         if self.called is False:
             self.called = True
@@ -363,21 +366,26 @@ class TestInputCacheing:
 
         first_state = FlowRunner(flow=f).run(return_tasks=[result])
         assert isinstance(first_state, Pending)
-        with raise_on_exception(): # without cacheing we'd expect a KeyError
-            second_state = FlowRunner(flow=f).run(return_tasks=[result], start_tasks=[result],
-                                                  task_states={result: first_state.data[result]})
+        with raise_on_exception():  # without cacheing we'd expect a KeyError
+            second_state = FlowRunner(flow=f).run(
+                return_tasks=[result],
+                start_tasks=[result],
+                task_states={result: first_state.data[result]},
+            )
         assert isinstance(second_state, Success)
         assert second_state.data[result].data == 1
 
-#TODO: write test that input_cache is priotized even for a full flow-run
     def test_retries_only_uses_cache_data(self):
         with Flow() as f:
             t1 = Task()
             t2 = AddTask()
             f.add_edge(t1, t2)
 
-        state = FlowRunner(flow=f).run(task_states={t2: Retrying(data={'input_cache': dict(x=4, y=1)})},
-                                       start_tasks=[t2], return_tasks=[t2])
+        state = FlowRunner(flow=f).run(
+            task_states={t2: Retrying(data={"cached_inputs": dict(x=4, y=1)})},
+            start_tasks=[t2],
+            return_tasks=[t2],
+        )
         assert isinstance(state, Success)
         assert state.data[t2].data == 5
 
@@ -389,7 +397,31 @@ class TestInputCacheing:
 
         first_state = FlowRunner(flow=f).run(parameters=dict(x=1), return_tasks=[a])
         assert isinstance(first_state, Pending)
-        second_state = FlowRunner(flow=f).run(parameters=dict(x=2), return_tasks=[a],
-                                              start_tasks=[a], task_states={a: first_state.data[a]})
+        second_state = FlowRunner(flow=f).run(
+            parameters=dict(x=2),
+            return_tasks=[a],
+            start_tasks=[a],
+            task_states={a: first_state.data[a]},
+        )
         assert isinstance(second_state, Success)
         assert second_state.data[a].data == 1
+
+    def test_manual_only_trigger_caches_inputs(self):
+        with Flow() as f:
+            x = Parameter("x")
+            inp = SuccessTask()
+            t = AddTask(trigger=manual_only)
+            result = t(x, inp)
+
+        first_state = FlowRunner(flow=f).run(
+            parameters=dict(x=11), return_tasks=[result]
+        )
+        assert isinstance(first_state, Pending)
+        second_state = FlowRunner(flow=f).run(
+            parameters=dict(x=1),
+            return_tasks=[result],
+            start_tasks=[result],
+            task_states={result: first_state.data[result]},
+        )
+        assert isinstance(second_state, Success)
+        assert second_state.data[result].data == 12

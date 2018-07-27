@@ -99,7 +99,12 @@ class TaskRunner:
 
             # a DONTRUN signal at any point breaks the chain and we return
             # the most recently computed state
-            except signals.DONTRUN:
+            except signals.DONTRUN as exc:
+                if "manual_only" in str(exc):
+                    if not isinstance(state.data, dict):
+                        state.data = {"cached_inputs": inputs or {}}
+                    else:
+                        state.data["cached_inputs"] = inputs
                 pass
 
         return state
@@ -219,4 +224,6 @@ class TaskRunner:
             n=run_number, m=self.task.max_retries + 1
         )
         self.logger.info(msg)
-        return Retrying(data=dict(retry_time=retry_time, input_cache=inputs), message=msg)
+        return Retrying(
+            data=dict(retry_time=retry_time, cached_inputs=inputs), message=msg
+        )
