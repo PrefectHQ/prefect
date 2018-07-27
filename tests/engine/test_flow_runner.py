@@ -357,7 +357,7 @@ class TestStartTasks:
         assert isinstance(state, Success)
 
 
-class TestInputCacheing:
+class TestInputCaching:
     def test_retries_use_cached_inputs(self):
         with Flow() as f:
             a = CountTask()
@@ -366,7 +366,7 @@ class TestInputCacheing:
 
         first_state = FlowRunner(flow=f).run(return_tasks=[result])
         assert isinstance(first_state, Pending)
-        with raise_on_exception():  # without cacheing we'd expect a KeyError
+        with raise_on_exception():  # without caching we'd expect a KeyError
             second_state = FlowRunner(flow=f).run(
                 return_tasks=[result],
                 start_tasks=[result],
