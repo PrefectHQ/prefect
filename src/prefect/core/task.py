@@ -15,22 +15,6 @@ if TYPE_CHECKING:
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
 
-def get_task_info(task: "Task") -> Dict[str, Any]:
-    return dict(
-        name=task.name,
-        slug=task.slug,
-        type=to_qualified_name(type(task)),
-        description=task.description,
-        max_retries=task.max_retries,
-        retry_delay=task.retry_delay,
-        timeout=task.timeout,
-        trigger=task.trigger,
-        propagate_skip=task.propagate_skip,
-        environment=task.environment,
-        checkpoint=task.checkpoint,
-    )
-
-
 class SignatureValidator(type):
     def __new__(cls, name, parents, methods):
         run = methods.get("run", lambda: None)
@@ -164,11 +148,19 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     # Serialization ------------------------------------------------------------
 
-    def info(self) -> Dict[str, Any]:
-        """
-        A description of the task.
-        """
-        return get_task_info(self)
+    def serialize(self, task: "Task") -> Dict[str, Any]:
+        return dict(
+            name=task.name,
+            slug=task.slug,
+            type=to_qualified_name(type(task)),
+            description=task.description,
+            max_retries=task.max_retries,
+            retry_delay=task.retry_delay,
+            timeout=task.timeout,
+            trigger=task.trigger,
+            propagate_skip=task.propagate_skip,
+            checkpoint=task.checkpoint,
+        )
 
 
 class Parameter(Task):
