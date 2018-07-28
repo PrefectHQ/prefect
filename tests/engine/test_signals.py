@@ -34,14 +34,6 @@ def test_signals_create_states():
     assert exc.value.state.result is None
 
 
-def test_signals_create_states_with_data():
-    with pytest.raises(Exception) as exc:
-        raise PrefectStateSignal(data=5)
-    assert isinstance(exc.value.state, State)
-    assert exc.value.state.message is exc.value
-    assert exc.value.state.result is 5
-
-
 @pytest.mark.parametrize(
     "signal,state",
     [
@@ -55,9 +47,8 @@ def test_signals_create_states_with_data():
 )
 def test_signals_creates_correct_states(signal, state):
     with pytest.raises(Exception) as exc:
-        raise signal(state.__name__, data=1)
+        raise signal(state.__name__)
     assert isinstance(exc.value, signal)
     assert type(exc.value.state) is state
     assert exc.value.state.message is exc.value
-    assert exc.value.state.result == 1
     assert str(exc.value.state.message) == state.__name__
