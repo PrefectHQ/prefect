@@ -6,6 +6,7 @@ import prefect
 from prefect.core import Flow, Task, Parameter
 from prefect.engine import FlowRunner, signals
 from prefect.engine.state import (
+    CachedState,
     Failed,
     Finished,
     Pending,
