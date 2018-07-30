@@ -6,6 +6,7 @@ import prefect
 from prefect.core.task import Task
 from prefect.engine import TaskRunner, signals
 from prefect.engine.state import (
+    CachedState,
     Failed,
     Finished,
     Pending,
@@ -189,6 +190,21 @@ class TestTaskRunner_get_pre_run_state:
     def test_returns_running_if_successful_with_pending_state(self, state):
         runner = TaskRunner(SuccessTask())
         state = runner.get_pre_run_state(state=state)
+        assert isinstance(state, Running)
+
+    def test_returns_successful_if_cached_state(self):
+        runner = TaskRunner(SuccessTask())
+        expiry = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        state = runner.get_pre_run_state(state=CachedState(cached_outputs=4,
+                                                           cache_expiry=expiry))
+        assert isinstance(state, Success)
+        assert state.result == 4
+
+    def test_returns_running_if_cached_state_with_expired_cache(self):
+        runner = TaskRunner(SuccessTask())
+        expiry = datetime.datetime.utcnow() - datetime.timedelta(days=1)
+        state = runner.get_pre_run_state(state=CachedState(cached_outputs=4,
+                                                           cache_expiry=expiry))
         assert isinstance(state, Running)
 
     def test_returns_failed_with_internal_error(self):

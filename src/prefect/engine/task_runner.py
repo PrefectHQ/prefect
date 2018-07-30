@@ -10,6 +10,7 @@ import prefect
 from prefect.core import Task
 from prefect.engine import signals
 from prefect.engine.state import (
+    CachedState,
     Failed,
     MessageType,
     Pending,
@@ -167,6 +168,8 @@ class TaskRunner:
         # ---------------------------------------------------------
         # We can start!
         # ---------------------------------------------------------
+        if isinstance(state, CachedState) and state.cache_expiry > datetime.datetime.utcnow():
+            return Success(result=state.cached_outputs)
 
         return Running(message="Starting task run")
 

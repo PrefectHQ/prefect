@@ -45,7 +45,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         timeout: timedelta = None,
         trigger: Callable[[Dict["Task", "State"]], bool] = None,
         propagate_skip: bool = False,
-        cache_for: timedelta = None,
     ) -> None:
 
         self.name = name or type(self).__name__
@@ -65,8 +64,6 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         self.trigger = trigger or prefect.triggers.all_successful
         self.propagate_skip = propagate_skip
-
-        self.cache_for = cache_for
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
