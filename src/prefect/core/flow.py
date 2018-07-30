@@ -400,11 +400,13 @@ class Flow(Serializable):
 
         # state always should return a dict of tasks. If it's None (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
-        if state.data is None:
-            state.data = {}
+        if state.result is None:
+            state.result = {}
         for task in return_tasks or []:
-            if task not in state.data:
-                state.data[task] = prefect.engine.state.Pending(message="Task not run.")
+            if task not in state.result:
+                state.result[task] = prefect.engine.state.Pending(
+                    message="Task not run."
+                )
         return state
 
     # Serialization ------------------------------------------------------------

@@ -3,7 +3,7 @@ import datetime
 import pytest
 
 import prefect
-from prefect.core import Flow, Task
+from prefect.core import Flow, Task, Parameter
 from prefect.engine import FlowRunner, signals
 from prefect.engine.state import (
     Failed,
@@ -17,6 +17,8 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
+from prefect.triggers import manual_only
+from prefect.utilities.tests import raise_on_exception
 
 
 class SuccessTask(Task):
@@ -27,6 +29,14 @@ class SuccessTask(Task):
 class AddTask(Task):
     def run(self, x, y):  # pylint: disable=W0221
         return x + y
+
+
+class CountTask(Task):
+    call_count = 0
+
+    def run(self):
+        self.call_count += 1
+        return self.call_count
 
 
 class ErrorTask(Task):
@@ -58,13 +68,23 @@ class RaiseRetryTask(Task):
         raise ValueError()  # pylint: disable=W0101
 
 
+class ReturnTask(Task):
+    called = False
+
+    def run(self, x):
+        if self.called is False:
+            self.called = True
+            raise ValueError("Must call twice.")
+        return x
+
+
 def test_flow_runner_runs_basic_flow_with_1_task():
     flow = prefect.Flow()
     task = SuccessTask()
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
     state = flow_runner.run(return_tasks=[task])
-    assert state == Success(data={task: Success(data=1)})
+    assert state == Success(result={task: Success(result=1)})
 
 
 def test_flow_runner_with_no_return_tasks():
@@ -97,8 +117,8 @@ def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
 
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
     assert isinstance(flow_state, Success)
-    assert flow_state.data[task1] == Success(data=1)
-    assert flow_state.data[task2] == Success(data=1)
+    assert flow_state.result[task1] == Success(result=1)
+    assert flow_state.result[task2] == Success(result=1)
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks():
@@ -110,8 +130,8 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks():
 
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
     assert isinstance(flow_state, Success)
-    assert flow_state.data[task1] == Success(data=1)
-    assert flow_state.data[task2] == Success(data=1)
+    assert flow_state.result[task1] == Success(result=1)
+    assert flow_state.result[task2] == Success(result=1)
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails():
@@ -123,8 +143,8 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails
 
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
     assert isinstance(flow_state, Failed)
-    assert isinstance(flow_state.data[task1], Failed)
-    assert isinstance(flow_state.data[task2], TriggerFailed)
+    assert isinstance(flow_state.result[task1], Failed)
+    assert isinstance(flow_state.result[task2], TriggerFailed)
 
 
 def test_flow_runner_runs_flow_with_2_dependent_tasks_and_first_task_fails_and_second_has_trigger():
@@ -138,8 +158,8 @@ def test_flow_runner_runs_flow_with_2_dependent_tasks_and_first_task_fails_and_s
     assert isinstance(
         flow_state, Success
     )  # flow state is determined by terminal states
-    assert isinstance(flow_state.data[task1], Failed)
-    assert isinstance(flow_state.data[task2], Success)
+    assert isinstance(flow_state.result[task1], Failed)
+    assert isinstance(flow_state.result[task2], Success)
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails_with_FAIL():
@@ -151,9 +171,9 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails
 
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
     assert isinstance(flow_state, Failed)
-    assert isinstance(flow_state.data[task1], Failed)
-    assert not isinstance(flow_state.data[task1], TriggerFailed)
-    assert isinstance(flow_state.data[task2], TriggerFailed)
+    assert isinstance(flow_state.result[task1], Failed)
+    assert not isinstance(flow_state.result[task1], TriggerFailed)
+    assert isinstance(flow_state.result[task2], TriggerFailed)
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fails():
@@ -165,8 +185,8 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fail
 
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
     assert isinstance(flow_state, Failed)
-    assert isinstance(flow_state.data[task1], Success)
-    assert isinstance(flow_state.data[task2], Failed)
+    assert isinstance(flow_state.result[task1], Success)
+    assert isinstance(flow_state.result[task2], Failed)
 
 
 def test_flow_runner_does_not_return_task_states_when_it_doesnt_run():
@@ -177,10 +197,10 @@ def test_flow_runner_does_not_return_task_states_when_it_doesnt_run():
     flow.add_edge(task1, task2)
 
     flow_state = FlowRunner(flow=flow).run(
-        state=Success(data=5), return_tasks=[task1, task2]
+        state=Success(result=5), return_tasks=[task1, task2]
     )
     assert isinstance(flow_state, Success)
-    assert flow_state.data == 5
+    assert flow_state.result == 5
 
 
 def test_flow_run_method_returns_task_states_even_if_it_doesnt_run():
@@ -193,8 +213,8 @@ def test_flow_run_method_returns_task_states_even_if_it_doesnt_run():
 
     flow_state = flow.run(state=Success(), return_tasks=[task1, task2])
     assert isinstance(flow_state, Success)
-    assert isinstance(flow_state.data[task1], Pending)
-    assert isinstance(flow_state.data[task2], Pending)
+    assert isinstance(flow_state.result[task1], Pending)
+    assert isinstance(flow_state.result[task2], Pending)
 
 
 def test_flow_runner_remains_pending_if_tasks_are_retrying():
@@ -207,8 +227,8 @@ def test_flow_runner_remains_pending_if_tasks_are_retrying():
 
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
     assert isinstance(flow_state, Pending)
-    assert isinstance(flow_state.data[task1], Success)
-    assert isinstance(flow_state.data[task2], Retrying)
+    assert isinstance(flow_state.result[task1], Success)
+    assert isinstance(flow_state.result[task2], Retrying)
 
 
 def test_flow_runner_doesnt_return_by_default():
@@ -217,7 +237,7 @@ def test_flow_runner_doesnt_return_by_default():
     task2 = SuccessTask()
     flow.add_edge(task1, task2)
     res = flow.run()
-    assert res.data == {}
+    assert res.result == {}
 
 
 def test_flow_runner_does_return_tasks_when_requested():
@@ -227,7 +247,7 @@ def test_flow_runner_does_return_tasks_when_requested():
     flow.add_edge(task1, task2)
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task1])
     assert isinstance(flow_state, Success)
-    assert isinstance(flow_state.data[task1], Success)
+    assert isinstance(flow_state.result[task1], Success)
 
 
 def test_required_parameters_must_be_provided():
@@ -247,7 +267,7 @@ def test_missing_parameter_returns_failed_with_no_data():
     task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task])
     assert isinstance(flow_state, Failed)
-    assert flow_state.data is None
+    assert flow_state.result is None
 
 
 def test_missing_parameter_returns_failed_with_pending_tasks_if_called_from_flow():
@@ -257,7 +277,7 @@ def test_missing_parameter_returns_failed_with_pending_tasks_if_called_from_flow
     task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
     flow_state = flow.run(return_tasks=[task])
     assert isinstance(flow_state, Failed)
-    assert isinstance(flow_state.data[task], Pending)
+    assert isinstance(flow_state.result[task], Pending)
 
 
 def test_missing_parameter_error_is_surfaced():
@@ -325,3 +345,81 @@ class TestFlowRunner_get_run_state:
         with pytest.raises(signals.DONTRUN) as exc:
             FlowRunner(flow=flow).get_run_state(state=state)
         assert "not in a running state" in str(exc.value).lower()
+
+
+class TestStartTasks:
+    def test_start_tasks_ignores_triggers(self):
+        f = Flow()
+        t1, t2 = SuccessTask(), SuccessTask()
+        f.add_edge(t1, t2)
+        with raise_on_exception():
+            state = FlowRunner(flow=f).run(task_states={t1: Failed()}, start_tasks=[t2])
+        assert isinstance(state, Success)
+
+
+class TestInputCaching:
+    def test_retries_use_cached_inputs(self):
+        with Flow() as f:
+            a = CountTask()
+            b = ReturnTask(max_retries=1)
+            result = b(a())
+
+        first_state = FlowRunner(flow=f).run(return_tasks=[b])
+        assert isinstance(first_state, Pending)
+        with raise_on_exception():  # without caching we'd expect a KeyError
+            second_state = FlowRunner(flow=f).run(
+                return_tasks=[b],
+                start_tasks=[b],
+                task_states={b: first_state.result[b]},
+            )
+        assert isinstance(second_state, Success)
+        assert second_state.result[b].result == 1
+
+    def test_retries_only_uses_cache_data(self):
+        with Flow() as f:
+            t1 = Task()
+            t2 = AddTask()
+            f.add_edge(t1, t2)
+
+        state = FlowRunner(flow=f).run(
+            task_states={t2: Retrying(cached_inputs=dict(x=4, y=1))},
+            start_tasks=[t2],
+            return_tasks=[t2],
+        )
+        assert isinstance(state, Success)
+        assert state.result[t2].result == 5
+
+    def test_retries_caches_parameters_as_well(self):
+        with Flow() as f:
+            x = Parameter("x")
+            a = ReturnTask(max_retries=1)
+            result = a(x)
+
+        first_state = FlowRunner(flow=f).run(parameters=dict(x=1), return_tasks=[a])
+        assert isinstance(first_state, Pending)
+        second_state = FlowRunner(flow=f).run(
+            parameters=dict(x=2),
+            return_tasks=[a],
+            start_tasks=[a],
+            task_states={a: first_state.result[a]},
+        )
+        assert isinstance(second_state, Success)
+        assert second_state.result[a].result == 1
+
+    def test_manual_only_trigger_caches_inputs(self):
+        with Flow() as f:
+            x = Parameter("x")
+            inp = SuccessTask()
+            t = AddTask(trigger=manual_only)
+            result = t(x, inp)
+
+        first_state = FlowRunner(flow=f).run(parameters=dict(x=11), return_tasks=[t])
+        assert isinstance(first_state, Pending)
+        second_state = FlowRunner(flow=f).run(
+            parameters=dict(x=1),
+            return_tasks=[t],
+            start_tasks=[t],
+            task_states={t: first_state.result[t]},
+        )
+        assert isinstance(second_state, Success)
+        assert second_state.result[t].result == 12
