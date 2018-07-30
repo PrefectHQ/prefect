@@ -94,6 +94,7 @@ class TaskRunner:
                     state=state,
                     upstream_states=upstream_states,
                     ignore_trigger=ignore_trigger,
+                    inputs=inputs,
                 )
                 state = self.get_run_state(state=state, inputs=inputs)
                 state = self.get_post_run_state(state=state, inputs=inputs)
@@ -107,12 +108,20 @@ class TaskRunner:
 
         return state
 
+    def _check_cache(self, state, inputs):
+        if state.cache_expiry <= datetime.datetime.utcnow():
+            return False
+        if any([inputs[key] != state.cached_inputs[key] for key in state.cache_on]):
+            return False
+        return True
+
     @handle_signals
     def get_pre_run_state(
         self,
         state: State,
         upstream_states: Dict[Task, State] = None,
         ignore_trigger: bool = False,
+        inputs: Dict[str, Any] = None,
     ) -> State:
         """
         Checks if a task is ready to run.
@@ -168,7 +177,7 @@ class TaskRunner:
         # ---------------------------------------------------------
         # We can start!
         # ---------------------------------------------------------
-        if isinstance(state, CachedState) and state.cache_expiry > datetime.datetime.utcnow():
+        if isinstance(state, CachedState) and self._check_cache(state, inputs=inputs):
             return Success(result=state.cached_outputs)
 
         return Running(message="Starting task run")

@@ -195,16 +195,46 @@ class TestTaskRunner_get_pre_run_state:
     def test_returns_successful_if_cached_state(self):
         runner = TaskRunner(SuccessTask())
         expiry = datetime.datetime.utcnow() + datetime.timedelta(days=1)
-        state = runner.get_pre_run_state(state=CachedState(cached_outputs=4,
-                                                           cache_expiry=expiry))
+        state = runner.get_pre_run_state(
+            state=CachedState(cached_outputs=4, cache_expiry=expiry)
+        )
         assert isinstance(state, Success)
         assert state.result == 4
 
     def test_returns_running_if_cached_state_with_expired_cache(self):
         runner = TaskRunner(SuccessTask())
         expiry = datetime.datetime.utcnow() - datetime.timedelta(days=1)
-        state = runner.get_pre_run_state(state=CachedState(cached_outputs=4,
-                                                           cache_expiry=expiry))
+        state = runner.get_pre_run_state(
+            state=CachedState(cached_outputs=4, cache_expiry=expiry)
+        )
+        assert isinstance(state, Running)
+
+    def test_returns_successful_if_cached_state_is_validated(self):
+        runner = TaskRunner(SuccessTask())
+        expiry = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        state = runner.get_pre_run_state(
+            state=CachedState(
+                cached_inputs=dict(x=2, y=1),
+                cached_outputs=4,
+                cache_expiry=expiry,
+                cache_on=["x"],
+            ),
+            inputs=dict(x=2, y=100),
+        )
+        assert isinstance(state, Success)
+
+    def test_returns_running_if_cached_state_is_invalidated(self):
+        runner = TaskRunner(SuccessTask())
+        expiry = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        state = runner.get_pre_run_state(
+            state=CachedState(
+                cached_inputs=dict(x=2),
+                cached_outputs=4,
+                cache_expiry=expiry,
+                cache_on=["x"],
+            ),
+            inputs=dict(x=1),
+        )
         assert isinstance(state, Running)
 
     def test_returns_failed_with_internal_error(self):
