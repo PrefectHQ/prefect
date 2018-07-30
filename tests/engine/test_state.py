@@ -88,12 +88,24 @@ def test_serialize():
     assert new_state.timestamp == state.timestamp
 
 
+def test_serialization_of_cached_inputs():
+    state = Pending(cached_inputs=dict(hi=5, bye=6))
+    j = json.dumps(state)
+    new_state = json.loads(j)
+    assert isinstance(new_state, Pending)
+    assert new_state.cached_inputs == state.cached_inputs
+    assert new_state.timestamp == state.timestamp
+
+
 def test_state_equality():
     assert State() == State()
     assert Success() == Success()
     assert Success(result=1) == Success(result=1)
     assert not State() == Success()
     assert not Success(result=1) == Success(result=2)
+    assert Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(x=1))
+    assert not Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(x=2))
+    assert not Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(y=1))
 
 
 def test_state_equality_ignores_message():
@@ -114,7 +126,7 @@ def test_states_are_hashable():
 
 
 def test_states_with_mutable_attrs_are_hashable():
-    assert {State(result=[1]), Pending(result=dict(a=1))}
+    assert {State(result=[1]), Pending(cached_inputs=dict(a=1))}
 
 
 class TestStateHierarchy:
