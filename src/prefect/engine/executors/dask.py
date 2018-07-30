@@ -1,13 +1,9 @@
 import dask
 import datetime
-import uuid
 from contextlib import contextmanager
-from functools import wraps
-from typing import Any, Callable, Dict, Iterable, List, TypeVar, Union
+from typing import Any, Callable, Iterable
 
-import prefect
 from prefect.engine.executors.base import Executor
-from prefect.utilities.json import Serializable
 
 
 class DaskExecutor(Executor):
@@ -24,7 +20,7 @@ class DaskExecutor(Executor):
         """
         Submit a function to the executor for execution. Returns a future
         """
-        return dask.delayed(fn)(*args, **kwargs)
+        return dask.delayed(fn, pure=True)(*args, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """
