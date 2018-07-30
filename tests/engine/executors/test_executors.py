@@ -58,22 +58,25 @@ class TestLocalExecutor:
 class TestDaskExecutor:
     def test_submit_and_wait(self):
         to_compute = {}
-        to_compute['x'] = DaskExecutor().submit(lambda: 3)
-        to_compute['y'] = DaskExecutor().submit(lambda x: x + 1, to_compute['x'])
+        to_compute["x"] = DaskExecutor().submit(lambda: 3)
+        to_compute["y"] = DaskExecutor().submit(lambda x: x + 1, to_compute["x"])
         computed = DaskExecutor().wait(to_compute)
-        assert 'x' in computed
-        assert 'y' in computed
-        assert computed['x'] == 3
-        assert computed['y'] == 4
+        assert "x" in computed
+        assert "y" in computed
+        assert computed["x"] == 3
+        assert computed["y"] == 4
 
     def test_submit_with_context(self):
+        executor = DaskExecutor()
         context_fn = lambda: prefect.context.get("abc")
         context = dict(abc="abc")
 
-        assert DaskExecutor().submit(context_fn) is None
+        assert executor.wait(executor.submit(context_fn)) is None
         with prefect.context(context):
-            assert DaskExecutor().submit(context_fn) == "abc"
-        assert DaskExecutor().submit_with_context(context_fn, context=context) == "abc"
+            assert executor.wait(executor.submit(context_fn)) == "abc"
+        fut = executor.submit_with_context(context_fn, context=context)
+        context.clear()
+        assert executor.wait(fut) == "abc"
 
     def test_submit_with_context_requires_context_kwarg(self):
         with pytest.raises(TypeError) as exc:
