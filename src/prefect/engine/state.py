@@ -34,7 +34,7 @@ class State(Serializable):
             for attr in self.__dict__:
                 if attr.startswith("_") or attr == "message":
                     continue
-                eq &= getattr(self, attr) == getattr(other, attr)
+                eq &= getattr(self, attr, object()) == getattr(other, attr, object())
             return eq
         return False
 
