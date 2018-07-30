@@ -41,13 +41,6 @@ class TestCreateTask:
         t2 = Task(description="test")
         assert t2.description == "test"
 
-    def test_create_task_with_checkpoint(self):
-        t1 = Task()
-        assert not t1.checkpoint
-
-        t2 = Task(checkpoint=True)
-        assert t2.checkpoint
-
     def test_create_task_with_max_retries(self):
         t1 = Task()
         assert t1.max_retries == 0

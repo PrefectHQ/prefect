@@ -4,6 +4,7 @@ import json
 import pytest
 
 from prefect.engine.state import (
+    CachedState,
     Failed,
     Finished,
     Pending,
@@ -17,6 +18,7 @@ from prefect.engine.state import (
 )
 
 all_states = [
+    CachedState,
     State,
     Pending,
     Running,
@@ -179,6 +181,14 @@ class TestStateMethods:
         state = Running()
         assert not state.is_pending()
         assert state.is_running()
+        assert not state.is_finished()
+        assert not state.is_successful()
+        assert not state.is_failed()
+
+    def test_state_type_methods_with_cached_state(self):
+        state = CachedState()
+        assert state.is_pending()
+        assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_successful()
         assert not state.is_failed()

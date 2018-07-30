@@ -85,6 +85,20 @@ class Pending(State):
         self.cached_inputs = cached_inputs
 
 
+class CachedState(Pending):
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        cached_inputs: Dict[str, Any] = None,
+        cached_outputs: Dict[str, Any] = None,
+        cache_expiry: datetime.datetime = None,
+    ) -> None:
+        super().__init__(result=result, message=message, cached_inputs=cached_inputs)
+        self.cached_outputs = cached_outputs
+        self.cache_expiry = cache_expiry
+
+
 class Scheduled(Pending):
     """Pending state indicating the object has been scheduled to run"""
 
