@@ -101,10 +101,7 @@ class TaskRunner:
             # the most recently computed state
             except signals.DONTRUN as exc:
                 if "manual_only" in str(exc):
-                    if not isinstance(state.data, dict):
-                        state.data = {"cached_inputs": inputs or {}}
-                    else:
-                        state.data["cached_inputs"] = inputs
+                    state.cached_inputs = inputs or {}
                 pass
 
         return state
@@ -196,7 +193,7 @@ class TaskRunner:
                 "Message was: {}".format(str(exc))
             )
 
-        return Success(data=result, message="Task run succeeded.")
+        return Success(result=result, message="Task run succeeded.")
 
     @handle_signals
     def get_post_run_state(self, state: State, inputs: Dict[str, Any] = None) -> State:
@@ -216,14 +213,14 @@ class TaskRunner:
 
     def get_retry_state(self, inputs: Dict[str, Any] = None) -> State:
         """
-        Returns a Retry state with the appropriate retry_time and last_run_number set.
+        Returns a Retry state with the appropriate scheduled_time and last_run_number set.
         """
         run_number = prefect.context.get("_task_run_number", 1)
-        retry_time = datetime.datetime.utcnow() + self.task.retry_delay
+        scheduled_time = datetime.datetime.utcnow() + self.task.retry_delay
         msg = "Retrying Task (after attempt {n} of {m})".format(
             n=run_number, m=self.task.max_retries + 1
         )
         self.logger.info(msg)
         return Retrying(
-            data=dict(retry_time=retry_time, cached_inputs=inputs), message=msg
+            scheduled_time=scheduled_time, cached_inputs=inputs, message=msg
         )
