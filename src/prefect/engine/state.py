@@ -7,13 +7,7 @@ MessageType = Union[str, Exception]
 
 
 class State(Serializable):
-    def __init__(
-        self,
-        result: Any = None,
-        message: MessageType = None,
-        retry_time: datetime.datetime = None,
-        cached_inputs: Dict[str, Any] = None,
-    ) -> None:
+    def __init__(self, result: Any = None, message: MessageType = None) -> None:
         """
         Create a new State object.
             result (Any, optional): Defaults to None. A data payload for the state.
@@ -23,8 +17,6 @@ class State(Serializable):
         self.result = result
         self.message = message
         self._timestamp = datetime.datetime.utcnow()
-        self.retry_time = retry_time
-        self.cached_inputs = cached_inputs
 
     def __repr__(self) -> str:
         if self.message:
@@ -38,7 +30,12 @@ class State(Serializable):
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
-            return self.result == other.result
+            eq = True
+            for attr in self.__dict__:
+                if attr.startswith("_") or attr == "message":
+                    continue
+                eq &= getattr(self, attr) == getattr(other, attr)
+            return eq
         return False
 
     def __hash__(self) -> int:
@@ -72,6 +69,21 @@ class State(Serializable):
 class Pending(State):
     """Base pending state"""
 
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        cached_inputs: Dict[str, Any] = None,
+    ) -> None:
+        """
+        Create a new State object.
+            result (Any, optional): Defaults to None. A data payload for the state.
+            message (str or Exception, optional): Defaults to None. A message about the
+                state, which could be an Exception (or Signal) that caused it.
+        """
+        super().__init__(result=result, message=message)
+        self.cached_inputs = cached_inputs
+
 
 class Scheduled(Pending):
     """Pending state indicating the object has been scheduled to run"""
@@ -79,6 +91,16 @@ class Scheduled(Pending):
 
 class Retrying(Scheduled):
     """Pending state indicating the object has been scheduled to be retried"""
+
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        retry_time: datetime.datetime = None,
+        cached_inputs: Dict[str, Any] = None,
+    ) -> None:
+        super().__init__(result=result, message=message, cached_inputs=cached_inputs)
+        self.retry_time = retry_time
 
 
 # -------------------------------------------------------------------
