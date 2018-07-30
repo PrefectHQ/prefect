@@ -10,9 +10,9 @@ from prefect.utilities.exceptions import PrefectError
 class PrefectStateSignal(PrefectError):
     _state_cls = state.State
 
-    def __init__(self, message=None, data=None, **kwargs) -> None:  # type: ignore
+    def __init__(self, message=None, **kwargs) -> None:  # type: ignore
         super().__init__(message, **kwargs)
-        self.state = self._state_cls(data=data, message=self)
+        self.state = self._state_cls(message=self)
 
 
 class FAIL(PrefectStateSignal):
