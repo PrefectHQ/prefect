@@ -17,7 +17,7 @@ class DaskExecutor(Executor):
         Any initialization this executor needs to perform should be done in this
         context manager, and torn down after yielding.
         """
-        with dask.config.set(scheduler='synchronous') as cfg:
+        with dask.config.set(scheduler="synchronous") as cfg:
             yield cfg
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
