@@ -88,19 +88,19 @@ class Pending(State):
 class Scheduled(Pending):
     """Pending state indicating the object has been scheduled to run"""
 
-
-class Retrying(Scheduled):
-    """Pending state indicating the object has been scheduled to be retried"""
-
     def __init__(
         self,
         result: Any = None,
         message: MessageType = None,
-        retry_time: datetime.datetime = None,
+        scheduled_time: datetime.datetime = None,
         cached_inputs: Dict[str, Any] = None,
     ) -> None:
         super().__init__(result=result, message=message, cached_inputs=cached_inputs)
-        self.retry_time = retry_time
+        self.scheduled_time = scheduled_time
+
+
+class Retrying(Scheduled):
+    """Pending state indicating the object has been scheduled to be retried"""
 
 
 # -------------------------------------------------------------------

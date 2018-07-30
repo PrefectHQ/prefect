@@ -213,12 +213,14 @@ class TaskRunner:
 
     def get_retry_state(self, inputs: Dict[str, Any] = None) -> State:
         """
-        Returns a Retry state with the appropriate retry_time and last_run_number set.
+        Returns a Retry state with the appropriate scheduled_time and last_run_number set.
         """
         run_number = prefect.context.get("_task_run_number", 1)
-        retry_time = datetime.datetime.utcnow() + self.task.retry_delay
+        scheduled_time = datetime.datetime.utcnow() + self.task.retry_delay
         msg = "Retrying Task (after attempt {n} of {m})".format(
             n=run_number, m=self.task.max_retries + 1
         )
         self.logger.info(msg)
-        return Retrying(retry_time=retry_time, cached_inputs=inputs, message=msg)
+        return Retrying(
+            scheduled_time=scheduled_time, cached_inputs=inputs, message=msg
+        )
