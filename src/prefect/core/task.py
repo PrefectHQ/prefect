@@ -191,6 +191,9 @@ class Parameter(Task):
 
         super().__init__(name=name, slug=name)
 
+    def __repr__(self) -> str:
+        return "<Parameter: {self.name}>".format(self=self)
+
     @property  # type: ignore
     def name(self) -> str:  # type: ignore
         return self._name
