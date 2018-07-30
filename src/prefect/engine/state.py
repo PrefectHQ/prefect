@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Iterable, List, Union
 
 from prefect.utilities.json import Serializable
 
@@ -93,10 +93,12 @@ class CachedState(Pending):
         cached_inputs: Dict[str, Any] = None,
         cached_outputs: Dict[str, Any] = None,
         cache_expiry: datetime.datetime = None,
+        cache_on: Iterable[str] = None,
     ) -> None:
         super().__init__(result=result, message=message, cached_inputs=cached_inputs)
         self.cached_outputs = cached_outputs
         self.cache_expiry = cache_expiry
+        self.cache_on = cache_on or []
 
 
 class Scheduled(Pending):

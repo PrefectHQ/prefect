@@ -424,3 +424,40 @@ class TestInputCaching:
         )
         assert isinstance(second_state, Success)
         assert second_state.result[t].result == 12
+
+
+class TestOutputCaching:
+    def test_output_caching_with_simple_example(self):
+        class TestTask(Task):
+            call_count = 0
+
+            def run(self, x, s):
+                self.call_count += 1
+                return self.call_count
+
+        with Flow() as f:
+            y = TestTask()
+            x = Parameter("x")
+            s = SuccessTask()
+            f.add_edge(x, y, key="x")
+            f.add_edge(s, y, key="s")
+
+        state = CachedState(
+            cached_inputs=dict(x=1, s=1),
+            cache_expiry=datetime.datetime.utcnow() + datetime.timedelta(days=1),
+            cached_outputs=100,
+            cache_on=["x", "s"],
+        )
+        flow_state = FlowRunner(flow=f).run(
+            parameters=dict(x=1), return_tasks=[y], task_states={y: state}
+        )
+        assert isinstance(flow_state, Success)
+        assert flow_state.result[y].result == 100
+
+        flow_state = FlowRunner(flow=f).run(
+            parameters=dict(x=2),  # invalidates cache
+            return_tasks=[y],
+            task_states={y: state},
+        )
+        assert isinstance(flow_state, Success)
+        assert flow_state.result[y].result == 1
