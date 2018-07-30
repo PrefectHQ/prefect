@@ -17,7 +17,6 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
-from prefect.utilities.tests import run_flow_runner_test
 
 
 class SuccessTask(Task):
