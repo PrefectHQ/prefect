@@ -21,7 +21,9 @@ try:
     DEFAULT_EXECUTOR = getattr(module, cls_name)
 except:
     warnings.warn(
-        f"Could not import {prefect.config.flows.executor}, using prefect.engine.executors.LocalExecutor instead."
+        "Could not import {}, using prefect.engine.executors.LocalExecutor instead.".format(
+            cfg_exec
+        )
     )
     DEFAULT_EXECUTOR = executors.LocalExecutor
 
