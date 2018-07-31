@@ -1,14 +1,29 @@
 import functools
 import logging
+import warnings
 from collections import defaultdict
 from contextlib import contextmanager
+from importlib import import_module
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Union
 
 import prefect
 from prefect.core import Flow, Task
+from prefect.engine import executors
 from prefect.engine import signals
 from prefect.engine.state import Failed, Pending, Running, State, Success
 from prefect.engine.task_runner import TaskRunner
+
+
+try:
+    cfg_exec = prefect.config.flows.executor
+    *module, cls_name = cfg_exec.split(".")
+    module = import_module(".".join(module))
+    DEFAULT_EXECUTOR = getattr(module, cls_name)
+except:
+    warnings.warn(
+        f"Could not import {prefect.config.flows.executor}, using prefect.engine.executors.LocalExecutor instead."
+    )
+    DEFAULT_EXECUTOR = executors.LocalExecutor
 
 
 def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
@@ -153,7 +168,7 @@ class FlowRunner:
         start_tasks = start_tasks or []
         return_tasks = return_tasks or []
         task_contexts = task_contexts or {}
-        executor = executor or prefect.engine.executors.LocalExecutor()
+        executor = executor or DEFAULT_EXECUTOR()
 
         if not state.is_running():
             raise signals.DONTRUN("Flow is not in a Running state.")

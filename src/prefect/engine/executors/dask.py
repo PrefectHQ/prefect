@@ -20,7 +20,7 @@ class DaskExecutor(Executor):
         """
         Submit a function to the executor for execution. Returns a future
         """
-        return dask.delayed(fn, pure=True)(*args, **kwargs)
+        return dask.delayed(fn)(*args, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """
