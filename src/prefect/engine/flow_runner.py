@@ -8,24 +8,10 @@ from typing import Any, Callable, Dict, Iterable, Iterator, List, Union
 
 import prefect
 from prefect.core import Flow, Task
-from prefect.engine import executors
+from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine import signals
 from prefect.engine.state import Failed, Pending, Running, State, Success
 from prefect.engine.task_runner import TaskRunner
-
-
-try:
-    cfg_exec = prefect.config.flows.executor
-    *module, cls_name = cfg_exec.split(".")
-    module = import_module(".".join(module))
-    DEFAULT_EXECUTOR = getattr(module, cls_name)
-except:
-    warnings.warn(
-        "Could not import {}, using prefect.engine.executors.LocalExecutor instead.".format(
-            cfg_exec
-        )
-    )
-    DEFAULT_EXECUTOR = executors.LocalExecutor
 
 
 def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
