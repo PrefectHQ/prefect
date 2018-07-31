@@ -18,7 +18,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.triggers import manual_only
-from prefect.utilities.tests import raise_on_exception, run_flow_runner_test
+from prefect.utilities.tests import raise_on_exception
 
 
 class SuccessTask(Task):
