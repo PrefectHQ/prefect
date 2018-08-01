@@ -105,6 +105,12 @@ class TestPartialInputsOnly:
         state = CachedState(cached_inputs=dict(x=5))
         assert partial_inputs_only(state, None, None, validate_on=["x"]) is False
 
+    def test_curried(self):
+        state = CachedState(cached_inputs=dict(x=1, s="str"))
+        validator = partial_inputs_only(validate_on=["x"])
+        assert validator(state, dict(x=1), None) is True
+        assert validator(state, dict(x=2, s="str"), None) is False
+
 
 class TestPartialParametersOnly:
     def test_parameters_validate_with_defaults(self):
@@ -144,3 +150,9 @@ class TestPartialParametersOnly:
         )
         state = CachedState(cached_parameters=dict(x=5))
         assert partial_parameters_only(state, None, None, validate_on=["x"]) is False
+
+    def test_curried(self):
+        state = CachedState(cached_parameters=dict(x=1, s="str"))
+        validator = partial_parameters_only(validate_on=["x"])
+        assert validator(state, None, dict(x=1)) is True
+        assert validator(state, None, dict(x=2, s="str")) is False
