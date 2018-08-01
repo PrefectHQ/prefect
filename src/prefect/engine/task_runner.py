@@ -218,7 +218,7 @@ class TaskRunner:
                 expiration = None
             cached_state = CachedState(
                 cached_inputs=inputs,
-                cache_expiration=expiration,
+                cached_result_expiration=expiration,
                 cached_parameters=parameters,
                 cached_result=result,
             )

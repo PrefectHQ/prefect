@@ -86,7 +86,7 @@ def test_serialize():
     cached = CachedState(
         cached_inputs=dict(x=99, p="p"),
         cached_result=dict(hi=5, bye=6),
-        cache_expiration=now,
+        cached_result_expiration=now,
     )
     state = Success(result=dict(hi=5, bye=6), cached=cached)
     j = json.dumps(state)
@@ -95,7 +95,7 @@ def test_serialize():
     assert new_state.result == state.result
     assert new_state.timestamp == state.timestamp
     assert isinstance(new_state.cached, CachedState)
-    assert new_state.cached.cache_expiration == cached.cache_expiration
+    assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
     assert new_state.cached.cached_inputs == cached.cached_inputs
     assert new_state.cached.cached_result == cached.cached_result
 

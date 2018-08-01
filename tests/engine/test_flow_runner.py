@@ -444,7 +444,8 @@ class TestOutputCaching:
             f.add_edge(s, y, key="s")
 
         state = CachedState(
-            cache_expiration=datetime.datetime.utcnow() + datetime.timedelta(days=1),
+            cached_result_expiration=datetime.datetime.utcnow()
+            + datetime.timedelta(days=1),
             cached_result=100,
         )
         flow_state = FlowRunner(flow=f).run(
