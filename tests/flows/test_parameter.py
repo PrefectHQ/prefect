@@ -2,7 +2,7 @@ import pytest
 
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
-from prefect.tasks.core.function_task import FunctionTask
+from prefect.tasks.core.function import FunctionTask
 
 
 def test_create_parameter():

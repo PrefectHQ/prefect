@@ -10,6 +10,7 @@ import prefect
 from prefect.core import Task
 from prefect.engine import signals
 from prefect.engine.state import (
+    CachedState,
     Failed,
     MessageType,
     Pending,
@@ -54,7 +55,7 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
             logging.debug("RETRY signal raised")
             if raise_on_exception:
                 raise exc
-            return self.get_retry_state()
+            return self.get_retry_state(inputs=kwargs.get("inputs"))
 
         # PrefectStateSignals are trapped and turned into States
         except signals.PrefectStateSignal as exc:
@@ -92,17 +93,24 @@ class TaskRunner:
 
         with prefect.context(context, _task_name=self.task.name):
             try:
+                parameters = prefect.context.get("_parameters")
                 state = self.get_pre_run_state(
                     state=state,
                     upstream_states=upstream_states,
                     ignore_trigger=ignore_trigger,
+                    inputs=inputs,
+                    parameters=parameters,
                 )
-                state = self.get_run_state(state=state, inputs=inputs)
-                state = self.get_post_run_state(state=state)
+                state = self.get_run_state(
+                    state=state, inputs=inputs, parameters=parameters
+                )
+                state = self.get_post_run_state(state=state, inputs=inputs)
 
             # a DONTRUN signal at any point breaks the chain and we return
             # the most recently computed state
-            except signals.DONTRUN:
+            except signals.DONTRUN as exc:
+                if "manual_only" in str(exc):
+                    state.cached_inputs = inputs or {}
                 pass
 
         return state
@@ -113,6 +121,8 @@ class TaskRunner:
         state: State,
         upstream_states: Dict[Task, State] = None,
         ignore_trigger: bool = False,
+        inputs: Dict[str, Any] = None,
+        parameters: Dict[str, Any] = None,
     ) -> State:
         """
         Checks if a task is ready to run.
@@ -168,11 +178,20 @@ class TaskRunner:
         # ---------------------------------------------------------
         # We can start!
         # ---------------------------------------------------------
+        if isinstance(state, CachedState) and self.task.cache_validator(
+            state, inputs, parameters
+        ):
+            return Success(result=state.cached_result, cached=state)
 
         return Running(message="Starting task run")
 
     @handle_signals
-    def get_run_state(self, state: State, inputs: Dict[str, Any] = None) -> State:
+    def get_run_state(
+        self,
+        state: State,
+        inputs: Dict[str, Any] = None,
+        parameters: Dict[str, Any] = None,
+    ) -> State:
         """
         Runs a task.
 
@@ -194,10 +213,22 @@ class TaskRunner:
                 "Message was: {}".format(str(exc))
             )
 
-        return Success(data=result, message="Task run succeeded.")
+        if self.task.cache_for is not None:
+            expiration = datetime.datetime.utcnow() + self.task.cache_for
+            cached_state = CachedState(
+                cached_inputs=inputs,
+                cached_result_expiration=expiration,
+                cached_parameters=parameters,
+                cached_result=result,
+            )
+        else:
+            cached_state = None
+        return Success(
+            result=result, message="Task run succeeded.", cached=cached_state
+        )
 
     @handle_signals
-    def get_post_run_state(self, state: State) -> State:
+    def get_post_run_state(self, state: State, inputs: Dict[str, Any] = None) -> State:
         """
         If the final state failed, this method checks to see if it should be retried.
         """
@@ -208,18 +239,20 @@ class TaskRunner:
         if isinstance(state, Failed) and not isinstance(state, TriggerFailed):
             run_number = prefect.context.get("_task_run_number", 1)
             if run_number <= self.task.max_retries:
-                return self.get_retry_state()
+                return self.get_retry_state(inputs=inputs)
 
         raise signals.DONTRUN("State requires no further processing.")
 
-    def get_retry_state(self):
+    def get_retry_state(self, inputs: Dict[str, Any] = None) -> State:
         """
-        Returns a Retry state with the appropriate retry_time and last_run_number set.
+        Returns a Retry state with the appropriate scheduled_time and last_run_number set.
         """
         run_number = prefect.context.get("_task_run_number", 1)
-        retry_time = datetime.datetime.utcnow() + self.task.retry_delay
+        scheduled_time = datetime.datetime.utcnow() + self.task.retry_delay
         msg = "Retrying Task (after attempt {n} of {m})".format(
             n=run_number, m=self.task.max_retries + 1
         )
         self.logger.info(msg)
-        return Retrying(data=retry_time, message=msg)
+        return Retrying(
+            scheduled_time=scheduled_time, cached_inputs=inputs, message=msg
+        )

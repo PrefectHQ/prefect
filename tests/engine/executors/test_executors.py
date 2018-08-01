@@ -1,7 +1,7 @@
 import pytest
 
 import prefect
-from prefect.engine.executors import Executor, LocalExecutor
+from prefect.engine.executors import DaskExecutor, Executor, LocalExecutor
 
 
 class TestBaseExecutor:
@@ -53,3 +53,32 @@ class TestLocalExecutor:
         """LocalExecutor's wait() method just returns its input"""
         assert LocalExecutor().wait(1) == 1
         assert LocalExecutor().wait(prefect) is prefect
+
+
+class TestDaskExecutor:
+    def test_submit_and_wait(self):
+        to_compute = {}
+        to_compute["x"] = DaskExecutor().submit(lambda: 3)
+        to_compute["y"] = DaskExecutor().submit(lambda x: x + 1, to_compute["x"])
+        computed = DaskExecutor().wait(to_compute)
+        assert "x" in computed
+        assert "y" in computed
+        assert computed["x"] == 3
+        assert computed["y"] == 4
+
+    def test_submit_with_context(self):
+        executor = DaskExecutor()
+        context_fn = lambda: prefect.context.get("abc")
+        context = dict(abc="abc")
+
+        assert executor.wait(executor.submit(context_fn)) is None
+        with prefect.context(context):
+            assert executor.wait(executor.submit(context_fn)) == "abc"
+        fut = executor.submit_with_context(context_fn, context=context)
+        context.clear()
+        assert executor.wait(fut) == "abc"
+
+    def test_submit_with_context_requires_context_kwarg(self):
+        with pytest.raises(TypeError) as exc:
+            DaskExecutor().submit_with_context(lambda: 1)
+        assert "missing 1 required keyword-only argument: 'context'" in str(exc.value)

@@ -39,7 +39,7 @@ class Edge:
         self.downstream_task = downstream_task
 
         if key is not None:
-            if not is_valid_identifier(key):
+            if not (isinstance(key, str) and is_valid_identifier(key)):
                 raise ValueError(
                     'Key must be a valid identifier (received "{}")'.format(key)
                 )
@@ -62,4 +62,4 @@ class Edge:
         return False
 
     def __hash__(self) -> int:
-        return id(self)
+        return hash((self.upstream_task, self.downstream_task, self.key))

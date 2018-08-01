@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Iterable, List, Union
 
 from prefect.utilities.json import Serializable
 
@@ -18,7 +18,7 @@ class State(Serializable):
     """
 
     def __init__(self, data: Any = None, message: MessageType = None) -> None:
-        self.data = data
+        self.result = result
         self.message = message
         self._timestamp = datetime.datetime.utcnow()
 
@@ -34,7 +34,12 @@ class State(Serializable):
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
-            return self.data == other.data
+            eq = True
+            for attr in self.__dict__:
+                if attr.startswith("_") or attr == "message":
+                    continue
+                eq &= getattr(self, attr, object()) == getattr(other, attr, object())
+            return eq
         return False
 
     def __hash__(self) -> int:
@@ -68,9 +73,50 @@ class State(Serializable):
 class Pending(State):
     """Base pending state"""
 
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        cached_inputs: Dict[str, Any] = None,
+    ) -> None:
+        """
+        Create a new State object.
+            result (Any, optional): Defaults to None. A data payload for the state.
+            message (str or Exception, optional): Defaults to None. A message about the
+                state, which could be an Exception (or Signal) that caused it.
+        """
+        super().__init__(result=result, message=message)
+        self.cached_inputs = cached_inputs
+
+
+class CachedState(Pending):
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        cached_inputs: Dict[str, Any] = None,
+        cached_result: Dict[str, Any] = None,
+        cached_parameters: Dict[str, Any] = None,
+        cached_result_expiration: datetime.datetime = None,
+    ) -> None:
+        super().__init__(result=result, message=message, cached_inputs=cached_inputs)
+        self.cached_result = cached_result
+        self.cached_parameters = cached_parameters
+        self.cached_result_expiration = cached_result_expiration
+
 
 class Scheduled(Pending):
     """Pending state indicating the object has been scheduled to run"""
+
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        scheduled_time: datetime.datetime = None,
+        cached_inputs: Dict[str, Any] = None,
+    ) -> None:
+        super().__init__(result=result, message=message, cached_inputs=cached_inputs)
+        self.scheduled_time = scheduled_time
 
 
 class Retrying(Scheduled):
@@ -97,6 +143,15 @@ class Finished(State):
 
 class Success(Finished):
     """Finished state indicating success"""
+
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        cached: CachedState = None,
+    ) -> None:
+        super().__init__(result=result, message=message)
+        self.cached = cached
 
 
 class Failed(Finished):

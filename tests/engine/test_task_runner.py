@@ -5,7 +5,16 @@ import pytest
 import prefect
 from prefect.core.task import Task
 from prefect.engine import TaskRunner, signals
+from prefect.engine.cache_validators import (
+    all_inputs,
+    all_parameters,
+    duration_only,
+    never_use,
+    partial_inputs_only,
+    partial_parameters_only,
+)
 from prefect.engine.state import (
+    CachedState,
     Failed,
     Finished,
     Pending,
@@ -103,7 +112,7 @@ def test_task_that_fails_gets_retried_up_to_1_time():
     with prefect.context(_task_run_number=1):
         state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.data, datetime.datetime)
+    assert isinstance(state.scheduled_time, datetime.datetime)
 
     # second run should
     with prefect.context(_task_run_number=2):
@@ -122,7 +131,7 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     with prefect.context(_task_run_number=1):
         state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.data, datetime.datetime)
+    assert isinstance(state.scheduled_time, datetime.datetime)
 
     # second run should also be retry because the task raises it explicitly
 
@@ -189,6 +198,81 @@ class TestTaskRunner_get_pre_run_state:
     def test_returns_running_if_successful_with_pending_state(self, state):
         runner = TaskRunner(SuccessTask())
         state = runner.get_pre_run_state(state=state)
+        assert isinstance(state, Running)
+
+    def test_ignores_cached_state_if_task_didnt_ask_for_it(self):
+        runner = TaskRunner(SuccessTask())
+        state = runner.get_pre_run_state(state=CachedState(cached_result=4))
+        assert isinstance(state, Running)
+
+    def test_returns_running_if_cached_state_with_expired_cache(self):
+        runner = TaskRunner(SuccessTask(cache_validator=duration_only))
+        expiration = datetime.datetime.utcnow() - datetime.timedelta(days=1)
+        state = runner.get_pre_run_state(
+            state=CachedState(cached_result=4, cached_result_expiration=expiration)
+        )
+        assert isinstance(state, Running)
+
+    @pytest.mark.parametrize(
+        "validator",
+        [
+            all_inputs,
+            all_parameters,
+            duration_only,
+            partial_inputs_only,
+            partial_parameters_only,
+        ],
+    )
+    def test_returns_successful_if_cached_state_is_validated(self, validator):
+        runner = TaskRunner(SuccessTask(cache_validator=validator))
+        expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        inputs = dict(x=2, y=1)
+        params = dict(p="p", q=99)
+        state = runner.get_pre_run_state(
+            state=CachedState(
+                cached_parameters=params,
+                cached_inputs=inputs,
+                cached_result=4,
+                cached_result_expiration=expiration,
+            ),
+            inputs=inputs,
+            parameters=params,
+        )
+        assert isinstance(state, Success)
+        assert state.result == 4
+
+    def test_old_cached_state_is_still_returned_when_cache_is_used(self):
+        runner = TaskRunner(SuccessTask(cache_validator=duration_only))
+        expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        cached_state = CachedState(cached_result=4, cached_result_expiration=expiration)
+        state = runner.get_pre_run_state(state=cached_state)
+        assert isinstance(state, Success)
+        assert state.result == 4
+        assert state.cached == cached_state
+
+    @pytest.mark.parametrize(
+        "validator",
+        [
+            all_inputs,
+            all_parameters,
+            duration_only,
+            never_use,
+            partial_inputs_only,
+            partial_parameters_only,
+        ],
+    )
+    def test_returns_running_if_cached_state_is_invalidated(self, validator):
+        runner = TaskRunner(SuccessTask(cache_validator=validator))
+        expiration = datetime.datetime.utcnow() - datetime.timedelta(days=1)
+        state = runner.get_pre_run_state(
+            state=CachedState(
+                cached_inputs=dict(x=2),
+                cached_result=4,
+                cached_result_expiration=expiration,
+            ),
+            inputs=dict(x=1),
+            parameters=dict(y=7),
+        )
         assert isinstance(state, Running)
 
     def test_returns_failed_with_internal_error(self):
@@ -295,13 +379,13 @@ class TestTaskRunner_get_run_state:
     def test_runs_task(self):
         runner = TaskRunner(SuccessTask())
         state = runner.get_run_state(state=Running())
-        assert state == Success(data=1)
+        assert state == Success(result=1)
         assert "succeeded" in state.message.lower()
 
     def test_runs_task_with_inputs(self):
         runner = TaskRunner(AddTask())
         state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
-        assert state == Success(data=3)
+        assert state == Success(result=3)
 
     def test_fails_if_task_with_inputs_doesnt_receive_inputs(self):
         runner = TaskRunner(AddTask())
@@ -319,6 +403,29 @@ class TestTaskRunner_get_run_state:
         state = runner.get_run_state(state=Running())
         assert isinstance(state, Skipped)
         assert "dontrun was raised" in str(state.message).lower()
+
+    def test_ignores_cached_attribute_if_task_doesnt_ask_for_it(self):
+        runner = TaskRunner(AddTask())
+        state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
+        assert state.cached is None
+
+    def test_uses_cache_for_as_trigger_for_initializing_a_cache(self):
+        runner = TaskRunner(AddTask(cache_validator=duration_only))
+        state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
+        assert state.cached is None
+
+    def test_sets_cached_attribute_if_task_requests(self):
+        now = datetime.datetime.utcnow()
+        runner = TaskRunner(AddTask(cache_for=datetime.timedelta(days=1)))
+        state = runner.get_run_state(
+            state=Running(), inputs=dict(x=1, y=2), parameters=dict(qq="time")
+        )
+        cached = state.cached
+        assert isinstance(cached, CachedState)
+        assert cached.cached_result_expiration >= now + datetime.timedelta(hours=23)
+        assert cached.cached_inputs == dict(x=1, y=2)
+        assert cached.cached_parameters == dict(qq="time")
+        assert cached.cached_result == 3
 
 
 class TestTaskRunner_get_post_run_state:
@@ -349,7 +456,9 @@ class TestTaskRunner_get_post_run_state:
         with prefect.context(_task_run_number=1):
             state = runner.get_post_run_state(state=Failed())
         assert isinstance(state, Retrying)
-        assert (state.data - datetime.datetime.utcnow()) < datetime.timedelta(minutes=1)
+        assert (state.scheduled_time - datetime.datetime.utcnow()) < datetime.timedelta(
+            minutes=1
+        )
 
         with prefect.context(_task_run_number=2):
             with pytest.raises(signals.DONTRUN):

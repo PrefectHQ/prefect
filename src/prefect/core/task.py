@@ -3,6 +3,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 
 import prefect
+import prefect.engine.cache_validators
 import prefect.engine.signals
 import prefect.triggers
 from prefect.environments import Environment
@@ -16,22 +17,6 @@ if TYPE_CHECKING:
     from prefect.engine.state import State
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
-
-
-def get_task_info(task: "Task") -> Dict[str, Any]:
-    return dict(
-        name=task.name,
-        slug=task.slug,
-        type=to_qualified_name(type(task)),
-        description=task.description,
-        max_retries=task.max_retries,
-        retry_delay=task.retry_delay,
-        timeout=task.timeout,
-        trigger=task.trigger,
-        propagate_skip=task.propagate_skip,
-        environment=task.environment,
-        checkpoint=task.checkpoint,
-    )
 
 
 class SignatureValidator(type):
@@ -64,7 +49,8 @@ class Task(Serializable, metaclass=SignatureValidator):
         timeout: timedelta = None,
         trigger: Callable[[Dict["Task", "State"]], bool] = None,
         propagate_skip: bool = False,
-        checkpoint: bool = False,
+        cache_for: timedelta = None,
+        cache_validator: Callable = None,
     ) -> None:
 
         self.name = name or type(self).__name__
@@ -78,14 +64,17 @@ class Task(Serializable, metaclass=SignatureValidator):
             raise TypeError("Tags should be a set of tags, not a string.")
         self.tags = set(tags or prefect.context.get("_tags", []))
 
-        self.checkpoint = checkpoint
-
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
 
         self.trigger = trigger or prefect.triggers.all_successful
         self.propagate_skip = propagate_skip
+
+        self.cache_for = cache_for
+        self.cache_validator = (
+            cache_validator or prefect.engine.cache_validators.never_use
+        )
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
@@ -167,11 +156,19 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     # Serialization ------------------------------------------------------------
 
-    def info(self) -> Dict[str, Any]:
-        """
-        A description of the task.
-        """
-        return get_task_info(self)
+    def serialize(self, task: "Task") -> Dict[str, Any]:
+        return dict(
+            name=task.name,
+            slug=task.slug,
+            type=to_qualified_name(type(task)),
+            description=task.description,
+            max_retries=task.max_retries,
+            retry_delay=task.retry_delay,
+            timeout=task.timeout,
+            trigger=task.trigger,
+            propagate_skip=task.propagate_skip,
+            checkpoint=task.checkpoint,
+        )
 
 
 class Parameter(Task):
@@ -201,6 +198,9 @@ class Parameter(Task):
         self.default = default
 
         super().__init__(name=name, slug=name)
+
+    def __repr__(self) -> str:
+        return "<Parameter: {self.name}>".format(self=self)
 
     @property  # type: ignore
     def name(self) -> str:  # type: ignore

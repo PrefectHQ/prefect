@@ -30,7 +30,6 @@ import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
-from prefect.utilities.functions import cache
 from prefect.utilities.json import Serializable
 from prefect.utilities.tasks import as_task
 
@@ -38,14 +37,6 @@ __all__ = ["Flow"]
 
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
-
-
-def flow_cache_key(flow: "Flow") -> int:
-    """
-    Returns a cache key that can be used to determine if the cache is stale.
-    """
-
-    return hash((frozenset(flow.tasks), frozenset(flow.edges)))
 
 
 class Flow(Serializable):
@@ -80,7 +71,6 @@ class Flow(Serializable):
             )
 
         self._prefect_version = prefect.__version__
-        self._cache = {}
 
         super().__init__()
 
@@ -125,7 +115,6 @@ class Flow(Serializable):
 
     # Introspection ------------------------------------------------------------
 
-    @cache(validation_fn=flow_cache_key)
     def root_tasks(self) -> Set[Task]:
         """
         Returns the root tasks of the Flow -- tasks that have no upstream
@@ -133,7 +122,6 @@ class Flow(Serializable):
         """
         return set(t for t in self.tasks if not self.edges_to(t))
 
-    @cache(validation_fn=flow_cache_key)
     def terminal_tasks(self) -> Set[Task]:
         """
         Returns the terminal tasks of the Flow -- tasks that have no downstream
@@ -178,7 +166,7 @@ class Flow(Serializable):
             self.tasks, self.edges = tasks, edges
             raise
 
-    def add_task(self, task: Task) -> None:
+    def add_task(self, task: Task) -> Task:
         if not isinstance(task, Task):
             raise TypeError(
                 "Tasks must be Task instances (received {})".format(type(task))
@@ -192,13 +180,15 @@ class Flow(Serializable):
 
         self.tasks.add(task)
 
+        return task
+
     def add_edge(
         self,
         upstream_task: Task,
         downstream_task: Task,
         key: str = None,
         validate: bool = True,
-    ) -> None:
+    ) -> Edge:
         if isinstance(downstream_task, Parameter):
             raise ValueError(
                 "Parameters must be root tasks and can not have upstream dependencies."
@@ -232,6 +222,8 @@ class Flow(Serializable):
                 }
                 inspect.signature(downstream_task.run).bind_partial(**edge_keys)
 
+        return edge
+
     def update(self, flow: "Flow", validate: bool = True) -> None:
         with self.restore_graph_on_error(validate=validate):
 
@@ -248,14 +240,12 @@ class Flow(Serializable):
                         validate=False,
                     )
 
-    @cache(validation_fn=flow_cache_key)
     def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
         edges = {t: set() for t in self.tasks}  # type: Dict[Task, Set[Edge]]
         for edge in self.edges:
             edges[edge.downstream_task].add(edge)
         return edges
 
-    @cache(validation_fn=flow_cache_key)
     def all_downstream_edges(self) -> Dict[Task, Set[Edge]]:
         edges = {t: set() for t in self.tasks}  # type: Dict[Task, Set[Edge]]
         for edge in self.edges:
@@ -288,7 +278,6 @@ class Flow(Serializable):
         """
         self.sorted_tasks()
 
-    @cache(validation_fn=flow_cache_key)
     def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
 
         # begin by getting all tasks under consideration (root tasks and all
@@ -406,42 +395,56 @@ class Flow(Serializable):
         Run the flow.
         """
         runner = prefect.engine.flow_runner.FlowRunner(flow=self)
+        parameters = parameters or []
 
-        parameters = parameters or {}
+        passed_parameters = {}
         for p in self.parameters():
             if p in kwargs:
-                parameters[p] = kwargs.pop(p)
+                passed_parameters[p] = kwargs.pop(p)
+            elif p in parameters:
+                passed_parameters[p] = parameters[p]
 
-        state = runner.run(parameters=parameters, return_tasks=return_tasks, **kwargs)
+        state = runner.run(
+            parameters=passed_parameters, return_tasks=return_tasks, **kwargs
+        )
 
         # state always should return a dict of tasks. If it's None (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
-        if state.data is None:
-            state.data = {}
+        if state.result is None:
+            state.result = {}
         for task in return_tasks or []:
-            if task not in state.data:
-                state.data[task] = prefect.engine.state.Pending(message="Task not run.")
+            if task not in state.result:
+                state.result[task] = prefect.engine.state.Pending(
+                    message="Task not run."
+                )
         return state
 
     # Serialization ------------------------------------------------------------
 
-    def serialize(self, seed=None) -> dict:
-        ref_ids = self.fingerprint(seed=seed)
+    def _generate_obj_ids(self) -> dict:
+        obj_ids = {}
+        for task in self.tasks:
+            obj_ids[task] = str(uuid.uuid4())
+
+        return obj_ids
+
+    def serialize(self) -> dict:
+
+        # Generate obj_ids for the tasks
+        obj_ids = self._generate_obj_ids()
 
         return dict(
-            ref_id=ref_ids["flow_id"],
             name=self.name,
             version=self.version,
             description=self.description,
+            environment=self.environment,
             parameters=self.parameters(),
             schedule=self.schedule,
-            tasks=[
-                dict(ref_id=ref_ids["task_ids"][t], **t.serialize()) for t in self.tasks
-            ],
+            tasks=[dict(obj_id=obj_ids[t], **t.serialize()) for t in self.tasks],
             edges=[
                 dict(
-                    upstream_ref_id=ref_ids["task_ids"][e.upstream_task],
-                    downstream_ref_id=ref_ids["task_ids"][e.downstream_task],
+                    upstream_task_obj_id=obj_ids[e.upstream_task],
+                    downstream_task_obj_id=obj_ids[e.downstream_task],
                     key=e.key,
                 )
                 for e in self.edges

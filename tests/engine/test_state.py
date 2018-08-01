@@ -4,6 +4,7 @@ import json
 import pytest
 
 from prefect.engine.state import (
+    CachedState,
     Failed,
     Finished,
     Pending,
@@ -17,6 +18,7 @@ from prefect.engine.state import (
 )
 
 all_states = [
+    CachedState,
     State,
     Pending,
     Running,
@@ -33,21 +35,21 @@ all_states = [
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_no_args(cls):
     state = cls()
-    assert state.data is None
+    assert state.result is None
     assert state.message is None
 
 
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_positional_data_arg(cls):
     state = cls(1)
-    assert state.data == 1
+    assert state.result == 1
     assert state.message is None
 
 
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_data_and_message(cls):
-    state = cls(message="x", data="y")
-    assert state.data == "y"
+    state = cls(message="x", result="y")
+    assert state.result == "y"
     assert state.message == "x"
 
 
@@ -56,8 +58,8 @@ def test_create_state_with_data_and_error(cls):
     try:
         1 / 0
     except Exception as e:
-        state = cls(data="oh no!", message=e)
-    assert state.data == "oh no!"
+        state = cls(result="oh no!", message=e)
+    assert state.result == "oh no!"
     assert isinstance(state.message, Exception)
     assert "division by zero" in str(state.message)
 
@@ -80,31 +82,53 @@ def test_timestamp_is_serialized():
 
 
 def test_serialize():
-    state = Success(data=dict(hi=5, bye=6))
+    now = datetime.datetime.utcnow()
+    cached = CachedState(
+        cached_inputs=dict(x=99, p="p"),
+        cached_result=dict(hi=5, bye=6),
+        cached_result_expiration=now,
+    )
+    state = Success(result=dict(hi=5, bye=6), cached=cached)
     j = json.dumps(state)
     new_state = json.loads(j)
     assert isinstance(new_state, Success)
-    assert new_state.data == state.data
+    assert new_state.result == state.result
+    assert new_state.timestamp == state.timestamp
+    assert isinstance(new_state.cached, CachedState)
+    assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
+    assert new_state.cached.cached_inputs == cached.cached_inputs
+    assert new_state.cached.cached_result == cached.cached_result
+
+
+def test_serialization_of_cached_inputs():
+    state = Pending(cached_inputs=dict(hi=5, bye=6))
+    j = json.dumps(state)
+    new_state = json.loads(j)
+    assert isinstance(new_state, Pending)
+    assert new_state.cached_inputs == state.cached_inputs
     assert new_state.timestamp == state.timestamp
 
 
 def test_state_equality():
     assert State() == State()
     assert Success() == Success()
-    assert Success(data=1) == Success(data=1)
+    assert Success(result=1) == Success(result=1)
     assert not State() == Success()
-    assert not Success(data=1) == Success(data=2)
+    assert not Success(result=1) == Success(result=2)
+    assert Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(x=1))
+    assert not Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(x=2))
+    assert not Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(y=1))
 
 
 def test_state_equality_ignores_message():
-    assert State(data=1, message="x") == State(data=1, message="y")
-    assert State(data=1, message="x") != State(data=2, message="x")
+    assert State(result=1, message="x") == State(result=1, message="y")
+    assert State(result=1, message="x") != State(result=2, message="x")
 
 
 def test_state_equality_with_nested_states():
-    s1 = State(data=Success(1))
-    s2 = State(data=Success(2))
-    s3 = State(data=Success(1))
+    s1 = State(result=Success(1))
+    s2 = State(result=Success(2))
+    s3 = State(result=Success(1))
     assert s1 != s2
     assert s1 == s3
 
@@ -114,12 +138,15 @@ def test_states_are_hashable():
 
 
 def test_states_with_mutable_attrs_are_hashable():
-    assert {State(data=[1]), Pending(data=dict(a=1))}
+    assert {State(result=[1]), Pending(cached_inputs=dict(a=1))}
 
 
 class TestStateHierarchy:
     def test_scheduled_is_pending(self):
         assert issubclass(Scheduled, Pending)
+
+    def test_cached_is_pending(self):
+        assert issubclass(CachedState, Pending)
 
     def test_retrying_is_pending(self):
         assert issubclass(Retrying, Pending)
@@ -167,6 +194,14 @@ class TestStateMethods:
         state = Running()
         assert not state.is_pending()
         assert state.is_running()
+        assert not state.is_finished()
+        assert not state.is_successful()
+        assert not state.is_failed()
+
+    def test_state_type_methods_with_cached_state(self):
+        state = CachedState()
+        assert state.is_pending()
+        assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_successful()
         assert not state.is_failed()
