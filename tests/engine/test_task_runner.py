@@ -401,11 +401,14 @@ class TestTaskRunner_get_run_state:
     def test_sets_cached_attribute_if_task_requests(self):
         now = datetime.datetime.utcnow()
         runner = TaskRunner(AddTask(cache_for=datetime.timedelta(days=1)))
-        state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
+        state = runner.get_run_state(
+            state=Running(), inputs=dict(x=1, y=2), parameters=dict(qq="time")
+        )
         cached = state.cached
         assert isinstance(cached, CachedState)
         assert cached.cache_expiration >= now + datetime.timedelta(hours=23)
         assert cached.cached_inputs == dict(x=1, y=2)
+        assert cached.cached_parameters == dict(qq="time")
         assert cached.cached_result == 3
 
 
