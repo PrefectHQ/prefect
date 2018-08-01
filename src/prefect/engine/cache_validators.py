@@ -5,6 +5,7 @@ is still valid, or whether that task should be re-run.
 A cache validator returns True if the cache is still valid, and False otherwise.
 """
 from datetime import datetime, timedelta
+from toolz import curry
 from typing import TYPE_CHECKING, Dict, Iterable
 
 
@@ -21,21 +22,55 @@ def duration_only(state, inputs, parameters) -> bool:
         return False
 
 
-def all_parameters(state, inputs, parameters) -> bool:
-    if duration_only(state, inputs, parameters) is False:
-        return False
-
-
-def upstream_parameters_only(state, inputs, parameters) -> bool:
-    if duration_only(state, inputs, parameters) is False:
-        return False
-
-
 def all_inputs(state, inputs, parameters) -> bool:
     if duration_only(state, inputs, parameters) is False:
         return False
+    elif state.cached_inputs == inputs:
+        return True
+    else:
+        return False
 
 
-def partial_inputs_only(state, inputs, parameters) -> bool:
+def all_parameters(state, inputs, parameters) -> bool:
     if duration_only(state, inputs, parameters) is False:
         return False
+    elif state.cached_parameters == parameters:
+        return True
+    else:
+        return False
+
+
+@curry
+def partial_parameters_only(state, inputs, parameters, validate_on=None) -> bool:
+    if duration_only(state, inputs, parameters) is False:
+        return False
+    elif validate_on is None:
+        return True  # if you dont want to validate on anything, then the cache is valid
+    else:
+        partial_provided = {
+            key: value for key, value in parameters.items() if key in validate_on
+        }
+        partial_needed = {
+            key: value
+            for key, value in state.cached_parameters.items()
+            if key in validate_on
+        }
+        return partial_provided == partial_needed
+
+
+@curry
+def partial_inputs_only(state, inputs, parameters, validate_on=None) -> bool:
+    if duration_only(state, inputs, parameters) is False:
+        return False
+    elif validate_on is None:
+        return True  # if you dont want to validate on anything, then the cache is valid
+    else:
+        partial_provided = {
+            key: value for key, value in inputs.items() if key in validate_on
+        }
+        partial_needed = {
+            key: value
+            for key, value in state.cached_inputs.items()
+            if key in validate_on
+        }
+        return partial_provided == partial_needed

@@ -69,7 +69,9 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.propagate_skip = propagate_skip
 
         self.cache_for = cache_for
-        self.cache_validator = cache_validator or prefect.engine.cache_validators.never_use
+        self.cache_validator = (
+            cache_validator or prefect.engine.cache_validators.never_use
+        )
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)

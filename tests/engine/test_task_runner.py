@@ -195,9 +195,7 @@ class TestTaskRunner_get_pre_run_state:
 
     def test_ignores_cached_state_if_task_didnt_ask_for_it(self):
         runner = TaskRunner(SuccessTask())
-        state = runner.get_pre_run_state(
-            state=CachedState(cached_outputs=4)
-        )
+        state = runner.get_pre_run_state(state=CachedState(cached_outputs=4))
         assert isinstance(state, Running)
 
     def test_returns_running_if_cached_state_with_expired_cache(self):
@@ -208,13 +206,13 @@ class TestTaskRunner_get_pre_run_state:
         )
         assert isinstance(state, Running)
 
-    @pytest.mark.parametrize('validator', [duration_only])
+    @pytest.mark.parametrize("validator", [duration_only])
     def test_returns_successful_if_cached_state_is_validated(self, validator):
         runner = TaskRunner(SuccessTask(cache_validator=validator))
         expiry = datetime.datetime.utcnow() + datetime.timedelta(days=1)
         state = runner.get_pre_run_state(
             state=CachedState(
-                cached_parameters=dict(p='p', q=99),
+                cached_parameters=dict(p="p", q=99),
                 cached_inputs=dict(x=2, y=1),
                 cached_outputs=4,
                 cache_expiration=expiry,
@@ -224,19 +222,19 @@ class TestTaskRunner_get_pre_run_state:
         assert isinstance(state, Success)
         assert state.result == 4
 
-#    @pytest.mark.parametrize('validator', [never_run])
-#    def test_returns_running_if_cached_state_is_invalidated(self, validator):
-#        runner = TaskRunner(SuccessTask(cache_validator=validator))
-#        expiry = datetime.datetime.utcnow() + datetime.timedelta(days=1)
-#        state = runner.get_pre_run_state(
-#            state=CachedState(
-#                cached_inputs=dict(x=2),
-#                cached_outputs=4,
-#                cache_expiration=expiry,
-#            ),
-#            inputs=dict(x=1),
-#        )
-#        assert isinstance(state, Running)
+    #    @pytest.mark.parametrize('validator', [never_run])
+    #    def test_returns_running_if_cached_state_is_invalidated(self, validator):
+    #        runner = TaskRunner(SuccessTask(cache_validator=validator))
+    #        expiry = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    #        state = runner.get_pre_run_state(
+    #            state=CachedState(
+    #                cached_inputs=dict(x=2),
+    #                cached_outputs=4,
+    #                cache_expiration=expiry,
+    #            ),
+    #            inputs=dict(x=1),
+    #        )
+    #        assert isinstance(state, Running)
 
     def test_returns_failed_with_internal_error(self):
         runner = TaskRunner(SuccessTask())
