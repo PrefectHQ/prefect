@@ -10,6 +10,7 @@ import prefect
 from prefect.core import Task
 from prefect.engine import signals
 from prefect.engine.state import (
+    CachedState,
     Failed,
     MessageType,
     Pending,
@@ -89,12 +90,17 @@ class TaskRunner:
 
         with prefect.context(context, _task_name=self.task.name):
             try:
+                parameters = prefect.context.get("_parameters")
                 state = self.get_pre_run_state(
                     state=state,
                     upstream_states=upstream_states,
                     ignore_trigger=ignore_trigger,
+                    inputs=inputs,
+                    parameters=parameters,
                 )
-                state = self.get_run_state(state=state, inputs=inputs)
+                state = self.get_run_state(
+                    state=state, inputs=inputs, parameters=parameters
+                )
                 state = self.get_post_run_state(state=state, inputs=inputs)
 
             # a DONTRUN signal at any point breaks the chain and we return
@@ -112,6 +118,8 @@ class TaskRunner:
         state: State,
         upstream_states: Dict[Task, State] = None,
         ignore_trigger: bool = False,
+        inputs: Dict[str, Any] = None,
+        parameters: Dict[str, Any] = None,
     ) -> State:
         """
         Checks if a task is ready to run.
@@ -167,11 +175,20 @@ class TaskRunner:
         # ---------------------------------------------------------
         # We can start!
         # ---------------------------------------------------------
+        if isinstance(state, CachedState) and self.task.cache_validator(
+            state, inputs, parameters
+        ):
+            return Success(result=state.cached_result, cached=state)
 
         return Running(message="Starting task run")
 
     @handle_signals
-    def get_run_state(self, state: State, inputs: Dict[str, Any] = None) -> State:
+    def get_run_state(
+        self,
+        state: State,
+        inputs: Dict[str, Any] = None,
+        parameters: Dict[str, Any] = None,
+    ) -> State:
         """
         Runs a task.
 
@@ -193,7 +210,19 @@ class TaskRunner:
                 "Message was: {}".format(str(exc))
             )
 
-        return Success(result=result, message="Task run succeeded.")
+        if self.task.cache_for is not None:
+            expiration = datetime.datetime.utcnow() + self.task.cache_for
+            cached_state = CachedState(
+                cached_inputs=inputs,
+                cached_result_expiration=expiration,
+                cached_parameters=parameters,
+                cached_result=result,
+            )
+        else:
+            cached_state = None
+        return Success(
+            result=result, message="Task run succeeded.", cached=cached_state
+        )
 
     @handle_signals
     def get_post_run_state(self, state: State, inputs: Dict[str, Any] = None) -> State:

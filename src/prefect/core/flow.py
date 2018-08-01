@@ -390,13 +390,18 @@ class Flow(Serializable):
         Run the flow.
         """
         runner = prefect.engine.flow_runner.FlowRunner(flow=self)
+        parameters = parameters or []
 
-        parameters = parameters or {}
+        passed_parameters = {}
         for p in self.parameters():
             if p in kwargs:
-                parameters[p] = kwargs.pop(p)
+                passed_parameters[p] = kwargs.pop(p)
+            elif p in parameters:
+                passed_parameters[p] = parameters[p]
 
-        state = runner.run(parameters=parameters, return_tasks=return_tasks, **kwargs)
+        state = runner.run(
+            parameters=passed_parameters, return_tasks=return_tasks, **kwargs
+        )
 
         # state always should return a dict of tasks. If it's None (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
