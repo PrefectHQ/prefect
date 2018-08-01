@@ -99,8 +99,14 @@ class TestPartialInputsOnly:
             is False
         )
 
+    def test_handles_none(self):
+        state = CachedState(cached_parameters=dict(x=5))
+        assert partial_inputs_only(state, dict(x=5), None, validate_on=["x"]) is False
+        state = CachedState(cached_inputs=dict(x=5))
+        assert partial_inputs_only(state, None, None, validate_on=["x"]) is False
 
-class TestUpstreamParametersOnly:
+
+class TestPartialParametersOnly:
     def test_parameters_validate_with_defaults(self):
         state = CachedState(cached_parameters=dict(x=1, s="str"))
         assert partial_parameters_only(state, None, dict(x=1, s="str")) is True
@@ -130,3 +136,11 @@ class TestUpstreamParametersOnly:
             partial_parameters_only(state, None, dict(x=1, s="strs"), validate_on=["s"])
             is False
         )
+
+    def test_handles_none(self):
+        state = CachedState(cached_inputs=dict(x=5))
+        assert (
+            partial_parameters_only(state, None, dict(x=5), validate_on=["x"]) is False
+        )
+        state = CachedState(cached_parameters=dict(x=5))
+        assert partial_parameters_only(state, None, None, validate_on=["x"]) is False

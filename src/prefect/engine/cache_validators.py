@@ -42,35 +42,35 @@ def all_parameters(state, inputs, parameters) -> bool:
 
 @curry
 def partial_parameters_only(state, inputs, parameters, validate_on=None) -> bool:
+    parameters = parameters or {}
     if duration_only(state, inputs, parameters) is False:
         return False
     elif validate_on is None:
         return True  # if you dont want to validate on anything, then the cache is valid
     else:
+        cached = state.cached_parameters or {}
         partial_provided = {
             key: value for key, value in parameters.items() if key in validate_on
         }
         partial_needed = {
-            key: value
-            for key, value in state.cached_parameters.items()
-            if key in validate_on
+            key: value for key, value in cached.items() if key in validate_on
         }
         return partial_provided == partial_needed
 
 
 @curry
 def partial_inputs_only(state, inputs, parameters, validate_on=None) -> bool:
+    inputs = inputs or {}
     if duration_only(state, inputs, parameters) is False:
         return False
     elif validate_on is None:
         return True  # if you dont want to validate on anything, then the cache is valid
     else:
+        cached = state.cached_inputs or {}
         partial_provided = {
             key: value for key, value in inputs.items() if key in validate_on
         }
         partial_needed = {
-            key: value
-            for key, value in state.cached_inputs.items()
-            if key in validate_on
+            key: value for key, value in cached.items() if key in validate_on
         }
         return partial_provided == partial_needed
