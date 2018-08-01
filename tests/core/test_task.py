@@ -5,6 +5,7 @@ import pytest
 
 import prefect
 from prefect.core import Flow, Parameter, Task
+from prefect.engine.cache_validators import duration_only, never_use
 from prefect.utilities.tasks import task
 
 
@@ -75,6 +76,12 @@ class TestCreateTask:
             class VarArgsTask(Task):
                 def run(self, x, *y):
                     pass
+
+    def test_create_task_with_and_without_cache_for(self):
+        t1 = Task()
+        assert t1.cache_validator is never_use
+        t2 = Task(cache_for=timedelta(days=1))
+        assert t2.cache_validator is duration_only
 
 
 def test_groups():
