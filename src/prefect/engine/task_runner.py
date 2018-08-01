@@ -9,7 +9,6 @@ from typing import Any, Callable, Dict, Iterator, List, MutableMapping, Union
 import prefect
 from prefect.core import Task
 from prefect.engine import signals
-from prefect.engine.cache_validators import never_use
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -211,11 +210,8 @@ class TaskRunner:
                 "Message was: {}".format(str(exc))
             )
 
-        if self.task.cache_validator is not never_use:
-            if self.task.cache_for is not None:
-                expiration = datetime.datetime.utcnow() + self.task.cache_for
-            else:
-                expiration = None
+        if self.task.cache_for is not None:
+            expiration = datetime.datetime.utcnow() + self.task.cache_for
             cached_state = CachedState(
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
