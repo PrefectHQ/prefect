@@ -207,9 +207,9 @@ class TestTaskRunner_get_pre_run_state:
 
     def test_returns_running_if_cached_state_with_expired_cache(self):
         runner = TaskRunner(SuccessTask(cache_validator=duration_only))
-        expiry = datetime.datetime.utcnow() - datetime.timedelta(days=1)
+        expiration = datetime.datetime.utcnow() - datetime.timedelta(days=1)
         state = runner.get_pre_run_state(
-            state=CachedState(cached_result=4, cache_expiration=expiry)
+            state=CachedState(cached_result=4, cached_result_expiration=expiration)
         )
         assert isinstance(state, Running)
 
@@ -225,7 +225,7 @@ class TestTaskRunner_get_pre_run_state:
     )
     def test_returns_successful_if_cached_state_is_validated(self, validator):
         runner = TaskRunner(SuccessTask(cache_validator=validator))
-        expiry = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)
         inputs = dict(x=2, y=1)
         params = dict(p="p", q=99)
         state = runner.get_pre_run_state(
@@ -233,7 +233,7 @@ class TestTaskRunner_get_pre_run_state:
                 cached_parameters=params,
                 cached_inputs=inputs,
                 cached_result=4,
-                cache_expiration=expiry,
+                cached_result_expiration=expiration,
             ),
             inputs=inputs,
             parameters=params,
@@ -254,10 +254,12 @@ class TestTaskRunner_get_pre_run_state:
     )
     def test_returns_running_if_cached_state_is_invalidated(self, validator):
         runner = TaskRunner(SuccessTask(cache_validator=validator))
-        expiry = datetime.datetime.utcnow() - datetime.timedelta(days=1)
+        expiration = datetime.datetime.utcnow() - datetime.timedelta(days=1)
         state = runner.get_pre_run_state(
             state=CachedState(
-                cached_inputs=dict(x=2), cached_result=4, cache_expiration=expiry
+                cached_inputs=dict(x=2),
+                cached_result=4,
+                cached_result_expiration=expiration,
             ),
             inputs=dict(x=1),
             parameters=dict(y=7),
@@ -406,7 +408,7 @@ class TestTaskRunner_get_run_state:
         )
         cached = state.cached
         assert isinstance(cached, CachedState)
-        assert cached.cache_expiration >= now + datetime.timedelta(hours=23)
+        assert cached.cached_result_expiration >= now + datetime.timedelta(hours=23)
         assert cached.cached_inputs == dict(x=1, y=2)
         assert cached.cached_parameters == dict(qq="time")
         assert cached.cached_result == 3

@@ -28,17 +28,19 @@ def test_never_use_returns_false():
 
 @pytest.mark.parametrize("validator", all_validators)
 def test_expired_cache(validator):
-    state = CachedState(cache_expiration=datetime.utcnow() - timedelta(days=1))
+    state = CachedState(cached_result_expiration=datetime.utcnow() - timedelta(days=1))
     assert validator(state, None, None) is False
 
 
 class TestDurationOnly:
     def test_unexpired_cache(self):
-        state = CachedState(cache_expiration=datetime.utcnow() + timedelta(days=1))
+        state = CachedState(
+            cached_result_expiration=datetime.utcnow() + timedelta(days=1)
+        )
         assert duration_only(state, None, None) is True
 
-    def test_cache_expiration_none_is_interpreted_as_infinite(self):
-        state = CachedState(cache_expiration=None)
+    def test_cached_result_expiration_none_is_interpreted_as_infinite(self):
+        state = CachedState(cached_result_expiration=None)
         assert duration_only(state, None, None) is True
 
 

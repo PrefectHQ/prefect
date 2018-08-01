@@ -14,9 +14,9 @@ def never_use(state, inputs, parameters) -> bool:
 
 
 def duration_only(state, inputs, parameters) -> bool:
-    if state.cache_expiration is None:
+    if state.cached_result_expiration is None:
         return True
-    elif state.cache_expiration > datetime.utcnow():
+    elif state.cached_result_expiration > datetime.utcnow():
         return True
     else:
         return False
