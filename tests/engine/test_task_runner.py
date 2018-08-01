@@ -241,6 +241,15 @@ class TestTaskRunner_get_pre_run_state:
         assert isinstance(state, Success)
         assert state.result == 4
 
+    def test_old_cached_state_is_still_returned_when_cache_is_used(self):
+        runner = TaskRunner(SuccessTask(cache_validator=duration_only))
+        expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        cached_state = CachedState(cached_result=4, cached_result_expiration=expiration)
+        state = runner.get_pre_run_state(state=cached_state)
+        assert isinstance(state, Success)
+        assert state.result == 4
+        assert state.cached == cached_state
+
     @pytest.mark.parametrize(
         "validator",
         [

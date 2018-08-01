@@ -178,7 +178,7 @@ class TaskRunner:
         if isinstance(state, CachedState) and self.task.cache_validator(
             state, inputs, parameters
         ):
-            return Success(result=state.cached_result)
+            return Success(result=state.cached_result, cached=state)
 
         return Running(message="Starting task run")
 
