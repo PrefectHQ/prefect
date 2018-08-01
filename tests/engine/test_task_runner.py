@@ -400,6 +400,11 @@ class TestTaskRunner_get_run_state:
         state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
         assert state.cached is None
 
+    def test_uses_cache_for_as_trigger_for_initializing_a_cache(self):
+        runner = TaskRunner(AddTask(cache_validator=duration_only))
+        state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
+        assert state.cached is None
+
     def test_sets_cached_attribute_if_task_requests(self):
         now = datetime.datetime.utcnow()
         runner = TaskRunner(AddTask(cache_for=datetime.timedelta(days=1)))
