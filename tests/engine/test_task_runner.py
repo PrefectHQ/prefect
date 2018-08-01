@@ -202,14 +202,14 @@ class TestTaskRunner_get_pre_run_state:
 
     def test_ignores_cached_state_if_task_didnt_ask_for_it(self):
         runner = TaskRunner(SuccessTask())
-        state = runner.get_pre_run_state(state=CachedState(cached_outputs=4))
+        state = runner.get_pre_run_state(state=CachedState(cached_result=4))
         assert isinstance(state, Running)
 
     def test_returns_running_if_cached_state_with_expired_cache(self):
         runner = TaskRunner(SuccessTask(cache_validator=duration_only))
         expiry = datetime.datetime.utcnow() - datetime.timedelta(days=1)
         state = runner.get_pre_run_state(
-            state=CachedState(cached_outputs=4, cache_expiration=expiry)
+            state=CachedState(cached_result=4, cache_expiration=expiry)
         )
         assert isinstance(state, Running)
 
@@ -232,7 +232,7 @@ class TestTaskRunner_get_pre_run_state:
             state=CachedState(
                 cached_parameters=params,
                 cached_inputs=inputs,
-                cached_outputs=4,
+                cached_result=4,
                 cache_expiration=expiry,
             ),
             inputs=inputs,
@@ -257,7 +257,7 @@ class TestTaskRunner_get_pre_run_state:
         expiry = datetime.datetime.utcnow() - datetime.timedelta(days=1)
         state = runner.get_pre_run_state(
             state=CachedState(
-                cached_inputs=dict(x=2), cached_outputs=4, cache_expiration=expiry
+                cached_inputs=dict(x=2), cached_result=4, cache_expiration=expiry
             ),
             inputs=dict(x=1),
             parameters=dict(y=7),

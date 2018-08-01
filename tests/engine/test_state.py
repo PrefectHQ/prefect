@@ -82,12 +82,22 @@ def test_timestamp_is_serialized():
 
 
 def test_serialize():
-    state = Success(result=dict(hi=5, bye=6))
+    now = datetime.datetime.utcnow()
+    cached = CachedState(
+        cached_inputs=dict(x=99, p="p"),
+        cached_result=dict(hi=5, bye=6),
+        cache_expiration=now,
+    )
+    state = Success(result=dict(hi=5, bye=6), cached=cached)
     j = json.dumps(state)
     new_state = json.loads(j)
     assert isinstance(new_state, Success)
     assert new_state.result == state.result
     assert new_state.timestamp == state.timestamp
+    assert isinstance(new_state.cached, CachedState)
+    assert new_state.cached.cache_expiration == cached.cache_expiration
+    assert new_state.cached.cached_inputs == cached.cached_inputs
+    assert new_state.cached.cached_result == cached.cached_result
 
 
 def test_serialization_of_cached_inputs():

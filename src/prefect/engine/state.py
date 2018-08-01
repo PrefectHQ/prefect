@@ -91,12 +91,12 @@ class CachedState(Pending):
         result: Any = None,
         message: MessageType = None,
         cached_inputs: Dict[str, Any] = None,
-        cached_outputs: Dict[str, Any] = None,
+        cached_result: Dict[str, Any] = None,
         cached_parameters: Dict[str, Any] = None,
         cache_expiration: datetime.datetime = None,
     ) -> None:
         super().__init__(result=result, message=message, cached_inputs=cached_inputs)
-        self.cached_outputs = cached_outputs
+        self.cached_result = cached_result
         self.cached_parameters = cached_parameters
         self.cache_expiration = cache_expiration
 
@@ -139,6 +139,15 @@ class Finished(State):
 
 class Success(Finished):
     """Finished state indicating success"""
+
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        cached: CachedState = None,
+    ) -> None:
+        super().__init__(result=result, message=message)
+        self.cached = cached
 
 
 class Failed(Finished):
