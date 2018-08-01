@@ -445,7 +445,7 @@ class TestOutputCaching:
 
         state = CachedState(
             cache_expiration=datetime.datetime.utcnow() + datetime.timedelta(days=1),
-            cached_outputs=100,
+            cached_result=100,
         )
         flow_state = FlowRunner(flow=f).run(
             parameters=dict(x=1), return_tasks=[y], task_states={y: state}
