@@ -5,6 +5,7 @@ import pytest
 
 import prefect
 from prefect.core import Flow, Parameter, Task
+from prefect.engine.cache_validators import never_use
 from prefect.utilities.tasks import task
 
 
@@ -41,13 +42,6 @@ class TestCreateTask:
         t2 = Task(description="test")
         assert t2.description == "test"
 
-    def test_create_task_with_checkpoint(self):
-        t1 = Task()
-        assert not t1.checkpoint
-
-        t2 = Task(checkpoint=True)
-        assert t2.checkpoint
-
     def test_create_task_with_max_retries(self):
         t1 = Task()
         assert t1.max_retries == 0
@@ -82,6 +76,12 @@ class TestCreateTask:
             class VarArgsTask(Task):
                 def run(self, x, *y):
                     pass
+
+    def test_create_task_with_and_without_cache_for(self):
+        t1 = Task()
+        assert t1.cache_validator is never_use
+        t2 = Task(cache_for=timedelta(days=1))
+        assert t2.cache_validator is never_use
 
 
 def test_groups():

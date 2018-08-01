@@ -332,3 +332,18 @@ def test_sorted_tasks_with_start_task():
     f.add_edge(t3, t5)
     assert set(f.sorted_tasks(root_tasks=[])) == set([t1, t2, t3, t4, t5])
     assert set(f.sorted_tasks(root_tasks=[t3])) == set([t3, t4, t5])
+
+
+def test_flow_ignores_irrelevant_user_provided_parameters():
+    class ParameterTask(Task):
+        def run(self):
+            return prefect.context.get("_parameters")
+
+    with Flow() as f:
+        x = Parameter("x")
+        t = ParameterTask()
+        f.add_task(x)
+        f.add_task(t)
+
+    state = f.run(return_tasks=[t], parameters=dict(x=10, y=3, z=9))
+    assert state.result[t].result == dict(x=10)

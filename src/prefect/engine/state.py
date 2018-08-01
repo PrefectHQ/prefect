@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Iterable, List, Union
 
 from prefect.utilities.json import Serializable
 
@@ -85,6 +85,22 @@ class Pending(State):
         self.cached_inputs = cached_inputs
 
 
+class CachedState(Pending):
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        cached_inputs: Dict[str, Any] = None,
+        cached_result: Dict[str, Any] = None,
+        cached_parameters: Dict[str, Any] = None,
+        cached_result_expiration: datetime.datetime = None,
+    ) -> None:
+        super().__init__(result=result, message=message, cached_inputs=cached_inputs)
+        self.cached_result = cached_result
+        self.cached_parameters = cached_parameters
+        self.cached_result_expiration = cached_result_expiration
+
+
 class Scheduled(Pending):
     """Pending state indicating the object has been scheduled to run"""
 
@@ -123,6 +139,15 @@ class Finished(State):
 
 class Success(Finished):
     """Finished state indicating success"""
+
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        cached: CachedState = None,
+    ) -> None:
+        super().__init__(result=result, message=message)
+        self.cached = cached
 
 
 class Failed(Finished):

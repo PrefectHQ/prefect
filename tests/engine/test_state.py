@@ -4,6 +4,7 @@ import json
 import pytest
 
 from prefect.engine.state import (
+    CachedState,
     Failed,
     Finished,
     Pending,
@@ -17,6 +18,7 @@ from prefect.engine.state import (
 )
 
 all_states = [
+    CachedState,
     State,
     Pending,
     Running,
@@ -80,12 +82,22 @@ def test_timestamp_is_serialized():
 
 
 def test_serialize():
-    state = Success(result=dict(hi=5, bye=6))
+    now = datetime.datetime.utcnow()
+    cached = CachedState(
+        cached_inputs=dict(x=99, p="p"),
+        cached_result=dict(hi=5, bye=6),
+        cached_result_expiration=now,
+    )
+    state = Success(result=dict(hi=5, bye=6), cached=cached)
     j = json.dumps(state)
     new_state = json.loads(j)
     assert isinstance(new_state, Success)
     assert new_state.result == state.result
     assert new_state.timestamp == state.timestamp
+    assert isinstance(new_state.cached, CachedState)
+    assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
+    assert new_state.cached.cached_inputs == cached.cached_inputs
+    assert new_state.cached.cached_result == cached.cached_result
 
 
 def test_serialization_of_cached_inputs():
@@ -133,6 +145,9 @@ class TestStateHierarchy:
     def test_scheduled_is_pending(self):
         assert issubclass(Scheduled, Pending)
 
+    def test_cached_is_pending(self):
+        assert issubclass(CachedState, Pending)
+
     def test_retrying_is_pending(self):
         assert issubclass(Retrying, Pending)
 
@@ -179,6 +194,14 @@ class TestStateMethods:
         state = Running()
         assert not state.is_pending()
         assert state.is_running()
+        assert not state.is_finished()
+        assert not state.is_successful()
+        assert not state.is_failed()
+
+    def test_state_type_methods_with_cached_state(self):
+        state = CachedState()
+        assert state.is_pending()
+        assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_successful()
         assert not state.is_failed()
