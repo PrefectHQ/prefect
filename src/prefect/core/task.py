@@ -3,6 +3,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 
 import prefect
+import prefect.engine.cache_validators
 import prefect.engine.signals
 import prefect.triggers
 from prefect.environments import Environment
@@ -45,6 +46,8 @@ class Task(Serializable, metaclass=SignatureValidator):
         timeout: timedelta = None,
         trigger: Callable[[Dict["Task", "State"]], bool] = None,
         propagate_skip: bool = False,
+        cache_for: timedelta = None,
+        cache_validator: Callable = None,
     ) -> None:
 
         self.name = name or type(self).__name__
@@ -64,6 +67,9 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         self.trigger = trigger or prefect.triggers.all_successful
         self.propagate_skip = propagate_skip
+
+        self.cache_for = cache_for
+        self.cache_validator = cache_validator or prefect.engine.cache_validators.never_use
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)

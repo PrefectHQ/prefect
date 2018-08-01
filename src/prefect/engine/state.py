@@ -92,13 +92,12 @@ class CachedState(Pending):
         message: MessageType = None,
         cached_inputs: Dict[str, Any] = None,
         cached_outputs: Dict[str, Any] = None,
-        cache_expiry: datetime.datetime = None,
-        cache_on: Iterable[str] = None,
+        cached_parameters: Dict[str, Any] = None,
+        cache_expiration: datetime.datetime = None,
     ) -> None:
         super().__init__(result=result, message=message, cached_inputs=cached_inputs)
         self.cached_outputs = cached_outputs
-        self.cache_expiry = cache_expiry
-        self.cache_on = cache_on or []
+        self.cache_expiration = cache_expiration
 
 
 class Scheduled(Pending):
