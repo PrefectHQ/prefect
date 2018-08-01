@@ -135,6 +135,9 @@ class TestStateHierarchy:
     def test_scheduled_is_pending(self):
         assert issubclass(Scheduled, Pending)
 
+    def test_cached_is_pending(self):
+        assert issubclass(CachedState, Pending)
+
     def test_retrying_is_pending(self):
         assert issubclass(Retrying, Pending)
 
