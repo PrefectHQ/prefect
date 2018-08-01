@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, Iterator, List, MutableMapping, Union
 import prefect
 from prefect.core import Task
 from prefect.engine import signals
+from prefect.engine.cache_validators import never_use
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -203,7 +204,19 @@ class TaskRunner:
                 "Message was: {}".format(str(exc))
             )
 
-        return Success(result=result, message="Task run succeeded.")
+        if self.task.cache_validator is not never_use:
+            if self.task.cache_for is not None:
+                expiration = datetime.datetime.utcnow() + self.task.cache_for
+            else:
+                expiration = None
+            cached_state = CachedState(
+                cached_inputs=inputs, cache_expiration=expiration, cached_result=result
+            )
+        else:
+            cached_state = None
+        return Success(
+            result=result, message="Task run succeeded.", cached=cached_state
+        )
 
     @handle_signals
     def get_post_run_state(self, state: State, inputs: Dict[str, Any] = None) -> State:
