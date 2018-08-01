@@ -90,7 +90,7 @@ class TaskRunner:
 
         with prefect.context(context, _task_name=self.task.name):
             try:
-                parameters = prefect.context.get('_parameters')
+                parameters = prefect.context.get("_parameters")
                 state = self.get_pre_run_state(
                     state=state,
                     upstream_states=upstream_states,
@@ -173,7 +173,9 @@ class TaskRunner:
         # ---------------------------------------------------------
         # We can start!
         # ---------------------------------------------------------
-        if isinstance(state, CachedState) and self.task.cache_validator(state, inputs, parameters):
+        if isinstance(state, CachedState) and self.task.cache_validator(
+            state, inputs, parameters
+        ):
             return Success(result=state.cached_outputs)
 
         return Running(message="Starting task run")

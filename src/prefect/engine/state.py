@@ -97,6 +97,7 @@ class CachedState(Pending):
     ) -> None:
         super().__init__(result=result, message=message, cached_inputs=cached_inputs)
         self.cached_outputs = cached_outputs
+        self.cached_parameters = cached_parameters
         self.cache_expiration = cache_expiration
 
 
