@@ -99,7 +99,9 @@ class TaskRunner:
                     inputs=inputs,
                     parameters=parameters,
                 )
-                state = self.get_run_state(state=state, inputs=inputs)
+                state = self.get_run_state(
+                    state=state, inputs=inputs, parameters=parameters
+                )
                 state = self.get_post_run_state(state=state, inputs=inputs)
 
             # a DONTRUN signal at any point breaks the chain and we return
@@ -182,7 +184,12 @@ class TaskRunner:
         return Running(message="Starting task run")
 
     @handle_signals
-    def get_run_state(self, state: State, inputs: Dict[str, Any] = None) -> State:
+    def get_run_state(
+        self,
+        state: State,
+        inputs: Dict[str, Any] = None,
+        parameters: Dict[str, Any] = None,
+    ) -> State:
         """
         Runs a task.
 
@@ -210,7 +217,10 @@ class TaskRunner:
             else:
                 expiration = None
             cached_state = CachedState(
-                cached_inputs=inputs, cache_expiration=expiration, cached_result=result
+                cached_inputs=inputs,
+                cache_expiration=expiration,
+                cached_parameters=parameters,
+                cached_result=result,
             )
         else:
             cached_state = None
