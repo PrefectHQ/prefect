@@ -390,6 +390,7 @@ class Flow(Serializable):
         Run the flow.
         """
         runner = prefect.engine.flow_runner.FlowRunner(flow=self)
+        parameters = parameters or []
 
         passed_parameters = {}
         for p in self.parameters():

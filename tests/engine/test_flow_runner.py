@@ -5,6 +5,7 @@ import pytest
 import prefect
 from prefect.core import Flow, Task, Parameter
 from prefect.engine import FlowRunner, signals
+from prefect.engine.cache_validators import duration_only
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -427,7 +428,7 @@ class TestInputCaching:
 
 
 class TestOutputCaching:
-    def test_output_caching_with_simple_example(self):
+    def test_providing_cachedstate_with_simple_example(self):
         class TestTask(Task):
             call_count = 0
 
@@ -436,28 +437,18 @@ class TestOutputCaching:
                 return self.call_count
 
         with Flow() as f:
-            y = TestTask()
+            y = TestTask(cache_validator=duration_only)
             x = Parameter("x")
             s = SuccessTask()
             f.add_edge(x, y, key="x")
             f.add_edge(s, y, key="s")
 
         state = CachedState(
-            cached_inputs=dict(x=1, s=1),
-            cache_expiry=datetime.datetime.utcnow() + datetime.timedelta(days=1),
+            cache_expiration=datetime.datetime.utcnow() + datetime.timedelta(days=1),
             cached_outputs=100,
-            cache_on=["x", "s"],
         )
         flow_state = FlowRunner(flow=f).run(
             parameters=dict(x=1), return_tasks=[y], task_states={y: state}
         )
         assert isinstance(flow_state, Success)
         assert flow_state.result[y].result == 100
-
-        flow_state = FlowRunner(flow=f).run(
-            parameters=dict(x=2),  # invalidates cache
-            return_tasks=[y],
-            task_states={y: state},
-        )
-        assert isinstance(flow_state, Success)
-        assert flow_state.result[y].result == 1
