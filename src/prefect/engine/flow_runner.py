@@ -198,15 +198,15 @@ class FlowRunner:
                     ignore_trigger=(task in start_tasks),
                     context=task_contexts.get(task),
                 )
-
             # ---------------------------------------------
             # Collect results
             # ---------------------------------------------
 
-            terminal_states = executor.wait(
-                {task_states[t] for t in self.flow.terminal_tasks()}
-            )
-            return_states = executor.wait({t: task_states[t] for t in return_tasks})
+            terminal_tasks = self.flow.terminal_tasks()
+            final_tasks = terminal_tasks.union(return_tasks)
+            final_states = executor.wait({t: task_states[t] for t in final_tasks})
+            terminal_states = {final_states[t] for t in terminal_tasks}
+            return_states = {t: final_states[t] for t in return_tasks}
 
             if any(s.is_failed() for s in terminal_states):
                 self.logger.info("Flow run FAILED: some terminal tasks failed.")
