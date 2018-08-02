@@ -5,6 +5,7 @@ Simply run `python generate_docs.py` from inside the `docs/` folder.
 import inspect
 import os
 import re
+import toolz
 import prefect
 
 
@@ -158,6 +159,9 @@ if __name__ == "__main__":
             for obj in items:
                 f.write(format_subheader(obj))
                 f.write(format_doc(inspect.getdoc(obj)))
+                if type(obj) == toolz.functoolz.curry:
+                    f.write('\n')
+                    continue
 
                 # document methods
                 for name, method in inspect.getmembers(
