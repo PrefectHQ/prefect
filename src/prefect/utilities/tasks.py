@@ -6,6 +6,9 @@ from toolz import curry
 import prefect
 
 
+__all__ = ['group', 'tags', 'as_task', 'task']
+
+
 @contextmanager
 def group(name: str, append: bool = False) -> Iterator[None]:
     """
@@ -67,6 +70,7 @@ def task(fn: Callable, **task_init_kwargs):
 
     Usage:
 
+    ```python
     @task(name='hello', retries=3)
     def hello(name):
         print('hello, {}'.format(name))
@@ -74,6 +78,7 @@ def task(fn: Callable, **task_init_kwargs):
     with Flow() as flow:
         t1 = hello('foo')
         t2 = hello('bar')
+    ```
     """
 
     def task_generator(*args, **kwargs):

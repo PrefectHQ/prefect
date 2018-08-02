@@ -21,8 +21,11 @@ module.exports = {
         {title: 'prefect.engine',
         collapsable: true,
         children: ['engine/cache_validators', 'engine/flow_runner', 'engine/signals',
-                    'engine/state', 'engine/task_runner']}
+                    'engine/state', 'engine/task_runner']},
 
+        {title: 'prefect.utilities',
+         collapsable: true,
+         children: ['utilities/tasks', 'utilities/flows']},
       ],
       '/': ['', 'configuration', 'concepts', 'utilities'],
     }

@@ -29,6 +29,8 @@ OUTLINE = [
     {"page": "engine/task_runner.md", "module": prefect.engine.task_runner, "title": "TaskRunner"},
     {"page": "engine/executors/base.md", "module": prefect.engine.executors.base},
     {"page": "engine/executors/local.md", "module": prefect.engine.executors.local},
+    {"page": "utilities/flows.md", "module": prefect.utilities.flows, "title": "Flow Utilities"},
+    {"page": "utilities/tasks.md", "module": prefect.utilities.tasks, "title": "Task Utilities"},
 ]
 
 
@@ -114,7 +116,7 @@ def get_source(obj):
 @preprocess
 def format_subheader(obj, level=1):
     class_sig = format_signature(obj)
-    if level == 1:
+    if level == 1 and inspect.isclass(obj):
         header = f"## {obj.__name__}\n\n###"
     else:
         header = "##" + "#" * level
