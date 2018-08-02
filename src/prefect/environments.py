@@ -3,8 +3,10 @@ import tempfile
 import textwrap
 from typing import Any, Iterable
 
+import cloudpickle
 import docker
 
+import prefect
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 
@@ -41,7 +43,7 @@ class Environment(Serializable):
         raise NotImplementedError()
 
 
-class Container(Environment):
+class ContainerEnvironment(Environment):
     """
     Container class used to represent a Docker container
     """
@@ -174,3 +176,47 @@ class Container(Environment):
             )
 
             dockerfile.write(file_contents)
+
+
+class PickleEnvironment(Environment):
+    """A pickle environment type for pickling a flow"""
+
+    def __init__(self):
+        pass
+
+    def build(self, flow: "prefect.Flow") -> bytes:
+        """
+        Pickles a flow and returns the bytes
+
+        Args:
+            flow: A prefect Flow object
+
+        Returns:
+            A pickled flow
+        """
+        return cloudpickle.dumps(flow)
+
+    def run(self):
+        """Run"""
+        pass
+
+    def info(self, pickle: bytes) -> dict:
+        """
+        Returns the serialized flow from a pickle
+
+        Args:
+            pickle: A pickled Flow object
+
+        Returns:
+            A dictionary of the serialized flow
+
+        Raises:
+            TypeError if the unpickeld object is not a Flow
+        """
+
+        flow = cloudpickle.loads(pickle)
+
+        if not isinstance(flow, prefect.Flow):
+            raise TypeError("Object is not a pickled Flow")
+
+        return flow.serialize()
