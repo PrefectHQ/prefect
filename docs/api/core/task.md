@@ -15,18 +15,18 @@ The main entrypoint for tasks.
 
 In addition to running arbitrary functions, tasks can interact with
 Prefect in a few ways:
-    1. Return an optional result. When this function runs successfully,
-        the task is considered successful and the result (if any) is
-        made available to downstream edges.
-    2. Raise an error. Errors are interpreted as failure.
-    3. Raise a signal. Signals can include FAIL, SUCCESS, WAIT, etc.
-        and indicate that the task should be put in the indicated
-        state.
-        - FAIL will lead to retries if appropriate
-        - WAIT will end execution and skip all downstream tasks with
-            state WAITING_FOR_UPSTREAM (unless appropriate triggers
-            are set). The task can be run again and should check
-            context.is_waiting to see if it was placed in a WAIT.
+1. Return an optional result. When this function runs successfully,
+the task is considered successful and the result (if any) is
+made available to downstream edges.
+2. Raise an error. Errors are interpreted as failure.
+3. Raise a signal. Signals can include FAIL, SUCCESS, WAIT, etc.
+and indicate that the task should be put in the indicated
+state.
+- FAIL will lead to retries if appropriate
+- WAIT will end execution and skip all downstream tasks with
+state WAITING_FOR_UPSTREAM (unless appropriate triggers
+are set). The task can be run again and should check
+context.is_waiting to see if it was placed in a WAIT.
 
  ####  ```prefect.core.task.Task.serialize(task)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/task.py#L159)</span>
 
@@ -52,17 +52,17 @@ The main entrypoint for tasks.
 
 In addition to running arbitrary functions, tasks can interact with
 Prefect in a few ways:
-    1. Return an optional result. When this function runs successfully,
-        the task is considered successful and the result (if any) is
-        made available to downstream edges.
-    2. Raise an error. Errors are interpreted as failure.
-    3. Raise a signal. Signals can include FAIL, SUCCESS, WAIT, etc.
-        and indicate that the task should be put in the indicated
-        state.
-        - FAIL will lead to retries if appropriate
-        - WAIT will end execution and skip all downstream tasks with
-            state WAITING_FOR_UPSTREAM (unless appropriate triggers
-            are set). The task can be run again and should check
-            context.is_waiting to see if it was placed in a WAIT.
+1. Return an optional result. When this function runs successfully,
+the task is considered successful and the result (if any) is
+made available to downstream edges.
+2. Raise an error. Errors are interpreted as failure.
+3. Raise a signal. Signals can include FAIL, SUCCESS, WAIT, etc.
+and indicate that the task should be put in the indicated
+state.
+- FAIL will lead to retries if appropriate
+- WAIT will end execution and skip all downstream tasks with
+state WAITING_FOR_UPSTREAM (unless appropriate triggers
+are set). The task can be run again and should check
+context.is_waiting to see if it was placed in a WAIT.
 
 

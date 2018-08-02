@@ -8,9 +8,9 @@ sidebarDepth: 1
 
 ### <span style="background-color:rgba(27,31,35,0.05);font-size:0.85em;">class</span> ```prefect.engine.state.State(data=None, message=None)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/engine/state.py#L12)</span>
 Create a new State object.
-    data (Any, optional): Defaults to None. A data payload for the state.
-    message (str or Exception, optional): Defaults to None. A message about the
-        state, which could be an Exception (or Signal) that caused it.
+data (Any, optional): Defaults to None. A data payload for the state.
+message (str or Exception, optional): Defaults to None. A message about the
+state, which could be an Exception (or Signal) that caused it.
 
  ####  ```prefect.engine.state.State.is_failed()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/engine/state.py#L64)</span>
 

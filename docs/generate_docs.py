@@ -40,31 +40,14 @@ def preprocess(f):
     return wrapped
 
 
+def clean_line(line):
+    line = line.replace("Args:", "**Args**:").replace("Returns:", "**Returns**:").replace("Raises:", "**Raises**:")
+    return line.lstrip('    ')
+
+
 def format_doc(doc):
     lines = (doc or "").split("\n")
-    pre, arg_lines, return_lines, post = [], [], [], []
-    currently_on = pre
-
-    for line in lines:
-        if line == '':
-            currently_on.append(line)
-            continue
-
-        if line.startswith('Args'):
-            currently_on = arg_lines
-        elif line.startswith('Returns'):
-            currently_on = return_lines
-        elif line.startswith('   '):
-            pass
-        else:
-            if arg_lines:
-                currently_on = post
-        currently_on.append(line)
-
-    arg_lines = [l.replace('Args:', '**Args**:\n\n').lstrip('    ') for l in arg_lines]
-    return_lines = [l.replace('Returns:', '**Returns**:\n').lstrip('    ') for l in return_lines]
-
-    return '\n'.join(pre + arg_lines + return_lines + post) + '\n\n'
+    return '\n'.join([clean_line(line) for line in lines]) + '\n\n'
 
 
 @preprocess
