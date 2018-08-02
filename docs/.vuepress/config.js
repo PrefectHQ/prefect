@@ -24,7 +24,7 @@ module.exports = {
                     'engine/state', 'engine/task_runner']}
 
       ],
-      '/': ['', 'concepts', 'utilities'],
+      '/': ['', 'configuration', 'concepts', 'utilities'],
     }
   }
 }
