@@ -4,7 +4,7 @@ sidebarDepth: 1
 
  ## Executor
 
-### _class_ ```prefect.engine.executors.base.Executor()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/engine/executors/base.py#L14)</span>
+### <span style="background-color:rgba(27,31,35,0.05);font-size:0.85em;">class</span> ```prefect.engine.executors.base.Executor()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/engine/executors/base.py#L14)</span>
 A class that automatically uses a specified JSONCodec to serialize itself.
 
  ####  ```prefect.engine.executors.base.Executor.start()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/engine/executors/base.py#L18)</span>

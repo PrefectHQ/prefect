@@ -50,8 +50,8 @@ It will automatically check for cycles when restored.
 
 ```python
 with flow.restore_graph_on_error():
-# this will raise an error, but the flow graph will not be modified
-add_cycle_to_graph(flow)
+    # this will raise an error, but the flow graph will not be modified
+    add_cycle_to_graph(flow)
 ```
 
  ####  ```prefect.core.flow.Flow.root_tasks()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/flow.py#L118)</span>
@@ -67,7 +67,9 @@ Run the flow.
  ####  ```prefect.core.flow.Flow.set_dependencies(task, upstream_tasks=None, downstream_tasks=None, keyword_tasks=None, validate=True)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/core/flow.py#L330)</span>
 Convenience function for adding task dependencies on upstream tasks.
 
-Args:
+**Args**:
+
+
 task (Object): a Task that will become part of the Flow. If the task is not a
 Task subclass, Prefect will attempt to convert it to one.
 

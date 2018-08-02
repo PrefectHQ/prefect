@@ -7,6 +7,9 @@ import croniter
 from prefect.utilities.json import Serializable
 
 
+__all__ = ['Schedule', 'NoSchedule', 'IntervalSchedule', 'CronSchedule', 'DateSchedule']
+
+
 class Schedule(Serializable):
     """
     Base class for Schedules

@@ -5,6 +5,9 @@ import prefect
 from prefect.utilities.collections import to_dotdict
 
 
+__all__ = ['Client', 'TaskRuns', 'FlowRuns']
+
+
 class AuthorizationError(Exception):
     pass
 

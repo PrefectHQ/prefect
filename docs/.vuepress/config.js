@@ -10,12 +10,18 @@ module.exports = {
     sidebar: {
       '/api/': [
         {title: 'prefect',
-         collapsable: false,
-         children: ['', 'environments', 'triggers']},
+         collapsable: true,
+         children: ['client', 'environments', 'schedules', 'serializers', 'triggers'] 
+        },
 
         {title: 'prefect.core',
-         collapsable: false,
-         children: ['core/', 'core/edges', 'core/flows']}
+         collapsable: true,
+         children: ['core/edge', 'core/flow', 'core/task']},
+
+        {title: 'prefect.engine',
+        collapsable: true,
+        children: ['engine/cache_validators', 'engine/flow_runner', 'engine/signals',
+                    'engine/state', 'engine/task_runner']}
 
       ],
       '/': ['', 'concepts', 'utilities'],

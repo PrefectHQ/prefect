@@ -8,27 +8,31 @@ import prefect
 
 
 OUTLINE = [
-    {"page": "core/edges.md", "module": prefect.core.edge},
-    {"page": "core/flows.md", "module": prefect.core.flow},
-    {"page": "core/tasks.md", "module": prefect.core.task},
-    {"page": "triggers.md", "module": prefect.triggers, "title": "Triggers"},
-    {"page": "engine/state.md", "module": prefect.engine.state},
-    {"page": "engine/signals.md", "module": prefect.engine.signals, "title": "Signals"},
-    {"page": "engine/flow_runner.md", "module": prefect.engine.flow_runner},
-    {"page": "engine/task_runner.md", "module": prefect.engine.task_runner},
-    {"page": "engine/executors/base.md", "module": prefect.engine.executors.base},
-    {"page": "engine/executors/local.md", "module": prefect.engine.executors.local},
     {
         "page": "environments.md",
         "module": prefect.environments,
         "title": "Environments",
     },
+    {"page": "triggers.md", "module": prefect.triggers, "title": "Triggers"},
+    {"page": "client.md", "module": prefect.client},
+    {"page": "schedules.md", "module": prefect.schedules},
+    {"page": "serializers.md", "module": prefect.serializers},
+    {"page": "core/edge.md", "module": prefect.core.edge},
+    {"page": "core/flow.md", "module": prefect.core.flow},
+    {"page": "core/task.md", "module": prefect.core.task},
+    {"page": "engine/cache_validators.md", "module": prefect.engine.cache_validators, "title": "Cache Validators"},
+    {"page": "engine/state.md", "module": prefect.engine.state, "title": "State"},
+    {"page": "engine/signals.md", "module": prefect.engine.signals, "title": "Signals"},
+    {"page": "engine/flow_runner.md", "module": prefect.engine.flow_runner, "title": "FlowRunner"},
+    {"page": "engine/task_runner.md", "module": prefect.engine.task_runner, "title": "TaskRunner"},
+    {"page": "engine/executors/base.md", "module": prefect.engine.executors.base},
+    {"page": "engine/executors/local.md", "module": prefect.engine.executors.local},
 ]
 
 
 def preprocess(f):
     def wrapped(*args, **kwargs):
-        new_obj = getattr(args[0], "__wrapped__", args[0])
+        new_obj = getattr(args[0], "__wrapped__", getattr(args[0], 'func', args[0]))
         new_args = list(args)
         new_args[0] = new_obj
         return f(*new_args, **kwargs)
@@ -36,22 +40,59 @@ def preprocess(f):
     return wrapped
 
 
+def format_doc(doc):
+    lines = (doc or "").split("\n")
+    pre, arg_lines, return_lines, post = [], [], [], []
+    currently_on = pre
+
+    for line in lines:
+        if line == '':
+            currently_on.append(line)
+            continue
+
+        if line.startswith('Args'):
+            currently_on = arg_lines
+        elif line.startswith('Returns'):
+            currently_on = return_lines
+        elif line.startswith('   '):
+            pass
+        else:
+            if arg_lines:
+                currently_on = post
+        currently_on.append(line)
+
+    arg_lines = [l.replace('Args:', '**Args**:\n\n').lstrip('    ') for l in arg_lines]
+    return_lines = [l.replace('Returns:', '**Returns**:\n').lstrip('    ') for l in return_lines]
+
+    return '\n'.join(pre + arg_lines + return_lines + post) + '\n\n'
+
+
 @preprocess
-def format_signature(obj):
+def get_call_signature(obj):
     assert callable(obj), f"{obj} is not callable, cannot format signature."
     # collect data
     sig = inspect.getfullargspec(obj)
     args, defaults = sig.args, sig.defaults or []
     varargs, varkwargs = sig.varargs, sig.varkw
 
-    if args[0] == "self":
-        args = args[1:]  # remove self from displayed signature
+    if args == []:
+        standalone, kwargs = [], dict()
+    else:
+        if args[0] == "self":
+            args = args[1:]  # remove self from displayed signature
 
-    standalone = args[: -len(defaults)] if defaults else args  # true args
-    kwargs = list(zip(args[-len(defaults) :], defaults))  # true kwargs
+        standalone = args[: -len(defaults)] if defaults else args  # true args
+        kwargs = list(zip(args[-len(defaults) :], defaults))  # true kwargs
+
     varargs = [f"*{varargs}"] if varargs else []
     varkwargs = [f"*{varkwargs}"] if varkwargs else []
 
+    return standalone, varargs, kwargs, varkwargs
+
+
+@preprocess
+def format_signature(obj):
+    standalone, varargs, kwargs, varkwargs = get_call_signature(obj)
     # NOTE: I assume the call signature is f(x, y, ..., *args, z=1, ...,
     # **kwargs) and NOT f(*args, x, y, ...)
     psig = ", ".join(
@@ -85,20 +126,12 @@ def format_subheader(obj, level=1):
         header = f"## {obj.__name__}\n\n###"
     else:
         header = "##" + "#" * level
-    is_class = "_class_" if inspect.isclass(obj) else ""
+    is_class = '<span style="background-color:rgba(27,31,35,0.05);font-size:0.85em;">class</span>' if inspect.isclass(obj) else ""
     class_name = f"{create_absolute_path(obj)}.{obj.__qualname__}"
     call_sig = (
         f" {header} {is_class} ```{class_name}({class_sig})```{get_source(obj)}\n"
     )
     return call_sig
-
-
-def format_doc(doc):
-    lines = (doc or "").split("\n")
-    pdoc = "\n".join(
-        [line.lstrip("    ") for line in lines]
-    )  # remove heavy indentation to prevent code block formatting
-    return pdoc + "\n\n"
 
 
 def collect_items(page):

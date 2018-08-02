@@ -4,7 +4,7 @@ sidebarDepth: 1
 
  ## LocalExecutor
 
-### _class_ ```prefect.engine.executors.local.LocalExecutor()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/engine/executors/local.py#L7)</span>
+### <span style="background-color:rgba(27,31,35,0.05);font-size:0.85em;">class</span> ```prefect.engine.executors.local.LocalExecutor()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/engine/executors/local.py#L7)</span>
 An executor that runs all functions synchronously and in
 the local thread.
 

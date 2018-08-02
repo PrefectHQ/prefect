@@ -14,7 +14,9 @@ task is complete.
 In addition, edges can specify a key that describe how upstream results
 are passed to the downstream task.
 
-Args: upstream_task (Task): the task that must run before the
+**Args**:
+
+ upstream_task (Task): the task that must run before the
 downstream_task
 
 downstream_task (Task): the task that will be run after the
