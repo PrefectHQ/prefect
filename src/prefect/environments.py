@@ -1,10 +1,12 @@
-import os
+import base64
 import tempfile
 import textwrap
 from typing import Any, Iterable
 
+import cloudpickle
 import docker
 
+import prefect
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 
@@ -44,7 +46,7 @@ class Environment(Serializable):
         raise NotImplementedError()
 
 
-class Container(Environment):
+class ContainerEnvironment(Environment):
     """
     Container class used to represent a Docker container
     """
@@ -177,3 +179,56 @@ class Container(Environment):
             )
 
             dockerfile.write(file_contents)
+
+
+class PickleEnvironment(Environment):
+    """A pickle environment type for pickling a flow"""
+
+    from cryptography.fernet import Fernet
+
+    def __init__(self, encryption_key: str = None):
+        """Initialize the PickleEnvironment class"""
+        if encryption_key:
+            self.encryption_key = self.encryption_key
+        else:
+            self.encryption_key = self.Fernet.generate_key()
+
+    def build(self, flow: "prefect.Flow") -> bytes:
+        """
+        Pickles a flow and returns the bytes
+
+        Args:
+            flow: A prefect Flow object
+
+        Returns:
+            An encrypted pickled flow
+        """
+        serialized_pickle = base64.b64encode(cloudpickle.dumps(flow))
+        serialized_pickle = self.Fernet(self.encryption_key).encrypt(serialized_pickle)
+        return serialized_pickle
+
+    def run(self):
+        """Run"""
+        pass
+
+    def info(self, pickle: bytes) -> dict:
+        """
+        Returns the serialized flow from a pickle
+
+        Args:
+            pickle: A pickled Flow object
+
+        Returns:
+            A dictionary of the serialized flow
+
+        Raises:
+            TypeError if the unpickeld object is not a Flow
+        """
+
+        serialized_pickle = self.Fernet(self.encryption_key).decrypt(pickle).decode()
+        flow = cloudpickle.loads(base64.b64decode(serialized_pickle))
+
+        if not isinstance(flow, prefect.Flow):
+            raise TypeError("Object is not a pickled Flow")
+
+        return flow.serialize()

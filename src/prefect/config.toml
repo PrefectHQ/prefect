@@ -44,7 +44,7 @@ id_seed = false
 
 # the default executor for all Flow runs
 # specified using a full path
-executor = "prefect.engine.executors.LocalExecutor"
+executor = "prefect.engine.executors.DaskExecutor"
 
 [tasks]
 # task results can not exceed this size (in bytes); larger results must be
