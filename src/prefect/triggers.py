@@ -6,6 +6,19 @@ from typing import TYPE_CHECKING, Dict, Iterable
 
 from prefect.engine import signals
 
+
+__all__ = [
+    "all_finished",
+    "manual_only",
+    "always_run",
+    "never_run",
+    "all_successful",
+    "all_failed",
+    "any_successful",
+    "any_failed",
+]
+
+
 if TYPE_CHECKING:
     from prefect.engine.state import State
     from prefect.core import Task
@@ -34,9 +47,27 @@ def manual_only(upstream_states: Dict["Task", "State"]) -> bool:
     raise signals.DONTRUN('Trigger function is "manual_only"')
 
 
-# aliases
-always_run = all_finished
-never_run = manual_only
+def always_run(upstream_states: Dict["Task", "State"]) -> bool:
+    """
+    This task will run no matter what the upstream states are, as long as they are finished.
+    """
+    if not all(s.is_finished() for s in upstream_states.values()):
+        raise signals.TRIGGERFAIL(
+            'Trigger was "always_run" but some of the upstream tasks were not finished.'
+        )
+
+    return True
+
+
+def never_run(upstream_states: Dict["Task", "State"]) -> bool:
+    """
+    This task will never run automatically. It will only run if it is
+    specifically instructed, either by ignoring the trigger or adding it
+    as a flow run's start task.
+
+    Note this doesn't raise a failure, it simply doesn't run the task.
+    """
+    raise signals.DONTRUN('Trigger function is "never_run"')
 
 
 def all_successful(upstream_states: Dict["Task", "State"]) -> bool:

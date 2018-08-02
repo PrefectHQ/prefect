@@ -1,6 +1,9 @@
 from prefect.engine.executors.base import Executor
 
 
+__all__ = ["LocalExecutor"]
+
+
 class LocalExecutor(Executor):
     """
     An executor that runs all functions synchronously and in

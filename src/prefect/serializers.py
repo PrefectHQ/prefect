@@ -2,6 +2,9 @@ import json
 from typing import Any
 
 
+__all__ = ["Serializer"]
+
+
 class Serializer:
     @classmethod
     def serialize(cls, object: Any) -> str:

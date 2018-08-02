@@ -8,6 +8,9 @@ import prefect
 from prefect.utilities.json import Serializable
 
 
+__all__ = ["Executor"]
+
+
 class Executor(Serializable):
     def __init__(self):
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())

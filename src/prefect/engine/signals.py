@@ -7,6 +7,9 @@ from prefect.engine import state
 from prefect.utilities.exceptions import PrefectError
 
 
+__all__ = ["FAIL", "TRIGGERFAIL", "SUCCESS", "RETRY", "SKIP", "DONTRUN"]
+
+
 class PrefectStateSignal(PrefectError):
     _state_cls = state.State
 

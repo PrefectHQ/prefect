@@ -10,6 +10,9 @@ import prefect
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 
+__all__ = ["Environment", "ContainerEnvironment", "PickleEnvironment"]
+
+
 class Secret(Serializable):
     _json_codec = ObjectAttributesCodec
 
@@ -195,7 +198,7 @@ class PickleEnvironment(Environment):
         Pickles a flow and returns the bytes
 
         Args:
-            flow: A prefect Flow object
+            - `flow`: A `prefect.Flow` object
 
         Returns:
             An encrypted pickled flow
@@ -213,13 +216,13 @@ class PickleEnvironment(Environment):
         Returns the serialized flow from a pickle
 
         Args:
-            pickle: A pickled Flow object
+            - `pickle`: A pickled `Flow` object
 
         Returns:
             A dictionary of the serialized flow
 
         Raises:
-            TypeError if the unpickeld object is not a Flow
+            `TypeError` if the unpickeld object is not a `Flow`
         """
 
         serialized_pickle = self.Fernet(self.encryption_key).decrypt(pickle).decode()
