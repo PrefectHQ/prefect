@@ -6,6 +6,7 @@ import prefect
 from prefect.core import Flow, Task, Parameter
 from prefect.engine import FlowRunner, signals
 from prefect.engine.cache_validators import duration_only
+from prefect.engine.executors import DaskExecutor, Executor, LocalExecutor
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -21,6 +22,11 @@ from prefect.engine.state import (
 )
 from prefect.triggers import manual_only
 from prefect.utilities.tests import raise_on_exception
+
+
+@pytest.fixture(params=[DaskExecutor, LocalExecutor])
+def executor(request):
+    return request.param()
 
 
 class SuccessTask(Task):
@@ -360,16 +366,17 @@ class TestStartTasks:
 
 
 class TestInputCaching:
-    def test_retries_use_cached_inputs(self):
+    def test_retries_use_cached_inputs(self, executor):
         with Flow() as f:
             a = CountTask()
             b = ReturnTask(max_retries=1)
             result = b(a())
 
-        first_state = FlowRunner(flow=f).run(return_tasks=[b])
+        first_state = FlowRunner(flow=f).run(executor=executor, return_tasks=[b])
         assert isinstance(first_state, Pending)
         with raise_on_exception():  # without caching we'd expect a KeyError
             second_state = FlowRunner(flow=f).run(
+                executor=executor,
                 return_tasks=[b],
                 start_tasks=[b],
                 task_states={b: first_state.result[b]},
@@ -377,13 +384,14 @@ class TestInputCaching:
         assert isinstance(second_state, Success)
         assert second_state.result[b].result == 1
 
-    def test_retries_only_uses_cache_data(self):
+    def test_retries_only_uses_cache_data(self, executor):
         with Flow() as f:
             t1 = Task()
             t2 = AddTask()
             f.add_edge(t1, t2)
 
         state = FlowRunner(flow=f).run(
+            executor=executor,
             task_states={t2: Retrying(cached_inputs=dict(x=4, y=1))},
             start_tasks=[t2],
             return_tasks=[t2],
@@ -391,15 +399,18 @@ class TestInputCaching:
         assert isinstance(state, Success)
         assert state.result[t2].result == 5
 
-    def test_retries_caches_parameters_as_well(self):
+    def test_retries_caches_parameters_as_well(self, executor):
         with Flow() as f:
             x = Parameter("x")
             a = ReturnTask(max_retries=1)
             result = a(x)
 
-        first_state = FlowRunner(flow=f).run(parameters=dict(x=1), return_tasks=[a])
+        first_state = FlowRunner(flow=f).run(
+            executor=executor, parameters=dict(x=1), return_tasks=[a]
+        )
         assert isinstance(first_state, Pending)
         second_state = FlowRunner(flow=f).run(
+            executor=executor,
             parameters=dict(x=2),
             return_tasks=[a],
             start_tasks=[a],
@@ -408,16 +419,19 @@ class TestInputCaching:
         assert isinstance(second_state, Success)
         assert second_state.result[a].result == 1
 
-    def test_manual_only_trigger_caches_inputs(self):
+    def test_manual_only_trigger_caches_inputs(self, executor):
         with Flow() as f:
             x = Parameter("x")
             inp = SuccessTask()
             t = AddTask(trigger=manual_only)
             result = t(x, inp)
 
-        first_state = FlowRunner(flow=f).run(parameters=dict(x=11), return_tasks=[t])
+        first_state = FlowRunner(flow=f).run(
+            executor=executor, parameters=dict(x=11), return_tasks=[t]
+        )
         assert isinstance(first_state, Pending)
         second_state = FlowRunner(flow=f).run(
+            executor=executor,
             parameters=dict(x=1),
             return_tasks=[t],
             start_tasks=[t],
@@ -428,7 +442,7 @@ class TestInputCaching:
 
 
 class TestOutputCaching:
-    def test_providing_cachedstate_with_simple_example(self):
+    def test_providing_cachedstate_with_simple_example(self, executor):
         class TestTask(Task):
             call_count = 0
 
@@ -449,7 +463,19 @@ class TestOutputCaching:
             cached_result=100,
         )
         flow_state = FlowRunner(flow=f).run(
-            parameters=dict(x=1), return_tasks=[y], task_states={y: state}
+            executor=executor,
+            parameters=dict(x=1),
+            return_tasks=[y],
+            task_states={y: state},
         )
         assert isinstance(flow_state, Success)
         assert flow_state.result[y].result == 100
+
+
+def test_flow_runner_uses_user_provided_executor():
+    t = SuccessTask()
+    with Flow() as f:
+        result = t()
+    with raise_on_exception():
+        with pytest.raises(NotImplementedError):
+            FlowRunner(flow=f).run(executor=Executor())
