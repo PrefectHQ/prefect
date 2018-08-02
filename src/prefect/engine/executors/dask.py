@@ -6,6 +6,9 @@ from typing import Any, Callable, Iterable
 from prefect.engine.executors.base import Executor
 
 
+__all__ = ['DaskExecutor']
+
+
 class DaskExecutor(Executor):
     @contextmanager
     def start(self) -> Iterable[None]:
