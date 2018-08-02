@@ -1,4 +1,4 @@
-import os
+import base64
 import tempfile
 import textwrap
 from typing import Any, Iterable
@@ -181,8 +181,14 @@ class ContainerEnvironment(Environment):
 class PickleEnvironment(Environment):
     """A pickle environment type for pickling a flow"""
 
-    def __init__(self):
-        pass
+    from cryptography.fernet import Fernet
+
+    def __init__(self, encryption_key: str = None):
+        """Initialize the PickleEnvironment class"""
+        if encryption_key:
+            self.encryption_key = self.encryption_key
+        else:
+            self.encryption_key = self.Fernet.generate_key()
 
     def build(self, flow: "prefect.Flow") -> bytes:
         """
@@ -192,9 +198,11 @@ class PickleEnvironment(Environment):
             flow: A prefect Flow object
 
         Returns:
-            A pickled flow
+            An encrypted pickled flow
         """
-        return cloudpickle.dumps(flow)
+        serialized_pickle = base64.b64encode(cloudpickle.dumps(flow))
+        serialized_pickle = self.Fernet(self.encryption_key).encrypt(serialized_pickle)
+        return serialized_pickle
 
     def run(self):
         """Run"""
@@ -214,7 +222,8 @@ class PickleEnvironment(Environment):
             TypeError if the unpickeld object is not a Flow
         """
 
-        flow = cloudpickle.loads(pickle)
+        serialized_pickle = self.Fernet(self.encryption_key).decrypt(pickle).decode()
+        flow = cloudpickle.loads(base64.b64decode(serialized_pickle))
 
         if not isinstance(flow, prefect.Flow):
             raise TypeError("Object is not a pickled Flow")
