@@ -4,7 +4,7 @@ import versioneer
 
 install_requires = [
     "click",
-    # 'cloudpickle > 0.3.1',  # support for pickling loggers was added after 0.3.1
+    "cloudpickle >= 0.5.3, < 0.6.0",
     "croniter",
     "cryptography",
     "distributed >= 1.16.1",
