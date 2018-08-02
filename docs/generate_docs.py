@@ -4,6 +4,7 @@ Simply run `python generate_docs.py` from inside the `docs/` folder.
 """
 import inspect
 import os
+import re
 import prefect
 
 
@@ -42,12 +43,19 @@ def preprocess(f):
 
 def clean_line(line):
     line = line.replace("Args:", "**Args**:").replace("Returns:", "**Returns**:").replace("Raises:", "**Raises**:")
-    return line.lstrip('    ')
+    return line.lstrip()
 
 
 def format_doc(doc):
-    lines = (doc or "").split("\n")
-    return '\n'.join([clean_line(line) for line in lines]) + '\n\n'
+    body = (doc or "")
+    code_blocks = re.findall(r'```(.*?)```', body, re.DOTALL)
+    for num, block in enumerate(code_blocks):
+        body = body.replace(block, f'$CODEBLOCK{num}')
+    lines = body.split("\n")
+    cleaned = '\n'.join([clean_line(line) for line in lines]) + '\n\n'
+    for num, block in enumerate(code_blocks):
+        cleaned = cleaned.replace(f'$CODEBLOCK{num}', block)
+    return cleaned
 
 
 @preprocess
