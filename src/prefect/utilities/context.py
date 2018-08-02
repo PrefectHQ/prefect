@@ -18,7 +18,7 @@ from typing import Any, Iterator, MutableMapping
 from prefect.utilities.collections import DotDict
 
 
-__all__ = ['Context']
+__all__ = ["Context"]
 
 
 class Context(DotDict):

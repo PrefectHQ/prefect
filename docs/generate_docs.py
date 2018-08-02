@@ -22,23 +22,47 @@ OUTLINE = [
     {"page": "core/edge.md", "module": prefect.core.edge},
     {"page": "core/flow.md", "module": prefect.core.flow},
     {"page": "core/task.md", "module": prefect.core.task},
-    {"page": "engine/cache_validators.md", "module": prefect.engine.cache_validators, "title": "Cache Validators"},
+    {
+        "page": "engine/cache_validators.md",
+        "module": prefect.engine.cache_validators,
+        "title": "Cache Validators",
+    },
     {"page": "engine/state.md", "module": prefect.engine.state, "title": "State"},
     {"page": "engine/signals.md", "module": prefect.engine.signals, "title": "Signals"},
-    {"page": "engine/flow_runner.md", "module": prefect.engine.flow_runner, "title": "FlowRunner"},
-    {"page": "engine/task_runner.md", "module": prefect.engine.task_runner, "title": "TaskRunner"},
+    {
+        "page": "engine/flow_runner.md",
+        "module": prefect.engine.flow_runner,
+        "title": "FlowRunner",
+    },
+    {
+        "page": "engine/task_runner.md",
+        "module": prefect.engine.task_runner,
+        "title": "TaskRunner",
+    },
     {"page": "engine/executors/dask.md", "module": prefect.engine.executors.dask},
     {"page": "engine/executors/base.md", "module": prefect.engine.executors.base},
     {"page": "engine/executors/local.md", "module": prefect.engine.executors.local},
-    {"page": "utilities/collections.md", "module": prefect.utilities.collections, "title": "Collections"},
-    {"page": "utilities/flows.md", "module": prefect.utilities.flows, "title": "Flow Utilities"},
-    {"page": "utilities/tasks.md", "module": prefect.utilities.tasks, "title": "Task Utilities"},
+    {
+        "page": "utilities/collections.md",
+        "module": prefect.utilities.collections,
+        "title": "Collections",
+    },
+    {
+        "page": "utilities/flows.md",
+        "module": prefect.utilities.flows,
+        "title": "Flow Utilities",
+    },
+    {
+        "page": "utilities/tasks.md",
+        "module": prefect.utilities.tasks,
+        "title": "Task Utilities",
+    },
 ]
 
 
 def preprocess(f):
     def wrapped(*args, **kwargs):
-        new_obj = getattr(args[0], "__wrapped__", getattr(args[0], 'func', args[0]))
+        new_obj = getattr(args[0], "__wrapped__", getattr(args[0], "func", args[0]))
         new_args = list(args)
         new_args[0] = new_obj
         return f(*new_args, **kwargs)
@@ -47,19 +71,23 @@ def preprocess(f):
 
 
 def clean_line(line):
-    line = line.replace("Args:", "**Args**:").replace("Returns:", "**Returns**:").replace("Raises:", "**Raises**:")
+    line = (
+        line.replace("Args:", "**Args**:")
+        .replace("Returns:", "**Returns**:")
+        .replace("Raises:", "**Raises**:")
+    )
     return line.lstrip()
 
 
 def format_doc(doc):
-    body = (doc or "")
-    code_blocks = re.findall(r'```(.*?)```', body, re.DOTALL)
+    body = doc or ""
+    code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
-        body = body.replace(block, f'$CODEBLOCK{num}')
+        body = body.replace(block, f"$CODEBLOCK{num}")
     lines = body.split("\n")
-    cleaned = '\n'.join([clean_line(line) for line in lines]) + '\n\n'
+    cleaned = "\n".join([clean_line(line) for line in lines]) + "\n\n"
     for num, block in enumerate(code_blocks):
-        cleaned = cleaned.replace(f'$CODEBLOCK{num}', block)
+        cleaned = cleaned.replace(f"$CODEBLOCK{num}", block)
     return cleaned
 
 
@@ -122,7 +150,11 @@ def format_subheader(obj, level=1):
         header = f"## {obj.__name__}\n\n###"
     else:
         header = "##" + "#" * level
-    is_class = '<span style="background-color:rgba(27,31,35,0.05);font-size:0.85em;">class</span>' if inspect.isclass(obj) else ""
+    is_class = (
+        '<span style="background-color:rgba(27,31,35,0.05);font-size:0.85em;">class</span>'
+        if inspect.isclass(obj)
+        else ""
+    )
     class_name = f"{create_absolute_path(obj)}.{obj.__qualname__}"
     call_sig = (
         f" {header} {is_class} ```{class_name}({class_sig})```{get_source(obj)}\n"
@@ -164,7 +196,7 @@ if __name__ == "__main__":
                 f.write(format_subheader(obj))
                 f.write(format_doc(inspect.getdoc(obj)))
                 if type(obj) == toolz.functoolz.curry:
-                    f.write('\n')
+                    f.write("\n")
                     continue
 
                 # document methods

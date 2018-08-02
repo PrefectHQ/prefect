@@ -2,7 +2,7 @@ import prefect
 
 DEFAULT_FLOW = None
 
-__all__ = ['reset_default_flow', 'get_default_flow', 'get_flow_by_id']
+__all__ = ["reset_default_flow", "get_default_flow", "get_flow_by_id"]
 
 
 def reset_default_flow():

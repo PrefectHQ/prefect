@@ -6,7 +6,7 @@ from toolz import curry
 import prefect
 
 
-__all__ = ['group', 'tags', 'as_task', 'task']
+__all__ = ["group", "tags", "as_task", "task"]
 
 
 @contextmanager

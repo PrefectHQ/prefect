@@ -6,7 +6,7 @@ from typing import Any, Callable, Iterable
 from prefect.engine.executors.base import Executor
 
 
-__all__ = ['DaskExecutor']
+__all__ = ["DaskExecutor"]
 
 
 class DaskExecutor(Executor):

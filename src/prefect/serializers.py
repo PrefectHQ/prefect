@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 
-__all__ = ['Serializer']
+__all__ = ["Serializer"]
 
 
 class Serializer:

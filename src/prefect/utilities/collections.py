@@ -2,7 +2,13 @@ from collections.abc import MutableMapping
 from typing import Any
 
 
-__all__ = ['merge_dicts', 'DotDict', 'to_dotdict', 'dict_to_flatdict', 'flatdict_to_dict']
+__all__ = [
+    "merge_dicts",
+    "DotDict",
+    "to_dotdict",
+    "dict_to_flatdict",
+    "flatdict_to_dict",
+]
 
 
 def merge_dicts(d1: MutableMapping, d2: MutableMapping) -> MutableMapping:
