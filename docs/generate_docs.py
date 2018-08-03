@@ -151,7 +151,7 @@ def format_doc(doc):
     lines = body.split("\n")
     cleaned = "\n".join([clean_line(line) for line in lines]) + "\n\n"
     for num, block in enumerate(code_blocks):
-        cleaned = cleaned.replace(f"$CODEBLOCK{num}", block)
+        cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(' '))
     return cleaned
 
 
