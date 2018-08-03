@@ -34,6 +34,23 @@ class SignatureValidator(type):
 
 
 class Task(Serializable, metaclass=SignatureValidator):
+    """
+    Task class
+
+    Args:
+        - `name` (`str`)
+        - `slug` (`str`)
+        - `description` (`str`)
+        - `group` (`str`)
+        - `tags` (`[str]`)
+        - `max_retries` (`int`)
+        - `retry_delay` (`timedelta`)
+        - `timeout` (`timedelta`)
+        - `trigger`
+        - `propagate_skip` (`bool`)
+        - `cache_for` (`timedelta`)
+        - `cache_validator`
+    """
     def __init__(
         self,
         name: str = None,
@@ -91,11 +108,11 @@ class Task(Serializable, metaclass=SignatureValidator):
                 the task is considered successful and the result (if any) is
                 made available to downstream edges.
             2. Raise an error. Errors are interpreted as failure.
-            3. Raise a signal. Signals can include FAIL, SUCCESS, WAIT, etc.
+            3. Raise a signal. Signals can include `FAIL`, `SUCCESS`, `WAIT`, etc.
                 and indicate that the task should be put in the indicated
                 state.
-                - FAIL will lead to retries if appropriate
-                - WAIT will end execution and skip all downstream tasks with
+                - `FAIL` will lead to retries if appropriate
+                - `WAIT` will end execution and skip all downstream tasks with
                     state WAITING_FOR_UPSTREAM (unless appropriate triggers
                     are set). The task can be run again and should check
                     context.is_waiting to see if it was placed in a WAIT.
@@ -175,19 +192,18 @@ class Parameter(Task):
     A parameter's "slug" is automatically -- and immutably -- set to the parameter name.
     Flows enforce slug uniqueness across all tasks, so this ensures that the flow has
     no other parameters by the same name.
+
+    Args:
+        - `name` (`str`): the Parameter name.
+
+        - `required` (`bool`): If `True`, the Parameter is required and the default
+            value is ignored.
+
+        - `default` (any): A default value for the parameter. If the default
+            is not `None`, the Parameter will not be required.
     """
 
     def __init__(self, name: str, default: Any = None, required: bool = True) -> None:
-        """
-        Args:
-            name (str): the Parameter name.
-
-            required (bool): If True, the Parameter is required and the default
-                value is ignored.
-
-            default (any): A default value for the parameter. If the default
-                is not None, the Parameter will not be required.
-        """
         if default is not None:
             required = False
 
