@@ -49,8 +49,8 @@ class Flow(Serializable):
     ) -> None:
 
         self.name = name or type(self).__name__
-        self.version = version
-        self.description = description
+        self.version = version or prefect.config.flows.default_version
+        self.description = description or None
         self.schedule = schedule or prefect.schedules.NoSchedule()
         self.environment = environment
 
@@ -81,8 +81,8 @@ class Flow(Serializable):
     def __repr__(self) -> str:
         return "<{cls}: {self.name}{v}>".format(
             cls=type(self).__name__,
-            self=self,
-            v=" version={}".format(self.version) if self.version else "",
+        return "<{cls}: name={self.name} version={self.version}>".format(
+            cls=type(self).__name__, self=self
         )
 
     def __iter__(self) -> Iterable[Task]:

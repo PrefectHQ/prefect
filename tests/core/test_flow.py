@@ -42,7 +42,7 @@ class TestCreateFlow:
 
     def test_create_flow_with_version(self):
         f1 = Flow()
-        assert f1.version is None
+        assert f1.version == prefect.config.flows.default_version
 
         f2 = Flow(version="test")
         assert f2.version == "test"
