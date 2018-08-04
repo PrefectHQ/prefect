@@ -47,6 +47,13 @@ class TestCreateFlow:
         f2 = Flow(version="test")
         assert f2.version == "test"
 
+    def test_create_flow_with_project(self):
+        f1 = Flow()
+        assert f1.project == prefect.config.flows.default_project
+
+        f2 = Flow(project="test")
+        assert f2.project == "test"
+
     def test_create_flow_with_description(self):
         f1 = Flow()
         assert f1.description is None
