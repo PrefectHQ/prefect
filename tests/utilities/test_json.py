@@ -7,7 +7,6 @@ import pytest
 import prefect.utilities.json as json_utils
 
 
-@json_utils.serializable
 def a_test_fn():
     pass
 
@@ -108,11 +107,19 @@ class TestTypeCodecs:
         assert default_load_json(j)["//set"] == [3, 4, 5]
         assert x == json_utils.loads(j)
 
-    def test_json_codec_load(self):
+    def test_json_codec_function(self):
 
         j = json_utils.dumps(a_test_fn)
-        assert default_load_json(j) == {"//obj": "tests.utilities.test_json.a_test_fn"}
+        assert default_load_json(j) == {
+            "//load_obj": "tests.utilities.test_json.a_test_fn"
+        }
         assert a_test_fn == json_utils.loads(j)
+
+    def test_json_codec_builtin_function(self):
+
+        j = json_utils.dumps(print)
+        assert default_load_json(j) == {"//load_obj": "builtins.print"}
+        assert print == json_utils.loads(j)
 
 
 class TestObjectSerialization:
