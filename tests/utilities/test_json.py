@@ -190,11 +190,15 @@ class TestObjectInitArgsSerialization:
 
     def test_two_args(self):
         x = self.InitTwoArgs(1, 2)
-        assert json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
     def test_two_args_underscore(self):
         x = self.InitTwoArgsUnderscore(1, 2)
-        assert json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
     def test_two_args_not_stored(self):
         x = self.InitTwoArgsNotStored(1, 2)
@@ -203,19 +207,27 @@ class TestObjectInitArgsSerialization:
 
     def test_two_args_prefer_underscore(self):
         x = self.InitTwoArgsPreferUnderscore(1, 2)
-        assert json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
     def test_init_arg_dict(self):
         x = self.InitArgDict(1, 2)
-        assert json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
     def test_init_kwargs(self):
         x = self.InitKwargs(a=1, b=2)
-        assert json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
     def test_init_kwargs_dict(self):
         x = self.InitKwargsDict(a=1, b=2)
-        assert json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
 
 class TestSerializableClass:
