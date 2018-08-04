@@ -1,4 +1,4 @@
-import json
+from prefect.utilities import json
 from typing import Any
 
 

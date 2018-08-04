@@ -9,7 +9,7 @@ import sys
 import types
 import uuid
 import warnings
-from functools import singledispatch
+from functools import singledispatch, partial
 from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar
 
 import dateutil.parser
@@ -22,6 +22,15 @@ CODEC_PREFIX = "//"
 
 O = TypeVar("O")
 J = TypeVar("J", str, dict, list, tuple, int, float)
+
+__all__ = [
+    "to_qualified_name",
+    "register_json_codec",
+    "JSONCodec",
+    "Serializable",
+    "dumps",
+    "loads",
+]
 
 
 def from_qualified_name(obj_str: str) -> object:
@@ -413,5 +422,5 @@ class PrefectJSONDecoder(json.JSONDecoder):
         return dct
 
 
-json._default_encoder = PrefectJSONEncoder()
-json._default_decoder = PrefectJSONDecoder()
+dumps = partial(json.dumps, cls=PrefectJSONEncoder)
+loads = partial(json.loads, cls=PrefectJSONDecoder)
