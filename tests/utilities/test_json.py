@@ -1,3 +1,4 @@
+import binascii
 import datetime
 import json
 
@@ -85,7 +86,15 @@ class TestTypeCodecs:
     def test_json_codec_bytes(self):
         b = b"hello, world!"
         j = json_utils.dumps(b)
-        assert j == json_utils.dumps({"//b": b.decode()})
+        assert j == json_utils.dumps({"//b": binascii.b2a_base64(b).decode()})
+        assert b == json_utils.loads(j)
+
+    def test_json_codec_undecodeable_bytes(self):
+        b = b"\xbb\xe6\x11/\xa3V\x80g?\x19I\x1b\x9d\xaf@\\"
+        j = json_utils.dumps(b)
+        with pytest.raises(UnicodeDecodeError):
+            b.decode()
+        assert j == json_utils.dumps({"//b": binascii.b2a_base64(b).decode()})
         assert b == json_utils.loads(j)
 
     def test_json_codec_multiple(self):
