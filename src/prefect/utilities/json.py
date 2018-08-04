@@ -234,7 +234,7 @@ class TimeDeltaCodec(JSONCodec[datetime.timedelta, float]):
 
 
 @register_json_codec(type)
-class LoadObjectCodec(JSONCodec[Any, str]):
+class TypeCodec(JSONCodec[Type, str]):
     """
     Serialize/deserialize objects by referencing their fully qualified name. This doesn't
     actually "serialize" them; it just serializes a reference to the already-existing object.
@@ -242,25 +242,19 @@ class LoadObjectCodec(JSONCodec[Any, str]):
     Objects must already be imported at the same module path or deserialization will fail.
     """
 
-    codec_key = "obj"
+    codec_key = "type"
 
     def serialize(self) -> str:
         return to_qualified_name(self.value)
 
     @staticmethod
-    def deserialize(obj: str) -> Any:
+    def deserialize(obj: str) -> Type:
         return from_qualified_name(obj)
 
 
-def serializable(fn: Callable) -> Callable:
-    """
-    Decorator that marks a function as automatically serializable via
-    LoadObjectCodec
-    """
-    if hasattr(fn, "__json__"):
-        raise ValueError("Object already has a __json__() method.")
-    setattr(fn, "__json__", lambda: LoadObjectCodec(fn).__json__())
-    return fn
+@register_json_codec(types.FunctionType)
+class FunctionCodec(TypeCodec, JSONCodec[types.FunctionType, str]):
+    codec_key = "fn"
 
 
 @register_json_codec()
