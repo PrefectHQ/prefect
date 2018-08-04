@@ -2,6 +2,7 @@
 Facilities for serializing/deserializing Python objects to JSON.
 """
 import base64
+import binascii
 import datetime
 import inspect
 import json
@@ -161,11 +162,11 @@ class BytesCodec(JSONCodec[bytes, str]):
     codec_key = "b"
 
     def serialize(self) -> str:
-        return self.value.decode()
+        return binascii.b2a_base64(self.value).decode()
 
     @staticmethod
     def deserialize(obj: str) -> bytes:
-        return obj.encode()
+        return binascii.a2b_base64(obj)
 
 
 @register_json_codec(uuid.UUID)
