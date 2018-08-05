@@ -11,10 +11,6 @@ def a_test_fn():
     pass
 
 
-def default_load_json(obj):
-    return json.JSONDecoder().decode(obj)
-
-
 class EqMixin:
     def __eq__(self, other):
         return type(self) == type(other) and self.__dict__ == other.__dict__
@@ -104,14 +100,20 @@ class TestTypeCodecs:
     def test_json_codec_set(self):
         x = set([3, 4, 5])
         j = json_utils.dumps(x)
-        assert default_load_json(j)["//set"] == [3, 4, 5]
+        assert json.loads(j)["//set"] == [3, 4, 5]
         assert x == json_utils.loads(j)
 
-    def test_json_codec_load(self):
+    def test_json_codec_function(self):
 
         j = json_utils.dumps(a_test_fn)
-        assert default_load_json(j) == {"//fn": "tests.utilities.test_json.a_test_fn"}
+        assert json.loads(j) == {"//load_obj": "tests.utilities.test_json.a_test_fn"}
         assert a_test_fn == json_utils.loads(j)
+
+    def test_json_codec_builtin_function(self):
+
+        j = json_utils.dumps(print)
+        assert json.loads(j) == {"//load_obj": "builtins.print"}
+        assert print == json_utils.loads(j)
 
 
 class TestObjectSerialization:
@@ -135,13 +137,13 @@ class TestObjectSerialization:
 
         dict_codec = json_utils.ObjectAttributesCodec(x)
         assert dict_codec.attrs == list(x.__dict__.keys())
-        dict_j = default_load_json(json_utils.dumps(dict_codec))
+        dict_j = json.loads(json_utils.dumps(dict_codec))
         assert dict_j["//obj_attrs"]["attrs"] == x.__dict__
         assert json_utils.loads(json_utils.dumps(dict_codec)) == x
 
         attr_codec = json_utils.ObjectAttributesCodec(x, attributes_list=["a"])
         assert attr_codec.attrs == ["a"]
-        attr_j = default_load_json(json_utils.dumps(attr_codec))
+        attr_j = json.loads(json_utils.dumps(attr_codec))
         assert attr_j["//obj_attrs"]["attrs"] == {"a": x.a}
         j = json_utils.loads(json_utils.dumps(attr_codec))
         assert isinstance(j, self.ObjectWithAttrs)
