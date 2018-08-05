@@ -28,6 +28,7 @@ def test_overwriting_json_codec_raises_warning():
         class TestCodec(json_utils.JSONCodec):
             codec_key = "test"
 
+
 class TestObjectFromQualifiedName:
     class NestedClass:
         pass
@@ -105,9 +106,7 @@ class TestTypeCodecs:
     def test_json_codec_function(self):
 
         j = json_utils.dumps(a_test_fn)
-        assert json.loads(j) == {
-            "//load_obj": "tests.utilities.test_json.a_test_fn"
-        }
+        assert json.loads(j) == {"//load_obj": "tests.utilities.test_json.a_test_fn"}
         assert a_test_fn == json_utils.loads(j)
 
     def test_json_codec_builtin_function(self):
