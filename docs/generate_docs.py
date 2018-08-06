@@ -143,16 +143,38 @@ def clean_line(line):
     return line.lstrip()
 
 
-def format_doc(doc):
+def format_doc(doc, in_table=False):
     body = doc or ""
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
         body = body.replace(block, f"$CODEBLOCK{num}")
     lines = body.split("\n")
-    cleaned = "\n".join([clean_line(line) for line in lines]) + "\n\n"
+    cleaned = "\n".join([clean_line(line) for line in lines])
+    if in_table:
+        cleaned = cleaned.replace("\n", "<br>").replace('```', "")
     for num, block in enumerate(code_blocks):
+        if in_table:
+            block = '<pre class="language-python"><code class="language-python">' + block.rstrip('  ').replace("\n", "<br>") + "</code></pre>"
         cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(' '))
     return cleaned
+
+
+def create_methods_table(obj):
+    table = ""
+    members = inspect.getmembers(
+        obj,
+        predicate=lambda x: inspect.isroutine(x)
+        and obj.__name__ in x.__qualname__,
+    )
+    public_members = [method for (name, method) in members if not name.startswith('_')]
+    if public_members:
+        table = "|methods: " + "&nbsp;" * 150 + "|\n"
+        table += "|:----|\n"
+    for method in public_members:
+        table += format_subheader(method, level=2, in_table=True).replace("\n", "<br><br>")
+        table += format_doc(inspect.getdoc(method), in_table=True)
+        table += "|\n"
+    return table
 
 
 @preprocess
@@ -208,12 +230,14 @@ def get_source(obj):
 
 
 @preprocess
-def format_subheader(obj, level=1):
+def format_subheader(obj, level=1, in_table=False):
     class_sig = format_signature(obj)
     if level == 1 and inspect.isclass(obj):
         header = f"## {obj.__name__}\n\n###"
-    else:
+    elif not in_table:
         header = "##" + "#" * level
+    else:
+        header = "|"
     is_class = (
         '<span style="background-color:rgba(27,31,35,0.05);font-size:0.85em;">class</span>'
         if inspect.isclass(obj)
@@ -247,19 +271,11 @@ if __name__ == "__main__":
 
             for obj in items:
                 f.write(format_subheader(obj))
-                f.write(format_doc(inspect.getdoc(obj)))
+
+                f.write(format_doc(inspect.getdoc(obj)) + "\n\n")
                 if type(obj) == toolz.functoolz.curry:
                     f.write("\n")
                     continue
 
-                # document methods
-                for name, method in inspect.getmembers(
-                    obj,
-                    predicate=lambda x: inspect.isroutine(x)
-                    and obj.__name__ in x.__qualname__,
-                ):
-                    if not name.startswith("_"):
-                        f.write(format_subheader(method, level=2))
-                        f.write(format_doc(inspect.getdoc(method)))
-
+                f.write(create_methods_table(obj))
                 f.write("\n")
