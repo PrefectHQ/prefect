@@ -37,7 +37,7 @@ def test_ifelse(condition_value):
     )
 
 
-@pytest.mark.parametrize("condition_value", [True, False, "x"])
+@pytest.mark.parametrize("condition_value", ["a", "b", "c", "d", "x"])
 def test_switch(condition_value):
     condition = Condition()
     a_branch = SuccessTask(name="a")
