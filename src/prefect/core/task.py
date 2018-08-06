@@ -38,22 +38,22 @@ class Task(Serializable, metaclass=SignatureValidator):
     Task class
 
     Args:
-        - `name` (`str`)
-        - `slug` (`str`)
-        - `description` (`str`)
-        - `group` (`str`)
-        - `tags` (`[str]`)
-        - `max_retries` (`int`)
-        - `retry_delay` (`timedelta`)
-        - `timeout` (`timedelta`)
-        - `trigger` (`callable`): a function that determines whether the task should run, based
+        - name (str):
+        - slug (str):
+        - description (str):
+        - group (str):
+        - tags ([str]):
+        - max_retries (int):
+        - retry_delay (timedelta):
+        - timeout (timedelta):
+        - trigger (callable): a function that determines whether the task should run, based
                 on the states of any upstream tasks.
-        - `skip_on_upstream_skip` (`bool`): if `True` and any upstream tasks skipped, this task
+        - skip_on_upstream_skip (bool): if True and any upstream tasks skipped, this task
                 will automatically be skipped as well. By default, this prevents tasks from
                 attempting to use either state or data from tasks that didn't run. if False,
                 the task's trigger will be called as normal; skips are considered successes.
-        - `cache_for` (`timedelta`)
-        - `cache_validator`
+        - cache_for (timedelta):
+        - cache_validator:
     """
 
     def __init__(
@@ -198,13 +198,11 @@ class Parameter(Task):
     no other parameters by the same name.
 
     Args:
-        - `name` (`str`): the Parameter name.
-
-        - `required` (`bool`): If `True`, the Parameter is required and the default
+        - name (str): the Parameter name.
+        - required (bool): If True, the Parameter is required and the default
             value is ignored.
-
-        - `default` (any): A default value for the parameter. If the default
-            is not `None`, the Parameter will not be required.
+        - default (any): A default value for the parameter. If the default
+            is not None, the Parameter will not be required.
     """
 
     def __init__(self, name: str, default: Any = None, required: bool = True) -> None:

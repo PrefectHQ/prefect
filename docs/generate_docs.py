@@ -208,11 +208,13 @@ def format_lists(doc):
         r"(Args\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL
     )  # find formatted lists
     for section, _, items, _ in lists:
-        list_items = re.split(r"-\s`", items)  # collect all list items
+        args = re.split(r"-\s+(.*)\:", items)  # collect all list items
+        if not args:
+            continue
         block = ""
-        for item in list_items:
-            if item:
-                block += "<li>`" + item + "</li>"
+        list_items = zip(args[1::2], args[2::2])
+        for item, descr in list_items:
+            block += f"<li>`{item}`:{descr}</li>"
         list_block = f"<ul>{block}</ul>"
         doc = doc.replace(items + "\n\n", list_block, 1).replace(items, list_block, 1)
     return doc
@@ -223,8 +225,7 @@ def format_doc(doc, in_table=False):
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
         body = body.replace(block, f"$CODEBLOCK{num}")
-    if in_table:
-        body = format_lists(body)
+    body = format_lists(body)
     lines = body.split("\n")
     cleaned = "\n".join([clean_line(line) for line in lines])
     if in_table:
