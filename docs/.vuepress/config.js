@@ -24,6 +24,10 @@ module.exports = {
                     'engine/state', 'engine/task_runner',
                     'engine/executors/base', 'engine/executors/local', 'engine/executors/dask']},
 
+        {title: 'prefect.tasks.control_flow',
+         collapsable: true,
+         children: ['tasks/control_flow/conditional']},
+
         {title: 'prefect.utilities',
          collapsable: true,
          children: ['utilities/collections', 'utilities/tasks', 'utilities/flows']},

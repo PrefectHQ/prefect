@@ -147,6 +147,17 @@ OUTLINE = [
         "title": "Local Executor",
     },
     {
+        "page": "tasks/control_flow/conditional.md",
+        "classes": [
+            prefect.tasks.control_flow.conditional.Match,
+        ],
+        "functions": [
+            prefect.tasks.control_flow.switch,
+            prefect.tasks.control_flow.ifelse,
+        ],
+        "title": "Control Flow Tasks",
+    },
+    {
         "page": "utilities/collections.md",
         "classes": [
             prefect.utilities.collections.DotDict,
