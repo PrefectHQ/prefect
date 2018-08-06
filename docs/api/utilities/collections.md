@@ -4,7 +4,7 @@ sidebarDepth: 1
 
 # Collections
 ---
- ###  ```prefect.utilities.collections.merge_dicts(d1, d2)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L8)</span>
+ ###  ```prefect.utilities.collections.merge_dicts(d1, d2)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L14)</span>
 Updates `d1` from `d2` by replacing each `(k, v1)` pair in `d1` with the
 corresponding `(k, v2)` pair in `d2`.
 
@@ -14,14 +14,14 @@ recursively.
 
  ## DotDict
 
-### <span style="background-color:rgba(27,31,35,0.05);font-size:0.85em;">class</span> ```prefect.utilities.collections.DotDict(*args, *kwargs)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L29)</span>
+### <span style="background-color:rgba(27,31,35,0.05);font-size:0.85em;">class</span> ```prefect.utilities.collections.DotDict(*args, *kwargs)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L35)</span>
 A dict that also supports attribute ("dot") access
 
- ####  ```prefect.utilities.collections.DotDict.copy()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L60)</span>
+ ####  ```prefect.utilities.collections.DotDict.copy()```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L66)</span>
 Returns a shallow copy
 
 
- ###  ```prefect.utilities.collections.to_dotdict(obj)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L65)</span>
+ ###  ```prefect.utilities.collections.to_dotdict(obj)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L71)</span>
 Given a obj formatted as a dictionary, returns an object
 that also supports "dot" access:
 
@@ -31,7 +31,7 @@ obj.data.child
 ```
 
 
- ###  ```prefect.utilities.collections.dict_to_flatdict(dct, parent=None)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L86)</span>
+ ###  ```prefect.utilities.collections.dict_to_flatdict(dct, parent=None)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L92)</span>
 Converts a (nested) dictionary to a flattened representation.
 
 Each key of the flat dict will be a `CompoundKey` tuple containing the "chain of keys"
@@ -43,7 +43,7 @@ for the corresponding value.
 (you shouldn't need to set this)
 
 
- ###  ```prefect.utilities.collections.flatdict_to_dict(dct, dct_class=None)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L110)</span>
+ ###  ```prefect.utilities.collections.flatdict_to_dict(dct, dct_class=None)```<span style="float:right;">[[Source]](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/utilities/collections.py#L116)</span>
 Converts a flattened dictionary back to a nested dictionary.
 
 **Args**:
