@@ -46,8 +46,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         - `max_retries` (`int`)
         - `retry_delay` (`timedelta`)
         - `timeout` (`timedelta`)
-        - `trigger`
-        - `propagate_skip` (`bool`)
+        - `trigger` (`callable`): a function that determines whether the task should run, based
+                on the states of any upstream tasks.
+        - `skip_on_upstream_skip` (`bool`): if `True` and any upstream tasks skipped, this task
+                will automatically be skipped as well. By default, this prevents tasks from
+                attempting to use either state or data from tasks that didn't run. if False,
+                the task's trigger will be called as normal; skips are considered successes.
         - `cache_for` (`timedelta`)
         - `cache_validator`
     """
@@ -67,20 +71,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         cache_for: timedelta = None,
         cache_validator: Callable = None,
     ) -> None:
-        """
-
-        Args:
-
-            trigger (callable): a function that determines whether the task should run, based
-                on the states of any upstream tasks.
-
-            skip_on_upstream_skip (bool): if True and any upstream tasks skipped, this task
-                will automatically be skipped as well. By default, this prevents tasks from
-                attempting to use either state or data from tasks that didn't run. if False,
-                the task's trigger will be called as normal; skips are considered successes.
-
-        """
-
         self.name = name or type(self).__name__
         self.slug = slug
         self.description = description
