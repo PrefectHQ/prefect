@@ -11,7 +11,8 @@ class Match(Task):
     def __init__(self, match_value: Any, **kwargs) -> None:
         """
         Args:
-            match_value (Any): the value this task will attempt to match when it runs
+            - match_value (Any): the value this task will attempt to match when it runs
+            - **kwargs: keyword arguments for the Task
         """
         self.match_value = match_value
         kwargs.setdefault("name", 'match: "{}"'.format(match_value))
@@ -23,7 +24,7 @@ class Match(Task):
         succeeds silently otherwise.
 
         Args:
-            value (Any): the value that will be matched against the task's match_value.
+            - value (Any): the value that will be matched against the task's match_value.
         """
         if value != self.match_value:
             raise signals.SKIP(
@@ -41,8 +42,8 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
     `skip_on_upstream_skip=False`.
 
     Args:
-        condition (Task): a task whose result forms the condition for the switch
-        cases (Dict[Any, Task]): a dict representing the "case" statements of the switch.
+        - condition (Task): a task whose result forms the condition for the switch
+        - cases (Dict[Any, Task]): a dict representing the "case" statements of the switch.
             The value of the `condition` task will be compared to the keys of this dict, and
             the matching task will be executed.
     """
@@ -62,9 +63,9 @@ def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
     all downstream tasks that don't set `skip_on_upstream_skip=False`.
 
     Args:
-        condition (Task): a task whose boolean result forms the condition for the ifelse
-        true_task (Task): a task that will be executed if the condition is True
-        false_task (Task): a task that will be executed if the condition is False
+        - condition (Task): a task whose boolean result forms the condition for the ifelse
+        - true_task (Task): a task that will be executed if the condition is True
+        - false_task (Task): a task that will be executed if the condition is False
     """
 
     switch(condition=condition, cases={True: true_task, False: false_task})

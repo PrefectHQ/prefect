@@ -15,12 +15,14 @@ def set_config(key: str, value: Any):
     Temporarily sets a configuration value for the duration of the context manager.
 
     Args:
-        key (str): the fully-qualified config key (including '.'s)
-        value (Any): the value to apply to the key
+        - key (str): the fully-qualified config key (including '.'s)
+        - value (Any): the value to apply to the key
 
     Example:
+        ```python
         with set_config('flows.eager_edge_validation', True):
             assert prefect.config.flows.eager_edge_validation
+        ```
     """
     try:
         old_config = copy.copy(prefect.config.__dict__)
