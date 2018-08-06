@@ -220,6 +220,16 @@ class Flow(Serializable):
 
         return edge
 
+    def chain(self, *tasks, validate=True):
+        """
+        Adds a sequence of dependent tasks to the flow.
+        """
+        with self.restore_graph_on_error(validate=validate):
+            for u_task, d_task in zip(tasks, tasks[1:]):
+                self.add_edge(
+                    upstream_task=u_task, downstream_task=d_task, validate=False
+                )
+
     def update(self, flow: "Flow", validate: bool = True) -> None:
         with self.restore_graph_on_error(validate=validate):
 

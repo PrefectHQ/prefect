@@ -1,40 +1,39 @@
+from typing import Any, Dict
+
 import prefect
-from prefect import Task, signals
+from prefect import Task
+from prefect.engine import signals
 from prefect.tasks.core import operators
 from prefect.utilities.tasks import as_task
 
-__all__ = ["ifelse"]
+__all__ = ["switch", "ifelse"]
 
 
-class EvaluateCondition(Task):
-    def __init__(self, raise_if_false=signals.FAIL, **kwargs):
-        """
-        A special task that receives a boolean value and succeeds if that value
-        is True. If it's false, it raises the "raise_if_false" error.
-        """
-        self.raise_if_false = raise_if_false
+class Match(Task):
+    def __init__(self, match_value: str, **kwargs):
+        self.match_value = match_value
+        kwargs.setdefault("name", 'match: "{}"'.format(match_value))
         super().__init__(**kwargs)
 
-    def run(self, condition):
-        if not condition:
-            raise self.raise_if_false
+    def run(self, value):
+        if value != self.match_value:
+            raise signals.SKIP(
+                'Provided value "{}" did not match "{}"'.format(value, self.match_value)
+            )
 
 
-def switch(condition, patterns, name=None):
+def switch(condition: Task, cases: Dict[Any, Task]):
     """
     Builds a switch into a workflow.
 
-    The result of the `condition` is looked up in the `patterns` dict and the
+    The result of the `condition` is looked up in the `cases` dict and the
     resulting Task continues execution. All other pattern Tasks are skipped.
     """
-    if not isinstance(condition, Task):
-        condition = as_task(condition)
 
-    for pattern, task in patterns.items():
-        eval_cond = EvaluateCondition(raise_if_false=signals.SKIP_DOWNSTREAM)
-        eval_cond.set(condition=operators.Eq(condition, pattern), run_before=task)
-
-    return condition
+    with prefect.group("switch"):
+        for match_value, task in cases.items():
+            match_condition = Match(match_value=match_value)(value=condition)
+            task.set_dependencies(upstream_tasks=[match_condition])
 
 
 def ifelse(condition, true_task, false_task):
@@ -46,4 +45,4 @@ def ifelse(condition, true_task, false_task):
     will be stopped by raising a signals.DONTRUN() signal.
     """
 
-    return switch(condition=condition, patterns={True: true_task, False: false_task})
+    return switch(condition=condition, cases={True: true_task, False: false_task})
