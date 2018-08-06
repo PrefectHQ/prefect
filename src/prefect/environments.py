@@ -75,7 +75,7 @@ class ContainerEnvironment(Environment):
         """Build the Docker container
 
         Args:
-            - `None`
+            - None
 
         Returns:
             - `tuple` with (`docker.models.images.Image`, iterable logs)
@@ -95,8 +95,8 @@ class ContainerEnvironment(Environment):
         """Run the flow in the Docker container
 
         Args:
-            - `command`: An initial command that will be executed on container run
-            - `tty` (`bool`): Sets whether the container stays active once it is started
+            - command: An initial command that will be executed on container run
+            - tty (bool): Sets whether the container stays active once it is started
 
         Returns:
             - `docker.models.containers.Container` object
@@ -122,10 +122,10 @@ class ContainerEnvironment(Environment):
         the environment variables.
 
         Args:
-            - `None`
+            - None
 
         Returns:
-            - `None`
+            - None
         """
         self.client.images.pull(self.image)
 
@@ -137,10 +137,10 @@ class ContainerEnvironment(Environment):
         image and python_dependencies then writes them to a file called Dockerfile.
 
         Args:
-            - `directory`: A directory where the Dockerfile will be created
+            - directory: A directory where the Dockerfile will be created
 
         Returns:
-            - `None`
+            - None
         """
         path = "{}/Dockerfile".format(directory)
         with open(path, "w+") as dockerfile:
@@ -195,7 +195,7 @@ class PickleEnvironment(Environment):
         Pickles a flow and returns the bytes
 
         Args:
-            - `flow`: A prefect Flow object
+            - flow: A prefect Flow object
 
         Returns:
             - An encrypted pickled flow
@@ -213,7 +213,7 @@ class PickleEnvironment(Environment):
         Returns the serialized flow from a pickle
 
         Args:
-            - `pickle`: A pickled Flow object
+            - pickle: A pickled Flow object
 
         Returns:
             - A dictionary of the serialized flow

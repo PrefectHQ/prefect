@@ -14,9 +14,9 @@ class Client:
     Client for the Prefect API.
 
     Args:
-        - `api_server`
-        - `graphql_server`
-        - `token`
+        - api_server:
+        - graphql_server:
+        - token:
     """
 
     def __init__(self, api_server=None, graphql_server=None, token=None):
@@ -53,9 +53,9 @@ class Client:
         Convenience function for calling the Prefect API with token auth.
 
         Args:
-            - `path`: the path of the API url. For example, to GET
+            - path: the path of the API url. For example, to GET
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
-            - `params`: GET parameters
+            - params: GET parameters
         """
         response = self._request(method="GET", path=path, params=params, server=_server)
         if _json:
@@ -70,9 +70,9 @@ class Client:
         Convenience function for calling the Prefect API with token auth.
 
         Args:
-            - `path`: the path of the API url. For example, to POST
+            - path: the path of the API url. For example, to POST
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
-            - `params`: POST params
+            - params: POST params
         """
         response = self._request(
             method="POST", path=path, params=params, server=_server
@@ -88,7 +88,7 @@ class Client:
         Convenience function for calling the Prefect API with token auth.
 
         Args:
-            - `path`: the path of the API url
+            - path: the path of the API url
         """
         response = self._request(method="delete", path=path, server=_server)
         if _json:
@@ -104,8 +104,8 @@ class Client:
         API
 
         Args:
-            - `query`
-            - `**variables`
+            - query:
+            - **variables:
         """
         result = self._post(
             path="",
@@ -166,10 +166,10 @@ class Client:
         Login
 
         Args:
-            - `email`
-            - `password`
-            - `account_slug`
-            - `account_id`
+            - email:
+            - password:
+            - account_slug:
+            - account_id:
         """
 
         # lazy import for performance
@@ -243,8 +243,8 @@ class Projects(ClientModule):
         Lists all available projects
 
         Args:
-            - `per_page`
-            - `page`
+            - per_page:
+            - page:
         """
         data = self._graphql(
             """
@@ -265,7 +265,7 @@ class Projects(ClientModule):
         Returns the Flows for the specified project
 
         Args:
-            - `project_id`
+            - project_id:
         """
 
         data = self._graphql(
@@ -299,7 +299,7 @@ class Flows(ClientModule):
         Retrieve information about a Flow.
 
         Args:
-            - `flow_id` (`str`): the Flow's id
+            - flow_id (str): the Flow's id
         """
         if safe:
             data = self._graphql(
@@ -338,8 +338,8 @@ class Flows(ClientModule):
         Update a Flow's state
 
         Args:
-            - `flow_id`
-            - `state`
+            - flow_id:
+            - state:
         """
         return self._post(path="/{id}/state".format(id=flow_id), state=state)
 
@@ -348,7 +348,7 @@ class Flows(ClientModule):
         Submit a Flow to the server.
 
         Args:
-            - `flow`
+            - flow:
         """
         return self._post(path="/", serialized_flow=flow.serialize())
 
@@ -366,7 +366,7 @@ class FlowRuns(ClientModule):
         Retrieve a flow run's state
 
         Args:
-            - `flow_run_id`
+            - flow_run_id:
         """
 
         data = self._graphql(
@@ -392,10 +392,10 @@ class FlowRuns(ClientModule):
         Retrieve a flow run's state
 
         Args:
-            - `flow_run_id`
-            - `state`
-            - `result`
-            - `expected_state`
+            - flow_run_id:
+            - state:
+            - result:
+            - expected_state:
         """
         return self._post(
             path="/{id}/state".format(id=flow_run_id),

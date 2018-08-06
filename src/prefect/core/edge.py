@@ -14,14 +14,12 @@ class Edge:
     are passed to the downstream task.
 
     Args:
-        - `upstream_task` (`Task`): the task that must run before the downstream_task
-
-        - `downstream_task` (`Task`): the task that will be run after the
-            `upstream_task`. The upstream task state is passed to the
+        - upstream_task (Task): the task that must run before the downstream_task
+        - downstream_task (Task): the task that will be run after the
+            upstream_task. The upstream task state is passed to the
             downstream task's trigger function to determine whether the
             downstream task should run.
-
-        - `key` (`str`): Optional. Passing a key indicates
+        - key (str): Optional. Passing a key indicates
             that the upstream result should be passed to the downstream
             task as a keyword argument.
 
