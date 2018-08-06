@@ -1,5 +1,5 @@
 import datetime
-import json
+from prefect.utilities import json
 
 import prefect.serializers as serializers
 

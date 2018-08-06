@@ -8,7 +8,7 @@ from prefect.engine.executors.dask import DaskExecutor
 from prefect.engine.executors.distributed import DistributedExecutor
 
 try:
-    cfg_exec = _prefect.config.flows.executor
+    cfg_exec = _prefect.config.engine.executor
     *module, cls_name = cfg_exec.split(".")
     module = _import_module(".".join(module))
     DEFAULT_EXECUTOR = getattr(module, cls_name)
