@@ -160,7 +160,7 @@ class Flow(Serializable):
 
         It will automatically check for cycles when restored.
 
-        ```python
+        ```
         with flow.restore_graph_on_error():
             # this will raise an error, but the flow graph will not be modified
             add_cycle_to_graph(flow)
