@@ -50,10 +50,14 @@ pytest
 
 ## Documentation
 
-To build and view documentation:
+To view documentation locally (run this from the root `prefect` directory):
 ```bash
 yarn docs:dev
 ```
-This will automatically open a new browser window, but there will be a slight delay
-while the initial build finishes. When it finishes, the browser will automatically
-refresh.
+Open http://localhost:8080 to see the documentation.
+
+To build documentation (run this from the root `prefect` directory):
+```bash
+yarn docs:build
+yarn docs:deploy
+```
