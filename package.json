@@ -1,21 +1,23 @@
 {
-  "name": "prefect",
-  "description": "Prefect is a brand-new workflow manager.",
-  "version": "0.2.0",
-  "directories": {
-    "doc": "docs",
-    "test": "tests"
-  },
-  "dependencies": {},
-  "scripts": {
-    "docs:dev": "vuepress dev docs & open \"http://localhost:8080\"",
-    "docs:build": "vuepress build docs"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://gitlab.com/prefect/prefect.git"
-  },
-  "devDependencies": {
-    "vuepress": "^0.10.1"
-  }
+    "name": "prefect",
+    "description": "Prefect is a brand-new workflow manager.",
+    "version": "0.2.0",
+    "directories": {
+        "doc": "docs",
+        "test": "tests"
+    },
+    "dependencies": {},
+    "scripts": {
+        "docs:dev": "cd docs && python generate_docs.py && vuepress dev . & open \"http://localhost:8080\"",
+        "docs:build": "cd docs && python generate_docs.py && vuepress build . -d deploy/dist",
+        "docs:deploy": "gcloud app deploy docs/deploy --quiet --project=prefect-docs"
+
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://gitlab.com/prefect/prefect.git"
+    },
+    "devDependencies": {
+        "vuepress": "^0.10.1"
+    }
 }

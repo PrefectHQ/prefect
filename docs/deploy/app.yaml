@@ -1,0 +1,22 @@
+runtime: python27
+api_version: 1
+threadsafe: true
+
+instance_class: F1
+automatic_scaling:
+  min_instances: 0
+  max_instances: 1
+
+handlers:
+- url: /
+  static_files: dist/index.html
+  upload: dist/index.html
+  secure: always
+  login: required
+
+- url: /(.*)
+  static_files: dist/\1
+  upload: dist/(.*)
+  secure: always
+  login: required
+
