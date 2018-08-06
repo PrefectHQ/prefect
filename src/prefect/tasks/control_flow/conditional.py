@@ -8,12 +8,13 @@ __all__ = ["switch", "ifelse"]
 
 
 class Match(Task):
+    """
+    Args:
+        - match_value (Any): the value this task will attempt to match when it runs
+        - **kwargs: keyword arguments for the Task
+    """
+
     def __init__(self, match_value: Any, **kwargs) -> None:
-        """
-        Args:
-            - match_value (Any): the value this task will attempt to match when it runs
-            - **kwargs: keyword arguments for the Task
-        """
         self.match_value = match_value
         kwargs.setdefault("name", 'match: "{}"'.format(match_value))
         super().__init__(**kwargs)
