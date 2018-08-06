@@ -10,13 +10,23 @@ from prefect.engine.state import State
 
 
 @contextmanager
-def set_config(keys, value):
+def set_config(key: str, value: Any):
+    """
+    Temporarily sets a configuration value for the duration of the context manager.
+
+    Args:
+        key (str): the fully-qualified config key (including '.'s)
+        value (Any): the value to apply to the key
+
+    Example:
+        with set_config('flows.eager_edge_validation', True):
+            assert prefect.config.flows.eager_edge_validation
+    """
     try:
         old_config = copy.copy(prefect.config.__dict__)
 
         config = prefect.config
-        if isinstance(keys, str):
-            keys = [keys]
+        keys = key.split('.')
         for key in keys[:-1]:
             config = getattr(config, key)
         setattr(config, keys[-1], value)
