@@ -179,9 +179,9 @@ if __name__ == "__main__":
     ), "Only run this script from inside the docs/ directory!"
 
     # create README.md
-    with open('api/README.md', 'w') as f:
-        f.write('# API Documentation\n')
-        f.write('(auto-generated)')
+    with open("api/README.md", "w") as f:
+        f.write("# API Documentation\n")
+        f.write("(auto-generated)")
 
     for page in OUTLINE:
         # collect what to document
