@@ -212,7 +212,7 @@ def format_lists(doc):
             if item:
                 block += "<li>`" + item + "</li>"
         list_block = f"<ul>{block}</ul>"
-        doc = doc.replace(items + "\n\n", list_block).replace(items, list_block)
+        doc = doc.replace(items + "\n\n", list_block, 1).replace(items, list_block, 1)
     return doc
 
 
@@ -364,5 +364,5 @@ if __name__ == "__main__":
 
             if fns:
                 f.write("## Functions\n")
-            f.write(create_methods_table(fns, title="functions:"))
+            f.write(create_methods_table(fns, title="top-level functions:"))
             f.write("\n")

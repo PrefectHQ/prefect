@@ -77,7 +77,7 @@ def to_dotdict(obj: Any) -> DotDict:
     Given a obj formatted as a dictionary, returns an object
     that also supports "dot" access:
 
-    ```python
+    ```
     obj['data']['child']
     obj.data.child
     ```
