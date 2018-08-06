@@ -54,6 +54,7 @@ class Flow(Serializable):
         self,
         name: str = None,
         version: str = None,
+        project: str = None,
         schedule: prefect.schedules.Schedule = None,
         description: str = None,
         environment: prefect.environments.Environment = None,
@@ -62,8 +63,9 @@ class Flow(Serializable):
     ) -> None:
 
         self.name = name or type(self).__name__
-        self.version = version
-        self.description = description
+        self.version = version or prefect.config.flows.default_version
+        self.project = project or prefect.config.flows.default_project
+        self.description = description or None
         self.schedule = schedule or prefect.schedules.NoSchedule()
         self.environment = environment
 
@@ -92,11 +94,10 @@ class Flow(Serializable):
         return False
 
     def __repr__(self) -> str:
-        return "<{cls}: {self.name}{v}>".format(
-            cls=type(self).__name__,
-            self=self,
-            v=" version={}".format(self.version) if self.version else "",
+        template = (
+            "<{cls}: project={self.project}, name={self.name}, version={self.version}>"
         )
+        return template.format(cls=type(self).__name__, self=self)
 
     def __iter__(self) -> Iterable[Task]:
         yield from self.sorted_tasks()
@@ -233,6 +234,16 @@ class Flow(Serializable):
                 inspect.signature(downstream_task.run).bind_partial(**edge_keys)
 
         return edge
+
+    def chain(self, *tasks, validate=True):
+        """
+        Adds a sequence of dependent tasks to the flow.
+        """
+        with self.restore_graph_on_error(validate=validate):
+            for u_task, d_task in zip(tasks, tasks[1:]):
+                self.add_edge(
+                    upstream_task=u_task, downstream_task=d_task, validate=False
+                )
 
     def update(self, flow: "Flow", validate: bool = True) -> None:
         with self.restore_graph_on_error(validate=validate):
@@ -443,6 +454,7 @@ class Flow(Serializable):
         return dict(
             name=self.name,
             version=self.version,
+            project=self.project,
             description=self.description,
             environment=self.environment,
             parameters=self.parameters(),

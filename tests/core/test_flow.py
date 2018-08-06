@@ -42,10 +42,17 @@ class TestCreateFlow:
 
     def test_create_flow_with_version(self):
         f1 = Flow()
-        assert f1.version is None
+        assert f1.version == prefect.config.flows.default_version
 
         f2 = Flow(version="test")
         assert f2.version == "test"
+
+    def test_create_flow_with_project(self):
+        f1 = Flow()
+        assert f1.project == prefect.config.flows.default_project
+
+        f2 = Flow(project="test")
+        assert f2.project == "test"
 
     def test_create_flow_with_description(self):
         f1 = Flow()
@@ -183,6 +190,20 @@ def test_add_edge_returns_edge():
     assert edge == added_edge
     assert added_edge in f.edges
     assert edge in f.edges
+
+
+def test_chain():
+    f = Flow()
+    t1 = Task()
+    t2 = Task()
+    t3 = Task()
+    t4 = Task()
+    f.chain(t1, t2, t3, t4)
+
+    assert f.tasks == set([t1, t2, t3, t4])
+    assert Edge(t1, t2) in f.edges
+    assert Edge(t2, t3) in f.edges
+    assert Edge(t3, t4) in f.edges
 
 
 def test_iter():
