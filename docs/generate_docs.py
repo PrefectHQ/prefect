@@ -143,11 +143,26 @@ def clean_line(line):
     return line.lstrip()
 
 
+def format_lists(doc):
+    "Convenience function for converting markdown lists to HTML for within-table lists"
+    lists = re.findall(r"(Args\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL) # find formatted lists
+    for section, _, items, _ in lists:
+        list_items = re.split(r"-\s`", items) # collect all list items
+        block = ''
+        for item in list_items:
+            if item:
+                block += "<li>`" + item + "</li>"
+        doc = doc.replace(items, "<ul>" + block + "</ul>")
+    return doc
+
+
 def format_doc(doc, in_table=False):
     body = doc or ""
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
         body = body.replace(block, f"$CODEBLOCK{num}")
+    if in_table:
+        body = format_lists(body)
     lines = body.split("\n")
     cleaned = "\n".join([clean_line(line) for line in lines])
     if in_table:
@@ -156,7 +171,10 @@ def format_doc(doc, in_table=False):
         if in_table:
             block = '<pre class="language-python"><code class="language-python">' + block.rstrip('  ').replace("\n", "<br>") + "</code></pre>"
         cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(' '))
-    return cleaned
+    if in_table:
+        return f"<sub>{cleaned}</sub>"
+    else:
+        return cleaned
 
 
 def create_methods_table(obj):

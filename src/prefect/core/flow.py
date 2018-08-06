@@ -350,13 +350,10 @@ class Flow(Serializable):
         Args:
             - `task` (`object`): a Task that will become part of the Flow. If the task is not a
                 Task subclass, Prefect will attempt to convert it to one.
-
             - `upstream_tasks` (`[object]`): Tasks that will run before the task runs. If any task
                 is not a Task subclass, Prefect will attempt to convert it to one.
-
             - `downstream_tasks` (`[object]`): Tasks that will run after the task runs. If any task
                 is not a Task subclass, Prefect will attempt to convert it to one.
-
             - `keyword_tasks` (`{key: object}`): The results of these tasks
                 will be provided to the task under the specified keyword
                 arguments. If any task is not a Task subclass, Prefect will attempt to
