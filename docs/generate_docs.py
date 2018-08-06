@@ -65,13 +65,8 @@ OUTLINE = [
     {"page": "core/edge.md", "classes": [prefect.core.edge.Edge], "title": "Edge"},
     {
         "page": "core/flow.md",
-        "classes": [
-            prefect.core.flow.Flow,
-        ],
-        "functions": [
-            prefect.core.flow.get_hash,
-            prefect.core.flow.xor,
-        ],
+        "classes": [prefect.core.flow.Flow],
+        "functions": [prefect.core.flow.get_hash, prefect.core.flow.xor],
         "title": "Flow",
     },
     {
@@ -148,9 +143,7 @@ OUTLINE = [
     },
     {
         "page": "tasks/control_flow/conditional.md",
-        "classes": [
-            prefect.tasks.control_flow.conditional.Match,
-        ],
+        "classes": [prefect.tasks.control_flow.conditional.Match],
         "functions": [
             prefect.tasks.control_flow.switch,
             prefect.tasks.control_flow.ifelse,
@@ -159,9 +152,7 @@ OUTLINE = [
     },
     {
         "page": "utilities/collections.md",
-        "classes": [
-            prefect.utilities.collections.DotDict,
-        ],
+        "classes": [prefect.utilities.collections.DotDict],
         "functions": [
             prefect.utilities.collections.merge_dicts,
             prefect.utilities.collections.to_dotdict,
@@ -344,9 +335,17 @@ if __name__ == "__main__":
         os.path.basename(os.getcwd()) == "docs"
     ), "Only run this script from inside the docs/ directory!"
 
+    with open('api/README.md', "w") as f:
+        f.write("# API Documentation\n")
+        f.write("(auto-generated)")
+
     for page in OUTLINE:
         # collect what to document
-        fname, classes, fns = page["page"], page.get("classes", []), page.get("functions", [])
+        fname, classes, fns = (
+            page["page"],
+            page.get("classes", []),
+            page.get("functions", []),
+        )
         fname = f"api/{fname}"
         directory = os.path.dirname(fname)
         if directory:
@@ -367,9 +366,13 @@ if __name__ == "__main__":
                     continue
 
                 members = inspect.getmembers(
-                    obj, predicate=lambda x: inspect.isroutine(x) and obj.__name__ in x.__qualname__
+                    obj,
+                    predicate=lambda x: inspect.isroutine(x)
+                    and obj.__name__ in x.__qualname__,
                 )
-                public_members = [method for (name, method) in members if not name.startswith("_")]
+                public_members = [
+                    method for (name, method) in members if not name.startswith("_")
+                ]
                 f.write(create_methods_table(public_members, title="methods:"))
                 f.write("\n")
 
