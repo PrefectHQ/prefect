@@ -335,7 +335,7 @@ if __name__ == "__main__":
         os.path.basename(os.getcwd()) == "docs"
     ), "Only run this script from inside the docs/ directory!"
 
-    with open('api/README.md', "w") as f:
+    with open("api/README.md", "w") as f:
         f.write("# API Documentation\n")
         f.write("(auto-generated)")
 
