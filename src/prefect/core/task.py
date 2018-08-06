@@ -45,10 +45,23 @@ class Task(Serializable, metaclass=SignatureValidator):
         retry_delay: timedelta = timedelta(minutes=1),
         timeout: timedelta = None,
         trigger: Callable[[Dict["Task", "State"]], bool] = None,
-        propagate_skip: bool = False,
+        skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
     ) -> None:
+        """
+
+        Args:
+
+            trigger (callable): a function that determines whether the task should run, based
+                on the states of any upstream tasks.
+
+            skip_on_upstream_skip (bool): if True and any upstream tasks skipped, this task
+                will automatically be skipped as well. By default, this prevents tasks from
+                attempting to use either state or data from tasks that didn't run. if False,
+                the task's trigger will be called as normal; skips are considered successes.
+
+        """
 
         self.name = name or type(self).__name__
         self.slug = slug
@@ -66,7 +79,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.timeout = timeout
 
         self.trigger = trigger or prefect.triggers.all_successful
-        self.propagate_skip = propagate_skip
+        self.skip_on_upstream_skip = skip_on_upstream_skip
 
         self.cache_for = cache_for
         self.cache_validator = (
@@ -163,7 +176,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             retry_delay=task.retry_delay,
             timeout=task.timeout,
             trigger=task.trigger,
-            propagate_skip=task.propagate_skip,
+            skip_on_upstream_skip=task.skip_on_upstream_skip,
             checkpoint=task.checkpoint,
         )
 
