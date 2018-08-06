@@ -2,6 +2,7 @@
 Facilities for serializing/deserializing Python objects to JSON.
 """
 import base64
+import binascii
 import datetime
 import inspect
 import json
@@ -9,8 +10,8 @@ import sys
 import types
 import uuid
 import warnings
-from functools import singledispatch
-from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar
+from functools import singledispatch, partial
+from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar, Union
 
 import dateutil.parser
 from cryptography.fernet import Fernet
@@ -22,6 +23,15 @@ CODEC_PREFIX = "//"
 
 O = TypeVar("O")
 J = TypeVar("J", str, dict, list, tuple, int, float)
+
+__all__ = [
+    "to_qualified_name",
+    "register_json_codec",
+    "JSONCodec",
+    "Serializable",
+    "dumps",
+    "loads",
+]
 
 
 def from_qualified_name(obj_str: str) -> object:
@@ -61,7 +71,7 @@ def register_json_codec(register_type: Type = None) -> Callable:
     identify the appropriate codec.
     """
 
-    def _register(codec_class: "JSONCodec") -> "JSONCodec":
+    def _register(register_type, codec_class: "JSONCodec") -> "JSONCodec":
 
         if CODEC_PREFIX + codec_class.codec_key in JSON_CODECS_KEYS:
             warnings.warn(
@@ -72,11 +82,14 @@ def register_json_codec(register_type: Type = None) -> Callable:
 
         # register the dispatch type
         if register_type:
-            get_json_codec.register(register_type)(lambda obj: codec_class)
+            if isinstance(register_type, type):
+                register_type = [register_type]
+            for r_type in register_type:
+                get_json_codec.register(r_type)(lambda obj: codec_class)
 
         return codec_class
 
-    return _register
+    return partial(_register, register_type)
 
 
 @singledispatch
@@ -152,11 +165,11 @@ class BytesCodec(JSONCodec[bytes, str]):
     codec_key = "b"
 
     def serialize(self) -> str:
-        return self.value.decode()
+        return binascii.b2a_base64(self.value).decode()
 
     @staticmethod
     def deserialize(obj: str) -> bytes:
-        return obj.encode()
+        return binascii.a2b_base64(obj)
 
 
 @register_json_codec(uuid.UUID)
@@ -223,8 +236,10 @@ class TimeDeltaCodec(JSONCodec[datetime.timedelta, float]):
         return datetime.timedelta(seconds=obj)
 
 
-@register_json_codec(type)
-class LoadObjectCodec(JSONCodec[Any, str]):
+@register_json_codec((type, types.FunctionType, types.BuiltinFunctionType))
+class LoadObjectCodec(
+    JSONCodec[Union[type, types.FunctionType, types.BuiltinFunctionType], str]
+):
     """
     Serialize/deserialize objects by referencing their fully qualified name. This doesn't
     actually "serialize" them; it just serializes a reference to the already-existing object.
@@ -232,25 +247,14 @@ class LoadObjectCodec(JSONCodec[Any, str]):
     Objects must already be imported at the same module path or deserialization will fail.
     """
 
-    codec_key = "obj"
+    codec_key = "load_obj"
 
     def serialize(self) -> str:
         return to_qualified_name(self.value)
 
     @staticmethod
-    def deserialize(obj: str) -> Any:
+    def deserialize(obj: str) -> Type:
         return from_qualified_name(obj)
-
-
-def serializable(fn: Callable) -> Callable:
-    """
-    Decorator that marks a function as automatically serializable via
-    LoadObjectCodec
-    """
-    if hasattr(fn, "__json__"):
-        raise ValueError("Object already has a __json__() method.")
-    setattr(fn, "__json__", lambda: LoadObjectCodec(fn).__json__())
-    return fn
 
 
 @register_json_codec()
@@ -413,5 +417,5 @@ class PrefectJSONDecoder(json.JSONDecoder):
         return dct
 
 
-json._default_encoder = PrefectJSONEncoder()
-json._default_decoder = PrefectJSONDecoder()
+dumps = partial(json.dumps, cls=PrefectJSONEncoder)
+loads = partial(json.loads, cls=PrefectJSONDecoder)

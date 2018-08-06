@@ -1,3 +1,4 @@
+import binascii
 import datetime
 import json
 
@@ -6,13 +7,8 @@ import pytest
 import prefect.utilities.json as json_utils
 
 
-@json_utils.serializable
 def a_test_fn():
     pass
-
-
-def default_load_json(obj):
-    return json.JSONDecoder().decode(obj)
 
 
 class EqMixin:
@@ -66,44 +62,58 @@ class TestTypeCodecs:
     def test_json_codec_datetime(self):
         d = datetime.datetime(2020, 1, 2, 3, 4, 5, 6)
 
-        j = json.dumps(d)
-        assert j == json.dumps({"//datetime": d.isoformat()})
-        assert d == json.loads(j)
+        j = json_utils.dumps(d)
+        assert j == json_utils.dumps({"//datetime": d.isoformat()})
+        assert d == json_utils.loads(j)
 
     def test_json_codec_timedelta(self):
         t = datetime.timedelta(days=2, hours=5, microseconds=15)
-        j = json.dumps(t)
-        assert j == json.dumps({"//timedelta": t.total_seconds()})
-        assert t == json.loads(j)
+        j = json_utils.dumps(t)
+        assert j == json_utils.dumps({"//timedelta": t.total_seconds()})
+        assert t == json_utils.loads(j)
 
     def test_json_codec_date(self):
         d = datetime.datetime(2020, 1, 2, 3, 4, 5, 6).date()
-        j = json.dumps(d)
-        assert j == json.dumps({"//date": d.isoformat()})
-        assert d == json.loads(j)
+        j = json_utils.dumps(d)
+        assert j == json_utils.dumps({"//date": d.isoformat()})
+        assert d == json_utils.loads(j)
 
     def test_json_codec_bytes(self):
         b = b"hello, world!"
-        j = json.dumps(b)
-        assert j == json.dumps({"//b": b.decode()})
-        assert b == json.loads(j)
+        j = json_utils.dumps(b)
+        assert j == json_utils.dumps({"//b": binascii.b2a_base64(b).decode()})
+        assert b == json_utils.loads(j)
+
+    def test_json_codec_undecodeable_bytes(self):
+        b = b"\xbb\xe6\x11/\xa3V\x80g?\x19I\x1b\x9d\xaf@\\"
+        j = json_utils.dumps(b)
+        with pytest.raises(UnicodeDecodeError):
+            b.decode()
+        assert j == json_utils.dumps({"//b": binascii.b2a_base64(b).decode()})
+        assert b == json_utils.loads(j)
 
     def test_json_codec_multiple(self):
         x = dict(b=b"hello, world!", d=datetime.datetime(2020, 1, 1))
-        j = json.dumps(x)
-        assert x == json.loads(j)
+        j = json_utils.dumps(x)
+        assert x == json_utils.loads(j)
 
     def test_json_codec_set(self):
         x = set([3, 4, 5])
-        j = json.dumps(x)
-        assert default_load_json(j)["//set"] == [3, 4, 5]
-        assert x == json.loads(j)
+        j = json_utils.dumps(x)
+        assert json.loads(j)["//set"] == [3, 4, 5]
+        assert x == json_utils.loads(j)
 
-    def test_json_codec_load(self):
+    def test_json_codec_function(self):
 
-        j = json.dumps(a_test_fn)
-        assert default_load_json(j) == {"//obj": "tests.utilities.test_json.a_test_fn"}
-        assert a_test_fn == json.loads(j)
+        j = json_utils.dumps(a_test_fn)
+        assert json.loads(j) == {"//load_obj": "tests.utilities.test_json.a_test_fn"}
+        assert a_test_fn == json_utils.loads(j)
+
+    def test_json_codec_builtin_function(self):
+
+        j = json_utils.dumps(print)
+        assert json.loads(j) == {"//load_obj": "builtins.print"}
+        assert print == json_utils.loads(j)
 
 
 class TestObjectSerialization:
@@ -119,23 +129,23 @@ class TestObjectSerialization:
     def test_class_with_json_method(self):
 
         x = self.ClassWithJSONMethod()
-        j = json.dumps(x)
-        assert j == json.dumps(dict(a=1, b=2, c=datetime.datetime(2000, 1, 1)))
+        j = json_utils.dumps(x)
+        assert j == json_utils.dumps(dict(a=1, b=2, c=datetime.datetime(2000, 1, 1)))
 
     def test_object_attrs_codec(self):
         x = self.ObjectWithAttrs(1, 2)
 
         dict_codec = json_utils.ObjectAttributesCodec(x)
         assert dict_codec.attrs == list(x.__dict__.keys())
-        dict_j = default_load_json(json.dumps(dict_codec))
+        dict_j = json.loads(json_utils.dumps(dict_codec))
         assert dict_j["//obj_attrs"]["attrs"] == x.__dict__
-        assert json.loads(json.dumps(dict_codec)) == x
+        assert json_utils.loads(json_utils.dumps(dict_codec)) == x
 
         attr_codec = json_utils.ObjectAttributesCodec(x, attributes_list=["a"])
         assert attr_codec.attrs == ["a"]
-        attr_j = default_load_json(json.dumps(attr_codec))
+        attr_j = json.loads(json_utils.dumps(attr_codec))
         assert attr_j["//obj_attrs"]["attrs"] == {"a": x.a}
-        j = json.loads(json.dumps(attr_codec))
+        j = json_utils.loads(json_utils.dumps(attr_codec))
         assert isinstance(j, self.ObjectWithAttrs)
         assert j.a == x.a
         assert not hasattr(j, "b")
@@ -146,10 +156,10 @@ class TestObjectSerialization:
         """
 
         x = self.ObjectWithAttrs(1, datetime.datetime(2000, 1, 1))
-        j = json.dumps(json_utils.ObjectAttributesCodec(x))
+        j = json_utils.dumps(json_utils.ObjectAttributesCodec(x))
 
-        assert x == json.loads(j)
-        assert isinstance(json.loads(j), self.ObjectWithAttrs)
+        assert x == json_utils.loads(j)
+        assert isinstance(json_utils.loads(j), self.ObjectWithAttrs)
 
 
 class TestObjectInitArgsSerialization:
@@ -190,32 +200,44 @@ class TestObjectInitArgsSerialization:
 
     def test_two_args(self):
         x = self.InitTwoArgs(1, 2)
-        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
     def test_two_args_underscore(self):
         x = self.InitTwoArgsUnderscore(1, 2)
-        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
     def test_two_args_not_stored(self):
         x = self.InitTwoArgsNotStored(1, 2)
         with pytest.raises(ValueError):
-            json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x)))
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x)))
 
     def test_two_args_prefer_underscore(self):
         x = self.InitTwoArgsPreferUnderscore(1, 2)
-        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
     def test_init_arg_dict(self):
         x = self.InitArgDict(1, 2)
-        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
     def test_init_kwargs(self):
         x = self.InitKwargs(a=1, b=2)
-        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
     def test_init_kwargs_dict(self):
         x = self.InitKwargsDict(a=1, b=2)
-        assert json.loads(json.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        assert (
+            json_utils.loads(json_utils.dumps(json_utils.ObjectInitArgsCodec(x))) == x
+        )
 
 
 class TestSerializableClass:
@@ -232,4 +254,4 @@ class TestSerializableClass:
         x = self.SerializableObj(1, datetime.datetime(2000, 1, 1))
 
         assert x._json_codec is json_utils.ObjectAttributesCodec
-        assert x == json.loads(json.dumps(x))
+        assert x == json_utils.loads(json_utils.dumps(x))
