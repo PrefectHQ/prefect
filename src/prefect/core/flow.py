@@ -276,6 +276,16 @@ class Flow(Serializable):
 
     def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
 
+        # cache upstream tasks and downstream tasks since we need them often
+        upstream_tasks = {
+            t: {e.upstream_task for e in edges}
+            for t, edges in self.all_upstream_edges().items()
+        }
+        downstream_tasks = {
+            t: {e.downstream_task for e in edges}
+            for t, edges in self.all_downstream_edges().items()
+        }
+
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
         if root_tasks:
@@ -287,7 +297,7 @@ class Flow(Serializable):
                 # iterate over the new tasks...
                 for t in list(tasks.difference(seen)):
                     # add its downstream tasks to the task list
-                    tasks.update(self.downstream_tasks(t))
+                    tasks.update(downstream_tasks[t])
                     # mark it as seen
                     seen.add(t)
         else:
@@ -303,7 +313,7 @@ class Flow(Serializable):
             # iterate over each remaining task
             for task in remaining_tasks.copy():
                 # check all the upstream tasks of that task
-                for upstream_task in self.upstream_tasks(task):
+                for upstream_task in upstream_tasks[task]:
                     # if the upstream task is also remaining, it means it
                     # hasn't been sorted, so we can't sort this task either
                     if upstream_task in remaining_tasks:
