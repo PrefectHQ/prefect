@@ -191,6 +191,7 @@ def test_add_edge_returns_edge():
     assert added_edge in f.edges
     assert edge in f.edges
 
+
 def test_chain():
     f = Flow()
     t1 = Task()
@@ -203,6 +204,7 @@ def test_chain():
     assert Edge(t1, t2) in f.edges
     assert Edge(t2, t3) in f.edges
     assert Edge(t3, t4) in f.edges
+
 
 def test_iter():
     """
