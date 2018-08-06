@@ -75,10 +75,10 @@ class ContainerEnvironment(Environment):
         """Build the Docker container
 
         Args:
-            None
+            - `None`
 
         Returns:
-            tuple with (docker.models.images.Image, iterable logs)
+            - `tuple` with (`docker.models.images.Image`, iterable logs)
 
         """
         with tempfile.TemporaryDirectory() as tempdir:
@@ -95,11 +95,11 @@ class ContainerEnvironment(Environment):
         """Run the flow in the Docker container
 
         Args:
-            command: An initial command that will be executed on container run
-            tty: Sets whether the container stays active once it is started
+            - `command`: An initial command that will be executed on container run
+            - `tty` (`bool`): Sets whether the container stays active once it is started
 
         Returns:
-            A docker.models.containers.Container object
+            - `docker.models.containers.Container` object
 
         """
 
@@ -122,10 +122,10 @@ class ContainerEnvironment(Environment):
         the environment variables.
 
         Args:
-            None
+            - `None`
 
         Returns:
-            None
+            - `None`
         """
         self.client.images.pull(self.image)
 
@@ -137,10 +137,10 @@ class ContainerEnvironment(Environment):
         image and python_dependencies then writes them to a file called Dockerfile.
 
         Args:
-            directory: A directory where the Dockerfile will be created
+            - `directory`: A directory where the Dockerfile will be created
 
         Returns:
-            None
+            - `None`
         """
         path = "{}/Dockerfile".format(directory)
         with open(path, "w+") as dockerfile:
@@ -195,10 +195,10 @@ class PickleEnvironment(Environment):
         Pickles a flow and returns the bytes
 
         Args:
-            flow: A prefect Flow object
+            - `flow`: A prefect Flow object
 
         Returns:
-            An encrypted pickled flow
+            - An encrypted pickled flow
         """
         serialized_pickle = base64.b64encode(cloudpickle.dumps(flow))
         serialized_pickle = self.Fernet(self.encryption_key).encrypt(serialized_pickle)
@@ -213,13 +213,13 @@ class PickleEnvironment(Environment):
         Returns the serialized flow from a pickle
 
         Args:
-            pickle: A pickled Flow object
+            - `pickle`: A pickled Flow object
 
         Returns:
-            A dictionary of the serialized flow
+            - A dictionary of the serialized flow
 
         Raises:
-            TypeError if the unpickeld object is not a Flow
+            - `TypeError` if the unpickeld object is not a Flow
         """
 
         serialized_pickle = self.Fernet(self.encryption_key).decrypt(pickle).decode()
