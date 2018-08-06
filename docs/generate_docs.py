@@ -12,113 +12,170 @@ import prefect
 OUTLINE = [
     {
         "page": "environments.md",
-        "items": [prefect.environments.Secret,
-                    prefect.environments.Environment,
-                    prefect.environments.ContainerEnvironment,
-                    prefect.environments.PickleEnvironment],
+        "classes": [
+            prefect.environments.Secret,
+            prefect.environments.Environment,
+            prefect.environments.ContainerEnvironment,
+            prefect.environments.PickleEnvironment,
+        ],
         "title": "Environments",
     },
-    {"page": "triggers.md", "items": [prefect.triggers.all_finished,
-                                        prefect.triggers.manual_only,
-                                        prefect.triggers.always_run,
-                                        prefect.triggers.never_run,
-                                        prefect.triggers.all_successful,
-                                        prefect.triggers.all_failed,
-                                        prefect.triggers.any_successful,
-                                        prefect.triggers.any_failed],
-     "title": "Triggers"},
-    {"page": "client.md", "items": [prefect.client.Client,
-                                      prefect.client.ClientModule,
-                                      prefect.client.Projects,
-                                      prefect.client.Flows,
-                                      prefect.client.FlowRuns,
-                                      prefect.client.TaskRuns],
-     "title": "Client"},
-    {"page": "schedules.md", "items": [prefect.schedules.Schedule,
-                                       prefect.schedules.NoSchedule,
-                                       prefect.schedules.IntervalSchedule,
-                                       prefect.schedules.CronSchedule,
-                                       prefect.schedules.DateSchedule],
-     "title": "Schedules"},
-    {"page": "serializers.md", "items": [prefect.serializers.Serializer,
-                                         prefect.serializers.JSONSerializer],
-     "title": "Serializers"},
-    {"page": "core/edge.md", "items": [prefect.core.edge.Edge], "title": "Edge"},
-    {"page": "core/flow.md", "items": [prefect.core.flow.Flow,
-                                       prefect.core.flow.get_hash,
-                                       prefect.core.flow.xor],
-     "title": "Flow"},
-    {"page": "core/task.md", "items": [prefect.core.task.Task,
-                                       prefect.core.task.Parameter],
-     "title": "Task"},
+    {
+        "page": "triggers.md",
+        "functions": [
+            prefect.triggers.all_finished,
+            prefect.triggers.manual_only,
+            prefect.triggers.always_run,
+            prefect.triggers.never_run,
+            prefect.triggers.all_successful,
+            prefect.triggers.all_failed,
+            prefect.triggers.any_successful,
+            prefect.triggers.any_failed,
+        ],
+        "title": "Triggers",
+    },
+    {
+        "page": "client.md",
+        "classes": [
+            prefect.client.Client,
+            prefect.client.ClientModule,
+            prefect.client.Projects,
+            prefect.client.Flows,
+            prefect.client.FlowRuns,
+            prefect.client.TaskRuns,
+        ],
+        "title": "Client",
+    },
+    {
+        "page": "schedules.md",
+        "classes": [
+            prefect.schedules.Schedule,
+            prefect.schedules.NoSchedule,
+            prefect.schedules.IntervalSchedule,
+            prefect.schedules.CronSchedule,
+            prefect.schedules.DateSchedule,
+        ],
+        "title": "Schedules",
+    },
+    {
+        "page": "serializers.md",
+        "classes": [prefect.serializers.Serializer, prefect.serializers.JSONSerializer],
+        "title": "Serializers",
+    },
+    {"page": "core/edge.md", "classes": [prefect.core.edge.Edge], "title": "Edge"},
+    {
+        "page": "core/flow.md",
+        "classes": [
+            prefect.core.flow.Flow,
+        ],
+        "functions": [
+            prefect.core.flow.get_hash,
+            prefect.core.flow.xor,
+        ],
+        "title": "Flow",
+    },
+    {
+        "page": "core/task.md",
+        "classes": [prefect.core.task.Task, prefect.core.task.Parameter],
+        "title": "Task",
+    },
     {
         "page": "engine/cache_validators.md",
-        "items": [prefect.engine.cache_validators.never_use,
-                  prefect.engine.cache_validators.duration_only,
-                  prefect.engine.cache_validators.all_inputs,
-                  prefect.engine.cache_validators.all_parameters,
-                  prefect.engine.cache_validators.partial_parameters_only,
-                  prefect.engine.cache_validators.partial_inputs_only],
+        "functions": [
+            prefect.engine.cache_validators.never_use,
+            prefect.engine.cache_validators.duration_only,
+            prefect.engine.cache_validators.all_inputs,
+            prefect.engine.cache_validators.all_parameters,
+            prefect.engine.cache_validators.partial_parameters_only,
+            prefect.engine.cache_validators.partial_inputs_only,
+        ],
         "title": "Cache Validators",
     },
-    {"page": "engine/state.md", "items": [prefect.engine.state.State,
-                                          prefect.engine.state.Pending,
-                                          prefect.engine.state.CachedState,
-                                          prefect.engine.state.Scheduled,
-                                          prefect.engine.state.Retrying,
-                                          prefect.engine.state.Running,
-                                          prefect.engine.state.Finished,
-                                          prefect.engine.state.Success,
-                                          prefect.engine.state.Failed,
-                                          prefect.engine.state.TriggerFailed,
-                                          prefect.engine.state.Skipped],
-     "title": "State"},
-    {"page": "engine/signals.md", "items": [prefect.engine.signals.PrefectStateSignal,
-                                            prefect.engine.signals.FAIL,
-                                            prefect.engine.signals.TRIGGERFAIL,
-                                            prefect.engine.signals.SUCCESS,
-                                            prefect.engine.signals.RETRY,
-                                            prefect.engine.signals.SKIP,
-                                            prefect.engine.signals.DONTRUN],
-     "title": "Signals"},
+    {
+        "page": "engine/state.md",
+        "classes": [
+            prefect.engine.state.State,
+            prefect.engine.state.Pending,
+            prefect.engine.state.CachedState,
+            prefect.engine.state.Scheduled,
+            prefect.engine.state.Retrying,
+            prefect.engine.state.Running,
+            prefect.engine.state.Finished,
+            prefect.engine.state.Success,
+            prefect.engine.state.Failed,
+            prefect.engine.state.TriggerFailed,
+            prefect.engine.state.Skipped,
+        ],
+        "title": "State",
+    },
+    {
+        "page": "engine/signals.md",
+        "classes": [
+            prefect.engine.signals.PrefectStateSignal,
+            prefect.engine.signals.FAIL,
+            prefect.engine.signals.TRIGGERFAIL,
+            prefect.engine.signals.SUCCESS,
+            prefect.engine.signals.RETRY,
+            prefect.engine.signals.SKIP,
+            prefect.engine.signals.DONTRUN,
+        ],
+        "title": "Signals",
+    },
     {
         "page": "engine/flow_runner.md",
-        "items": [prefect.engine.flow_runner.FlowRunner],
+        "classes": [prefect.engine.flow_runner.FlowRunner],
         "title": "FlowRunner",
     },
     {
         "page": "engine/task_runner.md",
-        "items": [prefect.engine.task_runner.TaskRunner],
+        "classes": [prefect.engine.task_runner.TaskRunner],
         "title": "TaskRunner",
     },
-    {"page": "engine/executors/dask.md", "items": [prefect.engine.executors.dask.DaskExecutor],
-     "title": "Dask Executor"},
-    {"page": "engine/executors/base.md", "items": [prefect.engine.executors.base.Executor],
-     "title": "Executor"},
-    {"page": "engine/executors/local.md", "items": [prefect.engine.executors.local.LocalExecutor],
-     "title": "Local Executor"},
+    {
+        "page": "engine/executors/dask.md",
+        "classes": [prefect.engine.executors.dask.DaskExecutor],
+        "title": "Dask Executor",
+    },
+    {
+        "page": "engine/executors/base.md",
+        "classes": [prefect.engine.executors.base.Executor],
+        "title": "Executor",
+    },
+    {
+        "page": "engine/executors/local.md",
+        "classes": [prefect.engine.executors.local.LocalExecutor],
+        "title": "Local Executor",
+    },
     {
         "page": "utilities/collections.md",
-        "items": [prefect.utilities.collections.merge_dicts,
-                  prefect.utilities.collections.DotDict,
-                  prefect.utilities.collections.to_dotdict,
-                  prefect.utilities.collections.dict_to_flatdict,
-                  prefect.utilities.collections.flatdict_to_dict],
+        "classes": [
+            prefect.utilities.collections.DotDict,
+        ],
+        "functions": [
+            prefect.utilities.collections.merge_dicts,
+            prefect.utilities.collections.to_dotdict,
+            prefect.utilities.collections.dict_to_flatdict,
+            prefect.utilities.collections.flatdict_to_dict,
+        ],
         "title": "Collections",
     },
     {
         "page": "utilities/flows.md",
-        "items": [prefect.utilities.flows.reset_default_flow,
-                  prefect.utilities.flows.get_default_flow,
-                  prefect.utilities.flows.get_flow_by_id],
+        "functions": [
+            prefect.utilities.flows.reset_default_flow,
+            prefect.utilities.flows.get_default_flow,
+            prefect.utilities.flows.get_flow_by_id,
+        ],
         "title": "Flow Utilities",
     },
     {
         "page": "utilities/tasks.md",
-        "items": [prefect.utilities.tasks.group,
-                  prefect.utilities.tasks.tags,
-                  prefect.utilities.tasks.as_task,
-                  prefect.utilities.tasks.task],
+        "functions": [
+            prefect.utilities.tasks.group,
+            prefect.utilities.tasks.tags,
+            prefect.utilities.tasks.as_task,
+            prefect.utilities.tasks.task,
+        ],
         "title": "Task Utilities",
     },
 ]
@@ -145,14 +202,17 @@ def clean_line(line):
 
 def format_lists(doc):
     "Convenience function for converting markdown lists to HTML for within-table lists"
-    lists = re.findall(r"(Args\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL) # find formatted lists
+    lists = re.findall(
+        r"(Args\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL
+    )  # find formatted lists
     for section, _, items, _ in lists:
-        list_items = re.split(r"-\s`", items) # collect all list items
-        block = ''
+        list_items = re.split(r"-\s`", items)  # collect all list items
+        block = ""
         for item in list_items:
             if item:
                 block += "<li>`" + item + "</li>"
-        doc = doc.replace(items, "<ul>" + block + "</ul>")
+        list_block = f"<ul>{block}</ul>"
+        doc = doc.replace(items + "\n\n", list_block).replace(items, list_block)
     return doc
 
 
@@ -166,30 +226,30 @@ def format_doc(doc, in_table=False):
     lines = body.split("\n")
     cleaned = "\n".join([clean_line(line) for line in lines])
     if in_table:
-        cleaned = cleaned.replace("\n", "<br>").replace('```', "")
+        cleaned = cleaned.replace("\n", "<br>").replace("```", "")
     for num, block in enumerate(code_blocks):
         if in_table:
-            block = '<pre class="language-python"><code class="language-python">' + block.rstrip('  ').replace("\n", "<br>") + "</code></pre>"
-        cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(' '))
+            block = (
+                '<pre class="language-python"><code class="language-python">'
+                + block.rstrip("  ").replace("\n", "<br>")
+                + "</code></pre>"
+            )
+        cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(" "))
     if in_table:
-        return f"<sub>{cleaned}</sub>"
+        return f"<sub>{cleaned}</sub><br>"
     else:
         return cleaned
 
 
-def create_methods_table(obj):
+def create_methods_table(members, title):
     table = ""
-    members = inspect.getmembers(
-        obj,
-        predicate=lambda x: inspect.isroutine(x)
-        and obj.__name__ in x.__qualname__,
-    )
-    public_members = [method for (name, method) in members if not name.startswith('_')]
-    if public_members:
-        table = "|methods: " + "&nbsp;" * 150 + "|\n"
+    if members:
+        table = f"|{title} " + "&nbsp;" * 150 + "|\n"
         table += "|:----|\n"
-    for method in public_members:
-        table += format_subheader(method, level=2, in_table=True).replace("\n", "<br><br>")
+    for method in members:
+        table += format_subheader(method, level=2, in_table=True).replace(
+            "\n", "<br><br>"
+        )
         table += format_doc(inspect.getdoc(method), in_table=True)
         table += "|\n"
     return table
@@ -275,7 +335,7 @@ if __name__ == "__main__":
 
     for page in OUTLINE:
         # collect what to document
-        fname, items = page["page"], page["items"]
+        fname, classes, fns = page["page"], page.get("classes", []), page.get("functions", [])
         fname = f"api/{fname}"
         directory = os.path.dirname(fname)
         if directory:
@@ -287,7 +347,7 @@ if __name__ == "__main__":
             if title:  # this would be a good place to have assignments
                 f.write(f"# {title}\n---\n")
 
-            for obj in items:
+            for obj in classes:
                 f.write(format_subheader(obj))
 
                 f.write(format_doc(inspect.getdoc(obj)) + "\n\n")
@@ -295,5 +355,14 @@ if __name__ == "__main__":
                     f.write("\n")
                     continue
 
-                f.write(create_methods_table(obj))
+                members = inspect.getmembers(
+                    obj, predicate=lambda x: inspect.isroutine(x) and obj.__name__ in x.__qualname__
+                )
+                public_members = [method for (name, method) in members if not name.startswith("_")]
+                f.write(create_methods_table(public_members, title="methods:"))
                 f.write("\n")
+
+            if fns:
+                f.write("## Functions\n")
+            f.write(create_methods_table(fns, title="functions:"))
+            f.write("\n")

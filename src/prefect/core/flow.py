@@ -49,6 +49,7 @@ class Flow(Serializable):
         - `tasks` (`[Task]`)
         - `edges` (`[Edge]`)
     """
+
     def __init__(
         self,
         name: str = None,
