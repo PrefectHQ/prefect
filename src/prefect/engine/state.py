@@ -15,6 +15,7 @@ class State(Serializable):
         - `message` (`str` or `Exception`, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
     """
+
     def __init__(self, result: Any = None, message: MessageType = None) -> None:
         self.result = result
         self.message = message
@@ -79,6 +80,7 @@ class Pending(State):
         - `cached_inputs` (`dict`): Defaults to `None`. A dictionary of input
         keys to values.  Used / set if the Task requires Retries.
     """
+
     def __init__(
         self,
         result: Any = None,
@@ -110,6 +112,7 @@ class CachedState(Pending):
         - `cached_parameters` (`dict`): Defaults to `None`
         - `cached_result_expiration` (`datetime`): Defaults to `None`
     """
+
     def __init__(
         self,
         result: Any = None,

@@ -42,7 +42,7 @@ class DotDict(MutableMapping):
         ```
     """
 
-    def __init__(self, init_dict = None, **kwargs):
+    def __init__(self, init_dict=None, **kwargs):
         if init_dict:
             self.update(init_dict)
         self.update(kwargs)

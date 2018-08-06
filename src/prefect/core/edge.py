@@ -28,6 +28,7 @@ class Edge:
     The key indicates that the result of the upstream task should be passed
     to the downstream task under the key.
     """
+
     def __init__(
         self, upstream_task: Task, downstream_task: Task, key: str = None
     ) -> None:

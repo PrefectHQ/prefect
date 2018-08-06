@@ -51,6 +51,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         - `cache_for` (`timedelta`)
         - `cache_validator`
     """
+
     def __init__(
         self,
         name: str = None,
