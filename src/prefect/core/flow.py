@@ -58,6 +58,7 @@ class Flow(Serializable):
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
+        self.set_key_tasks([])
 
         for t in tasks or []:
             self.add_task(t)
@@ -75,8 +76,8 @@ class Flow(Serializable):
 
     def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
-            s = (self.name, self.version, self.tasks, self.edges)
-            o = (other.name, other.version, other.tasks, other.edges)
+            s = (self.name, self.version, self.tasks, self.edges, self.key_tasks())
+            o = (other.name, other.version, other.tasks, other.edges, other.key_tasks())
             return s == o
         return False
 
@@ -95,6 +96,7 @@ class Flow(Serializable):
         new = copy.copy(self)
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
+        new.set_key_tasks(self._key_tasks)
         return new
 
     # Context Manager ----------------------------------------------------------
@@ -136,6 +138,41 @@ class Flow(Serializable):
             for t in self.tasks
             if isinstance(t, Parameter) and (t.required if only_required else True)
         }
+
+    def key_tasks(self) -> Set[Task]:
+        """
+        A flow's "key tasks" are used to determine its state when it runs. If all the key
+        tasks are successful, then the flow run is considered successful. However, if
+        any of the key tasks fail, the flow is considered to fail. (Note that skips are
+        counted as successes.)
+
+        By default, a flow's key tasks are its terminal tasks. This means the state of a
+        flow is determined by the last tasks that run.
+
+        In some situations, users may want to customize that behavior; for example, if a
+        flow's terminal tasks are "clean up" tasks for the rest of the flow. The
+        flow.set_key_tasks() method can be used to set custom key_tasks.
+
+        Please note that even if key_tasks are provided that are not terminal tasks, the flow
+        will not be considered "finished" until all terminal tasks have completed. Only then
+        will state be determined, using the key tasks.
+        """
+        if self._key_tasks:
+            return set(self._key_tasks)
+        else:
+            return self.terminal_tasks()
+
+    def set_key_tasks(self, tasks: Iterable[Task]) -> None:
+        """
+        Sets the "key tasks" for the flow. See flow.key_tasks() for more details.
+
+        Args:
+            - tasks ([Task]): the tasks that should be set as a flow's key tasks.
+        """
+        key_tasks = set(tasks)
+        if any(t not in self.tasks for t in key_tasks):
+            raise ValueError("Key tasks must be part of the flow.")
+        self._key_tasks = key_tasks
 
     # Graph --------------------------------------------------------------------
 
@@ -428,6 +465,7 @@ class Flow(Serializable):
             environment=self.environment,
             parameters=self.parameters(),
             schedule=self.schedule,
+            key_tasks=self.key_tasks(),
             tasks=[dict(obj_id=obj_ids[t], **t.serialize()) for t in self.tasks],
             edges=[
                 dict(

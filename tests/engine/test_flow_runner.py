@@ -297,6 +297,30 @@ def test_missing_parameter_error_is_surfaced():
     assert isinstance(msg, prefect.engine.signals.FAIL)
     assert "required parameter" in str(msg).lower()
 
+def test_flow_run_state_determined_by_key_tasks():
+    flow = prefect.Flow()
+    t1 = ErrorTask()
+    t2 = SuccessTask(trigger=prefect.triggers.all_finished)
+    flow.add_edge(t1, t2)
+
+    flow.set_key_tasks([t1])
+    flow_state = flow.run(return_tasks=[t1, t2])
+    assert isinstance(flow_state, Failed)
+    assert isinstance(flow_state.result[t1], Failed)
+    assert isinstance(flow_state.result[t2], Success)
+
+def test_flow_run_state_not_determined_by_key_tasks_if_terminal_tasks_are_not_finished():
+    flow = prefect.Flow()
+    t1 = ErrorTask()
+    t2 = RaiseRetryTask(trigger=prefect.triggers.all_finished)
+    flow.add_edge(t1, t2)
+
+    flow.set_key_tasks([t1])
+    flow_state = flow.run(return_tasks=[t1, t2])
+    assert isinstance(flow_state, Pending)
+    assert isinstance(flow_state.result[t1], Failed)
+    assert isinstance(flow_state.result[t2], Retrying)
+
 
 class TestFlowRunner_get_pre_run_state:
     def test_runs_as_expected(self):

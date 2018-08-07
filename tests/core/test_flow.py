@@ -253,6 +253,25 @@ def test_eager_cycle_detection_works():
             f.add_edge(t2, t1)
 
 
+def test_copy():
+    with Flow() as f:
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+
+    f.add_edge(t1, t2)
+    f.add_edge(t2, t3)
+    f.set_key_tasks([t1])
+
+    f2 = f.copy()
+    assert f2 == f
+
+    f.add_edge(Task(), Task())
+    assert len(f2.tasks) == len(f.tasks) - 2
+    assert len(f2.edges) == len(f.edges) - 1
+    assert f.key_tasks() == f2.key_tasks() == set([t1])
+
+
 def test_infer_root_tasks():
     with Flow() as f:
         t1 = Task()
@@ -270,12 +289,150 @@ def test_infer_terminal_tasks():
         t1 = Task()
         t2 = Task()
         t3 = Task()
+        t4 = Task()
+
+    f.add_edge(t1, t2)
+    f.add_edge(t2, t3)
+    f.add_task(t4)
+
+    assert f.terminal_tasks() == set([t3, t4])
+
+
+def test_key_tasks_are_terminal_tasks_by_default():
+    with Flow() as f:
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        t4 = Task()
+
+    f.add_edge(t1, t2)
+    f.add_edge(t2, t3)
+    f.add_task(t4)
+
+    assert f.key_tasks() == f.terminal_tasks() == set([t3, t4])
+
+
+def test_set_key_tasks():
+    with Flow() as f:
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
 
     f.add_edge(t1, t2)
     f.add_edge(t2, t3)
 
-    assert f.terminal_tasks() == set([t3])
+    f.set_key_tasks([])
+    assert f.key_tasks() == f.terminal_tasks()
+    f.set_key_tasks([t2])
+    assert f.key_tasks() == set([t2])
 
+def test_reset_key_tasks_to_terminal_tasks():
+
+    with Flow() as f:
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+
+    f.add_edge(t1, t2)
+    f.add_edge(t2, t3)
+
+    f.set_key_tasks([t2])
+    assert f.key_tasks() == set([t2])
+    f.set_key_tasks([])
+    assert f.key_tasks() == f.terminal_tasks()
+
+def test_key_states_raises_error_if_not_part_of_flow():
+    f = Flow()
+    t1 = Task()
+    with pytest.raises(ValueError):
+        f.set_key_tasks([t1])
+
+def test_key_states_raises_error_if_not_iterable():
+    f = Flow()
+    t1 = Task()
+    f.add_task(t1)
+    with pytest.raises(TypeError):
+        f.set_key_tasks(t1)
+
+def test_equality_based_on_tasks():
+    f1 = Flow()
+    f2 = Flow()
+
+    t1 = Task()
+    t2 = Task()
+    t3 = Task()
+
+    for f in [f1, f2]:
+        f.add_task(t1)
+        f.add_task(t2)
+    assert f1 == f2
+
+    f2.add_task(t3)
+    assert f1 != f2
+
+def test_equality_based_on_edges():
+    f1 = Flow()
+    f2 = Flow()
+
+    t1 = Task()
+    t2 = Task()
+    t3 = Task()
+
+    for f in [f1, f2]:
+        f.add_edge(t1, t2)
+        f.add_task(t1, t3)
+    assert f1 == f2
+
+    f2.add_edge(t2, t3)
+    assert f1 != f2
+
+def test_equality_based_on_name():
+    f1 = Flow('hi')
+    f2 = Flow('bye')
+    assert f1 != f2
+
+def test_equality_based_on_project():
+    f1 = Flow('flow', project='1')
+    f2 = Flow('flow', project='1')
+    f3 = Flow('flow', project='2')
+    assert f1 == f2
+    assert f2 != f3
+
+def test_equality_based_on_version():
+    f1 = Flow('flow', version='1')
+    f2 = Flow('flow', version='1')
+    f3 = Flow('flow', version='2')
+    assert f1 == f2
+    assert f2 != f3
+def test_equality_based_on_key_tasks():
+    f1 = Flow()
+    f2 = Flow()
+
+    t1 = Task()
+    t2 = Task()
+    t3 = Task()
+
+    for f in [f1, f2]:
+        f.add_edge(t1, t2)
+        f.add_task(t1, t3)
+
+    f1.set_key_tasks([t2])
+    assert f1 != f2
+    f2.set_key_tasks([t2])
+    assert f1 == f2
+
+def test_equality():
+    f1 = Flow()
+    f2 = Flow()
+
+    t1 = Task()
+    t2 = Task()
+    t3 = Task()
+
+    for f in [f1, f2]:
+        f.add_edge(t1, t2)
+        f.add_edge(t1, t3)
+    assert f1 == f2
 
 def test_merge():
     f1 = Flow()
