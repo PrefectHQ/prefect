@@ -6,6 +6,15 @@ setup_gcloud_sdk: &setup_gcloud_sdk
         gcloud config set compute/zone $GCLOUD_ZONE
         gcloud config set project $GCLOUD_PROJECT
 
+install_yarn: &install_yarn
+    name: Install yarn and upgrade node
+    command: |
+        curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
+        echo "deb http://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+        apt-get update && apt-get install -y yarn
+        curl -sL https://deb.nodesource.com/setup_10.x | bash -
+        apt-get install -y nodejs
+
 
 version: 2
 jobs:
@@ -17,9 +26,10 @@ jobs:
       - attach_workspace:
           at: /workspace
       - run: *setup_gcloud_sdk
+      - run: *install_yarn
       - run:
           name: vuepress deploy
-          command: which yarn && ls . && ls -R /workspace/
+          command: gcloud app deploy /workspace/deploy --quiet --project=prefect-docs
  
   docs_build:
     docker:
@@ -34,18 +44,11 @@ jobs:
       - run:
           name: Auto-generate markdown
           command: |
-            mkdir -p /workspace
+            mkdir -p /workspace/deploy
             cd docs/ && python generate_docs.py
             sed -i  "s/\${GIT_SHA}/$CIRCLE_SHA1/g" README.md
  
-      - run:
-          name: Install yarn and upgrade node
-          command: |
-            curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
-            echo "deb http://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
-            apt-get update && apt-get install -y yarn
-            curl -sL https://deb.nodesource.com/setup_10.x | bash -
-            apt-get install -y nodejs
+      - run: *install_yarn
 
       - run:
           name: Install vuepress
@@ -53,12 +56,12 @@ jobs:
  
       - run:
           name: vuepress build
-          command: vuepress build . -d deploy/dist && cp -R deploy/dist /workspace
+          command: cd docs/ && vuepress build . -d deploy/dist && cp -R deploy/* /workspace/deploy
       
       - persist_to_workspace:
           root: /workspace
           paths: 
-            - dist
+            - deploy
   # ----------------------------------
   # Check formatting
   # ----------------------------------
@@ -139,3 +142,10 @@ workflows:
             - test-3.5
             - test-3.6
             - test-3.7
+          filters:
+            branches:
+              only: master
+
+      - docs_deploy:
+          requires:
+            - docs_build
