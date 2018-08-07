@@ -202,29 +202,44 @@ class FlowRunner:
             # Collect results
             # ---------------------------------------------
 
+            # terminal tasks determine if the flow is finished
             terminal_tasks = self.flow.terminal_tasks()
-            final_tasks = terminal_tasks.union(return_tasks)
-            final_states = executor.wait({t: task_states[t] for t in final_tasks})
+            # key tasks determine flow state
+            key_tasks = self.flow.key_tasks()
+
+            final_states = executor.wait(
+                {
+                    t: task_states[t]
+                    for t in terminal_tasks.union(key_tasks).union(return_tasks)
+                }
+            )
             terminal_states = {final_states[t] for t in terminal_tasks}
+            key_states = {final_states[t] for t in key_tasks}
             return_states = {t: final_states[t] for t in return_tasks}
 
-            if any(s.is_failed() for s in terminal_states):
-                self.logger.info("Flow run FAILED: some terminal tasks failed.")
-                state = Failed(
-                    message="Some terminal tasks failed.", result=return_states
-                )
-
-            elif all(s.is_successful() for s in terminal_states):
-                self.logger.info("Flow run SUCCESS: all terminal tasks succeeded")
-                state = Success(
-                    message="All terminal tasks succeeded.", result=return_states
-                )
-
-            else:
+            # check that the flow is finished
+            if not all(s.is_finished() for s in terminal_states):
                 self.logger.info("Flow run PENDING: terminal tasks are incomplete.")
                 state = Pending(
                     message="Some terminal tasks are still pending.",
                     result=return_states,
                 )
+
+            # check if any key task failed
+            elif any(s.is_failed() for s in key_states):
+                self.logger.info("Flow run FAILED: some key tasks failed.")
+                state = Failed(message="Some key tasks failed.", result=return_states)
+
+            # check if all key tasks succeeded
+            elif all(s.is_successful() for s in key_states):
+                self.logger.info("Flow run SUCCESS: all key tasks succeeded")
+                state = Success(
+                    message="All key tasks succeeded.", result=return_states
+                )
+
+            # check for any unanticipated state that is finished but neither success nor failed
+            else:
+                self.logger.info("Flow run SUCCESS: no key tasks failed")
+                state = Success(message="No key tasks failed.", result=return_states)
 
             return state

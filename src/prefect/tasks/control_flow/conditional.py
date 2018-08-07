@@ -1,49 +1,72 @@
+from typing import Any, Dict
+
 import prefect
-from prefect import Task, signals
-from prefect.tasks.core import operators
-from prefect.utilities.tasks import as_task
+from prefect import Task
+from prefect.engine import signals
 
-__all__ = ["ifelse"]
+__all__ = ["switch", "ifelse"]
 
 
-class EvaluateCondition(Task):
-    def __init__(self, raise_if_false=signals.FAIL, **kwargs):
-        """
-        A special task that receives a boolean value and succeeds if that value
-        is True. If it's false, it raises the "raise_if_false" error.
-        """
-        self.raise_if_false = raise_if_false
+class Match(Task):
+    """
+    Args:
+        - match_value (Any): the value this task will attempt to match when it runs
+        - **kwargs: keyword arguments for the Task
+    """
+
+    def __init__(self, match_value: Any, **kwargs) -> None:
+        self.match_value = match_value
+        kwargs.setdefault("name", 'match: "{}"'.format(match_value))
         super().__init__(**kwargs)
 
-    def run(self, condition):
-        if not condition:
-            raise self.raise_if_false
+    def run(self, value: Any) -> None:
+        """
+        Raises a SKIP signal if the passed value does not match the task's match value;
+        succeeds silently otherwise.
+
+        Args:
+            - value (Any): the value that will be matched against the task's match_value.
+        """
+        if value != self.match_value:
+            raise signals.SKIP(
+                'Provided value "{}" did not match "{}"'.format(value, self.match_value)
+            )
 
 
-def switch(condition, patterns, name=None):
+def switch(condition: Task, cases: Dict[Any, Task]) -> None:
     """
-    Builds a switch into a workflow.
+    Adds a SWITCH to a workflow.
 
-    The result of the `condition` is looked up in the `patterns` dict and the
-    resulting Task continues execution. All other pattern Tasks are skipped.
+    The condition task is evaluated and the result is compared to the keys of the cases
+    dictionary. The task corresponding to the matching key is run; all other tasks are
+    skipped. Any tasks downstream of the skipped tasks are also skipped unless they set
+    `skip_on_upstream_skip=False`.
+
+    Args:
+        - condition (Task): a task whose result forms the condition for the switch
+        - cases (Dict[Any, Task]): a dict representing the "case" statements of the switch.
+            The value of the `condition` task will be compared to the keys of this dict, and
+            the matching task will be executed.
     """
-    if not isinstance(condition, Task):
-        condition = as_task(condition)
 
-    for pattern, task in patterns.items():
-        eval_cond = EvaluateCondition(raise_if_false=signals.SKIP_DOWNSTREAM)
-        eval_cond.set(condition=operators.Eq(condition, pattern), run_before=task)
-
-    return condition
+    with prefect.group("switch"):
+        for match_value, task in cases.items():
+            match_condition = Match(match_value=match_value)(value=condition)
+            task.set_dependencies(upstream_tasks=[match_condition])
 
 
-def ifelse(condition, true_task, false_task):
+def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
     """
     Builds a conditional branch into a workflow.
 
     If the condition evaluates True(ish), the true_task will run. If it
-    evaluates False(ish), the false_task will run. The branch that doesn't run
-    will be stopped by raising a signals.DONTRUN() signal.
+    evaluates False(ish), the false_task will run. The task doesn't run is Skipped, as are
+    all downstream tasks that don't set `skip_on_upstream_skip=False`.
+
+    Args:
+        - condition (Task): a task whose boolean result forms the condition for the ifelse
+        - true_task (Task): a task that will be executed if the condition is True
+        - false_task (Task): a task that will be executed if the condition is False
     """
 
-    return switch(condition=condition, patterns={True: true_task, False: false_task})
+    switch(condition=condition, cases={True: true_task, False: false_task})

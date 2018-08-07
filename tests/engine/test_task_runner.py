@@ -290,16 +290,19 @@ class TestTaskRunner_get_pre_run_state:
             )
         assert "upstream tasks are not finished" in str(exc.value).lower()
 
-    def test_ignore_skipped_upstream_if_not_propagate_skip(self):
-        task = SuccessTask()
+    def test_skip_on_upstream_skip_is_false(self):
+        """
+        Tests that tasks do NOT skip if skip_on_upstream_skip is False
+        """
+        task = SuccessTask(skip_on_upstream_skip=False)
         runner = TaskRunner(task)
         state = runner.get_pre_run_state(
             state=Pending(), upstream_states={1: Skipped()}
         )
         assert isinstance(state, Running)
 
-    def test_returns_skipped_if_upstream_skipped_and_propagate_skip(self):
-        task = SuccessTask(propagate_skip=True)
+    def test_returns_skipped_if_upstream_skipped(self):
+        task = SuccessTask(True)
         runner = TaskRunner(task)
         state = runner.get_pre_run_state(
             state=Pending(), upstream_states={1: Skipped()}
