@@ -20,7 +20,7 @@ jobs:
       - run:
           name: Auto-generate markdown
           command: |
-            cd docs/ && python generate_docs.py
+            cd docs/ && python3.6 generate_docs.py
             sed -i  "s/\${GIT_SHA}/$CIRCLE_SHA1/g" README.md
       - run:
           name: vuepress build
@@ -84,28 +84,4 @@ workflows:
   version: 2
   run_all:
     jobs:
-      - check_formatting
-
-      - test-3.4:
-          requires:
-            - check_formatting
-
-      - test-3.5:
-          requires:
-            - check_formatting
-
-      - test-3.6:
-          requires:
-            - check_formatting
-
-      - test-3.7:
-          requires:
-            - check_formatting
-
       - docbuild:
-          requires:
-            - check_formatting
-            - test-3.4
-            - test-3.5
-            - test-3.6
-            - test-3.7
