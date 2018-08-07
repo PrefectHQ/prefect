@@ -315,9 +315,18 @@ class Flow(Serializable):
 
     def validate(self) -> None:
         """
-        Checks the flow for cycles and raises an error if one is found.
+        Checks that the flow is valid.
         """
+
+        if any(e.upstream_task not in self.tasks for e in self.edges) or any(
+            e.downstream_task not in self.tasks for e in self.edges
+        ):
+            raise ValueError("Some edges refer to tasks not contained in this flow.")
+
         self.sorted_tasks()
+
+        if any(t not in self.tasks for t in self.key_tasks()):
+            raise ValueError("Some key tasks are not contained in this flow.")
 
     def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
 
