@@ -56,7 +56,7 @@ yarn docs:dev
 ```
 Open http://localhost:8080 to see the documentation.
 
-To build documentation (run this from the root `prefect` directory):
+To build documentation, run this from the root `prefect` directory (note that `prefect` must be `pip` installed in editable mode for this to succeed):
 ```bash
 yarn docs:build
 yarn docs:deploy
