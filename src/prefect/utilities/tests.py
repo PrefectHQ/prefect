@@ -7,6 +7,7 @@ import pytest
 import prefect
 from prefect import Flow, Task
 from prefect.engine.state import State
+from prefect.configuration import Config
 
 
 @contextmanager
@@ -25,12 +26,12 @@ def set_config(key: str, value: Any):
         ```
     """
     try:
-        old_config = copy.copy(prefect.config.__dict__)
+        old_config = copy.deepcopy(prefect.config.__dict__)
 
         config = prefect.config
         keys = key.split(".")
         for key in keys[:-1]:
-            config = getattr(config, key)
+            config = config.setdefault(key, Config())
         setattr(config, keys[-1], value)
         yield
     finally:

@@ -254,6 +254,7 @@ def test_eager_cycle_detection_works():
 
     assert not prefect.config.flows.eager_edge_validation
 
+
 def test_copy():
     with Flow() as f:
         t1 = Task()
@@ -590,4 +591,3 @@ def test_validate_missing_key_tasks():
     with pytest.raises(ValueError) as exc:
         f.validate()
     assert "key tasks are not contained" in str(exc.value).lower()
-
