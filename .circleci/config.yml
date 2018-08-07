@@ -14,20 +14,13 @@ jobs:
       - image: google/cloud-sdk
 
     steps:
-      - checkout
+      - attach_workspace:
+          at: /workspace
       - run: *setup_gcloud_sdk
       - setup_remote_docker
       - run:
-          name: Auto-generate markdown
-          command: |
-            cd docs/ && python3.6 generate_docs.py
-            sed -i  "s/\${GIT_SHA}/$CIRCLE_SHA1/g" README.md
-      - run:
           name: vuepress build
-          command: cd docs/ && vuepress build . -d deploy/dist
-      - run:
-          name: deploy
-          command: cd .. && gcloud app deploy docs/deploy --quiet --project=prefect-docs
+          command: ls . && ls docs/
   # ----------------------------------
   # Check formatting
   # ----------------------------------
@@ -45,6 +38,18 @@ jobs:
           name: Run Black
           command: black --check .
 
+      - run:
+          name: Auto-generate markdown
+          command: |
+            mkdir -p workspace/docs
+            cd docs/ && python generate_docs.py
+            sed -i  "s/\${GIT_SHA}/$CIRCLE_SHA1/g" README.md
+            cp * workspace/
+
+      - persist_to_workspace:
+          root: workspace
+          paths: 
+            - workspace/docs
   # ----------------------------------
   # Run unit tests in Python 3.4-3.7
   # ----------------------------------
@@ -84,4 +89,28 @@ workflows:
   version: 2
   run_all:
     jobs:
-      - docbuild
+      - check_formatting
+
+      - test-3.4:
+          requires:
+            - check_formatting
+
+      - test-3.5:
+          requires:
+            - check_formatting
+
+      - test-3.6:
+          requires:
+            - check_formatting
+
+      - test-3.7:
+          requires:
+            - check_formatting
+
+      - docbuild:
+          requires:
+            - check_formatting
+            - test-3.4
+            - test-3.5
+            - test-3.6
+            - test-3.7
