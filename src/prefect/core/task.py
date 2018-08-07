@@ -53,13 +53,13 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         Args:
 
-            trigger (callable): a function that determines whether the task should run, based
-                on the states of any upstream tasks.
-
-            skip_on_upstream_skip (bool): if True and any upstream tasks skipped, this task
-                will automatically be skipped as well. By default, this prevents tasks from
-                attempting to use either state or data from tasks that didn't run. if False,
-                the task's trigger will be called as normal; skips are considered successes.
+            - trigger (callable): a function that determines whether the task should run,
+                based on the states of any upstream tasks.
+            - skip_on_upstream_skip (bool): if True and any upstream tasks skipped, this
+                task will automatically be skipped as well. By default, this prevents tasks
+                from attempting to use either state or data from tasks that didn't run. if
+                False, the task's trigger will be called as normal; skips are considered
+                successes.
 
         """
 
@@ -193,13 +193,12 @@ class Parameter(Task):
     def __init__(self, name: str, default: Any = None, required: bool = True) -> None:
         """
         Args:
-            name (str): the Parameter name.
-
-            required (bool): If True, the Parameter is required and the default
+            - name (str): the Parameter name.
+            - default (Any): A default value for the parameter. If the default
+                is not None, the Parameter will not be required.
+            - required (bool): If True, the Parameter is required and the default
                 value is ignored.
 
-            default (any): A default value for the parameter. If the default
-                is not None, the Parameter will not be required.
         """
         if default is not None:
             required = False
