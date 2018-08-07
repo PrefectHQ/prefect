@@ -9,6 +9,7 @@ from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.tasks import task
+from prefect.utilities.tests import set_config
 
 
 class AddTask(Task):
@@ -198,12 +199,10 @@ def test_chain():
     t2 = Task()
     t3 = Task()
     t4 = Task()
-    f.chain(t1, t2, t3, t4)
+    edges = f.chain(t1, t2, t3, t4)
 
     assert f.tasks == set([t1, t2, t3, t4])
-    assert Edge(t1, t2) in f.edges
-    assert Edge(t2, t3) in f.edges
-    assert Edge(t3, t4) in f.edges
+    assert f.edges == set(edges)
 
 
 def test_iter():
@@ -221,12 +220,37 @@ def test_detect_cycle():
     f = Flow()
     t1 = Task()
     t2 = Task()
-    t3 = Task()
 
     f.add_edge(t1, t2)
-    f.add_edge(t2, t3)
     with pytest.raises(ValueError):
-        f.add_edge(t3, t1)
+        f.add_edge(t2, t1, validate=True)
+
+
+def test_eager_cycle_detection_defaults_false():
+
+    assert not prefect.config.flows.eager_edge_validation
+
+    f = Flow()
+    t1 = Task()
+    t2 = Task()
+    f.add_edge(t1, t2)
+
+    # no cycle detected
+    assert f.add_edge(t2, t1)
+    with pytest.raises(ValueError):
+        f.validate()
+
+
+def test_eager_cycle_detection_works():
+
+    with set_config("flows.eager_edge_validation", True):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+
+        f.add_edge(t1, t2)
+        with pytest.raises(ValueError):
+            f.add_edge(t2, t1)
 
 
 def test_infer_root_tasks():
