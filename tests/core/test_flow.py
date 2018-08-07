@@ -252,6 +252,7 @@ def test_eager_cycle_detection_works():
         with pytest.raises(ValueError):
             f.add_edge(t2, t1)
 
+    assert not prefect.config.flows.eager_edge_validation
 
 def test_copy():
     with Flow() as f:
@@ -358,92 +359,74 @@ def test_key_states_raises_error_if_not_iterable():
         f.set_key_tasks(t1)
 
 
-def test_equality_based_on_tasks():
-    f1 = Flow()
-    f2 = Flow()
+class TestEquality:
+    def test_equality_based_on_tasks(self):
+        f1 = Flow()
+        f2 = Flow()
 
-    t1 = Task()
-    t2 = Task()
-    t3 = Task()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
 
-    for f in [f1, f2]:
-        f.add_task(t1)
-        f.add_task(t2)
-    assert f1 == f2
+        for f in [f1, f2]:
+            f.add_task(t1)
+            f.add_task(t2)
+        assert f1 == f2
 
-    f2.add_task(t3)
-    assert f1 != f2
+        f2.add_task(t3)
+        assert f1 != f2
 
+    def test_equality_based_on_edges(self):
+        f1 = Flow()
+        f2 = Flow()
 
-def test_equality_based_on_edges():
-    f1 = Flow()
-    f2 = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
 
-    t1 = Task()
-    t2 = Task()
-    t3 = Task()
+        for f in [f1, f2]:
+            f.add_edge(t1, t2)
+            f.add_edge(t1, t3)
+        assert f1 == f2
 
-    for f in [f1, f2]:
-        f.add_edge(t1, t2)
-        f.add_edge(t1, t3)
-    assert f1 == f2
+        f2.add_edge(t2, t3)
+        assert f1 != f2
 
-    f2.add_edge(t2, t3)
-    assert f1 != f2
+    def test_equality_based_on_name(self):
+        f1 = Flow("hi")
+        f2 = Flow("bye")
+        assert f1 != f2
 
+    def test_equality_based_on_project(self):
+        f1 = Flow("flow", project="1")
+        f2 = Flow("flow", project="1")
+        f3 = Flow("flow", project="2")
+        assert f1 == f2
+        assert f2 != f3
 
-def test_equality_based_on_name():
-    f1 = Flow("hi")
-    f2 = Flow("bye")
-    assert f1 != f2
+    def test_equality_based_on_version(self):
+        f1 = Flow("flow", version="1")
+        f2 = Flow("flow", version="1")
+        f3 = Flow("flow", version="2")
+        assert f1 == f2
+        assert f2 != f3
 
+    def test_equality_based_on_key_tasks(self):
+        f1 = Flow()
+        f2 = Flow()
 
-def test_equality_based_on_project():
-    f1 = Flow("flow", project="1")
-    f2 = Flow("flow", project="1")
-    f3 = Flow("flow", project="2")
-    assert f1 == f2
-    assert f2 != f3
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
 
+        for f in [f1, f2]:
+            f.add_edge(t1, t2)
+            f.add_edge(t1, t3)
 
-def test_equality_based_on_version():
-    f1 = Flow("flow", version="1")
-    f2 = Flow("flow", version="1")
-    f3 = Flow("flow", version="2")
-    assert f1 == f2
-    assert f2 != f3
-
-
-def test_equality_based_on_key_tasks():
-    f1 = Flow()
-    f2 = Flow()
-
-    t1 = Task()
-    t2 = Task()
-    t3 = Task()
-
-    for f in [f1, f2]:
-        f.add_edge(t1, t2)
-        f.add_edge(t1, t3)
-
-    f1.set_key_tasks([t2])
-    assert f1 != f2
-    f2.set_key_tasks([t2])
-    assert f1 == f2
-
-
-def test_equality():
-    f1 = Flow()
-    f2 = Flow()
-
-    t1 = Task()
-    t2 = Task()
-    t3 = Task()
-
-    for f in [f1, f2]:
-        f.add_edge(t1, t2)
-        f.add_edge(t1, t3)
-    assert f1 == f2
+        f1.set_key_tasks([t2])
+        assert f1 != f2
+        f2.set_key_tasks([t2])
+        assert f1 == f2
 
 
 def test_merge():
@@ -561,3 +544,50 @@ def test_flow_ignores_irrelevant_user_provided_parameters():
 
     state = f.run(return_tasks=[t], parameters=dict(x=10, y=3, z=9))
     assert state.result[t].result == dict(x=10)
+
+
+def test_validate_cycles():
+    f = Flow()
+    t1 = Task()
+    t2 = Task()
+    f.add_edge(t1, t2)
+    f.add_edge(t2, t1)
+    with pytest.raises(ValueError) as exc:
+        f.validate()
+    assert "cycle found" in str(exc.value).lower()
+
+
+def test_validate_missing_edge_downstream_tasks():
+    f = Flow()
+    t1 = Task()
+    t2 = Task()
+    f.add_edge(t1, t2)
+    f.tasks.remove(t2)
+    with pytest.raises(ValueError) as exc:
+        f.validate()
+    assert "edges refer to tasks" in str(exc.value).lower()
+
+
+def test_validate_missing_edge_upstream_tasks():
+    f = Flow()
+    t1 = Task()
+    t2 = Task()
+    f.add_edge(t1, t2)
+    f.tasks.remove(t1)
+    with pytest.raises(ValueError) as exc:
+        f.validate()
+    assert "edges refer to tasks" in str(exc.value).lower()
+
+
+def test_validate_missing_key_tasks():
+    f = Flow()
+    t1 = Task()
+    t2 = Task()
+    f.add_task(t1)
+    f.add_task(t2)
+    f.set_key_tasks([t1])
+    f.tasks.remove(t1)
+    with pytest.raises(ValueError) as exc:
+        f.validate()
+    assert "key tasks are not contained" in str(exc.value).lower()
+
