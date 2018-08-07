@@ -43,7 +43,8 @@ class Flow(Serializable):
         environment: prefect.environments.Environment = None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
-        register=False,
+        key_tasks: Iterable[Task] = None,
+        register: bool=False,
     ) -> None:
 
         self.name = name or type(self).__name__
@@ -65,18 +66,33 @@ class Flow(Serializable):
                 downstream_task=e.downstream_task,
                 key=e.key,
             )
+        self.set_key_tasks(key_tasks or [])
+
+        self._prefect_version = prefect.__version__
 
         if register:
             prefect.core.registry.register_flow(self)
-
-        self._prefect_version = prefect.__version__
 
         super().__init__()
 
     def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
-            s = (self.name, self.version, self.tasks, self.edges)
-            o = (other.name, other.version, other.tasks, other.edges)
+            s = (
+                self.project,
+                self.name,
+                self.version,
+                self.tasks,
+                self.edges,
+                self.key_tasks(),
+            )
+            o = (
+                other.project,
+                other.name,
+                other.version,
+                other.tasks,
+                other.edges,
+                other.key_tasks(),
+            )
             return s == o
         return False
 
@@ -93,6 +109,7 @@ class Flow(Serializable):
         new = copy.copy(self)
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
+        new.set_key_tasks(self._key_tasks)
         return new
 
     # Context Manager ----------------------------------------------------------
@@ -135,30 +152,42 @@ class Flow(Serializable):
             if isinstance(t, Parameter) and (t.required if only_required else True)
         }
 
+    def key_tasks(self) -> Set[Task]:
+        """
+        A flow's "key tasks" are used to determine its state when it runs. If all the key
+        tasks are successful, then the flow run is considered successful. However, if
+        any of the key tasks fail, the flow is considered to fail. (Note that skips are
+        counted as successes.)
+
+        By default, a flow's key tasks are its terminal tasks. This means the state of a
+        flow is determined by the last tasks that run.
+
+        In some situations, users may want to customize that behavior; for example, if a
+        flow's terminal tasks are "clean up" tasks for the rest of the flow. The
+        flow.set_key_tasks() method can be used to set custom key_tasks.
+
+        Please note that even if key_tasks are provided that are not terminal tasks, the flow
+        will not be considered "finished" until all terminal tasks have completed. Only then
+        will state be determined, using the key tasks.
+        """
+        if self._key_tasks:
+            return set(self._key_tasks)
+        else:
+            return self.terminal_tasks()
+
+    def set_key_tasks(self, tasks: Iterable[Task]) -> None:
+        """
+        Sets the "key tasks" for the flow. See flow.key_tasks() for more details.
+
+        Args:
+            - tasks ([Task]): the tasks that should be set as a flow's key tasks.
+        """
+        key_tasks = set(tasks)
+        if any(t not in self.tasks for t in key_tasks):
+            raise ValueError("Key tasks must be part of the flow.")
+        self._key_tasks = key_tasks
+
     # Graph --------------------------------------------------------------------
-
-    @contextmanager
-    def restore_graph_on_error(self, validate: bool = True) -> Iterator[None]:
-        """
-        A context manager that saves the Flow's graph (tasks & edges) and
-        restores it if an error is raised. It can be used to test potentially
-        erroneous configurations (for example, ones that might include cycles)
-        without modifying the graph.
-
-        It will automatically check for cycles when restored.
-
-        with flow.restore_graph_on_error():
-            # this will raise an error, but the flow graph will not be modified
-            add_cycle_to_graph(flow)
-        """
-        tasks, edges = self.tasks.copy(), self.edges.copy()
-        try:
-            yield
-            if validate:
-                self.validate()
-        except Exception:
-            self.tasks, self.edges = tasks, edges
-            raise
 
     def add_task(self, task: Task) -> Task:
         if not isinstance(task, Task):
@@ -181,58 +210,75 @@ class Flow(Serializable):
         upstream_task: Task,
         downstream_task: Task,
         key: str = None,
-        validate: bool = True,
+        validate: bool = None,
     ) -> Edge:
+
         if isinstance(downstream_task, Parameter):
             raise ValueError(
                 "Parameters must be root tasks and can not have upstream dependencies."
             )
 
-        with self.restore_graph_on_error(validate=validate):
-            self.add_task(upstream_task)
-            self.add_task(downstream_task)
+        self.add_task(upstream_task)
+        self.add_task(downstream_task)
 
-            # we can only check the downstream task's edges once it has been added to the
-            # flow, so we need to perform this check here and not earlier.
-            if key and key in {e.key for e in self.edges_to(downstream_task)}:
-                raise ValueError(
-                    'Argument "{a}" for task {t} has already been assigned in '
-                    "this flow. If you are trying to call the task again with "
-                    "new arguments, call Task.copy() before adding the result "
-                    "to this flow.".format(a=key, t=downstream_task)
-                )
-
-            edge = Edge(
-                upstream_task=upstream_task, downstream_task=downstream_task, key=key
+        # we can only check the downstream task's edges once it has been added to the
+        # flow, so we need to perform this check here and not earlier.
+        if key and key in {e.key for e in self.edges_to(downstream_task)}:
+            raise ValueError(
+                'Argument "{a}" for task {t} has already been assigned in '
+                "this flow. If you are trying to call the task again with "
+                "new arguments, call Task.copy() before adding the result "
+                "to this flow.".format(a=key, t=downstream_task)
             )
-            self.edges.add(edge)
 
-            # check that the edges are valid keywords by binding them
-            if key is not None:
-                edge_keys = {
-                    e.key: None
-                    for e in self.edges_to(downstream_task)
-                    if e.key is not None
-                }
-                inspect.signature(downstream_task.run).bind_partial(**edge_keys)
+        edge = Edge(
+            upstream_task=upstream_task, downstream_task=downstream_task, key=key
+        )
+        self.edges.add(edge)
+
+        # check that the edges are valid keywords by binding them
+        if key is not None:
+            edge_keys = {
+                e.key: None for e in self.edges_to(downstream_task) if e.key is not None
+            }
+            inspect.signature(downstream_task.run).bind_partial(**edge_keys)
+
+        # check for cycles
+        if validate is None:
+            validate = prefect.config.flows.eager_edge_validation
+
+        if validate:
+            self.validate()
 
         return edge
 
-    def update(self, flow: "Flow", validate: bool = True) -> None:
-        with self.restore_graph_on_error(validate=validate):
+    def chain(self, *tasks, validate: bool = None) -> List[Edge]:
+        """
+        Adds a sequence of dependent tasks to the flow.
+        """
+        edges = []
+        for u_task, d_task in zip(tasks, tasks[1:]):
+            edges.append(
+                self.add_edge(
+                    upstream_task=u_task, downstream_task=d_task, validate=validate
+                )
+            )
+        return edges
 
-            for task in flow.tasks:
-                if task not in self.tasks:
-                    self.add_task(task)
+    def update(self, flow: "Flow", validate: bool = None) -> None:
 
-            for edge in flow.edges:
-                if edge not in self.edges:
-                    self.add_edge(
-                        upstream_task=edge.upstream_task,
-                        downstream_task=edge.downstream_task,
-                        key=edge.key,
-                        validate=False,
-                    )
+        for task in flow.tasks:
+            if task not in self.tasks:
+                self.add_task(task)
+
+        for edge in flow.edges:
+            if edge not in self.edges:
+                self.add_edge(
+                    upstream_task=edge.upstream_task,
+                    downstream_task=edge.downstream_task,
+                    key=edge.key,
+                    validate=validate,
+                )
 
     def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
         edges = {t: set() for t in self.tasks}  # type: Dict[Task, Set[Edge]]
@@ -268,9 +314,18 @@ class Flow(Serializable):
 
     def validate(self) -> None:
         """
-        Checks the flow for cycles and raises an error if one is found.
+        Checks that the flow is valid.
         """
+
+        if any(e.upstream_task not in self.tasks for e in self.edges) or any(
+            e.downstream_task not in self.tasks for e in self.edges
+        ):
+            raise ValueError("Some edges refer to tasks not contained in this flow.")
+
         self.sorted_tasks()
+
+        if any(t not in self.tasks for t in self.key_tasks()):
+            raise ValueError("Some key tasks are not contained in this flow.")
 
     def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
 
@@ -325,7 +380,7 @@ class Flow(Serializable):
 
             # if we were unable to match any upstream tasks, we have a cycle
             if cyclic:
-                raise ValueError("Flows must be acyclic!")
+                raise ValueError("Cycle found; flows must be acyclic!")
 
         return tuple(sorted_tasks)
 
@@ -337,7 +392,7 @@ class Flow(Serializable):
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Mapping[str, object] = None,
-        validate: bool = True,
+        validate: bool = None,
     ) -> None:
         """
         Convenience function for adding task dependencies on upstream tasks.
@@ -358,34 +413,31 @@ class Flow(Serializable):
                 convert it to one.
         """
 
-        # restore the original graph if we encounter an error midway through this operation
-        with self.restore_graph_on_error(validate=validate):
+        task = as_task(task)
+        assert isinstance(task, Task)  # mypy assert
 
-            task = as_task(task)
-            assert isinstance(task, Task)  # mypy assert
+        # add the main task (in case it was called with no arguments)
+        self.add_task(task)
 
-            # add the main task (in case it was called with no arguments)
-            self.add_task(task)
+        # add upstream tasks
+        for t in upstream_tasks or []:
+            t = as_task(t)
+            assert isinstance(t, Task)  # mypy assert
+            self.add_edge(upstream_task=t, downstream_task=task, validate=validate)
 
-            # add upstream tasks
-            for t in upstream_tasks or []:
-                t = as_task(t)
-                assert isinstance(t, Task)  # mypy assert
-                self.add_edge(upstream_task=t, downstream_task=task, validate=False)
+        # add downstream tasks
+        for t in downstream_tasks or []:
+            t = as_task(t)
+            assert isinstance(t, Task)  # mypy assert
+            self.add_edge(upstream_task=task, downstream_task=t, validate=validate)
 
-            # add downstream tasks
-            for t in downstream_tasks or []:
-                t = as_task(t)
-                assert isinstance(t, Task)  # mypy assert
-                self.add_edge(upstream_task=task, downstream_task=t, validate=False)
-
-            # add data edges to upstream tasks
-            for key, t in (keyword_tasks or {}).items():
-                t = as_task(t)
-                assert isinstance(t, Task)  # mypy assert
-                self.add_edge(
-                    upstream_task=t, downstream_task=task, key=key, validate=False
-                )
+        # add data edges to upstream tasks
+        for key, t in (keyword_tasks or {}).items():
+            t = as_task(t)
+            assert isinstance(t, Task)  # mypy assert
+            self.add_edge(
+                upstream_task=t, downstream_task=task, key=key, validate=validate
+            )
 
     # Execution  ---------------------------------------------------------------
 
@@ -455,6 +507,8 @@ class Flow(Serializable):
             parameters=self.parameters(),
             schedule=self.schedule,
             tasks={as_uuid(task_ids[t]): t.serialize() for t in self.tasks},
+            key_tasks=self.key_tasks(),
+            tasks=[dict(obj_id=obj_ids[t], **t.serialize()) for t in self.tasks],
             edges=[
                 dict(
                     upstream_task_obj_id=as_uuid(task_ids[e.upstream_task]),
