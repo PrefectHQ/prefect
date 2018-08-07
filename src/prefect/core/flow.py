@@ -47,6 +47,7 @@ class Flow(Serializable):
         environment: prefect.environments.Environment = None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
+        key_tasks: Iterable[Task] = None,
     ) -> None:
 
         self.name = name or type(self).__name__
@@ -58,7 +59,6 @@ class Flow(Serializable):
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
-        self.set_key_tasks([])
 
         for t in tasks or []:
             self.add_task(t)
@@ -69,6 +69,8 @@ class Flow(Serializable):
                 downstream_task=e.downstream_task,
                 key=e.key,
             )
+
+        self.set_key_tasks(key_tasks or [])
 
         self._prefect_version = prefect.__version__
 
