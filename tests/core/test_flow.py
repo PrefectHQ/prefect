@@ -329,6 +329,23 @@ def test_set_key_tasks():
     assert f.key_tasks() == set([t2])
 
 
+def test_set_key_tasks_at_init_with_empty_flow_raises_error():
+
+    with pytest.raises(ValueError) as exc:
+        Flow(key_tasks=[Task()])
+    assert "must be part of the flow" in str(exc.value)
+
+
+def test_set_key_tasks_at_init():
+    t1 = Task()
+    f = Flow(key_tasks=[t1], tasks=[t1])
+    assert f.key_tasks() == set([t1]) == f.tasks == f.terminal_tasks()
+
+    t2 = Task()
+    f = Flow(key_tasks=[t2], tasks=[t1, t2])
+    assert f.key_tasks() == set([t2])
+
+
 def test_reset_key_tasks_to_terminal_tasks():
 
     with Flow() as f:
