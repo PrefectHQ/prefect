@@ -1,5 +1,33 @@
+setup_gcloud_sdk: &setup_gcloud_sdk
+    name: Set up Google Cloud SDK
+    command: |
+        echo "$GOOGLE_SERVICE_ACCOUNT_KEY" > key.json
+        gcloud auth activate-service-account --key-file key.json
+        gcloud config set compute/zone $GCLOUD_ZONE
+        gcloud config set project $GCLOUD_PROJECT
+
+
 version: 2
 jobs:
+  docbuild:
+    docker:
+      - image: google/cloud-sdk
+
+    steps:
+      - checkout
+      - run: *setup_gcloud_sdk
+      - setup_remote_docker
+      - run:
+          name: Auto-generate markdown
+          command: |
+            cd docs/ && python generate_docs.py
+            sed -i  "s/\${GIT_SHA}/$CIRCLE_SHA1/g" README.md
+      - run:
+          name: vuepress build
+          command: cd docs/ && vuepress build . -d deploy/dist
+      - run:
+          name: deploy
+          command: cd .. && gcloud app deploy docs/deploy --quiet --project=prefect-docs
   # ----------------------------------
   # Check formatting
   # ----------------------------------
@@ -74,3 +102,10 @@ workflows:
           requires:
             - check_formatting
 
+      - docsbuild:
+          requires:
+            - check_formatting
+            - test-3.4
+            - test-3.5
+            - test-3.6
+            - test-3.7
