@@ -102,7 +102,7 @@ workflows:
           requires:
             - check_formatting
 
-      - docsbuild:
+      - docbuild:
           requires:
             - check_formatting
             - test-3.4
