@@ -5,7 +5,7 @@ import pytest
 import prefect
 from prefect.core import Flow, Task
 from prefect.engine import FlowRunner, TaskRunner, state
-from prefect.utilities.tests import raise_on_exception
+from prefect.utilities.tests import raise_on_exception, set_config
 
 
 class SuccessTask(Task):
@@ -105,3 +105,21 @@ def test_raise_on_exception_raises_basic_error():
         assert "_raise_on_exception" not in prefect.context
     except ZeroDivisionError:
         pass
+
+
+def test_set_config_is_temporary():
+    f1 = Flow()
+    assert f1.version == "1"
+    with set_config("flows.default_version", "5"):
+        f2 = Flow()
+        assert f2.version == "5"
+    f3 = Flow()
+    assert f3.version == "1"
+
+
+def test_set_config_can_invent_new_settings():
+    with set_config("flows.nested.nested_again.val", "5"):
+        assert prefect.config.flows.nested.nested_again.val == "5"
+
+    with pytest.raises(AttributeError):
+        assert prefect.config.flows.nested.nested_again.val == "5"
