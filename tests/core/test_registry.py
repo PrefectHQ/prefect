@@ -37,12 +37,11 @@ def flow_from_chains(*chains):
     """
 
     flow = Flow()
-    with flow.restore_graph_on_error():
-        for chain in chains:
-            for name in chain:
-                flow.add_task(get_task(name))
-            for u_name, d_name in zip(chain, chain[1:]):
-                flow.add_edge(get_task(u_name), get_task(d_name), validate=False)
+    for chain in chains:
+        for name in chain:
+            flow.add_task(get_task(name))
+        for u_name, d_name in zip(chain, chain[1:]):
+            flow.add_edge(get_task(u_name), get_task(d_name), validate=False)
     return flow
 
 
