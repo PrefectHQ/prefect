@@ -44,7 +44,7 @@ class Flow(Serializable):
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
         key_tasks: Iterable[Task] = None,
-        register: bool=False,
+        register: bool = False,
     ) -> None:
 
         self.name = name or type(self).__name__
@@ -508,7 +508,6 @@ class Flow(Serializable):
             schedule=self.schedule,
             tasks={as_uuid(task_ids[t]): t.serialize() for t in self.tasks},
             key_tasks=self.key_tasks(),
-            tasks=[dict(obj_id=obj_ids[t], **t.serialize()) for t in self.tasks],
             edges=[
                 dict(
                     upstream_task_obj_id=as_uuid(task_ids[e.upstream_task]),

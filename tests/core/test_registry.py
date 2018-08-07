@@ -481,7 +481,6 @@ class TestTaskIDAlgorithm:
         # need duplicate disambiguation
         assert count_unique_ids(steps[5]) == len(f.tasks) == 5
 
-
     def test_y_shaped_flow_with_one_unique_task(self):
         r"""
             x1 -> x2 -> x3
@@ -493,7 +492,7 @@ class TestTaskIDAlgorithm:
 
         f = flow_from_chains(["x1", "x2", "x3"], ["x1", "y1", "y2"])
         # give one task a name
-        get_task('y2').name = 'y2'
+        get_task("y2").name = "y2"
         steps = generate_task_ids(f, _debug_steps=True)
 
         # all tasks are individually indistinguishable except y2
@@ -508,7 +507,7 @@ class TestTaskIDAlgorithm:
             == count_unique_ids(steps[4])
             == count_unique_ids(steps[5])
             == len(f.tasks)
-             == 5
+            == 5
         )
 
         # no work was done after reverse pass
@@ -581,7 +580,6 @@ class TestTaskIDAlgorithm:
         )
         # need duplicate disambiguation
         assert count_unique_ids(steps[5]) == len(f.tasks) == 4
-
 
 
 class TestTaskIDs:
