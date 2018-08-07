@@ -243,7 +243,7 @@ def test_eager_cycle_detection_defaults_false():
 
 def test_eager_cycle_detection_works():
 
-    with set_config("flows.eager_edge_validation", True):
+    with set_temporary_config("flows.eager_edge_validation", True):
         f = Flow()
         t1 = Task()
         t2 = Task()

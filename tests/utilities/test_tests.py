@@ -110,7 +110,7 @@ def test_raise_on_exception_raises_basic_error():
 def test_set_config_is_temporary():
     f1 = Flow()
     assert f1.version == "1"
-    with set_config("flows.default_version", "5"):
+    with set_temporary_config("flows.default_version", "5"):
         f2 = Flow()
         assert f2.version == "5"
     f3 = Flow()
@@ -118,7 +118,7 @@ def test_set_config_is_temporary():
 
 
 def test_set_config_can_invent_new_settings():
-    with set_config("flows.nested.nested_again.val", "5"):
+    with set_temporary_config("flows.nested.nested_again.val", "5"):
         assert prefect.config.flows.nested.nested_again.val == "5"
 
     with pytest.raises(AttributeError):
