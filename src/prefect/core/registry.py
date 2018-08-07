@@ -79,7 +79,7 @@ def generate_flow_id(flow: Flow) -> str:
     return str(uuid.UUID(bytes=_hash(flow.project) + _hash(flow.name)))
 
 
-def generate_task_ids(flow: Flow, _debug_steps: bool=False) -> Dict[str, "Task"]:
+def generate_task_ids(flow: Flow, _debug_steps: bool = False) -> Dict[str, "Task"]:
     """
     Generates stable IDs for each task.
 
