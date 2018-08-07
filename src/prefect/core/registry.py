@@ -79,7 +79,7 @@ def generate_flow_id(flow: Flow) -> str:
     return str(uuid.UUID(bytes=_hash(flow.project) + _hash(flow.name)))
 
 
-def generate_task_ids(flow: Flow) -> Dict[str, "Task"]:
+def generate_task_ids(flow: Flow, _debug_steps: bool=False) -> Dict[str, "Task"]:
     """
     Generates stable IDs for each task.
 
@@ -115,6 +115,9 @@ def generate_task_ids(flow: Flow) -> Dict[str, "Task"]:
     edges_from = flow.all_downstream_edges()
     flow_id = generate_flow_id(flow)
 
+    # dictionary to hold debug information
+    debug_steps = {}
+
     # -- Step 1 ---------------------------------------------------
     #
     # Generate an ID for each task by serializing it and hashing the serialized
@@ -125,6 +128,9 @@ def generate_task_ids(flow: Flow) -> Dict[str, "Task"]:
     # -----------------------------------------------------------
 
     ids = {t: _hash(dumps((t.serialize(), flow_id), sort_keys=True)) for t in tasks}
+
+    if _debug_steps:
+        debug_steps[1] = ids.copy()
 
     # -- Step 2 ---------------------------------------------------
     #
@@ -143,6 +149,9 @@ def generate_task_ids(flow: Flow) -> Dict[str, "Task"]:
         edges = sorted((e.key, ids[e.upstream_task]) for e in edges_to[task])
         ids[task] = _hash(str((ids[task], edges)))
 
+    if _debug_steps:
+        debug_steps[2] = ids.copy()
+
     # -- Step 3 ---------------------------------------------------
     #
     # Next, we iterate over the tasks in reverse topological order and, for any task
@@ -153,13 +162,16 @@ def generate_task_ids(flow: Flow) -> Dict[str, "Task"]:
     # -----------------------------------------------------------
 
     counter = Counter(ids.values())
-    for task in tasks:
+    for task in reversed(tasks):
         if counter[ids[task]] == 1:
             continue
 
         # create a new id by hashing (task id, upstream edges, downstream edges)
         edges = sorted((e.key, ids[e.downstream_task]) for e in edges_from[task])
         ids[task] = _hash(str((ids[task], edges)))
+
+    if _debug_steps:
+        debug_steps[3] = ids.copy()
 
     # -- Step 4 ---------------------------------------------------
     #
@@ -227,6 +239,9 @@ def generate_task_ids(flow: Flow) -> Dict[str, "Task"]:
         if len(counter) == starting_unique_id_count:
             break
 
+    if _debug_steps:
+        debug_steps[4] = ids.copy()
+
     # -- Step 5 ---------------------------------------------------
     #
     # If the number of unique IDs is less than the number of tasks at this stage, it
@@ -249,7 +264,11 @@ def generate_task_ids(flow: Flow) -> Dict[str, "Task"]:
                 ids[task] = _hash(str((ids[task], edges)))
                 counter[ids[task]] += 1
 
-    return {str(uuid.UUID(bytes=i * 2)): task for task, i in ids.items()}
+    if _debug_steps:
+        debug_steps[5] = ids.copy()
+        return debug_steps
+
+    return ids
 
 
 def _hash(value):
