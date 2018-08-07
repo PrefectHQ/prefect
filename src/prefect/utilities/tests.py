@@ -11,7 +11,7 @@ from prefect.configuration import Config
 
 
 @contextmanager
-def set_config(key: str, value: Any):
+def set_temporary_config(key: str, value: Any):
     """
     Temporarily sets a configuration value for the duration of the context manager.
 
@@ -21,7 +21,7 @@ def set_config(key: str, value: Any):
 
     Example:
         ```python
-        with set_config('flows.eager_edge_validation', True):
+        with set_temporary_config('flows.eager_edge_validation', True):
             assert prefect.config.flows.eager_edge_validation
         ```
     """
