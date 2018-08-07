@@ -1,4 +1,3 @@
-
 [server]
 # the Prefect Server address
 api_server = "http://127.0.0.1:4200"
@@ -39,3 +38,4 @@ warn_on_duplicate_registration = true
 [engine]
 # the default executor for all Flow runs, specified using a full path
 executor = "prefect.engine.executors.DaskExecutor"
+
