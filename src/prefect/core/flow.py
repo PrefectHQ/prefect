@@ -76,8 +76,22 @@ class Flow(Serializable):
 
     def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
-            s = (self.name, self.version, self.tasks, self.edges, self.key_tasks())
-            o = (other.name, other.version, other.tasks, other.edges, other.key_tasks())
+            s = (
+                self.project,
+                self.name,
+                self.version,
+                self.tasks,
+                self.edges,
+                self.key_tasks(),
+            )
+            o = (
+                other.project,
+                other.name,
+                other.version,
+                other.tasks,
+                other.edges,
+                other.key_tasks(),
+            )
             return s == o
         return False
 
