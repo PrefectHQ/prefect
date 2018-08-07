@@ -9,18 +9,49 @@ setup_gcloud_sdk: &setup_gcloud_sdk
 
 version: 2
 jobs:
-  docbuild:
-    docker:
-      - image: google/cloud-sdk
+    docs_deploy:
+      docker:
+        - image: google/cloud-sdk
+  
+      steps:
+        - attach_workspace:
+            at: /workspace
+        - run: *setup_gcloud_sdk
+        - run:
+            name: vuepress build
+            command: ls . && ls /workspace/docs/
 
-    steps:
-      - attach_workspace:
-          at: /workspace
-      - run: *setup_gcloud_sdk
-      - setup_remote_docker
-      - run:
-          name: vuepress build
-          command: ls . && ls docs/
+    docs_build:
+      docker:
+        - image: python:3.6
+  
+      steps:
+        - checkout
+        - run:
+            name: Install prefect
+            command: pip install -e ".[dev]"
+  
+        - run:
+            name: Install vuepress
+            command: yarn global add vuepress@0.12.0
+  
+        - run:
+            name: Auto-generate markdown and vuepress build
+            command: |
+              mkdir -p /workspace
+              cd docs/ && python generate_docs.py
+              sed -i  "s/\${GIT_SHA}/$CIRCLE_SHA1/g" README.md
+              vuepress build . -d deploy/dist
+              cp -R docs/deploy/dist /workspace
+  
+        -run:
+            name: vuepress build
+            command: vuepress build . -d deploy/dist
+        
+        - persist_to_workspace:
+            root: /workspace
+            paths: 
+              - docs
   # ----------------------------------
   # Check formatting
   # ----------------------------------
@@ -38,18 +69,6 @@ jobs:
           name: Run Black
           command: black --check .
 
-      - run:
-          name: Auto-generate markdown
-          command: |
-            mkdir -p workspace/docs
-            cd docs/ && python generate_docs.py
-            sed -i  "s/\${GIT_SHA}/$CIRCLE_SHA1/g" README.md
-            cp * workspace/
-
-      - persist_to_workspace:
-          root: workspace
-          paths: 
-            - workspace/docs
   # ----------------------------------
   # Run unit tests in Python 3.4-3.7
   # ----------------------------------
@@ -107,7 +126,7 @@ workflows:
           requires:
             - check_formatting
 
-      - docbuild:
+      - docs_build:
           requires:
             - check_formatting
             - test-3.4
