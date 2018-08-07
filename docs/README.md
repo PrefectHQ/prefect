@@ -22,7 +22,7 @@ Prefect requires Python 3.4+.
 
 ### Install
 ```
-git clone https://gitlab.com/prefect/prefect.git
+git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
 pip install .
 ```
@@ -33,22 +33,11 @@ pip install .
 ### Install
 
 ```bash
-git clone https://gitlab.com/prefect/prefect.git
+git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
-pip install -e ".[dev]"
-# pre-commit install
+conda env create
+pip install -e .
 ```
-
-<!-- ### Pre-commit
-Prefect enforces [Black](https://github.com/ambv/black) and
-[isort](https://github.com/timothycrosley/isort) formatting on every commit, using
-[pre-commit](https://pre-commit.com/). If a commit violates a pre-commit requirement,
-the commit will fail and the responsible files will be updated automatically. The
-changes can then be recommitted successfully.
-
-For example, if a modified file doesn't conform to Black standards, the commit will fail
-(and the error message should indicate why). Black will automatically be run on the file
-to fix any errors, and another attempt to commit will be successful. -->
 
 ### Unit Tests
 
@@ -59,10 +48,45 @@ pytest
 
 ## Documentation
 
-To build and view documentation:
+To view documentation locally (run this from the root `prefect` directory):
 ```bash
 yarn docs:dev
 ```
-This will automatically open a new browser window, but there will be a slight delay
-while the initial build finishes. When it finishes, the browser will automatically
-refresh.
+Open http://localhost:8080 to see the documentation.
+
+To build documentation (run this from the root `prefect` directory):
+```bash
+yarn docs:build
+yarn docs:deploy
+```
+
+### Style Guide for Docstrings
+
+`Prefect` auto-generates markdown files from the package's docstrings, which [VuePress](https://vuepress.vuejs.org/) compiles into static html. In order for docstrings to compile correctly, please follow the following rules:
+- all documentation about class initialization should go into the class docstring, _not_ the `__init__` method docstring
+- code blocks within class method docstrings should not contain language annotations (e.g. ` ```python `); however, code blocks within standalone functions should
+- argument lists should be formatted as markdown lists with colons denoting the beginning of a description `- name (type):` For example:
+```python
+def function(x, y, z=None):
+    """
+    Something interesting about what this function does.
+
+    Args:
+        - x (int): any information about `x`
+        - y (float): additional info about `y`
+        - z (str, optional): defaults to `None`
+
+    Additional information if desired; note that backticks for code formatting is encouraged within argument descriptions,
+    but should *not* be used in the list itself.  Also, all other documentation can contain markdown.
+
+    Returns:
+        - None
+    """
+```
+- in order for your new functions / classes / modules to be compiled into documentation, you must do two things:
+    1. in the `OUTLINE` list contained within `docs/generate_docs.py`, specify the following information about your page (or update an existing page):
+        - `"page"`: the location and filename of the markdown page
+        - `"title"`: the displayed title of the page
+        - `"classes"`: a list of all documented classes on this page
+        - `"functions"`: a list of all documented standalone functions on this page
+    2. update `docs/.vuepress/config.js` to include your new page / section / etc. in the sidebar

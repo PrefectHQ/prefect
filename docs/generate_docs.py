@@ -340,6 +340,11 @@ if __name__ == "__main__":
         f.write("# API Documentation\n")
         f.write("(auto-generated)")
 
+    with open("README.md", "w") as f:
+        with open("../README.md", "r") as g:
+            readme = g.read()
+            f.write(readme[readme.index("# Prefect") :])
+
     for page in OUTLINE:
         # collect what to document
         fname, classes, fns = (
