@@ -1,3 +1,4 @@
+import subprocess
 from collections import Counter
 import tempfile
 import prefect
@@ -6,6 +7,7 @@ from cryptography.fernet import Fernet
 from prefect import Flow, Task
 from prefect.build import registry
 from prefect.build.registry import generate_flow_id, generate_task_ids
+from prefect.utilities.tests import set_temporary_config
 
 TASKS = {}
 
@@ -58,7 +60,8 @@ def clear_data():
 
 @pytest.fixture(autouse=True, scope="module")
 def set_encryption_key():
-    prefect.config.flows.registry.encryption_key = Fernet.generate_key()
+    with set_temporary_config("registry.encryption_key", Fernet.generate_key()):
+        yield
 
 
 class TestFlowIDs:
@@ -620,7 +623,7 @@ class TestRegistry:
         assert registry.REGISTRY[flow_id] is flow
 
     def test_register_flow_warning_on_duplicate(self, flow):
-        assert prefect.config.flows.registry.warn_on_duplicate_registration
+        assert prefect.config.registry.warn_on_duplicate_registration
         registry.register_flow(flow)
         with pytest.warns(UserWarning):
             registry.register_flow(flow)
@@ -636,31 +639,59 @@ class TestRegistry:
         serialized = registry.serialize_registry()
         assert len(serialized) > 1000
 
-    def test_deserialize_registry(self, flow):
+    def test_load_serialized_registry(self, flow):
         registry.register_flow(flow)
         serialized = registry.serialize_registry()
         registry.REGISTRY.clear()
         assert not registry.REGISTRY
 
-        registry.deserialize_registry(serialized)
+        registry.load_serialized_registry(serialized)
         assert registry.REGISTRY
         new_flow = registry.load_flow(flow.project, flow.name, flow.version)
         assert new_flow == flow
 
-    def test_serialize_and_deserialize_registry_warns_about_encryption(self, flow):
-        key = prefect.config.flows.registry.encryption_key
-        prefect.config.flows.registry.encryption_key = ""
+    def test_serialize_and_load_serialized_registry_warns_about_encryption(self, flow):
+        key = prefect.config.registry.encryption_key
+        prefect.config.registry.encryption_key = ""
         try:
-            assert not prefect.config.flows.registry.encryption_key
+            assert not prefect.config.registry.encryption_key
             registry.register_flow(flow)
 
             with pytest.warns(UserWarning):
                 serialized = registry.serialize_registry()
             with pytest.warns(UserWarning):
-                registry.deserialize_registry(serialized)
+                registry.load_serialized_registry(serialized)
         finally:
-            prefect.config.flows.registry.encryption_key = key
+            prefect.config.registry.encryption_key = key
 
     def test_automatic_registration(self):
         flow = Flow(name="hello", register=True)
         assert (flow.project, flow.name, flow.version) in registry.REGISTRY
+
+    def test_load_registry_on_startup(self):
+        """
+        Registers two flows and writes the registry to a file; tests that Prefect
+        automatically deserializes that registry if the appropriate config is set via env var.
+        """
+
+
+        cmd = 'python -c "import prefect; print(len(prefect.build.registry.REGISTRY))"'
+        assert subprocess.check_output(cmd, shell=True).strip() == b"0"
+
+        with tempfile.NamedTemporaryFile() as tmp:
+            registry.register_flow(Flow("flow1"))
+            registry.register_flow(Flow("flow2"))
+
+            with open(tmp.name, "wb") as f:
+                serialized = registry.serialize_registry()
+                f.write(serialized)
+
+            env = [
+                "PREFECT__REGISTRY__LOAD_ON_STARTUP={}".format(tmp.name),
+                "PREFECT__REGISTRY__ENCRYPTION_KEY={}".format(
+                    prefect.config.registry.encryption_key.decode()
+                ),
+            ]
+            result = subprocess.check_output(" ".join(env + [cmd]), shell=True)
+            assert result.strip() == b"2"
+
