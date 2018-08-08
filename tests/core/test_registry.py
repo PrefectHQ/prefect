@@ -5,7 +5,7 @@ import pytest
 from cryptography.fernet import Fernet
 from prefect import Flow, Task
 from prefect.core import registry
-from prefect.core.registry import generate_flow_id, generate_task_ids
+from prefect.build.registry import generate_flow_id, generate_task_ids
 
 TASKS = {}
 

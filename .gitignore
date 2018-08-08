@@ -114,3 +114,6 @@ node_modules
 
 # PyTest
 .pytest_cache
+
+# don't ignore prefect build module!
+!src/prefect/build/
