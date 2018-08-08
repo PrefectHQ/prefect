@@ -1,3 +1,5 @@
+import subprocess
+from cryptography.fernet import Fernet
 import base64
 import tempfile
 import textwrap
@@ -8,6 +10,8 @@ import docker
 
 import prefect
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
+from prefect.utilities.tests import set_temporary_config
+from prefect.build import registry
 
 
 class Secret(Serializable):
@@ -38,8 +42,15 @@ class Environment(Serializable):
     def __init__(self, secrets: Iterable[Secret] = None) -> None:
         self.secrets = secrets or []
 
-    def build(self) -> None:
-        """Build the environment"""
+    def build(self) -> bytes:
+        """
+        Build the environment. Returns a key that must be passed to interact with the
+        environment.
+        """
+        raise NotImplementedError()
+
+    def run(self, key: bytes, cli_cmd: str) -> int:
+        """Issue a CLI command to the environment."""
         raise NotImplementedError()
 
 
@@ -179,53 +190,41 @@ class ContainerEnvironment(Environment):
 
 
 class PickleEnvironment(Environment):
-    """A pickle environment type for pickling a flow"""
+    """
+    A pickle environment type for pickling a flow.
 
-    from cryptography.fernet import Fernet
+    **This environment is intended ONLY for testing. Pickles should never be exchanged
+    between untrusted parties.**
 
-    def __init__(self, encryption_key: str = None):
+    While this class uses encryption, it is only meant to introduce a minor friction and
+    prevent accidental deserialization. It is not intended to be secure (the key is stored)
+    on the class.
+
+    """
+
+    def __init__(self, encryption_key: bytes = None):
         """Initialize the PickleEnvironment class"""
         if encryption_key:
             self.encryption_key = self.encryption_key
         else:
-            self.encryption_key = self.Fernet.generate_key()
+            self.encryption_key = Fernet.generate_key()
 
-    def build(self, flow: "prefect.Flow") -> bytes:
+    def build(self) -> bytes:
         """
-        Pickles a flow and returns the bytes
-
-        Args:
-            flow: A prefect Flow object
-
         Returns:
-            An encrypted pickled flow
-        """
-        serialized_pickle = base64.b64encode(cloudpickle.dumps(flow))
-        serialized_pickle = self.Fernet(self.encryption_key).encrypt(serialized_pickle)
-        return serialized_pickle
-
-    def run(self):
-        """Run"""
-        pass
-
-    def info(self, pickle: bytes) -> dict:
-        """
-        Returns the serialized flow from a pickle
-
-        Args:
-            pickle: A pickled Flow object
-
-        Returns:
-            A dictionary of the serialized flow
-
-        Raises:
-            TypeError if the unpickeld object is not a Flow
+            - bytes: An encrypted and pickled flow registry
         """
 
-        serialized_pickle = self.Fernet(self.encryption_key).decrypt(pickle).decode()
-        flow = cloudpickle.loads(base64.b64decode(serialized_pickle))
+        serialized_registry = registry.serialize_registry()
+        encrypted = Fernet(self.encryption_key).encrypt(serialized_registry)
+        return encrypted
 
-        if not isinstance(flow, prefect.Flow):
-            raise TypeError("Object is not a pickled Flow")
+    def run(self, key: bytes, cli_cmd: str):
+        decrypted_registry = Fernet(self.encryption_key).decrypt(key)
+        with tempfile.NamedTemporaryFile() as tmp:
+            with open(tmp.name, "wb") as f:
+                f.write(decrypted_registry)
 
-        return flow.serialize()
+            env = ['PREFECT__REGISTRY__LOAD_ON_STARTUP="{}"'.format(tmp.name)]
+            return subprocess.check_output(" ".join(env + [cli_cmd]), shell=True)
+
