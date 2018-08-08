@@ -5,7 +5,7 @@ import pytest
 
 import prefect
 from prefect.core import Flow, Parameter, Task
-from prefect.engine.cache_validators import duration_only, never_use
+from prefect.engine.cache_validators import all_inputs, duration_only, never_use
 from prefect.utilities.tasks import task
 
 
@@ -82,6 +82,8 @@ class TestCreateTask:
         assert t1.cache_validator is never_use
         t2 = Task(cache_for=timedelta(days=1))
         assert t2.cache_validator is duration_only
+        t3 = Task(cache_for=timedelta(days=1), cache_validator=all_inputs)
+        assert t3.cache_validator is all_inputs
 
 
 def test_groups():
