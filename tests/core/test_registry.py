@@ -50,12 +50,6 @@ def flow():
     return flow_from_chains(["a", "b", "c"], ["b", "d", "e"], ["x", "y", "z"])
 
 
-@pytest.fixture
-def path():
-    with tempfile.TemporaryDirectory() as tmp:
-        yield tmp + '/tmp.pkl'
-
-
 @pytest.fixture(autouse=True)
 def clear_data():
     registry.REGISTRY.clear()
@@ -637,27 +631,23 @@ class TestRegistry:
         registry.register_flow(flow)
         assert registry.load_flow(flow.project, flow.name, flow.version) is flow
 
-    def test_serialize_registry(self, flow, path):
+    def test_serialize_registry(self, flow):
         registry.register_flow(flow)
-        registry.serialize_registry(path=path)
+        serialized = registry.serialize_registry()
+        assert len(serialized) > 1000
 
-        with open(path, "rb") as f:
-            assert len(f.read()) > 1000
-
-    def test_deserialize_registry(self, flow, path):
+    def test_deserialize_registry(self, flow):
         registry.register_flow(flow)
-        registry.serialize_registry(path=path)
+        serialized = registry.serialize_registry()
         registry.REGISTRY.clear()
         assert not registry.REGISTRY
 
-        registry.deserialize_registry(path=path)
+        registry.deserialize_registry(serialized)
         assert registry.REGISTRY
         new_flow = registry.load_flow(flow.project, flow.name, flow.version)
-        assert (new_flow.name, new_flow.version) == (flow.name, flow.version)
+        assert new_flow == flow
 
-    def test_serialize_and_deserialize_registry_warns_about_encryption(
-        self, flow, path
-    ):
+    def test_serialize_and_deserialize_registry_warns_about_encryption(self, flow):
         key = prefect.config.flows.registry.encryption_key
         prefect.config.flows.registry.encryption_key = ""
         try:
@@ -665,9 +655,9 @@ class TestRegistry:
             registry.register_flow(flow)
 
             with pytest.warns(UserWarning):
-                registry.serialize_registry(path=path)
+                serialized = registry.serialize_registry()
             with pytest.warns(UserWarning):
-                registry.deserialize_registry(path=path)
+                registry.deserialize_registry(serialized)
         finally:
             prefect.config.flows.registry.encryption_key = key
 
