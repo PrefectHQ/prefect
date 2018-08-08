@@ -40,7 +40,7 @@ class Flow(Serializable):
         project: str = None,
         schedule: prefect.schedules.Schedule = None,
         description: str = None,
-        environment: prefect.environments.Environment = None,
+        environment: 'prefect.build.environments.Environment' = None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
         key_tasks: Iterable[Task] = None,

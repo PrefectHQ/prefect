@@ -5,7 +5,6 @@ from typing import Any, Dict, Iterable, Union
 import pytest
 
 import prefect
-from prefect import Flow, Task
 from prefect.engine.state import State
 from prefect.configuration import Config
 

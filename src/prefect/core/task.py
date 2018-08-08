@@ -6,7 +6,6 @@ import prefect
 import prefect.engine.cache_validators
 import prefect.engine.signals
 import prefect.triggers
-from prefect.environments import Environment
 from prefect.utilities.json import Serializable, to_qualified_name
 
 if TYPE_CHECKING:
