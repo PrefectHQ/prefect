@@ -63,6 +63,11 @@ def load_serialized_registry(serialized: bytes) -> None:
     deserialized = cloudpickle.loads(serialized)
     REGISTRY.update(deserialized)
 
+def load_serialized_registry_from_path(registry_path: str) -> None:
+    with open(registry_path, 'rb') as f:
+        serialized_registry = f.read()
+    load_serialized_registry(serialized_registry)
+
 
 def generate_flow_id(flow: Flow) -> str:
     """
