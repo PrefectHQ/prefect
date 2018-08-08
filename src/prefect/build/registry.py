@@ -42,11 +42,7 @@ def load_flow(project, name, version) -> Flow:
     return REGISTRY[key]
 
 
-def serialize_registry(path: str) -> None:
-
-    if os.path.exists(path):
-        raise ValueError("Path already exists and would be overwritten.")
-
+def serialize_registry() -> bytes:
     serialized = cloudpickle.dumps(REGISTRY)
 
     encryption_key = prefect.config.flows.registry.encryption_key
@@ -55,14 +51,9 @@ def serialize_registry(path: str) -> None:
     else:
         serialized = Fernet(encryption_key).encrypt(serialized)
 
-    with open(path, "wb") as f:
-        f.write(serialized)
+    return serialized
 
-
-def deserialize_registry(path: str) -> None:
-    with open(path, "rb") as f:
-        serialized = f.read()
-
+def deserialize_registry(serialized: bytes) -> None:
     encryption_key = prefect.config.flows.registry.encryption_key
     if not encryption_key:
         _warn("No encryption key found in `config.toml`.")
