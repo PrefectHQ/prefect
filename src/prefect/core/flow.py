@@ -71,7 +71,7 @@ class Flow(Serializable):
         self._prefect_version = prefect.__version__
 
         if register:
-            prefect.core.registry.register_flow(self)
+            prefect.build.registry.register_flow(self)
 
         super().__init__()
 
@@ -111,6 +111,9 @@ class Flow(Serializable):
         new.edges = self.edges.copy()
         new.set_key_tasks(self._key_tasks)
         return new
+
+    def id(self) -> tuple:
+        return (self.project, self.name, self.version)
 
     # Context Manager ----------------------------------------------------------
 

@@ -9,7 +9,7 @@ from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.tasks import task
-from prefect.utilities.tests import set_config
+from prefect.utilities.tests import set_temporary_config
 
 
 class AddTask(Task):

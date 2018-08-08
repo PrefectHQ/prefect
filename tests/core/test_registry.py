@@ -4,7 +4,7 @@ import prefect
 import pytest
 from cryptography.fernet import Fernet
 from prefect import Flow, Task
-from prefect.core import registry
+from prefect.build import registry
 from prefect.build.registry import generate_flow_id, generate_task_ids
 
 TASKS = {}
@@ -52,13 +52,13 @@ def flow():
 
 @pytest.fixture
 def path():
-    with tempfile.NamedTemporaryFile("w+b") as tmp:
-        yield tmp.name
+    with tempfile.TemporaryDirectory() as tmp:
+        yield tmp + '/tmp.pkl'
 
 
 @pytest.fixture(autouse=True)
 def clear_data():
-    registry.FLOW_REGISTRY.clear()
+    registry.REGISTRY.clear()
     TASKS.clear()
 
 
@@ -621,9 +621,9 @@ class TestTaskIDs:
 class TestRegistry:
     def test_register_flow(self, flow):
         flow_id = (flow.project, flow.name, flow.version)
-        assert flow_id not in registry.FLOW_REGISTRY
+        assert flow_id not in registry.REGISTRY
         registry.register_flow(flow)
-        assert registry.FLOW_REGISTRY[flow_id] is flow
+        assert registry.REGISTRY[flow_id] is flow
 
     def test_register_flow_warning_on_duplicate(self, flow):
         assert prefect.config.flows.registry.warn_on_duplicate_registration
@@ -647,11 +647,11 @@ class TestRegistry:
     def test_deserialize_registry(self, flow, path):
         registry.register_flow(flow)
         registry.serialize_registry(path=path)
-        registry.FLOW_REGISTRY.clear()
-        assert not registry.FLOW_REGISTRY
+        registry.REGISTRY.clear()
+        assert not registry.REGISTRY
 
         registry.deserialize_registry(path=path)
-        assert registry.FLOW_REGISTRY
+        assert registry.REGISTRY
         new_flow = registry.load_flow(flow.project, flow.name, flow.version)
         assert (new_flow.name, new_flow.version) == (flow.name, flow.version)
 
@@ -673,4 +673,4 @@ class TestRegistry:
 
     def test_automatic_registration(self):
         flow = Flow(name="hello", register=True)
-        assert (flow.project, flow.name, flow.version) in registry.FLOW_REGISTRY
+        assert (flow.project, flow.name, flow.version) in registry.REGISTRY

@@ -13,7 +13,7 @@ from prefect.core.flow import Flow
 from prefect.core.task import Task
 from prefect.utilities.json import dumps
 
-FLOW_REGISTRY = {}
+REGISTRY = {}
 
 
 def register_flow(flow: Flow) -> None:
@@ -23,29 +23,31 @@ def register_flow(flow: Flow) -> None:
     if not isinstance(flow, Flow):
         raise TypeError("Expected a Flow; received {}".format(type(flow)))
 
-    key = (flow.project, flow.name, flow.version)
-
     if (
         prefect.config.flows.registry.warn_on_duplicate_registration
-        and key in FLOW_REGISTRY
+        and flow.id() in REGISTRY
     ):
         _warn(
             "Registering this flow overwrote a previously-registered flow "
             "with the same project, name, and version: {}".format(flow)
         )
 
-    FLOW_REGISTRY[key] = flow
+    REGISTRY[flow.id()] = flow
 
 
 def load_flow(project, name, version) -> Flow:
     key = (project, name, version)
-    if key not in FLOW_REGISTRY:
+    if key not in REGISTRY:
         raise KeyError("Flow not found: {}".format(key))
-    return FLOW_REGISTRY[key]
+    return REGISTRY[key]
 
 
-def serialize_registry(path):
-    serialized = cloudpickle.dumps(FLOW_REGISTRY)
+def serialize_registry(path: str) -> None:
+
+    if os.path.exists(path):
+        raise ValueError("Path already exists and would be overwritten.")
+
+    serialized = cloudpickle.dumps(REGISTRY)
 
     encryption_key = prefect.config.flows.registry.encryption_key
     if not encryption_key:
@@ -57,7 +59,7 @@ def serialize_registry(path):
         f.write(serialized)
 
 
-def deserialize_registry(path):
+def deserialize_registry(path: str) -> None:
     with open(path, "rb") as f:
         serialized = f.read()
 
@@ -68,7 +70,7 @@ def deserialize_registry(path):
         serialized = Fernet(encryption_key).decrypt(serialized)
 
     deserialized = cloudpickle.loads(serialized)
-    FLOW_REGISTRY.update(deserialized)
+    REGISTRY.update(deserialized)
 
 
 def generate_flow_id(flow: Flow) -> str:
