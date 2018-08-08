@@ -24,7 +24,7 @@ def register_flow(flow: Flow) -> None:
         raise TypeError("Expected a Flow; received {}".format(type(flow)))
 
     if (
-        prefect.config.flows.registry.warn_on_duplicate_registration
+        prefect.config.registry.warn_on_duplicate_registration
         and flow.id() in REGISTRY
     ):
         _warn(
@@ -45,7 +45,7 @@ def load_flow(project, name, version) -> Flow:
 def serialize_registry() -> bytes:
     serialized = cloudpickle.dumps(REGISTRY)
 
-    encryption_key = prefect.config.flows.registry.encryption_key
+    encryption_key = prefect.config.registry.encryption_key
     if not encryption_key:
         _warn("No encryption key found in `config.toml`.")
     else:
@@ -53,8 +53,8 @@ def serialize_registry() -> bytes:
 
     return serialized
 
-def deserialize_registry(serialized: bytes) -> None:
-    encryption_key = prefect.config.flows.registry.encryption_key
+def load_serialized_registry(serialized: bytes) -> None:
+    encryption_key = prefect.config.registry.encryption_key
     if not encryption_key:
         _warn("No encryption key found in `config.toml`.")
     else:
@@ -266,3 +266,4 @@ def generate_task_ids(flow: Flow, _debug_steps: bool = False) -> Dict[str, "Task
 
 def _hash(value):
     return xxhash.xxh64(value).digest()
+
