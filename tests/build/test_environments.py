@@ -134,25 +134,29 @@ def test_environment_variables():
 ##### Pickle Tests
 #################################
 
+class TestPickleEnvironment:
 
-def test_create_pickle():
-    pickle_env = PickleEnvironment()
-    assert pickle_env
-
-
-def test_pickle_flow():
-    pickle_env = PickleEnvironment()
-    flow = Flow(name="test", environment=pickle_env)
-
-    pickled_flow = flow.environment.build(flow=flow)
-    assert pickled_flow
+    def test_create_pickle_environment(self):
+        env = PickleEnvironment()
+        assert env
+        assert env.encryption_key
 
 
-def test_unpickle_flow():
-    pickle_env = PickleEnvironment()
-    flow = Flow(name="test", environment=pickle_env)
+    def test_build_pickle_environment_with_empty_registry(self):
+        env = PickleEnvironment()
+        assert env.build() == b''
 
-    pickled_flow = flow.environment.build(flow=flow)
+        flow = Flow(name="test", environment=env)
 
-    serialized_flow = flow.environment.info(pickled_flow)
-    assert serialized_flow["name"] == "test"
+        pickled_flow = flow.environment.build(flow=flow)
+        assert pickled_flow
+
+
+    def test_unpickle_flow():
+        env = PickleEnvironment()
+        flow = Flow(name="test", environment=env)
+
+        pickled_flow = flow.environment.build(flow=flow)
+
+        serialized_flow = flow.environment.info(pickled_flow)
+        assert serialized_flow["name"] == "test"

@@ -18,15 +18,15 @@ REGISTRY = {}
 
 def register_flow(flow: Flow) -> None:
     """
-    Registers a flow
+    Registers a flow by storing it in the registry
+
+    Args:
+        - flow (Flow): the flow to register
     """
     if not isinstance(flow, Flow):
         raise TypeError("Expected a Flow; received {}".format(type(flow)))
 
-    if (
-        prefect.config.registry.warn_on_duplicate_registration
-        and flow.id() in REGISTRY
-    ):
+    if prefect.config.registry.warn_on_duplicate_registration and flow.id() in REGISTRY:
         _warn(
             "Registering this flow overwrote a previously-registered flow "
             "with the same project, name, and version: {}".format(flow)
@@ -36,35 +36,69 @@ def register_flow(flow: Flow) -> None:
 
 
 def load_flow(project, name, version) -> Flow:
+    """
+    Loads a flow from the registry.
+
+    Args:
+        - project (str): the flow's project
+        - name (str): the flow's name
+        - version (str): the flow's version
+    """
     key = (project, name, version)
     if key not in REGISTRY:
         raise KeyError("Flow not found: {}".format(key))
     return REGISTRY[key]
 
 
-def serialize_registry() -> bytes:
+def serialize_registry(encrypt: bool = True) -> bytes:
+    """
+    Serialize the registry to bytes.
+
+    Args:
+        - encrypt (bool): if True, the registry is encrypted with the key stored at
+            `prefect.config.registry.encryption_key`.
+    """
     serialized = cloudpickle.dumps(REGISTRY)
 
-    encryption_key = prefect.config.registry.encryption_key
-    if not encryption_key:
-        _warn("No encryption key found in `config.toml`.")
-    else:
+    if encrypt:
+        encryption_key = prefect.config.registry.encryption_key
+        if not encryption_key:
+            raise ValueError("No encryption key found in `prefect.config`.")
         serialized = Fernet(encryption_key).encrypt(serialized)
 
     return serialized
 
-def load_serialized_registry(serialized: bytes) -> None:
-    encryption_key = prefect.config.registry.encryption_key
-    if not encryption_key:
-        _warn("No encryption key found in `config.toml`.")
-    else:
+
+def load_serialized_registry(serialized: bytes, decrypt: bool = True) -> None:
+    """
+    Deserialize a serialized registry. This function updates the current registry without
+    clearing it first.
+
+    Args:
+        - serialized (bytes): a serialized registry
+        - decrypt (bool): if True, the registry is decrypted with the key stored at
+            `prefect.config.registry.encryption_key`.
+    """
+    if decrypt:
+        encryption_key = prefect.config.registry.encryption_key
+        if not encryption_key:
+            raise ValueError("No encryption key found in `config.toml`.")
         serialized = Fernet(encryption_key).decrypt(serialized)
 
-    deserialized = cloudpickle.loads(serialized)
-    REGISTRY.update(deserialized)
+    REGISTRY.update(cloudpickle.loads(serialized))
 
-def load_serialized_registry_from_path(registry_path: str) -> None:
-    with open(registry_path, 'rb') as f:
+
+def load_serialized_registry_from_path(path: str, decrypt: bool = True) -> None:
+    """
+    Deserialize a serialized registry from a file. This function updates the current registry without
+    clearing it first.
+
+    Args:
+        - path (str): a path to a file containing a serialized registry (in bytes)
+        - decrypt (bool): if True, the registry is decrypted with the key stored at
+            `prefect.config.registry.encryption_key`.
+    """
+    with open(path, "rb") as f:
         serialized_registry = f.read()
     load_serialized_registry(serialized_registry)
 
@@ -73,6 +107,9 @@ def generate_flow_id(flow: Flow) -> str:
     """
     The flow id (for the purposes of hashing task IDs) depends only on project and name,
     not version. This is to allow tasks to be identified when versions change (if possible)
+
+    Args:
+        - flow: Flow
     """
     return str(uuid.UUID(bytes=_hash(flow.project) + _hash(flow.name)))
 
@@ -82,14 +119,14 @@ def generate_task_ids(flow: Flow, _debug_steps: bool = False) -> Dict[str, "Task
     Generates stable IDs for each task.
 
     If our goal was to create an ID for each task, we would simply produce a random
-    hash. However, we would prefer to generate deterministic IDs. That way,
-    identical flows will have the same task ids and near-identical flows will have
-    overlapping task ids.
+    hash. However, we would prefer to generate deterministic IDs. That way, identical
+    flows will have the same task ids and near-identical flows will have overlapping
+    task ids.
 
-    If all tasks were unique, we could simply produce unique IDs by hashing the
-    tasks themselves. However, Prefect allows duplicate tasks in a flow. Therefore,
-    we take a few steps to iteratively produce unique IDs. There are five steps, and
-    tasks go through each step until they have a unique ID:
+    If all tasks were unique, we could simply produce unique IDs by hashing the tasks
+    themselves. However, Prefect allows duplicate tasks in a flow. Therefore, we take a
+    few steps to iteratively produce unique IDs. There are five steps, and tasks go
+    through each step until they have a unique ID:
 
         1. Generate an ID from the task's attributes.
             This fingerprints a task in terms of its own attributes.
@@ -105,6 +142,15 @@ def generate_task_ids(flow: Flow, _debug_steps: bool = False) -> Dict[str, "Task
             between those two paths, so we pick one at random and adjust the leading tasks'
             IDs, as well as all following tasks. This is safe because we are sure that the
             computational paths are identical.
+
+    Args:
+        - flow (Flow)
+        - _debug_steps (bool): if True, the function will return a dictionary of
+            {step_number: ids_produced_at_step} pairs, where ids_produced_at_step is the
+            id dict following that step. This is used for debugging/testing only.
+
+    Returns:
+        - dict: a dictionary of {task: task_id} pairs
     """
 
     # precompute flow properties since we'll need to access them repeatedly
