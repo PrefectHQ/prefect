@@ -1,4 +1,5 @@
 import datetime
+import sys
 
 import pytest
 
@@ -115,6 +116,9 @@ def test_flow_runner_with_invalid_return_tasks():
         flow_runner.run(return_tasks=[1])
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 6), reason="Depends on ordered dictionaries of Python 3.6+"
+)
 def test_return_tasks_are_sorted():
     flow = prefect.Flow()
     a, b, c = SuccessTask(), SuccessTask(), SuccessTask()
