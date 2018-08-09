@@ -90,9 +90,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.skip_on_upstream_skip = skip_on_upstream_skip
 
         self.cache_for = cache_for
-        self.cache_validator = (
-            cache_validator or prefect.engine.cache_validators.never_use
+        default_validator = (
+            prefect.engine.cache_validators.never_use
+            if cache_for is None
+            else prefect.engine.cache_validators.duration_only
         )
+        self.cache_validator = cache_validator or default_validator
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
