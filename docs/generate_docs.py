@@ -1,6 +1,6 @@
 """Functionality for auto-generating markdown documentation.
 
-Simply run `python generate_docs.py` from inside the `docs/` folder.
+On a development installation of Prefect, simply run `python generate_docs.py` from inside the `docs/` folder.
 """
 import inspect
 import os

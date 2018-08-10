@@ -6,7 +6,7 @@
 
 Prefect is a workflow management system designed for modern data infrastructures.
 
-Users organize `tasks` into `flows`, and Prefect takes care of the rest!
+Users organize `Tasks` into `Flows`, and Prefect takes care of the rest!
 
 
 ### "...Prefect?"
@@ -37,8 +37,7 @@ pip install .
 ```bash
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
-conda env create
-pip install -e .
+pip install -e .[dev]
 ```
 
 ### Unit Tests
@@ -66,10 +65,42 @@ yarn docs:deploy
 
 `Prefect` auto-generates markdown files from the package's docstrings, which [VuePress](https://vuepress.vuejs.org/) compiles into static html. In order for docstrings to compile correctly, please follow the following rules:
 - all documentation about class initialization should go into the class docstring, _not_ the `__init__` method docstring
-- code blocks within class method docstrings should not contain language annotations (e.g. ` ```python `); however, code blocks within standalone functions should
+- class method docstrings will be formatted into a table, which currently does not support language-specific syntax highlighthing.  Consequently, code blocks within such docstrings should not contain a language identifier (e.g. ` ```python `); however, code blocks within standalone functions should contain a language identifier.  To illustrate:
+````python
+def f(x: list):
+    """
+    Multiplies all elements of the list by 2.
+
+    Args:
+        - x (list): a list of numbers
+
+    Example:
+    ```python
+    f([1, 2, 3]) # Returns [2, 4, 6]
+    ```
+   """ 
+    return [2 * i for i in x]
+````
+vs.
+````python
+class Example:
+    def f(self, x: list):
+        """
+        Multiplies all elements of the list by 2.
+
+        Args:
+            - x (list): a list of numbers
+
+        Example:
+        ```
+        f([1, 2, 3]) # Returns [2, 4, 6]
+        ```
+       """ 
+        return [2 * i for i in x]
+````
 - argument lists should be formatted as markdown lists with colons denoting the beginning of a description `- name (type):` For example:
 ```python
-def function(x, y, z=None):
+def function(x: int, y: float, z: str = None):
     """
     Something interesting about what this function does.
 
@@ -78,8 +109,9 @@ def function(x, y, z=None):
         - y (float): additional info about `y`
         - z (str, optional): defaults to `None`
 
-    Additional information if desired; note that backticks for code formatting is encouraged within argument descriptions,
-    but should *not* be used in the list itself.  Also, all other documentation can contain markdown.
+    Additional information if desired; note that backticks for code formatting 
+    is encouraged within argument descriptions, but should *not* be used in 
+    the list itself.  Also, all other documentation can contain markdown.
 
     Returns:
         - None
