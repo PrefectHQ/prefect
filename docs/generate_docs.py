@@ -232,6 +232,7 @@ def format_doc(doc, in_table=False):
         cleaned = cleaned.replace("\n", "<br>").replace("```", "")
     for num, block in enumerate(code_blocks):
         if in_table:
+            block = block[block.startswith("python") and 6 :].lstrip("\n")
             block = (
                 '<pre class="language-python"><code class="language-python">'
                 + block.rstrip("  ").replace("\n", "<br>")

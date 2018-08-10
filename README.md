@@ -55,49 +55,10 @@ yarn docs:dev
 ```
 Open http://localhost:8080 to see the documentation.
 
-To build documentation, run this from the root `prefect` directory (note that `prefect` must be `pip` installed in editable mode for this to succeed):
-```bash
-yarn docs:build
-yarn docs:deploy
-```
-
 ### Style Guide for Docstrings
 
 `Prefect` auto-generates markdown files from the package's docstrings, which [VuePress](https://vuepress.vuejs.org/) compiles into static html. In order for docstrings to compile correctly, please follow the following rules:
 - all documentation about class initialization should go into the class docstring, _not_ the `__init__` method docstring
-- class method docstrings will be formatted into a table, which currently does not support language-specific syntax highlighthing.  Consequently, code blocks within such docstrings should not contain a language identifier (e.g. ` ```python `); however, code blocks within standalone functions should contain a language identifier.  To illustrate:
-````python
-def f(x: list):
-    """
-    Multiplies all elements of the list by 2.
-
-    Args:
-        - x (list): a list of numbers
-
-    Example:
-    ```python
-    f([1, 2, 3]) # Returns [2, 4, 6]
-    ```
-   """ 
-    return [2 * i for i in x]
-````
-vs.
-````python
-class Example:
-    def f(self, x: list):
-        """
-        Multiplies all elements of the list by 2.
-
-        Args:
-            - x (list): a list of numbers
-
-        Example:
-        ```
-        f([1, 2, 3]) # Returns [2, 4, 6]
-        ```
-       """ 
-        return [2 * i for i in x]
-````
 - argument lists should be formatted as markdown lists with colons denoting the beginning of a description `- name (type):` For example:
 ```python
 def function(x: int, y: float, z: str = None):
