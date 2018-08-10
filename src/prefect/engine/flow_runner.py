@@ -154,7 +154,8 @@ class FlowRunner:
             lambda: Failed(message="Task state not available."), task_states or {}
         )
         start_tasks = start_tasks or []
-        return_tasks = return_tasks or []
+        return_tasks = set(return_tasks or [])
+        sorted_return_tasks = []
         task_contexts = task_contexts or {}
         executor = executor or DEFAULT_EXECUTOR()
 
@@ -166,6 +167,9 @@ class FlowRunner:
         with executor.start():
 
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
+
+                if task in return_tasks:
+                    sorted_return_tasks.append(task)
 
                 upstream_states = {}
                 upstream_inputs = {}
@@ -215,7 +219,7 @@ class FlowRunner:
             )
             terminal_states = {final_states[t] for t in terminal_tasks}
             key_states = {final_states[t] for t in key_tasks}
-            return_states = {t: final_states[t] for t in return_tasks}
+            return_states = {t: final_states[t] for t in sorted_return_tasks}
 
             # check that the flow is finished
             if not all(s.is_finished() for s in terminal_states):
