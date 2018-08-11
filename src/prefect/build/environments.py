@@ -9,6 +9,7 @@ import cloudpickle
 import docker
 
 import prefect
+from prefect import Flow
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 from prefect.utilities.tests import set_temporary_config
 from prefect.build import registry
@@ -42,7 +43,7 @@ class Environment(Serializable):
     def __init__(self, secrets: Iterable[Secret] = None) -> None:
         self.secrets = secrets or []
 
-    def build(self) -> bytes:
+    def build(self, flow: Flow) -> bytes:
         """
         Build the environment. Returns a key that must be passed to interact with the
         environment.
@@ -189,42 +190,34 @@ class ContainerEnvironment(Environment):
             dockerfile.write(file_contents)
 
 
-class PickleEnvironment(Environment):
+class LocalEnvironment(Environment):
     """
-    A pickle environment type for pickling a flow.
-
-    **This environment is intended ONLY for testing. Pickles should never be exchanged
-    between untrusted parties.**
-
-    While this class uses encryption, it is only meant to introduce a minor friction and
-    prevent accidental deserialization. It is not intended to be secure (the key is stored)
-    on the class.
-
+    An environment for running a flow locally.
     """
 
     def __init__(self, encryption_key: bytes = None):
-        """Initialize the PickleEnvironment class"""
-        if encryption_key:
-            self.encryption_key = self.encryption_key
-        else:
-            self.encryption_key = Fernet.generate_key()
+        """Initialize the LocalEnvironment class"""
+        self.encryption_key = encryption_key or Fernet.generate_key().decode()
 
-    def build(self) -> bytes:
+    def build(self, flow: Flow) -> bytes:
         """
         Returns:
             - bytes: An encrypted and pickled flow registry
         """
-
-        serialized_registry = registry.serialize_registry()
-        encrypted = Fernet(self.encryption_key).encrypt(serialized_registry)
-        return encrypted
+        return registry.serialize_registry(
+            registry={flow.id(): flow}, encryption_key=self.encryption_key
+        )
 
     def run(self, key: bytes, cli_cmd: str):
-        decrypted_registry = Fernet(self.encryption_key).decrypt(key)
+
         with tempfile.NamedTemporaryFile() as tmp:
             with open(tmp.name, "wb") as f:
-                f.write(decrypted_registry)
+                f.write(key)
 
-            env = ['PREFECT__REGISTRY__LOAD_ON_STARTUP="{}"'.format(tmp.name)]
+            env = [
+                'PREFECT__REGISTRY__LOAD_ON_STARTUP="{}"'.format(tmp.name),
+                'PREFECT__REGISTRY__ENCRYPTION_KEY="{}"'.format(self.encryption_key),
+            ]
+
             return subprocess.check_output(" ".join(env + [cli_cmd]), shell=True)
 
