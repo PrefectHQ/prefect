@@ -1,10 +1,13 @@
 import pytest
-from cryptography.fernet import Fernet
+
 from prefect import Flow, Task
-from prefect.build import registry
-from prefect.utilities.tests import set_temporary_config
 
 TASKS = {}
+
+
+@pytest.fixture(autouse=True)
+def clear_data():
+    TASKS.clear()
 
 
 class IdenticalTask(Task):
@@ -55,23 +58,6 @@ def flow_from_chains(*chains):
         for u_name, d_name in zip(chain, chain[1:]):
             flow.add_edge(get_task(u_name), get_task(d_name), validate=False)
     return flow
-
-
-@pytest.fixture()
-def flow():
-    return flow_from_chains(["a", "b", "c"], ["b", "d", "e"], ["x", "y", "z"])
-
-
-@pytest.fixture(autouse=True)
-def clear_data():
-    registry.REGISTRY.clear()
-    TASKS.clear()
-
-
-@pytest.fixture(autouse=True, scope="module")
-def set_encryption_key():
-    with set_temporary_config("registry.encryption_key", Fernet.generate_key()):
-        yield
 
 
 def test_no_tasks_returns_empty_dict():

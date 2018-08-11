@@ -205,7 +205,7 @@ class LocalEnvironment(Environment):
             - bytes: An encrypted and pickled flow registry
         """
         return registry.serialize_registry(
-            registry={flow.id(): flow}, encryption_key=self.encryption_key
+            registry={flow.key(): flow}, encryption_key=self.encryption_key
         )
 
     def run(self, key: bytes, cli_cmd: str):
