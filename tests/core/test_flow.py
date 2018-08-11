@@ -608,3 +608,7 @@ def test_validate_missing_key_tasks():
     with pytest.raises(ValueError) as exc:
         f.validate()
     assert "key tasks are not contained" in str(exc.value).lower()
+
+def test_automatic_registration(self):
+    flow = prefect.Flow(name="hello", register=True)
+    assert (flow.project, flow.name, flow.version) in prefect.build.registry.REGISTRY
