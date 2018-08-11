@@ -16,6 +16,50 @@ from prefect.utilities.json import dumps
 REGISTRY = {}
 
 
+def build_flows() -> dict:
+    """
+    Build environments for all flows in the registry and produce a metadata dictionary.
+
+    Returns:
+        - dict: a dictionary keyed by flow_id and containing metadata for each built flow.
+    """
+    info = {}
+    for flow in REGISTRY.values():
+
+        environment_key = flow.environment.build(flow)
+
+        serialized_flow = flow.serialize()
+        task_ids = generate_task_ids(flow)
+
+        tasks = {
+            task_ids[t]: dict(registry_id=task_ids[t], **t.serialize())
+            for t in flow.tasks
+        }
+
+        edges = [
+            dict(
+                upstream_task_registry_id=task_ids[e.upstream_task],
+                downstream_task_registry_id=task_ids[e.downstream_task],
+                key=e.key,
+            )
+            for e in flow.edges
+        ]
+
+        serialized_flow["key_tasks"] = set(
+            [task_ids[t] for t in serialized_flow["key_tasks"]]
+        )
+
+        info[flow.id()] = dict(
+            registry_id=flow.id(),
+            environment_key=environment_key,
+            tasks=tasks,
+            edges=edges,
+            **serialized_flow
+        )
+
+    return info
+
+
 def register_flow(flow: Flow) -> None:
     """
     Registers a flow by storing it in the registry
@@ -50,71 +94,73 @@ def load_flow(project, name, version) -> Flow:
     return REGISTRY[key]
 
 
-def serialize_registry(encrypt: bool = True) -> bytes:
+def serialize_registry(registry: dict = None, encryption_key: str = None) -> bytes:
     """
     Serialize the registry to bytes.
 
     Args:
-        - encrypt (bool): if True, the registry is encrypted with the key stored at
-            `prefect.config.registry.encryption_key`.
+        - registry (dict): The registry to serialize. If None, the global registry is used.
+        - encryption_key (str): A key to use for encrypting the registry. If None
+            (the default), then the key in `prefect.config.registry.encryption_key` is used. If
+            that key is unavailable, a warning is raised.
     """
-    serialized = cloudpickle.dumps(REGISTRY)
-
-    if encrypt:
-        encryption_key = prefect.config.registry.encryption_key
-        if not encryption_key:
-            raise ValueError("No encryption key found in `prefect.config`.")
+    if registry is None:
+        registry = REGISTRY
+    serialized = cloudpickle.dumps(registry)
+    encryption_key = encryption_key or prefect.config.registry.encryption_key
+    if not encryption_key:
+        _warn(
+            "No encryption key provided and none found in "
+            "`prefect.config.registry.encryption_key`. The registry will be serialized "
+            "but not encrypted."
+        )
+    else:
         serialized = Fernet(encryption_key).encrypt(serialized)
 
     return serialized
 
 
-def load_serialized_registry(serialized: bytes, decrypt: bool = True) -> None:
+def load_serialized_registry(serialized: bytes, encryption_key: str = None) -> None:
     """
     Deserialize a serialized registry. This function updates the current registry without
     clearing it first.
 
     Args:
         - serialized (bytes): a serialized registry
-        - decrypt (bool): if True, the registry is decrypted with the key stored at
-            `prefect.config.registry.encryption_key`.
+        - encryption_key (str): A key to use for decrypting the registry. If None
+            (the default), then the key in `prefect.config.registry.encryption_key` is used. If
+            that key is unavailable, deserialization will procede without decryption.
     """
-    if decrypt:
-        encryption_key = prefect.config.registry.encryption_key
-        if not encryption_key:
-            raise ValueError("No encryption key found in `config.toml`.")
+    encryption_key = encryption_key or prefect.config.registry.encryption_key
+    if not encryption_key:
+        _warn(
+            "No encryption key provided and none found in "
+            "`prefect.config.registry.encryption_key`. The registry will attempt "
+            "unencrypted deserialization."
+        )
+    else:
         serialized = Fernet(encryption_key).decrypt(serialized)
 
     REGISTRY.update(cloudpickle.loads(serialized))
 
 
-def load_serialized_registry_from_path(path: str, decrypt: bool = True) -> None:
+def load_serialized_registry_from_path(path: str, encryption_key: str = None) -> None:
     """
     Deserialize a serialized registry from a file. This function updates the current registry without
     clearing it first.
 
     Args:
         - path (str): a path to a file containing a serialized registry (in bytes)
-        - decrypt (bool): if True, the registry is decrypted with the key stored at
-            `prefect.config.registry.encryption_key`.
+        - encryption_key (str): A key to use for decrypting the registry. If None
+            (the default), then the key in `prefect.config.registry.encryption_key` is used. If
+            that key is unavailable, deserialization will procede without decryption.
     """
     with open(path, "rb") as f:
         serialized_registry = f.read()
-    load_serialized_registry(serialized_registry)
+    load_serialized_registry(serialized_registry, encryption_key=encryption_key)
 
 
-def generate_flow_id(flow: Flow) -> str:
-    """
-    The flow id (for the purposes of hashing task IDs) depends only on project and name,
-    not version. This is to allow tasks to be identified when versions change (if possible)
-
-    Args:
-        - flow: Flow
-    """
-    return str(uuid.UUID(bytes=_hash(flow.project) + _hash(flow.name)))
-
-
-def generate_task_ids(flow: Flow, _debug_steps: bool = False) -> Dict[str, "Task"]:
+def generate_task_ids(flow: Flow, *, _debug_steps: bool = False) -> Dict[str, "Task"]:
     """
     Generates stable IDs for each task.
 
@@ -157,21 +203,27 @@ def generate_task_ids(flow: Flow, _debug_steps: bool = False) -> Dict[str, "Task
     tasks = flow.sorted_tasks()
     edges_to = flow.all_upstream_edges()
     edges_from = flow.all_downstream_edges()
-    flow_id = generate_flow_id(flow)
 
     # dictionary to hold debug information
     debug_steps = {}
 
     # -- Step 1 ---------------------------------------------------
     #
-    # Generate an ID for each task by serializing it and hashing the serialized
-    # representation with the flow's ID.
+    # Generate an ID for each task by hashing:
+    # - its serialized version
+    # - its flow's project
+    # - its flow's name
     #
-    # This "fingerprints" each task in terms of its own characteristics.
+    # This "fingerprints" each task in terms of its own characteristics and the parent flow.
+    # Note that the fingerprint does not include the flow version, meaning task IDs can
+    # remain stable across versions of the same flow.
     #
     # -----------------------------------------------------------
 
-    ids = {t: _hash(dumps((t.serialize(), flow_id), sort_keys=True)) for t in tasks}
+    ids = {
+        t: _hash(dumps((t.serialize(), flow.project, flow.name), sort_keys=True))
+        for t in tasks
+    }
 
     if _debug_steps:
         debug_steps[1] = ids.copy()

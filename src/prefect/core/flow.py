@@ -40,7 +40,7 @@ class Flow(Serializable):
         project: str = None,
         schedule: prefect.schedules.Schedule = None,
         description: str = None,
-        environment: 'prefect.build.environments.Environment' = None,
+        environment: "prefect.build.environments.Environment" = None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
         key_tasks: Iterable[Task] = None,
@@ -71,7 +71,7 @@ class Flow(Serializable):
         self._prefect_version = prefect.__version__
 
         if register:
-            prefect.build.registry.register_flow(self)
+            self.register()
 
         super().__init__()
 
@@ -495,12 +495,6 @@ class Flow(Serializable):
     # Serialization ------------------------------------------------------------
 
     def serialize(self) -> dict:
-
-        task_ids = {t: uuid.uuid4() for t in self.tasks}
-
-        def as_uuid(id: bytes) -> str:
-            return str(uuid.UUID(bytes=id))
-
         return dict(
             name=self.name,
             version=self.version,
@@ -509,14 +503,9 @@ class Flow(Serializable):
             environment=self.environment,
             parameters=self.parameters(),
             schedule=self.schedule,
-            tasks={as_uuid(task_ids[t]): t.serialize() for t in self.tasks},
             key_tasks=self.key_tasks(),
-            edges=[
-                dict(
-                    upstream_task_obj_id=as_uuid(task_ids[e.upstream_task]),
-                    downstream_task_obj_id=as_uuid(task_ids[e.downstream_task]),
-                    key=e.key,
-                )
-                for e in self.edges
-            ],
         )
+
+    def register(self) -> None:
+        """Register the flow."""
+        prefect.build.registry.register_flow(self)

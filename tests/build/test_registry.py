@@ -6,16 +6,27 @@ import pytest
 from cryptography.fernet import Fernet
 from prefect import Flow, Task
 from prefect.build import registry
-from prefect.build.registry import generate_flow_id, generate_task_ids
+from prefect.build.registry import generate_task_ids
 from prefect.utilities.tests import set_temporary_config
 
 TASKS = {}
 
 
+class IdenticalTask(Task):
+    def __init__(self, _name):
+        self._name = _name
+        super().__init__()
+
+    def __repr__(self):
+        return self._name
+
+
 def get_task(name):
+    """
+    Returns a generic task that can be retrieved by the provided name.
+    """
     if name not in TASKS:
-        task = Task()
-        task._name = name
+        task = IdenticalTask(name)
         TASKS[name] = task
     return TASKS[name]
 
@@ -36,6 +47,8 @@ def flow_from_chains(*chains):
             ['x', 'y', 'z'],
             ['x', 'x2']
         )
+
+    The tasks in the returned flow are all completely identical.
     """
 
     flow = Flow()
@@ -62,42 +75,6 @@ def clear_data():
 def set_encryption_key():
     with set_temporary_config("registry.encryption_key", Fernet.generate_key()):
         yield
-
-
-class TestFlowIDs:
-    def test_flow_id_returns_deterministic_bytes(self):
-        id_1 = "d203b613-d35d-1c85-8472-d1b79dd72fb3"
-        id_2 = "32852910-fefb-6028-8472-d1b79dd72fb3"
-
-        assert generate_flow_id(Flow(name="flow")) == id_1
-        assert generate_flow_id(Flow(name="flow", version="version")) == id_1
-        assert generate_flow_id(Flow(name="flow", project="project")) == id_2
-        assert (
-            generate_flow_id(Flow(name="flow", project="project", version="version"))
-            == id_2
-        )
-
-    def test_flow_id_is_not_affected_by_version(self):
-        flow = Flow(name="flow")
-        flow_v3 = Flow(name="flow", version=3)
-        flow_v4 = Flow(name="flow", version=4)
-        flow_v_default = Flow(name="flow", version=prefect.config.flows.default_project)
-        assert generate_flow_id(flow) == generate_flow_id(flow_v3)
-        assert generate_flow_id(flow_v3) == generate_flow_id(flow_v4)
-        assert generate_flow_id(flow) == generate_flow_id(flow_v_default)
-
-    def test_flow_id_is_affected_by_name(self):
-        flow = Flow(name="flow")
-        flow_2 = Flow(name="another flow")
-        assert generate_flow_id(flow) != generate_flow_id(flow_2)
-
-    def test_flow_id_is_affected_by_project(self):
-        flow = Flow(name="flow")
-        flow_p_default = Flow(name="flow", project=prefect.config.flows.default_project)
-        flow_p = Flow(name="flow", project="another project")
-
-        assert generate_flow_id(flow) == generate_flow_id(flow_p_default)
-        assert generate_flow_id(flow) != generate_flow_id(flow_p)
 
 
 class TestTaskIDAlgorithm:
@@ -578,6 +555,150 @@ class TestTaskIDAlgorithm:
         assert count_unique_ids(steps[5]) == len(f.tasks) == 4
 
 
+class TestTaskIDStability:
+    def test_ids_stable_across_identical_flows(self):
+        """
+        x1 -> x2 -> x3
+                \
+                 y1 -> y2
+
+        a1 -> a2
+
+        """
+        f1 = flow_from_chains(["x1", "x2", "x3"], ["x2", "y1", "y2"], ["a1", "a2"])
+        f2 = f1.copy()
+
+        f1_task_ids = generate_task_ids(f1)
+        f2_task_ids = generate_task_ids(f2)
+        assert f1_task_ids == f2_task_ids
+
+    def test_id_values_stable_across_identical_flows_with_duplicates(self):
+        """
+        x1 -> x2 -> x3
+                \
+                 y1 -> y2
+
+        a1 -> a2
+
+        b1 -> b2
+        """
+        f1 = flow_from_chains(
+            ["x1", "x2", "x3"], ["x2", "y1", "y2"], ["a1", "a2"], ["b1", "b2"]
+        )
+        f2 = f1.copy()
+
+        f1_task_ids = generate_task_ids(f1)
+        f2_task_ids = generate_task_ids(f2)
+        # the task_ids are not necessarily equal because the a's and b's
+        # could switch ids. But the values are the same.
+        assert set(f1_task_ids.values()) == set(f2_task_ids.values())
+
+    def test_ids_change_if_flow_name_changes(self):
+        """
+        x1 -> x2 -> x3
+                \
+                 y1 -> y2
+
+        a1 -> a2
+
+        """
+        f1 = flow_from_chains(["x1", "x2", "x3"], ["x2", "y1", "y2"], ["a1", "a2"])
+
+        f2 = f1.copy()
+        f2.name = "another flow name"
+
+        f1_task_ids = generate_task_ids(f1)
+        f2_task_ids = generate_task_ids(f2)
+        # no overlap
+        assert not set(f1_task_ids.values()).intersection(f2_task_ids.values())
+
+    def test_ids_change_if_flow_project_changes(self):
+        """
+        x1 -> x2 -> x3
+                \
+                 y1 -> y2
+
+        a1 -> a2
+
+        """
+        f1 = flow_from_chains(["x1", "x2", "x3"], ["x2", "y1", "y2"], ["a1", "a2"])
+
+        f2 = f1.copy()
+        f2.project = "another flow project"
+
+        f1_task_ids = generate_task_ids(f1)
+        f2_task_ids = generate_task_ids(f2)
+        # no overlap
+        assert not set(f1_task_ids.values()).intersection(f2_task_ids.values())
+
+    def test_ids_dont_change_if_flow_version_changes(self):
+        """
+        x1 -> x2 -> x3
+                \
+                 y1 -> y2
+
+        a1 -> a2
+
+        """
+        f1 = flow_from_chains(["x1", "x2", "x3"], ["x2", "y1", "y2"], ["a1", "a2"])
+
+        f2 = f1.copy()
+        f2.version = "another flow version"
+
+        f1_task_ids = generate_task_ids(f1)
+        f2_task_ids = generate_task_ids(f2)
+        # no overlap
+        assert f1_task_ids == f2_task_ids
+
+    def test_ids_are_stable_even_if_some_tasks_change(self):
+        """
+        x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7
+
+        - change name of x5
+        - should affect x5, x6, x7
+
+
+        """
+        f = flow_from_chains(["x1", "x2", "x3", "x4", "x5", "x6", "x7"])
+
+        task_ids_1 = generate_task_ids(f)
+
+        # give x5 a new name
+        # this should result in a new ID for x5, x6, and x7
+        get_task("x5").name = "x5-renamed"
+
+        task_ids_2 = generate_task_ids(f)
+
+        assert task_ids_1[get_task("x5")] != task_ids_2[get_task("x5")]
+        assert task_ids_1[get_task("x6")] != task_ids_2[get_task("x6")]
+        assert task_ids_1[get_task("x7")] != task_ids_2[get_task("x7")]
+        assert len(set(task_ids_1.values()).intersection(task_ids_2.values())) == 4
+
+    def test_ids_are_stable_even_if_some_tasks_change_contained(self):
+        """
+        x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7
+        - x6 has a unique name
+        - change name of x5
+        - should only affect x5's id
+
+
+        """
+        f = flow_from_chains(["x1", "x2", "x3", "x4", "x5", "x6", "x7"])
+
+        get_task("x6").name = "x6-renamed"
+
+        task_ids_1 = generate_task_ids(f)
+
+        # give x5 a new name
+        # this should result in a new ID for x5, x6, and x7
+        get_task("x5").name = "x5-renamed"
+
+        task_ids_2 = generate_task_ids(f)
+
+        assert task_ids_1[get_task("x5")] != task_ids_2[get_task("x5")]
+        assert len(set(task_ids_1.values()).intersection(task_ids_2.values())) == 6
+
+
 class TestTaskIDs:
     def test_no_tasks_returns_empty_dict(self):
         assert generate_task_ids(Flow()) == {}
@@ -643,11 +764,12 @@ class TestRegistry:
         registry.register_flow(flow)
         serialized = registry.serialize_registry()
         registry.REGISTRY.clear()
-        assert not registry.REGISTRY
 
         registry.load_serialized_registry(serialized)
         assert registry.REGISTRY
         new_flow = registry.load_flow(flow.project, flow.name, flow.version)
+
+        # not working because key tasks don't match
         assert new_flow == flow
 
     def test_serialize_and_load_serialized_registry_warns_about_encryption(self, flow):
@@ -673,7 +795,6 @@ class TestRegistry:
         Registers two flows and writes the registry to a file; tests that Prefect
         automatically deserializes that registry if the appropriate config is set via env var.
         """
-
 
         cmd = 'python -c "import prefect; print(len(prefect.build.registry.REGISTRY))"'
         assert subprocess.check_output(cmd, shell=True).strip() == b"0"
