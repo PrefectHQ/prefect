@@ -58,7 +58,7 @@ def test_environment_secrets_none():
 def test_environment_build_error():
     environment = Environment()
     with pytest.raises(NotImplementedError):
-        environment.build()
+        environment.build(1)
 
 
 #################################
@@ -144,8 +144,7 @@ class TestLocalEnvironment:
         assert env.encryption_key
 
     def test_build_local_environment(self):
-        f = Flow()
-        key = LocalEnvironment.build(f)
+        key = LocalEnvironment().build(Flow())
         assert isinstance(key, bytes)
 
     def test_local_environment_cli(self):

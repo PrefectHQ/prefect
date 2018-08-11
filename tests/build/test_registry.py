@@ -1,8 +1,30 @@
 import subprocess
 import tempfile
+
 import pytest
+
 import prefect
+from prefect import Flow
 from prefect.build import registry
+from prefect.utilities.tests import set_temporary_config
+from cryptography.fernet import Fernet
+
+
+@pytest.fixture()
+def flow():
+    return Flow(name="name", project="project", version="version")
+
+
+@pytest.fixture(autouse=True)
+def clear_data():
+    registry.REGISTRY.clear()
+
+
+@pytest.fixture(autouse=True, scope="module")
+def set_encryption_key():
+    with set_temporary_config("registry.encryption_key", Fernet.generate_key().decode()):
+        yield
+
 
 class TestRegistry:
     def test_register_flow(self, flow):
@@ -26,7 +48,7 @@ class TestRegistry:
     def test_serialize_registry(self, flow):
         registry.register_flow(flow)
         serialized = registry.serialize_registry()
-        assert len(serialized) > 1000
+        assert len(serialized) > 100
 
     def test_load_serialized_registry(self, flow):
         registry.register_flow(flow)
@@ -55,7 +77,7 @@ class TestRegistry:
             prefect.config.registry.encryption_key = key
 
     def test_automatic_registration(self):
-        flow = prefect.Flow(name="hello", register=True)
+        flow = Flow(name="hello", register=True)
         assert (flow.project, flow.name, flow.version) in registry.REGISTRY
 
     def test_load_registry_on_startup(self):
@@ -78,9 +100,8 @@ class TestRegistry:
             env = [
                 "PREFECT__REGISTRY__LOAD_ON_STARTUP={}".format(tmp.name),
                 "PREFECT__REGISTRY__ENCRYPTION_KEY={}".format(
-                    prefect.config.registry.encryption_key.decode()
+                    prefect.config.registry.encryption_key
                 ),
             ]
             result = subprocess.check_output(" ".join(env + [cmd]), shell=True)
             assert result.strip() == b"2"
-
