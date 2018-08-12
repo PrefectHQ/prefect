@@ -72,6 +72,14 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
 
 
 class TaskRunner:
+    """
+    TaskRunner class
+
+    Args:
+        - `task` (`Task`)
+        - `logger_name` (`str`)
+    """
+
     def __init__(self, task: Task, logger_name: str = None) -> None:
         self.task = task
         self.logger = logging.getLogger(logger_name or type(self).__name__)

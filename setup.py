@@ -20,7 +20,7 @@ install_requires = [
     "typing_extensions >= 3.6.4, < 4.0",
 ]
 
-extras = {"dev": ["pytest", "pytest-env", "pytest-xdist"]}
+extras = {"dev": ["toolz", "pytest", "pytest-env", "pytest-xdist"]}
 
 setup(
     name="prefect",

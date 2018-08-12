@@ -67,6 +67,7 @@ def task(fn: Callable, **task_init_kwargs):
 
     Usage:
 
+    ```
     @task(name='hello', retries=3)
     def hello(name):
         print('hello, {}'.format(name))
@@ -74,6 +75,7 @@ def task(fn: Callable, **task_init_kwargs):
     with Flow() as flow:
         t1 = hello('foo')
         t2 = hello('bar')
+    ```
     """
 
     def task_generator(*args, **kwargs):

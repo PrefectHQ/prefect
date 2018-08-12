@@ -37,6 +37,19 @@ ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bo
 
 
 class Flow(Serializable):
+    """
+    Flow class
+
+    Args:
+        - name (str):
+        - version (str):
+        - schedule (prefect.schedules.Schedule):
+        - description (str):
+        - environment (prefect.environments.Environment):
+        - tasks ([Task]):
+        - edges ([Edge]):
+    """
+
     def __init__(
         self,
         name: str = None,
@@ -391,16 +404,13 @@ class Flow(Serializable):
         Convenience function for adding task dependencies on upstream tasks.
 
         Args:
-            task (Object): a Task that will become part of the Flow. If the task is not a
+            - task (object): a Task that will become part of the Flow. If the task is not a
                 Task subclass, Prefect will attempt to convert it to one.
-
-            upstream_tasks ([object]): Tasks that will run before the task runs. If any task
+            - upstream_tasks ([object]): Tasks that will run before the task runs. If any task
                 is not a Task subclass, Prefect will attempt to convert it to one.
-
-            downstream_tasks ([object]): Tasks that will run after the task runs. If any task
+            - downstream_tasks ([object]): Tasks that will run after the task runs. If any task
                 is not a Task subclass, Prefect will attempt to convert it to one.
-
-            keyword_tasks ({key: object}): The results of these tasks
+            - keyword_tasks ({key: object}): The results of these tasks
                 will be provided to the task under the specified keyword
                 arguments. If any task is not a Task subclass, Prefect will attempt to
                 convert it to one.
