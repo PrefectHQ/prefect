@@ -1,6 +1,7 @@
 
 """
-These classes are used to signal state changes when tasks or flows are running
+These classes are used to signal state changes when tasks or flows are running. Signals
+are used in TaskRunners and FlowRunners as a way of communicating the changes in states.
 """
 
 from prefect.engine import state
@@ -8,6 +9,13 @@ from prefect.utilities.exceptions import PrefectError
 
 
 class PrefectStateSignal(PrefectError):
+    """
+    Create a new PrefectStateSignal object.
+
+    Args:
+        - message (Any, optional): Defaults to `None`. A message about the signal.
+    """
+
     _state_cls = state.State
 
     def __init__(self, message=None, **kwargs) -> None:  # type: ignore

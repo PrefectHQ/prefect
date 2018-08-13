@@ -125,6 +125,7 @@ OUTLINE = [
             prefect.engine.signals.DONTRUN,
         ],
         "title": "Signals",
+        "top-level-doc": prefect.engine.signals,
     },
     {
         "page": "engine/flow_runner.md",
