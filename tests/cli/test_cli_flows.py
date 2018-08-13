@@ -24,12 +24,6 @@ class AddTask(prefect.Task):
         return x + y
 
 
-@pytest.fixture(autouse=True)
-def clear_registry():
-    yield
-    prefect.core.registry.REGISTRY.clear()
-
-
 def run_cli(cmd):
     """
     Runs a CLI command using a test runner.

@@ -691,3 +691,9 @@ def test_serialize_tasks():
     assert len(serialized["edges"]) == 1
     for e in serialized["edges"]:
         assert e.keys() == set(["upstream_task_id", "downstream_task_id", "key"])
+
+
+def test_serialize_build():
+    flow = Flow(environment=prefect.environments.LocalEnvironment())
+    assert flow.serialize()["environment_key"] is None
+    assert isinstance(flow.serialize(build=True)["environment_key"], bytes)
