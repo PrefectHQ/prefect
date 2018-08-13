@@ -1,5 +1,13 @@
 """Functionality for auto-generating markdown documentation.
 
+Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
+    - "page" -> (str): relative path to the markdown file this page represents
+    - "classes" -> (list, optional): list of classes to document
+    - "functions" -> (list, optional): list of standalone functions to document
+    - "title" -> (str, optional): title of page
+    - "top-level-doc" -> (object, optional): module object which contains the
+        docstring which will be displayed at the top of the generated page
+
 On a development installation of Prefect, simply run `python generate_docs.py` from inside the `docs/` folder.
 """
 import inspect
@@ -33,6 +41,7 @@ OUTLINE = [
             prefect.triggers.any_failed,
         ],
         "title": "Triggers",
+        "top-level-doc": prefect.triggers,
     },
     {
         "page": "client.md",
@@ -368,6 +377,9 @@ if __name__ == "__main__":
             if title:  # this would be a good place to have assignments
                 f.write(f"# {title}\n---\n")
 
+            top_doc = page.get("top-level-doc")
+            if top_doc is not None:
+                f.write(inspect.getdoc(top_doc) + "\n<hr>\n")
             for obj in classes:
                 f.write(format_subheader(obj))
 
