@@ -171,15 +171,6 @@ OUTLINE = [
         "title": "Collections",
     },
     {
-        "page": "utilities/flows.md",
-        "functions": [
-            prefect.utilities.flows.reset_default_flow,
-            prefect.utilities.flows.get_default_flow,
-            prefect.utilities.flows.get_flow_by_id,
-        ],
-        "title": "Flow Utilities",
-    },
-    {
         "page": "utilities/tasks.md",
         "functions": [
             prefect.utilities.tasks.group,
