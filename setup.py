@@ -11,13 +11,13 @@ install_requires = [
     "distributed >= 1.21.8, < 2.0",
     "docker >= 3.4.1, < 3.5",
     "graphviz >= 0.8.3, < 0.9",
-    "jsonpickle >= 0.9.6, < 1.0",
     "mypy_extensions >= 0.3.0, < 0.4",
     "python-dateutil >= 2.7.3, < 3.0",
     "requests >= 2.19.1, < 3.0",
     "toml >= 0.9.4, < 1.0",
     "typing >= 3.6.4, < 4.0",
     "typing_extensions >= 3.6.4, < 4.0",
+    "xxhash >= 1.2.0, < 2.0",
 ]
 
 extras = {"dev": ["toolz", "pytest", "pytest-env", "pytest-xdist"]}

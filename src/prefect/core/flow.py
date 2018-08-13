@@ -1,8 +1,10 @@
+from warnings import warn as _warn
+from cryptography.fernet import Fernet
+import cloudpickle
+from collections import Counter
+import xxhash
 import copy
-import hashlib
 import inspect
-import itertools
-import random
 import tempfile
 import uuid
 from collections import Counter
@@ -23,31 +25,34 @@ from typing import (
 )
 
 import graphviz
-import jsonpickle
 from mypy_extensions import TypedDict
 
 import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
-from prefect.utilities.json import Serializable
+from prefect.utilities.json import Serializable, dumps
 from prefect.utilities.tasks import as_task
+from prefect.environments import Environment
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
 
 class Flow(Serializable):
     """
-    Flow class
+    The Flow class.
 
     Args:
         - name (str):
         - version (str):
+        - project (str):
         - schedule (prefect.schedules.Schedule):
         - description (str):
         - environment (prefect.environments.Environment):
         - tasks ([Task]):
         - edges ([Edge]):
+        - key_tasks ([Task]):
+        - register (bool):
     """
 
     def __init__(
@@ -57,11 +62,14 @@ class Flow(Serializable):
         project: str = None,
         schedule: prefect.schedules.Schedule = None,
         description: str = None,
-        environment: prefect.environments.Environment = None,
+        environment: Environment = None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
         key_tasks: Iterable[Task] = None,
+        register: bool = False,
     ) -> None:
+        self._id = str(uuid.uuid4())
+        self._task_ids = dict()  # type: Dict[Task, str]
 
         self.name = name or type(self).__name__
         self.version = version or prefect.config.flows.default_version
@@ -82,10 +90,12 @@ class Flow(Serializable):
                 downstream_task=e.downstream_task,
                 key=e.key,
             )
-
         self.set_key_tasks(key_tasks or [])
 
         self._prefect_version = prefect.__version__
+
+        if register:
+            self.register()
 
         super().__init__()
 
@@ -119,14 +129,21 @@ class Flow(Serializable):
     def __iter__(self) -> Iterable[Task]:
         yield from self.sorted_tasks()
 
-    # Identification  ----------------------------------------------------------
-
     def copy(self) -> "Flow":
         new = copy.copy(self)
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
         new.set_key_tasks(self._key_tasks)
         return new
+
+    # Identification -----------------------------------------------------------
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    def key(self) -> dict:
+        return dict(project=self.project, name=self.name, version=self.version)
 
     # Context Manager ----------------------------------------------------------
 
@@ -218,6 +235,7 @@ class Flow(Serializable):
                 )
 
         self.tasks.add(task)
+        self._task_ids[task] = str(uuid.uuid4())
 
         return task
 
@@ -343,7 +361,20 @@ class Flow(Serializable):
         if any(t not in self.tasks for t in self.key_tasks()):
             raise ValueError("Some key tasks are not contained in this flow.")
 
+        if any(t not in self._task_ids for t in self.tasks):
+            raise ValueError("Some tasks do not have IDs assigned.")
+
     def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
+
+        # cache upstream tasks and downstream tasks since we need them often
+        upstream_tasks = {
+            t: {e.upstream_task for e in edges}
+            for t, edges in self.all_upstream_edges().items()
+        }
+        downstream_tasks = {
+            t: {e.downstream_task for e in edges}
+            for t, edges in self.all_downstream_edges().items()
+        }
 
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
@@ -356,7 +387,7 @@ class Flow(Serializable):
                 # iterate over the new tasks...
                 for t in list(tasks.difference(seen)):
                     # add its downstream tasks to the task list
-                    tasks.update(self.downstream_tasks(t))
+                    tasks.update(downstream_tasks[t])
                     # mark it as seen
                     seen.add(t)
         else:
@@ -372,7 +403,7 @@ class Flow(Serializable):
             # iterate over each remaining task
             for task in remaining_tasks.copy():
                 # check all the upstream tasks of that task
-                for upstream_task in self.upstream_tasks(task):
+                for upstream_task in upstream_tasks[task]:
                     # if the upstream task is also remaining, it means it
                     # hasn't been sorted, so we can't sort this task either
                     if upstream_task in remaining_tasks:
@@ -478,46 +509,13 @@ class Flow(Serializable):
                 )
         return state
 
-    # Serialization ------------------------------------------------------------
-
-    def _generate_obj_ids(self) -> dict:
-        obj_ids = {}
-        for task in self.tasks:
-            obj_ids[task] = str(uuid.uuid4())
-
-        return obj_ids
-
-    def serialize(self) -> dict:
-
-        # Generate obj_ids for the tasks
-        obj_ids = self._generate_obj_ids()
-
-        return dict(
-            name=self.name,
-            version=self.version,
-            project=self.project,
-            description=self.description,
-            environment=self.environment,
-            parameters=self.parameters(),
-            schedule=self.schedule,
-            key_tasks=self.key_tasks(),
-            tasks=[dict(obj_id=obj_ids[t], **t.serialize()) for t in self.tasks],
-            edges=[
-                dict(
-                    upstream_task_obj_id=obj_ids[e.upstream_task],
-                    downstream_task_obj_id=obj_ids[e.downstream_task],
-                    key=e.key,
-                )
-                for e in self.edges
-            ],
-        )
-
     # Visualization ------------------------------------------------------------
 
     def visualize(self):
         """
         Creates graphviz object for representing the current flow
         """
+
         graph = graphviz.Digraph()
 
         for t in self.tasks:
@@ -535,111 +533,276 @@ class Flow(Serializable):
         with tempfile.NamedTemporaryFile() as tmp:
             graph.render(tmp.name, view=True)
 
-    # IDs ------------------------------------------------------------
+    # Building / Serialization ----------------------------------------------------
 
-    def generate_flow_id(self) -> str:
+    def serialize(self, build=False) -> dict:
         """
-        Flows are identified by their name and version.
+        Creates a serialized representation of the flow.
+
+        Args:
+            - build (bool): if `True`, the flow's environment is built and the resulting
+                `environment_key` is included in the serialized flow. If `False` (default),
+                the environment is not build and the `environment_key` is `None`.
         """
-        hash_bytes = get_hash("{}:{}".format(self.name, self.version or ""))
-        return str(uuid.UUID(bytes=hash_bytes))
 
-    def generate_task_ids(self) -> Dict["Task", str]:
-        final_hashes = {}
+        local_task_ids = self.generate_local_task_ids()
+        if self.environment and build:
+            environment_key = self.build_environment()
+        else:
+            environment_key = None
 
-        # --- initial pass
-        # for each task, generate a hash based on that task's attributes
-        hashes = {t: get_hash(t) for t in self.tasks}
-        counter = Counter(hashes.values())
-
-        # --- forward pass #1
-        # for each task in order:
-        # - if the task hash is unique, put it in final_hashes
-        # - if not, hash the task with the hash of all incoming edges
-        # the result is a hash that represents each task in terms of all ancestors since the
-        # last uniquely defined task.
-        for t in self.sorted_tasks():
-            if counter[hashes[t]] == 1:
-                final_hashes[t] = hashes[t]
-                continue
-
-            edge_hashes = sorted(
-                (e.key, hashes[e.upstream_task]) for e in self.edges_to(t)
-            )
-            hashes[t] = get_hash((hashes[t], edge_hashes))
-            counter[hashes[t]] += 1
-
-        # --- backward pass
-        # for each task in reverse order:
-        # - if the task hash is unique, put it in final_hashes
-        # - if not, hash the task with the hash of all outgoing edges
-        # the result is a hash that represents each task in terms of both its ancestors (from
-        # the foward pass) and also any descendents.
-        for t in reversed(self.sorted_tasks()):
-            if counter[hashes[t]] == 1:
-                final_hashes[t] = hashes[t]
-                continue
-
-            edge_hashes = sorted(
-                (e.key, hashes[e.downstream_task]) for e in self.edges_from(t)
-            )
-            hashes[t] = get_hash(str((hashes[t], edge_hashes)))
-            counter[hashes[t]] += 1
-
-        # --- forward pass #2
-        # for each task in order:
-        # - if the task hash is unique, put it in final_hashes
-        # if not, hash the task with the hash of all incoming edges.
-        # define each task in terms of the computational path of every task it's
-        # connected to
-        #
-        # any task that is still a duplicate at this stage is TRULY a duplicate;
-        # there is nothing about its computational path that differentiates it.
-        # We can randomly choose one and modify its hash (and the hash of all
-        # following tasks) without consequence.
-        for t in self.sorted_tasks():
-            if counter[hashes[t]] == 1:
-                final_hashes[t] = hashes[t]
-                continue
-
-            edge_hashes = sorted(
-                (e.key, hashes[e.upstream_task]) for e in self.edges_to(t)
-            )
-            hashes[t] = get_hash(str((hashes[t], edge_hashes)))
-            counter[hashes[t]] += 1
-
-            # duplicate check
-            while counter[hashes[t]] > 1:
-                hashes[t] = get_hash(hashes[t])
-                counter[hashes[t]] += 1
-            final_hashes[t] = hashes[t]
-
-        seed = uuid.UUID(self.generate_flow_id()).bytes
-
-        return {t: str(uuid.UUID(bytes=xor(seed, h))) for t, h in final_hashes.items()}
-
-
-def get_hash(obj: object) -> bytes:
-    """
-    Returns a deterministic set of bytes for a given input.
-    """
-    if isinstance(obj, bytes):
-        return hashlib.md5(obj).digest()
-    elif isinstance(obj, str):
-        return hashlib.md5(obj.encode()).digest()
-    elif isinstance(obj, Task):
-        obj = prefect.core.task.get_task_info(obj)
-    elif isinstance(obj, Edge):
-        obj = dict(
-            upstream=prefect.core.task.get_task_info(obj.upstream_task),
-            downstream=prefect.core.task.get_task_info(obj.downstream_task),
-            key=obj.key,
+        return dict(
+            id=self.id,
+            name=self.name,
+            version=self.version,
+            project=self.project,
+            description=self.description,
+            environment=self.environment,
+            environment_key=environment_key,
+            parameters=self.parameters(),
+            schedule=self.schedule,
+            tasks={
+                self._task_ids[t]: dict(
+                    id=self._task_ids[t], local_id=local_task_ids[t], **t.serialize()
+                )
+                for t in self.tasks
+            },
+            key_tasks=[self._task_ids[t] for t in self.key_tasks()],
+            edges=[
+                dict(
+                    upstream_task_id=self._task_ids[e.upstream_task],
+                    downstream_task_id=self._task_ids[e.downstream_task],
+                    key=e.key,
+                )
+                for e in self.edges
+            ],
         )
-    return hashlib.md5(jsonpickle.dumps(obj).encode()).digest()
+
+    def register(self) -> None:
+        """Register the flow."""
+        return prefect.core.registry.register_flow(self)
+
+    def build_environment(self) -> bytes:
+        """
+        Build the flow's environment.
+
+        Returns:
+            bytes: a key that can be used to access the environment.
+        """
+        if not self.environment:
+            raise ValueError("No environment set!")
+        return self.environment.build(self)
+
+    def generate_local_task_ids(
+        self, *, _debug_steps: bool = False
+    ) -> Dict[str, "Task"]:
+        """
+        Generates stable IDs for each task that track across flow versions
+
+        If our goal was to create an ID for each task, we would simply produce a random
+        hash. However, we would prefer to generate deterministic IDs. That way, identical
+        flows will have the same task ids and near-identical flows will have overlapping
+        task ids.
+
+        If all tasks were unique, we could simply produce unique IDs by hashing the tasks
+        themselves. However, Prefect allows duplicate tasks in a flow. Therefore, we take a
+        few steps to iteratively produce unique IDs. There are five steps, and tasks go
+        through each step until they have a unique ID:
+
+            1. Generate an ID from the task's attributes.
+                This fingerprints a task in terms of its own attributes.
+            2. Generate an ID from the task's ancestors.
+                This fingerprints a task in terms of the computational graph leading to it.
+            3. Generate an ID from the task's descendents
+                This fingerprints a task in terms of how it is used in a computational graph.
+            4. Iteratively generate an ID from the task's neighbors
+                This fingerprints a task in terms of a widening concentric circle of its neighbors.
+            5. Adjust a root task's ID and recompute all non-unique descendents
+                This step is only reached if a flow contains more than one unconnected but
+                identical computational paths. The previous 4 steps are unable to distinguish
+                between those two paths, so we pick one at random and adjust the leading tasks'
+                IDs, as well as all following tasks. This is safe because we are sure that the
+                computational paths are identical.
+
+        Args:
+            - flow (Flow)
+            - _debug_steps (bool): if True, the function will return a dictionary of
+                {step_number: ids_produced_at_step} pairs, where ids_produced_at_step is the
+                id dict following that step. This is used for debugging/testing only.
+
+        Returns:
+            - dict: a dictionary of {task: task_id} pairs
+        """
+
+        # precompute flow properties since we'll need to access them repeatedly
+        tasks = self.sorted_tasks()
+        edges_to = self.all_upstream_edges()
+        edges_from = self.all_downstream_edges()
+
+        # dictionary to hold debug information
+        debug_steps = {}
+
+        # -- Step 1 ---------------------------------------------------
+        #
+        # Generate an ID for each task by hashing:
+        # - its serialized version
+        # - its flow's project
+        # - its flow's name
+        #
+        # This "fingerprints" each task in terms of its own characteristics and the parent flow.
+        # Note that the fingerprint does not include the flow version, meaning task IDs can
+        # remain stable across versions of the same flow.
+        #
+        # -----------------------------------------------------------
+
+        ids = {
+            t: _hash(dumps((t.serialize(), self.project, self.name), sort_keys=True))
+            for t in tasks
+        }
+
+        if _debug_steps:
+            debug_steps[1] = ids.copy()
+
+        # -- Step 2 ---------------------------------------------------
+        #
+        # Next, we iterate over the tasks in topological order and, for any task without
+        # a unique ID, produce a new ID based on its current ID and the ID of any
+        # upstream nodes. This fingerprints each task in terms of all its ancestors.
+        #
+        # -----------------------------------------------------------
+
+        counter = Counter(ids.values())
+        for task in tasks:
+            if counter[ids[task]] == 1:
+                continue
+
+            # create a new id by hashing (task id, upstream edges, downstream edges)
+            edges = sorted((e.key, ids[e.upstream_task]) for e in edges_to[task])
+            ids[task] = _hash(str((ids[task], edges)))
+
+        if _debug_steps:
+            debug_steps[2] = ids.copy()
+
+        # -- Step 3 ---------------------------------------------------
+        #
+        # Next, we iterate over the tasks in reverse topological order and, for any task
+        # without a unique ID, produce a new ID based on its current ID and the ID of
+        # any downstream nodes. After this step, each task is fingerprinted by its
+        # position in a computational chain (both ancestors and descendents).
+        #
+        # -----------------------------------------------------------
+
+        counter = Counter(ids.values())
+        for task in reversed(tasks):
+            if counter[ids[task]] == 1:
+                continue
+
+            # create a new id by hashing (task id, upstream edges, downstream edges)
+            edges = sorted((e.key, ids[e.downstream_task]) for e in edges_from[task])
+            ids[task] = _hash(str((ids[task], edges)))
+
+        if _debug_steps:
+            debug_steps[3] = ids.copy()
+
+        # -- Step 4 ---------------------------------------------------
+        #
+        # It is still possible for tasks to have duplicate IDs. For example, the
+        # following flow of identical tasks would not be able to differentiate between
+        # y3 and z3 after a forward and backward pass.
+        #
+        #               x1 -> x2 -> x3 -> x4
+        #                  \
+        #               y1 -> y2 -> y3 -> y4
+        #                  \
+        #               z1 -> z2 -> z3 -> z4
+        #
+        # We could continue running forward and backward passes to diffuse task
+        # dependencies through the graph, but that approach is inefficient and
+        # introduces very long dependency chains. Instead, we take each task and produce
+        # a new ID by hashing it with the IDs of all of its upstream and downstream
+        # neighbors.
+        #
+        # Each time we repeat this step, the non-unique task ID incorporates information
+        # from tasks farther and farther away, because its neighbors are also updating
+        # their IDs from their own neighbors. (note that we could use this algorithm
+        # exclusively, but starting with a full forwards and backwards pass is much
+        # faster!)
+        #
+        # However, it is still possible for this step to fail to generate a unique ID
+        # for every task. The simplest example of this case is a flow with two
+        # unconnected but identical tasks; the algorithm will be unable to differentiate
+        # between the two based solely on their neighbors.
+        #
+        # Therefore, we continue updating IDs in this step only until the number of
+        # unique IDs stops increasing. At that point, any remaining duplicates can not
+        # be distinguished on the basis of neighboring nodes.
+        #
+        # -----------------------------------------------------------
+
+        counter = Counter(ids.values())
+
+        # continue this algorithm as long as the number of unique ids keeps changing
+        while True:
+
+            # store the number of unique ids at the beginning of the loop
+            starting_unique_id_count = len(counter)
+
+            for task in tasks:
+
+                # if the task already has a unique id, just go to the next one
+                if counter[ids[task]] == 1:
+                    continue
+
+                # create a new id by hashing the task ID with upstream dn downstream IDs
+                edges = [
+                    sorted((e.key, ids[e.upstream_task]) for e in edges_to[task]),
+                    sorted((e.key, ids[e.downstream_task]) for e in edges_from[task]),
+                ]
+                ids[task] = _hash(str((ids[task], edges)))
+
+            # recompute a new counter.
+            # note: we can't do this incremenetally because we can't guarantee the
+            # iteration order, and incremental updates would implicitly depend on order
+            counter = Counter(ids.values())
+
+            # if the new counter has the same number of unique IDs as the old counter,
+            # then the algorithm is no longer able to produce useful ids
+            if len(counter) == starting_unique_id_count:
+                break
+
+        if _debug_steps:
+            debug_steps[4] = ids.copy()
+
+        # -- Step 5 ---------------------------------------------------
+        #
+        # If the number of unique IDs is less than the number of tasks at this stage, it
+        # means that the algorithm in step 4 was unable to differentiate between some
+        # tasks. This is only possible if the self contains identical but unconnected
+        # computational paths.
+        #
+        # To remedy this, we change the ids of the duplicated root tasks until they are
+        # unique, then recompute the ids of all downstream tasks. While this chooses the
+        # affected root task at random, we are confident that the tasks are exact
+        # duplicates so this is of no consequence.
+        #
+        # -----------------------------------------------------------
+
+        while len(counter) < len(tasks):
+            for task in tasks:
+                # recompute each task's ID until it is unique
+                while counter[ids[task]] != 1:
+                    edges = sorted(
+                        (e.key, ids[e.upstream_task]) for e in edges_to[task]
+                    )
+                    ids[task] = _hash(str((ids[task], edges)))
+                    counter[ids[task]] += 1
+
+        if _debug_steps:
+            debug_steps[5] = ids.copy()
+            return debug_steps
+
+        return ids
 
 
-def xor(hash1: bytes, hash2: bytes) -> bytes:
-    """
-    Computes the bitwise XOR between two byte hashes
-    """
-    return bytes([x ^ y for x, y in zip(hash1, itertools.cycle(hash2))])
+def _hash(value):
+    return xxhash.xxh64(value).digest()

@@ -1,12 +1,15 @@
+import json
 import os
+import tempfile
 
 import pytest
 
+import prefect
 from prefect import Flow
 from prefect.environments import (
-    Environment,
     ContainerEnvironment,
-    PickleEnvironment,
+    Environment,
+    LocalEnvironment,
     Secret,
 )
 
@@ -55,7 +58,7 @@ def test_environment_secrets_none():
 def test_environment_build_error():
     environment = Environment()
     with pytest.raises(NotImplementedError):
-        environment.build()
+        environment.build(1)
 
 
 #################################
@@ -130,28 +133,25 @@ def test_environment_variables():
 
 
 #################################
-##### Pickle Tests
+##### LocalEnvironment Tests
 #################################
 
 
-def test_create_pickle():
-    pickle_env = PickleEnvironment()
-    assert pickle_env
+class TestLocalEnvironment:
+    def test_create_local_environment(self):
+        env = LocalEnvironment()
+        assert env
+        assert env.encryption_key
 
+    def test_build_local_environment(self):
+        key = LocalEnvironment().build(Flow())
+        assert isinstance(key, bytes)
 
-def test_pickle_flow():
-    pickle_env = PickleEnvironment()
-    flow = Flow(name="test", environment=pickle_env)
+    def test_local_environment_cli(self):
+        f = prefect.Flow(environment=LocalEnvironment())
 
-    pickled_flow = flow.environment.build(flow=flow)
-    assert pickled_flow
-
-
-def test_unpickle_flow():
-    pickle_env = PickleEnvironment()
-    flow = Flow(name="test", environment=pickle_env)
-
-    pickled_flow = flow.environment.build(flow=flow)
-
-    serialized_flow = flow.environment.info(pickled_flow)
-    assert serialized_flow["name"] == "test"
+        key = f.environment.build(f)
+        output = f.environment.run(key, "prefect flows ids")
+        assert json.loads(output.decode()) == {
+            f.id: dict(project=f.project, name=f.name, version=f.version)
+        }
