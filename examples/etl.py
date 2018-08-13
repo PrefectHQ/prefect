@@ -1,4 +1,4 @@
-from prefect import Flow, Task, task
+from prefect import Flow, task
 
 
 @task
