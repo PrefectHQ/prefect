@@ -33,23 +33,26 @@ from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.utilities.json import Serializable, dumps
 from prefect.utilities.tasks import as_task
-
+from prefect.environments import Environment
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
 
 class Flow(Serializable):
     """
-    Flow class
+    The Flow class.
 
     Args:
         - name (str):
         - version (str):
+        - project (str):
         - schedule (prefect.schedules.Schedule):
         - description (str):
         - environment (prefect.environments.Environment):
         - tasks ([Task]):
         - edges ([Edge]):
+        - key_tasks ([Task]):
+        - register (bool):
     """
 
     def __init__(
@@ -59,7 +62,7 @@ class Flow(Serializable):
         project: str = None,
         schedule: prefect.schedules.Schedule = None,
         description: str = None,
-        environment: "prefect.environments.Environment" = None,
+        environment: Environment = None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
         key_tasks: Iterable[Task] = None,
