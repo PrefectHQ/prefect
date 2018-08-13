@@ -24,7 +24,7 @@ OUTLINE = [
             prefect.environments.Secret,
             prefect.environments.Environment,
             prefect.environments.ContainerEnvironment,
-            prefect.environments.PickleEnvironment,
+            prefect.environments.LocalEnvironment,
         ],
         "title": "Environments",
     },
