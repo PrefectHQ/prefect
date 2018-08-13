@@ -4,19 +4,25 @@ from prefect.engine.executors.base import Executor
 class LocalExecutor(Executor):
     """
     An executor that runs all functions synchronously and immediately in
-    the local thread.
-
-    LocalExecutors serve as their own Executor contexts.
+    the local thread.  To be used mainly for debugging purposes.
     """
 
     def submit(self, fn, *args, **kwargs):
         """
-        Runs a function locally and returns the result.
+        Submit a function to the executor for execution. Returns the result of the computation.
+
+        Args:
+            - fn (Callable): function which is being submitted for execution
+            - *args (Any): arguments to be passed to `fn`
+            - **kwargs (Any): keyword arguments to be passed to `fn`
+
+        Returns:
+            - the result of `fn(*args, **kwargs)`
         """
         return fn(*args, **kwargs)
 
     def wait(self, futures, timeout=None):
         """
-        Returns the provided futures.
+        Returns `futures`.
         """
         return futures
