@@ -3,7 +3,7 @@ from prefect.engine.executors.base import Executor
 
 class LocalExecutor(Executor):
     """
-    An executor that runs all functions synchronously and in
+    An executor that runs all functions synchronously and immediately in
     the local thread.
 
     LocalExecutors serve as their own Executor contexts.
@@ -11,12 +11,12 @@ class LocalExecutor(Executor):
 
     def submit(self, fn, *args, **kwargs):
         """
-        Runs a function locally
+        Runs a function locally and returns the result.
         """
         return fn(*args, **kwargs)
 
     def wait(self, futures, timeout=None):
         """
-        Returns the provided futures
+        Returns the provided futures.
         """
         return futures
