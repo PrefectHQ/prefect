@@ -515,6 +515,9 @@ class Flow(Serializable):
     # Visualization ------------------------------------------------------------
 
     def visualize(self):
+        """
+        Creates graphviz object for representing the current flow
+        """
         graph = graphviz.Digraph()
 
         for t in self.tasks:
@@ -522,6 +525,12 @@ class Flow(Serializable):
 
         for e in self.edges:
             graph.edge(str(id(e.upstream_task)), str(id(e.downstream_task)), e.key)
+
+        try:
+            if get_ipython().config.get("IPKernelApp") is not None:
+                return graph
+        except NameError:
+            pass
 
         with tempfile.NamedTemporaryFile() as tmp:
             graph.render(tmp.name, view=True)
