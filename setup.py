@@ -15,12 +15,13 @@ install_requires = [
     "python-dateutil >= 2.7.3, < 3.0",
     "requests >= 2.19.1, < 3.0",
     "toml >= 0.9.4, < 1.0",
+    "toolz >= 0.9.0, < 1.0",
     "typing >= 3.6.4, < 4.0",
     "typing_extensions >= 3.6.4, < 4.0",
     "xxhash >= 1.2.0, < 2.0",
 ]
 
-extras = {"dev": ["toolz", "pytest", "pytest-env", "pytest-xdist"]}
+extras = {"dev": ["pytest", "pytest-env", "pytest-xdist"]}
 
 setup(
     name="prefect",

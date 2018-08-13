@@ -1,6 +1,13 @@
 """
 Cache validators are functions that determine if a task's output cache
-is still valid, or whether that task should be re-run.
+is still valid, or whether that task should be re-run; they are provided at
+Task creation via the `cache_validator` keyword argument.
+
+Task caches are created at Task runtime if and only if the `cache_for` keyword
+argument is provided
+
+
+Note that _all_ validators take into account cache expiration.
 
 A cache validator returns True if the cache is still valid, and False otherwise.
 """
