@@ -58,7 +58,7 @@ def to_qualified_name(obj: Any) -> str:
     return obj.__module__ + "." + obj.__qualname__
 
 
-def register_json_codec(register_type: Type = None) -> 'JSONCodec':
+def register_json_codec(register_type: Type = None) -> "JSONCodec":
     """
     Decorator that registers a JSON Codec to a corresponding codec_key.
 
