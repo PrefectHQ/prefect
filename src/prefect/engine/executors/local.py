@@ -17,12 +17,13 @@ class LocalExecutor(Executor):
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
-            - the result of `fn(*args, **kwargs)`
+            - Any: the result of `fn(*args, **kwargs)`
         """
         return fn(*args, **kwargs)
 
     def wait(self, futures, timeout=None):
         """
-        Returns `futures`.
+        Returns:
+            - Iterable: `futures`
         """
         return futures

@@ -31,8 +31,7 @@ class DaskExecutor(Executor):
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
-            - a `dask.delayed` object which represents the computation of
-                `fn(*args, **kwargs)`
+            - dask.delayed: a `dask.delayed` object which represents the computation of `fn(*args, **kwargs)`
         """
         return dask.delayed(fn)(*args, **kwargs)
 
@@ -46,7 +45,7 @@ class DaskExecutor(Executor):
                 execution
 
         Returns:
-            - iterable of resolved futures
+            - Iterable: an iterable of resolved futures
         """
         computed = dask.compute(futures)
         return computed[0]

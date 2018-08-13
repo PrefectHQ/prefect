@@ -35,7 +35,7 @@ class Executor(Serializable):
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
-            - a future-like object
+            - Any: a future-like object
         """
         raise NotImplementedError()
 
@@ -49,7 +49,7 @@ class Executor(Serializable):
                 execution
 
         Returns:
-            - iterable of resolved futures
+            - Iterable: an iterable of resolved futures
         """
         raise NotImplementedError()
 
@@ -66,7 +66,7 @@ class Executor(Serializable):
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
-            - a future-like object
+            - Any: a future-like object
         """
 
         def run_fn_in_context(*args, context, **kwargs):
