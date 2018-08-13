@@ -15,7 +15,7 @@ try:
 except:
     _warn(
         "Could not import {}, using prefect.engine.executors.LocalExecutor instead.".format(
-            cfg_exec
+            _prefect.config.engine.executor
         )
     )
     DEFAULT_EXECUTOR = LocalExecutor()

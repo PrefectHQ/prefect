@@ -116,6 +116,7 @@ class TaskRunner:
             except signals.DONTRUN as exc:
                 if "manual_only" in str(exc):
                     state.cached_inputs = inputs or {}
+                    state.message = exc
                 pass
 
         return state
