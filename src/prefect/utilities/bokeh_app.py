@@ -67,7 +67,7 @@ def is_finished(state):
 
 
 ## load data
-data_dir = os.environ.get("BOKEH_DATA")
+data_dir = os.environ.get("BOKEH_RUNNER")
 
 with open(data_dir, "rb") as g:
     runner = cloudpickle.load(g)

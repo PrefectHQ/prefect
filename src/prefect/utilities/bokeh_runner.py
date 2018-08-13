@@ -38,9 +38,9 @@ class BokehRunner(FlowRunner):
             with tempfile.NamedTemporaryFile() as tmp:
                 cloudpickle.dump(self, tmp)
                 env = os.environ
-                env.update({"BOKEH_DATA": tmp.name})
+                env.update({"BOKEH_RUNNER": tmp.name})
                 tmp.flush()
-                bokeh_app = os.path.join(os.path.dirname(__file__), "bokehapp.py")
+                bokeh_app = os.path.join(os.path.dirname(__file__), "bokeh_app.py")
                 subprocess.run(
                     "bokeh serve --show {}".format(bokeh_app).split(), env=env
                 )
