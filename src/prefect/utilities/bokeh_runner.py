@@ -14,16 +14,17 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
 
     Initialized and handled exactly like the standard FlowRunner class.
     """
+
     def run(
         self,
-        state = None,
-        task_states = None,
-        start_tasks = None,
-        parameters = None,
-        executor = None,
-        context = None,
-        task_contexts = None,
-        viz = True,
+        state=None,
+        task_states=None,
+        start_tasks=None,
+        parameters=None,
+        executor=None,
+        context=None,
+        task_contexts=None,
+        viz=True,
     ):
         """
         Runs the Flow, and then opens up a Bokeh webapp for retroactively inspecting

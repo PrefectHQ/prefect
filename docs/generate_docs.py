@@ -151,12 +151,7 @@ OUTLINE = [
         ],
         "title": "Control Flow Tasks",
     },
-    {
-        "page": "utilities/bokeh.md",
-        "classes": [
-            BokehRunner,
-        ],
-    },
+    {"page": "utilities/bokeh.md", "classes": [BokehRunner]},
     {
         "page": "utilities/collections.md",
         "classes": [prefect.utilities.collections.DotDict],
