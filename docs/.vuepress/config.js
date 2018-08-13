@@ -18,22 +18,22 @@ module.exports = {
                 {
                     title: 'prefect.core',
                     collapsable: true,
-                    children: ['core/edge', 'core/flow', 'core/task', 'core/registry']
+                    children: ['core/task', 'core/flow', 'core/edge', 'core/registry']
                 },
 
                 {
                     title: 'prefect.engine',
                     collapsable: true,
-                    children: ['engine/cache_validators', 'engine/flow_runner', 'engine/signals',
+                    children: ['engine/cache_validators',
+                        'engine/executors', 'engine/flow_runner', 'engine/signals',
                         'engine/state', 'engine/task_runner',
-                        'engine/executors/base', 'engine/executors/local', 'engine/executors/dask'
                     ]
                 },
 
                 {
-                    title: 'prefect.tasks.control_flow',
+                    title: 'prefect.tasks',
                     collapsable: true,
-                    children: ['tasks/control_flow/conditional']
+                    children: ['tasks/control_flow']
                 },
 
                 {

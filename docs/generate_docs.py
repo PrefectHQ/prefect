@@ -122,7 +122,6 @@ OUTLINE = [
     {
         "page": "engine/signals.md",
         "classes": [
-            prefect.engine.signals.PrefectStateSignal,
             prefect.engine.signals.FAIL,
             prefect.engine.signals.TRIGGERFAIL,
             prefect.engine.signals.SUCCESS,
@@ -143,28 +142,21 @@ OUTLINE = [
         "title": "TaskRunner",
     },
     {
-        "page": "engine/executors/dask.md",
-        "classes": [prefect.engine.executors.dask.DaskExecutor],
-        "title": "Dask Executor",
+        "page": "engine/executors.md",
+        "classes": [
+            prefect.engine.executors.base.Executor,
+            prefect.engine.executors.dask.DaskExecutor,
+            prefect.engine.executors.local.LocalExecutor,
+        ],
+        "title": "Executors",
     },
     {
-        "page": "engine/executors/base.md",
-        "classes": [prefect.engine.executors.base.Executor],
-        "title": "Executor",
-    },
-    {
-        "page": "engine/executors/local.md",
-        "classes": [prefect.engine.executors.local.LocalExecutor],
-        "title": "Local Executor",
-    },
-    {
-        "page": "tasks/control_flow/conditional.md",
-        "classes": [prefect.tasks.control_flow.conditional.Match],
+        "page": "tasks/control_flow.md",
         "functions": [
             prefect.tasks.control_flow.switch,
             prefect.tasks.control_flow.ifelse,
         ],
-        "title": "Control Flow Tasks",
+        "title": "Control Flow",
     },
     {
         "page": "utilities/collections.md",
@@ -183,9 +175,7 @@ OUTLINE = [
             prefect.utilities.json.JSONCodec,
             prefect.utilities.json.Serializable,
         ],
-        "functions": [
-            prefect.utilities.json.register_json_codec,
-        ],
+        "functions": [prefect.utilities.json.register_json_codec],
         "title": "JSON",
     },
     {
