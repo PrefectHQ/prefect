@@ -626,7 +626,7 @@ def test_auto_generate_task_ids():
     f.add_edge(t1, t2)
 
     assert len(f._task_ids) == 2
-    assert set([t1, t2]) == set(f._task_ids.values())
+    assert set([t1, t2]) == set(f._task_ids)
 
 
 def test_register():
@@ -641,3 +641,53 @@ def test_register_init():
     flow = Flow(register=True)
     assert flow.id in prefect.core.registry.REGISTRY
     assert prefect.core.registry.REGISTRY[flow.id] is flow
+
+
+def test_build_environment_with_none_set():
+    flow = Flow()
+    with pytest.raises(ValueError):
+        flow.build_environment()
+
+
+def test_build_environment():
+    flow = Flow(environment=prefect.environments.LocalEnvironment())
+    key = flow.build_environment()
+    assert isinstance(key, bytes)
+
+
+def test_serialize_default_keys():
+    serialized = Flow().serialize()
+    assert set(serialized.keys()) == set(
+        [
+            "id",
+            "name",
+            "version",
+            "project",
+            "description",
+            "environment",
+            "environment_key",
+            "parameters",
+            "schedule",
+            "tasks",
+            "key_tasks",
+            "edges",
+        ]
+    )
+
+
+def test_serialize_tasks():
+    flow = Flow()
+    t1 = Task()
+    t2 = Task()
+    t3 = Task()
+    flow.add_edge(t1, t2)
+    flow.add_task(t3)
+
+    serialized = flow.serialize()
+    assert len(serialized["tasks"]) == 3
+    for t in serialized["tasks"].values():
+        assert "id" in t
+        assert "local_id" in t
+    assert len(serialized["edges"]) == 1
+    for e in serialized["edges"]:
+        assert e.keys() == set(["upstream_task_id", "downstream_task_id", "key"])
