@@ -1,5 +1,3 @@
-from contextlib import contextmanager
-
 import pytest
 
 import prefect
@@ -94,7 +92,7 @@ def test_that_bad_code_in_task_runner_is_caught():
     assert "I represent bad code in the task runner." == str(flow_state.message)
 
 
-def test_raise_on_exception_raises_basic_error():
+def test_raise_on_exception_plays_well_with_context():
     flow = Flow()
     flow.add_task(MathTask())
     try:
@@ -102,8 +100,8 @@ def test_raise_on_exception_raises_basic_error():
         with raise_on_exception():
             assert "_raise_on_exception" in prefect.context
             flow.run()
-        assert "_raise_on_exception" not in prefect.context
     except ZeroDivisionError:
+        assert "_raise_on_exception" not in prefect.context
         pass
 
 
