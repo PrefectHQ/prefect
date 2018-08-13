@@ -7,18 +7,21 @@ from prefect.engine.executors.base import Executor
 
 
 class DaskExecutor(Executor):
+    """
+    An executor that runs all functions synchronously using `dask`.
+    """
+
     @contextmanager
     def start(self) -> Iterable[None]:
         """
-        Any initialization this executor needs to perform should be done in this
-        context manager, and torn down after yielding.
+        Configures `dask` to run synchronously and yields the `dask.config` contextmanager.
         """
         with dask.config.set(scheduler="synchronous") as cfg:
             yield cfg
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """
-        Submit a function to the executor for execution. Returns a future
+        Submit a function to the executor for execution. Returns a `dask.delayed` object.
         """
         return dask.delayed(fn)(*args, **kwargs)
 
