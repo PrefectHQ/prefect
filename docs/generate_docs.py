@@ -16,6 +16,7 @@ import re
 import shutil
 import toolz
 import prefect
+from prefect.utilities.bokeh_runner import BokehRunner
 
 
 OUTLINE = [
@@ -25,7 +26,7 @@ OUTLINE = [
             prefect.environments.Secret,
             prefect.environments.Environment,
             prefect.environments.ContainerEnvironment,
-            prefect.environments.PickleEnvironment,
+            prefect.environments.LocalEnvironment,
         ],
         "title": "Environments",
     },
@@ -44,18 +45,18 @@ OUTLINE = [
         "title": "Triggers",
         "top-level-doc": prefect.triggers,
     },
-    {
-        "page": "client.md",
-        "classes": [
-            prefect.client.Client,
-            prefect.client.ClientModule,
-            prefect.client.Projects,
-            prefect.client.Flows,
-            prefect.client.FlowRuns,
-            prefect.client.TaskRuns,
-        ],
-        "title": "Client",
-    },
+    # {
+    #     "page": "client.md",
+    #     "classes": [
+    #         prefect.client.Client,
+    #         prefect.client.ClientModule,
+    #         prefect.client.Projects,
+    #         prefect.client.Flows,
+    #         prefect.client.FlowRuns,
+    #         prefect.client.TaskRuns,
+    #     ],
+    #     "title": "Client",
+    # },
     {
         "page": "schedules.md",
         "classes": [
@@ -73,16 +74,23 @@ OUTLINE = [
         "title": "Serializers",
     },
     {"page": "core/edge.md", "classes": [prefect.core.edge.Edge], "title": "Edge"},
-    {
-        "page": "core/flow.md",
-        "classes": [prefect.core.flow.Flow],
-        "functions": [prefect.core.flow.get_hash, prefect.core.flow.xor],
-        "title": "Flow",
-    },
+    {"page": "core/flow.md", "classes": [prefect.core.flow.Flow], "title": "Flow"},
     {
         "page": "core/task.md",
         "classes": [prefect.core.task.Task, prefect.core.task.Parameter],
         "title": "Task",
+    },
+    {
+        "page": "core/registry.md",
+        "functions": [
+            prefect.core.registry.register_flow,
+            prefect.core.registry.build_flows,
+            prefect.core.registry.load_flow,
+            prefect.core.registry.serialize_registry,
+            prefect.core.registry.load_serialized_registry,
+            prefect.core.registry.load_serialized_registry_from_path,
+        ],
+        "title": "Registry",
     },
     {
         "page": "engine/cache_validators.md",
@@ -117,7 +125,6 @@ OUTLINE = [
     {
         "page": "engine/signals.md",
         "classes": [
-            prefect.engine.signals.PrefectStateSignal,
             prefect.engine.signals.FAIL,
             prefect.engine.signals.TRIGGERFAIL,
             prefect.engine.signals.SUCCESS,
@@ -138,29 +145,23 @@ OUTLINE = [
         "title": "TaskRunner",
     },
     {
-        "page": "engine/executors/dask.md",
-        "classes": [prefect.engine.executors.dask.DaskExecutor],
-        "title": "Dask Executor",
+        "page": "engine/executors.md",
+        "classes": [
+            prefect.engine.executors.base.Executor,
+            prefect.engine.executors.dask.DaskExecutor,
+            prefect.engine.executors.local.LocalExecutor,
+        ],
+        "title": "Executors",
     },
     {
-        "page": "engine/executors/base.md",
-        "classes": [prefect.engine.executors.base.Executor],
-        "title": "Executor",
-    },
-    {
-        "page": "engine/executors/local.md",
-        "classes": [prefect.engine.executors.local.LocalExecutor],
-        "title": "Local Executor",
-    },
-    {
-        "page": "tasks/control_flow/conditional.md",
-        "classes": [prefect.tasks.control_flow.conditional.Match],
+        "page": "tasks/control_flow.md",
         "functions": [
             prefect.tasks.control_flow.switch,
             prefect.tasks.control_flow.ifelse,
         ],
-        "title": "Control Flow Tasks",
+        "title": "Control Flow",
     },
+    {"page": "utilities/bokeh.md", "classes": [BokehRunner]},
     {
         "page": "utilities/collections.md",
         "classes": [prefect.utilities.collections.DotDict],
@@ -173,13 +174,13 @@ OUTLINE = [
         "title": "Collections",
     },
     {
-        "page": "utilities/flows.md",
-        "functions": [
-            prefect.utilities.flows.reset_default_flow,
-            prefect.utilities.flows.get_default_flow,
-            prefect.utilities.flows.get_flow_by_id,
+        "page": "utilities/json.md",
+        "classes": [
+            prefect.utilities.json.JSONCodec,
+            prefect.utilities.json.Serializable,
         ],
-        "title": "Flow Utilities",
+        "functions": [prefect.utilities.json.register_json_codec],
+        "title": "JSON",
     },
     {
         "page": "utilities/tasks.md",
@@ -189,7 +190,7 @@ OUTLINE = [
             prefect.utilities.tasks.as_task,
             prefect.utilities.tasks.task,
         ],
-        "title": "Task Utilities",
+        "title": "Tasks",
     },
 ]
 
