@@ -61,8 +61,8 @@ def merge_dicts(d1: MutableMapping, d2: MutableMapping) -> MutableMapping:
     recursively.
 
     Args:
-        d1 (MutableMapping): A dictionary to be replaced
-        d2 (MutableMapping): A dictionary used for replacement
+        - d1 (MutableMapping): A dictionary to be replaced
+        - d2 (MutableMapping): A dictionary used for replacement
 
     Returns:
         A `MutableMapping` with the two dictionary contents merged
@@ -89,7 +89,7 @@ def to_dotdict(obj: Any) -> DotDict:
     `obj['data']['child']` becomes accessible by `obj.data.child`
 
     Args:
-        obj (Any): An object that is formatted as a standard `dict`
+        - obj (Any): An object that is formatted as a standard `dict`
 
     Returns:
         A DotDict representation of the object passed in

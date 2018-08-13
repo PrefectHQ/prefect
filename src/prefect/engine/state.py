@@ -187,7 +187,7 @@ class Retrying(Scheduled):
 
 
 class Running(State):
-    """Base running state. Inicates that a task is currently running."""
+    """Base running state. Indicates that a task is currently running."""
 
 
 # -------------------------------------------------------------------
@@ -196,7 +196,7 @@ class Running(State):
 
 
 class Finished(State):
-    """Base finished state. Present when a task has reached some type of completion."""
+    """Base finished state. Indicates when a class has reached some for of completion."""
 
 
 class Success(Finished):
