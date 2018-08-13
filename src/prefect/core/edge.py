@@ -1,5 +1,23 @@
+import keyword
 from prefect.core.task import Task
-from prefect.utilities.strings import is_valid_identifier
+
+
+def is_valid_identifier(string: str) -> bool:
+    """
+    Determines whether a string is a valid Python identifier (meaning it can
+    be used as a variable name or keyword argument).
+
+    Example:
+        >>> is_valid_identifier('hi5')
+        True
+        >>> is_valid_identifier('5hi')
+        False
+        >>> is_valid_identifier('from')
+        False
+        >>> is_valid_identifier('hi.5')
+        False
+    """
+    return string.isidentifier() and not keyword.iskeyword(string)
 
 
 class Edge:

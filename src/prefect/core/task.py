@@ -6,7 +6,6 @@ import prefect
 import prefect.engine.cache_validators
 import prefect.engine.signals
 import prefect.triggers
-from prefect.environments import Environment
 from prefect.utilities.json import Serializable, to_qualified_name
 
 if TYPE_CHECKING:
@@ -177,18 +176,21 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     # Serialization ------------------------------------------------------------
 
-    def serialize(self, task: "Task") -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         return dict(
-            name=task.name,
-            slug=task.slug,
-            type=to_qualified_name(type(task)),
-            description=task.description,
-            max_retries=task.max_retries,
-            retry_delay=task.retry_delay,
-            timeout=task.timeout,
-            trigger=task.trigger,
-            skip_on_upstream_skip=task.skip_on_upstream_skip,
-            checkpoint=task.checkpoint,
+            name=self.name,
+            slug=self.slug,
+            description=self.description,
+            group=self.group,
+            tags=self.tags,
+            type=to_qualified_name(type(self)),
+            max_retries=self.max_retries,
+            retry_delay=self.retry_delay,
+            timeout=self.timeout,
+            trigger=self.trigger,
+            skip_on_upstream_skip=self.skip_on_upstream_skip,
+            cache_for=self.cache_for,
+            cache_validator=self.cache_validator,
         )
 
 
