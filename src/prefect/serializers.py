@@ -30,10 +30,10 @@ class JSONSerializer:
     @classmethod
     def serialize(cls, object: Any) -> str:
         """
-        Serialized an object using `prefect.utilities.json`
+        Serializes an object using `prefect.utilities.json`
 
         Args:
-            object (Any): an object to be dumped to a json string
+            - object (Any): an object to be dumped to a json string
 
         Returns:
             An encoded json string
@@ -46,7 +46,7 @@ class JSONSerializer:
         Deserializes an encoded json string using `prefect.utilities.json`
 
         Args:
-            key (str): a json string to be loaded
+            - key (str): a json string to be loaded
 
         Returns:
             An dencoded json string in the form of the original object before serialization
