@@ -1,4 +1,5 @@
 import datetime
+import sys
 
 import pytest
 
@@ -113,6 +114,19 @@ def test_flow_runner_with_invalid_return_tasks():
     flow_runner = FlowRunner(flow=flow)
     with pytest.raises(ValueError):
         flow_runner.run(return_tasks=[1])
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 6), reason="Depends on ordered dictionaries of Python 3.6+"
+)
+def test_return_tasks_are_sorted():
+    flow = prefect.Flow()
+    a, b, c = SuccessTask(), SuccessTask(), SuccessTask()
+    flow.add_edge(a, b)
+    flow.add_edge(b, c)
+    flow_runner = FlowRunner(flow=flow)
+    result = flow_runner.run(return_tasks=[c, b, a])
+    assert list(result.result.keys()) == [a, b, c]
 
 
 def test_flow_runner_runs_basic_flow_with_2_independent_tasks():

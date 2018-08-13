@@ -41,8 +41,8 @@ never_run = manual_only
 
 def all_successful(upstream_states: Dict["Task", "State"]) -> bool:
     """
-    Runs if all upstream tasks were successful. Note that SKIPPED tasks are considered
-    successes and TRIGGER_FAILED tasks are considered failures.
+    Runs if all upstream tasks were successful. Note that `SKIPPED` tasks are considered
+    successes and `TRIGGER_FAILED` tasks are considered failures.
     """
 
     if not all(s.is_successful() for s in upstream_states.values()):
@@ -54,8 +54,8 @@ def all_successful(upstream_states: Dict["Task", "State"]) -> bool:
 
 def all_failed(upstream_states: Dict["Task", "State"]) -> bool:
     """
-    Runs if all upstream tasks failed. Note that SKIPPED tasks are considered successes
-    and TRIGGER_FAILED tasks are considered failures.
+    Runs if all upstream tasks failed. Note that `SKIPPED` tasks are considered successes
+    and `TRIGGER_FAILED` tasks are considered failures.
     """
 
     if not all(s.is_failed() for s in upstream_states.values()):
@@ -67,8 +67,8 @@ def all_failed(upstream_states: Dict["Task", "State"]) -> bool:
 
 def any_successful(upstream_states: Dict["Task", "State"]) -> bool:
     """
-    Runs if any tasks were successful. Note that SKIPPED tasks are considered successes
-    and TRIGGER_FAILED tasks are considered failures.
+    Runs if any tasks were successful. Note that `SKIPPED` tasks are considered successes
+    and `TRIGGER_FAILED` tasks are considered failures.
     """
 
     if not any(s.is_successful() for s in upstream_states.values()):
@@ -80,8 +80,8 @@ def any_successful(upstream_states: Dict["Task", "State"]) -> bool:
 
 def any_failed(upstream_states: Dict["Task", "State"]) -> bool:
     """
-    Runs if any tasks failed. Note that SKIPPED tasks are considered successes and
-    TRIGGER_FAILED tasks are considered failures.
+    Runs if any tasks failed. Note that `SKIPPED` tasks are considered successes and
+    `TRIGGER_FAILED` tasks are considered failures.
     """
 
     if not any(s.is_failed() for s in upstream_states.values()):

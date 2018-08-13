@@ -7,13 +7,16 @@ MessageType = Union[str, Exception]
 
 
 class State(Serializable):
+    """
+    Create a new State object.
+
+    Args:
+        - `result` (`Any`, optional): Defaults to `None`. A data payload for the state.
+        - `message` (`str` or `Exception`, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+    """
+
     def __init__(self, result: Any = None, message: MessageType = None) -> None:
-        """
-        Create a new State object.
-            result (Any, optional): Defaults to None. A data payload for the state.
-            message (str or Exception, optional): Defaults to None. A message about the
-                state, which could be an Exception (or Signal) that caused it.
-        """
         self.result = result
         self.message = message
         self._timestamp = datetime.datetime.utcnow()
@@ -67,7 +70,16 @@ class State(Serializable):
 
 
 class Pending(State):
-    """Base pending state"""
+    """
+    Base Pending state; default state for new tasks.
+
+    Args:
+        - `result` (`Any`, optional): Defaults to `None`. A data payload for the state.
+        - `message` (`str` or `Exception`, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - `cached_inputs` (`dict`): Defaults to `None`. A dictionary of input
+        keys to values.  Used / set if the Task requires Retries.
+    """
 
     def __init__(
         self,
@@ -86,12 +98,27 @@ class Pending(State):
 
 
 class CachedState(Pending):
+    """
+    CachedState, which represents a Task whose outputs have been cached.
+
+    Args:
+        - `result` (`Any`, optional): Defaults to `None`. A data payload for the state.
+        - `message` (`str` or `Exception`, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - `cached_inputs` (`dict`): Defaults to `None`. A dictionary of input
+        keys to values.  Used / set if the Task requires Retries.
+        - `cached_result` (`Any`): Defaults to `None`. Cached result from a
+        successful Task run.
+        - `cached_parameters` (`dict`): Defaults to `None`
+        - `cached_result_expiration` (`datetime`): Defaults to `None`
+    """
+
     def __init__(
         self,
         result: Any = None,
         message: MessageType = None,
         cached_inputs: Dict[str, Any] = None,
-        cached_result: Dict[str, Any] = None,
+        cached_result: Any = None,
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
     ) -> None:

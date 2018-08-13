@@ -114,3 +114,7 @@ node_modules
 
 # PyTest
 .pytest_cache
+
+# docs
+docs/api
+docs/deploy/dist
