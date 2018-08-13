@@ -219,7 +219,7 @@ class Flow(Serializable):
                 )
 
         self.tasks.add(task)
-        self._task_ids[str(uuid.uuid4())] = task
+        self._task_ids[task] = str(uuid.uuid4())
 
         return task
 
@@ -345,8 +345,7 @@ class Flow(Serializable):
         if any(t not in self.tasks for t in self.key_tasks()):
             raise ValueError("Some key tasks are not contained in this flow.")
 
-        tasks_with_ids = set(self._task_ids.values())
-        if any(t not in tasks_with_ids for t in self.tasks):
+        if any(t not in self._task_ids for t in self.tasks):
             raise ValueError("Some tasks do not have IDs assigned.")
 
     def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
@@ -516,14 +515,16 @@ class Flow(Serializable):
     def serialize(self) -> dict:
 
         local_task_ids = self.generate_local_task_ids()
-        environment_key = self.build_environment()
+        if self.environment:
+            environment_key = self.build_environment()
+        else:
+            environment_key = None
 
         return dict(
             id=self.id,
             name=self.name,
             version=self.version,
             project=self.project,
-            key=self.key(),
             description=self.description,
             environment=self.environment,
             environment_key=environment_key,
@@ -557,6 +558,8 @@ class Flow(Serializable):
         Returns:
             bytes: a key that can be used to access the environment.
         """
+        if not self.environment:
+            raise ValueError("No environment set!")
         return self.environment.build(self)
 
     def generate_local_task_ids(
