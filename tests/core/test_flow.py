@@ -627,3 +627,17 @@ def test_auto_generate_task_ids():
 
     assert len(f._task_ids) == 2
     assert set([t1, t2]) == set(f._task_ids.values())
+
+
+def test_register():
+    flow = Flow()
+    assert flow.id not in prefect.core.registry.REGISTRY
+    flow.register()
+    assert flow.id in prefect.core.registry.REGISTRY
+    assert prefect.core.registry.REGISTRY[flow.id] is flow
+
+
+def test_register_init():
+    flow = Flow(register=True)
+    assert flow.id in prefect.core.registry.REGISTRY
+    assert prefect.core.registry.REGISTRY[flow.id] is flow
