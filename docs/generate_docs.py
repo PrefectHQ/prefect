@@ -349,6 +349,7 @@ if __name__ == "__main__":
         os.path.basename(os.getcwd()) == "docs"
     ), "Only run this script from inside the docs/ directory!"
 
+    shutil.rmtree("api", ignore_errors=True)
     os.makedirs("api", exist_ok=True)
     with open("api/README.md", "w+") as f:
         f.write("# API Documentation\n")
@@ -372,7 +373,6 @@ if __name__ == "__main__":
         fname = f"api/{fname}"
         directory = os.path.dirname(fname)
         if directory:
-            shutil.rmtree(directory, ignore_errors=True)
             os.makedirs(directory, exist_ok=True)
         with open(fname, "w") as f:
             # PAGE TITLE / SETUP
