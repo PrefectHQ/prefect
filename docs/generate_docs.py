@@ -79,6 +79,18 @@ OUTLINE = [
         "title": "Task",
     },
     {
+        "page": "core/registry.md",
+        "functions": [
+            prefect.core.registry.register_flow,
+            prefect.core.registry.build_flows,
+            prefect.core.registry.load_flow,
+            prefect.core.registry.serialize_registry,
+            prefect.core.registry.load_serialized_registry,
+            prefect.core.registry.load_serialized_registry_from_path,
+        ],
+        "title": "Registry",
+    },
+    {
         "page": "engine/cache_validators.md",
         "functions": [
             prefect.engine.cache_validators.never_use,
