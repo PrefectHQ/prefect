@@ -11,11 +11,11 @@ try:
     cfg_exec = _prefect.config.engine.executor
     *module, cls_name = cfg_exec.split(".")
     module = _import_module(".".join(module))
-    DEFAULT_EXECUTOR = getattr(module, cls_name)
+    DEFAULT_EXECUTOR = getattr(module, cls_name)()
 except:
     _warn(
         "Could not import {}, using prefect.engine.executors.LocalExecutor instead.".format(
             cfg_exec
         )
     )
-    DEFAULT_EXECUTOR = LocalExecutor
+    DEFAULT_EXECUTOR = LocalExecutor()
