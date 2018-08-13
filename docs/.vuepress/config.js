@@ -30,7 +30,7 @@ module.exports = {
 
         {title: 'prefect.utilities',
          collapsable: true,
-         children: ['utilities/collections', 'utilities/tasks', 'utilities/flows']},
+         children: ['utilities/bokeh', 'utilities/collections', 'utilities/tasks', 'utilities/flows']},
       ],
       '/': ['', 'configuration', 'concepts', 'utilities'],
     }
