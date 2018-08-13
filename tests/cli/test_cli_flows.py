@@ -31,12 +31,16 @@ def clear_registry():
 
 
 def run_cli(cmd):
+    """
+    Runs a CLI command using a test runner.
+    """
     return CliRunner().invoke(cli, shlex.split(cmd))
 
 
 def run_cli_with_registry(cmd):
     """
-    Runs a CLI cmd with flags appropriately set for the current registry
+    Runs a CLI cmd using a test runner, with flags appropriately set to load the current
+    registry
     """
     encryption_key = Fernet.generate_key().decode()
     with tempfile.NamedTemporaryFile() as tmp:
@@ -50,12 +54,12 @@ def run_cli_with_registry(cmd):
         return run_cli(options + cmd)
 
 
-def test_flows_keys_empty_registry():
+def test_flows_ids_empty_registry():
     output = json.loads(run_cli_with_registry("flows ids").output)
     assert output == {}
 
 
-def test_flows_keys():
+def test_flows_ids():
     f1 = prefect.Flow(register=True)
     f2 = prefect.Flow(name="hi", version="1", register=True)
     f3 = prefect.Flow(name="hi", version="2", register=True)
