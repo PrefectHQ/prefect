@@ -12,7 +12,7 @@ module.exports = {
             '/api/': [{
                     title: 'prefect',
                     collapsable: true,
-                    children: ['client', 'environments', 'schedules', 'serializers', 'triggers']
+                    children: ['environments', 'schedules', 'serializers', 'triggers']
                 },
 
                 {
