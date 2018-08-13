@@ -7,9 +7,10 @@ import prefect.engine.signals
 import prefect.schedules
 import prefect.serializers
 import prefect.triggers
+import prefect.environments
 
 from prefect.core import Task, Flow, Parameter
-import prefect.build
+import prefect.core.registry
 import prefect.tasks
 import prefect.flows
 import prefect.engine
@@ -22,6 +23,6 @@ __version__ = get_versions()["version"]
 del get_versions
 
 if prefect.config.registry.load_on_startup:
-    prefect.build.registry.load_serialized_registry_from_path(
+    prefect.core.registry.load_serialized_registry_from_path(
         prefect.config.registry.load_on_startup
     )

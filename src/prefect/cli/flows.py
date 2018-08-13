@@ -2,7 +2,7 @@ import click
 import requests
 
 import prefect
-from prefect.build import registry
+from prefect.core import registry
 from prefect.utilities import json
 
 
@@ -23,24 +23,20 @@ def info():
 
 
 @flows.command()
-def keys():
+def ids():
     """
     Prints all the flows in the registry.
     """
-    output = [
-        dict(zip(["project", "name", "version"], key)) for key in registry.REGISTRY
-    ]
+    output = {id: f.key() for id, f in registry.REGISTRY.items()}
     print(json.dumps(output, sort_keys=True))
 
 
 @flows.command()
-@click.argument("project")
-@click.argument("name")
-@click.argument("version")
-def run(project, name, version):
+@click.argument("id")
+def run(id):
     """
     Runs a registered flow.
     """
-    flow = prefect.build.registry.load_flow(project, name, version)
+    flow = prefect.core.registry.load_flow(id)
     flow_runner = prefect.engine.FlowRunner(flow=flow)
     return flow_runner.run()

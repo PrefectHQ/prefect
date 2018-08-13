@@ -6,7 +6,7 @@ import pytest
 
 import prefect
 from prefect import Flow
-from prefect.build.environments import (
+from prefect.environments import (
     ContainerEnvironment,
     Environment,
     LocalEnvironment,
@@ -151,7 +151,7 @@ class TestLocalEnvironment:
         f = prefect.Flow(environment=LocalEnvironment())
 
         key = f.environment.build(f)
-        output = f.environment.run(key, "prefect flows keys")
-        assert json.loads(output.decode()) == [
-            dict(project=f.project, name=f.name, version=f.version)
-        ]
+        output = f.environment.run(key, "prefect flows ids")
+        assert json.loads(output.decode()) == {
+            f.id: dict(project=f.project, name=f.name, version=f.version)
+        }

@@ -722,4 +722,3 @@ def test_ids_are_stable_even_if_some_tasks_change_contained():
 
     assert task_ids_1[get_task("x5")] != task_ids_2[get_task("x5")]
     assert len(set(task_ids_1.values()).intersection(task_ids_2.values())) == 6
-
