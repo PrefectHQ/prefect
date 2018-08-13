@@ -90,7 +90,9 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.skip_on_upstream_skip = skip_on_upstream_skip
 
         if cache_for is None and cache_validator is not None:
-            warnings.warn("cache_validator provided without specifying cache expiration (cache_for); this Task will not be cached.")
+            warnings.warn(
+                "cache_validator provided without specifying cache expiration (cache_for); this Task will not be cached."
+            )
 
         self.cache_for = cache_for
         default_validator = (

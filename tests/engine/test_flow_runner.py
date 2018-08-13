@@ -491,7 +491,9 @@ class TestOutputCaching:
                 return self.call_count
 
         with Flow() as f:
-            y = TestTask(cache_validator=duration_only, cache_for=datetime.timedelta(days=1))
+            y = TestTask(
+                cache_validator=duration_only, cache_for=datetime.timedelta(days=1)
+            )
             x = Parameter("x")
             s = SuccessTask()
             f.add_edge(x, y, key="x")
