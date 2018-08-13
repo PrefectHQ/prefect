@@ -70,6 +70,7 @@ OUTLINE = [
         "page": "serializers.md",
         "classes": [prefect.serializers.Serializer, prefect.serializers.JSONSerializer],
         "title": "Serializers",
+        "top-level-doc": prefect.serializers,
     },
     {"page": "core/edge.md", "classes": [prefect.core.edge.Edge], "title": "Edge"},
     {
