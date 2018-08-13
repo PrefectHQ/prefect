@@ -16,8 +16,10 @@ from collections import defaultdict
 from prefect.engine import state
 
 
-def color_map(task, task_states):
+def color_map(task, task_states, not_run=False):
     s = task_states.get(task) or state.Pending()
+    if not_run:
+        return 'grey'
     if isinstance(s, state.Retrying):
         return 'blue'
     elif isinstance(s, state.CachedState):
@@ -79,9 +81,10 @@ xnoise, ynoise = [random.random() / 25 for _ in runner.flow.tasks], [random.rand
 def compile_data(runner):
     plot_data = defaultdict(list)
 
+    not_run = runner.flow.tasks.difference(set(runner.flow.sorted_tasks(runner.start_tasks)))
     for task in runner.flow.sorted_tasks():
         plot_data["name"].append(task.name)
-        plot_data["color"].append(color_map(task, runner.task_states))
+        plot_data["color"].append(color_map(task, runner.task_states, not_run=(task in not_run)))
         plot_data["state"].append(get_state_name(task, runner.task_states))
         plot_data["message"].append(get_state_msg(task, runner.task_states))
         plot_data["x"].append(graph_layout[task][0])
@@ -118,7 +121,8 @@ hover = HoverTool(tooltips=[("Name:", "@name"), ("State:", "@state"), ("Message:
 plot.add_tools(hover)
 
 
-on_depth = {'depth': 0}
+not_run = runner.flow.tasks.difference(set(runner.flow.sorted_tasks(runner.start_tasks)))
+on_depth = {'depth': min([depths[t] for t in runner.flow.sorted_tasks(runner.start_tasks)], default=0)}
 
 
 def update(*args):
