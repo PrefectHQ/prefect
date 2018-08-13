@@ -532,10 +532,18 @@ class Flow(Serializable):
 
     # Building / Serialization ----------------------------------------------------
 
-    def serialize(self) -> dict:
+    def serialize(self, build=False) -> dict:
+        """
+        Creates a serialized representation of the flow.
+
+        Args:
+            - build (bool): if `True`, the flow's environment is built and the resulting
+                `environment_key` is included in the serialized flow. If `False` (default),
+                the environment is not build and the `environment_key` is `None`.
+        """
 
         local_task_ids = self.generate_local_task_ids()
-        if self.environment:
+        if self.environment and build:
             environment_key = self.build_environment()
         else:
             environment_key = None
