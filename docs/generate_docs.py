@@ -150,6 +150,7 @@ OUTLINE = [
             prefect.engine.executors.local.LocalExecutor,
         ],
         "title": "Executors",
+        "top-level-doc": prefect.engine.executors
     },
     {
         "page": "tasks/control_flow.md",
