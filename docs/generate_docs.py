@@ -178,6 +178,17 @@ OUTLINE = [
         "title": "Collections",
     },
     {
+        "page": "utilities/json.md",
+        "classes": [
+            prefect.utilities.json.JSONCodec,
+            prefect.utilities.json.Serializable,
+        ],
+        "functions": [
+            prefect.utilities.json.register_json_codec,
+        ],
+        "title": "JSON",
+    },
+    {
         "page": "utilities/tasks.md",
         "functions": [
             prefect.utilities.tasks.group,
@@ -185,7 +196,7 @@ OUTLINE = [
             prefect.utilities.tasks.as_task,
             prefect.utilities.tasks.task,
         ],
-        "title": "Task Utilities",
+        "title": "Tasks",
     },
 ]
 
