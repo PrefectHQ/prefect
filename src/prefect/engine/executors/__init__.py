@@ -1,5 +1,7 @@
 """
-Prefect Executors
+Prefect Executors are the way for specifying how Tasks should be run.
+
+For example,
 """
 from warnings import warn as _warn
 from importlib import import_module as _import_module
