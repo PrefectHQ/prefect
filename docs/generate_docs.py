@@ -43,18 +43,18 @@ OUTLINE = [
         "title": "Triggers",
         "top-level-doc": prefect.triggers,
     },
-    {
-        "page": "client.md",
-        "classes": [
-            prefect.client.Client,
-            prefect.client.ClientModule,
-            prefect.client.Projects,
-            prefect.client.Flows,
-            prefect.client.FlowRuns,
-            prefect.client.TaskRuns,
-        ],
-        "title": "Client",
-    },
+    # {
+    #     "page": "client.md",
+    #     "classes": [
+    #         prefect.client.Client,
+    #         prefect.client.ClientModule,
+    #         prefect.client.Projects,
+    #         prefect.client.Flows,
+    #         prefect.client.FlowRuns,
+    #         prefect.client.TaskRuns,
+    #     ],
+    #     "title": "Client",
+    # },
     {
         "page": "schedules.md",
         "classes": [
@@ -72,12 +72,7 @@ OUTLINE = [
         "title": "Serializers",
     },
     {"page": "core/edge.md", "classes": [prefect.core.edge.Edge], "title": "Edge"},
-    {
-        "page": "core/flow.md",
-        "classes": [prefect.core.flow.Flow],
-        "functions": [prefect.core.flow.get_hash, prefect.core.flow.xor],
-        "title": "Flow",
-    },
+    {"page": "core/flow.md", "classes": [prefect.core.flow.Flow], "title": "Flow"},
     {
         "page": "core/task.md",
         "classes": [prefect.core.task.Task, prefect.core.task.Parameter],
