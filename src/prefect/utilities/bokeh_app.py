@@ -180,11 +180,11 @@ def quit_app(*args):
     sys.exit()
 
 
-butt = Button(label="Run Next Tasks", button_type="success")
-butt.on_event(ButtonClick, update)
+run_button = Button(label="Run Next Tasks", button_type="success")
+run_button.on_event(ButtonClick, update)
 quit = Button(
     label="Exit", button_type="danger", callback=CustomJS(code="window.close()")
 )
 quit.on_event(ButtonClick, quit_app)
 
-curdoc().add_root(row(plot, column(butt, quit), width=1500))
+curdoc().add_root(row(plot, column(run_button, quit), width=1500))
