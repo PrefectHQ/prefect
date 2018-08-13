@@ -35,11 +35,10 @@ module.exports = {
                     collapsable: true,
                     children: ['tasks/control_flow']
                 },
-
                 {
                     title: 'prefect.utilities',
                     collapsable: true,
-                    children: ['utilities/collections', 'utilities/json', 'utilities/tasks']
+                    children: ['utilities/bokeh', 'utilities/collections', 'utilities/json', 'utilities/tasks']
                 },
             ],
             '/': ['', 'configuration', 'concepts', 'utilities'],
