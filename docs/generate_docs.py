@@ -13,6 +13,7 @@ On a development installation of Prefect, simply run `python generate_docs.py` f
 import inspect
 import os
 import re
+import shutil
 import toolz
 import prefect
 
@@ -370,6 +371,7 @@ if __name__ == "__main__":
         fname = f"api/{fname}"
         directory = os.path.dirname(fname)
         if directory:
+            shutil.rmtree(directory)
             os.makedirs(directory, exist_ok=True)
         with open(fname, "w") as f:
             # PAGE TITLE / SETUP
