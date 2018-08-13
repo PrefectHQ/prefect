@@ -2,6 +2,16 @@
 State is the main currency in the Prefect platform. It is used to represent the current
 status of a task. This class is a series of State objects with relevant metadata that
 represents the current state of something.
+
+Every task is initialized with the `Pending` state meaning that it is waiting for
+execution. The other types of `Pending` states are `CachedState`, `Scheduled`, and
+`Retrying`.
+
+When a task is running it will enter a `Running` state which means that the task is
+currently being executed.
+
+The four types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, and
+`Skipped`.
 """
 import datetime
 from typing import Any, Dict, Iterable, List, Union
