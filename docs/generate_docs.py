@@ -15,6 +15,7 @@ import os
 import re
 import toolz
 import prefect
+from prefect.utilities.bokeh_runner import BokehRunner
 
 
 OUTLINE = [
@@ -159,6 +160,7 @@ OUTLINE = [
         ],
         "title": "Control Flow Tasks",
     },
+    {"page": "utilities/bokeh.md", "classes": [BokehRunner]},
     {
         "page": "utilities/collections.md",
         "classes": [prefect.utilities.collections.DotDict],
