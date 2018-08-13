@@ -33,6 +33,28 @@ class SignatureValidator(type):
 
 
 class Task(Serializable, metaclass=SignatureValidator):
+    """
+    Task class
+
+    Args:
+        - name (str):
+        - slug (str):
+        - description (str):
+        - group (str):
+        - tags ([str]):
+        - max_retries (int):
+        - retry_delay (timedelta):
+        - timeout (timedelta):
+        - trigger (callable): a function that determines whether the task should run, based
+                on the states of any upstream tasks.
+        - skip_on_upstream_skip (bool): if True and any upstream tasks skipped, this task
+                will automatically be skipped as well. By default, this prevents tasks from
+                attempting to use either state or data from tasks that didn't run. if False,
+                the task's trigger will be called as normal; skips are considered successes.
+        - cache_for (timedelta):
+        - cache_validator:
+    """
+
     def __init__(
         self,
         name: str = None,
@@ -48,20 +70,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         cache_for: timedelta = None,
         cache_validator: Callable = None,
     ) -> None:
-        """
-
-        Args:
-
-            - trigger (callable): a function that determines whether the task should run,
-                based on the states of any upstream tasks.
-            - skip_on_upstream_skip (bool): if True and any upstream tasks skipped, this
-                task will automatically be skipped as well. By default, this prevents tasks
-                from attempting to use either state or data from tasks that didn't run. if
-                False, the task's trigger will be called as normal; skips are considered
-                successes.
-
-        """
-
         self.name = name or type(self).__name__
         self.slug = slug
         self.description = description
@@ -81,9 +89,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.skip_on_upstream_skip = skip_on_upstream_skip
 
         self.cache_for = cache_for
-        self.cache_validator = (
-            cache_validator or prefect.engine.cache_validators.never_use
+        default_validator = (
+            prefect.engine.cache_validators.never_use
+            if cache_for is None
+            else prefect.engine.cache_validators.duration_only
         )
+        self.cache_validator = cache_validator or default_validator
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
@@ -103,11 +114,11 @@ class Task(Serializable, metaclass=SignatureValidator):
                 the task is considered successful and the result (if any) is
                 made available to downstream edges.
             2. Raise an error. Errors are interpreted as failure.
-            3. Raise a signal. Signals can include FAIL, SUCCESS, WAIT, etc.
+            3. Raise a signal. Signals can include `FAIL`, `SUCCESS`, `WAIT`, etc.
                 and indicate that the task should be put in the indicated
                 state.
-                - FAIL will lead to retries if appropriate
-                - WAIT will end execution and skip all downstream tasks with
+                - `FAIL` will lead to retries if appropriate
+                - `WAIT` will end execution and skip all downstream tasks with
                     state WAITING_FOR_UPSTREAM (unless appropriate triggers
                     are set). The task can be run again and should check
                     context.is_waiting to see if it was placed in a WAIT.
@@ -190,18 +201,16 @@ class Parameter(Task):
     A parameter's "slug" is automatically -- and immutably -- set to the parameter name.
     Flows enforce slug uniqueness across all tasks, so this ensures that the flow has
     no other parameters by the same name.
+
+    Args:
+        - name (str): the Parameter name.
+        - required (bool): If True, the Parameter is required and the default
+            value is ignored.
+        - default (any): A default value for the parameter. If the default
+            is not None, the Parameter will not be required.
     """
 
     def __init__(self, name: str, default: Any = None, required: bool = True) -> None:
-        """
-        Args:
-            - name (str): the Parameter name.
-            - default (Any): A default value for the parameter. If the default
-                is not None, the Parameter will not be required.
-            - required (bool): If True, the Parameter is required and the default
-                value is ignored.
-
-        """
         if default is not None:
             required = False
 

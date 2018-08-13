@@ -157,7 +157,7 @@ class FlowRunner:
         return_tasks = set(return_tasks or [])
         sorted_return_tasks = []
         task_contexts = task_contexts or {}
-        executor = executor or DEFAULT_EXECUTOR()
+        executor = executor or DEFAULT_EXECUTOR
 
         if not state.is_running():
             raise signals.DONTRUN("Flow is not in a Running state.")
