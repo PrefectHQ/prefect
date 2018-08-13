@@ -18,7 +18,7 @@ def cli(registry_path=None, registry_encryption_key=None):
     The Prefect CLI
     """
     if registry_path:
-        prefect.build.registry.load_serialized_registry_from_path(
+        prefect.core.registry.load_serialized_registry_from_path(
             registry_path, encryption_key=registry_encryption_key
         )
 

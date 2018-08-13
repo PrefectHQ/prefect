@@ -609,6 +609,21 @@ def test_validate_missing_key_tasks():
         f.validate()
     assert "key tasks are not contained" in str(exc.value).lower()
 
-def test_automatic_registration():
-    flow = prefect.Flow(name="hello", register=True)
-    assert (flow.project, flow.name, flow.version) in prefect.build.registry.REGISTRY
+
+def test_validate_missing_task_ids():
+    f = Flow()
+    t1 = Task()
+    f.tasks.add(t1)
+    with pytest.raises(ValueError) as exc:
+        f.validate()
+    assert "tasks do not have ids assigned" in str(exc.value).lower()
+
+
+def test_auto_generate_task_ids():
+    f = Flow()
+    t1 = Task()
+    t2 = Task()
+    f.add_edge(t1, t2)
+
+    assert len(f._task_ids) == 2
+    assert set([t1, t2]) == set(f._task_ids.values())

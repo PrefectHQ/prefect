@@ -32,12 +32,13 @@ eager_edge_validation = false
 
 [registry]
 
-# The encryption key used to encrypt Flows
-encryption_key = ''
-
 # if true, Prefect will warn if a flow is registered with the same name/version as an
 # already-registered flow
 warn_on_duplicate_registration = true
+
+# The encryption key used to encrypt Flows
+encryption_key = ''
+
 
 # a path containing a serialized registry object
 load_on_startup = ""

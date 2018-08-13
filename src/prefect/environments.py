@@ -9,10 +9,8 @@ import cloudpickle
 import docker
 
 import prefect
-from prefect import Flow
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 from prefect.utilities.tests import set_temporary_config
-from prefect.build import registry
 
 
 class Secret(Serializable):
@@ -43,7 +41,7 @@ class Environment(Serializable):
     def __init__(self, secrets: Iterable[Secret] = None) -> None:
         self.secrets = secrets or []
 
-    def build(self, flow: Flow) -> bytes:
+    def build(self, flow: "prefect.Flow") -> bytes:
         """
         Build the environment. Returns a key that must be passed to interact with the
         environment.
@@ -199,14 +197,21 @@ class LocalEnvironment(Environment):
         """Initialize the LocalEnvironment class"""
         self.encryption_key = encryption_key or Fernet.generate_key().decode()
 
-    def build(self, flow: Flow) -> bytes:
+    def build(self, flow: "prefect.Flow") -> bytes:
         """
         Returns:
             - bytes: An encrypted and pickled flow registry
         """
-        return registry.serialize_registry(
-            registry={flow.key(): flow}, encryption_key=self.encryption_key
+        tmp_registration = False
+        if flow.id not in prefect.core.registry.REGISTRY:
+            tmp_registration = True
+            flow.register()
+        serialized = prefect.core.registry.serialize_registry(
+            include_ids=[flow.id], encryption_key=self.encryption_key
         )
+        if tmp_registration:
+            del prefect.core.registry.REGISTRY[flow.id]
+        return serialized
 
     def run(self, key: bytes, cli_cmd: str):
 
@@ -220,4 +225,3 @@ class LocalEnvironment(Environment):
             ]
 
             return subprocess.check_output(" ".join(env + [cli_cmd]), shell=True)
-

@@ -1,3 +1,6 @@
+from warnings import warn as _warn
+from cryptography.fernet import Fernet
+import cloudpickle
 from collections import Counter
 import xxhash
 import copy
@@ -31,6 +34,7 @@ from prefect.core.task import Parameter, Task
 from prefect.utilities.json import Serializable, dumps
 from prefect.utilities.tasks import as_task
 
+
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
 
@@ -42,7 +46,7 @@ class Flow(Serializable):
         project: str = None,
         schedule: prefect.schedules.Schedule = None,
         description: str = None,
-        environment: "prefect.build.environments.Environment" = None,
+        environment: "prefect.environments.Environment" = None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
         key_tasks: Iterable[Task] = None,
@@ -116,12 +120,14 @@ class Flow(Serializable):
         new.set_key_tasks(self._key_tasks)
         return new
 
+    # Identification -----------------------------------------------------------
+
     @property
     def id(self) -> str:
         return self._id
 
-    def key(self) -> tuple:
-        return (self.project, self.name, self.version)
+    def key(self) -> dict:
+        return dict(project=self.project, name=self.name, version=self.version)
 
     # Context Manager ----------------------------------------------------------
 
@@ -213,7 +219,7 @@ class Flow(Serializable):
                 )
 
         self.tasks.add(task)
-        self._task_ids[task] = str(uuid.uuid4())
+        self._task_ids[str(uuid.uuid4())] = task
 
         return task
 
@@ -338,6 +344,10 @@ class Flow(Serializable):
 
         if any(t not in self.tasks for t in self.key_tasks()):
             raise ValueError("Some key tasks are not contained in this flow.")
+
+        tasks_with_ids = set(self._task_ids.values())
+        if any(t not in tasks_with_ids for t in self.tasks):
+            raise ValueError("Some tasks do not have IDs assigned.")
 
     def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
 
@@ -501,11 +511,12 @@ class Flow(Serializable):
         with tempfile.NamedTemporaryFile() as tmp:
             graph.render(tmp.name, view=True)
 
-    # Serialization ------------------------------------------------------------
+    # Building / Serialization ----------------------------------------------------
 
     def serialize(self) -> dict:
 
         local_task_ids = self.generate_local_task_ids()
+        environment_key = self.build_environment()
 
         return dict(
             id=self.id,
@@ -515,6 +526,7 @@ class Flow(Serializable):
             key=self.key(),
             description=self.description,
             environment=self.environment,
+            environment_key=environment_key,
             parameters=self.parameters(),
             schedule=self.schedule,
             tasks={
@@ -536,7 +548,16 @@ class Flow(Serializable):
 
     def register(self) -> None:
         """Register the flow."""
-        prefect.build.registry.register_flow(self)
+        return prefect.core.registry.register_flow(self)
+
+    def build_environment(self) -> bytes:
+        """
+        Build the flow's environment.
+
+        Returns:
+            bytes: a key that can be used to access the environment.
+        """
+        return self.environment.build(self)
 
     def generate_local_task_ids(
         self, *, _debug_steps: bool = False
@@ -751,4 +772,3 @@ class Flow(Serializable):
 
 def _hash(value):
     return xxhash.xxh64(value).digest()
-

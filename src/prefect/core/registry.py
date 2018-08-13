@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Iterable
 from warnings import warn as _warn
 
 import cloudpickle
@@ -13,25 +13,6 @@ from prefect.utilities.json import dumps
 REGISTRY = {}
 
 
-def build_flows() -> dict:
-    """
-    Build environments for all flows in the registry and produce a metadata dictionary.
-
-    Returns:
-        - dict: a dictionary keyed by flow_id and containing metadata for each built flow.
-    """
-    info = {}
-    for flow in REGISTRY.values():
-        serialized_flow = flow.serialize()
-        environment_key = flow.environment.build(flow)
-        info[flow.key()] = dict(
-            environment_key=environment_key,
-            **serialized_flow
-        )
-
-    return info
-
-
 def register_flow(flow: Flow) -> None:
     """
     Registers a flow by storing it in the registry
@@ -39,45 +20,59 @@ def register_flow(flow: Flow) -> None:
     Args:
         - flow (Flow): the flow to register
     """
-    if not isinstance(flow, Flow):
-        raise TypeError("Expected a Flow; received {}".format(type(flow)))
 
-    if prefect.config.registry.warn_on_duplicate_registration and flow.key() in REGISTRY:
+    if any(flow.key() == f.key() for f in REGISTRY.values()):
         _warn(
-            "Registering this flow overwrote a previously-registered flow "
-            "with the same project, name, and version: {}".format(flow)
+            "The registered flow has the same key {} as an already-registered flow.".format(
+                flow.key()
+            )
         )
 
-    REGISTRY[flow.key()] = flow
+    if not isinstance(flow, Flow):
+        raise TypeError("Expected a Flow; received {}".format(type(flow)))
+    REGISTRY[flow.id] = flow
 
 
-def load_flow(project, name, version) -> Flow:
+def build_flows() -> dict:
+    """
+    Build environments for all flows in the registry and produce a metadata dictionary.
+
+    Returns:
+        - dict: a dictionary keyed by flow.id and containing the serialized version of each
+            flow.
+    """
+    return {flow.id: flow.serialize() for flow in REGISTRY.values()}
+
+
+def load_flow(id: str) -> Flow:
     """
     Loads a flow from the registry.
 
     Args:
-        - project (str): the flow's project
-        - name (str): the flow's name
-        - version (str): the flow's version
+        - id (str): the flow's id
     """
-    key = (project, name, version)
-    if key not in REGISTRY:
-        raise KeyError("Flow not found: {}".format(key))
-    return REGISTRY[key]
+    if id not in REGISTRY:
+        raise ValueError("Flow not found: {}".format(id))
+    return REGISTRY[id]
 
 
-def serialize_registry(registry: dict = None, encryption_key: str = None) -> bytes:
+def serialize_registry(
+    include_ids: Iterable = None, encryption_key: str = None
+) -> bytes:
     """
     Serialize the registry to bytes.
 
     Args:
-        - registry (dict): The registry to serialize. If None, the global registry is used.
+        - include_ids (iterable): A iterable of flow IDs to include. If None, all IDs are
+            included.
         - encryption_key (str): A key to use for encrypting the registry. If None
-            (the default), then the key in `prefect.config.registry.encryption_key` is used. If
-            that key is unavailable, a warning is raised.
+            (the default), then the key in `prefect.config.registry.encryption_key` is
+            used. If that key is unavailable, a warning is raised.
     """
-    if registry is None:
-        registry = REGISTRY
+    if include_ids:
+        registry = {k: v for k, v in REGISTRY.items() if k in include_ids}
+    else:
+        registry = REGISTRY.copy()
     serialized = cloudpickle.dumps(registry)
     encryption_key = encryption_key or prefect.config.registry.encryption_key
     if not encryption_key:
@@ -100,8 +95,9 @@ def load_serialized_registry(serialized: bytes, encryption_key: str = None) -> N
     Args:
         - serialized (bytes): a serialized registry
         - encryption_key (str): A key to use for decrypting the registry. If None
-            (the default), then the key in `prefect.config.registry.encryption_key` is used. If
-            that key is unavailable, deserialization will procede without decryption.
+            (the default), then the key in `prefect.config.registry.encryption_key`
+            is used. If that key is unavailable, deserialization will procede without
+            decryption.
     """
     encryption_key = encryption_key or prefect.config.registry.encryption_key
     if not encryption_key:
@@ -118,17 +114,16 @@ def load_serialized_registry(serialized: bytes, encryption_key: str = None) -> N
 
 def load_serialized_registry_from_path(path: str, encryption_key: str = None) -> None:
     """
-    Deserialize a serialized registry from a file. This function updates the current registry without
-    clearing it first.
+    Deserialize a serialized registry from a file. This function updates the current
+    registry without clearing it first.
 
     Args:
         - path (str): a path to a file containing a serialized registry (in bytes)
         - encryption_key (str): A key to use for decrypting the registry. If None
-            (the default), then the key in `prefect.config.registry.encryption_key` is used. If
-            that key is unavailable, deserialization will procede without decryption.
+            (the default), then the key in `prefect.config.registry.encryption_key`
+            is used. If that key is unavailable, deserialization will procede without
+            decryption.
     """
     with open(path, "rb") as f:
         serialized_registry = f.read()
     load_serialized_registry(serialized_registry, encryption_key=encryption_key)
-
-

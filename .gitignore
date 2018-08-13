@@ -13,8 +13,6 @@ __pycache__/
 .Python
 env/
 build/
-# don't ignore build in subdirectories
-!*/build/
 develop-eggs/
 dist/
 downloads/

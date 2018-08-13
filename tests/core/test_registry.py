@@ -5,7 +5,7 @@ import pytest
 
 import prefect
 from prefect import Flow
-from prefect.build import registry
+from prefect.core import registry
 from prefect.utilities.tests import set_temporary_config
 from cryptography.fernet import Fernet
 
@@ -22,16 +22,17 @@ def clear_data():
 
 @pytest.fixture(autouse=True, scope="module")
 def set_encryption_key():
-    with set_temporary_config("registry.encryption_key", Fernet.generate_key().decode()):
+    with set_temporary_config(
+        "registry.encryption_key", Fernet.generate_key().decode()
+    ):
         yield
 
 
 class TestRegistry:
     def test_register_flow(self, flow):
-        flow_id = (flow.project, flow.name, flow.version)
-        assert flow_id not in registry.REGISTRY
+        assert flow.id not in registry.REGISTRY
         registry.register_flow(flow)
-        assert registry.REGISTRY[flow_id] is flow
+        assert registry.REGISTRY[flow.id] is flow
 
     def test_register_flow_warning_on_duplicate(self, flow):
         assert prefect.config.registry.warn_on_duplicate_registration
@@ -40,10 +41,10 @@ class TestRegistry:
             registry.register_flow(flow)
 
     def load_flow(self, flow):
-        with pytest.raises(KeyError):
-            registry.load_flow(None, None, None)
+        with pytest.raises(ValueError):
+            registry.load_flow(None)
         registry.register_flow(flow)
-        assert registry.load_flow(flow.project, flow.name, flow.version) is flow
+        assert registry.load_flow(flow.id) is flow
 
     def test_serialize_registry(self, flow):
         registry.register_flow(flow)
@@ -57,7 +58,7 @@ class TestRegistry:
 
         registry.load_serialized_registry(serialized)
         assert registry.REGISTRY
-        new_flow = registry.load_flow(flow.project, flow.name, flow.version)
+        new_flow = registry.load_flow(flow.id)
 
         # not working because key tasks don't match
         assert new_flow == flow
@@ -78,7 +79,7 @@ class TestRegistry:
 
     def test_automatic_registration(self):
         flow = Flow(name="hello", register=True)
-        assert (flow.project, flow.name, flow.version) in registry.REGISTRY
+        assert (flow.id) in registry.REGISTRY
 
     def test_load_registry_on_startup(self):
         """
@@ -86,7 +87,7 @@ class TestRegistry:
         automatically deserializes that registry if the appropriate config is set via env var.
         """
 
-        cmd = 'python -c "import prefect; print(len(prefect.build.registry.REGISTRY))"'
+        cmd = 'python -c "import prefect; print(len(prefect.core.registry.REGISTRY))"'
         assert subprocess.check_output(cmd, shell=True).strip() == b"0"
 
         with tempfile.NamedTemporaryFile() as tmp:
