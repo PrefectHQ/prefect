@@ -58,7 +58,7 @@ def to_qualified_name(obj: Any) -> str:
     return obj.__module__ + "." + obj.__qualname__
 
 
-def register_json_codec(register_type: Type = None) -> Callable:
+def register_json_codec(register_type: Type = None) -> 'JSONCodec':
     """
     Decorator that registers a JSON Codec to a corresponding codec_key.
 
@@ -69,6 +69,14 @@ def register_json_codec(register_type: Type = None) -> Callable:
     key-value pair where the key is the codec_key and the value is the
     serialized object. During deserialization, the codec_key will be used to
     identify the appropriate codec.
+
+    Args:
+        - register_type (Type): If supplied, the JSONCodec will not only be
+            registered, but automatically applied to the supplied type when
+            serializing to JSON.
+
+    Returns:
+        - JSONCodec: the registered JSONCodec
     """
 
     def _register(register_type, codec_class: "JSONCodec") -> "JSONCodec":
