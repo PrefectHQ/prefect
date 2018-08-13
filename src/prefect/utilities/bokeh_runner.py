@@ -4,23 +4,31 @@ import subprocess
 import tempfile
 from typing import Any, Dict, Iterable, Iterator, List, Union
 
-from prefect.core import Task
-from prefect.engine.flow_runner import FlowRunner
-from prefect.engine.state import State
+import prefect
 
 
-class BokehRunner(FlowRunner):
+class BokehRunner(prefect.engine.flow_runner.FlowRunner):
+    """
+    The BokehRunner class is a special [FlowRunner](../engine/flow_runner.html) subclass meant for debugging, exploring, visualizing, and
+    demonstrating Prefect Flow state logic.
+
+    Initialized and handled exactly like the standard FlowRunner class.
+    """
     def run(
         self,
-        state: State = None,
-        task_states: Dict[Task, State] = None,
-        start_tasks: Iterable[Task] = None,
-        parameters: Dict[str, Any] = None,
-        executor: "prefect.engine.executors.Executor" = None,
-        context: Dict[str, Any] = None,
-        task_contexts: Dict[Task, Dict[str, Any]] = None,
-        viz: bool = True,
-    ) -> State:
+        state = None,
+        task_states = None,
+        start_tasks = None,
+        parameters = None,
+        executor = None,
+        context = None,
+        task_contexts = None,
+        viz = True,
+    ):
+        """
+        Runs the Flow, and then opens up a Bokeh webapp for retroactively inspecting
+        the execution of the Flow.
+        """
         self.task_states = task_states or {}
         self.start_tasks = start_tasks or []
         self.parameters = parameters or {}

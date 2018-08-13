@@ -7,13 +7,7 @@ from bokeh.events import ButtonClick
 from bokeh.io import curdoc
 from bokeh.layouts import column, row
 from bokeh.plotting import figure, ColumnDataSource
-from bokeh.models import (
-    Arrow,
-    CustomJS,
-    NormalHead,
-    LabelSet,
-    HoverTool,
-)
+from bokeh.models import Arrow, CustomJS, NormalHead, LabelSet, HoverTool
 from bokeh.models.widgets import Button
 
 from collections import defaultdict
@@ -59,40 +53,29 @@ def get_state_msg(task, task_states):
         return "None"
 
 
-def is_finished(state):
-    if state is None:
-        return False
-    else:
-        return state.is_finished()
+def compute_layout(runner):
+    depths = runner.compute_depths()
+    max_depth = max([depth for depth in depths.values()])
+    widths = {
+        x: sum([1 for task, depth in depths.items() if depth == x])
+        for x in range(max_depth + 1)
+    }
+    inits, depth_counts = {}, {x: 0 for x in widths}
+    for task, depth in depths.items():
+        width = widths[depth]
+        depth_count = depth_counts[depth]
+        inits[task] = (
+            1 - (depth_count + 1) * 2 / (width + 1),
+            1 - (depth + 1) * 2 / (max_depth + 2),
+        )
+        depth_counts[depth] += 1
 
-
-## load data
-data_dir = os.environ.get("BOKEH_RUNNER")
-
-with open(data_dir, "rb") as g:
-    runner = cloudpickle.load(g)
-
-depths = runner.compute_depths()
-max_depth = max([depth for depth in depths.values()])
-widths = {
-    x: sum([1 for task, depth in depths.items() if depth == x])
-    for x in range(max_depth + 1)
-}
-inits, depth_counts = {}, {x: 0 for x in widths}
-for task, depth in depths.items():
-    width = widths[depth]
-    depth_count = depth_counts[depth]
-    inits[task] = (
-        1 - (depth_count + 1) * 2 / (width + 1),
-        1 - (depth + 1) * 2 / (max_depth + 2),
+    graph_layout = inits
+    xnoise, ynoise = (
+        [random.random() / 25 for _ in runner.flow.tasks],
+        [random.random() / 5 for _ in runner.flow.tasks],
     )
-    depth_counts[depth] += 1
-
-graph_layout = inits
-xnoise, ynoise = (
-    [random.random() / 25 for _ in runner.flow.tasks],
-    [random.random() / 5 for _ in runner.flow.tasks],
-)
+    return depths, graph_layout, xnoise, ynoise
 
 
 def compile_data(runner):
@@ -117,6 +100,16 @@ def compile_data(runner):
     return plot_data
 
 
+## load and format data
+data_dir = os.environ.get("BOKEH_RUNNER")
+
+with open(data_dir, "rb") as g:
+    runner = cloudpickle.load(g)
+
+depths, graph_layout, xnoise, ynoise = compute_layout(runner)
+
+
+## set up Bokeh components
 source = ColumnDataSource(data=compile_data(runner))
 
 ## configure Plot + tools
