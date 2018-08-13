@@ -372,7 +372,7 @@ if __name__ == "__main__":
         fname = f"api/{fname}"
         directory = os.path.dirname(fname)
         if directory:
-            shutil.rmtree(directory)
+            shutil.rmtree(directory, ignore_errors=True)
             os.makedirs(directory, exist_ok=True)
         with open(fname, "w") as f:
             # PAGE TITLE / SETUP
