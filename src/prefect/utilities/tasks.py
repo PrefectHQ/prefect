@@ -51,6 +51,22 @@ def group(name: str, append: bool = False) -> Iterator[None]:
 def tags(*tags: str) -> Iterator[None]:
     """
     Context manager for setting task tags.
+
+    Args:
+        - *tags ([str]): a list of tags to apply to the tasks created within
+            the context manager
+
+    Example:
+    ```python
+    @task
+    def add(x, y):
+        return x + y
+
+    with tags("math", "function"), Flow() as f:
+        result = add(1, 5)
+
+    print(result.tags) # {"function", "math"}
+    ```
     """
     tags_set = set(tags)
     tags_set.update(prefect.context.get("_tags", set()))
@@ -61,6 +77,12 @@ def tags(*tags: str) -> Iterator[None]:
 def as_task(x: Any) -> "prefect.core.Task":
     """
     Wraps a function, collection, or constant with the appropriate Task type.
+
+    Args:
+        -x (object): any Python object to convert to a prefect Task
+
+    Returns:
+        - a prefect Task representing the passed object
     """
     # task objects
     if isinstance(x, prefect.core.Task):
