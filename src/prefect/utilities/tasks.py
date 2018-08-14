@@ -100,6 +100,16 @@ def task(fn: Callable, **task_init_kwargs) -> FunctionTaskGenerator:
     """
     A decorator for creating Tasks from functions.
 
+    Args:
+        - fn (Callable): the decorated function
+        - task_init_kwargs (Any): keyword arguments that will be passed to the `Task`
+            constructor on initialization.
+
+    Returns:
+        - FunctionTaskGenerator: A class that returns a FunctionTask when called with
+            zero or more appropriate arguments, and also provides an `as_task()`
+            method for accessing the task without dependencies.
+
     Usage:
 
     ```
@@ -111,8 +121,31 @@ def task(fn: Callable, **task_init_kwargs) -> FunctionTaskGenerator:
         t1 = hello('foo')
         t2 = hello('bar')
 
-        # get task only, without creating edges
-        t3 = hello.as_task()
+    ```
+
+    The decorator is best suited to Prefect's functional API, but can also be used
+    with the imperative API.
+
+    ```
+    @task
+    def fn_without_args():
+        return 1
+
+    @task
+    def fn_with_args(x):
+        return x
+
+    # both tasks work inside a functional flow context
+    with Flow():
+        fn_without_args()
+        fn_with_args(1)
+
+    # both tasks can be accessed imperatively, without a flow context
+    fn_without_args.as_task()
+    fn_with_args.as_task()
+
+    # the function without args can be called functionally without a flow context
+    fn_without_args()
 
     ```
     """
