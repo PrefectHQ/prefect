@@ -1,3 +1,13 @@
+"""
+Environments in the prefect library serve the purpose of taking fully executable flows,
+serializing them, and then putting that flow into some type of environment where it can
+be loaded and executed. Currently environments consists of a Docker Container environment
+and a LocalEnvironment.
+
+Environments will serve a big purpose on accompanying the execution lifecycle for the
+Prefect Server and due to ongoing development this file is subject to large changes.
+"""
+
 import subprocess
 from cryptography.fernet import Fernet
 import base64
@@ -14,6 +24,28 @@ from prefect.utilities.tests import set_temporary_config
 
 
 class Secret(Serializable):
+    """
+    A Secret is a serializable object used to represent a secret key & value that is
+    to live inside of an environment.
+
+    Example secret variables could look something like:
+    ```
+    key: AWS_SECRET_KEY
+    value: secret_encoded_value
+
+    or
+
+    key: TOGGLE
+    value: False
+    ```
+
+    Args:
+        - name (str): The name of the secret to be put into the environment
+
+    The value of the Secret is not set upon initialization and instead functions as a
+    property of the Secret. e.g. `my_secret.value = "1234"`
+    """
+
     _json_codec = ObjectAttributesCodec
 
     def __init__(self, name: str) -> None:
@@ -56,6 +88,17 @@ class Environment(Serializable):
 class ContainerEnvironment(Environment):
     """
     Container class used to represent a Docker container
+
+    *Note:* this class is still experimental, does not fully support all functions,
+    and is subject to change.
+
+    Args:
+        - image (str): The image to pull that is used as a base for the Docker container
+        - tag (str, optional): The tag for this container
+        - python_dependencies (list, optional): The list of pip installable python packages
+        that will be installed on build of the Docker container
+        - secrets ([Secret], optional): Iterable list of Secrets that will be used as
+        environment variables in the Docker container
     """
 
     def __init__(
@@ -88,7 +131,7 @@ class ContainerEnvironment(Environment):
             - None
 
         Returns:
-            - `tuple` with (`docker.models.images.Image`, iterable logs)
+            - tuple with (`docker.models.images.Image`, iterable logs)
 
         """
         with tempfile.TemporaryDirectory() as tempdir:
@@ -102,11 +145,11 @@ class ContainerEnvironment(Environment):
             return container
 
     def run(self, command: str = None, tty: bool = False) -> None:
-        """Run the flow in the Docker container
+        """Run a command in the Docker container
 
         Args:
-            - command: An initial command that will be executed on container run
-            - tty (bool): Sets whether the container stays active once it is started
+            - command (str, optional): An initial command that will be executed on container run
+            - tty (bool, optional): Sets whether the container stays active once it is started
 
         Returns:
             - `docker.models.containers.Container` object
@@ -147,7 +190,8 @@ class ContainerEnvironment(Environment):
         image and python_dependencies then writes them to a file called Dockerfile.
 
         Args:
-            - directory: A directory where the Dockerfile will be created
+            - directory (str, optional): A directory where the Dockerfile will be created,
+            if no directory is specified is will be created in the current working directory
 
         Returns:
             - None
@@ -191,25 +235,24 @@ class ContainerEnvironment(Environment):
 class LocalEnvironment(Environment):
     """
     An environment for running a flow locally.
+
+    Args:
+        - encryption_key (str, optional): a Fernet encryption key. One will be generated
+        automatically if None is passed.
     """
 
     def __init__(self, encryption_key: str = None):
-        """
-        Initialize the LocalEnvironment class
-
-        Args:
-            - encryption_key (str): a Fernet encryption key. One will be generated
-                automatically if None is passed.
-        """
         self.encryption_key = encryption_key or Fernet.generate_key().decode()
 
     def build(self, flow: "prefect.Flow") -> bytes:
         """
+        Build the LocalEnvironment
+
         Args:
-            - flow (Flow): A prefect Flow object
+            - flow (Flow): The prefect Flow object
 
         Returns:
-            - bytes: An encrypted and pickled flow registry
+            - bytes: The encrypted and pickled flow registry
         """
         tmp_registration = False
         if flow.id not in prefect.core.registry.REGISTRY:
@@ -223,7 +266,17 @@ class LocalEnvironment(Environment):
         return serialized
 
     def run(self, key: bytes, cli_cmd: str):
+        """
+        Run a command in the LocalEnvironment. This functions by writing a pickled
+        flow to temporary memory and then executing prefect CLI commands against it.
 
+        Args:
+            - key (bytes): The encrypted and pickled flow registry
+            - cli_cmd (str): The prefect CLI command to be run
+
+        Returns:
+            - A subprocess with the command ran against the flow
+        """
         with tempfile.NamedTemporaryFile() as tmp:
             with open(tmp.name, "wb") as f:
                 f.write(key)
