@@ -1,3 +1,9 @@
+"""
+Prefect Executors encapsulate the logic for how Tasks are run.
+
+For example, decisions about multi-threading or whether to use parallelism
+are handled by choice of Executor.
+"""
 from warnings import warn as _warn
 from importlib import import_module as _import_module
 
