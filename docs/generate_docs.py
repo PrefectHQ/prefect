@@ -13,10 +13,12 @@ On a development installation of Prefect, simply run `python generate_docs.py` f
 import inspect
 import os
 import re
+import textwrap
+
 import toolz
+
 import prefect
 from prefect.utilities.bokeh_runner import BokehRunner
-
 
 OUTLINE = [
     {
@@ -381,7 +383,13 @@ if __name__ == "__main__":
             os.makedirs(directory, exist_ok=True)
         with open(fname, "w") as f:
             # PAGE TITLE / SETUP
-            f.write("---\nsidebarDepth: 1\n---\n\n")
+            f.write(textwrap.dedent("""
+                ---
+                sidebarDepth: 1
+                editLink: false
+                ---
+
+                """).lstrip())
             title = page.get("title")
             if title:  # this would be a good place to have assignments
                 f.write(f"# {title}\n---\n")
