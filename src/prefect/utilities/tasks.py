@@ -10,6 +10,34 @@ import prefect
 def group(name: str, append: bool = False) -> Iterator[None]:
     """
     Context manager for setting a task group.
+
+    Args:
+        - name (str): the name of the group
+        - append (bool, optional): boolean specifying whether to append the new
+            group name to any active group name found in context. Defaults to `False`
+
+    Examples:
+    ```python
+    @task
+    def add(x, y):
+        return x + y
+
+    with group("math"), Flow() as f:
+        result = add(1, 5)
+
+    print(result.group) # "math"
+    ```
+
+    ```python
+    @task
+    def add(x, y):
+        return x + y
+
+    with group("math"), group("functions", append=True), Flow() as f:
+        result = add(1, 5)
+
+    print(result.group) # "math/functions"
+    ```
     """
     if append:
         current_group = prefect.context.get("_group", "")
