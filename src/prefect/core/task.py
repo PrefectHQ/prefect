@@ -38,7 +38,7 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     Args:
         - name (str, optional): The name of this task
-        - slug (str, optional): The unique slug for this task
+        - slug (str, optional): The slug for this task, it must be unique withing a given Flow
         - description (str, optional): Descriptive information about this task
         - group (str, optional): Group in which this task belongs to
         - tags ([str], optional): A list of tags for this task
