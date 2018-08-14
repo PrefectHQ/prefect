@@ -1,9 +1,12 @@
+import inspect
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator
 
 from toolz import curry
 
 import prefect
+
+__all__ = ["group", "tags", "as_task", "task"]
 
 
 @contextmanager
@@ -60,8 +63,40 @@ def as_task(x: Any) -> "prefect.core.Task":
         return prefect.tasks.core.constants.Constant(value=x)
 
 
+class FunctionTaskGenerator:
+    def __init__(self, fn: Callable, **kwargs) -> None:
+        self.fn = fn
+        self.task_init_kwargs = kwargs
+
+    def as_task(self) -> "prefect.tasks.core.function.FunctionTask":
+        return prefect.tasks.core.function.FunctionTask(
+            fn=self.fn, **self.task_init_kwargs
+        )
+
+    def __call__(self, *args, **kwargs) -> "prefect.tasks.core.function.FunctionTask":
+        task = self.as_task()
+
+        # if args / kwargs were provided, try to apply them or arise a helpful error.
+        if args or kwargs:
+            try:
+                return task(*args, **kwargs)
+            except ValueError as exc:
+                if "could not infer an active flow context" in str(exc).lower():
+                    raise ValueError(
+                        "This task generator must be called inside a `Flow` context in order "
+                        "to set up dependencies. To access the `Task` class without "
+                        "dependencies, call `task_generator.as_task()`."
+                    )
+                else:
+                    raise
+
+        # this will raise an error if args/kwargs were required but not provided
+        inspect.signature(self.fn).bind()
+        return task
+
+
 @curry
-def task(fn: Callable, **task_init_kwargs):
+def task(fn: Callable, **task_init_kwargs) -> FunctionTaskGenerator:
     """
     A decorator for creating Tasks from functions.
 
@@ -75,11 +110,10 @@ def task(fn: Callable, **task_init_kwargs):
     with Flow() as flow:
         t1 = hello('foo')
         t2 = hello('bar')
+
+        # get task only, without creating edges
+        t3 = hello.as_task()
+
     ```
     """
-
-    def task_generator(*args, **kwargs):
-        task = prefect.tasks.core.function.FunctionTask(fn=fn, **task_init_kwargs)
-        return task(*args, **kwargs)
-
-    return task_generator
+    return FunctionTaskGenerator(fn=fn, **task_init_kwargs)
