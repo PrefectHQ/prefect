@@ -25,10 +25,23 @@ def group(name: str, append: bool = False) -> Iterator[None]:
     def add(x, y):
         return x + y
 
-    with group("math"), Flow() as f:
-        result = add(1, 5)
+    @task
+    def sub(x, y):
+        return x - y
 
-    print(result.group) # "math"
+    @task
+    def say_hi():
+        print('hi')
+
+    with Flow() as f:
+        with group("math"):
+            a = add(1, 5)
+            b = sub(1, 5)
+        with group("io"):
+            c = say_hi()
+
+    print(a.group) # "math"
+    print(c.group) # "io"
     ```
 
     ```python
@@ -36,8 +49,10 @@ def group(name: str, append: bool = False) -> Iterator[None]:
     def add(x, y):
         return x + y
 
-    with group("math"), group("functions", append=True), Flow() as f:
-        result = add(1, 5)
+    with Flow() as f:
+        with group("math"):
+            with group("functions", append=True):
+                result = add(1, 5)
 
     print(result.group) # "math/functions"
     ```
