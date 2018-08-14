@@ -13,6 +13,49 @@ __all__ = ["group", "tags", "as_task", "task"]
 def group(name: str, append: bool = False) -> Iterator[None]:
     """
     Context manager for setting a task group.
+
+    Args:
+        - name (str): the name of the group
+        - append (bool, optional): boolean specifying whether to append the new
+            group name to any active group name found in context. Defaults to `False`
+
+    Examples:
+    ```python
+    @task
+    def add(x, y):
+        return x + y
+
+    @task
+    def sub(x, y):
+        return x - y
+
+    @task
+    def say_hi():
+        print('hi')
+
+    with Flow() as f:
+        with group("math"):
+            a = add(1, 5)
+            b = sub(1, 5)
+        with group("io"):
+            c = say_hi()
+
+    print(a.group) # "math"
+    print(c.group) # "io"
+    ```
+
+    ```python
+    @task
+    def add(x, y):
+        return x + y
+
+    with Flow() as f:
+        with group("math"):
+            with group("functions", append=True):
+                result = add(1, 5)
+
+    print(result.group) # "math/functions"
+    ```
     """
     if append:
         current_group = prefect.context.get("_group", "")
@@ -26,6 +69,23 @@ def group(name: str, append: bool = False) -> Iterator[None]:
 def tags(*tags: str) -> Iterator[None]:
     """
     Context manager for setting task tags.
+
+    Args:
+        - *tags ([str]): a list of tags to apply to the tasks created within
+            the context manager
+
+    Example:
+    ```python
+    @task
+    def add(x, y):
+        return x + y
+
+    with Flow() as f:
+        with tags("math", "function"):
+            result = add(1, 5)
+
+    print(result.tags) # {"function", "math"}
+    ```
     """
     tags_set = set(tags)
     tags_set.update(prefect.context.get("_tags", set()))
@@ -36,6 +96,12 @@ def tags(*tags: str) -> Iterator[None]:
 def as_task(x: Any) -> "prefect.core.Task":
     """
     Wraps a function, collection, or constant with the appropriate Task type.
+
+    Args:
+        -x (object): any Python object to convert to a prefect Task
+
+    Returns:
+        - a prefect Task representing the passed object
     """
     # task objects
     if isinstance(x, prefect.core.Task):
