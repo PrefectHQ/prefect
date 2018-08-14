@@ -22,7 +22,7 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
     The handler attempts to run the method, and if a signal is raised, the appropriate
     state is returned.
 
-    If DONTRUN is raised, the handler does not trap it, but re-raises it.
+    If `DONTRUN` is raised, the handler does not trap it, but re-raises it.
     """
 
     @functools.wraps(method)
@@ -57,6 +57,14 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
 
 
 class FlowRunner:
+    """
+    Args:
+        - flow (Flow): the Flow to be run
+        - task_runner_cls (TaskRunner): Optional. The class used for running
+            individual Tasks. Defaults to [TaskRunner](task_runner.html)
+        - logger_name (str): Optional. The name of the logger to use when
+            logging. Defaults to the name of the class.
+    """
     def __init__(
         self, flow: Flow, task_runner_cls=None, logger_name: str = None
     ) -> None:
@@ -75,7 +83,20 @@ class FlowRunner:
         context: Dict[str, Any] = None,
         task_contexts: Dict[Task, Dict[str, Any]] = None,
     ) -> State:
+        """
+        Args:
+            - state (State):
+            - task_states (dict):
+            - start_tasks (Iterable):
+            - return_tasks (Iterable):
+            - parameters (dict):
+            - executor (Executor):
+            - context (dict):
+            - task_contexts (dict):
 
+        Returns:
+            - State: State representing the final post-run state of the Flow.
+        """
         state = state or Pending()
         context = context or {}
         return_tasks = return_tasks or []
