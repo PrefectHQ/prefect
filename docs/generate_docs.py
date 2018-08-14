@@ -13,8 +13,8 @@ On a development installation of Prefect, simply run `python generate_docs.py` f
 import inspect
 import os
 import re
+import shutil
 import textwrap
-
 import toolz
 
 import prefect
@@ -73,6 +73,7 @@ OUTLINE = [
         "page": "serializers.md",
         "classes": [prefect.serializers.Serializer, prefect.serializers.JSONSerializer],
         "title": "Serializers",
+        "top-level-doc": prefect.serializers,
     },
     {"page": "core/edge.md", "classes": [prefect.core.edge.Edge], "title": "Edge"},
     {"page": "core/flow.md", "classes": [prefect.core.flow.Flow], "title": "Flow"},
@@ -104,6 +105,7 @@ OUTLINE = [
             prefect.engine.cache_validators.partial_inputs_only,
         ],
         "title": "Cache Validators",
+        "top-level-doc": prefect.engine.cache_validators,
     },
     {
         "page": "engine/state.md",
@@ -121,6 +123,7 @@ OUTLINE = [
             prefect.engine.state.Skipped,
         ],
         "title": "State",
+        "top-level-doc": prefect.engine.state,
     },
     {
         "page": "engine/signals.md",
@@ -133,6 +136,7 @@ OUTLINE = [
             prefect.engine.signals.DONTRUN,
         ],
         "title": "Signals",
+        "top-level-doc": prefect.engine.signals,
     },
     {
         "page": "engine/flow_runner.md",
@@ -365,6 +369,7 @@ if __name__ == "__main__":
         "*</sub>".format(short_sha=SHORT_SHA, git_sha=GIT_SHA)
     )
 
+    shutil.rmtree("api", ignore_errors=True)
     os.makedirs("api", exist_ok=True)
     with open("api/README.md", "w+") as f:
         f.write("# API Documentation\n")
