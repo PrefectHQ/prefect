@@ -349,26 +349,27 @@ def format_subheader(obj, level=1, in_table=False):
 
 if __name__ == "__main__":
 
-    GIT_SHA = os.getenv("GIT_SHA", '0000000')
-    SHORT_SHA = GIT_SHA[:7]
     assert (
         os.path.basename(os.getcwd()) == "docs"
     ), "Only run this script from inside the docs/ directory!"
+
+    GIT_SHA = os.getenv("GIT_SHA", "0000000")
+    SHORT_SHA = GIT_SHA[:7]
+    auto_generated_footer = (
+        "<hr>\n\n<sub>*This documentation was auto-generated from "
+        "[{short_sha}](https://github.com/PrefectHQ/prefect/commit/{git_sha})"
+        "*</sub>".format(short_sha=SHORT_SHA, git_sha=GIT_SHA)
+    )
 
     os.makedirs("api", exist_ok=True)
     with open("api/README.md", "w+") as f:
         f.write("# API Documentation\n")
         f.write("(auto-generated)")
 
-    with open("README.md", "w") as f:
         with open("../README.md", "r") as g:
             readme = g.read()
-            f.write(readme[readme.index("# Prefect") :])
-            f.write(
-                "<hr>\n\n<sub>*This documentation was auto-generated from [{short_sha}](https://github.com/PrefectHQ/prefect/commit/{git_sha})*</sub>".format(
-                    short_sha=SHORT_SHA, git_sha=GIT_SHA
-                )
-            )
+            f.write("\n" + readme[readme.index("# Prefect") :])
+            f.write(auto_generated_footer)
 
     for page in OUTLINE:
         # collect what to document
@@ -420,3 +421,4 @@ if __name__ == "__main__":
                 f.write("## Functions\n")
             f.write(create_methods_table(fns, title="top-level functions:"))
             f.write("\n")
+            f.write(auto_generated_footer)
