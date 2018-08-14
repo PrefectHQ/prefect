@@ -332,7 +332,7 @@ def get_source(obj):
 @preprocess
 def format_subheader(obj, level=1, in_table=False):
     class_sig = format_signature(obj)
-    header_attrs = ''
+    header_attrs = ""
     if level == 1 and inspect.isclass(obj):
         header = f"## {obj.__name__}\n\n###"
 
@@ -343,15 +343,11 @@ def format_subheader(obj, level=1, in_table=False):
     else:
         header = "|"
     is_class = (
-        '<span style="font-size:0.85em;">Class: </span>'
-        if inspect.isclass(obj)
-        else ""
+        '<span style="font-size:0.85em;">Class: </span>' if inspect.isclass(obj) else ""
     )
     class_name = f"{create_absolute_path(obj)}.{obj.__qualname__}"
 
-    call_sig = (
-        f" {header} {is_class} ```{class_name}({class_sig})```{get_source(obj)} {header_attrs}\n"
-    )
+    call_sig = f" {header} {is_class} ```{class_name}({class_sig})```{get_source(obj)} {header_attrs}\n"
     return call_sig
 
 
