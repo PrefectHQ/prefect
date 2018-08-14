@@ -58,12 +58,35 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
 
 class FlowRunner:
     """
+    FlowRunners handle the execution of Flows and determine the State of a Flow
+    before, during and after the Flow is run.
+
+    In particular, through the FlowRunner you can specify which tasks should be
+    the first tasks to run, which tasks should be returned after the Flow is finished,
+    and what states each task should be initialized with.
+
     Args:
-        - flow (Flow): the Flow to be run
-        - task_runner_cls (TaskRunner): Optional. The class used for running
+        - flow (Flow): the `Flow` to be run
+        - task_runner_cls (TaskRunner, optional): The class used for running
             individual Tasks. Defaults to [TaskRunner](task_runner.html)
         - logger_name (str): Optional. The name of the logger to use when
             logging. Defaults to the name of the class.
+
+    Note: new FlowRunners are initialized within the call to `Flow.run()` and in general,
+    this is the endpoint through which FlowRunners will be interacted with most frequently.
+
+    Example:
+    ```python
+    @task
+    def say_hello():
+        print('hello')
+
+    with Flow() as f:
+        say_hello()
+
+    fr = FlowRunner(flow=f)
+    flow_state = fr.run()
+    ```
     """
     def __init__(
         self, flow: Flow, task_runner_cls=None, logger_name: str = None
@@ -84,18 +107,29 @@ class FlowRunner:
         task_contexts: Dict[Task, Dict[str, Any]] = None,
     ) -> State:
         """
+        The main endpoint for FlowRunners.  Calling this method will perform all
+        computations contained within the Flow and return the final state of the Flow.
+
         Args:
-            - state (State):
-            - task_states (dict):
-            - start_tasks (Iterable):
-            - return_tasks (Iterable):
-            - parameters (dict):
-            - executor (Executor):
-            - context (dict):
-            - task_contexts (dict):
+            - state (State, optional): starting state for the Flow. Defaults to
+                `Pending`
+            - task_states (dict, optional): dictionary of task states to begin
+                computation with, with keys being Tasks and values their corresponding state
+            - start_tasks ([Task], optional): list of Tasks to begin computation
+                from; if any `start_tasks` have upstream dependencies, their states may need to be provided as well.
+                Defaults to `self.flow.root_tasks()`
+            - return_tasks ([Task], optional): list of Tasks to include in the
+                final returned Flow state. Defaults to `None`
+            - parameters (dict, optional): dictionary of any needed Parameter
+                values, with keys being strings representing Parameter names and values being their corresponding values
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor provided in your prefect configuration
+            - context (dict, optional): prefect.Context to use for execution
+            - task_contexts (dict, optional): dictionary of individual contexts
+                to use for each Task run
 
         Returns:
-            - State: State representing the final post-run state of the Flow.
+            - State: `State` representing the final post-run state of the `Flow`.
         """
         state = state or Pending()
         context = context or {}
