@@ -6,7 +6,7 @@ Prefect provides a number of building blocks that can be combined to create soph
 
 A `Task` represents a discrete action in a Prefect workflow.
 
-A task is like a function: it optionally takes inputs, performs some action, and produces some output. In fact, the easiest way to create a task is simply by decorating a Python function:
+A task is like a function: it optionally takes inputs, performs an action, and produces an optional result. In fact, the easiest way to create a task is simply by decorating a Python function:
 
 ```python
 from prefect import task
@@ -56,6 +56,8 @@ class BadCounterTask(Task):
 
 :::
 
+Tasks usually won't exist as standalone objects; they will be organized or composed into Flows.
+
 ## Flows
 
 A `Flow` is a container for `Tasks`. It represents an entire workflow or application by describing the dependencies between tasks.
@@ -67,7 +69,7 @@ The most convenient way to build a Prefect pipeline is with the **functional API
 For example:
 
 ```python
-from python import task, Task, Flow
+from prefect import task, Task, Flow
 import random
 
 @task
@@ -95,6 +97,8 @@ with Flow():
     task = PlusOneTask() # first create the Task instance
     result = task(10) # then call it with arguments
 ```
+
+Instantiation is when properties including the task's `retry_delay`, `trigger`, and `caching` mechanisms are set. With the functional API, these properties can be passed as arguments to the `@task` decorator.
 
 :::
 
@@ -151,6 +155,10 @@ This will return a `State` object representing the outcome of the run. To receiv
 state = flow.run(return_tasks=[h])
 state.result[h] # the task state of the say_hello task
 ```
+
+:::tip Task classes vs Task instances
+Notice that we passed `return_tasks=[h]`, not `return_tasks=[say_hello]`. This is because `h` represents a specific instance of a task that is contained inside the flow, whereas `say_hello` is just a generator of such tasks. Similarly, with a custom subclass, we would pass the task instance rather than the subclass itself.
+:::
 
 ### Key tasks
 
@@ -241,7 +249,7 @@ Triggers allow tasks to define how their state dependencies work. By default, ev
     - `all_finished`, which is the same as always running
     - `manual_only`, which means Prefect will never run the task automatically
 
-::: tip Using `manual_only` to pause a flow
+::: tip Use `manual_only` to pause a flow
 
 When a flow encounters a `manual_only` trigger mid-run, it simply stops at that point. Tasks with `manual_only` triggers will never be run automatically unless they are one of the `start_tasks` of a run - meaning the user explicitly asked to run that task. Therefore, this trigger can be used to introduce pause/resume functionality in a flow.
 
