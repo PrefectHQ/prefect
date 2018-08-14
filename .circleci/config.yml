@@ -52,7 +52,9 @@ jobs:
 
       - run:
           name: Install VuePress and dependencies
-          command: yarn install
+          command: |
+            yarn global add vuepress
+            yarn install
 
       - run:
           name: VuePress build
