@@ -43,6 +43,29 @@ class Flow(Serializable):
     The Flow class is used as the representation of a collection of dependent Tasks.
     Flows track Task dependencies, parameters and provide the main API for constructing and managing workflows.
 
+    Initializing Flow example:
+    ```python
+    class MyTask(Task):
+        def run(self):
+            return "hello"
+
+    task_1 = MyTask()
+    flow = Flow(name="my_flow", tasks=[task_1])
+
+    flow.run()
+    ```
+
+    Initializing Flow as context manager example:
+    ```python
+    @task
+    def my_task():
+        return "hello"
+
+    with Flow("my_flow") as flow:
+        task_1 = my_task()
+
+    flow.run()
+    ```
 
     Args:
         - name (str, optional): The name of the flow
