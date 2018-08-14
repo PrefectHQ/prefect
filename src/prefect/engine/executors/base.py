@@ -12,6 +12,7 @@ class Executor(Serializable):
     """
     Base Executor class which all other executors inherit from.
     """
+
     def __init__(self):
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
 

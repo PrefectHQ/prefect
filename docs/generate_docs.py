@@ -150,7 +150,7 @@ OUTLINE = [
             prefect.engine.executors.local.LocalExecutor,
         ],
         "title": "Executors",
-        "top-level-doc": prefect.engine.executors
+        "top-level-doc": prefect.engine.executors,
     },
     {
         "page": "tasks/control_flow.md",
@@ -219,8 +219,8 @@ def format_lists(doc):
         r"(Args\:|Returns\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL
     )  # find formatted lists
     for section, _, items, _ in lists:
-        if section.startswith('Returns:') and ":" not in items:
-            return doc.replace(items, '<ul><li>' + items.lstrip('- ') + '</li></ul>', 1)
+        if section.startswith("Returns:") and ":" not in items:
+            return doc.replace(items, "<ul><li>" + items.lstrip("- ") + "</li></ul>", 1)
         args = re.split(r"-\s+(.*)\:", items)  # collect all list items
         if not args:
             continue
