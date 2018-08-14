@@ -1,3 +1,19 @@
+"""
+State is the main currency in the Prefect platform. It is used to represent the current
+status of a task.
+
+This module contains is a series of objects, all inheriting from the base State class.
+
+Every task is initialized with the `Pending` state meaning that it is waiting for
+execution. The other types of `Pending` states are `CachedState`, `Scheduled`, and
+`Retrying`.
+
+When a task is running it will enter a `Running` state which means that the task is
+currently being executed.
+
+The four types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, and
+`Skipped`.
+"""
 import datetime
 from typing import Any, Dict, Iterable, List, Union
 
@@ -11,8 +27,8 @@ class State(Serializable):
     Create a new State object.
 
     Args:
-        - `result` (`Any`, optional): Defaults to `None`. A data payload for the state.
-        - `message` (`str` or `Exception`, optional): Defaults to `None`. A message about the
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
     """
 
@@ -49,18 +65,43 @@ class State(Serializable):
         return self._timestamp
 
     def is_pending(self) -> bool:
+        """Checks if the object is currently in a pending state
+
+        Returns:
+            - True (bool) if the state is Pending, False otherwise
+        """
         return isinstance(self, Pending)
 
     def is_running(self) -> bool:
+        """Checks if the object is currently in a running state
+
+        Returns:
+            - True (bool) if the state is Running, False otherwise
+        """
         return isinstance(self, Running)
 
     def is_finished(self) -> bool:
+        """Checks if the object is currently in a finished state
+
+        Returns:
+            - True (bool) if the state is Finished, False otherwise
+        """
         return isinstance(self, Finished)
 
     def is_successful(self) -> bool:
+        """Checks if the object is currently in a successful state
+
+        Returns:
+            - True (bool) if the state is Success, False otherwise
+        """
         return isinstance(self, Success)
 
     def is_failed(self) -> bool:
+        """Checks if the object is currently in a failed state
+
+        Returns:
+            - True (bool) if the state is Failed, False otherwise
+        """
         return isinstance(self, Failed)
 
 
@@ -74,10 +115,10 @@ class Pending(State):
     Base Pending state; default state for new tasks.
 
     Args:
-        - `result` (`Any`, optional): Defaults to `None`. A data payload for the state.
-        - `message` (`str` or `Exception`, optional): Defaults to `None`. A message about the
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - `cached_inputs` (`dict`): Defaults to `None`. A dictionary of input
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
         keys to values.  Used / set if the Task requires Retries.
     """
 
@@ -87,12 +128,6 @@ class Pending(State):
         message: MessageType = None,
         cached_inputs: Dict[str, Any] = None,
     ) -> None:
-        """
-        Create a new State object.
-            result (Any, optional): Defaults to None. A data payload for the state.
-            message (str or Exception, optional): Defaults to None. A message about the
-                state, which could be an Exception (or Signal) that caused it.
-        """
         super().__init__(result=result, message=message)
         self.cached_inputs = cached_inputs
 
@@ -102,15 +137,15 @@ class CachedState(Pending):
     CachedState, which represents a Task whose outputs have been cached.
 
     Args:
-        - `result` (`Any`, optional): Defaults to `None`. A data payload for the state.
-        - `message` (`str` or `Exception`, optional): Defaults to `None`. A message about the
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - `cached_inputs` (`dict`): Defaults to `None`. A dictionary of input
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
         keys to values.  Used / set if the Task requires Retries.
-        - `cached_result` (`Any`): Defaults to `None`. Cached result from a
+        - cached_result (Any): Defaults to `None`. Cached result from a
         successful Task run.
-        - `cached_parameters` (`dict`): Defaults to `None`
-        - `cached_result_expiration` (`datetime`): Defaults to `None`
+        - cached_parameters (dict): Defaults to `None`
+        - cached_result_expiration (datetime): Defaults to `None`
     """
 
     def __init__(
@@ -152,7 +187,7 @@ class Retrying(Scheduled):
 
 
 class Running(State):
-    """Base running state"""
+    """Base running state. Indicates that a task is currently running."""
 
 
 # -------------------------------------------------------------------
@@ -161,7 +196,7 @@ class Running(State):
 
 
 class Finished(State):
-    """Base finished state"""
+    """Base finished state. Indicates when a class has reached some for of completion."""
 
 
 class Success(Finished):
