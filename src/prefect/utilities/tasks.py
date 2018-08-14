@@ -80,8 +80,9 @@ def tags(*tags: str) -> Iterator[None]:
     def add(x, y):
         return x + y
 
-    with tags("math", "function"), Flow() as f:
-        result = add(1, 5)
+    with Flow() as f:
+        with tags("math", "function"):
+            result = add(1, 5)
 
     print(result.tags) # {"function", "math"}
     ```
