@@ -30,22 +30,24 @@ class TestTaskDecorator:
             fn(1)
         assert "task generator must be called inside a `Flow` context" in str(exc.value)
 
-    def test_task_decorator_with_no_args_can_be_called_outside_flow_context(self):
+    def test_task_decorator_with_no_args_must_be_called_inside_flow_context(self):
         @tasks.task
         def fn():
             return 1
 
-        assert isinstance(fn(), Task)
+        with pytest.raises(ValueError):
+            fn()
 
         with Flow():
             assert isinstance(fn(), Task)
 
-    def test_task_decorator_with_default_args_can_be_called_outside_flow_context(self):
+    def test_task_decorator_with_default_args_must_be_called_inside_flow_context(self):
         @tasks.task
         def fn(x=1):
             return x
 
-        assert isinstance(fn(), Task)
+        with pytest.raises(ValueError):
+            fn()
 
         with Flow():
             assert isinstance(fn(), Task)
