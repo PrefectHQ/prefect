@@ -13,6 +13,6 @@
         "url": "git+https://gitlab.com/prefect/prefect.git"
     },
     "devDependencies": {
-        "vuepress": "^0.10.1"
+        "vuepress": "^0.14.1"
     }
 }
