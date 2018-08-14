@@ -7,7 +7,15 @@ def is_valid_identifier(string: str) -> bool:
     Determines whether a string is a valid Python identifier (meaning it can
     be used as a variable name or keyword argument).
 
+    Args:
+        - string (str): string to be validated
+
+    Returns:
+        - bool: boolean specifying whether the provided string is a valid Python
+            identifier
+
     Example:
+        ```python
         >>> is_valid_identifier('hi5')
         True
         >>> is_valid_identifier('5hi')
@@ -16,6 +24,7 @@ def is_valid_identifier(string: str) -> bool:
         False
         >>> is_valid_identifier('hi.5')
         False
+        ```
     """
     return string.isidentifier() and not keyword.iskeyword(string)
 
@@ -24,7 +33,7 @@ class Edge:
     """
     Edges represent connections between Tasks.
 
-    At a minimum, edges link an upstream_task and a downstream_task
+    At a minimum, edges link an `upstream_task` and a `downstream_task`
     indicating that the downstream task shouldn't run until the upstream
     task is complete.
 
@@ -32,9 +41,9 @@ class Edge:
     are passed to the downstream task.
 
     Args:
-        - upstream_task (Task): the task that must run before the downstream_task
+        - upstream_task (Task): the task that must run before the `downstream_task`
         - downstream_task (Task): the task that will be run after the
-            upstream_task. The upstream task state is passed to the
+            `upstream_task`. The upstream task state is passed to the
             downstream task's trigger function to determine whether the
             downstream task should run.
         - key (str): Optional. Passing a key indicates
