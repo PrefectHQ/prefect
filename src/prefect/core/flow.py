@@ -458,7 +458,7 @@ class Flow(Serializable):
         Args:
             - task (Task): The task that we want to find upstream tasks of
 
-        Return:
+        Returns:
             - set of Task objects which are upstream of `task`
         """
         return set(e.upstream_task for e in self.edges_to(task))
@@ -470,7 +470,7 @@ class Flow(Serializable):
         Args:
             - task (Task): The task that we want to find downstream tasks from
 
-        Return:
+        Returns:
             - set of Task objects which are downstream of `task`
         """
         return set(e.downstream_task for e in self.edges_from(task))
