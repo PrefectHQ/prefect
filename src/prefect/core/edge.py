@@ -52,6 +52,26 @@ class Edge:
 
     The key indicates that the result of the upstream task should be passed
     to the downstream task under the key.
+
+    In general, Edges are created and handled in the background by the [Flow](flow.html)
+    class and will not be directly instantiated by users.
+
+    Example:
+        ```python
+        from prefect import *
+        from prefect.core import Edge
+
+        class Add(Task):
+            def run(self, x):
+                return x + 1
+
+        class Number(Task):
+            def run(self):
+                return 2
+
+        # passes the result of the Number() task to Add() as 'x'
+        edge = Edge(Number(), Add(), key='x')
+        ```
     """
 
     def __init__(
