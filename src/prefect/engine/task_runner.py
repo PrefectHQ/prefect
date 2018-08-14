@@ -76,8 +76,9 @@ class TaskRunner:
     TaskRunner class
 
     Args:
-        - `task` (`Task`)
-        - `logger_name` (`str`)
+        - task (Task): the Task to be run / executed
+        - logger_name (str): Optional. The name of the logger to use when
+            logging. Defaults to the name of the class.
     """
 
     def __init__(self, task: Task, logger_name: str = None) -> None:
@@ -92,6 +93,11 @@ class TaskRunner:
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
     ) -> State:
+        """
+        Args:
+            - state (State):
+            - upstream_states
+        """
 
         state = state or Pending()
         context = context or {}
