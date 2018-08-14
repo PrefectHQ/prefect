@@ -35,25 +35,48 @@ class SignatureValidator(type):
 
 class Task(Serializable, metaclass=SignatureValidator):
     """
-    Task class
+    The Task class which is used as the full representation of a unit of work.
+
+    This Task class can be used in two ways, either directly as a first class object where it must
+    be inherited from or as a decorator to functions. If this class is not used as a decorator
+    it must be in a class that inherits from it with the run method implemented.
+
+    Inheritance example:
+    ```python
+    class AddTask(Task):
+        def run(self, x, y):
+            return x + y
+    ```
+
+    *Note:* The implemented `run` method cannot have `*args` in its signature.
+
+    Decorator example:
+    ```python
+    @task
+    def add(x, y):
+        return x + y
+    ```
 
     Args:
-        - name (str):
-        - slug (str):
-        - description (str):
-        - group (str):
-        - tags ([str]):
-        - max_retries (int):
-        - retry_delay (timedelta):
-        - timeout (timedelta):
-        - trigger (callable): a function that determines whether the task should run, based
+        - name (str, optional): The name of this task
+        - slug (str, optional): The slug for this task, it must be unique withing a given Flow
+        - description (str, optional): Descriptive information about this task
+        - group (str, optional): Group in which this task belongs to
+        - tags ([str], optional): A list of tags for this task
+        - max_retries (int, optional): The maximum amount of times this task can be retried
+        - retry_delay (timedelta, optional): The amount of time to wait until task is retried
+        - timeout (timedelta, optional): The amount of time to wait while running before a timeout occurs
+        - trigger (callable, optional): a function that determines whether the task should run, based
                 on the states of any upstream tasks.
-        - skip_on_upstream_skip (bool): if True and any upstream tasks skipped, this task
+        - skip_on_upstream_skip (bool, optional): if True and any upstream tasks skipped, this task
                 will automatically be skipped as well. By default, this prevents tasks from
                 attempting to use either state or data from tasks that didn't run. if False,
                 the task's trigger will be called as normal; skips are considered successes.
-        - cache_for (timedelta):
-        - cache_validator:
+        - cache_for (timedelta, optional): The amount of time to maintain cache
+        - cache_validator (Callable, optional): Validator telling what to cache
+
+    Raises:
+        - TypeError if `tags` is of type `str`
     """
 
     def __init__(
@@ -108,6 +131,12 @@ class Task(Serializable, metaclass=SignatureValidator):
     # Run  --------------------------------------------------------------------
 
     def inputs(self) -> Tuple[str, ...]:
+        """
+        Get the inputs for this task
+
+        Returns:
+            - tuple of strings representing the inputs for this task
+        """
         return tuple(inspect.signature(self.run).parameters.keys())
 
     def run(self):  # type: ignore
@@ -165,7 +194,24 @@ class Task(Serializable, metaclass=SignatureValidator):
         keyword_tasks: Dict[str, object] = None,
         validate: bool = True,
     ) -> None:
+        """
+        Set dependencies for a flow either specified or in the current context using this task
 
+        Args:
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+            flow in context if no flow is specified
+            - upstream_tasks ([object], optional): A list of upstream tasks for this task
+            - downstream_tasks ([object], optional): A list of downtream tasks for this task
+            - keyword_tasks ({str, object}}, optional): The results of these tasks will be provided
+            to the task under the specified keyword arguments.
+            - validate (bool, optional): Whether or not to check the validity of the flow
+
+        Returns:
+            - None
+
+        Raises:
+            - ValueError if no flow is specified and no flow can be found in the current context
+        """
         flow = flow or prefect.context.get("_flow", None)
         if not flow:
             raise ValueError(
@@ -183,6 +229,12 @@ class Task(Serializable, metaclass=SignatureValidator):
     # Serialization ------------------------------------------------------------
 
     def serialize(self) -> Dict[str, Any]:
+        """
+        Creates a serialized representation of this task
+
+        Returns:
+            - dict representing this task
+        """
         return dict(
             name=self.name,
             slug=self.slug,
@@ -210,9 +262,9 @@ class Parameter(Task):
 
     Args:
         - name (str): the Parameter name.
-        - required (bool): If True, the Parameter is required and the default
+        - required (bool, optional): If True, the Parameter is required and the default
             value is ignored.
-        - default (any): A default value for the parameter. If the default
+        - default (any, optional): A default value for the parameter. If the default
             is not None, the Parameter will not be required.
     """
 
