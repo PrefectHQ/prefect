@@ -75,24 +75,17 @@ class FunctionTaskGenerator:
 
     def __call__(self, *args, **kwargs) -> "prefect.tasks.core.function.FunctionTask":
         task = self.as_task()
-
-        # if args / kwargs were provided, try to apply them or arise a helpful error.
-        if args or kwargs:
-            try:
-                return task(*args, **kwargs)
-            except ValueError as exc:
-                if "could not infer an active flow context" in str(exc).lower():
-                    raise ValueError(
-                        "This task generator must be called inside a `Flow` context in order "
-                        "to set up dependencies. To access the `Task` class without "
-                        "dependencies, call `task_generator.as_task()`."
-                    )
-                else:
-                    raise
-
-        # this will raise an error if args/kwargs were required but not provided
-        inspect.signature(self.fn).bind()
-        return task
+        try:
+            return task(*args, **kwargs)
+        except ValueError as exc:
+            if "could not infer an active flow context" in str(exc).lower():
+                raise ValueError(
+                    "This task generator must be called inside a `Flow` context in order "
+                    "to set up dependencies. To access the `Task` class without "
+                    "dependencies, call `task_generator.as_task()`."
+                )
+            else:
+                raise
 
 
 @curry
@@ -143,9 +136,6 @@ def task(fn: Callable, **task_init_kwargs) -> FunctionTaskGenerator:
     # both tasks can be accessed imperatively, without a flow context
     fn_without_args.as_task()
     fn_with_args.as_task()
-
-    # the function without args can be called functionally without a flow context
-    fn_without_args()
 
     ```
     """
