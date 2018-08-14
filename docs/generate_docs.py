@@ -339,7 +339,7 @@ def format_subheader(obj, level=1, in_table=False):
     else:
         header = "|"
     is_class = (
-        '<span style="background-color:rgba(27,31,35,0.05);font-size:0.85em;">class</span>'
+        '<span style="font-size:0.85em;">Class:</span>'
         if inspect.isclass(obj)
         else ""
     )
