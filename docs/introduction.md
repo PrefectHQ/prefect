@@ -34,4 +34,4 @@ pip install .
 ```
 
 ### Use Prefect
-Check out our tutorials, examples, or API documentation!
+Check out our tutorials, examples, or [API documentation](api/)!
