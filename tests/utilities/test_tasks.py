@@ -1,23 +1,70 @@
+import pytest
 from prefect.core import Flow, Task
 from prefect.utilities import tasks
 
 
-def test_task_decorator_can_be_used_without_calling():
-    @tasks.task
-    def fun(x, y):
-        return x + y
+class TestTaskDecorator:
+    def test_task_decorator_can_be_used_without_calling(self):
+        @tasks.task
+        def fun(x, y):
+            return x + y
 
+    def test_task_decorator_generates_new_tasks_upon_subsequent_calls(self):
+        @tasks.task
+        def fun(x, y):
+            return x + y
 
-def test_task_decorator_generates_new_tasks_upon_subsequent_calls():
-    @tasks.task
-    def fun(x, y):
-        return x + y
+        with Flow():
+            res1 = fun(1, 2)
+            res2 = fun(1, 2)
+        assert isinstance(res1, Task)
+        assert isinstance(res2, Task)
+        assert res1 is not res2
 
-    with Flow():
-        res1 = fun(1, 2)
-        res2 = fun(1, 2)
-    assert isinstance(res1, Task)
-    assert res1 is not res2
+    def test_task_decorator_with_args_must_be_called_in_flow_context(self):
+        @tasks.task
+        def fn(x):
+            return x
+
+        with pytest.raises(ValueError) as exc:
+            fn(1)
+        assert "task generator must be called inside a `Flow` context" in str(exc.value)
+
+    def test_task_decorator_with_no_args_can_be_called_outside_flow_context(self):
+        @tasks.task
+        def fn():
+            return 1
+
+        assert isinstance(fn(), Task)
+
+        with Flow():
+            assert isinstance(fn(), Task)
+
+    def test_task_decorator_with_default_args_can_be_called_outside_flow_context(self):
+        @tasks.task
+        def fn(x=1):
+            return x
+
+        assert isinstance(fn(), Task)
+
+        with Flow():
+            assert isinstance(fn(), Task)
+
+    def test_task_decorator_with_required_args_must_be_called_with_args(self):
+        @tasks.task
+        def fn(x):
+            return x
+
+        with Flow():
+            with pytest.raises(TypeError):
+                fn()
+
+    def test_task_decorator_as_task_can_be_called_outside_flow_context(self):
+        @tasks.task
+        def fn(x):
+            return x
+
+        assert isinstance(fn.as_task(), Task)
 
 
 def test_context_manager_for_setting_group():
