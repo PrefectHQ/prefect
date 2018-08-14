@@ -88,6 +88,7 @@ class FlowRunner:
     flow_state = fr.run()
     ```
     """
+
     def __init__(
         self, flow: Flow, task_runner_cls=None, logger_name: str = None
     ) -> None:
