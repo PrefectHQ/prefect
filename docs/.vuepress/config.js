@@ -43,5 +43,10 @@ module.exports = {
             ],
             '/': ['', 'configuration', 'concepts', 'utilities'],
         }
+    },
+    markdown: {
+        config: md => {
+            md.use(require('markdown-it-attrs'))
+        }
     }
 }

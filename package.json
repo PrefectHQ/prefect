@@ -2,7 +2,10 @@
     "name": "prefect",
     "description": "Prefect is a brand-new workflow manager.",
     "version": "0.3.0",
-    "dependencies": {},
+    "dependencies": {
+        "markdown-it-attrs": "^2.3.1",
+        "vuepress": "^0.14.1"
+    },
     "scripts": {
         "docs:dev": "cd docs && python generate_docs.py && vuepress dev .",
         "docs:build": "cd docs && python generate_docs.py && vuepress build . -d deploy/dist",
@@ -12,7 +15,5 @@
         "type": "git",
         "url": "git+https://gitlab.com/prefect/prefect.git"
     },
-    "devDependencies": {
-        "vuepress": "^0.14.1"
-    }
+    "devDependencies": {}
 }
