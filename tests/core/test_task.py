@@ -85,6 +85,10 @@ class TestCreateTask:
         t3 = Task(cache_for=timedelta(days=1), cache_validator=all_inputs)
         assert t3.cache_validator is all_inputs
 
+    def test_bad_cache_kwarg_combo(self):
+        with pytest.warns(UserWarning, match=".*Task will not be cached.*"):
+            Task(cache_validator=all_inputs)
+
 
 def test_groups():
     t1 = Task()
