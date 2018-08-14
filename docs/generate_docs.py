@@ -317,7 +317,8 @@ def create_absolute_path(obj):
 
 @preprocess
 def get_source(obj):
-    base_url = "https://github.com/PrefectHQ/prefect/tree/master/src/prefect/"
+    commit = os.getenv('GIT_SHA', 'master')
+    base_url = "https://github.com/PrefectHQ/prefect/blob/{}/src/prefect/".format(commit)
     dir_struct = inspect.getfile(obj).split("/")
     begins_at = dir_struct.index("src") + 2
     line_no = inspect.getsourcelines(obj)[1]
