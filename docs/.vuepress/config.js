@@ -1,6 +1,6 @@
 module.exports = {
-    title: 'Prefect',
-    description: 'Practice Makes Prefect',
+    title: 'Prefect (Preview)',
+    description: "Don't Panic.",
     themeConfig: {
         repo: 'prefecthq/prefect/tree/master/docs',
         editLinks: true,
