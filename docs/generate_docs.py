@@ -317,8 +317,10 @@ def create_absolute_path(obj):
 
 @preprocess
 def get_source(obj):
-    commit = os.getenv('GIT_SHA', 'master')
-    base_url = "https://github.com/PrefectHQ/prefect/blob/{}/src/prefect/".format(commit)
+    commit = os.getenv("GIT_SHA", "master")
+    base_url = "https://github.com/PrefectHQ/prefect/blob/{}/src/prefect/".format(
+        commit
+    )
     dir_struct = inspect.getfile(obj).split("/")
     begins_at = dir_struct.index("src") + 2
     line_no = inspect.getsourcelines(obj)[1]
@@ -365,7 +367,12 @@ if __name__ == "__main__":
     os.makedirs("api", exist_ok=True)
     with open("api/README.md", "w+") as f:
         f.write("# API Documentation\n")
-        f.write("(auto-generated)")
+        f.write(
+            "*This documentation was auto-generated from "
+            "[{short_sha}](https://github.com/PrefectHQ/prefect/commit/{git_sha})*".format(
+                short_sha=SHORT_SHA, git_sha=GIT_SHA
+            )
+        )
 
         with open("../README.md", "r") as g:
             readme = g.read()
@@ -385,13 +392,17 @@ if __name__ == "__main__":
             os.makedirs(directory, exist_ok=True)
         with open(fname, "w") as f:
             # PAGE TITLE / SETUP
-            f.write(textwrap.dedent("""
-                ---
-                sidebarDepth: 1
-                editLink: false
-                ---
+            f.write(
+                textwrap.dedent(
+                    """
+                    ---
+                    sidebarDepth: 1
+                    editLink: false
+                    ---
 
-                """).lstrip())
+                    """
+                ).lstrip()
+            )
             title = page.get("title")
             if title:  # this would be a good place to have assignments
                 f.write(f"# {title}\n---\n")
