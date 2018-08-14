@@ -28,7 +28,7 @@ jobs:
       - run: *setup_gcloud_sdk
       - run: *install_yarn
       - run:
-          name: vuepress deploy
+          name: VuePress deploy
           command: gcloud app deploy /workspace/deploy --quiet --project=prefect-docs
 
   docs_build:
@@ -38,7 +38,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install prefect
+          name: Install Prefect
           command: pip install -e ".[dev]"
 
       - run:
@@ -48,14 +48,12 @@ jobs:
             export GIT_SHA=$CIRCLE_SHA1
             cd docs/ && python generate_docs.py
 
-      - run: *install_yarn
+      - run:
+          name: Install VuePress and dependencies
+          command: npm install
 
       - run:
-          name: Install vuepress
-          command: yarn global add vuepress@0.12.0
-
-      - run:
-          name: vuepress build
+          name: VuePress build
           command: cd docs/ && vuepress build . -d deploy/dist && cp -R deploy/* /workspace/deploy
 
       - persist_to_workspace:
