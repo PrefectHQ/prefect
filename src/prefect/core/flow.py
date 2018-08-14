@@ -44,15 +44,14 @@ class Flow(Serializable):
 
     Args:
         - name (str, optional): The name of the flow
-        - version (str, optional): The current flow version
-        - project (str, optional): A unique identifier (UUID) of a project that this
-        flow corresponds to
-        - schedule (prefect.schedules.Schedule, optional): A timed schedule used to
+        - version (str, optional): The flow's version
+        - project (str, optional): A flow's project
+        - schedule (prefect.schedules.Schedule, optional): A schedule used to
         represent when a flow should run
         - description (str, optional): Descriptive information about the flow
         - environment (prefect.environments.Environment, optional): The environment
         type that the flow can be run in
-        - tasks ([Task], optional): A list of tasks contained in the flow
+        - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks
         - key_tasks ([Task], optional): A list of tasks which determine the final
         state of a flow
@@ -148,7 +147,7 @@ class Flow(Serializable):
 
     def key(self) -> dict:
         """
-        Get a unique key identifying the flow
+        Get a human-readable key identifying the flow
 
         Returns:
             - dictionary with the keys set as the project identifier,
@@ -174,19 +173,19 @@ class Flow(Serializable):
 
     def root_tasks(self) -> Set[Task]:
         """
-        Get the tasks in the flow which have no upstream dependencies
+        Get the tasks in the flow that have no upstream dependencies
 
         Returns:
-            - set of Task objects which have no upstream dependencies
+            - set of Task objects that have no upstream dependencies
         """
         return set(t for t in self.tasks if not self.edges_to(t))
 
     def terminal_tasks(self) -> Set[Task]:
         """
-        Get the tasks in the flow which have no downstream dependencies
+        Get the tasks in the flow that have no downstream dependencies
 
         Returns:
-            - set of Task objects which have no downstream dependencies
+            - set of Task objects that have no downstream dependencies
         """
         return set(t for t in self.tasks if not self.edges_from(t))
 
