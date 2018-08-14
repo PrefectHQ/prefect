@@ -13,6 +13,7 @@ On a development installation of Prefect, simply run `python generate_docs.py` f
 import inspect
 import os
 import re
+import shutil
 import toolz
 import prefect
 from prefect.utilities.bokeh_runner import BokehRunner
@@ -103,6 +104,7 @@ OUTLINE = [
             prefect.engine.cache_validators.partial_inputs_only,
         ],
         "title": "Cache Validators",
+        "top-level-doc": prefect.engine.cache_validators,
     },
     {
         "page": "engine/state.md",
@@ -353,6 +355,7 @@ if __name__ == "__main__":
         os.path.basename(os.getcwd()) == "docs"
     ), "Only run this script from inside the docs/ directory!"
 
+    shutil.rmtree("api", ignore_errors=True)
     os.makedirs("api", exist_ok=True)
     with open("api/README.md", "w+") as f:
         f.write("# API Documentation\n")

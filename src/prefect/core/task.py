@@ -1,4 +1,5 @@
 import inspect
+import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
 
@@ -87,6 +88,11 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         self.trigger = trigger or prefect.triggers.all_successful
         self.skip_on_upstream_skip = skip_on_upstream_skip
+
+        if cache_for is None and cache_validator is not None:
+            warnings.warn(
+                "cache_validator provided without specifying cache expiration (cache_for); this Task will not be cached."
+            )
 
         self.cache_for = cache_for
         default_validator = (
