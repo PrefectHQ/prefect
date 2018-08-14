@@ -206,7 +206,11 @@ class TestTaskRunner_get_pre_run_state:
         assert isinstance(state, Running)
 
     def test_returns_running_if_cached_state_with_expired_cache(self):
-        runner = TaskRunner(SuccessTask(cache_validator=duration_only))
+        runner = TaskRunner(
+            SuccessTask(
+                cache_validator=duration_only, cache_for=datetime.timedelta(days=1)
+            )
+        )
         expiration = datetime.datetime.utcnow() - datetime.timedelta(days=1)
         state = runner.get_pre_run_state(
             state=CachedState(cached_result=4, cached_result_expiration=expiration)
@@ -224,7 +228,9 @@ class TestTaskRunner_get_pre_run_state:
         ],
     )
     def test_returns_successful_if_cached_state_is_validated(self, validator):
-        runner = TaskRunner(SuccessTask(cache_validator=validator))
+        runner = TaskRunner(
+            SuccessTask(cache_validator=validator, cache_for=datetime.timedelta(days=1))
+        )
         expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)
         inputs = dict(x=2, y=1)
         params = dict(p="p", q=99)
@@ -242,7 +248,11 @@ class TestTaskRunner_get_pre_run_state:
         assert state.result == 4
 
     def test_old_cached_state_is_still_returned_when_cache_is_used(self):
-        runner = TaskRunner(SuccessTask(cache_validator=duration_only))
+        runner = TaskRunner(
+            SuccessTask(
+                cache_validator=duration_only, cache_for=datetime.timedelta(days=1)
+            )
+        )
         expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)
         cached_state = CachedState(cached_result=4, cached_result_expiration=expiration)
         state = runner.get_pre_run_state(state=cached_state)
@@ -262,7 +272,9 @@ class TestTaskRunner_get_pre_run_state:
         ],
     )
     def test_returns_running_if_cached_state_is_invalidated(self, validator):
-        runner = TaskRunner(SuccessTask(cache_validator=validator))
+        runner = TaskRunner(
+            SuccessTask(cache_validator=validator, cache_for=datetime.timedelta(days=1))
+        )
         expiration = datetime.datetime.utcnow() - datetime.timedelta(days=1)
         state = runner.get_pre_run_state(
             state=CachedState(
