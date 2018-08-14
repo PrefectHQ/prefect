@@ -30,6 +30,7 @@ OUTLINE = [
             prefect.environments.LocalEnvironment,
         ],
         "title": "Environments",
+        "top-level-doc": prefect.environments,
     },
     {
         "page": "triggers.md",
