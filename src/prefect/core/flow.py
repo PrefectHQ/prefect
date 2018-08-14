@@ -40,17 +40,19 @@ ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bo
 
 class Flow(Serializable):
     """
-    The Flow class which is used as the full representation of a flow.
+    The Flow class is used as the representation of a collection of dependent Tasks.
+    Flows track Task dependencies, parameters and provide the main API for constructing and managing workflows.
+
 
     Args:
         - name (str, optional): The name of the flow
         - version (str, optional): The flow's version
-        - project (str, optional): A flow's project
+        - project (str, optional): The flow's project
         - schedule (prefect.schedules.Schedule, optional): A schedule used to
-        represent when a flow should run
+        represent when the flow should run
         - description (str, optional): Descriptive information about the flow
         - environment (prefect.environments.Environment, optional): The environment
-        type that the flow can be run in
+        type that the flow should be run in
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks
         - key_tasks ([Task], optional): A list of tasks which determine the final
@@ -197,7 +199,7 @@ class Flow(Serializable):
             - only_required (bool, optional): Whether or not to only get required parameters
 
         Returns:
-            - dict with format key = task name and value = task which is a Parameter
+            - dict with format {task name: task} which is a Parameter
         """
         return {
             t.name: {"required": t.required, "default": t.default}
@@ -251,7 +253,7 @@ class Flow(Serializable):
     def add_task(self, task: Task) -> Task:
         """
         Add a task to the flow if the task does not already exist. The tasks are
-        uniquely identified by the `slug`.
+        uniquely identified by their `slug`.
 
         Args:
             - task (Task): the new Task to be added to the flow
@@ -364,7 +366,7 @@ class Flow(Serializable):
 
     def update(self, flow: "Flow", validate: bool = None) -> None:
         """
-        Take all tasks and edges in one flow and add it to this flow
+        Take all tasks and edges in another flow and add it to this flow
 
         Args:
             - flow (Flow): A flow which is used to update this flow
@@ -442,7 +444,7 @@ class Flow(Serializable):
             leading from that task
 
         Raises:
-            - ValueError is `task` is not found in this flow
+            - ValueError if `task` is not found in this flow
         """
         if task not in self.tasks:
             raise ValueError(
