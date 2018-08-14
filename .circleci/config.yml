@@ -48,6 +48,8 @@ jobs:
             export GIT_SHA=$CIRCLE_SHA1
             cd docs/ && python generate_docs.py
 
+      - run: *install_yarn
+
       - run:
           name: Install VuePress and dependencies
           command: yarn install
