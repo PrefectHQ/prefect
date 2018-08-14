@@ -5,11 +5,13 @@ Tasks can import prefect.context and access attributes that will be overwritten
 when the task is run.
 
 Example:
+
+    ```python
     import prefect.context
     with prefect.context(a=1, b=2):
         print(prefect.context.a) # 1
     print (prefect.context.a) # undefined
-
+    ```
 """
 
 import contextlib
