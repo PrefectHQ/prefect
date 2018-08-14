@@ -70,8 +70,8 @@ def function(x: int, y: float, z: str = None):
         - y (float): additional info about `y`
         - z (str, optional): defaults to `None`
 
-    Additional information if desired; note that backticks for code formatting 
-    is encouraged within argument descriptions, but should *not* be used in 
+    Additional information if desired; note that backticks for code formatting
+    is encouraged within argument descriptions, but should *not* be used in
     the list itself.  Also, all other documentation can contain markdown.
 
     Returns:
