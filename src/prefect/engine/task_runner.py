@@ -73,11 +73,16 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
 
 class TaskRunner:
     """
-    TaskRunner class
+    TaskRunners handle the execution of Tasks and determine the State of a Task
+    before, during and after the Task is run.
+
+    In particular, through the TaskRunner you can specify the states of any upstream dependencies,
+    any inputs required for this Task to run, and what state the Task should be initialized with.
 
     Args:
-        - `task` (`Task`)
-        - `logger_name` (`str`)
+        - task (Task): the Task to be run / executed
+        - logger_name (str): Optional. The name of the logger to use when
+            logging. Defaults to the name of the class.
     """
 
     def __init__(self, task: Task, logger_name: str = None) -> None:
@@ -92,6 +97,26 @@ class TaskRunner:
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
     ) -> State:
+        """
+        The main endpoint for TaskRunners.  Calling this method will conditionally execute
+        `self.task.run` with any provided inputs, assuming the upstream dependencies are in a
+        state which allow this Task to run.
+
+        Args:
+            - state (State, optional): initial `State` to begin task run from;
+                defaults to `Pending()`
+            - upstream_states (dict): dictionary of Tasks -> States representing
+                the current states of any Tasks which are upstream dependencies of the current Task.
+                Will be used to determine whether the current Task is ready to run or not.
+            - inputs (dict): dictionary of str -> value specifying any input
+                values this Task might need to run
+            - ignore_trigger (bool): boolean specifying whether to ignore the
+                Task trigger; defaults to `False`
+            - context (dict, optional): prefect Context to use for execution
+
+        Returns:
+            - `State` object representing the final post-run state of the Task
+        """
 
         state = state or Pending()
         context = context or {}
