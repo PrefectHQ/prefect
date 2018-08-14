@@ -34,7 +34,7 @@ class SignatureValidator(type):
 
 class Task(Serializable, metaclass=SignatureValidator):
     """
-    The Task class which is used as the full representation of a task.
+    The Task class which is used as the full representation of a unit of work.
 
     Args:
         - name (str, optional): The name of this task
