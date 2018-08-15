@@ -128,11 +128,11 @@ def test_set_dependencies_converts_arguments_to_tasks():
     assert len(f.tasks) == 4
 
 
-def test_calling_a_task_in_context_adds_it_to_flow():
+def test_binding_a_task_in_context_adds_it_to_flow():
     with Flow() as flow:
         t = Task()
         assert t not in flow.tasks
-        t()
+        t.bind()
         assert t in flow.tasks
 
 
@@ -149,11 +149,11 @@ def test_context_manager_is_properly_applied_to_tasks():
     t3 = Task()
     with Flow() as f1:
         with Flow() as f2:
-            t2()
-        t1()
+            t2.bind()
+        t1.bind()
 
     with pytest.raises(ValueError):
-        t3()
+        t3.bind()
 
     assert f1.tasks == set([t1])
     assert f2.tasks == set([t2])

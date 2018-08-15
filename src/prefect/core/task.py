@@ -1,3 +1,4 @@
+import copy
 import inspect
 import warnings
 from datetime import timedelta
@@ -165,7 +166,17 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     # Dependencies -------------------------------------------------------------
 
+    def copy(self):
+        return copy.deepcopy(self)
+
     def __call__(
+        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
+    ) -> "Task":
+        new = self.copy()
+        new.bind(*args, upstream_tasks=upstream_tasks, **kwargs)
+        return new
+
+    def bind(
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         # this will raise an error if callargs weren't all provided
