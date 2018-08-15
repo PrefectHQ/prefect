@@ -697,6 +697,9 @@ class Flow(Serializable):
     def visualize(self):
         """
         Creates graphviz object for representing the current flow
+
+        Raises:
+            - ImportError: if `graphviz` is not installed
         """
 
         try:
@@ -704,7 +707,7 @@ class Flow(Serializable):
         except ImportError:
             msg = (
                 "This feature requires graphviz.\n"
-                "Try re-installing prefect with pip install prefect[viz]"
+                "Try re-installing prefect with `pip install prefect[viz]`"
             )
             raise ImportError(msg)
 
