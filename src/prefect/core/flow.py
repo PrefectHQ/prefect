@@ -191,6 +191,7 @@ class Flow(Serializable):
 
     def copy(self) -> "Flow":
         new = copy.copy(self)
+        new._cache = dict()
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
         new.set_key_tasks(self._key_tasks)
@@ -301,6 +302,7 @@ class Flow(Serializable):
         Returns:
             - None
         """
+        self._cache.clear()
         key_tasks = set(tasks)
         if any(t not in self.tasks for t in key_tasks):
             raise ValueError("Key tasks must be part of the flow.")
@@ -337,6 +339,7 @@ class Flow(Serializable):
         self.tasks.add(task)
         self._task_ids[task] = str(uuid.uuid4())
 
+        self._cache.clear()
         return task
 
     def add_edge(
@@ -392,6 +395,8 @@ class Flow(Serializable):
                 e.key: None for e in self.edges_to(downstream_task) if e.key is not None
             }
             inspect.signature(downstream_task.run).bind_partial(**edge_keys)
+
+        self._cache.clear()
 
         # check for cycles
         if validate is None:
