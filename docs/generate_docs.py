@@ -229,7 +229,7 @@ def format_lists(doc):
         if section.startswith(("Returns:", "Raises:")) and ":" not in items:
             doc = doc.replace(items, "<ul><li>" + items.lstrip("- ") + "</li></ul>", 1)
             continue
-        args = re.split(r"-\s+(.*?)\:", items)  # collect all list items
+        args = re.split(r"-\s+(.*?)\:(?![^{]*\})", items)  # collect all list items
         if not args:
             continue
         block = ""
