@@ -1,9 +1,5 @@
-from warnings import warn as _warn
-from cryptography.fernet import Fernet
-import cloudpickle
-from collections import Counter
-import xxhash
 import copy
+import functools
 import inspect
 import tempfile
 import uuid
@@ -25,15 +21,16 @@ from typing import (
 )
 
 import graphviz
+import xxhash
 from mypy_extensions import TypedDict
 
 import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
+from prefect.environments import Environment
 from prefect.utilities.json import Serializable, dumps
 from prefect.utilities.tasks import as_task
-from prefect.environments import Environment
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
@@ -48,6 +45,7 @@ def cache(method):
     If the hash is different, it invalidates the cache.
     """
 
+    @functools.wraps(method)
     def wrapper(self, *args, **kwargs):
 
         cache_check = dict(
