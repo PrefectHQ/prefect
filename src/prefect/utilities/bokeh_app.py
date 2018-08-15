@@ -11,6 +11,7 @@ from bokeh.models import (
     Arrow,
     CustomJS,
     NormalHead,
+    Label,
     LabelSet,
     Legend,
     LegendItem,
@@ -119,19 +120,27 @@ depths, graph_layout, xnoise, ynoise = compute_layout(runner)
 
 ## set up Bokeh components
 source = ColumnDataSource(data=compile_data(runner))
+flow_source = ColumnDataSource(data=dict(flow_state=[f'  Current Flow State: Pending("Some terminal tasks are still pending.")'],
+                                         color=['yellow']))
 
 ## configure Plot + tools
 plot = figure(
     title="Prefect Flow Interactive Demonstration: {}".format(runner.flow.name),
-    x_range=(-1.0, 1.0),
-    y_range=(-1.0, 1.0),
+    x_range=(-1.1, 1.1),
+    y_range=(-1.1, 1.1),
     tools="",
     toolbar_location=None,
 )
 
+plot.xgrid.grid_line_color = None
+plot.ygrid.grid_line_color = None
+
 plot.circle(
     "x", "y", size=25, source=source, fill_color="color", alpha=0.5, legend="state"
 )
+flow_state = LabelSet(x=-1.0, y=1.0, text='flow_state', source=flow_source, background_fill_color='color', background_fill_alpha=0.5,
+                      render_mode="canvas", text_font_size="9pt")
+
 
 for edge in list(runner.flow.edges):
     a, b = edge.upstream_task, edge.downstream_task
@@ -159,6 +168,7 @@ labels = LabelSet(
     text_font_size="8pt",
 )
 plot.renderers.append(labels)
+plot.renderers.append(flow_state)
 hover = HoverTool(
     tooltips=[("Name:", "@name"), ("State:", "@state"), ("Message:", "@message{safe}")]
 )
@@ -184,6 +194,8 @@ def update(*args):
     new_data = compile_data(runner)
     source.data = new_data
     on_depth["depth"] += 1
+    if on_depth["depth"] >= max(depths.values()) + 1:
+        flow_source.data = dict(flow_state=[f"  Current Flow State: {repr(runner.flow_state)}  "], color=['red'])
 
 
 def quit_app(*args):
