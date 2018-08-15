@@ -6,12 +6,17 @@ actionLink: /introduction
 features:
 - title: Automate all the things
   details: If you can do it with Python, you can automate it with Prefect.
-- title: Test local, deploy global.
+- title: Test local, deploy global
   details: Workflows are developed and tested locally, then deployed for execution at scale.
-- title: Ready for anything
-  details: Prefect is powered by Dask and Kubernetes, so it's ready for the most challenging data science use cases.
+- title: Simple but powerful
+  details: Prefect's beautiful API is powered by Dask and Kubernetes, so it's ready for anything.
 footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
+
+## What is Prefect?
+Prefect is a workflow management system designed for modern data infrastructures.
+
+## Examples
 
 ### Hello, Prefect!
 
