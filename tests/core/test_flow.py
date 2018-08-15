@@ -879,3 +879,23 @@ class TestCache:
         assert f2.sorted_tasks() == 1
         f2.add_edge(t2, t3)
         assert f2.sorted_tasks() != 1
+
+    def test_adding_task_clears_cache(self):
+        f = Flow()
+        f._cache[1] = 2
+        f.add_task(Task())
+        assert 1 not in f._cache
+
+    def test_adding_edge_clears_cache(self):
+        f = Flow()
+        f._cache[1] = 2
+        f.add_edge(Task(), Task())
+        assert 1 not in f._cache
+
+    def test_setting_key_tasks_clears_cache(self):
+        f = Flow()
+        t1 = Task()
+        f.add_task(t1)
+        f._cache[1] = 2
+        f.set_key_tasks([t1])
+        assert 1 not in f._cache
