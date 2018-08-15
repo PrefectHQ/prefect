@@ -138,6 +138,16 @@ class FunctionTaskGenerator:
     One of the main benefits of a `FunctionTaskGenerator` is that it can be used
     both functionally and imperatively (through the `as_task()` method).
 
+    Args:
+        - fn (callable): function which will be the `run` method for the
+            associated Task
+        - **kwargs: additional keyword arguments which will be passed to
+            Task initialization
+
+    Raises:
+        - ValueError: if the provided function violates signature requirements
+            for Task run methods
+
     Example:
     ```python
     task_gen = FunctionTaskGenerator(lambda x: x + 1, max_retries=5)
@@ -149,15 +159,6 @@ class FunctionTaskGenerator:
         task3 = underlying_task(10) # using the Task instance created above, binds 10 to 'x'
     ```
 
-    Args:
-        - fn (callable): function which will be the `run` method for the
-            associated Task
-        - **kwargs: additional keyword arguments which will be passed to
-            Task initialization
-
-    Raises:
-        - ValueError: if the provided function violates signature requirements
-            for Task run methods
     """
 
     def __init__(self, fn: Callable, **kwargs) -> None:
