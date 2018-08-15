@@ -37,9 +37,9 @@ class Task(Serializable, metaclass=SignatureValidator):
     """
     The Task class which is used as the full representation of a unit of work.
 
-    This Task class can be used in two ways, either directly as a first class object where it must
-    be inherited from or as a decorator to functions. If this class is not used as a decorator
-    it must be in a class that inherits from it with the run method implemented.
+    This Task class can be used directly as a first class object where it must
+    be inherited from by a class which implements the `run` method.  For a more
+    functional way of generating Tasks, see [the task decorator](../utilities/tasks.html).
 
     Inheritance example:
     ```python
@@ -49,13 +49,6 @@ class Task(Serializable, metaclass=SignatureValidator):
     ```
 
     *Note:* The implemented `run` method cannot have `*args` in its signature.
-
-    Decorator example:
-    ```python
-    @task
-    def add(x, y):
-        return x + y
-    ```
 
     Args:
         - name (str, optional): The name of this task
@@ -76,7 +69,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         - cache_validator (Callable, optional): Validator telling what to cache
 
     Raises:
-        - TypeError if `tags` is of type `str`
+        - TypeError: if `tags` is of type `str`
     """
 
     def __init__(
@@ -210,7 +203,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             - None
 
         Raises:
-            - ValueError if no flow is specified and no flow can be found in the current context
+            - ValueError: if no flow is specified and no flow can be found in the current context
         """
         flow = flow or prefect.context.get("_flow", None)
         if not flow:
