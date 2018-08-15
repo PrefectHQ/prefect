@@ -5,6 +5,28 @@ import prefect
 
 
 class FunctionTask(prefect.Task):
+    """
+    A convenience Task for functionally creating Task instances with
+    arbitrary callable `run` methods.
+
+    Args:
+        - fn (callable): the function to be the task's `run` method
+        - **kwargs: keyword arguments which will be passed to the Task
+            constructor
+
+    Raises:
+        - ValueError: if the provided function violates signature requirements
+            for Task run methods
+
+    Example:
+    ```python
+    task = FunctionTask(lambda x: x - 42, name="Subtract 42")
+
+    with Flow() as f:
+        result = task(42)
+    ```
+    """
+
     def __init__(self, fn: Callable, name: str = None, **kwargs) -> None:
         if not callable(fn):
             raise TypeError("fn must be callable.")
