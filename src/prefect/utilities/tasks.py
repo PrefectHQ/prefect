@@ -130,11 +130,44 @@ def as_task(x: Any) -> "prefect.core.Task":
 
 
 class FunctionTaskGenerator:
+    """
+    Class for generating [FunctionTasks](../tasks/function.html) with a common run method.
+    Calling an instance of this class will initialize an instance of a `FunctionTask`
+    and then attempt to bind the arguments as task dependencies.
+
+    One of the main benefits of a `FunctionTaskGenerator` is that it can be used
+    both functionally and imperatively (through the `as_task()` method).
+
+    Args:
+        - fn (callable): function which will be the `run` method for the
+            associated Task
+        - **kwargs: additional keyword arguments which will be passed to
+            Task initialization
+
+    Raises:
+        - ValueError: if the provided function violates signature requirements
+            for Task run methods
+
+    Example:
+    ```python
+    task_gen = FunctionTaskGenerator(lambda x: x + 1, max_retries=5)
+    underlying_task = task_gen.as_task() # initializes a new Task instance
+
+    with Flow():
+        task1 = task_gen(6) # initializes a new Task and binds 6 to 'x' in the run method
+        task2 = task_gen(8) # initializes a new Task and binds 8 to 'x' in the run method
+        task3 = underlying_task(10) # using the Task instance created above, binds 10 to 'x'
+    ```
+
+    """
+
     def __init__(self, fn: Callable, **kwargs) -> None:
+        prefect.core.task._validate_run_signature(fn)
         self.fn = fn
         self.task_init_kwargs = kwargs
 
     def as_task(self) -> "prefect.tasks.core.function.FunctionTask":
+        """Initializes a new `FunctionTask` instance using `self.fn` and `self.task_init_kwargs`"""
         return prefect.tasks.core.function.FunctionTask(
             fn=self.fn, **self.task_init_kwargs
         )
@@ -168,6 +201,10 @@ def task(fn: Callable, **task_init_kwargs) -> FunctionTaskGenerator:
         - FunctionTaskGenerator: A class that returns a FunctionTask when called with
             zero or more appropriate arguments, and also provides an `as_task()`
             method for accessing the task without dependencies.
+
+    Raises:
+        - ValueError: if the provided function violates signature requirements
+            for Task run methods
 
     Usage:
 

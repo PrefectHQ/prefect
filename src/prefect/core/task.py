@@ -16,18 +16,28 @@ if TYPE_CHECKING:
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
 
+def _validate_run_signature(run):
+    run_sig = inspect.getfullargspec(run)
+    if run_sig.varargs:
+        raise ValueError(
+            "Tasks with variable positional arguments (*args) are not "
+            "supported, because all Prefect arguments are stored as "
+            "keywords. As a workaround, consider modifying the run() "
+            "method to accept **kwargs and feeding the values "
+            "to *args."
+        )
+
+    if "upstream_tasks" in run_sig.args:
+        raise ValueError(
+            "Tasks cannot have an `upstream_tasks` argument name; this is a reserved keyword argument."
+        )
+
+
 class SignatureValidator(type):
     def __new__(cls, name, parents, methods):
         run = methods.get("run", lambda: None)
-        run_sig = inspect.getfullargspec(run)
-        if run_sig.varargs:
-            raise ValueError(
-                "Tasks with variable positional arguments (*args) are not "
-                "supported, because all Prefect arguments are stored as "
-                "keywords. As a workaround, consider modifying the run() "
-                "method to accept **kwargs and feeding the values "
-                "to *args."
-            )
+        _validate_run_signature(run)
+
         # necessary to ensure classes that inherit from parent class
         # also get passed through __new__
         return type.__new__(cls, name, parents, methods)

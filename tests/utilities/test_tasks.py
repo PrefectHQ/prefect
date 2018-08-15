@@ -68,6 +68,20 @@ class TestTaskDecorator:
 
         assert isinstance(fn.as_task(), Task)
 
+    def test_task_decorator_validates_run_signature_against_varargs(self):
+        with pytest.raises(ValueError):
+
+            @tasks.task
+            def fn(*args):
+                pass
+
+    def test_task_decorator_validates_run_signature_against_upstream_tasks_kwarg(self):
+        with pytest.raises(ValueError):
+
+            @tasks.task
+            def fn(upstream_tasks):
+                pass
+
 
 def test_context_manager_for_setting_group():
     """

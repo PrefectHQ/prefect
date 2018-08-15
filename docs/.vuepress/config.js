@@ -33,7 +33,7 @@ module.exports = {
                 {
                     title: 'prefect.tasks',
                     collapsable: true,
-                    children: ['tasks/control_flow']
+                    children: ['tasks/control_flow', 'tasks/function']
                 },
                 {
                     title: 'prefect.utilities',
