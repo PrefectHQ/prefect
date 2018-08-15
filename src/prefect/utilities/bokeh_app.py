@@ -121,7 +121,6 @@ flow_source = ColumnDataSource(
         name=["Overall Flow State"],
         message=['Pending("Some terminal tasks are still pending.")'],
         state=["Pending"],
-        color=["yellow"],
     )
 )
 
@@ -146,7 +145,14 @@ plot.circle(
     alpha=0.5,
     legend="state",
 )
-plot.circle(-1.0, 1.0, size=35, source=flow_source, fill_color="color", alpha=0.5)
+plot.circle(
+    -1.0,
+    1.0,
+    size=35,
+    source=flow_source,
+    fill_color={"field": "state", "transform": color_map},
+    alpha=0.5,
+)
 
 
 for edge in list(runner.flow.edges):
@@ -214,7 +220,6 @@ def update(*args):
             name=["Overall Flow State"],
             message=[repr(runner.flow_state)],
             state=[runner.flow_state.__class__.__name__],
-            color=["red"],
         )
 
 
