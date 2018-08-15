@@ -697,3 +697,168 @@ def test_serialize_build():
     flow = Flow(environment=prefect.environments.LocalEnvironment())
     assert flow.serialize()["environment_key"] is None
     assert isinstance(flow.serialize(build=True)["environment_key"], bytes)
+
+
+class TestCache:
+    def test_cache_created(self):
+        f = Flow()
+        assert isinstance(f._cache, dict)
+        assert len(f._cache) == 0
+
+    def test_cache_sorted_tasks(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.sorted_tasks()
+
+        # check that cache holds result
+        key = ("_sorted_tasks", (("root_tasks", ()),))
+        assert f._cache[key] == (t1, t2)
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.sorted_tasks() == 1
+
+        f.add_edge(t2, t3)
+        assert f.sorted_tasks() == (t1, t2, t3)
+
+    def test_cache_sorted_tasks_with_args(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.sorted_tasks([t2])
+
+        # check that cache holds result
+        key = ("_sorted_tasks", (("root_tasks", (t2,)),))
+        assert f._cache[key] == (t2,)
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.sorted_tasks([t2]) == 1
+        assert f.sorted_tasks() == (t1, t2)
+
+        f.add_edge(t2, t3)
+        assert f.sorted_tasks([t2]) == (t2, t3)
+
+    def test_cache_root_tasks(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.root_tasks()
+
+        # check that cache holds result
+        key = ("root_tasks", ())
+        assert f._cache[key] == set([t1])
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.root_tasks() == 1
+
+        f.add_edge(t2, t3)
+        assert f.root_tasks() == set([t1])
+
+    def test_cache_terminal_tasks(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.terminal_tasks()
+
+        # check that cache holds result
+        key = ("terminal_tasks", ())
+        assert f._cache[key] == set([t2])
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.terminal_tasks() == 1
+
+        f.add_edge(t2, t3)
+        assert f.terminal_tasks() == set([t3])
+
+    def test_cache_parameters(self):
+        f = Flow()
+        t1 = Parameter("t1")
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.parameters()
+
+        # check that cache holds result
+        key = ("parameters", ())
+        assert f._cache[key] == dict(t1=dict(required=True, default=None))
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.parameters() == 1
+
+        f.add_edge(t2, t3)
+        assert f.parameters() == dict(t1=dict(required=True, default=None))
+
+    def test_cache_all_upstream_edges(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.all_upstream_edges()
+        key = ("all_upstream_edges", ())
+        f._cache[key] = 1
+        assert f.all_upstream_edges() == 1
+
+        f.add_edge(t2, t3)
+        assert f.all_upstream_edges() != 1
+
+    def test_cache_all_downstream_edges(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.all_downstream_edges()
+        key = ("all_downstream_edges", ())
+        f._cache[key] = 1
+        assert f.all_downstream_edges() == 1
+
+        f.add_edge(t2, t3)
+        assert f.all_downstream_edges() != 1
+
+    def test_cache_local_task_ids(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.generate_local_task_ids()
+        key = ("generate_local_task_ids", ())
+        f._cache[key] = 1
+        assert f.generate_local_task_ids() == 1
+
+        f.add_edge(t2, t3)
+        assert f.generate_local_task_ids() != 1
+
+    def test_cache_build_environment(self):
+        f = Flow(environment=prefect.environments.LocalEnvironment())
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.build_environment()
+
+        key = ("build_environment", ())
+        f._cache[key] = 1
+        assert f.build_environment() == 1
+
+        f.add_edge(t2, t3)
+        assert f.build_environment() != 1
