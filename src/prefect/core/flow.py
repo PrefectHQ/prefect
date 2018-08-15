@@ -827,7 +827,6 @@ class Flow(Serializable):
             raise ValueError("No environment set!")
         return self.environment.build(self)
 
-    @cache
     def generate_local_task_ids(
         self, *, _debug_steps: bool = False
     ) -> Dict[str, "Task"]:

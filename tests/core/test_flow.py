@@ -834,20 +834,6 @@ class TestCache:
         f.add_edge(t2, t3)
         assert f.all_downstream_edges() != 1
 
-    def test_cache_local_task_ids(self):
-        f = Flow()
-        t1 = Task()
-        t2 = Task()
-        t3 = Task()
-        f.add_edge(t1, t2)
-        f.generate_local_task_ids()
-        key = ("generate_local_task_ids", ())
-        f._cache[key] = 1
-        assert f.generate_local_task_ids() == 1
-
-        f.add_edge(t2, t3)
-        assert f.generate_local_task_ids() != 1
-
     def test_cache_build_environment(self):
         f = Flow(environment=prefect.environments.LocalEnvironment())
         t1 = Task()
