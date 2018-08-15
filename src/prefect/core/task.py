@@ -28,6 +28,12 @@ class SignatureValidator(type):
                 "method to accept **kwargs and feeding the values "
                 "to *args."
             )
+
+        if "upstream_tasks" in run_sig.args:
+            raise ValueError(
+                "Tasks cannot have an `upstream_tasks` argument name; this is a reserved keyword argument."
+            )
+
         # necessary to ensure classes that inherit from parent class
         # also get passed through __new__
         return type.__new__(cls, name, parents, methods)

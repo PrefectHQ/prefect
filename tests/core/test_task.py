@@ -77,6 +77,19 @@ class TestCreateTask:
                 def run(self, x, *y):
                     pass
 
+    def test_class_instantiation_rejects_upstream_tasks_kwarg(self):
+        with pytest.raises(ValueError):
+
+            class UpstreamTasks(Task):
+                def run(self, x, upstream_tasks):
+                    pass
+
+        with pytest.raises(ValueError):
+
+            class UpstreamTasks(Task):
+                def run(self, x, upstream_tasks=None):
+                    pass
+
     def test_create_task_with_and_without_cache_for(self):
         t1 = Task()
         assert t1.cache_validator is never_use
