@@ -1,4 +1,5 @@
-"""Functionality for auto-generating markdown documentation.
+"""
+Functionality for auto-generating markdown documentation.
 
 Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
     - "page" -> (str): relative path to the markdown file this page represents
@@ -167,6 +168,10 @@ OUTLINE = [
         ],
         "title": "Control Flow",
     },
+    {
+        "page": "tasks/function.md",
+        "classes": [prefect.tasks.core.function.FunctionTask],
+    },
     {"page": "utilities/bokeh.md", "classes": [BokehRunner]},
     {
         "page": "utilities/collections.md",
@@ -190,6 +195,7 @@ OUTLINE = [
     },
     {
         "page": "utilities/tasks.md",
+        "classes": [prefect.utilities.tasks.FunctionTaskGenerator],
         "functions": [
             prefect.utilities.tasks.group,
             prefect.utilities.tasks.tags,
