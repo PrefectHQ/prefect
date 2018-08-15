@@ -13,15 +13,7 @@ class FunctionTask(prefect.Task):
         if name is None:
             name = getattr(fn, "__name__", type(self).__name__)
 
-        if inspect.getfullargspec(fn).varargs:
-            raise ValueError(
-                "Tasks with variable positional arguments (*args) are not "
-                "supported, because all Prefect arguments are stored as "
-                "keywords. As a workaround, consider modifying the function "
-                "to accept **kwargs and feeding the values "
-                "to the original function's *args."
-            )
-
+        prefect.core.task._validate_run_signature(fn)
         self.run = fn
 
         super().__init__(name=name, **kwargs)

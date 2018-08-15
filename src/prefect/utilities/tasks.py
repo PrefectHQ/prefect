@@ -131,6 +131,7 @@ def as_task(x: Any) -> "prefect.core.Task":
 
 class FunctionTaskGenerator:
     def __init__(self, fn: Callable, **kwargs) -> None:
+        prefect.core.task._validate_run_signature(fn)
         self.fn = fn
         self.task_init_kwargs = kwargs
 
