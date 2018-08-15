@@ -24,7 +24,6 @@ from typing import (
     Union,
 )
 
-import graphviz
 from mypy_extensions import TypedDict
 
 import prefect
@@ -699,6 +698,15 @@ class Flow(Serializable):
         """
         Creates graphviz object for representing the current flow
         """
+
+        try:
+            import graphviz
+        except ImportError:
+            msg = (
+                "This feature requires graphviz.\n"
+                "Try re-installing prefect with pip install prefect[viz]"
+            )
+            raise ImportError(msg)
 
         graph = graphviz.Digraph()
 
