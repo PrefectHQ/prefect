@@ -7,7 +7,15 @@ from bokeh.events import ButtonClick
 from bokeh.io import curdoc
 from bokeh.layouts import column, row
 from bokeh.plotting import figure, ColumnDataSource
-from bokeh.models import Arrow, CustomJS, NormalHead, LabelSet, HoverTool
+from bokeh.models import (
+    Arrow,
+    CustomJS,
+    NormalHead,
+    LabelSet,
+    Legend,
+    LegendItem,
+    HoverTool,
+)
 from bokeh.models.widgets import Button
 
 from collections import defaultdict
@@ -121,7 +129,9 @@ plot = figure(
     toolbar_location=None,
 )
 
-plot.circle("x", "y", size=25, source=source, fill_color="color", alpha=0.5)
+plot.circle(
+    "x", "y", size=25, source=source, fill_color="color", alpha=0.5, legend="state"
+)
 
 for edge in list(runner.flow.edges):
     a, b = edge.upstream_task, edge.downstream_task
