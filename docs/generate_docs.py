@@ -223,12 +223,13 @@ def clean_line(line):
 def format_lists(doc):
     "Convenience function for converting markdown lists to HTML for within-table lists"
     lists = re.findall(
-        r"(Args\:|Returns\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL
+        r"(Args\:|Returns\:|Raises\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL
     )  # find formatted lists
     for section, _, items, _ in lists:
-        if section.startswith("Returns:") and ":" not in items:
-            return doc.replace(items, "<ul><li>" + items.lstrip("- ") + "</li></ul>", 1)
-        args = re.split(r"-\s+(.*)\:", items)  # collect all list items
+        if section.startswith(("Returns:", "Raises:")) and ":" not in items:
+            doc = doc.replace(items, "<ul><li>" + items.lstrip("- ") + "</li></ul>", 1)
+            continue
+        args = re.split(r"-\s+(.*?)\:", items)  # collect all list items
         if not args:
             continue
         block = ""
