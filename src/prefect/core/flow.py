@@ -285,8 +285,8 @@ class Flow(Serializable):
             - The Task object passed in if the task was successfully added
 
         Raises:
-            - TypeError if the the value for `task` is not of type `Task`
-            - ValueError if the `task.slug` matches that of a task in the flow
+            - TypeError: if the the value for `task` is not of type `Task`
+            - ValueError: if the `task.slug` matches that of a task in the flow
         """
         if not isinstance(task, Task):
             raise TypeError(
@@ -325,8 +325,8 @@ class Flow(Serializable):
             - The Edge object that was successfully added to the flow
 
         Raises:
-            - ValueError if the `downstream_task` is of type `Parameter`
-            - ValueError if the edge exists with this `key` and `downstream_task`
+            - ValueError: if the `downstream_task` is of type `Parameter`
+            - ValueError: if the edge exists with this `key` and `downstream_task`
         """
         if isinstance(downstream_task, Parameter):
             raise ValueError(
@@ -447,7 +447,7 @@ class Flow(Serializable):
             leading to that task
 
         Raises:
-            - ValueError is `task` is not found in this flow
+            - ValueError: if `task` is not found in this flow
         """
         if task not in self.tasks:
             raise ValueError(
@@ -467,7 +467,7 @@ class Flow(Serializable):
             leading from that task
 
         Raises:
-            - ValueError if `task` is not found in this flow
+            - ValueError: if `task` is not found in this flow
         """
         if task not in self.tasks:
             raise ValueError(
@@ -504,9 +504,9 @@ class Flow(Serializable):
         Checks that the flow is valid.
 
         Raises:
-            - ValueError if edges refer to tasks that are not in this flow
-            - ValueError if specified key tasks are not in this flow
-            - ValueError if any tasks do not have assigned IDs
+            - ValueError: if edges refer to tasks that are not in this flow
+            - ValueError: if specified key tasks are not in this flow
+            - ValueError: if any tasks do not have assigned IDs
         """
 
         if any(e.upstream_task not in self.tasks for e in self.edges) or any(
@@ -534,7 +534,7 @@ class Flow(Serializable):
             - tuple of task objects that were sorted
 
         Raises:
-            - ValueError if a cycle is found in the flow's DAG
+            - ValueError: if a cycle is found in the flow's DAG
         """
         # cache upstream tasks and downstream tasks since we need them often
         upstream_tasks = {
@@ -661,7 +661,9 @@ class Flow(Serializable):
         Args:
             - parameters (Dict[str, Any], optional): values to pass into the runner
             - return_tasks ([Task], optional): list of tasks which return state
-            - **kwargs
+            - **kwargs: additional keyword arguments; if any provided keywords
+                match known parameter names, they will be used as such. Otherwise they will be passed to the
+                `FlowRunner.run()` method
 
         Returns:
             - State of the flow after it is run resulting from it's return tasks
@@ -775,7 +777,7 @@ class Flow(Serializable):
             - bytes of a key that can be used to access the environment.
 
         Raises:
-            - ValueError if no environment is specified in this flow
+            - ValueError: if no environment is specified in this flow
         """
         if not self.environment:
             raise ValueError("No environment set!")
