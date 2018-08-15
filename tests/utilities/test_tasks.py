@@ -28,7 +28,7 @@ class TestTaskDecorator:
 
         with pytest.raises(ValueError) as exc:
             fn(1)
-        assert "task generator must be called inside a `Flow` context" in str(exc.value)
+        assert "Could not infer an active Flow context" in str(exc.value)
 
     def test_task_decorator_with_no_args_must_be_called_inside_flow_context(self):
         @tasks.task
@@ -61,12 +61,12 @@ class TestTaskDecorator:
             with pytest.raises(TypeError):
                 fn()
 
-    def test_task_decorator_as_task_can_be_called_outside_flow_context(self):
+    def test_task_decorator_returns_task_instance(self):
         @tasks.task
         def fn(x):
             return x
 
-        assert isinstance(fn.as_task(), Task)
+        assert isinstance(fn, Task)
 
     def test_task_decorator_validates_run_signature_against_varargs(self):
         with pytest.raises(ValueError):
