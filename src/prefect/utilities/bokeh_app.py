@@ -135,6 +135,12 @@ plot = figure(
 
 plot.xgrid.grid_line_color = None
 plot.ygrid.grid_line_color = None
+plot.xaxis.major_tick_line_color = None  # turn off x-axis major ticks
+plot.xaxis.minor_tick_line_color = None  # turn off x-axis minor ticks
+
+plot.yaxis.major_tick_line_color = None  # turn off y-axis major ticks
+plot.yaxis.minor_tick_line_color = None  # turn off y-axis minor ticks
+plot.axis.visible = False
 
 plot.circle(
     "x",
