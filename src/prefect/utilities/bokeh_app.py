@@ -27,10 +27,10 @@ from prefect.engine import state
 
 colors = [
     ("Not Run", "grey"),
-    ("Retrying", "blue"),
+    ("Retrying", "yellow"),
     ("CachedState", "orange"),
-    ("Pending", "yellow"),
-    ("Skipped", "lightgrey"),
+    ("Pending", "lightgrey"),
+    ("Skipped", "lightgreen"),
     ("Success", "green"),
     ("Failed", "red"),
 ]
