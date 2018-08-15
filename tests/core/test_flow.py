@@ -1,3 +1,4 @@
+import cloudpickle
 import datetime
 
 import pytest
@@ -862,3 +863,19 @@ class TestCache:
 
         f.add_edge(t2, t3)
         assert f.build_environment() != 1
+
+    def test_cache_survives_pickling(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.sorted_tasks()
+        key = ("_sorted_tasks", (("root_tasks", ()),))
+        f._cache[key] = 1
+        assert f.sorted_tasks() == 1
+
+        f2 = cloudpickle.loads(cloudpickle.dumps(f))
+        assert f2.sorted_tasks() == 1
+        f2.add_edge(t2, t3)
+        assert f2.sorted_tasks() != 1
