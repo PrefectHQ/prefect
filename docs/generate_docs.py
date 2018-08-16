@@ -15,8 +15,10 @@ import inspect
 import os
 import re
 import shutil
+import subprocess
 import textwrap
 import toolz
+import warnings
 
 import prefect
 from prefect.utilities.bokeh_runner import BokehRunner
@@ -363,6 +365,22 @@ def format_subheader(obj, level=1, in_table=False):
     return call_sig
 
 
+def generate_coverage():
+    """
+    Generates a coverage report in a subprocess; if one already exists,
+    will _not_ recreate for the sake of efficiency
+    """
+    if os.path.exists("api/prefect-coverage"):
+        return
+
+    tests = subprocess.check_output(
+        "cd .. && pytest --cov-report html:docs/api/prefect-coverage --cov=src/prefect",
+        shell=True,
+    )
+    if "failed" in tests.decode():
+        warnings.warn("Some tests failed.")
+
+
 if __name__ == "__main__":
 
     assert (
@@ -379,6 +397,7 @@ if __name__ == "__main__":
 
     shutil.rmtree("api", ignore_errors=True)
     os.makedirs("api", exist_ok=True)
+    generate_coverage()
     with open("api/README.md", "w+") as f:
         f.write("# API Documentation\n")
         f.write(
