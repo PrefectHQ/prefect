@@ -213,8 +213,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         """
-        Binds values passed in `*args` and `**kwargs` to the current Task's `run` method.
-        Also sets any upstream dependencies that are passed in through `upstream_tasks`.
+        Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow which will
+        pass data from the arguments (whether Tasks or constants) to the Task's `run` method
+        under the appropriate key. Once a Task is bound in this manner, the same task instance cannot be bound a second time
+        in the same Flow.  To bind arguments to a _copy_ of this Task instance, see `__call__`.
+        Additionally, non-keyed edges can be created by passing any upstream dependencies
+        through `upstream_tasks`.
 
         Args:
             - *args: arguments to bind to the current Task's `run` method
