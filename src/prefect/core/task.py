@@ -61,6 +61,24 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     *Note:* The implemented `run` method cannot have `*args` in its signature.
 
+    An instance of a `Task` can be used functionally to generate other task instances
+    with the same attributes but with different values bound to their `run` methods.
+
+    Example:
+    ```python
+    class AddTask(Task):
+        def run(self, x, y):
+            return x + y
+
+    a = AddTask()
+
+    with Flow() as f:
+        t1 = a(1, 2) # t1 != a
+        t2 = a(5, 7) # t2 != a
+    ```
+
+    To bind values to a Task's run method imperatively, see `Task.bind`.
+
     Args:
         - name (str, optional): The name of this task
         - slug (str, optional): The slug for this task, it must be unique withing a given Flow
@@ -172,6 +190,21 @@ class Task(Serializable, metaclass=SignatureValidator):
     def __call__(
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
+        """
+        Calling a Task instance will first create a _copy_ of the instance, and then
+        bind any passed `args` / `kwargs` to the run method of the copy. This new task
+        is then returned.
+
+        Args:
+            - *args: arguments to bind to the new Task's `run` method
+            - **kwargs: keyword arguments to bind to the new Task's `run` method
+            - upstream_tasks ([Task], optional): a list of upstream dependencies
+                for the new task.  This kwarg can be used to functionally specify
+                dependencies without binding their result to `run()`
+
+        Returns:
+            - Task: a new Task instance
+        """
         new = self.copy()
         new.bind(*args, upstream_tasks=upstream_tasks, **kwargs)
         return new
@@ -179,6 +212,19 @@ class Task(Serializable, metaclass=SignatureValidator):
     def bind(
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
+        """
+        Binds values passed in `*args` and `**kwargs` to the current Task's `run` method.
+        Also sets any upstream dependencies that are passed in through `upstream_tasks`.
+
+        Args:
+            - *args: arguments to bind to the current Task's `run` method
+            - **kwargs: keyword arguments to bind to the current Task's `run` method
+            - upstream_tasks ([Task], optional): a list of upstream dependencies
+                for the current task.
+
+        Returns:
+            - Task: the current Task instance
+        """
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
         callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
