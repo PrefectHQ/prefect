@@ -46,13 +46,15 @@ module.exports = {
                     title: 'Tutorials',
                     collapsable: true,
                     children: ['tutorials/', 'tutorials/task-retries']
-                  }
+                  },
+                  'comparisons'
             ]
         }
     },
     markdown: {
         config: md => {
             md.use(require('markdown-it-attrs'))
+            md.use(require('markdown-it-checkbox'))
         }
     }
 }

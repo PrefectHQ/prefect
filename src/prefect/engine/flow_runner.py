@@ -264,17 +264,17 @@ class FlowRunner:
 
             # terminal tasks determine if the flow is finished
             terminal_tasks = self.flow.terminal_tasks()
-            # key tasks determine flow state
-            key_tasks = self.flow.key_tasks()
+            # reference tasks determine flow state
+            reference_tasks = self.flow.reference_tasks()
 
             final_states = executor.wait(
                 {
                     t: task_states[t]
-                    for t in terminal_tasks.union(key_tasks).union(return_tasks)
+                    for t in terminal_tasks.union(reference_tasks).union(return_tasks)
                 }
             )
             terminal_states = {final_states[t] for t in terminal_tasks}
-            key_states = {final_states[t] for t in key_tasks}
+            key_states = {final_states[t] for t in reference_tasks}
             return_states = {t: final_states[t] for t in sorted_return_tasks}
 
             # check that the flow is finished
@@ -287,19 +287,23 @@ class FlowRunner:
 
             # check if any key task failed
             elif any(s.is_failed() for s in key_states):
-                self.logger.info("Flow run FAILED: some key tasks failed.")
-                state = Failed(message="Some key tasks failed.", result=return_states)
+                self.logger.info("Flow run FAILED: some reference tasks failed.")
+                state = Failed(
+                    message="Some reference tasks failed.", result=return_states
+                )
 
-            # check if all key tasks succeeded
+            # check if all reference tasks succeeded
             elif all(s.is_successful() for s in key_states):
-                self.logger.info("Flow run SUCCESS: all key tasks succeeded")
+                self.logger.info("Flow run SUCCESS: all reference tasks succeeded")
                 state = Success(
-                    message="All key tasks succeeded.", result=return_states
+                    message="All reference tasks succeeded.", result=return_states
                 )
 
             # check for any unanticipated state that is finished but neither success nor failed
             else:
-                self.logger.info("Flow run SUCCESS: no key tasks failed")
-                state = Success(message="No key tasks failed.", result=return_states)
+                self.logger.info("Flow run SUCCESS: no reference tasks failed")
+                state = Success(
+                    message="No reference tasks failed.", result=return_states
+                )
 
             return state

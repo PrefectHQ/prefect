@@ -1,3 +1,4 @@
+import copy
 import inspect
 import warnings
 from datetime import timedelta
@@ -59,6 +60,24 @@ class Task(Serializable, metaclass=SignatureValidator):
     ```
 
     *Note:* The implemented `run` method cannot have `*args` in its signature.
+
+    An instance of a `Task` can be used functionally to generate other task instances
+    with the same attributes but with different values bound to their `run` methods.
+
+    Example:
+    ```python
+    class AddTask(Task):
+        def run(self, x, y):
+            return x + y
+
+    a = AddTask()
+
+    with Flow() as f:
+        t1 = a(1, 2) # t1 != a
+        t2 = a(5, 7) # t2 != a
+    ```
+
+    To bind values to a Task's run method imperatively, see `Task.bind`.
 
     Args:
         - name (str, optional): The name of this task
@@ -165,9 +184,51 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     # Dependencies -------------------------------------------------------------
 
+    def copy(self):
+        return copy.copy(self)
+
     def __call__(
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
+        """
+        Calling a Task instance will first create a _copy_ of the instance, and then
+        bind any passed `args` / `kwargs` to the run method of the copy. This new task
+        is then returned.
+
+        Args:
+            - *args: arguments to bind to the new Task's `run` method
+            - **kwargs: keyword arguments to bind to the new Task's `run` method
+            - upstream_tasks ([Task], optional): a list of upstream dependencies
+                for the new task.  This kwarg can be used to functionally specify
+                dependencies without binding their result to `run()`
+
+        Returns:
+            - Task: a new Task instance
+        """
+        new = self.copy()
+        new.bind(*args, upstream_tasks=upstream_tasks, **kwargs)
+        return new
+
+    def bind(
+        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
+    ) -> "Task":
+        """
+        Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow which will
+        pass data from the arguments (whether Tasks or constants) to the Task's `run` method
+        under the appropriate key. Once a Task is bound in this manner, the same task instance cannot be bound a second time
+        in the same Flow.  To bind arguments to a _copy_ of this Task instance, see `__call__`.
+        Additionally, non-keyed edges can be created by passing any upstream dependencies
+        through `upstream_tasks`.
+
+        Args:
+            - *args: arguments to bind to the current Task's `run` method
+            - **kwargs: keyword arguments to bind to the current Task's `run` method
+            - upstream_tasks ([Task], optional): a list of upstream dependencies
+                for the current task.
+
+        Returns:
+            - Task: the current Task instance
+        """
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
         callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict

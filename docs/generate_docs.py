@@ -15,8 +15,10 @@ import inspect
 import os
 import re
 import shutil
+import subprocess
 import textwrap
 import toolz
+import warnings
 
 import prefect
 from prefect.utilities.bokeh_runner import BokehRunner
@@ -195,7 +197,6 @@ OUTLINE = [
     },
     {
         "page": "utilities/tasks.md",
-        "classes": [prefect.utilities.tasks.FunctionTaskGenerator],
         "functions": [
             prefect.utilities.tasks.group,
             prefect.utilities.tasks.tags,
@@ -363,6 +364,22 @@ def format_subheader(obj, level=1, in_table=False):
     return call_sig
 
 
+def generate_coverage():
+    """
+    Generates a coverage report in a subprocess; if one already exists,
+    will _not_ recreate for the sake of efficiency
+    """
+    if os.path.exists(".vuepress/public/prefect-coverage"):
+        return
+
+    tests = subprocess.check_output(
+        "cd .. && pytest --cov-report html:docs/.vuepress/public/prefect-coverage --cov=src/prefect",
+        shell=True,
+    )
+    if "failed" in tests.decode():
+        warnings.warn("Some tests failed.")
+
+
 if __name__ == "__main__":
 
     assert (
@@ -379,6 +396,7 @@ if __name__ == "__main__":
 
     shutil.rmtree("api", ignore_errors=True)
     os.makedirs("api", exist_ok=True)
+    generate_coverage()
     with open("api/README.md", "w+") as f:
         f.write("# API Documentation\n")
         f.write(
@@ -386,6 +404,10 @@ if __name__ == "__main__":
             "[{short_sha}](https://github.com/PrefectHQ/prefect/commit/{git_sha})*".format(
                 short_sha=SHORT_SHA, git_sha=GIT_SHA
             )
+        )
+        f.write(
+            "\n\n"
+            "*Click <a href='/prefect-coverage/index.html'>here</a> for a complete test coverage report.*"
         )
 
         with open("../README.md", "r") as g:
