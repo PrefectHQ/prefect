@@ -1,3 +1,4 @@
+import cloudpickle
 import datetime
 
 import pytest
@@ -711,3 +712,190 @@ def test_visualize_raises_informative_importerror_without_graphviz(monkeypatch):
             f.visualize()
 
     assert "pip install prefect[viz]" in repr(exc.value)
+
+
+class TestCache:
+    def test_cache_created(self):
+        f = Flow()
+        assert isinstance(f._cache, dict)
+        assert len(f._cache) == 0
+
+    def test_cache_sorted_tasks(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.sorted_tasks()
+
+        # check that cache holds result
+        key = ("_sorted_tasks", (("root_tasks", ()),))
+        assert f._cache[key] == (t1, t2)
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.sorted_tasks() == 1
+
+        f.add_edge(t2, t3)
+        assert f.sorted_tasks() == (t1, t2, t3)
+
+    def test_cache_sorted_tasks_with_args(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.sorted_tasks([t2])
+
+        # check that cache holds result
+        key = ("_sorted_tasks", (("root_tasks", (t2,)),))
+        assert f._cache[key] == (t2,)
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.sorted_tasks([t2]) == 1
+        assert f.sorted_tasks() == (t1, t2)
+
+        f.add_edge(t2, t3)
+        assert f.sorted_tasks([t2]) == (t2, t3)
+
+    def test_cache_root_tasks(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.root_tasks()
+
+        # check that cache holds result
+        key = ("root_tasks", ())
+        assert f._cache[key] == set([t1])
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.root_tasks() == 1
+
+        f.add_edge(t2, t3)
+        assert f.root_tasks() == set([t1])
+
+    def test_cache_terminal_tasks(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.terminal_tasks()
+
+        # check that cache holds result
+        key = ("terminal_tasks", ())
+        assert f._cache[key] == set([t2])
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.terminal_tasks() == 1
+
+        f.add_edge(t2, t3)
+        assert f.terminal_tasks() == set([t3])
+
+    def test_cache_parameters(self):
+        f = Flow()
+        t1 = Parameter("t1")
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.parameters()
+
+        # check that cache holds result
+        key = ("parameters", ())
+        assert f._cache[key] == dict(t1=dict(required=True, default=None))
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.parameters() == 1
+
+        f.add_edge(t2, t3)
+        assert f.parameters() == dict(t1=dict(required=True, default=None))
+
+    def test_cache_all_upstream_edges(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.all_upstream_edges()
+        key = ("all_upstream_edges", ())
+        f._cache[key] = 1
+        assert f.all_upstream_edges() == 1
+
+        f.add_edge(t2, t3)
+        assert f.all_upstream_edges() != 1
+
+    def test_cache_all_downstream_edges(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.all_downstream_edges()
+        key = ("all_downstream_edges", ())
+        f._cache[key] = 1
+        assert f.all_downstream_edges() == 1
+
+        f.add_edge(t2, t3)
+        assert f.all_downstream_edges() != 1
+
+    def test_cache_build_environment(self):
+        f = Flow(environment=prefect.environments.LocalEnvironment())
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.build_environment()
+
+        key = ("build_environment", ())
+        f._cache[key] = 1
+        assert f.build_environment() == 1
+
+        f.add_edge(t2, t3)
+        assert f.build_environment() != 1
+
+    def test_cache_survives_pickling(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.sorted_tasks()
+        key = ("_sorted_tasks", (("root_tasks", ()),))
+        f._cache[key] = 1
+        assert f.sorted_tasks() == 1
+
+        f2 = cloudpickle.loads(cloudpickle.dumps(f))
+        assert f2.sorted_tasks() == 1
+        f2.add_edge(t2, t3)
+        assert f2.sorted_tasks() != 1
+
+    def test_adding_task_clears_cache(self):
+        f = Flow()
+        f._cache[1] = 2
+        f.add_task(Task())
+        assert 1 not in f._cache
+
+    def test_adding_edge_clears_cache(self):
+        f = Flow()
+        f._cache[1] = 2
+        f.add_edge(Task(), Task())
+        assert 1 not in f._cache
+
+    def test_setting_key_tasks_clears_cache(self):
+        f = Flow()
+        t1 = Task()
+        f.add_task(t1)
+        f._cache[1] = 2
+        f.set_key_tasks([t1])
+        assert 1 not in f._cache

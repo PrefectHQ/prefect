@@ -1,9 +1,5 @@
-from warnings import warn as _warn
-from cryptography.fernet import Fernet
-import cloudpickle
-from collections import Counter
-import xxhash
 import copy
+import functools
 import inspect
 import tempfile
 import uuid
@@ -24,17 +20,49 @@ from typing import (
     Union,
 )
 
+import xxhash
 from mypy_extensions import TypedDict
 
 import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
+from prefect.environments import Environment
 from prefect.utilities.json import Serializable, dumps
 from prefect.utilities.tasks import as_task
-from prefect.environments import Environment
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
+
+
+def cache(method):
+    """
+    Decorator for caching Flow methods.
+
+    Each Flow has a _cache dict that can be used to memoize expensive functions. This
+    decorator automatically compares a hash of the Flow's current tasks, edges, and key_tasks
+    to a cached hash; if the hash is the same, it attempts to retrieve a value from the cache.
+    If the hash is different, it invalidates the cache.
+    """
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+
+        cache_check = dict(
+            tasks=self.tasks.copy(),
+            edges=self.edges.copy(),
+            key_tasks=copy.copy(self._key_tasks),
+        )
+        if any(self._cache.get(k) != v for k, v in cache_check.items()):
+            self._cache.clear()
+            self._cache.update(cache_check)
+
+        callargs = inspect.signature(method).bind(self, *args, **kwargs).arguments
+        key = (method.__name__, tuple(callargs.items())[1:])
+        if key not in self._cache:
+            self._cache[key] = method(self, *args, **kwargs)
+        return self._cache[key]
+
+    return wrapper
 
 
 class Flow(Serializable):
@@ -95,6 +123,8 @@ class Flow(Serializable):
         key_tasks: Iterable[Task] = None,
         register: bool = False,
     ) -> None:
+        self._cache = {}
+
         self._id = str(uuid.uuid4())
         self._task_ids = dict()  # type: Dict[Task, str]
 
@@ -158,6 +188,7 @@ class Flow(Serializable):
 
     def copy(self) -> "Flow":
         new = copy.copy(self)
+        new._cache = dict()
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
         new.set_key_tasks(self._key_tasks)
@@ -195,6 +226,7 @@ class Flow(Serializable):
 
     # Introspection ------------------------------------------------------------
 
+    @cache
     def root_tasks(self) -> Set[Task]:
         """
         Get the tasks in the flow that have no upstream dependencies
@@ -204,6 +236,7 @@ class Flow(Serializable):
         """
         return set(t for t in self.tasks if not self.edges_to(t))
 
+    @cache
     def terminal_tasks(self) -> Set[Task]:
         """
         Get the tasks in the flow that have no downstream dependencies
@@ -213,6 +246,7 @@ class Flow(Serializable):
         """
         return set(t for t in self.tasks if not self.edges_from(t))
 
+    @cache
     def parameters(self, only_required=False) -> Dict[str, ParameterDetails]:
         """
         Get details about any Parameters in this flow
@@ -265,6 +299,7 @@ class Flow(Serializable):
         Returns:
             - None
         """
+        self._cache.clear()
         key_tasks = set(tasks)
         if any(t not in self.tasks for t in key_tasks):
             raise ValueError("Key tasks must be part of the flow.")
@@ -301,6 +336,7 @@ class Flow(Serializable):
         self.tasks.add(task)
         self._task_ids[task] = str(uuid.uuid4())
 
+        self._cache.clear()
         return task
 
     def add_edge(
@@ -357,6 +393,8 @@ class Flow(Serializable):
             }
             inspect.signature(downstream_task.run).bind_partial(**edge_keys)
 
+        self._cache.clear()
+
         # check for cycles
         if validate is None:
             validate = prefect.config.flows.eager_edge_validation
@@ -410,6 +448,7 @@ class Flow(Serializable):
                     validate=validate,
                 )
 
+    @cache
     def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
         """
         Get all of the upstream edges in the flow
@@ -422,6 +461,7 @@ class Flow(Serializable):
             edges[edge.downstream_task].add(edge)
         return edges
 
+    @cache
     def all_downstream_edges(self) -> Dict[Task, Set[Edge]]:
         """
         Get all of the downstream edges in the flow
@@ -508,6 +548,8 @@ class Flow(Serializable):
             - ValueError: if any tasks do not have assigned IDs
         """
 
+        self._cache.clear()
+
         if any(e.upstream_task not in self.tasks for e in self.edges) or any(
             e.downstream_task not in self.tasks for e in self.edges
         ):
@@ -535,15 +577,16 @@ class Flow(Serializable):
         Raises:
             - ValueError: if a cycle is found in the flow's DAG
         """
-        # cache upstream tasks and downstream tasks since we need them often
-        upstream_tasks = {
-            t: {e.upstream_task for e in edges}
-            for t, edges in self.all_upstream_edges().items()
-        }
-        downstream_tasks = {
-            t: {e.downstream_task for e in edges}
-            for t, edges in self.all_downstream_edges().items()
-        }
+        return self._sorted_tasks(root_tasks=tuple(root_tasks or []))
+
+    @cache
+    def _sorted_tasks(self, root_tasks: Tuple[Task, ...] = None) -> Tuple[Task, ...]:
+        """
+        Computes a topological sort of the flow's tasks.
+
+        Flow.sorted_tasks() can accept non-hashable arguments and therefore can't be
+        cached, so this private method is called and cached instead.
+        """
 
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
@@ -556,7 +599,7 @@ class Flow(Serializable):
                 # iterate over the new tasks...
                 for t in list(tasks.difference(seen)):
                     # add its downstream tasks to the task list
-                    tasks.update(downstream_tasks[t])
+                    tasks.update(self.downstream_tasks(t))
                     # mark it as seen
                     seen.add(t)
         else:
@@ -572,7 +615,7 @@ class Flow(Serializable):
             # iterate over each remaining task
             for task in remaining_tasks.copy():
                 # check all the upstream tasks of that task
-                for upstream_task in upstream_tasks[task]:
+                for upstream_task in self.upstream_tasks(task):
                     # if the upstream task is also remaining, it means it
                     # hasn't been sorted, so we can't sort this task either
                     if upstream_task in remaining_tasks:
@@ -780,6 +823,7 @@ class Flow(Serializable):
         """Register the flow."""
         return prefect.core.registry.register_flow(self)
 
+    @cache
     def build_environment(self) -> bytes:
         """
         Build the flow's environment.
