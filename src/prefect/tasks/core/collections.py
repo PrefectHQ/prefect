@@ -7,6 +7,7 @@ class VarArgsTask(Task):
     """
     Task that can be bound to *args and transforms them into **kwargs
     """
+
     def bind(self, *args, upstream_tasks: Iterable[Task] = None):
         kwargs = {"arg_{}".format(i + 1): a for i, a in enumerate(args)}
         return super().bind(upstream_tasks=upstream_tasks, **kwargs)
