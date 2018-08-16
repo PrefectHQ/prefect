@@ -41,12 +41,13 @@ module.exports = {
                     children: ['utilities/bokeh', 'utilities/collections', 'utilities/json', 'utilities/tasks']
                 },
             ],
-            '/': ['concepts', 'getting_started', 'utilities'],
+            '/': ['concepts', 'getting_started', 'utilities', 'comparisons'],
         }
     },
     markdown: {
         config: md => {
             md.use(require('markdown-it-attrs'))
+            md.use(require('markdown-it-checkbox'))
         }
     }
 }
