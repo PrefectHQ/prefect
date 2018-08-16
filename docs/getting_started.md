@@ -101,7 +101,7 @@ By default, Prefect decides the state of a flow run by examining the states of t
 
 In this flow, the main task failed but a terminal clean-up task succeeded. Therefore, Prefect would conclude that the flow worked as intended and mark it successful. However, you might prefer this flow to be considered a failure -- after all, its main task failed.
 
-Prefect has a feature called `reference_tasks` for this purpose. By default, a flow's `reference_tasks` are its terminal tasks, but users can change them by calling `flow.set_reference_tasks()`. In this case, setting the `failed` as a key task would result in the flow being considered failed when it was run.
+Prefect has a feature called `reference_tasks` for this purpose. By default, a flow's `reference_tasks` are its terminal tasks, but users can change them by calling `flow.set_reference_tasks()`. In this case, setting the `failed` as a reference task would result in the flow being considered failed when it was run.
 
 ## Custom Tasks & Signals
 
