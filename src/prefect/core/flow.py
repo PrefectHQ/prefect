@@ -20,7 +20,6 @@ from typing import (
     Union,
 )
 
-import graphviz
 import xxhash
 from mypy_extensions import TypedDict
 
@@ -741,7 +740,19 @@ class Flow(Serializable):
     def visualize(self):
         """
         Creates graphviz object for representing the current flow
+
+        Raises:
+            - ImportError: if `graphviz` is not installed
         """
+
+        try:
+            import graphviz
+        except ImportError:
+            msg = (
+                "This feature requires graphviz.\n"
+                "Try re-installing prefect with `pip install prefect[viz]`"
+            )
+            raise ImportError(msg)
 
         graph = graphviz.Digraph()
 

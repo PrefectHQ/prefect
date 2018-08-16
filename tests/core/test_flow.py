@@ -700,6 +700,20 @@ def test_serialize_build():
     assert isinstance(flow.serialize(build=True)["environment_key"], bytes)
 
 
+def test_visualize_raises_informative_importerror_without_graphviz(monkeypatch):
+    f = Flow()
+    f.add_task(Task())
+
+    import sys
+
+    with monkeypatch.context() as m:
+        m.setattr(sys, "path", "")
+        with pytest.raises(ImportError) as exc:
+            f.visualize()
+
+    assert "pip install prefect[viz]" in repr(exc.value)
+
+
 class TestCache:
     def test_cache_created(self):
         f = Flow()
