@@ -370,11 +370,11 @@ def generate_coverage():
     Generates a coverage report in a subprocess; if one already exists,
     will _not_ recreate for the sake of efficiency
     """
-    if os.path.exists("api/prefect-coverage"):
+    if os.path.exists(".vuepress/public/prefect-coverage"):
         return
 
     tests = subprocess.check_output(
-        "cd .. && pytest --cov-report html:docs/api/prefect-coverage --cov=src/prefect",
+        "cd .. && pytest --cov-report html:docs/.vuepress/public/prefect-coverage --cov=src/prefect",
         shell=True,
     )
     if "failed" in tests.decode():
@@ -405,6 +405,10 @@ if __name__ == "__main__":
             "[{short_sha}](https://github.com/PrefectHQ/prefect/commit/{git_sha})*".format(
                 short_sha=SHORT_SHA, git_sha=GIT_SHA
             )
+        )
+        f.write(
+            "\n\n"
+            "*Click <a href='/prefect-coverage/index.html'>here</a> for a complete test coverage report.*"
         )
 
         with open("../README.md", "r") as g:

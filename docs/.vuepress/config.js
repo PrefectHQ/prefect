@@ -40,7 +40,6 @@ module.exports = {
                     collapsable: true,
                     children: ['utilities/bokeh', 'utilities/collections', 'utilities/json', 'utilities/tasks']
                 },
-                ['utilities/bokeh'],
             ],
             '/': ['concepts', 'getting_started', 'utilities'],
         }
