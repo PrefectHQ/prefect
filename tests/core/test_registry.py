@@ -60,7 +60,7 @@ class TestRegistry:
         assert registry.REGISTRY
         new_flow = registry.load_flow(flow.id)
 
-        # not working because key tasks don't match
+        # not working because reference tasks don't match
         assert new_flow == flow
 
     def test_serialize_and_load_serialized_registry_warns_about_encryption(self, flow):
