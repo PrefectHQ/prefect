@@ -1,7 +1,10 @@
+---
+sidebarDepth: 0
+---
 
 ## Task Retries
 
-<table><tr><td><img src='/retry.png'></td><td><img src='/retry_success.png'></td></tr></table>
+<img src='/retry_success.png'>
 
 When designing data workflows, it is to be expected that certain components might occasionally fail or need manual intervention.  In these situations, to avoid re-running entire Flows from scratch and still ensure the necessary data arrives at the paused / retrying Task, Prefect will automatically detect that caching is required and will store the necessary inputs to be used in subsequent Flow runs.
 
@@ -88,7 +91,11 @@ print(f"Flow results: {flow_state.result}")
 ##                }
 ```
 
-No surprises here; the entire Flow is `Pending` because its sole terminal task (`ping_external_service`) hasn't finished yet.  To trigger a retry / rerun, we need to run `f.run()` again, providing the Retrying Task State, and explicitly telling the flow which task to start with.  Contained within the `Retrying` state are the necessary cached inputs that were provided to `ping_external_service` on the last run.
+No surprises here; the entire Flow is `Pending` because its sole terminal task (`ping_external_service`) hasn't finished yet.  
+
+<img src='/retry.png'>
+
+To trigger a retry / rerun, we need to run `f.run()` again, providing the Retrying Task State, and explicitly telling the flow which task to start with.  Contained within the `Retrying` state are the necessary cached inputs that were provided to `ping_external_service` on the last run.
 
 When we rerun this Flow, we expect it to take significantly less time and return a successful result.
 
@@ -115,5 +122,3 @@ print(f"Flow results: {new_flow_state.result}")
     
 ##     Flow results: {<Task: ping_external_service>: Success("Task run succeeded.")}
 ```
-
-

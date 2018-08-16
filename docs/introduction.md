@@ -1,3 +1,7 @@
+---
+sidebarDepth: 0
+---
+
 # Introduction
 
 ## Welcome to the Prefect Preview!
