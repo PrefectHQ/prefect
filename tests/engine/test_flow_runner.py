@@ -410,19 +410,19 @@ class TestInputCaching:
         with Flow() as f:
             a = CountTask()
             b = ReturnTask(max_retries=1)
-            result = b(a())
+            res = b(a())
 
-        first_state = FlowRunner(flow=f).run(executor=executor, return_tasks=[b])
+        first_state = FlowRunner(flow=f).run(executor=executor, return_tasks=[res])
         assert isinstance(first_state, Pending)
         with raise_on_exception():  # without caching we'd expect a KeyError
             second_state = FlowRunner(flow=f).run(
                 executor=executor,
-                return_tasks=[b],
-                start_tasks=[b],
-                task_states={b: first_state.result[b]},
+                return_tasks=[res],
+                start_tasks=[res],
+                task_states={res: first_state.result[res]},
             )
         assert isinstance(second_state, Success)
-        assert second_state.result[b].result == 1
+        assert second_state.result[res].result == 1
 
     def test_retries_only_uses_cache_data(self, executor):
         with Flow() as f:
@@ -443,42 +443,42 @@ class TestInputCaching:
         with Flow() as f:
             x = Parameter("x")
             a = ReturnTask(max_retries=1)
-            result = a(x)
+            res = a(x)
 
         first_state = FlowRunner(flow=f).run(
-            executor=executor, parameters=dict(x=1), return_tasks=[a]
+            executor=executor, parameters=dict(x=1), return_tasks=[res]
         )
         assert isinstance(first_state, Pending)
         second_state = FlowRunner(flow=f).run(
             executor=executor,
             parameters=dict(x=2),
-            return_tasks=[a],
-            start_tasks=[a],
-            task_states={a: first_state.result[a]},
+            return_tasks=[res],
+            start_tasks=[res],
+            task_states={res: first_state.result[res]},
         )
         assert isinstance(second_state, Success)
-        assert second_state.result[a].result == 1
+        assert second_state.result[res].result == 1
 
     def test_manual_only_trigger_caches_inputs(self, executor):
         with Flow() as f:
             x = Parameter("x")
             inp = SuccessTask()
             t = AddTask(trigger=manual_only)
-            result = t(x, inp)
+            res = t(x, inp)
 
         first_state = FlowRunner(flow=f).run(
-            executor=executor, parameters=dict(x=11), return_tasks=[t]
+            executor=executor, parameters=dict(x=11), return_tasks=[res]
         )
         assert isinstance(first_state, Pending)
         second_state = FlowRunner(flow=f).run(
             executor=executor,
             parameters=dict(x=1),
-            return_tasks=[t],
-            start_tasks=[t],
-            task_states={t: first_state.result[t]},
+            return_tasks=[res],
+            start_tasks=[res],
+            task_states={res: first_state.result[res]},
         )
         assert isinstance(second_state, Success)
-        assert second_state.result[t].result == 12
+        assert second_state.result[res].result == 12
 
 
 class TestOutputCaching:
