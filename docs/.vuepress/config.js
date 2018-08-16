@@ -41,7 +41,17 @@ module.exports = {
                     children: ['utilities/bokeh', 'utilities/collections', 'utilities/json', 'utilities/tasks']
                 },
             ],
-            '/': ['concepts', 'getting_started'],
+            '/': [{
+                    title: 'Introduction',
+                    collapsable: true,
+                    children: ['concepts', 'getting_started']
+                  },
+                  {
+                    title: 'Tutorials',
+                    collapsable: true,
+                    children: ['tutorials/task-retries']
+                  }
+            ]
         }
     },
     markdown: {

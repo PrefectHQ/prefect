@@ -126,7 +126,7 @@ flow_source = ColumnDataSource(
 
 ## configure Plot + tools
 plot = figure(
-    title="Prefect Flow Interactive Demonstration: {}".format(runner.flow.name),
+    title=runner.title,
     x_range=(-1.1, 1.1),
     y_range=(-1.1, 1.1),
     tools="",
