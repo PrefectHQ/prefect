@@ -1,3 +1,4 @@
+import cloudpickle
 import datetime
 
 import pytest
@@ -128,11 +129,11 @@ def test_set_dependencies_converts_arguments_to_tasks():
     assert len(f.tasks) == 4
 
 
-def test_calling_a_task_in_context_adds_it_to_flow():
+def test_binding_a_task_in_context_adds_it_to_flow():
     with Flow() as flow:
         t = Task()
         assert t not in flow.tasks
-        t()
+        t.bind()
         assert t in flow.tasks
 
 
@@ -143,17 +144,66 @@ def test_adding_a_task_to_a_flow_twice_is_ok():
     f.add_task(t)
 
 
+def test_binding_a_task_to_two_different_flows_is_ok():
+    t = AddTask()
+
+    with Flow() as f:
+        t.bind(4, 2)
+
+    with Flow() as g:
+        t.bind(7, 8)
+
+    f_res = f.run(return_tasks=[t]).result[t].result
+    g_res = g.run(return_tasks=[t]).result[t].result
+    assert f_res == 6
+    assert g_res == 15
+
+
+def test_calling_a_task_returns_a_copy():
+    t = AddTask()
+
+    with Flow() as f:
+        t.bind(4, 2)
+        t2 = t(9, 0)
+
+    assert isinstance(t2, AddTask)
+    assert t != t2
+
+    res = f.run(return_tasks=[t, t2]).result
+    assert res[t].result == 6
+    assert res[t2].result == 9
+
+
+def test_calling_a_slugged_task_in_different_flows_is_ok():
+    t = AddTask(slug="add")
+
+    with Flow() as f:
+        three = t(1, 2)
+
+    with Flow() as g:
+        four = t(1, 3)
+
+
+def test_calling_a_slugged_task_twice_raises_error():
+    t = AddTask(slug="add")
+
+    with pytest.raises(ValueError):
+        with Flow() as f:
+            t.bind(4, 2)
+            t2 = t(9, 0)
+
+
 def test_context_manager_is_properly_applied_to_tasks():
     t1 = Task()
     t2 = Task()
     t3 = Task()
     with Flow() as f1:
         with Flow() as f2:
-            t2()
-        t1()
+            t2.bind()
+        t1.bind()
 
     with pytest.raises(ValueError):
-        t3()
+        t3.bind()
 
     assert f1.tasks == set([t1])
     assert f2.tasks == set([t2])
@@ -263,7 +313,7 @@ def test_copy():
 
     f.add_edge(t1, t2)
     f.add_edge(t2, t3)
-    f.set_key_tasks([t1])
+    f.set_reference_tasks([t1])
 
     f2 = f.copy()
     assert f2 == f
@@ -271,7 +321,7 @@ def test_copy():
     f.add_edge(Task(), Task())
     assert len(f2.tasks) == len(f.tasks) - 2
     assert len(f2.edges) == len(f.edges) - 1
-    assert f.key_tasks() == f2.key_tasks() == set([t1])
+    assert f.reference_tasks() == f2.reference_tasks() == set([t1])
 
 
 def test_infer_root_tasks():
@@ -300,7 +350,7 @@ def test_infer_terminal_tasks():
     assert f.terminal_tasks() == set([t3, t4])
 
 
-def test_key_tasks_are_terminal_tasks_by_default():
+def test_reference_tasks_are_terminal_tasks_by_default():
     with Flow() as f:
         t1 = Task()
         t2 = Task()
@@ -311,10 +361,10 @@ def test_key_tasks_are_terminal_tasks_by_default():
     f.add_edge(t2, t3)
     f.add_task(t4)
 
-    assert f.key_tasks() == f.terminal_tasks() == set([t3, t4])
+    assert f.reference_tasks() == f.terminal_tasks() == set([t3, t4])
 
 
-def test_set_key_tasks():
+def test_set_reference_tasks():
     with Flow() as f:
         t1 = Task()
         t2 = Task()
@@ -323,30 +373,30 @@ def test_set_key_tasks():
     f.add_edge(t1, t2)
     f.add_edge(t2, t3)
 
-    f.set_key_tasks([])
-    assert f.key_tasks() == f.terminal_tasks()
-    f.set_key_tasks([t2])
-    assert f.key_tasks() == set([t2])
+    f.set_reference_tasks([])
+    assert f.reference_tasks() == f.terminal_tasks()
+    f.set_reference_tasks([t2])
+    assert f.reference_tasks() == set([t2])
 
 
-def test_set_key_tasks_at_init_with_empty_flow_raises_error():
+def test_set_reference_tasks_at_init_with_empty_flow_raises_error():
 
     with pytest.raises(ValueError) as exc:
-        Flow(key_tasks=[Task()])
+        Flow(reference_tasks=[Task()])
     assert "must be part of the flow" in str(exc.value)
 
 
-def test_set_key_tasks_at_init():
+def test_set_reference_tasks_at_init():
     t1 = Task()
-    f = Flow(key_tasks=[t1], tasks=[t1])
-    assert f.key_tasks() == set([t1]) == f.tasks == f.terminal_tasks()
+    f = Flow(reference_tasks=[t1], tasks=[t1])
+    assert f.reference_tasks() == set([t1]) == f.tasks == f.terminal_tasks()
 
     t2 = Task()
-    f = Flow(key_tasks=[t2], tasks=[t1, t2])
-    assert f.key_tasks() == set([t2])
+    f = Flow(reference_tasks=[t2], tasks=[t1, t2])
+    assert f.reference_tasks() == set([t2])
 
 
-def test_reset_key_tasks_to_terminal_tasks():
+def test_reset_reference_tasks_to_terminal_tasks():
 
     with Flow() as f:
         t1 = Task()
@@ -356,17 +406,17 @@ def test_reset_key_tasks_to_terminal_tasks():
     f.add_edge(t1, t2)
     f.add_edge(t2, t3)
 
-    f.set_key_tasks([t2])
-    assert f.key_tasks() == set([t2])
-    f.set_key_tasks([])
-    assert f.key_tasks() == f.terminal_tasks()
+    f.set_reference_tasks([t2])
+    assert f.reference_tasks() == set([t2])
+    f.set_reference_tasks([])
+    assert f.reference_tasks() == f.terminal_tasks()
 
 
 def test_key_states_raises_error_if_not_part_of_flow():
     f = Flow()
     t1 = Task()
     with pytest.raises(ValueError):
-        f.set_key_tasks([t1])
+        f.set_reference_tasks([t1])
 
 
 def test_key_states_raises_error_if_not_iterable():
@@ -374,7 +424,7 @@ def test_key_states_raises_error_if_not_iterable():
     t1 = Task()
     f.add_task(t1)
     with pytest.raises(TypeError):
-        f.set_key_tasks(t1)
+        f.set_reference_tasks(t1)
 
 
 class TestEquality:
@@ -429,7 +479,7 @@ class TestEquality:
         assert f1 == f2
         assert f2 != f3
 
-    def test_equality_based_on_key_tasks(self):
+    def test_equality_based_on_reference_tasks(self):
         f1 = Flow()
         f2 = Flow()
 
@@ -441,9 +491,9 @@ class TestEquality:
             f.add_edge(t1, t2)
             f.add_edge(t1, t3)
 
-        f1.set_key_tasks([t2])
+        f1.set_reference_tasks([t2])
         assert f1 != f2
-        f2.set_key_tasks([t2])
+        f2.set_reference_tasks([t2])
         assert f1 == f2
 
 
@@ -597,17 +647,17 @@ def test_validate_missing_edge_upstream_tasks():
     assert "edges refer to tasks" in str(exc.value).lower()
 
 
-def test_validate_missing_key_tasks():
+def test_validate_missing_reference_tasks():
     f = Flow()
     t1 = Task()
     t2 = Task()
     f.add_task(t1)
     f.add_task(t2)
-    f.set_key_tasks([t1])
+    f.set_reference_tasks([t1])
     f.tasks.remove(t1)
     with pytest.raises(ValueError) as exc:
         f.validate()
-    assert "key tasks are not contained" in str(exc.value).lower()
+    assert "reference tasks are not contained" in str(exc.value).lower()
 
 
 def test_validate_missing_task_ids():
@@ -669,7 +719,7 @@ def test_serialize_default_keys():
             "parameters",
             "schedule",
             "tasks",
-            "key_tasks",
+            "reference_tasks",
             "edges",
         ]
     )
@@ -697,3 +747,204 @@ def test_serialize_build():
     flow = Flow(environment=prefect.environments.LocalEnvironment())
     assert flow.serialize()["environment_key"] is None
     assert isinstance(flow.serialize(build=True)["environment_key"], bytes)
+
+
+def test_visualize_raises_informative_importerror_without_graphviz(monkeypatch):
+    f = Flow()
+    f.add_task(Task())
+
+    import sys
+
+    with monkeypatch.context() as m:
+        m.setattr(sys, "path", "")
+        with pytest.raises(ImportError) as exc:
+            f.visualize()
+
+    assert "pip install prefect[viz]" in repr(exc.value)
+
+
+class TestCache:
+    def test_cache_created(self):
+        f = Flow()
+        assert isinstance(f._cache, dict)
+        assert len(f._cache) == 0
+
+    def test_cache_sorted_tasks(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.sorted_tasks()
+
+        # check that cache holds result
+        key = ("_sorted_tasks", (("root_tasks", ()),))
+        assert f._cache[key] == (t1, t2)
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.sorted_tasks() == 1
+
+        f.add_edge(t2, t3)
+        assert f.sorted_tasks() == (t1, t2, t3)
+
+    def test_cache_sorted_tasks_with_args(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.sorted_tasks([t2])
+
+        # check that cache holds result
+        key = ("_sorted_tasks", (("root_tasks", (t2,)),))
+        assert f._cache[key] == (t2,)
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.sorted_tasks([t2]) == 1
+        assert f.sorted_tasks() == (t1, t2)
+
+        f.add_edge(t2, t3)
+        assert f.sorted_tasks([t2]) == (t2, t3)
+
+    def test_cache_root_tasks(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.root_tasks()
+
+        # check that cache holds result
+        key = ("root_tasks", ())
+        assert f._cache[key] == set([t1])
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.root_tasks() == 1
+
+        f.add_edge(t2, t3)
+        assert f.root_tasks() == set([t1])
+
+    def test_cache_terminal_tasks(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.terminal_tasks()
+
+        # check that cache holds result
+        key = ("terminal_tasks", ())
+        assert f._cache[key] == set([t2])
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.terminal_tasks() == 1
+
+        f.add_edge(t2, t3)
+        assert f.terminal_tasks() == set([t3])
+
+    def test_cache_parameters(self):
+        f = Flow()
+        t1 = Parameter("t1")
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.parameters()
+
+        # check that cache holds result
+        key = ("parameters", ())
+        assert f._cache[key] == dict(t1=dict(required=True, default=None))
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.parameters() == 1
+
+        f.add_edge(t2, t3)
+        assert f.parameters() == dict(t1=dict(required=True, default=None))
+
+    def test_cache_all_upstream_edges(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.all_upstream_edges()
+        key = ("all_upstream_edges", ())
+        f._cache[key] = 1
+        assert f.all_upstream_edges() == 1
+
+        f.add_edge(t2, t3)
+        assert f.all_upstream_edges() != 1
+
+    def test_cache_all_downstream_edges(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.all_downstream_edges()
+        key = ("all_downstream_edges", ())
+        f._cache[key] = 1
+        assert f.all_downstream_edges() == 1
+
+        f.add_edge(t2, t3)
+        assert f.all_downstream_edges() != 1
+
+    def test_cache_build_environment(self):
+        f = Flow(environment=prefect.environments.LocalEnvironment())
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        f.build_environment()
+
+        key = ("build_environment", ())
+        f._cache[key] = 1
+        assert f.build_environment() == 1
+
+        f.add_edge(t2, t3)
+        assert f.build_environment() != 1
+
+    def test_cache_survives_pickling(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+        f.sorted_tasks()
+        key = ("_sorted_tasks", (("root_tasks", ()),))
+        f._cache[key] = 1
+        assert f.sorted_tasks() == 1
+
+        f2 = cloudpickle.loads(cloudpickle.dumps(f))
+        assert f2.sorted_tasks() == 1
+        f2.add_edge(t2, t3)
+        assert f2.sorted_tasks() != 1
+
+    def test_adding_task_clears_cache(self):
+        f = Flow()
+        f._cache[1] = 2
+        f.add_task(Task())
+        assert 1 not in f._cache
+
+    def test_adding_edge_clears_cache(self):
+        f = Flow()
+        f._cache[1] = 2
+        f.add_edge(Task(), Task())
+        assert 1 not in f._cache
+
+    def test_setting_reference_tasks_clears_cache(self):
+        f = Flow()
+        t1 = Task()
+        f.add_task(t1)
+        f._cache[1] = 2
+        f.set_reference_tasks([t1])
+        assert 1 not in f._cache

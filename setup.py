@@ -10,18 +10,20 @@ install_requires = [
     "dask >= 0.18, < 0.19",
     "distributed >= 1.21.8, < 2.0",
     "docker >= 3.4.1, < 3.5",
-    "graphviz >= 0.8.3, < 0.9",
     "mypy_extensions >= 0.3.0, < 0.4",
     "python-dateutil >= 2.7.3, < 3.0",
     "requests >= 2.19.1, < 3.0",
     "toml >= 0.9.4, < 1.0",
-    "toolz >= 0.9.0, < 1.0",
     "typing >= 3.6.4, < 4.0",
     "typing_extensions >= 3.6.4, < 4.0",
     "xxhash >= 1.2.0, < 2.0",
 ]
 
-extras = {"dev": ["pytest", "pytest-env", "pytest-xdist"]}
+viz = ["bokeh == 0.13.0", "graphviz >= 0.8.3"]
+extras = {
+    "dev": ["pytest", "pytest-cov", "pytest-env", "pytest-xdist"] + viz,
+    "viz": viz,
+}
 
 setup(
     name="prefect",
