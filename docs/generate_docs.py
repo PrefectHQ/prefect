@@ -197,7 +197,6 @@ OUTLINE = [
     },
     {
         "page": "utilities/tasks.md",
-        "classes": [prefect.utilities.tasks.FunctionTaskGenerator],
         "functions": [
             prefect.utilities.tasks.group,
             prefect.utilities.tasks.tags,
