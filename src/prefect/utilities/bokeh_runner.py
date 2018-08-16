@@ -44,7 +44,9 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
             context=context,
             task_contexts=task_contexts,
         )
-        self.title = title or "Prefect Flow Interactive Demonstration: {}".format(flow.name)
+        self.title = title or "Prefect Flow Interactive Demonstration: {}".format(
+            flow.name
+        )
         if viz:
             with tempfile.NamedTemporaryFile() as tmp:
                 cloudpickle.dump(self, tmp)
