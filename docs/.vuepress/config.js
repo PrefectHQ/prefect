@@ -41,7 +41,7 @@ module.exports = {
                     children: ['utilities/bokeh', 'utilities/collections', 'utilities/json', 'utilities/tasks']
                 },
             ],
-            '/': ['concepts', 'getting_started', 'utilities'],
+            '/': ['concepts', 'getting_started'],
         }
     },
     markdown: {
