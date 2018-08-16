@@ -118,7 +118,7 @@ new_flow_state = f.run(return_tasks=[text],
 print(f"Flow state: {new_flow_state}\n")
 print(f"Flow results: {new_flow_state.result}")
 
-##     Flow state: Success("All key tasks succeeded.")
+##     Flow state: Success("All reference tasks succeeded.")
     
 ##     Flow results: {<Task: ping_external_service>: Success("Task run succeeded.")}
 ```
