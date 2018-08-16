@@ -143,4 +143,3 @@ class TestCollections:
 
         assert len(f.tasks) == 8
         assert state.result[identity].result == dict(a=[1, dict(y=2)], b=(2, set([1])))
-

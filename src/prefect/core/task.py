@@ -150,6 +150,10 @@ class Task(Serializable, metaclass=SignatureValidator):
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
 
+    # reimplement __hash__ because we override __eq__
+    def __hash__(self):
+        return id(self)
+
     # Run  --------------------------------------------------------------------
 
     def inputs(self) -> Tuple[str, ...]:
@@ -188,7 +192,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         return copy.copy(self)
 
     def __call__(
-        self, *args: object, upstream_tasks: Iterable['Task'] = None, **kwargs: object
+        self, *args: object, upstream_tasks: Iterable["Task"] = None, **kwargs: object
     ) -> "Task":
         """
         Calling a Task instance will first create a _copy_ of the instance, and then
@@ -210,7 +214,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         return new
 
     def bind(
-        self, *args: object, upstream_tasks: Iterable['Task'] = None, **kwargs: object
+        self, *args: object, upstream_tasks: Iterable["Task"] = None, **kwargs: object
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
@@ -254,9 +258,9 @@ class Task(Serializable, metaclass=SignatureValidator):
     def set_dependencies(
         self,
         flow: "Flow" = None,
-        upstream_tasks: Iterable['Task'] = None,
-        downstream_tasks: Iterable['Task'] = None,
-        keyword_tasks: Dict[str, 'Task'] = None,
+        upstream_tasks: Iterable["Task"] = None,
+        downstream_tasks: Iterable["Task"] = None,
+        keyword_tasks: Dict[str, "Task"] = None,
         validate: bool = True,
     ) -> None:
         """
@@ -382,3 +386,98 @@ class Parameter(Task):
         info = super().info()
         info.update(required=self.required, default=self.default)
         return info
+
+    # Operators  ----------------------------------------------------------------
+
+    def is_equal(self, other: Any) -> "Task":
+        """
+        Evaluates `self == other`.
+
+        This can't be implemented as the __eq__() magic method because of Task
+        comparisons.
+        """
+        return prefect.tasks.core.operators.Equal().bind(self, other)
+
+    def is_not_equal(self, other: Any) -> "Task":
+        """
+        Evaluates `self != other`.
+
+        This can't be implemented as the __neq__() magic method because of Task
+        comparisons.
+        """
+        return prefect.tasks.core.operators.NotEqual().bind(self, other)
+
+    def not_(self) -> "Task":
+        """
+        Evaluates `not self`.
+        """
+        return prefect.tasks.core.operators.Not().bind(self)
+
+    def __getitem__(self, key: Any) -> "Task":
+        return prefect.tasks.core.operators.GetItem().bind(self, key)
+
+    def __add__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Add().bind(self, other)
+
+    def __sub__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Sub().bind(self, other)
+
+    def __mul__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Mul().bind(self, other)
+
+    def __truediv__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Div().bind(self, other)
+
+    def __floordiv__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.FloorDiv().bind(self, other)
+
+    def __mod__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Mod().bind(self, other)
+
+    def __pow__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Pow().bind(self, other)
+
+    def __and__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.And().bind(self, other)
+
+    def __or__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Or().bind(self, other)
+
+    def __radd__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Add().bind(other, self)
+
+    def __rsub__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Sub().bind(other, self)
+
+    def __rmul__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Mul().bind(other, self)
+
+    def __rtruediv__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Div().bind(other, self)
+
+    def __rfloordiv__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.FloorDiv().bind(other, self)
+
+    def __rmod__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Mod().bind(other, self)
+
+    def __rpow__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Pow().bind(other, self)
+
+    def __rand__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.And().bind(other, self)
+
+    def __ror__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.Or().bind(other, self)
+
+    def __gt__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.GreaterThan().bind(self, other)
+
+    def __ge__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.GreaterThanOrEqual().bind(self, other)
+
+    def __lt__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.LessThan().bind(self, other)
+
+    def __le__(self, other: Any) -> "Task":
+        return prefect.tasks.core.operators.LessThanOrEqual().bind(self, other)
