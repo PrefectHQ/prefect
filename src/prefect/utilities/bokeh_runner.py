@@ -7,6 +7,16 @@ from typing import Any, Dict, Iterable, Iterator, List, Union
 import prefect
 
 
+try:
+    import bokeh
+except ImportError:
+    msg = (
+        "This feature requires bokeh.\n"
+        "Try re-installing prefect with `pip install prefect[viz]`"
+    )
+    raise ImportError(msg)
+
+
 class BokehRunner(prefect.engine.flow_runner.FlowRunner):
     """
     The BokehRunner class is a special [FlowRunner](../engine/flow_runner.html) subclass meant for debugging, exploring, visualizing, and
