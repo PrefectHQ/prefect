@@ -188,7 +188,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         return copy.copy(self)
 
     def __call__(
-        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
+        self, *args: object, upstream_tasks: Iterable['Task'] = None, **kwargs: object
     ) -> "Task":
         """
         Calling a Task instance will first create a _copy_ of the instance, and then
@@ -210,24 +210,24 @@ class Task(Serializable, metaclass=SignatureValidator):
         return new
 
     def bind(
-        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
+        self, *args: object, upstream_tasks: Iterable['Task'] = None, **kwargs: object
     ) -> "Task":
         """
-        Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow which will
-        pass data from the arguments (whether Tasks or constants) to the Task's `run` method
-        under the appropriate key. Once a Task is bound in this manner, the same task instance cannot be bound a second time
-        in the same Flow.  To bind arguments to a _copy_ of this Task instance, see `__call__`.
-        Additionally, non-keyed edges can be created by passing any upstream dependencies
-        through `upstream_tasks`.
+        Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
+        which will pass data from the arguments (whether Tasks or constants) to the
+        Task's `run` method under the appropriate key. Once a Task is bound in this
+        manner, the same task instance cannot be bound a second time in the same Flow.
 
-        Args:
-            - *args: arguments to bind to the current Task's `run` method
-            - **kwargs: keyword arguments to bind to the current Task's `run` method
-            - upstream_tasks ([Task], optional): a list of upstream dependencies
-                for the current task.
+        To bind arguments to a _copy_ of this Task instance, see `__call__`.
+        Additionally, non-keyed edges can be created by passing any upstream
+        dependencies through `upstream_tasks`.
 
-        Returns:
-            - Task: the current Task instance
+        Args: - *args: arguments to bind to the current Task's `run` method - **kwargs:
+            keyword arguments to bind to the current Task's `run` method -
+            upstream_tasks ([Task], optional): a list of upstream dependencies for the
+            current task.
+
+        Returns: - Task: the current Task instance
         """
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
@@ -253,9 +253,9 @@ class Task(Serializable, metaclass=SignatureValidator):
     def set_dependencies(
         self,
         flow: "Flow" = None,
-        upstream_tasks: Iterable[object] = None,
-        downstream_tasks: Iterable[object] = None,
-        keyword_tasks: Dict[str, object] = None,
+        upstream_tasks: Iterable['Task'] = None,
+        downstream_tasks: Iterable['Task'] = None,
+        keyword_tasks: Dict[str, 'Task'] = None,
         validate: bool = True,
     ) -> None:
         """
