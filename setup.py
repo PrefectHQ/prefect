@@ -20,7 +20,10 @@ install_requires = [
 ]
 
 viz = ["bokeh == 0.13.0", "graphviz >= 0.8.3"]
-extras = {"dev": ["pytest", "pytest-env", "pytest-xdist"] + viz, "viz": viz}
+extras = {
+    "dev": ["pytest", "pytest-cov", "pytest-env", "pytest-xdist"] + viz,
+    "viz": viz,
+}
 
 setup(
     name="prefect",
