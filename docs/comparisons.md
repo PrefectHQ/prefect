@@ -19,7 +19,7 @@ pageClass: comparison
 | **EXECUTION**                           |
 | Scheduled workflows                     | [x] &nbsp; | [x] &nbsp; |
 | Ad-hoc workflows                        | [x] &nbsp; | [x] &nbsp; | Airflow has limited support for off-schedule execution |
-| Streaming workflows                        | [ ] &nbsp; | [ ] &nbsp; | Prefect will support streaming (long-running / async) workflows
+| Streaming workflows                        | [ ] &nbsp; | [ ] &nbsp; | Prefect will support streaming (long-running / async) workflows in an upcoming release
 | Pause/resume workflows during execution | [x] &nbsp; | [ ] &nbsp; |
 | Event-driven scheduler                  | [x] &nbsp; | [ ] &nbsp; |
 | Real-time execution                     | [x] &nbsp; | [ ] &nbsp; |
@@ -139,7 +139,7 @@ t.set_downstream(l)
 
 ### File Transfer comparison
 
-This is a real example of a data pipeline that moves a file from Dropbox to two different locations in Google Cloud Storage. The Prefect version is concise and looks like Python code, because Prefect allows each task to represent a discrete function. In this case, the library only requires a task that loads data from Dropbox; a task that loads data from Google Cloud Storage; and a task that saves data to Google Cloud Storage:
+This is a real example of a data pipeline that moves a file from Dropbox to Google Cloud Storage, then copies the file to a GCS archive. The Prefect version is concise and looks like Python code, because Prefect allows each task to represent a discrete function. In this case, the library only requires a task that loads data from Dropbox; a task that loads data from Google Cloud Storage; and a task that saves data to Google Cloud Storage:
 
 ```python
 from prefect import Task, Flow
@@ -154,8 +154,7 @@ class LoadFromDropbox(Task):
         super().__init__(**kwargs)
 
     def run(self, path):
-        dbx = dropbox.Dropbox(self.api_key)
-        response = dbx.files_download(path)[1]
+        response = dropbox.Dropbox(self.api_key).files_download(path)[1]
         return response.content
 
 
@@ -167,8 +166,7 @@ class LoadFromGCS(Task):
 
     def run(self, bucket, path):
         client = gcs.Client(credentials=self.service_account_key)
-        bucket = client.get_bucket(bucket)
-        return bucket.get_blob(path)
+        return client.get_bucket(bucket).get_blob(path)
 
 
 class SaveToGCS(Task):
@@ -179,21 +177,25 @@ class SaveToGCS(Task):
 
     def run(self, data, bucket, path):
         client = gcs.Client(credentials=self.service_account_key)
-        bucket = client.get_bucket(bucket)
-        return bucket.get_blob(path)
+        client.get_bucket(bucket).blob(path).upload_from_string(data)
 
 
 with Flow("Transfer Example") as flow:
     get_from_dbx = LoadFromDropbox(api_key=DROPBOX_API_KEY)
+    load_from_gcs = LoadFromGCS(service_account_key=GOOGLE_SERVICE_ACCOUNT_KEY)
     save_to_gcs = SaveToGCS(service_account_key=GOOGLE_SERVICE_ACCOUNT_KEY)
 
     dropbox_data = get_from_dbx("/files/file.txt")
     save_to_gcs(data=dropbox_data, bucket=GCS_BUCKET, path="current/file.txt")
-    save_to_gcs(data=dropbox_data, bucket=GCS_BUCKET, path="archive/2018/file.txt")
+
+    gcs_file = load_from_gcs(bucket=GCS_BUCKET, path="current/file.txt"))
+    save_to_gcs(data=gcs_file, bucket=GCS_BUCKET, path="archive/2018/file.txt")
 
 ```
 
-The Airflow version is extremely cumbersome. Because Airflow can not pass data between tasks, each task must perform an entire load, transform, and serialize cycle. As a result, Airflow libraries are full of operators representing every possible combination of data handoffs: `A_to_B_Operator`; `B_to_C_Operator`; `B_to_A_Operator`; `A_to_C_Operator`; `C_to_A_Operator`; etc. This pipeline relies on a DropboxToGoogleCloudStorage operator, followed by a GoogleCloudStorageToGoogleCloudStorage operator:
+The Airflow version is extremely cumbersome. Because Airflow can not pass data between tasks, each task must perform an entire load, transform, and serialize cycle. As a result, Airflow libraries are full of operators representing every possible combination of data handoffs: `A_to_B_Operator`; `B_to_C_Operator`; `B_to_A_Operator`; `A_to_C_Operator`; `C_to_A_Operator`; etc. This pipeline relies on a DropboxToGoogleCloudStorage operator, followed by a GoogleCloudStorageToGoogleCloudStorage operator.
+
+*(This is actual sanitized Airflow code from one of Prefect's early partners)*
 
 
 ```python
@@ -284,7 +286,6 @@ class DropboxToGCSOperator(FileToGoogleCloudStorageOperator):
                 dropbox_hook.download(dropbox_path=self.src, local_path=tmp.name)
 
                 # overwrite self.src with the new, local version of the file
-
                 self.src = tmp.name
 
                 # "rewind" the file and call the FileToGCS execute() method
