@@ -4,6 +4,7 @@
     "version": "0.3.0",
     "dependencies": {
         "markdown-it-attrs": "^2.3.1",
+        "markdown-it-checkbox": "^1.1.0",
         "vuepress": "^0.14.1"
     },
     "scripts": {
