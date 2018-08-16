@@ -174,6 +174,25 @@ def test_calling_a_task_returns_a_copy():
     assert res[t2].result == 9
 
 
+def test_calling_a_slugged_task_in_different_flows_is_ok():
+    t = AddTask(slug="add")
+
+    with Flow() as f:
+        three = t(1, 2)
+
+    with Flow() as g:
+        four = t(1, 3)
+
+
+def test_calling_a_slugged_task_twice_raises_error():
+    t = AddTask(slug="add")
+
+    with pytest.raises(ValueError):
+        with Flow() as f:
+            t.bind(4, 2)
+            t2 = t(9, 0)
+
+
 def test_context_manager_is_properly_applied_to_tasks():
     t1 = Task()
     t2 = Task()

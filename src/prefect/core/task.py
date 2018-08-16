@@ -185,7 +185,7 @@ class Task(Serializable, metaclass=SignatureValidator):
     # Dependencies -------------------------------------------------------------
 
     def copy(self):
-        return copy.deepcopy(self)
+        return copy.copy(self)
 
     def __call__(
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
