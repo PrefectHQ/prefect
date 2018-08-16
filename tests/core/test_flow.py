@@ -129,11 +129,11 @@ def test_set_dependencies_converts_arguments_to_tasks():
     assert len(f.tasks) == 4
 
 
-def test_calling_a_task_in_context_adds_it_to_flow():
+def test_binding_a_task_in_context_adds_it_to_flow():
     with Flow() as flow:
         t = Task()
         assert t not in flow.tasks
-        t()
+        t.bind()
         assert t in flow.tasks
 
 
@@ -144,17 +144,66 @@ def test_adding_a_task_to_a_flow_twice_is_ok():
     f.add_task(t)
 
 
+def test_binding_a_task_to_two_different_flows_is_ok():
+    t = AddTask()
+
+    with Flow() as f:
+        t.bind(4, 2)
+
+    with Flow() as g:
+        t.bind(7, 8)
+
+    f_res = f.run(return_tasks=[t]).result[t].result
+    g_res = g.run(return_tasks=[t]).result[t].result
+    assert f_res == 6
+    assert g_res == 15
+
+
+def test_calling_a_task_returns_a_copy():
+    t = AddTask()
+
+    with Flow() as f:
+        t.bind(4, 2)
+        t2 = t(9, 0)
+
+    assert isinstance(t2, AddTask)
+    assert t != t2
+
+    res = f.run(return_tasks=[t, t2]).result
+    assert res[t].result == 6
+    assert res[t2].result == 9
+
+
+def test_calling_a_slugged_task_in_different_flows_is_ok():
+    t = AddTask(slug="add")
+
+    with Flow() as f:
+        three = t(1, 2)
+
+    with Flow() as g:
+        four = t(1, 3)
+
+
+def test_calling_a_slugged_task_twice_raises_error():
+    t = AddTask(slug="add")
+
+    with pytest.raises(ValueError):
+        with Flow() as f:
+            t.bind(4, 2)
+            t2 = t(9, 0)
+
+
 def test_context_manager_is_properly_applied_to_tasks():
     t1 = Task()
     t2 = Task()
     t3 = Task()
     with Flow() as f1:
         with Flow() as f2:
-            t2()
-        t1()
+            t2.bind()
+        t1.bind()
 
     with pytest.raises(ValueError):
-        t3()
+        t3.bind()
 
     assert f1.tasks == set([t1])
     assert f2.tasks == set([t2])
