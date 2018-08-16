@@ -5,7 +5,7 @@ module.exports = {
         repo: 'prefecthq/prefect/tree/master/docs',
         editLinks: true,
         // repoLabel: 'GitHub',
-        nav: [{ text: "Overview", link: '/' },
+        nav: [{ text: "Overview", link: '/introduction.html' },
             { text: "API", link: '/api/' }
         ],
         sidebar: {
@@ -41,15 +41,11 @@ module.exports = {
                     children: ['utilities/bokeh', 'utilities/collections', 'utilities/json', 'utilities/tasks']
                 },
             ],
-            '/': [{
-                    title: 'Introduction',
-                    collapsable: true,
-                    children: ['concepts', 'getting_started']
-                  },
+            '/': ['introduction', 'concepts', 'getting_started',
                   {
                     title: 'Tutorials',
                     collapsable: true,
-                    children: ['tutorials/task-retries']
+                    children: ['tutorials/', 'tutorials/task-retries']
                   }
             ]
         }
