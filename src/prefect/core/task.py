@@ -238,7 +238,8 @@ class Task(Serializable, metaclass=SignatureValidator):
         var_kw_arg = next(
             (p for p in signature.parameters.values() if p.kind == VAR_KEYWORD), None
         )
-        callargs.update(callargs.pop(var_kw_arg, {}))
+        if var_kw_arg:
+            callargs.update(callargs.pop(var_kw_arg.name, {}))
 
         flow = prefect.context.get("_flow", None)
         if not flow:
