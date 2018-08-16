@@ -45,7 +45,7 @@ module.exports = {
                   {
                     title: 'Tutorials',
                     collapsable: true,
-                    children: ['tutorials/', 'tutorials/task-retries']
+                    children: ['tutorials/', 'tutorials/task-retries', 'tutorials/triggers-and-references']
                   },
                   'comparisons'
             ]
