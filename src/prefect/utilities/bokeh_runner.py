@@ -45,7 +45,7 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
             task_contexts=task_contexts,
         )
         self.title = title or "Prefect Flow Interactive Demonstration: {}".format(
-            flow.name
+            self.flow.name
         )
         if viz:
             with tempfile.NamedTemporaryFile() as tmp:

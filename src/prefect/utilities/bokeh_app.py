@@ -26,13 +26,14 @@ from prefect.engine import state
 
 
 colors = [
-    ("Not Run", "grey"),
+    ("Not Run", "black"),
     ("Retrying", "yellow"),
     ("CachedState", "orange"),
     ("Pending", "lightgrey"),
-    ("Skipped", "lightgreen"),
+    ("Skipped", "honeydew"),
     ("Success", "green"),
     ("Failed", "red"),
+    ("TriggerFailed", "lightcoral"),
 ]
 color_map = CategoricalColorMapper(
     factors=[x for x, y in colors], palette=[y for x, y in colors]
