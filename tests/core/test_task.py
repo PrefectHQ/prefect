@@ -14,6 +14,21 @@ class AddTask(Task):
         return x + y
 
 
+@pytest.fixture
+def copyclass():
+    class CopyTask(Task):
+        class_attr = 42
+
+        def __init__(self, instance_val, **kwargs):
+            self.instance_val = instance_val
+            super().__init__(**kwargs)
+
+        def run(self, run_val):
+            return (run_val, self.class_attr, self.instance_val)
+
+    return CopyTask
+
+
 class TestCreateTask:
     """Test various Task constructors"""
 
@@ -137,3 +152,13 @@ def test_tags():
 def test_inputs():
     """ Test inferring input names """
     assert AddTask().inputs() == ("x", "y")
+
+
+def test_copy_copies(copyclass):
+    ct = copyclass("username")
+    other = ct.copy()
+    assert isinstance(other, copyclass)
+    assert ct is not other
+    assert hash(ct) != hash(other)
+    assert ct != other
+    assert other.run("pass") == ("pass", 42, "username")

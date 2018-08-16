@@ -143,6 +143,36 @@ def test_adding_a_task_to_a_flow_twice_is_ok():
     f.add_task(t)
 
 
+def test_binding_a_task_to_two_different_flows_is_ok():
+    t = AddTask()
+
+    with Flow() as f:
+        t.bind(4, 2)
+
+    with Flow() as g:
+        t.bind(7, 8)
+
+    f_res = f.run(return_tasks=[t]).result[t].result
+    g_res = g.run(return_tasks=[t]).result[t].result
+    assert f_res == 6
+    assert g_res == 15
+
+
+def test_calling_a_task_returns_a_copy():
+    t = AddTask()
+
+    with Flow() as f:
+        t.bind(4, 2)
+        t2 = t(9, 0)
+
+    assert isinstance(t2, AddTask)
+    assert t != t2
+
+    res = f.run(return_tasks=[t, t2]).result
+    assert res[t].result == 6
+    assert res[t2].result == 9
+
+
 def test_context_manager_is_properly_applied_to_tasks():
     t1 = Task()
     t2 = Task()
