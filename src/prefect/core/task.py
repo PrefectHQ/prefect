@@ -122,12 +122,16 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         if isinstance(groups, str):
             raise TypeError("Groups should be a set of groups, not a string.")
-        self.groups = (set(groups) if groups is not None else set()) | set(prefect.context.get("_groups", set()))
+        self.groups = (set(groups) if groups is not None else set()) | set(
+            prefect.context.get("_groups", set())
+        )
 
         # avoid silently iterating over a string
         if isinstance(tags, str):
             raise TypeError("Tags should be a set of tags, not a string.")
-        self.tags = (set(tags) if tags is not None else set()) | set(prefect.context.get("_tags", set()))
+        self.tags = (set(tags) if tags is not None else set()) | set(
+            prefect.context.get("_tags", set())
+        )
 
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -250,6 +254,12 @@ class Task(Serializable, metaclass=SignatureValidator):
             flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs
         )
 
+        groups = set(prefect.context.get("_groups", set()))
+        self.groups.update(groups)
+
+        tags = set(prefect.context.get("_tags", set()))
+        self.tags.update(tags)
+
         return self
 
     def set_dependencies(
@@ -305,7 +315,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             name=self.name,
             slug=self.slug,
             description=self.description,
-            group=self.group,
+            groups=self.groups,
             tags=self.tags,
             type=to_qualified_name(type(self)),
             max_retries=self.max_retries,
