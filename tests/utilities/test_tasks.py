@@ -83,53 +83,6 @@ class TestTaskDecorator:
                 pass
 
 
-def test_context_manager_for_setting_groups():
-    """
-    Test setting a Task groups with a context manager, including:
-        - top level
-        - nested
-        - nested with explicit groups passed
-        - nested with append
-        - top level with append
-    """
-    with tasks.groups("1"):
-        t1 = Task()
-        assert t1.groups == {"1"}
-
-        with tasks.groups("2"):
-            t2 = Task()
-            assert t2.groups == {"1", "2"}
-
-            t3 = Task(groups={"3"})
-            assert t3.groups == {"1", "2", "3"}
-
-        with tasks.groups("2"):
-            t4 = Task()
-            assert t4.groups == {"1", "2"}
-
-    with tasks.groups("1"):
-        t5 = Task()
-        assert t5.groups == {"1"}
-
-
-def test_groups_contextmanager_works_with_task_decorator():
-    @tasks.task
-    def mytask():
-        pass
-
-    @tasks.task(groups=["default"])
-    def grouped_task():
-        pass
-
-    with Flow():
-        with tasks.groups("chris"):
-            res = mytask()
-            other = grouped_task()
-
-    assert res.groups == {"chris"}
-    assert other.groups == {"chris", "default"}
-
-
 def test_tag_contextmanager_works_with_task_decorator():
     @tasks.task
     def mytask():
