@@ -101,6 +101,9 @@ class Task(Serializable, metaclass=SignatureValidator):
         - TypeError: if `tags` is of type `str`
     """
 
+    # Tasks are not iterable, though they do have a __getitem__ method
+    __iter__ = None
+
     def __init__(
         self,
         name: str = None,
@@ -150,6 +153,10 @@ class Task(Serializable, metaclass=SignatureValidator):
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
 
+    # reimplement __hash__ because we override __eq__
+    def __hash__(self):
+        return id(self)
+
     # Run  --------------------------------------------------------------------
 
     def inputs(self) -> Tuple[str, ...]:
@@ -185,6 +192,18 @@ class Task(Serializable, metaclass=SignatureValidator):
     # Dependencies -------------------------------------------------------------
 
     def copy(self):
+
+        flow = prefect.context.get("_flow", None)
+        if (
+            flow
+            and self in flow.tasks
+            and (flow.edges_to(self) or flow.edges_from(self))
+        ):
+            warnings.warn(
+                "You are making a copy of a task that has dependencies on or to other tasks "
+                "in the active flow context. The copy will not retain those dependencies."
+            )
+
         return copy.copy(self)
 
     def __call__(
@@ -213,21 +232,22 @@ class Task(Serializable, metaclass=SignatureValidator):
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         """
-        Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow which will
-        pass data from the arguments (whether Tasks or constants) to the Task's `run` method
-        under the appropriate key. Once a Task is bound in this manner, the same task instance cannot be bound a second time
-        in the same Flow.  To bind arguments to a _copy_ of this Task instance, see `__call__`.
-        Additionally, non-keyed edges can be created by passing any upstream dependencies
-        through `upstream_tasks`.
+        Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
+        which will pass data from the arguments (whether Tasks or constants) to the
+        Task's `run` method under the appropriate key. Once a Task is bound in this
+        manner, the same task instance cannot be bound a second time in the same Flow.
+
+        To bind arguments to a _copy_ of this Task instance, see `__call__`.
+        Additionally, non-keyed edges can be created by passing any upstream
+        dependencies through `upstream_tasks`.
 
         Args:
             - *args: arguments to bind to the current Task's `run` method
+            - upstream_tasks ([Task], optional): a list of upstream dependencies for the
+                current task.
             - **kwargs: keyword arguments to bind to the current Task's `run` method
-            - upstream_tasks ([Task], optional): a list of upstream dependencies
-                for the current task.
 
-        Returns:
-            - Task: the current Task instance
+        Returns: - Task: the current Task instance
         """
         # this will raise an error if callargs weren't all provided
         signature = inspect.signature(self.run)
@@ -238,7 +258,8 @@ class Task(Serializable, metaclass=SignatureValidator):
         var_kw_arg = next(
             (p for p in signature.parameters.values() if p.kind == VAR_KEYWORD), None
         )
-        callargs.update(callargs.pop(var_kw_arg, {}))
+        if var_kw_arg:
+            callargs.update(callargs.pop(var_kw_arg.name, {}))
 
         flow = prefect.context.get("_flow", None)
         if not flow:
@@ -290,6 +311,36 @@ class Task(Serializable, metaclass=SignatureValidator):
             validate=validate,
         )
 
+    def set_upstream(self, task: object) -> None:
+        """
+        Sets the provided task as an upstream dependency of this task.
+
+        Equivalent to: `self.set_dependencies(upstream_tasks=[task])`
+
+        Args:
+            - task (object): A task or object that will be converted to a task that will be set
+                as a upstream dependency of this task.
+
+        Raises:
+            - ValueError: if no flow is specified and no flow can be found in the current context
+        """
+        self.set_dependencies(upstream_tasks=[task])
+
+    def set_downstream(self, task: object) -> None:
+        """
+        Sets the provided task as a downstream dependency of this task.
+
+        Equivalent to: `self.set_dependencies(downstream_tasks=[task])`
+
+        Args:
+            - task (object): A task or object that will be converted to a task that will be set
+                as a downstream dependency of this task.
+
+        Raises:
+            - ValueError: if no flow is specified and no flow can be found in the current context
+        """
+        self.set_dependencies(downstream_tasks=[task])
+
     # Serialization ------------------------------------------------------------
 
     def serialize(self) -> Dict[str, Any]:
@@ -314,6 +365,356 @@ class Task(Serializable, metaclass=SignatureValidator):
             cache_for=self.cache_for,
             cache_validator=self.cache_validator,
         )
+
+    # Operators  ----------------------------------------------------------------
+
+    def is_equal(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self == other`
+
+        This can't be implemented as the __eq__() magic method because of Task
+        comparisons.
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Equal().bind(self, other)
+
+    def is_not_equal(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self != other`
+
+        This can't be implemented as the __neq__() magic method because of Task
+        comparisons.
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.NotEqual().bind(self, other)
+
+    def not_(self) -> "Task":
+        """
+        Produces a Task that evaluates `not self`
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Not().bind(self)
+
+    # Magic Method Interactions  ----------------------------------------------------
+
+    def __getitem__(self, key: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self[key]`
+
+        Args
+            - key (object): the object to use an an index for this task. It will be converted
+                to a Task if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.GetItem().bind(self, key)
+
+    def __or__(self, other: object) -> "Task":
+        """
+        Creates a state dependency between `self` and `other`
+            `self | other --> self.set_dependencies(downstream_tasks=[other])`
+
+        Args
+            - other (object): An object that will be converted to a Task (if it isn't one already)
+                and set as a downstream dependency of this Task.
+
+        Returns
+            - Task
+        """
+        self.set_dependencies(downstream_tasks=[other])
+        return other
+
+    def __ror__(self, other: object) -> "Task":
+        """
+        Creates a state dependency between `self` and `other`:
+            `other | self --> self.set_dependencies(upstream_tasks=[other])`
+
+        Args
+            - other (object): An object that will be converted to a Task and set as an
+                upstream dependency of this Task.
+
+        Returns
+            - Task
+        """
+        self.set_dependencies(upstream_tasks=[other])
+        return self
+
+    # Maginc Method Operators  -----------------------------------------------------
+
+    def __add__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self + other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Add().bind(self, other)
+
+    def __sub__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self - other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Sub().bind(self, other)
+
+    def __mul__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self * other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Mul().bind(self, other)
+
+    def __truediv__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self / other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Div().bind(self, other)
+
+    def __floordiv__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self // other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.FloorDiv().bind(self, other)
+
+    def __mod__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self % other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Mod().bind(self, other)
+
+    def __pow__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self ** other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Pow().bind(self, other)
+
+    def __and__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self & other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.And().bind(self, other)
+
+    def __radd__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `other + self`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Add().bind(other, self)
+
+    def __rsub__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `other - self`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Sub().bind(other, self)
+
+    def __rmul__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `other * self`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Mul().bind(other, self)
+
+    def __rtruediv__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `other / self`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Div().bind(other, self)
+
+    def __rfloordiv__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `other // self`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.FloorDiv().bind(other, self)
+
+    def __rmod__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `other % self`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Mod().bind(other, self)
+
+    def __rpow__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `other ** self`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Pow().bind(other, self)
+
+    def __rand__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `other & self`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.And().bind(other, self)
+
+    def __gt__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self > other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.GreaterThan().bind(self, other)
+
+    def __ge__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self >= other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.GreaterThanOrEqual().bind(self, other)
+
+    def __lt__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self < other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.LessThan().bind(self, other)
+
+    def __le__(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self <= other`
+
+        Args
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.LessThanOrEqual().bind(self, other)
 
 
 class Parameter(Task):
