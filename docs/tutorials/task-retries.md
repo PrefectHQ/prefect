@@ -4,9 +4,9 @@ sidebarDepth: 0
 
 ## Task Retries
 
-<img src='/retry_success.png'>
-
 When designing data workflows, it is to be expected that certain components might occasionally fail or need manual intervention.  In these situations, to avoid re-running entire flows from scratch and still ensure the necessary data arrives at the paused / retrying task, Prefect will automatically detect that caching is required and will store the necessary inputs to be used in subsequent executions of the flow.
+
+<img src='/retry_success.png'>
 
 There are many reasons a given flow run might result in a task failure; for example, if a task pings an external service that is temporarily down, or queries a database that is currently locked, that task cannot proceed.  
 
