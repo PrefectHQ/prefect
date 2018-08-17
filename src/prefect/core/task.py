@@ -192,10 +192,22 @@ class Task(Serializable, metaclass=SignatureValidator):
     # Dependencies -------------------------------------------------------------
 
     def copy(self):
+
+        flow = prefect.context.get("_flow", None)
+        if (
+            flow
+            and self in flow.tasks
+            and (flow.edges_to(self) or flow.edges_from(self))
+        ):
+            warnings.warn(
+                "You are making a copy of a task that has dependencies on or to other tasks "
+                "in the active flow context. The copy will not retain those dependencies."
+            )
+
         return copy.copy(self)
 
     def __call__(
-        self, *args: object, upstream_tasks: Iterable["Task"] = None, **kwargs: object
+        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         """
         Calling a Task instance will first create a _copy_ of the instance, and then
@@ -217,7 +229,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         return new
 
     def bind(
-        self, *args: object, upstream_tasks: Iterable["Task"] = None, **kwargs: object
+        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
@@ -261,9 +273,9 @@ class Task(Serializable, metaclass=SignatureValidator):
     def set_dependencies(
         self,
         flow: "Flow" = None,
-        upstream_tasks: Iterable["Task"] = None,
-        downstream_tasks: Iterable["Task"] = None,
-        keyword_tasks: Dict[str, "Task"] = None,
+        upstream_tasks: Iterable[object] = None,
+        downstream_tasks: Iterable[object] = None,
+        keyword_tasks: Dict[str, object] = None,
         validate: bool = True,
     ) -> None:
         """
@@ -298,6 +310,36 @@ class Task(Serializable, metaclass=SignatureValidator):
             validate=validate,
         )
 
+    def set_upstream(self, task: object) -> None:
+        """
+        Sets the provided task as an upstream dependency of this task.
+
+        Equivalent to: `self.set_dependencies(upstream_tasks=[task])`
+
+        Args:
+            - task (object): A task or object that will be converted to a task that will be set
+                as a upstream dependency of this task.
+
+        Raises:
+            - ValueError: if no flow is specified and no flow can be found in the current context
+        """
+        self.set_dependencies(upstream_tasks=[task])
+
+    def set_downstream(self, task: object) -> None:
+        """
+        Sets the provided task as a downstream dependency of this task.
+
+        Equivalent to: `self.set_dependencies(downstream_tasks=[task])`
+
+        Args:
+            - task (object): A task or object that will be converted to a task that will be set
+                as a downstream dependency of this task.
+
+        Raises:
+            - ValueError: if no flow is specified and no flow can be found in the current context
+        """
+        self.set_dependencies(downstream_tasks=[task])
+
     # Serialization ------------------------------------------------------------
 
     def serialize(self) -> Dict[str, Any]:
@@ -325,7 +367,7 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     # Operators  ----------------------------------------------------------------
 
-    def is_equal(self, other: Any) -> "Task":
+    def is_equal(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self == other`
 
@@ -333,7 +375,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         comparisons.
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -341,7 +383,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Equal().bind(self, other)
 
-    def is_not_equal(self, other: Any) -> "Task":
+    def is_not_equal(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self != other`
 
@@ -349,7 +391,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         comparisons.
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -373,7 +415,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         Produces a Task that evaluates `self[other]`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -381,13 +423,13 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.GetItem().bind(self, key)
 
-    def __or__(self, other: Any) -> "Task":
+    def __or__(self, other: object) -> "Task":
         """
         Creates a state dependency between `self` and `other`
             `self | other --> self.set_dependencies(downstream_tasks=[other])`
 
         Args
-            - other (Any): An object that will be converted to a Task (if it isn't one already)
+            - other (object): An object that will be converted to a Task (if it isn't one already)
                 and set as a downstream dependency of this Task.
 
         Returns
@@ -396,13 +438,13 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.set_dependencies(downstream_tasks=[other])
         return other
 
-    def __ror__(self, other: Any) -> "Task":
+    def __ror__(self, other: object) -> "Task":
         """
         Creates a state dependency between `self` and `other`:
             `other | self --> self.set_dependencies(upstream_tasks=[other])`
 
         Args
-            - other (Any): An object that will be converted to a Task and set as an
+            - other (object): An object that will be converted to a Task and set as an
                 upstream dependency of this Task.
 
         Returns
@@ -413,12 +455,12 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     # Maginc Method Operators  -----------------------------------------------------
 
-    def __add__(self, other: Any) -> "Task":
+    def __add__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self + other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -426,12 +468,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Add().bind(self, other)
 
-    def __sub__(self, other: Any) -> "Task":
+    def __sub__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self - other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -439,12 +481,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Sub().bind(self, other)
 
-    def __mul__(self, other: Any) -> "Task":
+    def __mul__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self * other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -452,12 +494,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Mul().bind(self, other)
 
-    def __truediv__(self, other: Any) -> "Task":
+    def __truediv__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self / other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -465,12 +507,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Div().bind(self, other)
 
-    def __floordiv__(self, other: Any) -> "Task":
+    def __floordiv__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self // other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -478,12 +520,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.FloorDiv().bind(self, other)
 
-    def __mod__(self, other: Any) -> "Task":
+    def __mod__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self % other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -491,12 +533,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Mod().bind(self, other)
 
-    def __pow__(self, other: Any) -> "Task":
+    def __pow__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self ** other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -504,12 +546,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Pow().bind(self, other)
 
-    def __and__(self, other: Any) -> "Task":
+    def __and__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self & other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -517,12 +559,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.And().bind(self, other)
 
-    def __radd__(self, other: Any) -> "Task":
+    def __radd__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `other + self`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -530,12 +572,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Add().bind(other, self)
 
-    def __rsub__(self, other: Any) -> "Task":
+    def __rsub__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `other - self`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -543,12 +585,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Sub().bind(other, self)
 
-    def __rmul__(self, other: Any) -> "Task":
+    def __rmul__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `other * self`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -556,12 +598,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Mul().bind(other, self)
 
-    def __rtruediv__(self, other: Any) -> "Task":
+    def __rtruediv__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `other / self`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -569,12 +611,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Div().bind(other, self)
 
-    def __rfloordiv__(self, other: Any) -> "Task":
+    def __rfloordiv__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `other // self`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -582,12 +624,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.FloorDiv().bind(other, self)
 
-    def __rmod__(self, other: Any) -> "Task":
+    def __rmod__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `other % self`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -595,12 +637,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Mod().bind(other, self)
 
-    def __rpow__(self, other: Any) -> "Task":
+    def __rpow__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `other ** self`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -608,12 +650,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Pow().bind(other, self)
 
-    def __rand__(self, other: Any) -> "Task":
+    def __rand__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `other & self`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -621,12 +663,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.And().bind(other, self)
 
-    def __gt__(self, other: Any) -> "Task":
+    def __gt__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self > other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -634,12 +676,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.GreaterThan().bind(self, other)
 
-    def __ge__(self, other: Any) -> "Task":
+    def __ge__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self >= other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -647,12 +689,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.GreaterThanOrEqual().bind(self, other)
 
-    def __lt__(self, other: Any) -> "Task":
+    def __lt__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self < other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns
@@ -660,12 +702,12 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.LessThan().bind(self, other)
 
-    def __le__(self, other: Any) -> "Task":
+    def __le__(self, other: object) -> "Task":
         """
         Produces a Task that evaluates `self <= other`
 
         Args
-            - other (Any): the other operand of the operator. It will be converted to a Task
+            - other (object): the other operand of the operator. It will be converted to a Task
                 if it isn't one already.
 
         Returns

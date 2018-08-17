@@ -186,7 +186,8 @@ def test_calling_a_task_returns_a_copy():
 
     with Flow() as f:
         t.bind(4, 2)
-        t2 = t(9, 0)
+        with pytest.warns(UserWarning):
+            t2 = t(9, 0)
 
     assert isinstance(t2, AddTask)
     assert t != t2
@@ -206,12 +207,11 @@ def test_calling_a_slugged_task_in_different_flows_is_ok():
         four = t(1, 3)
 
 
-def test_calling_a_slugged_task_twice_raises_error():
+def test_calling_a_slugged_task_twice_warns_error():
     t = AddTask(slug="add")
-
-    with pytest.raises(ValueError):
-        with Flow() as f:
-            t.bind(4, 2)
+    with Flow() as f:
+        t.bind(4, 2)
+        with pytest.warns(UserWarning), pytest.raises(ValueError):
             t2 = t(9, 0)
 
 
