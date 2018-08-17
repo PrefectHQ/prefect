@@ -156,6 +156,7 @@ def test_merge_diamond_flow_with_results():
         state = flow.run(return_tasks=flow.tasks)
         assert state.result[merge_task].result is None
 
+
 def test_merge_with_list():
     with Flow() as flow:
         condition = Condition()
