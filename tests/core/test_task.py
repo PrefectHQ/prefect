@@ -115,6 +115,32 @@ def test_groups():
         assert t3.groups == {"test"}
 
 
+def test_tags_are_added_when_arguments_are_bound():
+    t1 = AddTask(tags=["math"])
+    t2 = AddTask(tags=["math"])
+
+    with prefect.context(_tags=["test"]):
+        with Flow():
+            t1.bind(1, 2)
+            t3 = t2(1, 2)
+
+    assert t1.tags == {"math", "test"}
+    assert t3.tags == {"math", "test"}
+
+
+def test_groups_are_added_when_arguments_are_bound():
+    t1 = AddTask(groups=["math"])
+    t2 = AddTask(groups=["math"])
+
+    with prefect.context(_groups=["test"]):
+        with Flow():
+            t1.bind(1, 2)
+            t3 = t2(1, 2)
+
+    assert t1.groups == {"math", "test"}
+    assert t3.groups == {"math", "test"}
+
+
 def test_tags():
     t1 = Task()
     assert t1.tags == set()
