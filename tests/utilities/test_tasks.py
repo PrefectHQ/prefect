@@ -83,33 +83,69 @@ class TestTaskDecorator:
                 pass
 
 
-def test_context_manager_for_setting_group():
+def test_context_manager_for_setting_groups():
     """
-    Test setting a Task group with a context manager, including:
+    Test setting a Task groups with a context manager, including:
         - top level
         - nested
-        - nested with explicit group passed
+        - nested with explicit groups passed
         - nested with append
         - top level with append
     """
-    with tasks.group("1"):
+    with tasks.groups("1"):
         t1 = Task()
-        assert t1.group == "1"
+        assert t1.groups == {"1"}
 
-        with tasks.group("2"):
+        with tasks.groups("2"):
             t2 = Task()
-            assert t2.group == "2"
+            assert t2.groups == {"1", "2"}
 
-            t3 = Task(group="3")
-            assert t3.group == "3"
+            t3 = Task(groups={"3"})
+            assert t3.groups == {"1", "2", "3"}
 
-        with tasks.group("2", append=True):
+        with tasks.groups("2"):
             t4 = Task()
-            assert t4.group == "1/2"
+            assert t4.groups == {"1", "2"}
 
-    with tasks.group("1", append=True):
+    with tasks.groups("1"):
         t5 = Task()
-        assert t5.group == "1"
+        assert t5.groups == {"1"}
+
+
+def test_groups_contextmanager_works_with_task_decorator():
+    @tasks.task
+    def mytask():
+        pass
+
+    @tasks.task(groups=["default"])
+    def grouped_task():
+        pass
+
+    with Flow():
+        with tasks.groups("chris"):
+            res = mytask()
+            other = grouped_task()
+
+    assert res.groups == {"chris"}
+    assert other.groups == {"chris", "default"}
+
+
+def test_tag_contextmanager_works_with_task_decorator():
+    @tasks.task
+    def mytask():
+        pass
+
+    @tasks.task(tags=["default"])
+    def tagged_task():
+        pass
+
+    with Flow():
+        with tasks.tags("chris"):
+            res = mytask()
+            other = tagged_task()
+
+    assert res.tags == {"chris"}
+    assert other.tags == {"chris", "default"}
 
 
 def test_context_manager_for_setting_tags():
@@ -129,4 +165,4 @@ def test_context_manager_for_setting_tags():
             assert t2.tags == set(["1", "2", "3", "4"])
 
             t3 = Task(tags=["5"])
-            assert t3.tags == set(["5"])
+            assert t3.tags == set(["1", "2", "3", "4", "5"])

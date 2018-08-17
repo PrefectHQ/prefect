@@ -83,7 +83,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         - name (str, optional): The name of this task
         - slug (str, optional): The slug for this task, it must be unique withing a given Flow
         - description (str, optional): Descriptive information about this task
-        - group (str, optional): Group in which this task belongs to
+        - groups ([str], optional): Groups to which this task belongs to
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
@@ -106,7 +106,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         name: str = None,
         slug: str = None,
         description: str = None,
-        group: str = None,
+        groups: str = None,
         tags: Iterable[str] = None,
         max_retries: int = 0,
         retry_delay: timedelta = timedelta(minutes=1),
@@ -120,12 +120,14 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.slug = slug
         self.description = description
 
-        self.group = str(group or prefect.context.get("_group", ""))
+        if isinstance(groups, str):
+            raise TypeError("Groups should be a set of groups, not a string.")
+        self.groups = (set(groups) if groups is not None else set()) | set(prefect.context.get("_groups", set()))
 
         # avoid silently iterating over a string
         if isinstance(tags, str):
             raise TypeError("Tags should be a set of tags, not a string.")
-        self.tags = set(tags or prefect.context.get("_tags", []))
+        self.tags = (set(tags) if tags is not None else set()) | set(prefect.context.get("_tags", set()))
 
         self.max_retries = max_retries
         self.retry_delay = retry_delay

@@ -49,7 +49,7 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
             the matching task will be executed.
     """
 
-    with prefect.group("switch"):
+    with prefect.groups("switch"):
         for match_value, task in cases.items():
             match_condition = Match(match_value=match_value)(value=condition)
             task.set_dependencies(upstream_tasks=[match_condition])

@@ -6,18 +6,17 @@ from toolz import curry
 
 import prefect
 
-__all__ = ["group", "tags", "as_task", "task"]
+__all__ = ["groups", "tags", "as_task", "task"]
 
 
 @contextmanager
-def group(name: str, append: bool = False) -> Iterator[None]:
+def groups(*groups: str) -> Iterator[None]:
     """
     Context manager for setting a task group.
 
     Args:
-        - name (str): the name of the group
-        - append (bool, optional): boolean specifying whether to append the new
-            group name to any active group name found in context. Defaults to `False`
+        - *groups ([str]): a list of groups to apply to the tasks created within
+            the context manager
 
     Examples:
     ```python
@@ -34,14 +33,14 @@ def group(name: str, append: bool = False) -> Iterator[None]:
         print('hi')
 
     with Flow() as f:
-        with group("math"):
+        with groups("math"):
             a = add(1, 5)
             b = sub(1, 5)
-        with group("io"):
+        with groups("io"):
             c = say_hi()
 
-    print(a.group) # "math"
-    print(c.group) # "io"
+    print(a.groups) # {"math"}
+    print(c.groups) # {"io"}
     ```
 
     ```python
@@ -50,18 +49,16 @@ def group(name: str, append: bool = False) -> Iterator[None]:
         return x + y
 
     with Flow() as f:
-        with group("math"):
-            with group("functions", append=True):
+        with groups("math"):
+            with groups("functions"):
                 result = add(1, 5)
 
-    print(result.group) # "math/functions"
+    print(result.groups) # {"math", "functions"}
     ```
     """
-    if append:
-        current_group = prefect.context.get("_group", "")
-        if current_group:
-            name = current_group + "/" + name
-    with prefect.context(_group=name):
+    current_groups = prefect.context.get("_groups", set())
+    groups_set = current_groups | set(groups)
+    with prefect.context(_groups=groups_set):
         yield
 
 
