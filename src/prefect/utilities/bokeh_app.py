@@ -26,13 +26,14 @@ from prefect.engine import state
 
 
 colors = [
-    ("Not Run", "grey"),
+    ("Not Run", "black"),
     ("Retrying", "yellow"),
     ("CachedState", "orange"),
     ("Pending", "lightgrey"),
-    ("Skipped", "lightgreen"),
+    ("Skipped", "honeydew"),
     ("Success", "green"),
     ("Failed", "red"),
+    ("TriggerFailed", "lightcoral"),
 ]
 color_map = CategoricalColorMapper(
     factors=[x for x, y in colors], palette=[y for x, y in colors]
@@ -126,7 +127,7 @@ flow_source = ColumnDataSource(
 
 ## configure Plot + tools
 plot = figure(
-    title="Prefect Flow Interactive Demonstration: {}".format(runner.flow.name),
+    title=runner.title,
     x_range=(-1.1, 1.1),
     y_range=(-1.1, 1.1),
     tools="",
@@ -135,6 +136,12 @@ plot = figure(
 
 plot.xgrid.grid_line_color = None
 plot.ygrid.grid_line_color = None
+plot.xaxis.major_tick_line_color = None  # turn off x-axis major ticks
+plot.xaxis.minor_tick_line_color = None  # turn off x-axis minor ticks
+
+plot.yaxis.major_tick_line_color = None  # turn off y-axis major ticks
+plot.yaxis.minor_tick_line_color = None  # turn off y-axis minor ticks
+plot.axis.visible = False
 
 plot.circle(
     "x",
