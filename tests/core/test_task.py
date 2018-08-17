@@ -109,16 +109,17 @@ def test_task_is_not_iterable():
         list(t)
 
 
-def test_groups():
-    t1 = Task()
-    assert t1.group == ""
+def test_tags_are_added_when_arguments_are_bound():
+    t1 = AddTask(tags=["math"])
+    t2 = AddTask(tags=["math"])
 
-    t2 = Task(group="test")
-    assert t2.group == "test"
+    with prefect.context(_tags=["test"]):
+        with Flow():
+            t1.bind(1, 2)
+            t3 = t2(1, 2)
 
-    with prefect.context(_group="test"):
-        t3 = Task()
-        assert t3.group == "test"
+    assert t1.tags == {"math", "test"}
+    assert t3.tags == {"math", "test"}
 
 
 def test_tags():
@@ -137,7 +138,7 @@ def test_tags():
 
     with prefect.context(_tags=["test1", "test2"]):
         t5 = Task(tags=["test3"])
-        assert t5.tags == set(["test3"])
+        assert t5.tags == set(["test1", "test2", "test3"])
 
 
 def test_inputs():

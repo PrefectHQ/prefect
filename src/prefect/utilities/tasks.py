@@ -6,63 +6,7 @@ from toolz import curry
 
 import prefect
 
-__all__ = ["group", "tags", "as_task", "task"]
-
-
-@contextmanager
-def group(name: str, append: bool = False) -> Iterator[None]:
-    """
-    Context manager for setting a task group.
-
-    Args:
-        - name (str): the name of the group
-        - append (bool, optional): boolean specifying whether to append the new
-            group name to any active group name found in context. Defaults to `False`
-
-    Examples:
-    ```python
-    @task
-    def add(x, y):
-        return x + y
-
-    @task
-    def sub(x, y):
-        return x - y
-
-    @task
-    def say_hi():
-        print('hi')
-
-    with Flow() as f:
-        with group("math"):
-            a = add(1, 5)
-            b = sub(1, 5)
-        with group("io"):
-            c = say_hi()
-
-    print(a.group) # "math"
-    print(c.group) # "io"
-    ```
-
-    ```python
-    @task
-    def add(x, y):
-        return x + y
-
-    with Flow() as f:
-        with group("math"):
-            with group("functions", append=True):
-                result = add(1, 5)
-
-    print(result.group) # "math/functions"
-    ```
-    """
-    if append:
-        current_group = prefect.context.get("_group", "")
-        if current_group:
-            name = current_group + "/" + name
-    with prefect.context(_group=name):
-        yield
+__all__ = ["tags", "as_task", "task"]
 
 
 @contextmanager

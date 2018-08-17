@@ -83,33 +83,32 @@ class TestTaskDecorator:
                 pass
 
 
-def test_context_manager_for_setting_group():
-    """
-    Test setting a Task group with a context manager, including:
-        - top level
-        - nested
-        - nested with explicit group passed
-        - nested with append
-        - top level with append
-    """
-    with tasks.group("1"):
+def test_tag_contextmanager_works_with_task_decorator():
+    @tasks.task
+    def mytask():
+        pass
+
+    @tasks.task(tags=["default"])
+    def tagged_task():
+        pass
+
+    with Flow():
+        with tasks.tags("chris"):
+            res = mytask()
+            other = tagged_task()
+
+    assert res.tags == {"chris"}
+    assert other.tags == {"chris", "default"}
+
+
+def test_setting_tags_then_calling_copies_tags():
+    with tasks.tags("init-tag"):
         t1 = Task()
-        assert t1.group == "1"
 
-        with tasks.group("2"):
-            t2 = Task()
-            assert t2.group == "2"
+    with Flow():
+        t2 = t1()
 
-            t3 = Task(group="3")
-            assert t3.group == "3"
-
-        with tasks.group("2", append=True):
-            t4 = Task()
-            assert t4.group == "1/2"
-
-    with tasks.group("1", append=True):
-        t5 = Task()
-        assert t5.group == "1"
+    assert t2.tags == {"init-tag"}
 
 
 def test_context_manager_for_setting_tags():
@@ -129,4 +128,4 @@ def test_context_manager_for_setting_tags():
             assert t2.tags == set(["1", "2", "3", "4"])
 
             t3 = Task(tags=["5"])
-            assert t3.tags == set(["5"])
+            assert t3.tags == set(["1", "2", "3", "4", "5"])

@@ -83,7 +83,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         - name (str, optional): The name of this task
         - slug (str, optional): The slug for this task, it must be unique withing a given Flow
         - description (str, optional): Descriptive information about this task
-        - group (str, optional): Group in which this task belongs to
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
@@ -109,7 +108,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         name: str = None,
         slug: str = None,
         description: str = None,
-        group: str = None,
         tags: Iterable[str] = None,
         max_retries: int = 0,
         retry_delay: timedelta = timedelta(minutes=1),
@@ -123,12 +121,11 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.slug = slug
         self.description = description
 
-        self.group = str(group or prefect.context.get("_group", ""))
-
         # avoid silently iterating over a string
         if isinstance(tags, str):
             raise TypeError("Tags should be a set of tags, not a string.")
-        self.tags = set(tags or prefect.context.get("_tags", []))
+        current_tags = set(prefect.context.get("_tags", set()))
+        self.tags = (set(tags) if tags is not None else set()) | current_tags
 
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -269,6 +266,9 @@ class Task(Serializable, metaclass=SignatureValidator):
             flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs
         )
 
+        tags = set(prefect.context.get("_tags", set()))
+        self.tags.update(tags)
+
         return self
 
     def set_dependencies(
@@ -354,7 +354,6 @@ class Task(Serializable, metaclass=SignatureValidator):
             name=self.name,
             slug=self.slug,
             description=self.description,
-            group=self.group,
             tags=self.tags,
             type=to_qualified_name(type(self)),
             max_retries=self.max_retries,
