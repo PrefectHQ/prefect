@@ -1,19 +1,19 @@
 
 # Triggers and Reference Tasks
 
-In some cases, we explicitly _don't_ want to automate some portion of a system; in these cases the notion of a "Success" can be difficult or impossible to verify automatically, so instead we want a person to review the state of affairs and decide if it's safe to proceed with the work.  Othertimes user input is needed at _Task_ runtime (as opposed to _Flow_ runtime).
+In some cases, we explicitly _don't_ want to automate some portion of a system; in these cases the notion of a "Success" can be difficult or impossible to verify automatically, so instead we want a person to review the state of affairs and decide if it's safe to proceed with the work.  Othertimes user input is needed at _task_ runtime (as opposed to _flow_ runtime).
 
 For example, imagine we have the following workflow:
 
 <img src="/manual_approval.svg">
 
 ### Triggers
-In Prefect, this workflow can be implemented through the use of `triggers`.  A `trigger` is a function which determines whether a Task should run, fail, or be placed in some other state based on the state of its upstream dependencies.  The default Task trigger is (naturally) `all_successful`.  To implement the workflow above, we will use two triggers:
+In Prefect, this workflow can be implemented through the use of `triggers`.  A `trigger` is a function which determines whether a task should run, fail, or be placed in some other state based on the state of its upstream dependencies.  The default task trigger is (naturally) `all_successful`.  To implement the workflow above, we will use two triggers:
 - the `manual_only` trigger, which will cause the task which requires approval to be placed in a `Pending` state until explicitly requested as a `start_task` in a future call to `Flow.run()`
 - the `any_failed` trigger so that the complaint is only run if approval _fails_
 
 ### Reference Tasks
-Notice that in the example above, the terminal tasks are mutually exclusive (i.e., there is no way for them to _both_ run).  Consequently, how should the overall Flow state be determined?  The default is that the overall state of the Flow is determined by its _terminal_ tasks (those with no downstream dependencies).  However, we have found ourselves in a situation where _no matter what_ this rule will cause the overall state to be marked `Failed`.  This is where `reference_tasks` come into play: `reference_tasks` can be set at Flow runtime and are a list of Tasks that will determine the overall state of the Flow.  In this case, we have one reference task: the email.  Let's now proceed to set up the Flow and walk through the constructs we have discussed.
+Notice that in the example above, the terminal tasks are mutually exclusive (i.e., there is no way for them to _both_ run).  Consequently, how should the overall flow state be determined?  The default is that the overall state of the flow is determined by its _terminal_ tasks (those with no downstream dependencies).  However, we have found ourselves in a situation where _no matter what_ this rule will cause the overall state to be marked `Failed`.  This is where `reference_tasks` come into play: `reference_tasks` can be set at flow runtime and are a list of tasks that will determine the overall state of the flow.  In this case, we have one reference task: the email.  Let's now proceed to set up the flow and walk through the constructs we have discussed.
 
 :::warning NOTE
 There are other legitimate implementations of this flow, for example by using `conditionals`.
@@ -64,14 +64,14 @@ with Flow() as f:
 We were able to _functionally_ specify upstream dependencies on the `complaint` task via the reserved `upstream_tasks` keyword argument.
 :::
 
-Next, we need to set `board_email` as our only reference task so that the overall state of the Flow is representative of our target objective.
+Next, we need to set `board_email` as our only reference task so that the overall state of the flow is representative of our target objective.
 
 
 ```python
 f.set_reference_tasks([board_email])
 ```
 
-We are now ready to run the Flow:
+We are now ready to run the flow:
 
 
 ```python
@@ -89,7 +89,7 @@ print(flow_state.result)
 ##     }
 ```
 
-Let's have a look at what the current Flow state looks like visually:
+Let's have a look at what the current flow state looks like visually:
 
 <img src='/manual_only.png'>
 
@@ -103,10 +103,10 @@ flow_state.result[report].result
 ```
 
 
-Looks good to me!  Without the server UI / CLI, we now need to explicitly tell the Flow to run, beginning at the `board_email` task.
+Looks good to me!  Without the server UI / CLI, we now need to explicitly tell the flow to run, beginning at the `board_email` task.
 
 :::tip 
-Anytime a Task is included in `start_tasks`, its trigger is ignored and it attempts to run.  
+Anytime a task is included in `start_tasks`, its trigger is ignored and it attempts to run.  
 :::
 
 Note that in this case, the tasks represented by `data` and `report` will _not_ be run again - the necessary inputs required for `board_email` to run have been cached!
