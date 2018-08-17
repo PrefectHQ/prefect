@@ -335,7 +335,7 @@ def test_copy():
 
     f.add_edge(t1, t2)
     f.add_edge(t2, t3)
-    f.set_key_tasks([t1])
+    f.set_reference_tasks([t1])
 
     f2 = f.copy()
     assert f2 == f
@@ -343,7 +343,7 @@ def test_copy():
     f.add_edge(Task(), Task())
     assert len(f2.tasks) == len(f.tasks) - 2
     assert len(f2.edges) == len(f.edges) - 1
-    assert f.key_tasks() == f2.key_tasks() == set([t1])
+    assert f.reference_tasks() == f2.reference_tasks() == set([t1])
 
 
 def test_infer_root_tasks():
@@ -372,7 +372,7 @@ def test_infer_terminal_tasks():
     assert f.terminal_tasks() == set([t3, t4])
 
 
-def test_key_tasks_are_terminal_tasks_by_default():
+def test_reference_tasks_are_terminal_tasks_by_default():
     with Flow() as f:
         t1 = Task()
         t2 = Task()
@@ -383,10 +383,10 @@ def test_key_tasks_are_terminal_tasks_by_default():
     f.add_edge(t2, t3)
     f.add_task(t4)
 
-    assert f.key_tasks() == f.terminal_tasks() == set([t3, t4])
+    assert f.reference_tasks() == f.terminal_tasks() == set([t3, t4])
 
 
-def test_set_key_tasks():
+def test_set_reference_tasks():
     with Flow() as f:
         t1 = Task()
         t2 = Task()
@@ -395,30 +395,30 @@ def test_set_key_tasks():
     f.add_edge(t1, t2)
     f.add_edge(t2, t3)
 
-    f.set_key_tasks([])
-    assert f.key_tasks() == f.terminal_tasks()
-    f.set_key_tasks([t2])
-    assert f.key_tasks() == set([t2])
+    f.set_reference_tasks([])
+    assert f.reference_tasks() == f.terminal_tasks()
+    f.set_reference_tasks([t2])
+    assert f.reference_tasks() == set([t2])
 
 
-def test_set_key_tasks_at_init_with_empty_flow_raises_error():
+def test_set_reference_tasks_at_init_with_empty_flow_raises_error():
 
     with pytest.raises(ValueError) as exc:
-        Flow(key_tasks=[Task()])
+        Flow(reference_tasks=[Task()])
     assert "must be part of the flow" in str(exc.value)
 
 
-def test_set_key_tasks_at_init():
+def test_set_reference_tasks_at_init():
     t1 = Task()
-    f = Flow(key_tasks=[t1], tasks=[t1])
-    assert f.key_tasks() == set([t1]) == f.tasks == f.terminal_tasks()
+    f = Flow(reference_tasks=[t1], tasks=[t1])
+    assert f.reference_tasks() == set([t1]) == f.tasks == f.terminal_tasks()
 
     t2 = Task()
-    f = Flow(key_tasks=[t2], tasks=[t1, t2])
-    assert f.key_tasks() == set([t2])
+    f = Flow(reference_tasks=[t2], tasks=[t1, t2])
+    assert f.reference_tasks() == set([t2])
 
 
-def test_reset_key_tasks_to_terminal_tasks():
+def test_reset_reference_tasks_to_terminal_tasks():
 
     with Flow() as f:
         t1 = Task()
@@ -428,17 +428,17 @@ def test_reset_key_tasks_to_terminal_tasks():
     f.add_edge(t1, t2)
     f.add_edge(t2, t3)
 
-    f.set_key_tasks([t2])
-    assert f.key_tasks() == set([t2])
-    f.set_key_tasks([])
-    assert f.key_tasks() == f.terminal_tasks()
+    f.set_reference_tasks([t2])
+    assert f.reference_tasks() == set([t2])
+    f.set_reference_tasks([])
+    assert f.reference_tasks() == f.terminal_tasks()
 
 
 def test_key_states_raises_error_if_not_part_of_flow():
     f = Flow()
     t1 = Task()
     with pytest.raises(ValueError):
-        f.set_key_tasks([t1])
+        f.set_reference_tasks([t1])
 
 
 def test_key_states_raises_error_if_not_iterable():
@@ -446,7 +446,7 @@ def test_key_states_raises_error_if_not_iterable():
         t1 = Task()
         f.add_task(t1)
         with pytest.raises(TypeError):
-            f.set_key_tasks(t1)
+            f.set_reference_tasks(t1)
 
 
 class TestEquality:
@@ -501,7 +501,7 @@ class TestEquality:
         assert f1 == f2
         assert f2 != f3
 
-    def test_equality_based_on_key_tasks(self):
+    def test_equality_based_on_reference_tasks(self):
         f1 = Flow()
         f2 = Flow()
 
@@ -513,9 +513,9 @@ class TestEquality:
             f.add_edge(t1, t2)
             f.add_edge(t1, t3)
 
-        f1.set_key_tasks([t2])
+        f1.set_reference_tasks([t2])
         assert f1 != f2
-        f2.set_key_tasks([t2])
+        f2.set_reference_tasks([t2])
         assert f1 == f2
 
 
@@ -669,17 +669,17 @@ def test_validate_missing_edge_upstream_tasks():
     assert "edges refer to tasks" in str(exc.value).lower()
 
 
-def test_validate_missing_key_tasks():
+def test_validate_missing_reference_tasks():
     f = Flow()
     t1 = Task()
     t2 = Task()
     f.add_task(t1)
     f.add_task(t2)
-    f.set_key_tasks([t1])
+    f.set_reference_tasks([t1])
     f.tasks.remove(t1)
     with pytest.raises(ValueError) as exc:
         f.validate()
-    assert "key tasks are not contained" in str(exc.value).lower()
+    assert "reference tasks are not contained" in str(exc.value).lower()
 
 
 def test_validate_missing_task_ids():
@@ -741,7 +741,7 @@ def test_serialize_default_keys():
             "parameters",
             "schedule",
             "tasks",
-            "key_tasks",
+            "reference_tasks",
             "edges",
         ]
     )
@@ -963,10 +963,10 @@ class TestCache:
         f.add_edge(Task(), Task())
         assert 1 not in f._cache
 
-    def test_setting_key_tasks_clears_cache(self):
+    def test_setting_reference_tasks_clears_cache(self):
         f = Flow()
         t1 = Task()
         f.add_task(t1)
         f._cache[1] = 2
-        f.set_key_tasks([t1])
+        f.set_reference_tasks([t1])
         assert 1 not in f._cache

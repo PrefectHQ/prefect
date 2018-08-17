@@ -61,7 +61,7 @@ flow.run(parameters=dict(name='Marvin')) # prints "Hello, Marvin!"
 flow.run(parameters=dict(name='Arthur')) # prints "Hello, Arthur!"
 ```
 
-## Triggers & Key Tasks
+## Triggers & Reference tasks
 
 So far, we've dealt exclusively with task dependencies that transmit data from one task to another. Prefect also supports **state dependencies** that don't involve data at all.
 
@@ -88,7 +88,7 @@ with Flow('triggers') as flow:
     failed = bad_task()
     clean_up = clean_up_task(upstream_tasks=[failed])
 
-flow.set_key_tasks([failed])
+flow.set_reference_tasks([failed])
 
 flow.run() # prints "All set!"
 ```
@@ -101,7 +101,7 @@ By default, Prefect decides the state of a flow run by examining the states of t
 
 In this flow, the main task failed but a terminal clean-up task succeeded. Therefore, Prefect would conclude that the flow worked as intended and mark it successful. However, you might prefer this flow to be considered a failure -- after all, its main task failed.
 
-Prefect has a feature called `key_tasks` for this purpose. By default, a flow's `key_tasks` are its terminal tasks, but users can change them by calling `flow.set_key_tasks()`. In this case, setting the `failed` as a key task would result in the flow being considered failed when it was run.
+Prefect has a feature called `reference_tasks` for this purpose. By default, a flow's `reference_tasks` are its terminal tasks, but users can change them by calling `flow.set_reference_tasks()`. In this case, setting the `failed` as a reference task would result in the flow being considered failed when it was run.
 
 ## Custom Tasks & Signals
 
