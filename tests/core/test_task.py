@@ -164,6 +164,7 @@ def test_copy_copies():
     assert ct != other
     assert other.run("pass") == ("pass", 42, "username")
 
+
 def test_copy_warns_if_dependencies_in_active_flow():
     t1 = Task()
     t2 = Task()
@@ -177,6 +178,7 @@ def test_copy_warns_if_dependencies_in_active_flow():
             # no dependencies in this flow
             t1.copy()
 
+
 class TestDependencies:
     """
     Most dependnecy tests are done in test_flow.py.
@@ -188,6 +190,7 @@ class TestDependencies:
             t2 = Task()
             t1.set_downstream(t2)
             assert Edge(t1, t2) in f.edges
+
     def test_set_upstream(self):
         with Flow() as f:
             t1 = Task()
