@@ -101,6 +101,9 @@ class Task(Serializable, metaclass=SignatureValidator):
         - TypeError: if `tags` is of type `str`
     """
 
+    # Tasks are not iterable, though they do have a __getitem__ method
+    __iter__ = None
+
     def __init__(
         self,
         name: str = None,
@@ -320,6 +323,356 @@ class Task(Serializable, metaclass=SignatureValidator):
             cache_validator=self.cache_validator,
         )
 
+    # Operators  ----------------------------------------------------------------
+
+    def is_equal(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self == other`
+
+        This can't be implemented as the __eq__() magic method because of Task
+        comparisons.
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Equal().bind(self, other)
+
+    def is_not_equal(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self != other`
+
+        This can't be implemented as the __neq__() magic method because of Task
+        comparisons.
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.NotEqual().bind(self, other)
+
+    def not_(self) -> "Task":
+        """
+        Produces a Task that evaluates `not self`
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Not().bind(self)
+
+    # Magic Method Interactions  ----------------------------------------------------
+
+    def __getitem__(self, key: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self[other]`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.GetItem().bind(self, key)
+
+    def __or__(self, other: Any) -> "Task":
+        """
+        Creates a state dependency between `self` and `other`
+            `self | other --> self.set_dependencies(downstream_tasks=[other])`
+
+        Args
+            - other (Any): An object that will be converted to a Task (if it isn't one already)
+                and set as a downstream dependency of this Task.
+
+        Returns
+            - Task
+        """
+        self.set_dependencies(downstream_tasks=[other])
+        return other
+
+    def __ror__(self, other: Any) -> "Task":
+        """
+        Creates a state dependency between `self` and `other`:
+            `other | self --> self.set_dependencies(upstream_tasks=[other])`
+
+        Args
+            - other (Any): An object that will be converted to a Task and set as an
+                upstream dependency of this Task.
+
+        Returns
+            - Task
+        """
+        self.set_dependencies(upstream_tasks=[other])
+        return self
+
+    # Maginc Method Operators  -----------------------------------------------------
+
+    def __add__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self + other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Add().bind(self, other)
+
+    def __sub__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self - other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Sub().bind(self, other)
+
+    def __mul__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self * other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Mul().bind(self, other)
+
+    def __truediv__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self / other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Div().bind(self, other)
+
+    def __floordiv__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self // other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.FloorDiv().bind(self, other)
+
+    def __mod__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self % other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Mod().bind(self, other)
+
+    def __pow__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self ** other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Pow().bind(self, other)
+
+    def __and__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self & other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.And().bind(self, other)
+
+    def __radd__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `other + self`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Add().bind(other, self)
+
+    def __rsub__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `other - self`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Sub().bind(other, self)
+
+    def __rmul__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `other * self`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Mul().bind(other, self)
+
+    def __rtruediv__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `other / self`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Div().bind(other, self)
+
+    def __rfloordiv__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `other // self`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.FloorDiv().bind(other, self)
+
+    def __rmod__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `other % self`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Mod().bind(other, self)
+
+    def __rpow__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `other ** self`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.Pow().bind(other, self)
+
+    def __rand__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `other & self`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.And().bind(other, self)
+
+    def __gt__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self > other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.GreaterThan().bind(self, other)
+
+    def __ge__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self >= other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.GreaterThanOrEqual().bind(self, other)
+
+    def __lt__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self < other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.LessThan().bind(self, other)
+
+    def __le__(self, other: Any) -> "Task":
+        """
+        Produces a Task that evaluates `self <= other`
+
+        Args
+            - other (Any): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns
+            - Task
+        """
+        return prefect.tasks.core.operators.LessThanOrEqual().bind(self, other)
+
 
 class Parameter(Task):
     """
@@ -386,98 +739,3 @@ class Parameter(Task):
         info = super().info()
         info.update(required=self.required, default=self.default)
         return info
-
-    # Operators  ----------------------------------------------------------------
-
-    def is_equal(self, other: Any) -> "Task":
-        """
-        Evaluates `self == other`.
-
-        This can't be implemented as the __eq__() magic method because of Task
-        comparisons.
-        """
-        return prefect.tasks.core.operators.Equal().bind(self, other)
-
-    def is_not_equal(self, other: Any) -> "Task":
-        """
-        Evaluates `self != other`.
-
-        This can't be implemented as the __neq__() magic method because of Task
-        comparisons.
-        """
-        return prefect.tasks.core.operators.NotEqual().bind(self, other)
-
-    def not_(self) -> "Task":
-        """
-        Evaluates `not self`.
-        """
-        return prefect.tasks.core.operators.Not().bind(self)
-
-    def __getitem__(self, key: Any) -> "Task":
-        return prefect.tasks.core.operators.GetItem().bind(self, key)
-
-    def __add__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Add().bind(self, other)
-
-    def __sub__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Sub().bind(self, other)
-
-    def __mul__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Mul().bind(self, other)
-
-    def __truediv__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Div().bind(self, other)
-
-    def __floordiv__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.FloorDiv().bind(self, other)
-
-    def __mod__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Mod().bind(self, other)
-
-    def __pow__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Pow().bind(self, other)
-
-    def __and__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.And().bind(self, other)
-
-    def __or__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Or().bind(self, other)
-
-    def __radd__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Add().bind(other, self)
-
-    def __rsub__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Sub().bind(other, self)
-
-    def __rmul__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Mul().bind(other, self)
-
-    def __rtruediv__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Div().bind(other, self)
-
-    def __rfloordiv__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.FloorDiv().bind(other, self)
-
-    def __rmod__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Mod().bind(other, self)
-
-    def __rpow__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Pow().bind(other, self)
-
-    def __rand__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.And().bind(other, self)
-
-    def __ror__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.Or().bind(other, self)
-
-    def __gt__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.GreaterThan().bind(self, other)
-
-    def __ge__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.GreaterThanOrEqual().bind(self, other)
-
-    def __lt__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.LessThan().bind(self, other)
-
-    def __le__(self, other: Any) -> "Task":
-        return prefect.tasks.core.operators.LessThanOrEqual().bind(self, other)

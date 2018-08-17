@@ -4,7 +4,7 @@ from datetime import timedelta
 import pytest
 
 import prefect
-from prefect.core import Flow, Parameter, Task
+from prefect.core import Flow, Parameter, Task, Edge
 from prefect.engine.cache_validators import all_inputs, duration_only, never_use
 from prefect.utilities.tasks import task
 
@@ -103,6 +103,12 @@ class TestCreateTask:
             Task(cache_validator=all_inputs)
 
 
+def test_task_is_not_iterable():
+    t = Task()
+    with pytest.raises(TypeError):
+        list(t)
+
+
 def test_groups():
     t1 = Task()
     assert t1.group == ""
@@ -159,9 +165,10 @@ def test_copy_copies():
     assert other.run("pass") == ("pass", 42, "username")
 
 
-class TestMagicMethods:
+class TestMagicInteractionMethods:
     # -----------------------------------------
     # getitem
+
     def test_getitem_list(self):
         with Flow() as f:
             z = Parameter("x")[Parameter("y")]
@@ -181,7 +188,50 @@ class TestMagicMethods:
         assert state.result[z].result == 2
 
     # -----------------------------------------
+    # or / pipe / |
+
+    def test_or(self):
+        with Flow() as f:
+            t1 = Task()
+            t2 = Task()
+            t1 | t2
+        assert Edge(t1, t2) in f.edges
+
+    def test_or_with_constant(self):
+        with Flow() as f:
+            t1 = Task()
+            t1 | 1
+        assert len(f.tasks) == 2
+        assert len(f.edges) == 1
+
+    def test_ror_with_constant(self):
+        with Flow() as f:
+            t1 = Task()
+            1 | t1
+        assert len(f.tasks) == 2
+        assert len(f.edges) == 1
+
+    # -----------------------------------------
+    # Chain
+
+    def test_chained_operators(self):
+        with Flow() as f:
+            t1 = Task("t1")
+            t2 = Task("t2")
+            t3 = Task("t3")
+            t4 = Task("t4")
+            t5 = Task("t5")
+            t6 = Task("t6")
+
+            (t1 | t2 | t3 | t4)
+
+        assert all([e in f.edges for e in [Edge(t1, t2), Edge(t2, t3), Edge(t3, t4)]])
+
+
+class TestMagicOperatorMethods:
+    # -----------------------------------------
     # addition
+
     def test_addition(self):
         with Flow() as f:
             z = Parameter("x") + Parameter("y")
@@ -202,6 +252,7 @@ class TestMagicMethods:
 
     # -----------------------------------------
     # subtraction
+
     def test_subtraction(self):
         with Flow() as f:
             z = Parameter("x") - Parameter("y")
@@ -222,6 +273,7 @@ class TestMagicMethods:
 
     # -----------------------------------------
     # multiplication
+
     def test_multiplication(self):
         with Flow() as f:
             z = Parameter("x") * Parameter("y")
@@ -452,53 +504,6 @@ class TestMagicMethods:
             z = False & Parameter("x")
         state = f.run(parameters=dict(x=True), return_tasks=[z])
         assert state.result[z].result is False
-        state = f.run(parameters=dict(x=False), return_tasks=[z])
-        assert state.result[z].result is False
-
-    # -----------------------------------------
-    # or
-
-    def test_or(self):
-        with Flow() as f:
-            z = Parameter("x") | Parameter("y")
-        state = f.run(parameters=dict(x=True, y=False), return_tasks=[z])
-        assert state.result[z].result is True
-
-        state = f.run(parameters=dict(x=True, y=True), return_tasks=[z])
-        assert state.result[z].result is True
-
-        state = f.run(parameters=dict(x=False, y=True), return_tasks=[z])
-        assert state.result[z].result is True
-
-        state = f.run(parameters=dict(x=False, y=False), return_tasks=[z])
-        assert state.result[z].result is False
-
-    def test_or_with_constant(self):
-        with Flow() as f:
-            z = Parameter("x") | True
-        state = f.run(parameters=dict(x=True), return_tasks=[z])
-        assert state.result[z].result is True
-        state = f.run(parameters=dict(x=False), return_tasks=[z])
-        assert state.result[z].result is True
-
-        with Flow() as f:
-            z = Parameter("x") | False
-        state = f.run(parameters=dict(x=True), return_tasks=[z])
-        assert state.result[z].result is True
-        state = f.run(parameters=dict(x=False), return_tasks=[z])
-        assert state.result[z].result is False
-
-    def test_right_or(self):
-        with Flow() as f:
-            z = True | Parameter("x")
-        state = f.run(parameters=dict(x=True), return_tasks=[z])
-        assert state.result[z].result is True
-        state = f.run(parameters=dict(x=False), return_tasks=[z])
-        assert state.result[z].result is True
-        with Flow() as f:
-            z = False | Parameter("x")
-        state = f.run(parameters=dict(x=True), return_tasks=[z])
-        assert state.result[z].result is True
         state = f.run(parameters=dict(x=False), return_tasks=[z])
         assert state.result[z].result is False
 

@@ -442,11 +442,11 @@ def test_key_states_raises_error_if_not_part_of_flow():
 
 
 def test_key_states_raises_error_if_not_iterable():
-    f = Flow()
-    t1 = Task()
-    f.add_task(t1)
-    with pytest.raises(TypeError):
-        f.set_key_tasks(t1)
+    with Flow() as f:
+        t1 = Task()
+        f.add_task(t1)
+        with pytest.raises(TypeError):
+            f.set_key_tasks(t1)
 
 
 class TestEquality:
