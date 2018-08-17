@@ -5,7 +5,7 @@ are locally executable in any Python version supported by Prefect (3.4+).  Note 
 the Prefect server.
 
 ## [Task Retries](task-retries.html) 
-Overview of how Prefect handles retrying Tasks 
+Overview of how Prefect handles retrying tasks 
 
 ## [Triggers, Reference Tasks](triggers-and-references.html)
-Overview of different triggers, such as `manual_only`, which allows for manual approval before a Task can run.  Also covered: determining Flow states using `reference_tasks` |
+Overview of different triggers, such as `manual_only`, which allows for manual approval before a task can run.  Also covered: determining flow states using `reference_tasks` 
