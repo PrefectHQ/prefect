@@ -13,7 +13,7 @@ import prefect.core.registry
 import prefect.engine
 import prefect.tasks
 import prefect.flows
-from prefect.utilities.tasks import task, tags, group
+from prefect.utilities.tasks import task, tags, groups
 
 # from prefect.client import Client
 

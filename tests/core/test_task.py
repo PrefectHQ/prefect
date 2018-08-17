@@ -105,14 +105,14 @@ class TestCreateTask:
 
 def test_groups():
     t1 = Task()
-    assert t1.group == ""
+    assert t1.groups == set()
 
-    t2 = Task(group="test")
-    assert t2.group == "test"
+    t2 = Task(groups=["test"])
+    assert t2.groups == {"test"}
 
-    with prefect.context(_group="test"):
+    with prefect.context(_groups=["test"]):
         t3 = Task()
-        assert t3.group == "test"
+        assert t3.groups == {"test"}
 
 
 def test_tags():
@@ -131,7 +131,7 @@ def test_tags():
 
     with prefect.context(_tags=["test1", "test2"]):
         t5 = Task(tags=["test3"])
-        assert t5.tags == set(["test3"])
+        assert t5.tags == set(["test1", "test2", "test3"])
 
 
 def test_inputs():
