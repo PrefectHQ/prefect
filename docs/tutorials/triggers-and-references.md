@@ -5,7 +5,7 @@ In some cases, we explicitly _don't_ want to automate some portion of a system; 
 
 For example, imagine we have the following workflow:
 
-<img src="/manual_approval.svg">
+<center><img src="/manual_approval.svg" height=400></center>
 
 ### Triggers
 In Prefect, this workflow can be implemented through the use of `triggers`.  A `trigger` is a function which determines whether a task should run, fail, or be placed in some other state based on the state of its upstream dependencies.  The default task trigger is (naturally) `all_successful`.  To implement the workflow above, we will use two triggers:
@@ -13,7 +13,7 @@ In Prefect, this workflow can be implemented through the use of `triggers`.  A `
 - the `any_failed` trigger so that the complaint is only run if approval _fails_
 
 ### Reference Tasks
-Notice that in the example above, the terminal tasks are mutually exclusive (i.e., there is no way for them to _both_ run).  Consequently, how should the overall flow state be determined?  The default is that the overall state of the flow is determined by its _terminal_ tasks (those with no downstream dependencies).  However, we have found ourselves in a situation where _no matter what_ this rule will cause the overall state to be marked `Failed`.  This is where `reference_tasks` come into play: `reference_tasks` can be set by the flow and are a list of tasks that will determine the overall state of the flow.  In this case, we have one reference task: the email.  Let's now proceed to set up the flow and walk through the constructs we have discussed.
+Notice that in the example above, the terminal task is the complaint task.  Consequently, whenever this task _succeeds_ the overall flow will be considered a success (the default method for determining the overall state of the flow is by considering the states of its terminal tasks).  However, we have found ourselves in a situation where success of the terminal tasks actually implies flow _failure_ - the main objective was not achieved!  This is where `reference_tasks` come into play: `reference_tasks` can be set by the flow and are a list of tasks that will determine the overall state of the flow.  In this case, we have one reference task: the email.  Let's now proceed to set up the flow and walk through the constructs we have discussed.
 
 :::warning NOTE
 There are other legitimate implementations of this flow, for example by using `conditionals`.
