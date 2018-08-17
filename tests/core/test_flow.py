@@ -159,12 +159,35 @@ def test_binding_a_task_to_two_different_flows_is_ok():
     assert g_res == 15
 
 
+def test_binding_a_task_with_var_kwargs_expands_the_kwargs():
+    class KwargsTask(Task):
+        def run(self, **kwargs):
+            return kwargs
+
+    t1 = Task()
+    t2 = Task()
+    t3 = Task()
+    kw = KwargsTask()
+
+    with Flow() as f:
+        kw.bind(a=t1, b=t2, c=t3)
+
+    assert t1 in f.tasks
+    assert t2 in f.tasks
+    assert t3 in f.tasks
+
+    assert Edge(t1, kw, key="a") in f.edges
+    assert Edge(t2, kw, key="b") in f.edges
+    assert Edge(t3, kw, key="c") in f.edges
+
+
 def test_calling_a_task_returns_a_copy():
     t = AddTask()
 
     with Flow() as f:
         t.bind(4, 2)
-        t2 = t(9, 0)
+        with pytest.warns(UserWarning):
+            t2 = t(9, 0)
 
     assert isinstance(t2, AddTask)
     assert t != t2
@@ -184,12 +207,11 @@ def test_calling_a_slugged_task_in_different_flows_is_ok():
         four = t(1, 3)
 
 
-def test_calling_a_slugged_task_twice_raises_error():
+def test_calling_a_slugged_task_twice_warns_error():
     t = AddTask(slug="add")
-
-    with pytest.raises(ValueError):
-        with Flow() as f:
-            t.bind(4, 2)
+    with Flow() as f:
+        t.bind(4, 2)
+        with pytest.warns(UserWarning), pytest.raises(ValueError):
             t2 = t(9, 0)
 
 
@@ -420,11 +442,11 @@ def test_key_states_raises_error_if_not_part_of_flow():
 
 
 def test_key_states_raises_error_if_not_iterable():
-    f = Flow()
-    t1 = Task()
-    f.add_task(t1)
-    with pytest.raises(TypeError):
-        f.set_reference_tasks(t1)
+    with Flow() as f:
+        t1 = Task()
+        f.add_task(t1)
+        with pytest.raises(TypeError):
+            f.set_reference_tasks(t1)
 
 
 class TestEquality:

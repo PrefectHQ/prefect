@@ -8,20 +8,85 @@ class GetItem(Task):
     Helper task that retrieves a specific index of an upstream task's result.
     """
 
-    def __init__(self, index: Any, **kwargs: Any) -> None:
-        self.index = index
-        super().__init__(**kwargs)
-
-    def run(self, task_result: Any) -> Any:
-        return task_result[self.index]
+    def run(self, task_result: Any, key: Any) -> Any:
+        return task_result[key]
 
 
+# ---------------------------------------------------------
+# Math
+# ---------------------------------------------------------
+class Add(Task):
+    """
+    Evaluates x + y
+    """
+
+    def run(self, x: Any, y: Any) -> Any:
+        return x + y
+
+
+class Sub(Task):
+    """
+    Evaluates x - y
+    """
+
+    def run(self, x: Any, y: Any) -> Any:
+        return x - y
+
+
+class Mul(Task):
+    """
+    Evaluates x * y
+    """
+
+    def run(self, x: Any, y: Any) -> Any:
+        return x * y
+
+
+class Div(Task):
+    """
+    Evaluates x / y
+    """
+
+    def run(self, x: Any, y: Any) -> Any:
+        return x / y
+
+
+class FloorDiv(Task):
+    """
+    Evaluates x // y
+    """
+
+    def run(self, x: Any, y: Any) -> Any:
+        return x // y
+
+
+class Pow(Task):
+    """
+    Evaluates x ** y
+    """
+
+    def run(self, x: Any, y: Any) -> Any:
+        return x ** y
+
+
+class Mod(Task):
+    """
+    Evaluates x % y
+    """
+
+    def run(self, x: Any, y: Any) -> Any:
+        return x % y
+
+
+# ---------------------------------------------------------
+# Logic
+# ---------------------------------------------------------
 class And(Task):
     """
     Evaluates x and y
     """
 
-    def run(self, x, y):
+    def run(self, x: Any, y: Any) -> bool:
         return bool(x and y)
 
 
@@ -30,7 +95,7 @@ class Or(Task):
     Evaluates x or y
     """
 
-    def run(self, x, y):
+    def run(self, x: Any, y: Any) -> bool:
         return bool(x or y)
 
 
@@ -43,55 +108,55 @@ class Not(Task):
         return bool(not (x))
 
 
-class Eq(Task):
+class Equal(Task):
     """
     Evaluates x == y
     """
 
-    def run(self, x, y):
+    def run(self, x: Any, y: Any) -> bool:
         return bool(x == y)
 
 
-class Neq(Task):
+class NotEqual(Task):
     """
     Evaluates x != y
     """
 
-    def run(self, x, y):
+    def run(self, x: Any, y: Any) -> bool:
         return bool(x != y)
 
 
-class GTE(Task):
+class GreaterThanOrEqual(Task):
     """
     Evaluates x ≥ y
     """
 
-    def run(self, x, y):
+    def run(self, x: Any, y: Any) -> bool:
         return bool(x >= y)
 
 
-class GT(Task):
+class GreaterThan(Task):
     """
     Evaluates x > y
     """
 
-    def run(self, x, y):
+    def run(self, x: Any, y: Any) -> bool:
         return bool(x > y)
 
 
-class LTE(Task):
+class LessThanOrEqual(Task):
     """
     Evaluates x ≤ y
     """
 
-    def run(self, x, y):
+    def run(self, x: Any, y: Any) -> bool:
         return bool(x <= y)
 
 
-class LT(Task):
+class LessThan(Task):
     """
     Evaluates x < y
     """
 
-    def run(self, x, y):
+    def run(self, x: Any, y: Any) -> bool:
         return bool(x < y)

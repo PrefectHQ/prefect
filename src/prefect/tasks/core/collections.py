@@ -1,33 +1,33 @@
+
+from typing import Iterable
 from prefect import Task
 
 
 class VarArgsTask(Task):
-    def __call__(self, *args):
-        """
-        Accepts *args and transforms them into **kwargs
-        """
+    """
+    Task that can be bound to *args and transforms them into **kwargs
+    """
+
+    def bind(self, *args, upstream_tasks: Iterable[Task] = None):
         kwargs = {"arg_{}".format(i + 1): a for i, a in enumerate(args)}
-        return super().__call__(**kwargs)
+        return super().bind(upstream_tasks=upstream_tasks, **kwargs)
 
 
 class List(VarArgsTask):
-    def run(self, **task_results):
-        return list(task_results.values())
-
-
-class Set(VarArgsTask):
-    def run(self, **task_results):
-        return set(task_results.values())
+    def run(self, **task_results) -> list:
+        return [v for (k, v) in sorted(task_results.items())]
 
 
 class Tuple(VarArgsTask):
-    def run(self, **task_results):
-        return tuple(task_results.values())
+    def run(self, **task_results) -> tuple:
+        return tuple([v for (k, v) in sorted(task_results.items())])
+
+
+class Set(VarArgsTask):
+    def run(self, **task_results) -> set:
+        return set(task_results.values())
 
 
 class Dict(Task):
-    def run(self, *, base_dict=None, **task_results):
-        result = {}
-        result.update(base_dict or {})
-        result.update(task_results)
-        return result
+    def run(self, **task_results) -> dict:
+        return task_results
