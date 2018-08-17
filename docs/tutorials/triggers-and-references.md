@@ -77,7 +77,7 @@ We are now ready to run the flow:
 ```python
 flow_state = f.run(return_tasks=[report, board_email, complaint])
 
-print(f"Flow state: {flow_state}\n")
+print("Flow state: {}\n".format(flow_state))
 print(flow_state.result)
 
 ##    Flow state: Pending("Some terminal tasks are still pending.")
@@ -117,7 +117,7 @@ new_flow_state = f.run(task_states=flow_state.result,
                        start_tasks=[board_email], 
                        return_tasks=[board_email, complaint])
 
-print(f"Flow state: {new_flow_state}\n")
+print("Flow state: {}\n".format(new_flow_state))
 print(new_flow_state.result)
 
 ##    Flow state: Success("All reference tasks succeeded.")
