@@ -51,18 +51,15 @@ def as_task(x: Any) -> "prefect.core.Task":
     if isinstance(x, prefect.core.Task):
         return x
 
-    # sequences
-    elif isinstance(x, list):
-        return prefect.tasks.collections.List(*[as_task(t) for t in x])
-    elif isinstance(x, tuple):
-        return prefect.tasks.collections.Tuple(*[as_task(t) for t in x])
-    elif isinstance(x, set):
-        return prefect.tasks.collections.Set(*[as_task(t) for t in x])
-
     # collections
+    elif isinstance(x, list):
+        return prefect.tasks.core.collections.List().bind(*x)
+    elif isinstance(x, tuple):
+        return prefect.tasks.core.collections.Tuple().bind(*x)
+    elif isinstance(x, set):
+        return prefect.tasks.core.collections.Set().bind(*x)
     elif isinstance(x, dict):
-        task_dict = {k: as_task(v) for k, v in x.items()}
-        return prefect.tasks.collections.Dict(**task_dict)
+        return prefect.tasks.core.collections.Dict().bind(**x)
 
     # functions
     elif callable(x):
