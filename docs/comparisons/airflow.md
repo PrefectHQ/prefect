@@ -1,9 +1,4 @@
----
-pageClass: comparison
----
-# Comparisons
-
-## Airflow
+# Airflow
 
 | Feature                                 | Prefect    | Airflow    | Notes                                                  |
 | --------------------------------------- | :--------: | :--------: | ------------------------------------------------------ |
@@ -40,7 +35,7 @@ pageClass: comparison
 
 
 
-### ETL Comparison
+## ETL Comparison
 
 One of the most common use cases for a data engineering tool is designing an ETL pipeline. Prefect makes this easy with native support for dataflow.
 
@@ -137,7 +132,7 @@ e.set_downstream(t)
 t.set_downstream(l)
 ```
 
-### File Transfer comparison
+## File Transfer comparison
 
 This is a real example of a data pipeline that moves a file from Dropbox to Google Cloud Storage, then copies the file to a GCS archive. The Prefect version is concise and looks like Python code, because Prefect allows each task to represent a discrete function. In this case, the library only requires a task that loads data from Dropbox; a task that loads data from Google Cloud Storage; and a task that saves data to Google Cloud Storage:
 

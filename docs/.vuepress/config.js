@@ -42,12 +42,16 @@ module.exports = {
                 },
             ],
             '/': ['introduction', 'concepts', 'getting_started',
-                  {
+                {
                     title: 'Tutorials',
                     collapsable: true,
-                    children: ['tutorials/', 'tutorials/task-retries', 'tutorials/triggers-and-references']
-                  },
-                  'comparisons'
+                    children: ['tutorials/', 'tutorials/calculator', 'tutorials/task-retries', 'tutorials/triggers-and-references']
+                },
+                {
+                    title: 'Comparisons',
+                    collapsable: true,
+                    children: ['comparisons/', 'comparisons/airflow']
+                },
             ]
         }
     },
