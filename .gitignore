@@ -108,7 +108,7 @@ ENV/
 
 # VuePress
 node_modules
-
+#
 # Mac OS
 .DS_Store
 
@@ -118,3 +118,4 @@ node_modules
 # docs
 docs/api
 docs/deploy/dist
+docs/.vuepress/public/prefect-coverage
