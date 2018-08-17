@@ -48,7 +48,7 @@ def ping_external_service(url):
     "Performs a simple GET request to the provided URL, and returns the text of the response."
     
     if prefect.context.get("_fail"):
-        raise ValueError(f"Request failed with status code 418.")
+        raise ValueError("Request failed with status code 418.")
     else:
         r = requests.get(url)
         return r.text
@@ -64,7 +64,7 @@ with Flow(name="retry example") as f:
 
 Now that we have created our flow `f`, we could continue to add tasks and dependencies to it through a variety of methods such as `add_task` and `set_dependencies`, or inspect its current state with methods such as `visualize` and `terminal_tasks`.
 
-To actually perform the computation, we call `f.run()` and specify which tasks we want returned for inspection.  For the first run, we ensure that the request fails using the `prefect.context` (see the docs for more information on context).
+To actually perform the computation, we call `f.run()` and specify which tasks we want returned for inspection.  For the first run, we ensure that the request fails by artificially injecting a `"_fail"` key into the `prefect.context` (see the docs for more information on context) which the task will look for.  If you look back at the definition of the `ping_external_services` task, we explicitly look for this key to determine whether the task should fail or succeed.
 
 
 ```python
@@ -80,8 +80,8 @@ As expected, the flow run took 5 seconds due to the `create_payload` task.  We c
 
 
 ```python
-print(f"Flow state: {flow_state}\n")
-print(f"Flow results: {flow_state.result}")
+print("Flow state: {}\n".format(flow_state))
+print("Flow results: {}".format(flow_state.result))
 
 ## Flow state: Pending("Some terminal tasks are still pending.")
     
@@ -115,8 +115,8 @@ new_flow_state = f.run(return_tasks=[text],
 
 
 ```python
-print(f"Flow state: {new_flow_state}\n")
-print(f"Flow results: {new_flow_state.result}")
+print("Flow state: {}\n".format(new_flow_state))
+print("Flow results: {}".format(new_flow_state.result))
 
 ##     Flow state: Success("All reference tasks succeeded.")
     
