@@ -198,7 +198,6 @@ OUTLINE = [
     {
         "page": "utilities/tasks.md",
         "functions": [
-            prefect.utilities.tasks.group,
             prefect.utilities.tasks.tags,
             prefect.utilities.tasks.as_task,
             prefect.utilities.tasks.task,
