@@ -122,16 +122,14 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         if isinstance(groups, str):
             raise TypeError("Groups should be a set of groups, not a string.")
-        self.groups = (set(groups) if groups is not None else set()) | set(
-            prefect.context.get("_groups", set())
-        )
+        current_groups = set(prefect.context.get("_groups", set()))
+        self.groups = (set(groups) if groups is not None else set()) | current_groups
 
         # avoid silently iterating over a string
         if isinstance(tags, str):
             raise TypeError("Tags should be a set of tags, not a string.")
-        self.tags = (set(tags) if tags is not None else set()) | set(
-            prefect.context.get("_tags", set())
-        )
+        current_tags = set(prefect.context.get("_tags", set()))
+        self.tags = (set(tags) if tags is not None else set()) | current_tags
 
         self.max_retries = max_retries
         self.retry_delay = retry_delay
