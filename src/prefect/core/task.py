@@ -241,10 +241,11 @@ class Task(Serializable, metaclass=SignatureValidator):
         Additionally, non-keyed edges can be created by passing any upstream
         dependencies through `upstream_tasks`.
 
-        Args: - *args: arguments to bind to the current Task's `run` method - **kwargs:
-            keyword arguments to bind to the current Task's `run` method -
-            upstream_tasks ([Task], optional): a list of upstream dependencies for the
-            current task.
+        Args:
+            - *args: arguments to bind to the current Task's `run` method
+            - upstream_tasks ([Task], optional): a list of upstream dependencies for the
+                current task.
+            - **kwargs: keyword arguments to bind to the current Task's `run` method
 
         Returns: - Task: the current Task instance
         """
@@ -412,11 +413,11 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     def __getitem__(self, key: Any) -> "Task":
         """
-        Produces a Task that evaluates `self[other]`
+        Produces a Task that evaluates `self[key]`
 
         Args
-            - other (object): the other operand of the operator. It will be converted to a Task
-                if it isn't one already.
+            - key (object): the object to use an an index for this task. It will be converted
+                to a Task if it isn't one already.
 
         Returns
             - Task
