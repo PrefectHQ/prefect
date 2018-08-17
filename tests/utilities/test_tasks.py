@@ -101,6 +101,16 @@ def test_tag_contextmanager_works_with_task_decorator():
     assert other.tags == {"chris", "default"}
 
 
+def test_setting_tags_then_calling_copies_tags():
+    with tasks.tags("init-tag"):
+        t1 = Task()
+
+    with Flow():
+        t2 = t1()
+
+    assert t2.tags == {"init-tag"}
+
+
 def test_context_manager_for_setting_tags():
     """
     Test setting Task tags with a context manager, including:
