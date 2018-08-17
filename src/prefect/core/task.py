@@ -83,7 +83,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         - name (str, optional): The name of this task
         - slug (str, optional): The slug for this task, it must be unique withing a given Flow
         - description (str, optional): Descriptive information about this task
-        - groups ([str], optional): Groups to which this task belongs to
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
@@ -106,7 +105,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         name: str = None,
         slug: str = None,
         description: str = None,
-        groups: str = None,
         tags: Iterable[str] = None,
         max_retries: int = 0,
         retry_delay: timedelta = timedelta(minutes=1),
@@ -119,11 +117,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.name = name or type(self).__name__
         self.slug = slug
         self.description = description
-
-        if isinstance(groups, str):
-            raise TypeError("Groups should be a set of groups, not a string.")
-        current_groups = set(prefect.context.get("_groups", set()))
-        self.groups = (set(groups) if groups is not None else set()) | current_groups
 
         # avoid silently iterating over a string
         if isinstance(tags, str):
@@ -252,9 +245,6 @@ class Task(Serializable, metaclass=SignatureValidator):
             flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs
         )
 
-        groups = set(prefect.context.get("_groups", set()))
-        self.groups.update(groups)
-
         tags = set(prefect.context.get("_tags", set()))
         self.tags.update(tags)
 
@@ -313,7 +303,6 @@ class Task(Serializable, metaclass=SignatureValidator):
             name=self.name,
             slug=self.slug,
             description=self.description,
-            groups=self.groups,
             tags=self.tags,
             type=to_qualified_name(type(self)),
             max_retries=self.max_retries,

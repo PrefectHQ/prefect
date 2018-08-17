@@ -103,18 +103,6 @@ class TestCreateTask:
             Task(cache_validator=all_inputs)
 
 
-def test_groups():
-    t1 = Task()
-    assert t1.groups == set()
-
-    t2 = Task(groups=["test"])
-    assert t2.groups == {"test"}
-
-    with prefect.context(_groups=["test"]):
-        t3 = Task()
-        assert t3.groups == {"test"}
-
-
 def test_tags_are_added_when_arguments_are_bound():
     t1 = AddTask(tags=["math"])
     t2 = AddTask(tags=["math"])
@@ -126,19 +114,6 @@ def test_tags_are_added_when_arguments_are_bound():
 
     assert t1.tags == {"math", "test"}
     assert t3.tags == {"math", "test"}
-
-
-def test_groups_are_added_when_arguments_are_bound():
-    t1 = AddTask(groups=["math"])
-    t2 = AddTask(groups=["math"])
-
-    with prefect.context(_groups=["test"]):
-        with Flow():
-            t1.bind(1, 2)
-            t3 = t2(1, 2)
-
-    assert t1.groups == {"math", "test"}
-    assert t3.groups == {"math", "test"}
 
 
 def test_tags():
