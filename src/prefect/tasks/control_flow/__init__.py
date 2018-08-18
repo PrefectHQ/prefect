@@ -1,1 +1,1 @@
-from prefect.tasks.control_flow.conditional import ifelse, switch
+from prefect.tasks.control_flow.conditional import ifelse, switch, merge

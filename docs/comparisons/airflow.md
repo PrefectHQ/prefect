@@ -1,49 +1,46 @@
----
-pageClass: comparison
----
-# Comparisons
+# Airflow
 
-## Airflow
-
-| Feature                                 | Prefect    | Airflow    | Notes                                                  |
-| --------------------------------------- | :--------: | :--------: | ------------------------------------------------------ |
-|  |
-| **WORKFLOW DEFINITION**                 |
-| Workflows as code                       | [x] &nbsp; | [x] &nbsp; |
-| Functional API                       | [x] &nbsp; | [ ] &nbsp; |
-| Parameterized workflows                 | [x] &nbsp; | [ ] &nbsp; |
-| Dataflow                                | [x] &nbsp; | [ ] &nbsp; |
-| Automatic input caching          | [x] &nbsp; | [ ] &nbsp; |
+| Feature                                    | Prefect    | Airflow    | Notes                                                                                          |
+| ------------------------------------------ | :--------: | :--------: | ---------------------------------------------------------------------------------------------- |
+|                                            |
+| **WORKFLOW DEFINITION**                    |
+| Workflows as code                          | [x] &nbsp; | [x] &nbsp; |
+| Functional API                             | [x] &nbsp; | [ ] &nbsp; |
+| Parameterized workflows                    | [x] &nbsp; | [ ] &nbsp; |
+| Dataflow                                   | [x] &nbsp; | [ ] &nbsp; |
+| Automatic input caching                    | [x] &nbsp; | [ ] &nbsp; |
 | Support for output caching / "time travel" | [x] &nbsp; | [ ] &nbsp; |
-|  |
-| **EXECUTION**                           |
-| Scheduled workflows                     | [x] &nbsp; | [x] &nbsp; |
-| Ad-hoc workflows                        | [x] &nbsp; | [x] &nbsp; | Airflow has limited support for off-schedule execution |
-| Streaming workflows                        | [ ] &nbsp; | [ ] &nbsp; | Prefect will support streaming (long-running / async) workflows in an upcoming release
-| Pause/resume workflows during execution | [x] &nbsp; | [ ] &nbsp; |
-| Event-driven scheduler                  | [x] &nbsp; | [ ] &nbsp; |
-| Real-time execution                     | [x] &nbsp; | [ ] &nbsp; |
-| Distributed execution                   | [x] &nbsp; | [x] &nbsp; | Prefect natively supports Dask clusters; Airflow supports distributed execution through Celery
-|  |
-| **INTERACTION**                         |
-| REST API                                | [ ] &nbsp; | [x] &nbsp; | Airflow's limited REST API is in development           |
-| GraphQL API                             | [x] &nbsp; | [ ] &nbsp; |
-|  |
-| **DEPLOYMENT**                          |
-| Workflow versioning and migration       | [x] &nbsp; | [ ] &nbsp; |
-| Workflows as containers                 | [x] &nbsp; | [ ] &nbsp; |
-| Configurable permissions                | [x] &nbsp; | [x] &nbsp; | Airflow recently adopted RBAC
-|  |
-| **DEVELOPMENT**                         |
-| Unit tests                              | [x] &nbsp; | [x] &nbsp; | Prefect currently has 88% coverage; Airflow has 78% coverage.
-| Local testing                           | [x] &nbsp; | [ ] &nbsp; | Prefect flows can be tested locally without any additional infrastructure
+|                                            |
+| **EXECUTION**                              |
+| Scheduled workflows                        | [x] &nbsp; | [x] &nbsp; |
+| Ad-hoc workflows                           | [x] &nbsp; | [x] &nbsp; | Airflow has limited support for off-schedule execution                                         |
+| Streaming workflows                        | [ ] &nbsp; | [ ] &nbsp; | Prefect will support streaming (long-running / async) workflows in an upcoming release         |
+| Pause/resume workflows during execution    | [x] &nbsp; | [ ] &nbsp; |
+| Event-driven scheduler                     | [x] &nbsp; | [ ] &nbsp; |
+| Real-time execution                        | [x] &nbsp; | [ ] &nbsp; |
+| Distributed execution                      | [x] &nbsp; | [x] &nbsp; | Prefect natively supports Dask clusters; Airflow supports distributed execution through Celery |
+|                                            |
+| **INTERACTION**                            |
+| REST API                                   | [ ] &nbsp; | [x] &nbsp; | Airflow's limited REST API is in development                                                   |
+| GraphQL API                                | [x] &nbsp; | [ ] &nbsp; |
+|                                            |
+| **DEPLOYMENT**                             |
+| Workflow versioning and migration          | [x] &nbsp; | [ ] &nbsp; |
+| Workflows as containers                    | [x] &nbsp; | [ ] &nbsp; |
+| Configurable permissions                   | [x] &nbsp; | [x] &nbsp; | Airflow recently adopted RBAC                                                                  |
+|                                            |
+| **DEVELOPMENT**                            |
+| Unit tests                                 | [x] &nbsp; | [x] &nbsp; | Prefect currently has 88% coverage; Airflow has 78% coverage.                                  |
+| Local testing                              | [x] &nbsp; | [ ] &nbsp; | Prefect flows can be tested locally without any additional infrastructure                      |
 
 
 
-### ETL Comparison
+## ETL Comparison
 
-One of the most common use cases for a data engineering tool is designing an ETL pipeline. Prefect makes this easy with native support for dataflow.
+One of the most common use cases for a data engineering tool is designing an ETL pipeline.
 
+### Prefect
+Prefect makes this easy with native support for dataflow between tasks.
 ```python
 from prefect import task, Flow
 
@@ -68,7 +65,12 @@ with Flow('ETL') as flow:
     l = load(t)
 ```
 
+
+### Airflow
 Airflow must fall back on XComs, a way to serialize small data to the Airflow database. This Airflow pipeline would fail with objects of any practical size.
+
+<div class=comp-code>
+
 ```python
 import datetime
 import airflow
@@ -136,10 +138,14 @@ l = LoadOperator(
 e.set_downstream(t)
 t.set_downstream(l)
 ```
+</div>
 
-### File Transfer comparison
+## File Transfer comparison
 
-This is a real example of a data pipeline that moves a file from Dropbox to Google Cloud Storage, then copies the file to a GCS archive. The Prefect version is concise and looks like Python code, because Prefect allows each task to represent a discrete function. In this case, the library only requires a task that loads data from Dropbox; a task that loads data from Google Cloud Storage; and a task that saves data to Google Cloud Storage:
+This is a real example of a data pipeline that moves a file from Dropbox to Google Cloud Storage, then copies the file to a GCS archive.
+
+### Prefect
+The Prefect version is concise and looks like Python code, because Prefect allows each task to represent a discrete function. In this case, the library only requires a task that loads data from Dropbox; a task that loads data from Google Cloud Storage; and a task that saves data to Google Cloud Storage.
 
 ```python
 from prefect import Task, Flow
@@ -192,11 +198,12 @@ with Flow("Transfer Example") as flow:
     save_to_gcs(data=gcs_file, bucket=GCS_BUCKET, path="archive/2018/file.txt")
 
 ```
-
+### Airflow
 The Airflow version is extremely cumbersome. Because Airflow can not pass data between tasks, each task must perform an entire load, transform, and serialize cycle. As a result, Airflow libraries are full of operators representing every possible combination of data handoffs: `A_to_B_Operator`; `B_to_C_Operator`; `B_to_A_Operator`; `A_to_C_Operator`; `C_to_A_Operator`; etc. This pipeline relies on a DropboxToGoogleCloudStorage operator, followed by a GoogleCloudStorageToGoogleCloudStorage operator.
 
 *(This is actual sanitized Airflow code from one of Prefect's early partners)*
 
+<div class=comp-code>
 
 ```python
 import datetime
@@ -387,3 +394,4 @@ gcs_to_gcs = GoogleCloudStorageToGoogleCloudStorageOperator(
 )
 dropbox_to_gcs.set_downstream(gcs_to_gcs)
 ```
+</div>
