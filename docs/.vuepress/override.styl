@@ -1,19 +1,23 @@
 $accentColor = #20a0ff
+$primaryBlue = #27b1ff
+$deepBlue = #3b8dff
+$pink = #fe5196
+$grey = #a5b4be
 $codeBgColor = #fbfcfd
 
 .content
   pre, pre[class*="language-"]
-    line-height 1.4
-    padding 1.25rem 1.5rem
-    margin 0.85rem 0
-    background-color $codeBgColor
-    border-radius 6px
-    overflow auto
+    line-height: 1.4 !important
+    padding: 1.25rem 1.5rem !important
+    margin: 0.85rem 0 !important
+    background-color: $codeBgColor !important
+    border-radius: 0.5em !important
+    border: solid 2px #f6f6fc !important
+    overflow: auto !important
     code
-      color #4D606E
-      padding 0
-      background-color transparent
-      border-radius 0
+      color: #4D606E  !important
+      padding: 0 !important
+      background-color: transparent !important
 
 code[class*="language-"],
 pre[class*="language-"] {
@@ -81,12 +85,12 @@ pre[class*="language-"] {
 .token.prolog,
 .token.doctype,
 .token.cdata {
-	color: #a5b4be;
+	color: $grey;
 	font-style: italic;
 }
 
 .token.punctuation {
-	color: #000000;
+    color: #1061D0;
 }
 
 .namespace {
@@ -100,7 +104,7 @@ pre[class*="language-"] {
 .token.constant,
 .token.symbol,
 .token.deleted {
-	color: #9a050f;
+	color: $deepBlue;
 }
 
 .token.selector,
@@ -108,11 +112,11 @@ pre[class*="language-"] {
 .token.string,
 .token.char,
 .token.inserted {
-	color: #ff27b1;
+	color: $pink;
 }
 
 .token.builtin {
-	color: #9a050f;
+    color: #1089E1;
 }
 
 .token.operator,
@@ -120,18 +124,22 @@ pre[class*="language-"] {
 .token.url,
 .language-css .token.string,
 .style .token.string {
-	color: #393A34;
+	color: $deepBlue;
+    font-weight: bold;
 }
 
 .token.atrule,
 .token.attr-value,
 .token.keyword {
-	color: #9a050f;
+	color: $primaryBlue;
+    font-style: italic;
+    font-weight: bold;
+
 }
 
 .token.function,
 .token.class-name {
-	color: #27b1ff;
+	color: $deepBlue;
 	font-weight: bold;
 }
 
