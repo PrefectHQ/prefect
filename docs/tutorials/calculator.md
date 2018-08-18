@@ -3,14 +3,15 @@ sidebarDepth: 0
 ---
 
 # Using Prefect as a Calculator
+> Can your data engineering framework do this?
 
-Prefect is a heavy-duty data workflow system, but it handles lightweight realtime applications just as well.
+Prefect is a heavy-duty data workflow system, but it handles lightweight applications just as well.
 
 To illustrate that, let's build a simple calculator.
 
 ## Setup
 
-Let's write a simple function to make retrieving our calculation results a little easier. This function just passes parameters to our flow and retrieves the result of its terminal task:
+Let's write a quick function to make retrieving our calculation results a little easier. This function just passes parameters to our flow and retrieves the result of its terminal task. You don't have to do this, but it'll make interaction a bit easier.
 
 ```python
 def run(flow, **parameters):
