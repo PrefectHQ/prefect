@@ -65,7 +65,7 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
             to the switch condition but leaves the tasks themselves upstream.
     """
 
-    with prefect.group("switch"):
+    with prefect.tags("switch"):
         for match_value, task in cases.items():
             task = prefect.utilities.tasks.as_task(task)
 
