@@ -16,9 +16,8 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
 ## What is Prefect?
 Prefect is a workflow management system designed for modern data infrastructures.
 
-## Examples
 
-### Hello, Prefect!
+## Hello, world!
 
 ```python
 from prefect import task, Flow
@@ -27,34 +26,8 @@ from prefect import task, Flow
 def say_hello():
     print("Hello, world!")
 
-with Flow('Hello, world!') as flow:
+with Flow('My First Flow') as flow:
     say_hello()
 
 flow.run() # "Hello, world!"
-```
-
-### Hello, ETL!
-
-```python
-@task
-def extract():
-    """Get a list of data"""
-    return [1, 2, 3]
-
-@task
-def transform(data):
-    """Multiply the input by 10"""
-    return [i * 10 for i in data]
-
-@task
-def load(data):
-    """Print the data to indicate it was received"""
-    print("Here's your data: {}".format(data))
-
-with Flow('ETL') as flow:
-    e = extract()
-    t = transform(e)
-    l = load(t)
-
-flow.run() # prints "Here's your data: [10, 20, 30]"
 ```

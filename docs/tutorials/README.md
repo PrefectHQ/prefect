@@ -8,6 +8,9 @@ These tutorials are intended to help the reader get acquainted with the many fea
 are locally executable in any Python version supported by Prefect (3.4+).  Note that all features presented here are run without
 the Prefect server.
 
+## [ETL](etl.md)
+The "hello, world!" of data engineering
+
 ## [Using Prefect as a Calculator](calculator.md)
 Can your data engineering framework do this?
 
