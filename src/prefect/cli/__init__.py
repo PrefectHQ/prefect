@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+
 import click
 import logging
 import os

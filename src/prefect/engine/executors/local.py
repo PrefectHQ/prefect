@@ -1,3 +1,5 @@
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+
 from prefect.engine.executors.base import Executor
 
 

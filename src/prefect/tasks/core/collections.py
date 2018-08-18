@@ -1,3 +1,4 @@
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 from typing import Iterable
 from prefect import Task

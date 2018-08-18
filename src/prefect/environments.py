@@ -1,3 +1,5 @@
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+
 """
 Environments in the prefect library serve the purpose of taking fully executable flows,
 serializing them, and then putting that flow into some type of environment where it can

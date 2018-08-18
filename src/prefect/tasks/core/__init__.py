@@ -1,3 +1,5 @@
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+
 import prefect.tasks.core.collections
 import prefect.tasks.core.constants
 import prefect.tasks.core.function

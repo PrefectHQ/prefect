@@ -12,7 +12,9 @@ We're very excited to share what we've been working on. This first preview relea
 
 You may find a few dead-ends as you poke around the code -- many of those will become functional when we release our server and execution platforms in future preview releases.
 
+## License
 
+Prefect is alpha software under active development by Prefect Technologies, Inc. This early preview is being provided to a limited number of partners to assist with development. By viewing or using the code or documentation, you are agreeing to the [alpha software end user license agreement](/license.html).
 
 ## Overview
 
