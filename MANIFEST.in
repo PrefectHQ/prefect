@@ -1,3 +1,4 @@
+include LICENSE.md
 include src/prefect/config.toml
 include versioneer.py
 include src/prefect/_version.py
