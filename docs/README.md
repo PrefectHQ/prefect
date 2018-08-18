@@ -13,9 +13,9 @@ features:
 footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
 
-## What is Prefect?
+## Prefect
 
-Prefect reimagines data engineering for the data science era. It's a new workflow management system, designed for modern infrastructure: users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
+We've reimagined data engineering for the data science era. Prefect is a new workflow management system, designed for modern infrastructure. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
 Read the [docs](/introduction.html); get the [code](https://github.com/prefecthq/prefect); ask us [anything](mailto:help@prefect.io)!
 
