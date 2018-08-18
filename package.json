@@ -2,6 +2,7 @@
     "name": "prefect",
     "description": "Prefect is a brand-new workflow manager.",
     "version": "0.3.0",
+    "license": "See https://www.prefect.io/licenses/alpha-eula",
     "dependencies": {
         "markdown-it-attrs": "^2.3.1",
         "markdown-it-checkbox": "^1.1.0",
