@@ -1,3 +1,5 @@
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+
 import inspect
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator

@@ -1,3 +1,5 @@
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+
 from setuptools import find_packages, setup
 
 import versioneer
@@ -32,8 +34,8 @@ setup(
     description="",
     long_description=open("README.md").read(),
     url="https://www.github.com/prefecthq/prefect",
-    author="Jeremiah Lowin",
-    author_email="jeremiah@prefect.io",
+    author="Prefect Technologies, Inc.",
+    author_email="help@prefect.io",
     install_requires=install_requires,
     extras_require=extras,
     scripts=[],

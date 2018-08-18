@@ -1,3 +1,5 @@
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+
 import keyword
 from prefect.core.task import Task
 
