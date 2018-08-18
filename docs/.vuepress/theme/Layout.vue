@@ -11,6 +11,3 @@ export default {
   }
 }
 </script>
-
-// Use different theme than default
-<style src="prismjs/themes/prism-okaidia.css"></style>
