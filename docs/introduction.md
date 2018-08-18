@@ -40,4 +40,4 @@ pip install .
 ```
 
 ### Use Prefect
-Check out our tutorials, examples, or [API documentation](api/)!
+Check out our [tutorials](tutorials/) or [API reference docs](api/)... or just `import prefect`.
