@@ -14,7 +14,15 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
 
 ## What is Prefect?
-Prefect is a workflow management system designed for modern data infrastructures.
+Prefect is a workflow management system designed for modern infrastructures: it reimagines data engineering for the data science era.
+
+
+
+Read the [docs](/introduction.html); get the [code](https://github.com/prefecthq/prefect); ask us [anything](mailto:help@prefect.io)!
+
+## License
+Prefect is alpha software under active development by Prefect Technologies, Inc. This early preview is being provided to a limited number of partners to assist with development. By viewing or using the code or documentation, you are agreeing to the [alpha software end user license agreement](/license.html).
+
 
 ## Examples
 
@@ -58,3 +66,4 @@ with Flow('ETL') as flow:
 
 flow.run() # prints "Here's your data: [10, 20, 30]"
 ```
+
