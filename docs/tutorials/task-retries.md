@@ -2,13 +2,13 @@
 sidebarDepth: 0
 ---
 
-## Task Retries
+# Task Retries
 
 When designing data workflows, it is to be expected that certain components might occasionally fail or need manual intervention.  In these situations, to avoid re-running entire flows from scratch and still ensure the necessary data arrives at the paused / retrying task, Prefect will automatically detect that caching is required and will store the necessary inputs to be used in subsequent executions of the flow.
 
 <img src='/retry_success.png'>
 
-There are many reasons a given flow run might result in a task failure; for example, if a task pings an external service that is temporarily down, or queries a database that is currently locked, that task cannot proceed.  
+There are many reasons a given flow run might result in a task failure; for example, if a task pings an external service that is temporarily down, or queries a database that is currently locked, that task cannot proceed.
 
 Of course, you could encapsulate your own error-handling logic in the task itself with `try / except` clauses, etc. However, allowing Prefect to register the task failure provides many benefits:
 - provides you with out-of-the-box logging for the failure
@@ -38,7 +38,7 @@ from time import sleep
 @task
 def create_payload():
     "Performs expensive computation to create / return an URL"
-    
+
     sleep(5) # for whatever reason, getting to this point takes a long time
     return 'http://www.google.com'
 
@@ -46,7 +46,7 @@ def create_payload():
 @task(max_retries=1)
 def ping_external_service(url):
     "Performs a simple GET request to the provided URL, and returns the text of the response."
-    
+
     if prefect.context.get("_fail"):
         raise ValueError("Request failed with status code 418.")
     else:
@@ -84,14 +84,14 @@ print("Flow state: {}\n".format(flow_state))
 print("Flow results: {}".format(flow_state.result))
 
 ## Flow state: Pending("Some terminal tasks are still pending.")
-    
+
 ## Flow results: {
-##      <Task: create_payload>: Success("Task run succeeded."), 
+##      <Task: create_payload>: Success("Task run succeeded."),
 ##      <Task: ping_external_service>: Retrying("Retrying Task (after attempt 1 of 2)")
 ##                }
 ```
 
-No surprises here; the entire flow is `Pending` because its sole terminal task (`ping_external_service`) hasn't finished yet.  
+No surprises here; the entire flow is `Pending` because its sole terminal task (`ping_external_service`) hasn't finished yet.
 
 <img src='/retry.png'>
 
@@ -105,7 +105,7 @@ Providing states to the `run` method will be handled by the server on the actual
 
 ```python
 %%time
-new_flow_state = f.run(return_tasks=[text], 
+new_flow_state = f.run(return_tasks=[text],
                        task_states={text: flow_state.result[text]},
                        start_tasks=[text])
 
@@ -119,6 +119,6 @@ print("Flow state: {}\n".format(new_flow_state))
 print("Flow results: {}".format(new_flow_state.result))
 
 ##     Flow state: Success("All reference tasks succeeded.")
-    
+
 ##     Flow results: {<Task: ping_external_service>: Success("Task run succeeded.")}
 ```
