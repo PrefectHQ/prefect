@@ -1,3 +1,5 @@
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+
 from typing import Dict, Iterable
 from warnings import warn as _warn
 

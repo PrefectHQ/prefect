@@ -1,3 +1,5 @@
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+
 """
 Parent classes which are used to build custom functionality to allow serializable
 objects in the prefect library.
