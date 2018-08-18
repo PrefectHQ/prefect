@@ -50,9 +50,13 @@ module.exports = {
                 {
                     title: 'Tutorials',
                     collapsable: true,
-                    children: ['tutorials/', 'tutorials/task-retries', 'tutorials/triggers-and-references']
+                    children: ['tutorials/', 'tutorials/etl', 'tutorials/calculator', 'tutorials/task-retries', 'tutorials/triggers-and-references']
                 },
-                'comparisons'
+                {
+                    title: 'Comparisons',
+                    collapsable: true,
+                    children: ['comparisons/', 'comparisons/airflow']
+                },
             ]
         }
     },

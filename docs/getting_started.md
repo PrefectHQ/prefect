@@ -151,30 +151,6 @@ While that might work in local testing, it won't work in a distributed Prefect e
 Prefect has other mechanisms for storing state; do not use task classes to do so.
 :::
 
-## ETL
+## What's Next?
 
-One of the most common use-cases for Prefect is building an ETL pipeline. Here's how easy it can be:
-
-```python
-@task
-def extract():
-    """Get a list of data"""
-    return [1, 2, 3]
-
-@task
-def transform(data):
-    """Multiply the input by 10"""
-    return [i * 10 for i in data]
-
-@task
-def load(data):
-    """Print the data to indicate it was received"""
-    print("Here's your data: {}".format(data))
-
-with Flow('ETL') as flow:
-    e = extract()
-    t = transform(e)
-    l = load(t)
-
-flow.run() # prints "Here's your data: [10, 20, 30]"
-```
+Check out the [Prefect tutorials](/tutorials/) for more.

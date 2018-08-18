@@ -11,3 +11,7 @@ class ContextError(KeyError, PrefectError):
 
 class SerializationError(PrefectError):
     pass
+
+
+class PrefectWarning(UserWarning):
+    pass
