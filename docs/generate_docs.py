@@ -394,23 +394,29 @@ if __name__ == "__main__":
         "*</sub>".format(short_sha=SHORT_SHA, git_sha=GIT_SHA)
     )
 
-    front_matter = textwrap.dedent("""
+    front_matter = textwrap.dedent(
+        """
         ---
         sidebarDepth: 1
         editLink: false
         ---
-        """).lstrip()
+        """
+    ).lstrip()
 
     shutil.rmtree("api", ignore_errors=True)
     os.makedirs("api", exist_ok=True)
     generate_coverage()
     with open("api/README.md", "w+") as f:
-        f.write(textwrap.dedent("""
+        f.write(
+            textwrap.dedent(
+                """
             ---
             sidebarDepth: 0
             editLink: false
             ---
-            """).lstrip())
+            """
+            ).lstrip()
+        )
         f.write("# API Reference\n")
         f.write(
             "*This documentation was auto-generated from "
