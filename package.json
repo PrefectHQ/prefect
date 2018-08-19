@@ -10,12 +10,11 @@
     },
     "scripts": {
         "docs:dev": "cd docs && python generate_docs.py && vuepress dev .",
-        "docs:build": "cd docs && python generate_docs.py && vuepress build . -d deploy/dist",
-        "docs:deploy": "gcloud app deploy docs/deploy --quiet --project=prefect-docs"
+        "docs:build": "cd docs && python generate_docs.py && vuepress build . -d build"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://gitlab.com/prefect/prefect.git"
+        "url": "git+https://github.com/PrefectHQ/prefect.git"
     },
     "devDependencies": {}
 }
