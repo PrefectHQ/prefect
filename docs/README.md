@@ -40,17 +40,17 @@ We've reimagined data engineering for the data science era. Prefect is a new wor
 Read the [docs](/introduction.html); get the [code](/agreement.html); ask us [anything](mailto:help@prefect.io)!
 
 
-### Hello, world!
+### Hello, world! 👋
 
 ```python
 from prefect import task, Flow
 
 @task
 def say_hello():
-    print("Hello, world! 👋")
+    print("Hello, world!")
 
 with Flow('My First Flow') as flow:
     say_hello()
 
-flow.run() # "Hello, world! 👋"
+flow.run() # "Hello, world!"
 ```
