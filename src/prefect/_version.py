@@ -41,8 +41,8 @@ def get_config():
     cfg = VersioneerConfig()
     cfg.VCS = "git"
     cfg.style = "pep440"
-    cfg.tag_prefix = "prefect-"
-    cfg.parentdir_prefix = "prefect-"
+    cfg.tag_prefix = ""
+    cfg.parentdir_prefix = ""
     cfg.versionfile_source = "src/prefect/_version.py"
     cfg.verbose = False
     return cfg
