@@ -17,8 +17,9 @@ import re
 import shutil
 import subprocess
 import textwrap
-import toolz
 import warnings
+
+import toolz
 
 import prefect
 from prefect.utilities.bokeh_runner import BokehRunner

@@ -1,7 +1,8 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-from typing import Any, Dict
 import warnings
+from typing import Any, Dict
+
 import prefect
 from prefect import Task
 from prefect.engine import signals

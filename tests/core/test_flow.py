@@ -1,6 +1,6 @@
-import cloudpickle
 import datetime
 
+import cloudpickle
 import pytest
 
 import prefect

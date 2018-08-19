@@ -1,9 +1,10 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import dask
 import datetime
 from contextlib import contextmanager
 from typing import Any, Callable, Iterable
+
+import dask
 
 from prefect.engine.executors.base import Executor
 
