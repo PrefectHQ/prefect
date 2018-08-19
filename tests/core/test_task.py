@@ -4,7 +4,7 @@ from datetime import timedelta
 import pytest
 
 import prefect
-from prefect.core import Flow, Parameter, Task, Edge
+from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.cache_validators import all_inputs, duration_only, never_use
 from prefect.utilities.tasks import task
 

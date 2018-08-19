@@ -1,5 +1,4 @@
 import datetime
-from prefect.utilities import json
 
 import pytest
 
@@ -16,6 +15,7 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
+from prefect.utilities import json
 
 all_states = [
     CachedState,

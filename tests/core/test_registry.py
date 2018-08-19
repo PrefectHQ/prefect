@@ -2,12 +2,12 @@ import subprocess
 import tempfile
 
 import pytest
+from cryptography.fernet import Fernet
 
 import prefect
 from prefect import Flow
 from prefect.core import registry
 from prefect.utilities.tests import set_temporary_config
-from cryptography.fernet import Fernet
 
 
 @pytest.fixture()

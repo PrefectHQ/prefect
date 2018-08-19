@@ -13,9 +13,7 @@ class FlowRunnerTask(prefect.Task):
         super().__init__(**kwargs)
 
     def run(self, flow: prefect.Flow, parameters: dict = None) -> State:
-        executor = (
-            self.executor or prefect.context.get("_executor") or DEFAULT_EXECUTOR
-        )
+        executor = self.executor or prefect.context.get("_executor") or DEFAULT_EXECUTOR
         runner = prefect.engine.FlowRunner(flow=flow)
         flow_state = runner.run(
             executor=executor,

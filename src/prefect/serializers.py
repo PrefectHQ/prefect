@@ -5,8 +5,9 @@ Parent classes which are used to build custom functionality to allow serializabl
 objects in the prefect library.
 """
 
-from prefect.utilities import json
 from typing import Any
+
+from prefect.utilities import json
 
 
 class Serializer:
