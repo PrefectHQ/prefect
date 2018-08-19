@@ -10,15 +10,15 @@ Environments will serve a big purpose on accompanying the execution lifecycle fo
 Prefect Server and due to ongoing development this file is subject to large changes.
 """
 
-import subprocess
-from cryptography.fernet import Fernet
 import base64
+import subprocess
 import tempfile
 import textwrap
 from typing import Any, Iterable
 
 import cloudpickle
 import docker
+from cryptography.fernet import Fernet
 
 import prefect
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
@@ -126,7 +126,7 @@ class ContainerEnvironment(Environment):
         """Get the specified Python dependencies"""
         return self._python_dependencies
 
-    def build(self) -> tuple:
+    def build(self, flow) -> tuple:
         """Build the Docker container
 
         Args:
@@ -146,11 +146,11 @@ class ContainerEnvironment(Environment):
 
             return container
 
-    def run(self, command: str = None, tty: bool = False) -> None:
+    def run(self, key: bytes, cli_cmd: str, tty: bool = False) -> None:
         """Run a command in the Docker container
 
         Args:
-            - command (str, optional): An initial command that will be executed on container run
+            - cli_cmd (str, optional): An initial cli_cmd that will be executed on container run
             - tty (bool, optional): Sets whether the container stays active once it is started
 
         Returns:
@@ -163,7 +163,7 @@ class ContainerEnvironment(Environment):
             self.client.containers.get(self.running_container_id).kill()
 
         running_container = self.client.containers.run(
-            self.tag, command=command, tty=tty, detach=True
+            self.tag, command=cli_cmd, tty=tty, detach=True
         )
         self.running_container_id = running_container.id
 

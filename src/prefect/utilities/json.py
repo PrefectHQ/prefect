@@ -12,7 +12,7 @@ import sys
 import types
 import uuid
 import warnings
-from functools import singledispatch, partial
+from functools import partial, singledispatch
 from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar, Union
 
 import dateutil.parser

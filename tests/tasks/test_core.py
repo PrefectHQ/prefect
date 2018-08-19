@@ -1,8 +1,8 @@
 import pytest
 
-from prefect.core import Flow, Task, Edge, Parameter
-from prefect.tasks.core.constants import Constant
+from prefect.core import Edge, Flow, Parameter, Task
 from prefect.tasks.core import collections
+from prefect.tasks.core.constants import Constant
 from prefect.tasks.core.function import FunctionTask
 
 

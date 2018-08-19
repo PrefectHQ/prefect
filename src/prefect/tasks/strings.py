@@ -1,7 +1,5 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import re
-
 from prefect import Task
 
 
@@ -19,11 +17,3 @@ class StringFormatterTask(Task):
         if template is None:
             template = self.template
         return template.format(**format_kwargs)
-
-
-# class MatchRegexTask(FunctionTask):
-#     """
-#     This task attempts to match a regex string against
-#     """
-#     def run(self, string, regex):
-#         re.

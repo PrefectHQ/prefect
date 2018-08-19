@@ -17,8 +17,6 @@ import prefect.tasks
 import prefect.flows
 from prefect.utilities.tasks import task, tags
 
-# from prefect.client import Client
-
 from ._version import get_versions
 
 __version__ = get_versions()["version"]

@@ -16,8 +16,9 @@ Note that _all_ validators take into account cache expiration.
 A cache validator returns `True` if the cache is still valid, and `False` otherwise.
 """
 from datetime import datetime, timedelta
-from toolz import curry
 from typing import TYPE_CHECKING, Dict, Iterable
+
+from toolz import curry
 
 
 def never_use(state, inputs, parameters) -> bool:

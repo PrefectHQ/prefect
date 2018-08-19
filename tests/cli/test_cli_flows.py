@@ -1,11 +1,13 @@
+import json
 import shlex
 import subprocess
 import tempfile
+
 import pytest
-import json
-import prefect
-from cryptography.fernet import Fernet
 from click.testing import CliRunner
+from cryptography.fernet import Fernet
+
+import prefect
 from prefect.cli import cli
 
 

@@ -2,9 +2,9 @@ import pytest
 
 import prefect
 from prefect import Flow, Task, task
-from prefect.tasks.core.constants import Constant
 from prefect.engine.state import Skipped, Success
-from prefect.tasks.control_flow import ifelse, switch, merge
+from prefect.tasks.control_flow import ifelse, merge, switch
+from prefect.tasks.core.constants import Constant
 
 
 class Condition(Task):

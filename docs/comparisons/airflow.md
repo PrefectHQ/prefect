@@ -30,7 +30,7 @@
 | Configurable permissions                   | [x] &nbsp; | [x] &nbsp; | Airflow recently adopted RBAC                                                                  |
 |                                            |
 | **DEVELOPMENT**                            |
-| Unit tests                                 | [x] &nbsp; | [x] &nbsp; | Prefect currently has 88% coverage; Airflow has 78% coverage.                                  |
+| Unit tests                                 | [x] &nbsp; | [x] &nbsp; | Prefect has 85% coverage; Airflow has 78% coverage |
 | Local testing                              | [x] &nbsp; | [ ] &nbsp; | Prefect flows can be tested locally without any additional infrastructure                      |
 
 
@@ -199,7 +199,9 @@ with Flow("Transfer Example") as flow:
 
 ```
 ### Airflow
-The Airflow version is extremely cumbersome. Because Airflow can not pass data between tasks, each task must perform an entire load, transform, and serialize cycle. As a result, Airflow libraries are full of operators representing every possible combination of data handoffs: `A_to_B_Operator`; `B_to_C_Operator`; `B_to_A_Operator`; `A_to_C_Operator`; `C_to_A_Operator`; etc. This pipeline relies on a DropboxToGoogleCloudStorage operator, followed by a GoogleCloudStorageToGoogleCloudStorage operator.
+The Airflow version is extremely cumbersome. Because Airflow can not pass data between tasks, each task must perform an entire ETL cycle. As a result, internal Airflow libraries are full of operators representing every possible combination of data handoffs: `A_to_B_Operator`; `B_to_C_Operator`; `B_to_A_Operator`; `A_to_C_Operator`; `C_to_A_Operator`; etc.
+
+This particular pipeline relies on a `DropboxToGoogleCloudStorage` operator, followed by a `GoogleCloudStorageToGoogleCloudStorage` operator.
 
 *(This is actual sanitized Airflow code from one of Prefect's early partners)*
 

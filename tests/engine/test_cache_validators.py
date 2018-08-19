@@ -1,16 +1,16 @@
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 
 from prefect.engine.cache_validators import (
     all_inputs,
     all_parameters,
+    duration_only,
     never_use,
     partial_inputs_only,
-    duration_only,
     partial_parameters_only,
 )
 from prefect.engine.state import CachedState
-
 
 all_validators = [
     all_inputs,

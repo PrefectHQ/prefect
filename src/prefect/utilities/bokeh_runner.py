@@ -1,13 +1,13 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import cloudpickle
 import os
 import subprocess
 import tempfile
 from typing import Any, Dict, Iterable, Iterator, List, Union
 
-import prefect
+import cloudpickle
 
+import prefect
 
 try:
     import bokeh
