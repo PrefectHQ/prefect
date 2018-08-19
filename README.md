@@ -89,5 +89,5 @@ def function(x: int, y: float, z: str = None):
      - `"title"`: the displayed title of the page
      - `"classes"`: a list of all documented classes on this page
      - `"functions"`: a list of all documented standalone functions on this page
-     - "top-level-doc": a module object which contains the docstring which will be displayed at the top of the generated page
+     - `"top-level-doc"`: a module object which contains the docstring which will be displayed at the top of the generated page
   2. update `docs/.vuepress/config.js` to include your new page / section / etc. in the sidebar
