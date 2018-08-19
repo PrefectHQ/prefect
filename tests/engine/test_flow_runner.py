@@ -4,7 +4,7 @@ import sys
 import pytest
 
 import prefect
-from prefect.core import Flow, Task, Parameter
+from prefect.core import Flow, Parameter, Task
 from prefect.engine import FlowRunner, signals
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.executors import DaskExecutor, Executor, LocalExecutor

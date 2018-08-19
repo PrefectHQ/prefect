@@ -1,31 +1,29 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import cloudpickle
 import os
 import random
 import sys
+from collections import defaultdict
 
+import cloudpickle
 from bokeh.events import ButtonClick
 from bokeh.io import curdoc
 from bokeh.layouts import column, row
-from bokeh.plotting import figure, ColumnDataSource
 from bokeh.models import (
     Arrow,
     CategoricalColorMapper,
     CustomJS,
-    NormalHead,
+    HoverTool,
     Label,
     LabelSet,
     Legend,
     LegendItem,
-    HoverTool,
+    NormalHead,
 )
 from bokeh.models.widgets import Button
-
-from collections import defaultdict
+from bokeh.plotting import ColumnDataSource, figure
 
 from prefect.engine import state
-
 
 colors = [
     ("Not Run", "black"),

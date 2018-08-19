@@ -17,8 +17,9 @@ import re
 import shutil
 import subprocess
 import textwrap
-import toolz
 import warnings
+
+import toolz
 
 import prefect
 from prefect.utilities.bokeh_runner import BokehRunner
@@ -397,7 +398,7 @@ if __name__ == "__main__":
     os.makedirs("api", exist_ok=True)
     generate_coverage()
     with open("api/README.md", "w+") as f:
-        f.write("# API Documentation\n")
+        f.write("# API Reference\n")
         f.write(
             "*This documentation was auto-generated from "
             "[{short_sha}](https://github.com/PrefectHQ/prefect/commit/{git_sha})*".format(

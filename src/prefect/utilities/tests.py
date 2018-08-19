@@ -5,8 +5,8 @@ from contextlib import contextmanager
 from typing import Any
 
 import prefect
-from prefect.engine.state import State
 from prefect.configuration import Config
+from prefect.engine.state import State
 
 
 @contextmanager

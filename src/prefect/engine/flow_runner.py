@@ -10,8 +10,8 @@ from typing import Any, Callable, Dict, Iterable, Iterator, List, Union
 
 import prefect
 from prefect.core import Flow, Task
-from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine import signals
+from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.state import Failed, Pending, Running, State, Success
 from prefect.engine.task_runner import TaskRunner
 
@@ -137,6 +137,8 @@ class FlowRunner:
         state = state or Pending()
         context = context or {}
         return_tasks = return_tasks or []
+        executor = executor or DEFAULT_EXECUTOR
+
         if set(return_tasks).difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
 
@@ -144,6 +146,7 @@ class FlowRunner:
             _flow_name=self.flow.name,
             _flow_version=self.flow.version,
             _parameters=parameters,
+            _executor=executor,
         )
 
         try:
@@ -215,7 +218,6 @@ class FlowRunner:
         return_tasks = set(return_tasks or [])
         sorted_return_tasks = []
         task_contexts = task_contexts or {}
-        executor = executor or DEFAULT_EXECUTOR
 
         if not state.is_running():
             raise signals.DONTRUN("Flow is not in a Running state.")
