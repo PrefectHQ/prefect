@@ -47,10 +47,10 @@ from prefect import task, Flow
 
 @task
 def say_hello():
-    print("Hello, world!")
+    print("Hello, world! 👋")
 
 with Flow('My First Flow') as flow:
     say_hello()
 
-flow.run() # "Hello, world!"
+flow.run() # "Hello, world! 👋"
 ```
