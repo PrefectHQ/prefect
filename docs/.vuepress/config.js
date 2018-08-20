@@ -1,14 +1,15 @@
 module.exports = {
     title: 'Prefect (Preview)',
     description: "Don't Panic.",
+    ga: "UA-115585378-1",
     themeConfig: {
-        repo: 'prefecthq/prefect/tree/master/docs',
+        repo: 'PrefectHQ/preview/tree/master/docs',
         editLinks: true,
         // repoLabel: 'GitHub',
         nav: [
             { text: "Overview", link: '/introduction.html' },
             { text: "API Reference", link: '/api/' },
-            { text: "License", link: '/license.html' }
+            { text: "License", link: '/license.html' }, { text: "Log Out", link: '/logout.html' }
         ],
         sidebar: {
             '/api/': [
