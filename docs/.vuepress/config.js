@@ -46,7 +46,7 @@ module.exports = {
                 },
             ],
             '/license': [],
-            '/': ['introduction', 'concepts', 'getting_started',
+            '/': ['introduction', 'getting_started', 'concepts',
                 {
                     title: 'Tutorials',
                     collapsable: true,
