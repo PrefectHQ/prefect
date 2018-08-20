@@ -1,72 +1,10 @@
-setup_gcloud_sdk: &setup_gcloud_sdk
-    name: Set up Google Cloud SDK
-    command: |
-        echo "$GOOGLE_SERVICE_ACCOUNT_KEY" > key.json
-        gcloud auth activate-service-account --key-file key.json
-        gcloud config set compute/zone $GCLOUD_ZONE
-        gcloud config set project $GCLOUD_PROJECT
-
-install_yarn: &install_yarn
-    name: Install yarn and upgrade node
-    command: |
-        curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
-        echo "deb http://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
-        apt-get update && apt-get install -y yarn
-        curl -sL https://deb.nodesource.com/setup_10.x | bash -
-        apt-get install -y nodejs
-
-
 version: 2
 jobs:
-  docs_deploy:
-    docker:
-      - image: google/cloud-sdk
 
-    steps:
-      - attach_workspace:
-          at: /workspace
-      - run: *setup_gcloud_sdk
-      - run: *install_yarn
-      - run:
-          name: VuePress deploy
-          command: gcloud app deploy /workspace/deploy --quiet --project=prefect-docs
-
-  docs_build:
-    docker:
-        - image: python:3.6
-
-    steps:
-      - checkout
-      - run:
-          name: Install Prefect
-          command: pip install -e ".[dev]"
-
-      - run:
-          name: Auto-generate markdown
-          command: |
-            mkdir -p /workspace/deploy
-            export GIT_SHA=$CIRCLE_SHA1
-            cd docs/ && python generate_docs.py
-
-      - run: *install_yarn
-
-      - run:
-          name: Install VuePress and dependencies
-          command: |
-            yarn global add vuepress
-            yarn install
-
-      - run:
-          name: VuePress build
-          command: cd docs/ && vuepress build . -d deploy/dist && cp -R deploy/* /workspace/deploy
-
-      - persist_to_workspace:
-          root: /workspace
-          paths:
-            - deploy
   # ----------------------------------
   # Check formatting
   # ----------------------------------
+
   check_formatting:
     docker:
       - image: python:3.6
@@ -83,6 +21,7 @@ jobs:
   # ----------------------------------
   # Run unit tests in Python 3.4-3.7
   # ----------------------------------
+
   test-3.4:
     docker:
       - image: python:3.4
@@ -136,18 +75,3 @@ workflows:
       - test-3.7:
           requires:
             - check_formatting
-
-      - docs_build:
-          requires:
-            - check_formatting
-            - test-3.4
-            - test-3.5
-            - test-3.6
-            - test-3.7
-          filters:
-            branches:
-              only: master
-
-      - docs_deploy:
-          requires:
-            - docs_build
