@@ -24,6 +24,17 @@ class ShellTask(prefect.Task):
         super().__init__(**kwargs)
 
     def run(self):
+        """
+        Run the shell command.
+
+        Returns:
+            - stdout + stderr (string): anything printed to standard out /
+                standard error during command execution
+
+        Raises:
+            - prefect.engine.signals.FAIL: if command has an exit code other
+                than 0
+        """
         current_env = self.env or os.environ.copy()
         try:
             out = subprocess.check_output(
