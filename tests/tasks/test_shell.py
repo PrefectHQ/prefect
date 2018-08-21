@@ -71,3 +71,4 @@ def test_shell_task_raises_fail_if_cmd_fails():
     f = Flow(tasks=[task])
     out = f.run(return_tasks=[task])
     assert out.is_failed()
+    assert "Command failed with exit code 1" in str(out.result[task].message)
