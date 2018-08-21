@@ -14,6 +14,14 @@ def test_shell_initializes_and_runs_basic_cmd():
     assert out.result[task].result == b"hello world"
 
 
+def test_shell_runs_other_shells():
+    task = ShellTask(command="echo -n $ZSH_NAME", shell="zsh")
+    f = Flow(tasks=[task])
+    out = f.run(return_tasks=[task])
+    assert out.is_successful()
+    assert out.result[task].result == b"zsh"
+
+
 def test_shell_inherits_env():
     task = ShellTask(command="echo -n $MYTESTVAR")
     f = Flow(tasks=[task])

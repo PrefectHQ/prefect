@@ -13,19 +13,23 @@ class ShellTask(prefect.Task):
         - env (dict, optional): dictionary of environment variables to use for
             the subprocess; if provided, will override all other environment variables present
             on the system
+        - shell (string, optional): shell to run the command with; defaults to "bash"
         - **kwargs: additional keyword arguments to pass to the Task constructor
     """
 
-    def __init__(self, command, env=None, **kwargs):
+    def __init__(self, command, env=None, shell="bash", **kwargs):
         self.command = command
         self.env = env or dict()
+        self.shell = shell
         super().__init__(**kwargs)
 
     def run(self):
         current_env = self.env or os.environ.copy()
         try:
             out = subprocess.check_output(
-                ["bash", "-c", self.command], stderr=subprocess.STDOUT, env=current_env
+                [self.shell, "-c", self.command],
+                stderr=subprocess.STDOUT,
+                env=current_env,
             )
         except subprocess.CalledProcessError as exc:
             msg = "Command failed with exit code {0}: {1}".format(
