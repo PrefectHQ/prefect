@@ -54,6 +54,7 @@ To view documentation locally:
 
 ```bash
 cd prefect
+yarn install # only the first time!
 yarn docs:dev
 ```
 
