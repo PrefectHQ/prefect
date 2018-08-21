@@ -47,15 +47,12 @@ def test_shell_task_doesnt_inherit_if_env_is_provided():
     assert out.result[task].result == b""
 
 
-def test_shell_returns_errors_as_well():
-    task = ShellTask(command="ls surely_a_dir_that_doesnt_exist; exit 0")
+def test_shell_returns_stderr_as_well():
+    task = ShellTask(command="ls surely_a_dir_that_doesnt_exist || exit 0")
     f = Flow(tasks=[task])
     out = f.run(return_tasks=[task])
     assert out.is_successful()
-    assert (
-        out.result[task].result
-        == b"ls: surely_a_dir_that_doesnt_exist: No such file or directory\n"
-    )
+    assert "No such file or directory" in out.result[task].result.decode()
 
 
 def test_shell_initializes_and_runs_multiline_cmd():
@@ -79,4 +76,4 @@ def test_shell_task_raises_fail_if_cmd_fails():
     f = Flow(tasks=[task])
     out = f.run(return_tasks=[task])
     assert out.is_failed()
-    assert "Command failed with exit code 1" in str(out.result[task].message)
+    assert "Command failed with exit code" in str(out.result[task].message)
