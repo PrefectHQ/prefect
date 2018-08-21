@@ -175,10 +175,7 @@ OUTLINE = [
         "page": "tasks/function.md",
         "classes": [prefect.tasks.core.function.FunctionTask],
     },
-    {
-        "page": "tasks/shell.md",
-        "classes": [prefect.tasks.core.shell.ShellTask],
-    },
+    {"page": "tasks/shell.md", "classes": [prefect.tasks.core.shell.ShellTask]},
     {"page": "utilities/bokeh.md", "classes": [BokehRunner]},
     {
         "page": "utilities/collections.md",
