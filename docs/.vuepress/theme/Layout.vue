@@ -14,11 +14,21 @@ export default {
     Layout
   },
   data() {
-    return {
-      loggedIn: false,
+    var loggedIn = false
+    if (process.env.PREFECT_DOCS_DEV_MODE === "1"){
+      loggedIn = true
     }
+    return { loggedIn }
   },
   methods:  {
+    getUser() {
+      const netlifyIdentity = require("netlify-identity-widget")
+      if (process.env.PREFECT_DOCS_DEV_MODE === "1"){
+        return 1
+      } else {
+        return netlifyIdentity.currentUser()
+      }
+    },
     logOut () {
         this.$data.loggedIn = false
       },
@@ -41,13 +51,13 @@ export default {
     netlifyIdentity.on('login', this.logIn )
     netlifyIdentity.on('logout', this.logOut)
 
-    const user = netlifyIdentity.currentUser()
+    const user = this.getUser()
     if (user) {
       this.logIn(user)
     }
 
     this.$router.beforeEach((to, from, next) => {
-      const user = netlifyIdentity.currentUser()
+      const user = this.getUser()
       if (user) {
         this.logIn(user)
       } else {

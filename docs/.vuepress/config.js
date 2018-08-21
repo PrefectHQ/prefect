@@ -1,3 +1,5 @@
+const webpack = require('webpack')
+
 module.exports = {
     title: 'Prefect (Preview)',
     description: "Don't Panic.",
@@ -66,5 +68,13 @@ module.exports = {
             md.use(require('markdown-it-attrs'))
             md.use(require('markdown-it-checkbox'))
         }
+    },
+    configureWebpack: {
+        plugins: [
+            new webpack.DefinePlugin({
+                'process.env.PREFECT_DOCS_DEV_MODE': JSON.stringify(process.env.PREFECT_DOCS_DEV_MODE)
+            })
+        ]
     }
+
 }

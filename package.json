@@ -10,12 +10,12 @@
         "vuepress": "^0.14.1"
     },
     "scripts": {
-        "docs:dev": "cd docs && python generate_docs.py && vuepress dev .",
+        "docs:dev": "cd docs && python generate_docs.py && PREFECT_DOCS_DEV_MODE=1 vuepress dev .",
         "docs:build": "cd docs && python generate_docs.py && vuepress build . -d build"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/PrefectHQ/prefect.git"
+        "url": "git+https://github.com/PrefectHQ/preview.git"
     },
     "devDependencies": {}
 }
