@@ -15,8 +15,7 @@ class ShellTask(prefect.Task):
         super().__init__(**kwargs)
 
     def run(self):
-        current_env = os.environ.copy()
-        current_env.update(self.env)
+        current_env = self.env or os.environ.copy()
         out = subprocess.check_output(
             ["bash", "-c", self.command], stderr=subprocess.STDOUT, env=current_env
         )
