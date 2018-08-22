@@ -135,7 +135,7 @@ class TaskRunner:
                     tickets.append(q.get(timeout=2))  # timeout after 2 seconds
                 if len(tickets) == len(queues):
                     break
-                else:  # release tickets and wait for a sec
+                else:  # release tickets
                     for ticket, q in zip(tickets, queues):
                         q.put(ticket)
 

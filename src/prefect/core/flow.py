@@ -719,7 +719,6 @@ class Flow(Serializable):
         """
         runner = prefect.engine.flow_runner.FlowRunner(flow=self)
         parameters = parameters or []
-        throttle = kwargs.pop("throttle", self.throttle)
 
         passed_parameters = {}
         for p in self.parameters():
@@ -729,10 +728,7 @@ class Flow(Serializable):
                 passed_parameters[p] = parameters[p]
 
         state = runner.run(
-            parameters=passed_parameters,
-            return_tasks=return_tasks,
-            throttle=throttle,
-            **kwargs
+            parameters=passed_parameters, return_tasks=return_tasks, **kwargs
         )
 
         # state always should return a dict of tasks. If it's None (meaning the run was
@@ -828,6 +824,7 @@ class Flow(Serializable):
                 )
                 for e in self.edges
             ],
+            throttle=self.throttle,
         )
 
     def register(self) -> None:
