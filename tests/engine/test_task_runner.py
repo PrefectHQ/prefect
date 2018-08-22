@@ -2,6 +2,8 @@ import datetime
 
 import pytest
 
+from unittest.mock import MagicMock
+
 import prefect
 from prefect.core.task import Task
 from prefect.engine import TaskRunner, signals
@@ -479,3 +481,12 @@ class TestTaskRunner_get_post_run_state:
         with prefect.context(_task_run_number=2):
             with pytest.raises(signals.DONTRUN):
                 runner.get_post_run_state(state=Failed())
+
+
+def test_throttled_task_runner_takes_ticket_and_puts_it_back():
+    q = MagicMock()
+    q.get = lambda: "ticket"
+    runner = TaskRunner(SuccessTask(tags=["db"]))
+    state = runner.run(queues=[q])
+    assert q.put.called
+    assert q.put.call_args[0][0] == "ticket"
