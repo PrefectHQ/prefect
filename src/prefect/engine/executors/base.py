@@ -54,6 +54,19 @@ class Executor(Serializable):
         """
         raise NotImplementedError()
 
+    def queue(self, maxsize=0):
+        """
+        Creates a new executor-compatibile queue object populated with maxsize number of 'tickets'.
+
+        Args:
+            - maxsize (int): maxsize of the queue; defaults to 0 (infinite)
+
+        Returns:
+            - Queue: an executor compatible queue which can be shared among
+                tasks
+        """
+        raise NotImplementedError()
+
     def submit_with_context(
         self, fn: Callable, *args: Any, context: Dict, **kwargs: Any
     ) -> Any:

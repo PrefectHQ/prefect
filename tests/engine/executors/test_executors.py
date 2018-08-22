@@ -23,6 +23,10 @@ class TestBaseExecutor:
         with pytest.raises(NotImplementedError):
             Executor().wait([1])
 
+    def test_queue_raises_notimplemented(self):
+        with pytest.raises(NotImplementedError):
+            Executor().queue(2)
+
     def test_start_doesnt_do_anything(self):
         with Executor().start():
             assert True
