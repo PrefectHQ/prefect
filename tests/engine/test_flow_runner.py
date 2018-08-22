@@ -25,11 +25,15 @@ from prefect.triggers import manual_only
 from prefect.utilities.tests import raise_on_exception
 
 
-@pytest.fixture(params=[DaskExecutor(scheduler="synchronous"),
-                        DaskExecutor(scheduler="threads"),
-                        DaskExecutor(scheduler="processes"),
-                        LocalExecutor()],
-                ids=["dask-sync", "dask-threads", "dask-process", "local"])
+@pytest.fixture(
+    params=[
+        DaskExecutor(scheduler="synchronous"),
+        DaskExecutor(scheduler="threads"),
+        DaskExecutor(scheduler="processes"),
+        LocalExecutor(),
+    ],
+    ids=["dask-sync", "dask-threads", "dask-process", "local"],
+)
 def executor(request):
     return request.param
 
@@ -82,13 +86,8 @@ class RaiseRetryTask(Task):
 
 
 class ReturnTask(Task):
-    called = False
-
     def run(self, x):
-        if self.called is False:
-            self.called = True
-            raise ValueError("Must call twice.")
-        return x
+        return 1 / (x - 1)
 
 
 def test_flow_runner_runs_basic_flow_with_1_task():
@@ -418,12 +417,14 @@ class TestInputCaching:
 
         first_state = FlowRunner(flow=f).run(executor=executor, return_tasks=[res])
         assert isinstance(first_state, Pending)
+        b_state = first_state.result[res]
+        b_state.cached_inputs = dict(x=2)  # artificially alter state
         with raise_on_exception():  # without caching we'd expect a KeyError
             second_state = FlowRunner(flow=f).run(
                 executor=executor,
                 return_tasks=[res],
                 start_tasks=[res],
-                task_states={res: first_state.result[res]},
+                task_states={res: b_state},
             )
         assert isinstance(second_state, Success)
         assert second_state.result[res].result == 1
@@ -453,9 +454,13 @@ class TestInputCaching:
             executor=executor, parameters=dict(x=1), return_tasks=[res]
         )
         assert isinstance(first_state, Pending)
+
+        res_state = first_state.result[res]
+        res_state.cached_inputs = dict(x=2)  # artificially alter state
+
         second_state = FlowRunner(flow=f).run(
             executor=executor,
-            parameters=dict(x=2),
+            parameters=dict(x=1),
             return_tasks=[res],
             start_tasks=[res],
             task_states={res: first_state.result[res]},
