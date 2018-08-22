@@ -6,6 +6,7 @@
 - Local parallelism with `DaskExecutor` (#151)
 
 ### Minor Features
+- Add changelog (#153)
 - `ShellTask` (#150)
 
 ### Fixes
@@ -39,5 +40,6 @@
 
 ### Fixes
 - None
+
 ### Breaking Changes
 - None
