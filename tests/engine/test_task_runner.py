@@ -490,3 +490,12 @@ def test_throttled_task_runner_takes_ticket_and_puts_it_back():
     state = runner.run(queues=[q])
     assert q.put.called
     assert q.put.call_args[0][0] == "ticket"
+
+
+def test_throttled_task_runner_returns_ticket_even_with_error():
+    q = MagicMock()
+    q.get = lambda: "ticket"
+    runner = TaskRunner(ErrorTask(tags=["db"]))
+    state = runner.run(queues=[q])
+    assert q.put.called
+    assert q.put.call_args[0][0] == "ticket"
