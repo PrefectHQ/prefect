@@ -6,6 +6,7 @@
 - Local parallelism with `DaskExecutor` (#151)
 
 ### Minor Features
+- Use Netlify to deploy docs (#156)
 - Add changelog (#153)
 - `ShellTask` (#150)
 
