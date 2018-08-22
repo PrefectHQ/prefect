@@ -28,6 +28,9 @@
 - Output caching with various `cache_validators` (#84, #107)
 - Dask executor (#82, #86)
 - Automatic input caching for retries, manual-only triggers (#78)
+- Functional API for `Flow` definition
+- `State` classes
+- `Signals` to transmit `State`
 
 ### Minor Features
 - Add custom syntax highlighting to docs (#141)
