@@ -23,6 +23,8 @@ class DaskExecutor(Executor):
     def __init__(self, scheduler="synchronous"):
         self.scheduler = scheduler
         super().__init__()
+        if self.scheduler == "processes":
+            self.manager = Manager()
 
     @contextmanager
     def start(self) -> Iterable[None]:
@@ -31,9 +33,6 @@ class DaskExecutor(Executor):
 
         Configures `dask` to run using the provided scheduler and yields the `dask.config` contextmanager.
         """
-        if self.scheduler == "processes":
-            self.manager = Manager()
-
         with dask.config.set(scheduler=self.scheduler) as cfg:
             yield cfg
 
