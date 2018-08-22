@@ -560,7 +560,7 @@ class TestTagThrottling:
         def record_size(q, **kwargs):
             for name, val in kwargs.items():
                 val.put(0)  # each task records its connection
-            time.sleep(random.random() / 10)
+            time.sleep(random.random() / 100)
             for name, val in kwargs.items():
                 q.put(
                     (name, val.qsize())
@@ -582,8 +582,8 @@ class TestTagThrottling:
         res = [global_q.get() for _ in range(global_q.qsize())]
         a_res = [val for tag, val in res if tag == "a"]
         b_res = [val for tag, val in res if tag == "b"]
-        assert max(a_res) == num
-        assert max(b_res) == num + 1
+        assert max(a_res) <= num
+        assert max(b_res) <= num + 1
 
     @pytest.mark.parametrize("scheduler", ["threads", "processes"])
     def test_no_throttling_with_tags_doesnt_raise(self, scheduler):
@@ -605,7 +605,7 @@ class TestTagThrottling:
 
         @prefect.task(tags=["there-can-be-only-one"])
         def timed():
-            time.sleep(0.25)
+            time.sleep(0.05)
             return time.time()
 
         with prefect.Flow() as f:
@@ -617,7 +617,7 @@ class TestTagThrottling:
             throttle={"there-can-be-only-one": 1},
         )
         times = [s.result for t, s in res.result.items()]
-        assert abs(times[0] - times[1]) > 0.25
+        assert abs(times[0] - times[1]) > 0.05
 
 
 def test_flow_runner_uses_user_provided_executor():

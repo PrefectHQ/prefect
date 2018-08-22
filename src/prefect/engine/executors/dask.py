@@ -42,9 +42,6 @@ class DaskExecutor(Executor):
         else:
             q = queue.Queue(maxsize=maxsize)
 
-        for i in range(maxsize):  # populate q with resource tickets
-            q.put(i)
-
         return q
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:

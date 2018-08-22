@@ -56,7 +56,7 @@ class Executor(Serializable):
 
     def queue(self, maxsize=0):
         """
-        Creates a new executor-compatibile queue object populated with maxsize number of 'tickets'.
+        Creates a new executor-compatibile queue object.
 
         Args:
             - maxsize (int): maxsize of the queue; defaults to 0 (infinite)
