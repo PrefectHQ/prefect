@@ -526,6 +526,20 @@ class TestOutputCaching:
 
 class TestTagThrottling:
     @pytest.mark.parametrize("scheduler", ["threads", "processes"])
+    def test_no_throttling_with_tags_doesnt_raise(self, scheduler):
+        executor = DaskExecutor(scheduler=scheduler)
+
+        @prefect.task(tags=["there-can-be-only-one"])
+        def timed():
+            return 1
+
+        with prefect.Flow() as f:
+            a, b = timed(), timed()
+
+        res = f.run(executor=executor, return_tasks=f.tasks)
+        assert all([s.result == 1 for t, s in res.result.items()])
+
+    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
     def test_extreme_throttling_prevents_parallelism(self, scheduler):
         executor = DaskExecutor(scheduler=scheduler)
 
