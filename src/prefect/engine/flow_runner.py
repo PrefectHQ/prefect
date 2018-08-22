@@ -233,7 +233,12 @@ class FlowRunner:
 
         with executor.start():
 
-            queues = {tag: executor.queue(size) for tag, size in throttle.items()}
+            queues = {}
+            for tag, size in throttle.items():
+                q = executor.queue(size)
+                for i in range(size):
+                    q.put(i)  # populate the queue with resource "tickets"
+                queues[tag] = q
 
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
