@@ -25,9 +25,13 @@ from prefect.triggers import manual_only
 from prefect.utilities.tests import raise_on_exception
 
 
-@pytest.fixture(params=[DaskExecutor, LocalExecutor])
+@pytest.fixture(params=[DaskExecutor(scheduler="synchronous"),
+                        DaskExecutor(scheduler="threads"),
+                        DaskExecutor(scheduler="processes"),
+                        LocalExecutor()],
+                ids=["dask-sync", "dask-threads", "dask-process", "local"])
 def executor(request):
-    return request.param()
+    return request.param
 
 
 class SuccessTask(Task):
