@@ -1,5 +1,6 @@
 import datetime
 import sys
+import time
 
 import pytest
 
@@ -521,6 +522,28 @@ class TestOutputCaching:
         )
         assert isinstance(flow_state, Success)
         assert flow_state.result[y].result == 100
+
+
+class TestTagThrottling:
+    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
+    def test_extreme_throttling_prevents_parallelism(self, scheduler):
+        executor = DaskExecutor(scheduler=scheduler)
+
+        @prefect.task(tags=["there-can-be-only-one"])
+        def timed():
+            time.sleep(0.25)
+            return time.time()
+
+        with prefect.Flow() as f:
+            a, b = timed(), timed()
+
+        res = f.run(
+            executor=executor,
+            return_tasks=f.tasks,
+            throttle={"there-can-be-only-one": 1},
+        )
+        times = [s.result for t, s in res.result.items()]
+        assert abs(times[0] - times[1]) > 0.25
 
 
 def test_flow_runner_uses_user_provided_executor():
