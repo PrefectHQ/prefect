@@ -6,16 +6,16 @@
     "dependencies": {
         "markdown-it-attrs": "^2.3.1",
         "markdown-it-checkbox": "^1.1.0",
+        "netlify-identity-widget": "^1.4.14",
         "vuepress": "^0.14.1"
     },
     "scripts": {
-        "docs:dev": "cd docs && python generate_docs.py && vuepress dev .",
-        "docs:build": "cd docs && python generate_docs.py && vuepress build . -d deploy/dist",
-        "docs:deploy": "gcloud app deploy docs/deploy --quiet --project=prefect-docs"
+        "docs:dev": "cd docs && python generate_docs.py && PREFECT_DOCS_DEV_MODE=1 vuepress dev .",
+        "docs:build": "cd docs && python generate_docs.py && vuepress build . -d build"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://gitlab.com/prefect/prefect.git"
+        "url": "git+https://github.com/PrefectHQ/prefect.git"
     },
     "devDependencies": {}
 }
