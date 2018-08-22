@@ -1,14 +1,17 @@
+const webpack = require('webpack')
+
 module.exports = {
     title: 'Prefect (Preview)',
     description: "Don't Panic.",
+    ga: "UA-115585378-1",
     themeConfig: {
-        repo: 'prefecthq/prefect/tree/master/docs',
+        repo: 'PrefectHQ/prefect/tree/master/docs',
         editLinks: true,
         // repoLabel: 'GitHub',
         nav: [
             { text: "Overview", link: '/introduction.html' },
             { text: "API Reference", link: '/api/' },
-            { text: "License", link: '/license.html' }
+            { text: "License", link: '/license.html' }, { text: "Log Out", link: '/logout.html' }
         ],
         sidebar: {
             '/api/': [
@@ -46,7 +49,7 @@ module.exports = {
                 },
             ],
             '/license': [],
-            '/': ['introduction', 'concepts', 'getting_started',
+            '/': ['introduction', 'getting_started', 'concepts',
                 {
                     title: 'Tutorials',
                     collapsable: true,
@@ -65,5 +68,12 @@ module.exports = {
             md.use(require('markdown-it-attrs'))
             md.use(require('markdown-it-checkbox'))
         }
+    },
+    configureWebpack: {
+        plugins: [
+            new webpack.DefinePlugin({
+                'process.env.PREFECT_DOCS_DEV_MODE': JSON.stringify(process.env.PREFECT_DOCS_DEV_MODE)
+            })
+        ]
     }
 }
