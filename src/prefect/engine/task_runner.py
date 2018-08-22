@@ -129,8 +129,8 @@ class TaskRunner:
         context = context or {}
 
         with prefect.context(context, _task_name=self.task.name):
+            tickets = [q.get() for q in queues]  # blocks
             try:
-                tickets = [q.get() for q in queues]  # blocks
                 parameters = prefect.context.get("_parameters")
                 state = self.get_pre_run_state(
                     state=state,
