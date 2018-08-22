@@ -129,7 +129,16 @@ class TaskRunner:
         context = context or {}
 
         with prefect.context(context, _task_name=self.task.name):
-            tickets = [q.get() for q in queues]  # blocks
+            tickets = []
+            while True:
+                for q in queues:
+                    tickets.append(q.get(timeout=2))  # timeout after 2 seconds
+                if len(tickets) == len(queues):
+                    break
+                else:  # release tickets and wait for a sec
+                    for ticket, q in zip(tickets, queues):
+                        q.put(ticket)
+
             try:
                 parameters = prefect.context.get("_parameters")
                 state = self.get_pre_run_state(

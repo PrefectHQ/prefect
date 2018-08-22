@@ -275,7 +275,9 @@ class FlowRunner:
                     inputs=upstream_inputs,
                     ignore_trigger=(task in start_tasks),
                     context=task_contexts.get(task),
-                    queues=[queues.get(tag) for tag in task.tags if queues.get(tag)],
+                    queues=[
+                        queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
+                    ],
                 )
             # ---------------------------------------------
             # Collect results
