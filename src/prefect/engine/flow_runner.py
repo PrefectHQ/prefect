@@ -142,6 +142,7 @@ class FlowRunner:
         context = context or {}
         return_tasks = return_tasks or []
         executor = executor or DEFAULT_EXECUTOR
+        throttle = throttle or self.flow.throttle
 
         if set(return_tasks).difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
