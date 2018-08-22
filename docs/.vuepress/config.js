@@ -5,7 +5,7 @@ module.exports = {
     description: "Don't Panic.",
     ga: "UA-115585378-1",
     themeConfig: {
-        repo: 'PrefectHQ/preview/tree/master/docs',
+        repo: 'PrefectHQ/prefect/tree/master/docs',
         editLinks: true,
         // repoLabel: 'GitHub',
         nav: [
