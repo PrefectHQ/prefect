@@ -42,6 +42,10 @@ jobs:
           command: pip install -e ".[dev]"
 
       - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
           name: Auto-generate markdown
           command: |
             mkdir -p /workspace/deploy
@@ -91,6 +95,10 @@ jobs:
     steps: &run_test_steps
       - checkout
       - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
       - run:
           name: Install prefect
           command: pip install ".[dev]"

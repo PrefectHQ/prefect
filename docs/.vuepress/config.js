@@ -40,7 +40,7 @@ module.exports = {
                 {
                     title: 'prefect.tasks',
                     collapsable: true,
-                    children: ['tasks/control_flow', 'tasks/function']
+                    children: ['tasks/control_flow', 'tasks/function', 'tasks/shell']
                 },
                 {
                     title: 'prefect.utilities',
@@ -76,5 +76,4 @@ module.exports = {
             })
         ]
     }
-
 }
