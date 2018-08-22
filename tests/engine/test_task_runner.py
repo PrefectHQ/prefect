@@ -485,7 +485,7 @@ class TestTaskRunner_get_post_run_state:
 
 def test_throttled_task_runner_takes_ticket_and_puts_it_back():
     q = MagicMock()
-    q.get = lambda: "ticket"
+    q.get = lambda *args, **kwargs: "ticket"
     runner = TaskRunner(SuccessTask(tags=["db"]))
     state = runner.run(queues=[q])
     assert q.put.called
@@ -494,7 +494,7 @@ def test_throttled_task_runner_takes_ticket_and_puts_it_back():
 
 def test_throttled_task_runner_returns_ticket_even_with_error():
     q = MagicMock()
-    q.get = lambda: "ticket"
+    q.get = lambda *args, **kwargs: "ticket"
     runner = TaskRunner(ErrorTask(tags=["db"]))
     state = runner.run(queues=[q])
     assert q.put.called
