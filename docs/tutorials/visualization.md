@@ -67,15 +67,18 @@ f.visualize()
 
 ![](/output_5_0.svg) {style="text-align: center;"}
 
-We can now see what the warning was telling us: the `Div` task has an upstream dependency of "6" (Prefect represents _everything_ as a task internally) which exists outside of the switch condition. Morever, this task has no upstream dependencies so it is considered a "root" task:
+We can now see what the warning was telling us: the `Div` task has an upstream dependency of "6" which exists outside of the switch condition. Morever, this "6" task has no upstream dependencies so it is considered a "root" task:
 
+::: tip Everything is a task
+Internally, Prefect represents _everything_ as a task.  In this case, Prefect creates a task called "6" that simply returns the integer 6 when it runs.
+:::
 
 ```python
 f.root_tasks()
 # {<Parameter: x>, <Parameter: y>, <Task: 6>}
 ```
 
-These are the tasks the flow will execute first (by default); consequently, the task "6" will be run _regardless_ of whether the `Div` task is skipped by the switch condition.  If this task performed a lot of computation, we might want to only execute it if the switch condition passes, in which case we would need to rearrange our flow.  
+These are the tasks the flow will execute first (by default); consequently, the task "6" will be run _regardless_ of whether the `Div` task is skipped by the switch condition.  If, instead of merely returning the number 6, this task performed a lot of computation, we might want it executed _only if_ the switch condition passes; in this case we would need to rearrange our flow.  
 
 ::: tip Note
 Notice that we have identified this situation and possibly remediated it _all without executing our code_!
