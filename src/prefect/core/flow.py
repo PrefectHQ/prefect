@@ -110,6 +110,9 @@ class Flow(Serializable):
         - reference_tasks ([Task], optional): A list of tasks which determine the final
         state of a flow
         - register (bool, optional): Whether or not to add the flow to the registry
+        - throttle (dict, optional): dictionary of tags -> int specifying
+            how many tasks with a given tag should be allowed to run simultaneously. Used
+            for throttling resource usage.
     """
 
     def __init__(
@@ -124,6 +127,7 @@ class Flow(Serializable):
         edges: Iterable[Edge] = None,
         reference_tasks: Iterable[Task] = None,
         register: bool = False,
+        throttle: Dict[str, int] = None,
     ) -> None:
         self._cache = {}
 
@@ -156,6 +160,7 @@ class Flow(Serializable):
         if register:
             self.register()
 
+        self.throttle = throttle or {}
         super().__init__()
 
     def __eq__(self, other: Any) -> bool:
@@ -819,6 +824,7 @@ class Flow(Serializable):
                 )
                 for e in self.edges
             ],
+            throttle=self.throttle,
         )
 
     def register(self) -> None:

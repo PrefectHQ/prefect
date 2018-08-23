@@ -743,6 +743,7 @@ def test_serialize_default_keys():
             "tasks",
             "reference_tasks",
             "edges",
+            "throttle",
         ]
     )
 
