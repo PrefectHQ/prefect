@@ -60,7 +60,7 @@ cat << EOF > .pre-commit-hooks.yaml
   hooks:
       - id: black
         name: black
-        entry: black --check .
+        entry: black --check
         language: python
         language_version: python3
         types: [python]
