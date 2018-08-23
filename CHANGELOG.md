@@ -4,6 +4,7 @@
 
 ### Major Features
 - Local parallelism with `DaskExecutor` (#151)
+- Resource throttling based on `tags` (#158)
 
 ### Minor Features
 - Use Netlify to deploy docs (#156)
