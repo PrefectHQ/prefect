@@ -553,7 +553,7 @@ class TestTagThrottling:
         assert max(a_res) <= num
         assert max(b_res) <= num + 1
 
-    @pytest.mark.xfail
+    @pytest.mark.xfail(reason="Timing tests are brittle")
     @pytest.mark.parametrize("scheduler", ["threads", "processes"])
     def test_extreme_throttling_prevents_parallelism(self, scheduler):
         executor = DaskExecutor(scheduler=scheduler)
