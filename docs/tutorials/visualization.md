@@ -1,0 +1,139 @@
+---
+sidebarDepth: 0
+---
+
+## Flow Visualization
+
+It is a common mantra that the first thing data professionals should do when trying to understand a dataset is to _visualize_ it; similarly, when designing workflows it is always a good idea to visually inspect what you've created.
+
+Prefect provides multiple tools for building, inspecting and testing your flows locally.  In this tutorial we will cover some ways you can _visualize_ your flow and its execution.  Everything we discuss will require Prefect to be installed with either the `"viz"` or `"dev"` extras:
+```
+# assuming your current directory is the prefect repo
+pip install ".[dev]" # OR
+pip install ".[viz]"
+```
+
+## Static Flow visualization
+
+The `Flow` class comes with a builtin `visualize` method for inspecting the underlying Directed Acyclic Graph (DAG).  Let's setup a basic example:
+
+
+```python
+from prefect import Flow, Parameter, task
+
+@task
+def add(x, y):
+    return x + y
+
+with Flow("math") as f:
+    x, y = Parameter("x"), Parameter("y")
+    add(x, y)
+    
+f.visualize()
+```
+
+<img src='/output_1_0.svg'>
+
+Here we see a nice static representation of the underlying flow graph: the nodes correspond to tasks (labeled with the task name) and the edges to dependencies (labeled with the underlying argument name if data is being passed).  This can be helpful with understanding task dependencies, and possibly debugging your logic without having to execute your tasks.
+
+To see how this might be helpful, let's create a more complicated dependency chain.
+
+
+```python
+from prefect.tasks.control_flow import switch
+
+@task
+def add(x, y):
+    return x + y
+
+@task
+def divide(num, denom):
+    return num / denom
+
+@task
+def handle_zero():
+    return float('nan')
+
+with Flow("math") as f:
+    x, y = Parameter("x"), Parameter("y")
+    a = add(x, y)
+    switch(a, cases={0: handle_zero(),
+                     1: divide(6, a)})
+##    PrefectWarning: One of the tasks passed to the switch condition 
+##    has upstream dependencies: <Task: divide>. 
+##    Those upstream tasks could run even if the switch condition fails, 
+##    which might cause unexpected results.
+```
+
+Hmmm - we received a warning which tells us that the `divide` Task has an upstream dependency that may run even if the switch condition fails... what does that mean exactly?  Let's visualize the flow to find out:
+
+
+```python
+f.visualize()
+```
+
+<img src='/output_5_0.svg'>
+
+We can now see what the warning was telling us: the constant "6" was represented as a task under the hood, and this task has no upstream dependencies.  Therefore, it is considered a "root" task:
+
+
+```python
+f.root_tasks()
+# {<Parameter: x>, <Parameter: y>, <Task: 6>}
+```
+
+These are the tasks the flow will execute first (by default); consequently, the task "6" will be run _regardless_ of whether the `divide` task is skipped by the switch condition.  If this task performed a lot of computation, we might want to only execute it if the switch condition passes, in which case we would need to rearrange our flow.  
+
+::: tip Note
+Notice that we have identified this situation and possibly remidiated it _all without executing our code_!
+:::
+
+## Dynamic Flow visualization with `BokehRunner`
+
+`Flow.visualize()` is great for static analysis, but for understanding the underlying _execution_ model, Prefect's `BokehRunner` is a more powerful tool.  
+
+::: warning
+The `BokehRunner` tool is not a replacement for a UI, nor is it meant to be used in production; it is merely a tool for better understanding Prefect's execution model and helping users debug their flows locally.
+:::
+
+`BokehRunner` is a subclass of `FlowRunner`, which is the class responsible for setting up the execution of flows.  The `BokehRunner` will _first_ perform a full execution of the flow, and then, using the stored states from the execution, run a [Bokeh webapp](https://bokeh.pydata.org/en/latest/) that allows for step-by-step _simulated_ execution that cleanly displays how states are propagated through the flow until the final flow state is reached.
+
+Using our flow `f` from above, we run the `BokehRunner` as follows (this will open up a new tab / window with the Bokeh application):
+
+
+```python
+from prefect.utilities.bokeh_runner import BokehRunner
+
+BokehRunner(flow=f).run(parameters=dict(x=1, y=5))
+```
+
+The web app should look something like this (the layout may change slightly from run to run):
+<img src='/bokeh1.png'>
+
+
+Similar to `f.visualize()`, we have a node for every task and an edge for every dependency.  The biggest difference is that now we have information regarding the current _state_ of each task and of the overall flow.  In the actual web app you can use your mouse to hover over each node and see more information about its state.
+
+We can run the first set of tasks by clicking "Run Next Tasks"; this will execute the first set of non-dependent tasks (the root tasks in this case): 
+
+<img src='/bokeh2.png'>
+
+
+Now we see what the warning was telling us even more clearly - the "6" task is run on the first pass.  Continuing this exercise, we ultimately reach the final state: 
+
+<img src='/bokeh3.png'>
+
+
+Let's see what would happen if we explicitly tell the flow to start at the "x" and "y" tasks, and trigger the divide switch:
+
+
+```python
+BokehRunner(flow=f).run(parameters=dict(x=1, y=0),
+                        start_tasks=[x, y])
+```
+<img src='/bokeh4.png'>
+
+
+We find that our final state is `Failed` because the "6" task wasn't run, so this pattern of running our flow is not going to be very robust.  
+::: tip 
+Fully understanding why our flow failed might have been trickier without the visualization aids that Prefect provides.
+:::
