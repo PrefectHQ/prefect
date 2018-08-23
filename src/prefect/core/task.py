@@ -772,7 +772,7 @@ class Parameter(Task):
             raise AttributeError("Parameter slug must be the same as its name.")
 
     def run(self) -> Any:
-        params = prefect.context.get("_parameters", {})
+        params = prefect.context.get("_parameters") or {}
         if self.required and self.name not in params:
             raise prefect.engine.signals.FAIL(
                 'Parameter "{}" was required but not provided.'.format(self.name)

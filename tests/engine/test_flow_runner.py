@@ -279,40 +279,10 @@ def test_required_parameters_must_be_provided():
     flow = prefect.Flow()
     y = prefect.Parameter("y")
     flow.add_task(y)
-    flow_state = FlowRunner(flow=flow).run()
+    flow_state = FlowRunner(flow=flow).run(return_tasks=[y])
     assert isinstance(flow_state, Failed)
-    assert isinstance(flow_state.message, prefect.engine.signals.FAIL)
-    assert "required parameter" in str(flow_state.message).lower()
-
-
-def test_missing_parameter_returns_failed_with_no_data():
-    flow = prefect.Flow()
-    task = AddTask()
-    y = prefect.Parameter("y")
-    task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
-    flow_state = FlowRunner(flow=flow).run(return_tasks=[task])
-    assert isinstance(flow_state, Failed)
-    assert flow_state.result is None
-
-
-def test_missing_parameter_returns_failed_with_pending_tasks_if_called_from_flow():
-    flow = prefect.Flow()
-    task = AddTask()
-    y = prefect.Parameter("y")
-    task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
-    flow_state = flow.run(return_tasks=[task])
-    assert isinstance(flow_state, Failed)
-    assert isinstance(flow_state.result[task], Pending)
-
-
-def test_missing_parameter_error_is_surfaced():
-    flow = prefect.Flow()
-    task = AddTask()
-    y = prefect.Parameter("y")
-    task.set_dependencies(flow, keyword_tasks=dict(x=1, y=y))
-    msg = flow.run().message
-    assert isinstance(msg, prefect.engine.signals.FAIL)
-    assert "required parameter" in str(msg).lower()
+    assert isinstance(flow_state.result[y], Failed)
+    assert "required but not provided" in str(flow_state.result[y]).lower()
 
 
 def test_flow_run_state_determined_by_reference_tasks():
@@ -350,15 +320,6 @@ class TestFlowRunner_get_pre_run_state:
 
         state = FlowRunner(flow=flow).get_pre_run_state(state=Pending())
         assert isinstance(state, Running)
-
-    def test_raises_fail_if_required_parameters_missing(self):
-        flow = prefect.Flow()
-        y = prefect.Parameter("y")
-        flow.add_task(y)
-        flow_state = FlowRunner(flow=flow).get_pre_run_state(state=Pending())
-        assert isinstance(flow_state, Failed)
-        assert isinstance(flow_state.message, prefect.engine.signals.FAIL)
-        assert "required parameter" in str(flow_state.message).lower()
 
     @pytest.mark.parametrize("state", [Success(), Failed()])
     def test_raise_dontrun_if_state_is_finished(self, state):
