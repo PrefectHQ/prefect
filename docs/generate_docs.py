@@ -375,7 +375,8 @@ def generate_coverage():
 
     try:
         tests = subprocess.check_output(
-            "cd .. && coverage run `which pytest` && coverage html --directory=docs/.vuepress/public/prefect-coverage/"
+            "cd .. && coverage run `which pytest` && coverage html --directory=docs/.vuepress/public/prefect-coverage/",
+            shell=True,
         )
     except subprocess.CalledProcessError as exc:
         warnings.warn(f"Coverage report was not generated: {exc.output}")
