@@ -9,7 +9,6 @@ from typing import Set
 from prefect.engine import signals
 
 
-
 def all_finished(upstream_states: Set["prefect.engine.state.State"]) -> bool:
     """
     This task will run no matter what the upstream states are, as long as they are finished.

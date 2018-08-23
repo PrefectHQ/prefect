@@ -4,6 +4,7 @@ import collections
 from collections.abc import MutableMapping
 from typing import Any, Iterable, Generator
 
+
 def flatten_seq(seq: Iterable) -> Generator:
     """
     Generator that returns a flattened list from a possibly nested list-of-lists
@@ -21,7 +22,9 @@ def flatten_seq(seq: Iterable) -> Generator:
         - generator: a generator that yields the flattened sequence
     """
     for item in seq:
-        if isinstance(item, collections.Iterable) and not isinstance(item, (str, bytes)):
+        if isinstance(item, collections.Iterable) and not isinstance(
+            item, (str, bytes)
+        ):
             yield from flatten_seq(item)
         else:
             yield item

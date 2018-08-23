@@ -457,8 +457,6 @@ class TestTaskRunner_get_run_state:
         assert isinstance(state, Skipped)
         assert "dontrun was raised" in str(state.message).lower()
 
-
-
     def test_ignores_cached_attribute_if_task_doesnt_ask_for_it(self):
         runner = TaskRunner(AddTask())
         state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
@@ -474,9 +472,7 @@ class TestTaskRunner_get_run_state:
         now = datetime.datetime.utcnow()
         runner = TaskRunner(AddTask(cache_for=datetime.timedelta(days=1)))
         with prefect.context(_parameters=dict(qq="time")):
-            state = runner.get_run_state(
-                state=Running(), inputs=dict(x=1, y=2),
-            )
+            state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
         cached = state.cached
         assert isinstance(cached, CachedState)
         assert cached.cached_result_expiration >= now + datetime.timedelta(hours=23)
