@@ -175,6 +175,7 @@ OUTLINE = [
         "page": "tasks/function.md",
         "classes": [prefect.tasks.core.function.FunctionTask],
     },
+    {"page": "tasks/shell.md", "classes": [prefect.tasks.core.shell.ShellTask]},
     {"page": "utilities/bokeh.md", "classes": [BokehRunner]},
     {
         "page": "utilities/collections.md",
@@ -372,10 +373,14 @@ def generate_coverage():
     if os.path.exists(".vuepress/public/prefect-coverage"):
         return
 
-    tests = subprocess.check_output(
-        "cd .. && pytest --cov-report html:docs/.vuepress/public/prefect-coverage --cov=src/prefect",
-        shell=True,
-    )
+    try:
+        tests = subprocess.check_output(
+            "cd .. && pytest --cov-report html:docs/.vuepress/public/prefect-coverage --cov=src/prefect",
+            shell=True,
+        )
+    except Exception as exc:
+        print("Coverage report was not generated.")
+        print(exc.output)
     if "failed" in tests.decode():
         warnings.warn("Some tests failed.")
 
@@ -394,10 +399,29 @@ if __name__ == "__main__":
         "*</sub>".format(short_sha=SHORT_SHA, git_sha=GIT_SHA)
     )
 
+    front_matter = textwrap.dedent(
+        """
+        ---
+        sidebarDepth: 1
+        editLink: false
+        ---
+        """
+    ).lstrip()
+
     shutil.rmtree("api", ignore_errors=True)
     os.makedirs("api", exist_ok=True)
     generate_coverage()
     with open("api/README.md", "w+") as f:
+        f.write(
+            textwrap.dedent(
+                """
+            ---
+            sidebarDepth: 0
+            editLink: false
+            ---
+            """
+            ).lstrip()
+        )
         f.write("# API Reference\n")
         f.write(
             "*This documentation was auto-generated from "
@@ -428,17 +452,7 @@ if __name__ == "__main__":
             os.makedirs(directory, exist_ok=True)
         with open(fname, "w") as f:
             # PAGE TITLE / SETUP
-            f.write(
-                textwrap.dedent(
-                    """
-                    ---
-                    sidebarDepth: 1
-                    editLink: false
-                    ---
-
-                    """
-                ).lstrip()
-            )
+            f.write(front_matter)
             title = page.get("title")
             if title:  # this would be a good place to have assignments
                 f.write(f"# {title}\n---\n")

@@ -1,4 +1,5 @@
 import pytest
+import time
 
 import prefect
 from prefect.engine.executors import DaskExecutor, Executor, LocalExecutor
@@ -21,6 +22,10 @@ class TestBaseExecutor:
     def test_wait_raises_notimplemented(self):
         with pytest.raises(NotImplementedError):
             Executor().wait([1])
+
+    def test_queue_raises_notimplemented(self):
+        with pytest.raises(NotImplementedError):
+            Executor().queue(2)
 
     def test_start_doesnt_do_anything(self):
         with Executor().start():
@@ -82,3 +87,19 @@ class TestDaskExecutor:
         with pytest.raises(TypeError) as exc:
             DaskExecutor().submit_with_context(lambda: 1)
         assert "missing 1 required keyword-only argument: 'context'" in str(exc.value)
+
+    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
+    def test_executor_implements_parallelism(self, scheduler):
+        executor = DaskExecutor(scheduler=scheduler)
+
+        @prefect.task
+        def timed():
+            time.sleep(0.05)
+            return time.time()
+
+        with prefect.Flow() as f:
+            a, b = timed(), timed()
+
+        res = f.run(executor=executor, return_tasks=f.tasks)
+        times = [s.result for t, s in res.result.items()]
+        assert abs(times[0] - times[1]) < 0.05
