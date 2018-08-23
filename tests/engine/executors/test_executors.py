@@ -88,6 +88,8 @@ class TestDaskExecutor:
             DaskExecutor().submit_with_context(lambda: 1)
         assert "missing 1 required keyword-only argument: 'context'" in str(exc.value)
 
+    # mark as xfail because timing tests are brittle
+    @pytest.mark.xfail
     @pytest.mark.parametrize("scheduler", ["threads", "processes"])
     def test_executor_implements_parallelism(self, scheduler):
         executor = DaskExecutor(scheduler=scheduler)
