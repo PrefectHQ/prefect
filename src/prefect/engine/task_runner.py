@@ -6,7 +6,17 @@ import logging
 import types
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Union, Set
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    MutableMapping,
+    Union,
+    Set,
+    Optional,
+)
 
 import prefect
 from prefect.core import Task
@@ -94,7 +104,7 @@ class TaskRunner:
     def run(
         self,
         state: State = None,
-        upstream_states: Dict[str, Union[State, List[State]]] = None,
+        upstream_states: Dict[Optional[str], Union[State, List[State]]] = None,
         inputs: Dict[str, Any] = None,
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
@@ -108,7 +118,7 @@ class TaskRunner:
         Args:
             - state (State, optional): initial `State` to begin task run from;
                 defaults to `Pending()`
-            - upstream_states (Dict[str, Union[State, List[State]]]): a dictionary
+            - upstream_states (Dict[Optional[str], Union[State, List[State]]]): a dictionary
                 representing the states of any tasks upstream of this one. The keys of the
                 dictionary should correspond to the keys of any edges leading to the task,
                 plus an extra `None` key containing a list of results from tasks that
