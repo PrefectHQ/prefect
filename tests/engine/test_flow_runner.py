@@ -394,7 +394,14 @@ class TestFlowRunner_get_run_state:
         flow.add_edge(task1, task2)
 
         with pytest.raises(signals.DONTRUN) as exc:
-            FlowRunner(flow=flow).get_run_state(state=state)
+            FlowRunner(flow=flow).get_run_state(
+                state=state,
+                task_states={},
+                start_tasks=[],
+                return_tasks=[],
+                task_contexts={},
+                executor=None,
+            )
         assert "not in a running state" in str(exc.value).lower()
 
 
