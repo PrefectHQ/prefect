@@ -11,7 +11,7 @@
     },
     "scripts": {
         "docs:dev": "cd docs && python generate_docs.py && PREFECT_DOCS_DEV_MODE=1 vuepress dev .",
-        "docs:build": "cd docs && python generate_docs.py && vuepress build . -d build"
+        "docs:build": "cd docs && coverage erase && python generate_docs.py && vuepress build . -d build"
     },
     "repository": {
         "type": "git",
