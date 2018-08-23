@@ -373,10 +373,14 @@ def generate_coverage():
     if os.path.exists(".vuepress/public/prefect-coverage"):
         return
 
-    tests = subprocess.check_output(
-        "cd .. && pytest --cov-report html:docs/.vuepress/public/prefect-coverage --cov=src/prefect",
-        shell=True,
-    )
+    try:
+        tests = subprocess.check_output(
+            "cd .. && pytest --cov-report html:docs/.vuepress/public/prefect-coverage --cov=src/prefect",
+            shell=True,
+        )
+    except Exception as exc:
+        print("Coverage report was not generated.")
+        print(exc.output)
     if "failed" in tests.decode():
         warnings.warn("Some tests failed.")
 
