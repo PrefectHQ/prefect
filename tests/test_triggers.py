@@ -14,10 +14,10 @@ def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0):
         Retrying: retrying,
     }
 
-    states = {}
+    states = set()
     for state, count in state_counts.items():
         for i in range(count):
-            states[str(len(states))] = state()
+            states.add(state())
     return states
 
 
