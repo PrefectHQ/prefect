@@ -204,11 +204,11 @@ class FlowRunner:
     def get_run_state(
         self,
         state: State,
-        task_states: Dict[Task, State] = None,
-        start_tasks: Iterable[Task] = None,
-        return_tasks: Iterable[Task] = None,
-        task_contexts: Dict[Task, Dict[str, Any]] = None,
-        executor: "prefect.engine.executors.base.Executor" = None,
+        task_states: Dict[Task, State],
+        start_tasks: Iterable[Task],
+        return_tasks: Iterable[Task],
+        task_contexts: Dict[Task, Dict[str, Any]],
+        executor: "prefect.engine.executors.base.Executor",
     ) -> State:
 
         task_states = defaultdict(
@@ -232,25 +232,21 @@ class FlowRunner:
                     sorted_return_tasks.append(task)
 
                 upstream_states = {}
-                upstream_inputs = {}
+                task_inputs = {}
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
 
                     # upstream states to pass to the task trigger
-                    upstream_states[edge.upstream_task] = task_states[
-                        edge.upstream_task
-                    ]
-
-                    # extract data from upstream states that pass data
-                    # note this will extract data even if the upstream state wasn't successful
-                    if edge.key:
-                        upstream_inputs[edge.key] = executor.submit(
-                            lambda s: s.result, task_states[edge.upstream_task]
+                    if edge.key is None:
+                        upstream_states.setdefault(None, []).append(
+                            task_states[edge.upstream_task]
                         )
+                    else:
+                        upstream_states[edge.key] = task_states[edge.upstream_task]
 
                 if task in start_tasks and task in task_states:
-                    upstream_inputs.update(task_states[task].cached_inputs)
+                    task_inputs.update(task_states[task].cached_inputs)
 
                 # -- run the task
                 task_runner = self.task_runner_cls(task=task)
@@ -258,7 +254,7 @@ class FlowRunner:
                     task_runner.run,
                     state=task_states.get(task),
                     upstream_states=upstream_states,
-                    inputs=upstream_inputs,
+                    inputs=task_inputs,
                     ignore_trigger=(task in start_tasks),
                     context=task_contexts.get(task),
                 )
