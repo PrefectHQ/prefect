@@ -94,7 +94,7 @@ class TestDaskExecutor:
 
         @prefect.task
         def timed():
-            time.sleep(0.05)
+            time.sleep(0.1)
             return time.time()
 
         with prefect.Flow() as f:
@@ -102,4 +102,4 @@ class TestDaskExecutor:
 
         res = f.run(executor=executor, return_tasks=f.tasks)
         times = [s.result for t, s in res.result.items()]
-        assert abs(times[0] - times[1]) < 0.05
+        assert abs(times[0] - times[1]) < 0.1
