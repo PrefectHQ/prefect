@@ -378,11 +378,11 @@ def generate_coverage():
             "cd .. && pytest --cov-report html:docs/.vuepress/public/prefect-coverage --cov=src/prefect",
             shell=True,
         )
+        if "failed" in tests.decode():
+            warnings.warn("Some tests failed.")
     except Exception as exc:
         print("Coverage report was not generated.")
         print(exc.output)
-    if "failed" in tests.decode():
-        warnings.warn("Some tests failed.")
 
 
 if __name__ == "__main__":
