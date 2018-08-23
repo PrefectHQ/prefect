@@ -56,13 +56,15 @@ pip install pre-commit # installs pre-commit package
 pre-commit install --hook-type pre-push # creates necessary git hook files
 ## creates a pre-commit config file for black
 cat << EOF > .pre-commit-hooks.yaml
- - repo: local
-   hooks:
-       - id: black
-         name: black
-         entry: black --check .
-         language: python
- EOF
+- repo: local
+  hooks:
+      - id: black
+        name: black
+        entry: black --check .
+        language: python
+        language_version: python3
+        types: [python]
+EOF
 ```
 Now, you won't be allowed to `git push` without passing black.
 
