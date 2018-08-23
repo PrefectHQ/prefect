@@ -24,10 +24,11 @@ Prefect requires Python 3.4+.
 
 ### Install
 
+This will install optional visualization utilities:
 ```bash
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
-pip install .
+pip install ".[viz]"
 ```
 
 ## Development
@@ -37,7 +38,7 @@ pip install .
 ```bash
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
-pip install -e .[dev]
+pip install -e ".[dev]"
 ```
 
 ### Run unit tests
@@ -49,9 +50,11 @@ pytest
 
 ### Build documentation
 
-To view documentation locally (run this from the root `prefect` directory):
+To view documentation locally:
 
 ```bash
+cd prefect
+yarn install # only the first time!
 yarn docs:dev
 ```
 
