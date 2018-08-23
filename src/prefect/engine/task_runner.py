@@ -6,7 +6,7 @@ import logging
 import types
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterator, List, MutableMapping, Union, Set
+from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Union, Set
 
 import prefect
 from prefect.core import Task
@@ -98,6 +98,7 @@ class TaskRunner:
         inputs: Dict[str, Any] = None,
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
+        queues: Iterable = None,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -127,11 +128,15 @@ class TaskRunner:
             - ignore_trigger (bool): boolean specifying whether to ignore the
                 Task trigger; defaults to `False`
             - context (dict, optional): prefect Context to use for execution
+            - queues ([queue], optional): list of queues of tickets to use when deciding
+                whether it's safe for the Task to run based on resource limitations. The
+                Task will only begin running when a ticket from each queue is available.
 
         Returns:
             - `State` object representing the final post-run state of the Task
         """
 
+        queues = queues or []
         state = state or Pending()
         upstream_states = upstream_states or {}
         inputs = inputs or {}
@@ -145,6 +150,16 @@ class TaskRunner:
         )
 
         with prefect.context(context, _task_name=self.task.name):
+            tickets = []
+            while True:
+                for q in queues:
+                    tickets.append(q.get(timeout=2))  # timeout after 2 seconds
+                if len(tickets) == len(queues):
+                    break
+                else:  # release tickets
+                    for ticket, q in zip(tickets, queues):
+                        q.put(ticket)
+
             try:
                 state = self.get_pre_run_state(
                     state=state,
@@ -162,6 +177,9 @@ class TaskRunner:
                     state.cached_inputs = task_inputs or {}
                     state.message = exc
                 pass
+            finally:  # resource is now available
+                for ticket, q in zip(tickets, queues):
+                    q.put(ticket)
 
         return state
 

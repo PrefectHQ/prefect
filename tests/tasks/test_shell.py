@@ -15,9 +15,7 @@ def test_shell_initializes_and_runs_basic_cmd():
     assert out.result[task].result == b"hello world"
 
 
-@pytest.mark.skipif(
-    subprocess.check_output(["which", "zsh"]) == b"", reason="zsh not installed."
-)
+@pytest.mark.skipif(subprocess.call(["which", "zsh"]), reason="zsh not installed.")
 def test_shell_runs_other_shells():
     with Flow() as f:
         task = ShellTask(shell="zsh")(command="echo -n $ZSH_NAME")

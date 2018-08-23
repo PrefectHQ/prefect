@@ -108,6 +108,7 @@ class FlowRunner:
         executor: "prefect.engine.executors.Executor" = None,
         context: Dict[str, Any] = None,
         task_contexts: Dict[Task, Dict[str, Any]] = None,
+        throttle: Dict[str, int] = None,
     ) -> State:
         """
         The main endpoint for FlowRunners.  Calling this method will perform all
@@ -130,6 +131,9 @@ class FlowRunner:
             - context (dict, optional): prefect.Context to use for execution
             - task_contexts (dict, optional): dictionary of individual contexts
                 to use for each Task run
+            - throttle (dict, optional): dictionary of tags -> int specifying
+                how many tasks with a given tag should be allowed to run simultaneously. Used
+                for throttling resource usage.
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
@@ -138,6 +142,7 @@ class FlowRunner:
         context = context or {}
         return_tasks = return_tasks or []
         executor = executor or DEFAULT_EXECUTOR
+        throttle = throttle or self.flow.throttle
 
         if set(return_tasks).difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
@@ -159,6 +164,7 @@ class FlowRunner:
                     return_tasks=return_tasks,
                     executor=executor,
                     task_contexts=task_contexts,
+                    throttle=throttle,
                 )
 
         except signals.DONTRUN:
@@ -194,6 +200,7 @@ class FlowRunner:
         return_tasks: Iterable[Task],
         task_contexts: Dict[Task, Dict[str, Any]],
         executor: "prefect.engine.executors.base.Executor",
+        throttle: Dict[str, int] = None,
     ) -> State:
 
         task_states = defaultdict(
@@ -203,6 +210,7 @@ class FlowRunner:
         return_tasks = set(return_tasks or [])
         sorted_return_tasks = []
         task_contexts = task_contexts or {}
+        throttle = throttle or {}
 
         if not state.is_running():
             raise signals.DONTRUN("Flow is not in a Running state.")
@@ -210,6 +218,13 @@ class FlowRunner:
         # -- process each task in order
 
         with executor.start():
+
+            queues = {}
+            for tag, size in throttle.items():
+                q = executor.queue(size)
+                for i in range(size):
+                    q.put(i)  # populate the queue with resource "tickets"
+                queues[tag] = q
 
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
@@ -242,6 +257,9 @@ class FlowRunner:
                     inputs=task_inputs,
                     ignore_trigger=(task in start_tasks),
                     context=task_contexts.get(task),
+                    queues=[
+                        queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
+                    ],
                 )
             # ---------------------------------------------
             # Collect results
