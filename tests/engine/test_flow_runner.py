@@ -1,5 +1,7 @@
 import datetime
+import random
 import sys
+import time
 
 import pytest
 
@@ -489,6 +491,87 @@ class TestOutputCaching:
         )
         assert isinstance(flow_state, Success)
         assert flow_state.result[y].result == 100
+
+
+class TestTagThrottling:
+    @pytest.mark.parametrize("num", [1, 2])
+    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
+    def test_throttle_via_order(self, scheduler, num):
+        executor = DaskExecutor(scheduler=scheduler)
+        global_q = executor.queue(0)
+        ticket_q = executor.queue(0)
+
+        @prefect.task(tags=["connection"])
+        def record_size(q, t):
+            t.put(0)  # each task records its connection
+            time.sleep(random.random() / 10)
+            q.put(t.qsize())  # and records the number of active connections
+            t.get()
+
+        with Flow() as f:
+            for _ in range(20):
+                record_size(global_q, ticket_q)
+
+        f.run(throttle=dict(connection=num), executor=executor)
+        res = max([global_q.get() for _ in range(global_q.qsize())])
+        assert res == num
+
+    @pytest.mark.parametrize("num", [1, 2])
+    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
+    def test_throttle_multiple_tags(self, scheduler, num):
+        executor = DaskExecutor(scheduler=scheduler)
+        global_q = executor.queue(0)
+        a_ticket_q = executor.queue(0)
+        b_ticket_q = executor.queue(0)
+
+        @prefect.task
+        def record_size(q, **kwargs):
+            for name, val in kwargs.items():
+                val.put(0)  # each task records its connection
+            time.sleep(random.random() / 100)
+            for name, val in kwargs.items():
+                q.put(
+                    (name, val.qsize())
+                )  # and records the number of active connections
+                val.get()
+
+        with Flow() as f:
+            for _ in range(10):
+                a = record_size(global_q, a=a_ticket_q)
+                a.tags = ["a"]
+            for _ in range(10):
+                b = record_size(global_q, b=b_ticket_q)
+                b.tags = ["b"]
+            for _ in range(10):
+                c = record_size(global_q, a=a_ticket_q, b=b_ticket_q)
+                c.tags = ["a", "b"]
+
+        f.run(throttle=dict(a=num, b=num + 1), executor=executor)
+        res = [global_q.get() for _ in range(global_q.qsize())]
+        a_res = [val for tag, val in res if tag == "a"]
+        b_res = [val for tag, val in res if tag == "b"]
+        assert max(a_res) <= num
+        assert max(b_res) <= num + 1
+
+    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
+    def test_extreme_throttling_prevents_parallelism(self, scheduler):
+        executor = DaskExecutor(scheduler=scheduler)
+
+        @prefect.task(tags=["there-can-be-only-one"])
+        def timed():
+            time.sleep(0.05)
+            return time.time()
+
+        with prefect.Flow() as f:
+            a, b = timed(), timed()
+
+        res = f.run(
+            executor=executor,
+            return_tasks=f.tasks,
+            throttle={"there-can-be-only-one": 1},
+        )
+        times = [s.result for t, s in res.result.items()]
+        assert abs(times[0] - times[1]) > 0.05
 
 
 def test_flow_runner_uses_user_provided_executor():

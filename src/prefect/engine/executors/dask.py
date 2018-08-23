@@ -2,9 +2,11 @@
 
 import datetime
 from contextlib import contextmanager
+from multiprocessing import Manager
 from typing import Any, Callable, Iterable
 
 import dask
+import queue
 
 from prefect.engine.executors.base import Executor
 
@@ -21,6 +23,8 @@ class DaskExecutor(Executor):
     def __init__(self, scheduler="synchronous"):
         self.scheduler = scheduler
         super().__init__()
+        if self.scheduler == "processes":
+            self.manager = Manager()
 
     @contextmanager
     def start(self) -> Iterable[None]:
@@ -31,6 +35,14 @@ class DaskExecutor(Executor):
         """
         with dask.config.set(scheduler=self.scheduler) as cfg:
             yield cfg
+
+    def queue(self, maxsize=0):
+        if self.scheduler == "processes":
+            q = self.manager.Queue(maxsize=maxsize)
+        else:
+            q = queue.Queue(maxsize=maxsize)
+
+        return q
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """

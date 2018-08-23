@@ -373,12 +373,15 @@ def generate_coverage():
     if os.path.exists(".vuepress/public/prefect-coverage"):
         return
 
-    tests = subprocess.check_output(
-        "cd .. && pytest --cov-report html:docs/.vuepress/public/prefect-coverage --cov=src/prefect",
-        shell=True,
-    )
-    if "failed" in tests.decode():
-        warnings.warn("Some tests failed.")
+    try:
+        tests = subprocess.check_output(
+            "cd .. && coverage run `which pytest` && coverage html --directory=docs/.vuepress/public/prefect-coverage/",
+            shell=True,
+        )
+        if "failed" in tests.decode():
+            warnings.warn("Some tests failed.")
+    except subprocess.CalledProcessError as exc:
+        warnings.warn(f"Coverage report was not generated: {exc.output}")
 
 
 if __name__ == "__main__":
