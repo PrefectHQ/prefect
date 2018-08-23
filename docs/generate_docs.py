@@ -378,11 +378,10 @@ def generate_coverage():
             "cd .. && coverage run `which pytest` && coverage html --directory=docs/.vuepress/public/prefect-coverage/",
             shell=True,
         )
+        if "failed" in tests.decode():
+            warnings.warn("Some tests failed.")
     except subprocess.CalledProcessError as exc:
         warnings.warn(f"Coverage report was not generated: {exc.output}")
-
-    if "failed" in tests.decode():
-        warnings.warn("Some tests failed.")
 
 
 if __name__ == "__main__":
