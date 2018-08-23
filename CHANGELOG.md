@@ -15,7 +15,7 @@
 - Fix issue with versioneer not picking up git tags (#146)
 
 ### Breaking Changes
-- None
+- Cleaned up signatures of TaskRunner methods (#171)
 
 
 ## 0.3.0 <Badge text="alpha" type="warn">
