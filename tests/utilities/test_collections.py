@@ -5,9 +5,9 @@ from prefect.utilities.collections import DotDict, merge_dicts, to_dotdict
 
 
 class TestFlattenSeq:
-
     def test_flatten_seq_is_generator(self):
         assert isinstance(collections.flatten_seq([1]), types.GeneratorType)
+
     def test_flatten_seq_lists(self):
         assert list(collections.flatten_seq([1, 2, 3])) == [1, 2, 3]
         assert list(collections.flatten_seq([1, 2, [3]])) == [1, 2, 3]
@@ -19,12 +19,12 @@ class TestFlattenSeq:
         assert list(collections.flatten_seq([(1, [2]), [3]])) == [1, 2, 3]
 
     def test_flatten_seq_lists_and_strings(self):
-        assert list(collections.flatten_seq([1, '23'])) == [1, '23']
-        assert list(collections.flatten_seq([1, ['23', '45']])) == [1, '23', '45']
+        assert list(collections.flatten_seq([1, "23"])) == [1, "23"]
+        assert list(collections.flatten_seq([1, ["23", "45"]])) == [1, "23", "45"]
 
     def test_flatten_seq_raises_error_if_not_seq(self):
         with pytest.raises(TypeError):
-             list(collections.flatten_seq(1))
+            list(collections.flatten_seq(1))
 
 
 @pytest.fixture
