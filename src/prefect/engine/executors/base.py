@@ -26,7 +26,7 @@ class Executor(Serializable):
         """
         yield
 
-    def map(self) -> Any:
+    def map(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError()
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:

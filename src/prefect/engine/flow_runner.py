@@ -235,44 +235,57 @@ class FlowRunner:
 
                 upstream_states = {}
                 task_inputs = {}
-                maps = {} # a dictionary of key -> task(s) for mapping
+                maps = {}  # a dictionary of key -> task(s) for mapping
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
 
-                    if edge.mapped:
-                        if edge.key is None:
-                            maps.setdefault(None, []).append(
-                                task_states[edge.upstream_task]
-                            )
-                        else:
-                            maps[edge.key] = task_states[edge.upstream_task]
+                    store = (
+                        maps if edge.mapped else upstream_states
+                    )  # which dict to put this edge in
 
                     # upstream states to pass to the task trigger
                     if edge.key is None:
-                        upstream_states.setdefault(None, []).append(
+                        store.setdefault(None, []).append(
                             task_states[edge.upstream_task]
                         )
                     else:
-                        upstream_states[edge.key] = task_states[edge.upstream_task]
+                        store[edge.key] = task_states[edge.upstream_task]
 
                 if task in start_tasks and task in task_states:
                     task_inputs.update(task_states[task].cached_inputs)
 
                 # -- run the task
                 task_runner = self.task_runner_cls(task=task)
-                task_states[task] = executor.submit(
-                    task_runner.run,
-                    state=task_states.get(task),
-                    upstream_states=upstream_states,
-                    inputs=task_inputs,
-                    ignore_trigger=(task in start_tasks),
-                    context=task_contexts.get(task),
-                    queues=[
-                        queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
-                    ],
-                    maps=maps,
-                )
+                if maps:
+                    task_states[task] = executor.map(
+                        task_runner.run,
+                        state=task_states.get(task),
+                        upstream_states=upstream_states,
+                        inputs=task_inputs,
+                        ignore_trigger=(task in start_tasks),
+                        context=task_contexts.get(task),
+                        queues=[
+                            queues.get(tag)
+                            for tag in sorted(task.tags)
+                            if queues.get(tag)
+                        ],
+                        maps=maps,
+                    )
+                else:
+                    task_states[task] = executor.submit(
+                        task_runner.run,
+                        state=task_states.get(task),
+                        upstream_states=upstream_states,
+                        inputs=task_inputs,
+                        ignore_trigger=(task in start_tasks),
+                        context=task_contexts.get(task),
+                        queues=[
+                            queues.get(tag)
+                            for tag in sorted(task.tags)
+                            if queues.get(tag)
+                        ],
+                    )
             # ---------------------------------------------
             # Collect results
             # ---------------------------------------------
