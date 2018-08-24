@@ -6,7 +6,17 @@ import logging
 import types
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterable, Iterator, List, MutableMapping, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    MutableMapping,
+    Union,
+    Set,
+    Optional,
+)
 
 import prefect
 from prefect.core import Task
@@ -94,7 +104,7 @@ class TaskRunner:
     def run(
         self,
         state: State = None,
-        upstream_states: Dict[Task, State] = None,
+        upstream_states: Dict[Optional[str], Union[State, List[State]]] = None,
         inputs: Dict[str, Any] = None,
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
@@ -108,11 +118,23 @@ class TaskRunner:
         Args:
             - state (State, optional): initial `State` to begin task run from;
                 defaults to `Pending()`
-            - upstream_states (dict): dictionary of Tasks -> States representing
-                the current states of any Tasks which are upstream dependencies of the current Task.
-                Will be used to determine whether the current Task is ready to run or not.
-            - inputs (dict): dictionary of str -> value specifying any input
-                values this Task might need to run
+            - upstream_states (Dict[Optional[str], Union[State, List[State]]]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the keys of any edges leading to the task,
+                plus an extra `None` key containing a list of results from tasks that
+                don't pass data.
+
+                For example, if the run signature was `def run(self, x, y):` then a valid
+                upstream_states dict would be:
+                    ```python
+                    upstream_states = dict(
+                        x=Success(result=1),
+                        y=Success(result=2),
+                        None=[Success()])
+                    ```
+            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments. Any keys that are provided will override the
+                `State`-based inputs provided in upstream_states.
             - ignore_trigger (bool): boolean specifying whether to ignore the
                 Task trigger; defaults to `False`
             - context (dict, optional): prefect Context to use for execution
@@ -126,7 +148,16 @@ class TaskRunner:
 
         queues = queues or []
         state = state or Pending()
+        upstream_states = upstream_states or {}
+        inputs = inputs or {}
         context = context or {}
+
+        task_inputs = {k: v.result for k, v in upstream_states.items() if k is not None}
+        task_inputs.update(inputs)
+
+        upstream_states_set = set(
+            prefect.utilities.collections.flatten_seq(upstream_states.values())
+        )
 
         with prefect.context(context, _task_name=self.task.name):
             tickets = []
@@ -140,24 +171,20 @@ class TaskRunner:
                         q.put(ticket)
 
             try:
-                parameters = prefect.context.get("_parameters")
                 state = self.get_pre_run_state(
                     state=state,
-                    upstream_states=upstream_states,
+                    upstream_states=upstream_states_set,
                     ignore_trigger=ignore_trigger,
                     inputs=inputs,
-                    parameters=parameters,
                 )
-                state = self.get_run_state(
-                    state=state, inputs=inputs, parameters=parameters
-                )
-                state = self.get_post_run_state(state=state, inputs=inputs)
+                state = self.get_run_state(state=state, inputs=task_inputs)
+                state = self.get_post_run_state(state=state, inputs=task_inputs)
 
             # a DONTRUN signal at any point breaks the chain and we return
             # the most recently computed state
             except signals.DONTRUN as exc:
                 if "manual_only" in str(exc):
-                    state.cached_inputs = inputs or {}
+                    state.cached_inputs = task_inputs or {}
                     state.message = exc
                 pass
             finally:  # resource is now available
@@ -170,25 +197,30 @@ class TaskRunner:
     def get_pre_run_state(
         self,
         state: State,
-        upstream_states: Dict[Task, State] = None,
-        ignore_trigger: bool = False,
-        inputs: Dict[str, Any] = None,
-        parameters: Dict[str, Any] = None,
+        upstream_states: Set[State],
+        ignore_trigger: bool,
+        inputs: Dict[str, Any],
     ) -> State:
         """
         Checks if a task is ready to run.
 
         This method accepts an initial state and returns the next state that the task
         should take. If it should not change state, it returns None.
+
+        Args:
+            - state (State): the current task State.
+            - upstream_states (Set[State]): a set of States from upstream tasks.
+            - ignore_trigger (bool): if True, the trigger function is not called.
+            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+
         """
-        upstream_states = upstream_states or {}
 
         # ---------------------------------------------------------
-        # check upstream tasks
+        # check that upstream tasks are finished
         # ---------------------------------------------------------
 
-        # make sure all upstream tasks are finished
-        if not all(s.is_finished() for s in upstream_states.values()):
+        if not all(s.is_finished() for s in upstream_states):
             raise signals.DONTRUN("Upstream tasks are not finished.")
 
         # ---------------------------------------------------------
@@ -196,7 +228,7 @@ class TaskRunner:
         # ---------------------------------------------------------
 
         if self.task.skip_on_upstream_skip and any(
-            isinstance(s, Skipped) for s in upstream_states.values()
+            isinstance(s, Skipped) for s in upstream_states
         ):
             return Skipped(message="Upstream task was skipped.")
 
@@ -230,27 +262,26 @@ class TaskRunner:
         # We can start!
         # ---------------------------------------------------------
         if isinstance(state, CachedState) and self.task.cache_validator(
-            state, inputs, parameters
+            state, inputs, prefect.context.get("_parameters")
         ):
             return Success(result=state.cached_result, cached=state)
 
         return Running(message="Starting task run")
 
     @handle_signals
-    def get_run_state(
-        self,
-        state: State,
-        inputs: Dict[str, Any] = None,
-        parameters: Dict[str, Any] = None,
-    ) -> State:
+    def get_run_state(self, state: State, inputs: Dict[str, Any]) -> State:
         """
         Runs a task.
 
         This method accepts an initial state and returns the next state that the task
         should take. If it should not change state, it returns None.
-        """
 
-        inputs = inputs or {}
+        Args:
+            - state (State): the current task State.
+            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+
+        """
 
         if not state.is_running():
             raise signals.DONTRUN("Task is not in a Running state.")
@@ -269,7 +300,7 @@ class TaskRunner:
             cached_state = CachedState(
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
-                cached_parameters=parameters,
+                cached_parameters=prefect.context.get("_parameters"),
                 cached_result=result,
             )
         else:
@@ -279,9 +310,14 @@ class TaskRunner:
         )
 
     @handle_signals
-    def get_post_run_state(self, state: State, inputs: Dict[str, Any] = None) -> State:
+    def get_post_run_state(self, state: State, inputs: Dict[str, Any]) -> State:
         """
         If the final state failed, this method checks to see if it should be retried.
+
+        Args:
+            - state (State): the current task State.
+            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
         """
         if not state.is_finished():
             raise signals.DONTRUN("Task is not in a Finished state.")
@@ -297,6 +333,11 @@ class TaskRunner:
     def get_retry_state(self, inputs: Dict[str, Any] = None) -> State:
         """
         Returns a Retry state with the appropriate scheduled_time and last_run_number set.
+
+        Args:
+            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+
         """
         run_number = prefect.context.get("_task_run_number", 1)
         scheduled_time = datetime.datetime.utcnow() + self.task.retry_delay
