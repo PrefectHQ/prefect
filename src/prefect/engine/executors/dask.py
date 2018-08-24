@@ -13,12 +13,15 @@ from prefect.engine.executors.base import Executor
 
 
 @dask.delayed
-def transpose(d, maps):
+def transpose(d):
 # assumes same sized lists; otherwise just filter by which keys need it then
 # do an update step
-    mapped_d = {k: v for k, v in d.items() if k in maps}
-    fixed = {k: v for k, v in d.items() if k not in maps}
-    return [dict(zip(mapped_d, elem), **fixed) for elem in zip(*mapped_d.values())]
+    return [dict(zip(d, elem), **fixed) for elem in zip(*d.values())]
+
+
+@dask.delayed
+def state_to_list(s):
+    return [type(s)(result=elem) for elem in s.result]
 
 
 class DaskExecutor(Executor):
@@ -69,7 +72,11 @@ class DaskExecutor(Executor):
         maps = kwargs.pop('maps', set())
         if maps:
             upstream_states = kwargs.pop('upstream_states') or {}
-            bagged_states = dask.bag.from_delayed(transpose(upstream_states, maps=maps))
+            needs_unpacking = {k: dask.bag.from_delayed(state_to_list(v)) for k, v in upstream_states.items() if k in maps and not isinstance(v, dask.bag.Bag)}
+            upstream_states.update(needs_unpacking)
+            bag_key = maps.pop()
+            transform = lambda bag, bag_key, **kwargs: {bag_key: bag, **kwargs}
+            bagged_states = dask.bag.map(transform, upstream_states.pop(bag_key), bag_key, **upstream_states)
             return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
         return dask.delayed(fn)(*args, **kwargs)
 
