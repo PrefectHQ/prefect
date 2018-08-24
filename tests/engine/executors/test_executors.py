@@ -10,6 +10,10 @@ class TestBaseExecutor:
         with pytest.raises(NotImplementedError):
             Executor().submit(lambda: 1)
 
+    def test_map_raises_notimplemented(self):
+        with pytest.raises(NotImplementedError):
+            Executor().map(lambda: 1)
+
     def test_submit_with_context_requires_context_kwarg(self):
         with pytest.raises(TypeError) as exc:
             Executor().submit_with_context(lambda: 1)

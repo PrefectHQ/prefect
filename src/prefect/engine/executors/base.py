@@ -26,6 +26,9 @@ class Executor(Serializable):
         """
         yield
 
+    def map(self) -> Any:
+        raise NotImplementedError()
+
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         """
         Submit a function to the executor for execution. Returns a future.
