@@ -154,7 +154,14 @@ class TaskRunner:
         inputs = inputs or {}
         context = context or {}
 
-        task_inputs = {k: v.result for k, v in upstream_states.items() if k is not None}
+        task_inputs = {}
+        for k, v in upstream_states.items():
+            if k is None:
+                continue
+            if isinstance(v, list):
+                task_inputs[k] = [s.result for s in v]
+            else:
+                task_inputs[k] = v.result
         task_inputs.update(inputs)
 
         upstream_states_set = set(
