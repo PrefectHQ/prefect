@@ -303,6 +303,8 @@ class Task(Serializable, metaclass=SignatureValidator):
         tags = set(prefect.context.get("_tags", set()))
         new.tags.update(tags)
 
+        new.mapped = True
+
         return new
 
     def set_dependencies(
