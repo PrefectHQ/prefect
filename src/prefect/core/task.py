@@ -206,7 +206,6 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         return copy.copy(self)
 
-
     def __call__(
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
@@ -272,7 +271,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             raise ValueError("Could not infer an active Flow context.")
 
         self.set_dependencies(
-            flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs,
+            flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs
         )
 
         tags = set(prefect.context.get("_tags", set()))
@@ -289,14 +288,18 @@ class Task(Serializable, metaclass=SignatureValidator):
         mapped = {k: v for k, v in callargs.items() if (v in args) or (k in kwargs)}
         if upstream_tasks is not None:
             mapped[None] = upstream_tasks
-        unmapped_callargs = {k: v for k, v in callargs.items() if (v not in args) and (k not in kwargs)}
+        unmapped_callargs = {
+            k: v for k, v in callargs.items() if (v not in args) and (k not in kwargs)
+        }
 
         flow = prefect.context.get("_flow", None)
         if not flow:
             raise ValueError("Could not infer an active Flow context.")
 
         new.set_dependencies(
-            flow=flow, upstream_tasks=unmapped_upstream, keyword_tasks=unmapped_callargs,
+            flow=flow,
+            upstream_tasks=unmapped_upstream,
+            keyword_tasks=unmapped_callargs,
             mapped_tasks=mapped,
         )
 
@@ -314,7 +317,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Dict[str, object] = None,
         validate: bool = True,
-        mapped_tasks = None,
+        mapped_tasks=None,
     ) -> None:
         """
         Set dependencies for a flow either specified or in the current context using this task
