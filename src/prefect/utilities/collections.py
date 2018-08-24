@@ -1,7 +1,33 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import collections
 from collections.abc import MutableMapping
-from typing import Any
+from typing import Any, Iterable, Generator
+
+
+def flatten_seq(seq: Iterable) -> Generator:
+    """
+    Generator that returns a flattened list from a possibly nested list-of-lists
+    (or any sequence type).
+
+    Example:
+        ```python
+        flatten_seq([1, 2, [3, 4], 5, [6, [7]]])
+        >>> [1, 2, 3, 4, 5, 6, 7]
+        ```
+    Args:
+        - seq (Iterable): the sequence to flatten
+
+    Returns:
+        - generator: a generator that yields the flattened sequence
+    """
+    for item in seq:
+        if isinstance(item, collections.Iterable) and not isinstance(
+            item, (str, bytes)
+        ):
+            yield from flatten_seq(item)
+        else:
+            yield item
 
 
 class DotDict(MutableMapping):
