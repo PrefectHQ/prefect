@@ -279,7 +279,13 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         return self
 
-    def map(self, *args: object, upstream_tasks: Iterable[object] = None, unmapped: Dict[Any, Any] = None, **kwargs: object) -> "Task":
+    def map(
+        self,
+        *args: object,
+        upstream_tasks: Iterable[object] = None,
+        unmapped: Dict[Any, Any] = None,
+        **kwargs: object
+    ) -> "Task":
         """
         Map the Task elementwise across one or more Tasks.
 
@@ -296,7 +302,9 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         ## collect arguments / keyword arguments / upstream dependencies which will _not_ be mapped over
         unmapped = unmapped or {}
-        unmapped_upstream = unmapped.pop(None, None) # possible list of upstream dependencies
+        unmapped_upstream = unmapped.pop(
+            None, None
+        )  # possible list of upstream dependencies
 
         new = self.copy()
 
@@ -308,7 +316,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         mapped = {k: v for k, v in callargs.items() if (v in args) or (k in kwargs)}
 
         if upstream_tasks is not None:
-            mapped[None] = upstream_tasks # add in mapped upstream dependencies
+            mapped[None] = upstream_tasks  # add in mapped upstream dependencies
 
         unmapped_callargs = {
             k: v for k, v in callargs.items() if (v not in args) and (k not in kwargs)
@@ -328,7 +336,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         tags = set(prefect.context.get("_tags", set()))
         new.tags.update(tags)
 
-        new.mapped = True # used for visualization
+        new.mapped = True  # used for visualization
 
         return new
 
