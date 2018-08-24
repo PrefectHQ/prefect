@@ -775,7 +775,8 @@ class Flow(Serializable):
         graph = graphviz.Digraph()
 
         for t in self.tasks:
-            graph.node(str(id(t)), t.name)
+            shape = 'box' if t.mapped else 'ellipse'
+            graph.node(str(id(t)), t.name, shape=shape)
 
         for e in self.edges:
             graph.edge(str(id(e.upstream_task)), str(id(e.downstream_task)), e.key)
