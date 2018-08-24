@@ -235,7 +235,7 @@ class FlowRunner:
 
                 upstream_states = {}
                 task_inputs = {}
-                maps = dict()
+                maps = {} # a dictionary of key -> task(s) for mapping
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):

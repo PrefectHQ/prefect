@@ -13,13 +13,6 @@ from prefect.engine.executors.base import Executor
 
 
 @dask.delayed
-def transpose(d):
-    # assumes same sized lists; otherwise just filter by which keys need it then
-    # do an update step
-    return [dict(zip(d, elem), **fixed) for elem in zip(*d.values())]
-
-
-@dask.delayed
 def state_to_list(s):
     return [type(s)(result=elem) for elem in s.result]
 
@@ -63,6 +56,44 @@ class DaskExecutor(Executor):
             q = queue.Queue(maxsize=maxsize)
 
         return q
+
+    def map(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.bag:
+        maps = kwargs.pop("maps", dict())
+        if maps:
+            upstream_states = kwargs.pop("upstream_states") or {}
+            non_keyed = upstream_states.pop(None, [])
+
+            needs_unpacking = {
+                k: dask.bag.from_delayed(state_to_list(v))
+                for k, v in upstream_states.items()
+                if k in maps and not isinstance(v, dask.bag.Bag)
+            }
+            upstream_states.update(needs_unpacking)
+
+            if None in maps:
+                bag_key = None
+                to_bag = [s for s in maps[None] if not isinstance(s, dask.bag.Bag)]
+                if to_bag:
+                    bag = dask.bag.map(
+                        lambda *args, x, y: x + y + list(args),
+                        *[s for s in maps[None] if s not in to_bag],
+                        x=dask.bag.from_delayed(bagged_list(to_bag)),
+                        y=[s for s in non_keyed if s not in maps[None]]
+                    )
+                else:
+                    bag = dask.bag.map(
+                        lambda *args, x, y: x + y + list(args),
+                        *[s for s in maps[None] if s not in to_bag],
+                        x=[],
+                        y=[s for s in non_keyed if s not in maps[None]]
+                    )
+            else:
+                bag_key, _ = maps.popitem()
+                bag = upstream_states.pop(bag_key)
+
+            transform = lambda bag, bag_key, **kwargs: {bag_key: bag, **kwargs}
+            bagged_states = dask.bag.map(transform, bag, bag_key, **upstream_states)
+            return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """
