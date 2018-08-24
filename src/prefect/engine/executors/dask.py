@@ -86,7 +86,13 @@ class DaskExecutor(Executor):
 
             if None in maps:
                 bag_key = None
-                bag = dask.bag.map(lambda x, y: x + y, x=dask.bag.from_delayed(bagged_list(maps[None])), y=[s for s in non_keyed if s not in maps[None]])
+                to_bag = [s for s in maps[None] if not isinstance(s, dask.bag.Bag)]
+                if to_bag:
+                    bag = dask.bag.map(lambda *args, x, y: x + y + list(args), *[s for s in maps[None] if s not in to_bag],
+                                    x=dask.bag.from_delayed(bagged_list(to_bag)), y=[s for s in non_keyed if s not in maps[None]])
+                else:
+                    bag = dask.bag.map(lambda *args, x, y: x + y + list(args), *[s for s in maps[None] if s not in to_bag],
+                                    x=[], y=[s for s in non_keyed if s not in maps[None]])
             else:
                 bag_key, _ = maps.popitem()
                 bag = upstream_states.pop(bag_key)
