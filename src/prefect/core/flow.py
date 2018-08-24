@@ -670,6 +670,9 @@ class Flow(Serializable):
                 arguments. If any task is not a Task subclass, Prefect will attempt to
                 convert it to one.
             - validate (bool, optional): Whether or not to check the validity of the flow
+            - mapped_tasks ({key: object}, optional): The results of these tasks
+                will be mapped under the specified keyword arguments. If any task is not a Task subclass, Prefect will attempt to
+                convert it to one.
 
         Returns:
             None
@@ -701,8 +704,9 @@ class Flow(Serializable):
                 upstream_task=t, downstream_task=task, key=key, validate=validate
             )
 
+        # add edges for tasks which will be mapped over
         for key, t in (mapped_tasks or {}).items():
-            if key is None:  # upstream_tasks
+            if key is None:  # upstream_tasks, a list of upstream dependencies
                 for tt in t:
                     tt = as_task(tt)
                     assert isinstance(tt, Task)  # mypy assert
