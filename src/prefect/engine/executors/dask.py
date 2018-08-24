@@ -24,6 +24,13 @@ def state_to_list(s):
     return [type(s)(result=elem) for elem in s.result]
 
 
+@dask.delayed
+def bagged_list(ss):
+    expanded = [[type(s)(result=elem) for elem in s.result] for s in ss]
+    wat = [list(zz) for zz in zip(*expanded)]
+    return wat
+
+
 class DaskExecutor(Executor):
     """
     An executor that runs all functions synchronously using `dask`.
@@ -69,15 +76,25 @@ class DaskExecutor(Executor):
         Returns:
             - dask.delayed: a `dask.delayed` object which represents the computation of `fn(*args, **kwargs)`
         """
-        maps = kwargs.pop('maps', set())
+        maps = kwargs.pop('maps', dict())
         if maps:
             upstream_states = kwargs.pop('upstream_states') or {}
+            non_keyed = upstream_states.pop(None, [])
+
             needs_unpacking = {k: dask.bag.from_delayed(state_to_list(v)) for k, v in upstream_states.items() if k in maps and not isinstance(v, dask.bag.Bag)}
             upstream_states.update(needs_unpacking)
-            bag_key = maps.pop()
+
+            if None in maps:
+                bag_key = None
+                bag = dask.bag.map(lambda x, y: x + y, x=dask.bag.from_delayed(bagged_list(maps[None])), y=[s for s in non_keyed if s not in maps[None]])
+            else:
+                bag_key, _ = maps.popitem()
+                bag = upstream_states.pop(bag_key)
+
             transform = lambda bag, bag_key, **kwargs: {bag_key: bag, **kwargs}
-            bagged_states = dask.bag.map(transform, upstream_states.pop(bag_key), bag_key, **upstream_states)
+            bagged_states = dask.bag.map(transform, bag, bag_key, **upstream_states)
             return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
+
         return dask.delayed(fn)(*args, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:

@@ -697,11 +697,14 @@ class Flow(Serializable):
             self.add_edge(upstream_task=t, downstream_task=task, key=key, validate=validate)
 
         for key, t in (mapped_tasks or {}).items():
-            t = as_task(t)
-            assert isinstance(t, Task)  # mypy assert
-            if key is None:
-                self.add_edge(upstream_task=t, downstream_task=task, validate=validate, mapped=True)
+            if key is None: # upstream_tasks
+                for tt in t:
+                    tt = as_task(tt)
+                    assert isinstance(tt, Task)  # mypy assert
+                    self.add_edge(upstream_task=tt, downstream_task=task, validate=validate, mapped=True)
             else:
+                t = as_task(t)
+                assert isinstance(t, Task)  # mypy assert
                 self.add_edge(upstream_task=t, downstream_task=task, key=key, validate=validate, mapped=True)
 
     # Execution  ---------------------------------------------------------------

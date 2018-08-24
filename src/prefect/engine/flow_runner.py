@@ -1,3 +1,4 @@
+
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import functools
@@ -234,10 +235,16 @@ class FlowRunner:
 
                 upstream_states = {}
                 task_inputs = {}
-                maps = set()
+                maps = dict()
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
+
+                    if edge.mapped:
+                        if edge.key is None:
+                                maps.setdefault(None, []).append(task_states[edge.upstream_task])
+                        else:
+                            maps[edge.key] = task_states[edge.upstream_task]
 
                     # upstream states to pass to the task trigger
                     if edge.key is None:
@@ -246,8 +253,6 @@ class FlowRunner:
                         )
                     else:
                         upstream_states[edge.key] = task_states[edge.upstream_task]
-                        if edge.mapped:
-                            maps.add(edge.key)
 
                 if task in start_tasks and task in task_states:
                     task_inputs.update(task_states[task].cached_inputs)
