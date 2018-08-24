@@ -6,7 +6,7 @@ import versioneer
 
 install_requires = [
     "click >= 6.7, < 7.0",
-    "cloudpickle >= 0.5.3, < 0.6.0",
+    "cloudpickle == 0.5.3",
     "croniter >= 0.3.23, < 0.4",
     "cryptography >= 2.2.2, < 3.0",
     "dask >= 0.18, < 0.19",
