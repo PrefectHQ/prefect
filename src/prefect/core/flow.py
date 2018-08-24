@@ -352,7 +352,7 @@ class Flow(Serializable):
         downstream_task: Task,
         key: str = None,
         validate: bool = None,
-        mapped = False,
+        mapped=False,
     ) -> Edge:
         """
         Add an edge in the flow between two tasks. All edges are directed beginning with
@@ -390,7 +390,10 @@ class Flow(Serializable):
             )
 
         edge = Edge(
-            upstream_task=upstream_task, downstream_task=downstream_task, key=key, mapped=mapped
+            upstream_task=upstream_task,
+            downstream_task=downstream_task,
+            key=key,
+            mapped=mapped,
         )
         self.edges.add(edge)
 
@@ -650,7 +653,7 @@ class Flow(Serializable):
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Mapping[str, object] = None,
         validate: bool = None,
-        mapped_tasks = None,
+        mapped_tasks=None,
     ) -> None:
         """
         Convenience function for adding task dependencies on upstream tasks.
@@ -694,18 +697,31 @@ class Flow(Serializable):
         for key, t in (keyword_tasks or {}).items():
             t = as_task(t)
             assert isinstance(t, Task)  # mypy assert
-            self.add_edge(upstream_task=t, downstream_task=task, key=key, validate=validate)
+            self.add_edge(
+                upstream_task=t, downstream_task=task, key=key, validate=validate
+            )
 
         for key, t in (mapped_tasks or {}).items():
-            if key is None: # upstream_tasks
+            if key is None:  # upstream_tasks
                 for tt in t:
                     tt = as_task(tt)
                     assert isinstance(tt, Task)  # mypy assert
-                    self.add_edge(upstream_task=tt, downstream_task=task, validate=validate, mapped=True)
+                    self.add_edge(
+                        upstream_task=tt,
+                        downstream_task=task,
+                        validate=validate,
+                        mapped=True,
+                    )
             else:
                 t = as_task(t)
                 assert isinstance(t, Task)  # mypy assert
-                self.add_edge(upstream_task=t, downstream_task=task, key=key, validate=validate, mapped=True)
+                self.add_edge(
+                    upstream_task=t,
+                    downstream_task=task,
+                    key=key,
+                    validate=validate,
+                    mapped=True,
+                )
 
     # Execution  ---------------------------------------------------------------
 
@@ -775,11 +791,14 @@ class Flow(Serializable):
         graph = graphviz.Digraph()
 
         for t in self.tasks:
-            shape = 'box' if t.mapped else 'ellipse'
+            shape = "box" if t.mapped else "ellipse"
             graph.node(str(id(t)), t.name, shape=shape)
 
         for e in self.edges:
-            graph.edge(str(id(e.upstream_task)), str(id(e.downstream_task)), e.key)
+            style = "dashed" if e.mapped else None
+            graph.edge(
+                str(id(e.upstream_task)), str(id(e.downstream_task)), e.key, style=style
+            )
 
         try:
             if get_ipython().config.get("IPKernelApp") is not None:

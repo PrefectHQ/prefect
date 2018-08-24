@@ -109,7 +109,7 @@ class TaskRunner:
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
         queues: Iterable = None,
-        maps = None,
+        maps=None,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute

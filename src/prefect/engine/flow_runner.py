@@ -242,7 +242,9 @@ class FlowRunner:
 
                     if edge.mapped:
                         if edge.key is None:
-                                maps.setdefault(None, []).append(task_states[edge.upstream_task])
+                            maps.setdefault(None, []).append(
+                                task_states[edge.upstream_task]
+                            )
                         else:
                             maps[edge.key] = task_states[edge.upstream_task]
 
@@ -286,7 +288,9 @@ class FlowRunner:
                     for t in terminal_tasks.union(reference_tasks).union(return_tasks)
                 }
             )
-            terminal_states = set(flatten_seq([final_states[t] for t in terminal_tasks]))
+            terminal_states = set(
+                flatten_seq([final_states[t] for t in terminal_tasks])
+            )
             key_states = set(flatten_seq([final_states[t] for t in reference_tasks]))
             return_states = {t: final_states[t] for t in sorted_return_tasks}
 
