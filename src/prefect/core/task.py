@@ -229,8 +229,23 @@ class Task(Serializable, metaclass=SignatureValidator):
         new.bind(*args, upstream_tasks=upstream_tasks, **kwargs)
         return new
 
+    def _get_bound_signature(self, *args, **kwargs):
+        # this will raise an error if callargs weren't all provided
+        signature = inspect.signature(self.run)
+        callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
+
+        # bind() compresses all variable keyword arguments under the ** argument name,
+        # so we expand them explicitly
+        var_kw_arg = next(
+            (p for p in signature.parameters.values() if p.kind == VAR_KEYWORD), None
+        )
+        if var_kw_arg:
+            callargs.update(callargs.pop(var_kw_arg.name, {}))
+
+        return callargs
+
     def bind(
-        self, *args: object, upstream_tasks: Iterable[object] = None, mapped=False, **kwargs: object
+        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
@@ -250,37 +265,44 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         Returns: - Task: the current Task instance
         """
-        # this will raise an error if callargs weren't all provided
-        signature = inspect.signature(self.run)
-        callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
 
-        # bind() compresses all variable keyword arguments under the ** argument name,
-        # so we expand them explicitly
-        var_kw_arg = next(
-            (p for p in signature.parameters.values() if p.kind == VAR_KEYWORD), None
-        )
-        if var_kw_arg:
-            callargs.update(callargs.pop(var_kw_arg.name, {}))
-
+        callargs = self._get_bound_signature(*args, **kwargs)
         flow = prefect.context.get("_flow", None)
         if not flow:
             raise ValueError("Could not infer an active Flow context.")
 
         self.set_dependencies(
             flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs,
-            mapped=mapped,
         )
 
         tags = set(prefect.context.get("_tags", set()))
         self.tags.update(tags)
 
-        self.mapped = mapped
-
         return self
 
-    def map(self, *args, upstream_tasks=None, **kwargs):
+    def map(self, *args, upstream_tasks=None, unmapped=None, **kwargs):
+        unmapped = unmapped or {}
+        unmapped_upstream = unmapped.pop(None, None)
         new = self.copy()
-        new.bind(*args, upstream_tasks=upstream_tasks, mapped=True, **kwargs)
+        full_kwargs = dict(kwargs, **unmapped)
+        callargs = new._get_bound_signature(*args, **full_kwargs)
+        mapped = {k: v for k, v in callargs.items() if (v in args) or (k in kwargs)}
+        if upstream_tasks is not None:
+            mapped[None] = upstream_tasks
+        unmapped_callargs = {k: v for k, v in callargs.items() if (v not in args) and (k not in kwargs)}
+
+        flow = prefect.context.get("_flow", None)
+        if not flow:
+            raise ValueError("Could not infer an active Flow context.")
+
+        new.set_dependencies(
+            flow=flow, upstream_tasks=unmapped_upstream, keyword_tasks=unmapped_callargs,
+            mapped_tasks=mapped,
+        )
+
+        tags = set(prefect.context.get("_tags", set()))
+        new.tags.update(tags)
+
         return new
 
     def set_dependencies(
@@ -290,7 +312,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Dict[str, object] = None,
         validate: bool = True,
-        mapped = False,
+        mapped_tasks = None,
     ) -> None:
         """
         Set dependencies for a flow either specified or in the current context using this task
@@ -322,7 +344,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             downstream_tasks=downstream_tasks,
             keyword_tasks=keyword_tasks,
             validate=validate,
-            mapped=mapped,
+            mapped_tasks=mapped_tasks,
         )
 
     def set_upstream(self, task: object) -> None:
