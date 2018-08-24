@@ -14,6 +14,7 @@ from prefect.engine import signals
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.state import Failed, Pending, Running, State, Success
 from prefect.engine.task_runner import TaskRunner
+from prefect.utilities.collections import flatten_seq
 
 
 def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
@@ -233,6 +234,7 @@ class FlowRunner:
 
                 upstream_states = {}
                 task_inputs = {}
+                maps = set()
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
@@ -244,6 +246,8 @@ class FlowRunner:
                         )
                     else:
                         upstream_states[edge.key] = task_states[edge.upstream_task]
+                        if edge.mapped:
+                            maps.add(edge.key)
 
                 if task in start_tasks and task in task_states:
                     task_inputs.update(task_states[task].cached_inputs)
@@ -260,6 +264,7 @@ class FlowRunner:
                     queues=[
                         queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
                     ],
+                    maps=maps,
                 )
             # ---------------------------------------------
             # Collect results
@@ -276,8 +281,8 @@ class FlowRunner:
                     for t in terminal_tasks.union(reference_tasks).union(return_tasks)
                 }
             )
-            terminal_states = {final_states[t] for t in terminal_tasks}
-            key_states = {final_states[t] for t in reference_tasks}
+            terminal_states = set(flatten_seq([final_states[t] for t in terminal_tasks]))
+            key_states = set(flatten_seq([final_states[t] for t in reference_tasks]))
             return_states = {t: final_states[t] for t in sorted_return_tasks}
 
             # check that the flow is finished

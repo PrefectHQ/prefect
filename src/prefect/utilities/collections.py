@@ -4,6 +4,8 @@ import collections
 from collections.abc import MutableMapping
 from typing import Any, Iterable, Generator
 
+import prefect
+
 
 def flatten_seq(seq: Iterable) -> Generator:
     """
@@ -23,7 +25,7 @@ def flatten_seq(seq: Iterable) -> Generator:
     """
     for item in seq:
         if isinstance(item, collections.Iterable) and not isinstance(
-            item, (str, bytes)
+            item, (str, bytes, prefect.engine.state.State)
         ):
             yield from flatten_seq(item)
         else:

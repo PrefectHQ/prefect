@@ -352,6 +352,7 @@ class Flow(Serializable):
         downstream_task: Task,
         key: str = None,
         validate: bool = None,
+        mapped = False,
     ) -> Edge:
         """
         Add an edge in the flow between two tasks. All edges are directed beginning with
@@ -389,7 +390,7 @@ class Flow(Serializable):
             )
 
         edge = Edge(
-            upstream_task=upstream_task, downstream_task=downstream_task, key=key
+            upstream_task=upstream_task, downstream_task=downstream_task, key=key, mapped=mapped
         )
         self.edges.add(edge)
 
@@ -649,6 +650,7 @@ class Flow(Serializable):
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Mapping[str, object] = None,
         validate: bool = None,
+        mapped = False,
     ) -> None:
         """
         Convenience function for adding task dependencies on upstream tasks.
@@ -680,7 +682,7 @@ class Flow(Serializable):
         for t in upstream_tasks or []:
             t = as_task(t)
             assert isinstance(t, Task)  # mypy assert
-            self.add_edge(upstream_task=t, downstream_task=task, validate=validate)
+            self.add_edge(upstream_task=t, downstream_task=task, validate=validate, mapped=mapped)
 
         # add downstream tasks
         for t in downstream_tasks or []:
@@ -693,7 +695,7 @@ class Flow(Serializable):
             t = as_task(t)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(
-                upstream_task=t, downstream_task=task, key=key, validate=validate
+                upstream_task=t, downstream_task=task, key=key, validate=validate, mapped=mapped
             )
 
     # Execution  ---------------------------------------------------------------
