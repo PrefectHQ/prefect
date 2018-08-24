@@ -13,10 +13,12 @@ from prefect.engine.executors.base import Executor
 
 
 @dask.delayed
-def transpose(d):
+def transpose(d, maps):
 # assumes same sized lists; otherwise just filter by which keys need it then
 # do an update step
-    return [dict(zip(d, elem)) for elem in zip(*d.values())]
+    mapped_d = {k: v for k, v in d.items() if k in maps}
+    fixed = {k: v for k, v in d.items() if k not in maps}
+    return [dict(zip(mapped_d, elem), **fixed) for elem in zip(*mapped_d.values())]
 
 
 class DaskExecutor(Executor):
@@ -67,7 +69,7 @@ class DaskExecutor(Executor):
         maps = kwargs.pop('maps', set())
         if maps:
             upstream_states = kwargs.pop('upstream_states') or {}
-            bagged_states = dask.bag.from_delayed(transpose(upstream_states))
+            bagged_states = dask.bag.from_delayed(transpose(upstream_states, maps=maps))
             return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
         return dask.delayed(fn)(*args, **kwargs)
 

@@ -148,6 +148,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             else prefect.engine.cache_validators.duration_only
         )
         self.cache_validator = cache_validator or default_validator
+        self.mapped = False
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
@@ -273,11 +274,14 @@ class Task(Serializable, metaclass=SignatureValidator):
         tags = set(prefect.context.get("_tags", set()))
         self.tags.update(tags)
 
+        self.mapped = mapped
+
         return self
 
     def map(self, *args, upstream_tasks=None, **kwargs):
-        self.mapped = True
-        return self.bind(*args, upstream_tasks=upstream_tasks, mapped=True, **kwargs)
+        new = self.copy()
+        new.bind(*args, upstream_tasks=upstream_tasks, mapped=True, **kwargs)
+        return new
 
     def set_dependencies(
         self,
