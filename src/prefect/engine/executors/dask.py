@@ -6,9 +6,17 @@ from multiprocessing import Manager
 from typing import Any, Callable, Iterable
 
 import dask
+import dask.bag
 import queue
 
 from prefect.engine.executors.base import Executor
+
+
+@dask.delayed
+def transpose(d):
+# assumes same sized lists; otherwise just filter by which keys need it then
+# do an update step
+    return [dict(zip(d, elem)) for elem in zip(*d.values())]
 
 
 class DaskExecutor(Executor):
@@ -56,6 +64,11 @@ class DaskExecutor(Executor):
         Returns:
             - dask.delayed: a `dask.delayed` object which represents the computation of `fn(*args, **kwargs)`
         """
+        maps = kwargs.pop('maps', set())
+        if maps:
+            upstream_states = kwargs.pop('upstream_states') or {}
+            bagged_states = dask.bag.from_delayed(transpose(upstream_states))
+            return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
         return dask.delayed(fn)(*args, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:

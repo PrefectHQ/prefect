@@ -205,6 +205,7 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         return copy.copy(self)
 
+
     def __call__(
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
@@ -228,7 +229,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         return new
 
     def bind(
-        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
+        self, *args: object, upstream_tasks: Iterable[object] = None, mapped=False, **kwargs: object
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
@@ -265,13 +266,18 @@ class Task(Serializable, metaclass=SignatureValidator):
             raise ValueError("Could not infer an active Flow context.")
 
         self.set_dependencies(
-            flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs
+            flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs,
+            mapped=mapped,
         )
 
         tags = set(prefect.context.get("_tags", set()))
         self.tags.update(tags)
 
         return self
+
+    def map(self, *args, upstream_tasks=None, **kwargs):
+        self.mapped = True
+        return self.bind(*args, upstream_tasks=upstream_tasks, mapped=True, **kwargs)
 
     def set_dependencies(
         self,
@@ -280,6 +286,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Dict[str, object] = None,
         validate: bool = True,
+        mapped = False,
     ) -> None:
         """
         Set dependencies for a flow either specified or in the current context using this task
@@ -311,6 +318,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             downstream_tasks=downstream_tasks,
             keyword_tasks=keyword_tasks,
             validate=validate,
+            mapped=mapped,
         )
 
     def set_upstream(self, task: object) -> None:
