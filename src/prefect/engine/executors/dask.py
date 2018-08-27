@@ -37,7 +37,7 @@ def unpack_dict_to_bag(bag, bag_key, **kwargs):
 
 def merge_lists_to_bag(*args, x, y):
     "Convenience function for concatenating lists."
-    return (x + y + list(args),)
+    return x + y + list(args)
 
 
 class DaskExecutor(Executor):
@@ -52,8 +52,6 @@ class DaskExecutor(Executor):
     def __init__(self, scheduler="synchronous"):
         self.scheduler = scheduler
         super().__init__()
-        if self.scheduler == "processes":
-            self.manager = Manager()
 
     @contextmanager
     def start(self) -> Iterable[None]:
@@ -62,8 +60,17 @@ class DaskExecutor(Executor):
 
         Configures `dask` to run using the provided scheduler and yields the `dask.config` contextmanager.
         """
-        with dask.config.set(scheduler=self.scheduler) as cfg:
-            yield cfg
+        try:
+            if self.scheduler == "processes":
+                self.manager = Manager()
+
+            with dask.config.set(scheduler=self.scheduler) as cfg:
+                yield cfg
+
+        finally:
+            if self.scheduler == "processes":
+                self.manager.shutdown()
+                del self.manager
 
     def queue(self, maxsize=0):
         if self.scheduler == "processes":
