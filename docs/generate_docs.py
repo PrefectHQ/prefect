@@ -375,14 +375,13 @@ def generate_coverage():
 
     try:
         tests = subprocess.check_output(
-            "cd .. && pytest --cov-report html:docs/.vuepress/public/prefect-coverage --cov=src/prefect",
+            "cd .. && coverage run `which pytest` && coverage html --directory=docs/.vuepress/public/prefect-coverage/",
             shell=True,
         )
-    except Exception as exc:
-        print("Coverage report was not generated.")
-        print(exc.output)
-    if "failed" in tests.decode():
-        warnings.warn("Some tests failed.")
+        if "failed" in tests.decode():
+            warnings.warn("Some tests failed.")
+    except subprocess.CalledProcessError as exc:
+        warnings.warn(f"Coverage report was not generated: {exc.output}")
 
 
 if __name__ == "__main__":

@@ -45,7 +45,6 @@ def from_qualified_name(obj_str: str) -> object:
     path_components = obj_str.split(".")
     for i in range(len(path_components), 0, -1):
         module_path = ".".join(path_components[:i])
-        # import ipdb; ipdb.set_trace()
         if module_path in sys.modules:
             obj = sys.modules[module_path]
             for p in path_components[i:]:
