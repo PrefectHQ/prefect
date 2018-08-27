@@ -31,15 +31,17 @@ class DaskExecutor(Executor):
 
         Configures `dask` to run using the provided scheduler and yields the `dask.config` contextmanager.
         """
-        if self.scheduler == "processes":
-            self.manager = Manager()
+        try:
+            if self.scheduler == "processes":
+                self.manager = Manager()
 
-        with dask.config.set(scheduler=self.scheduler) as cfg:
-            yield cfg
+            with dask.config.set(scheduler=self.scheduler) as cfg:
+                yield cfg
 
-        if self.scheduler == "processes":
-            self.manager.shutdown()
-            del self.manager
+        finally:
+            if self.scheduler == "processes":
+                self.manager.shutdown()
+                del self.manager
 
     def queue(self, maxsize=0):
         if self.scheduler == "processes":
