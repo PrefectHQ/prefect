@@ -48,6 +48,17 @@ cd prefect
 pytest
 ```
 
+### Black formatting
+
+Merging to master in Prefect requires your code to pass [black](https://github.com/ambv/black). This can be easy to forget when developing, and for that reason some developers may choose to install a pre-push hook for black, as follows:
+```
+pip install pre-commit # installs pre-commit package
+cd prefect/ # make sure you are in the root directory of the prefect repo
+pre-commit install --hook-type pre-push # creates necessary git hook files
+```
+There is already a pre-commit config file contained in the repo that creates the pre-push hook for black.  Now, you won't be allowed to `git push` without passing black.
+
+
 ### Build documentation
 
 To view documentation locally:
