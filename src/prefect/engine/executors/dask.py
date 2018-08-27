@@ -35,7 +35,7 @@ def unpack_dict_to_bag(bag, bag_key, **kwargs):
 
 def merge_lists_to_bag(*args, x, y):
     "Convenience function for concatenating lists."
-    return x + y + list(args),
+    return (x + y + list(args),)
 
 
 class DaskExecutor(Executor):
@@ -71,7 +71,9 @@ class DaskExecutor(Executor):
 
         return q
 
-    def map(self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any) -> dask.bag:
+    def map(
+        self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any
+    ) -> dask.bag:
         mapped_non_keyed = maps.pop(None, [])
         non_keyed = upstream_states.pop(None, [])
 
@@ -100,7 +102,9 @@ class DaskExecutor(Executor):
                 bag = dask.bag.map(
                     merge_lists_to_bag,
                     *[s for s in mapped_non_keyed if s not in to_bag],
-                    x=dask.bag.from_delayed(bagged_list(to_bag)), # those upstream tasks which need to be converted
+                    x=dask.bag.from_delayed(
+                        bagged_list(to_bag)
+                    ),  # those upstream tasks which need to be converted
                     y=non_keyed
                 )
             else:
@@ -113,7 +117,9 @@ class DaskExecutor(Executor):
         else:
             bag_key, bag = maps.popitem()
 
-        bagged_states = dask.bag.map(unpack_dict_to_bag, bag, bag_key, **maps, **upstream_states)
+        bagged_states = dask.bag.map(
+            unpack_dict_to_bag, bag, bag_key, **maps, **upstream_states
+        )
         return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
