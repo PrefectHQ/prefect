@@ -39,9 +39,6 @@ class State(Serializable):
         self.message = message
         self._timestamp = datetime.datetime.utcnow()
 
-    #    def __iter__(self):
-    #        yield from (type(self)(result=val) for val in self.result)
-
     def __repr__(self) -> str:
         if self.message:
             return '{}("{}")'.format(type(self).__name__, self.message)
