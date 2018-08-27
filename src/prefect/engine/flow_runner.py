@@ -253,7 +253,9 @@ class FlowRunner:
                         store[edge.key] = task_states[edge.upstream_task]
 
                 if task in start_tasks and task in task_states:
-                    task_inputs.update(task_states[task].cached_inputs)
+                    passed_state = task_states[task]
+                    if not isinstance(passed_state, list):
+                        task_inputs.update(task_states[task].cached_inputs)
 
                 # -- run the task
                 task_runner = self.task_runner_cls(task=task)
@@ -292,6 +294,7 @@ class FlowRunner:
 
             # terminal tasks determine if the flow is finished
             terminal_tasks = self.flow.terminal_tasks()
+
             # reference tasks determine flow state
             reference_tasks = self.flow.reference_tasks()
 

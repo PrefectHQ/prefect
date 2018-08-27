@@ -193,6 +193,29 @@ def test_map_tracks_non_mapped_upstream_tasks():
     )
 
 
+def test_map_allows_for_retries():
+    ii = IdTask()
+    ll = ListTask()
+    div = DivTask()
+
+    with Flow() as f:
+        divved = div.map(ll(start=0))
+        res = ii.map(divved)
+
+    states = f.run(return_tasks=[divved])
+    assert states.is_failed()  # division by zero
+
+    old = states.result[divved]
+    assert [s.result for s in old] == [None, 1.0, 0.5]
+
+    old[0] = prefect.engine.state.Success(result=100)
+    states = f.run(return_tasks=[res], start_tasks=[res], task_states={divved: old})
+    assert states.is_successful()  # no divison by 0
+
+    new = states.result[res]
+    assert [s.result for s in new] == [100, 1.0, 0.5]
+
+
 def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args():
     ii = IdTask()
     ll = ListTask()

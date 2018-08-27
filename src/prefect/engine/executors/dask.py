@@ -15,6 +15,8 @@ from prefect.engine.executors.base import Executor
 @dask.delayed
 def state_to_list(s):
     "Converts a State `s` with a list as its result to a list of states of the same type"
+    if isinstance(s, list):
+        return s
     return [type(s)(result=elem) for elem in s.result]
 
 
