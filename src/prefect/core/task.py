@@ -148,7 +148,6 @@ class Task(Serializable, metaclass=SignatureValidator):
             else prefect.engine.cache_validators.duration_only
         )
         self.cache_validator = cache_validator or default_validator
-        self.mapped = False
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
@@ -336,8 +335,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         tags = set(prefect.context.get("_tags", set()))
         new.tags.update(tags)
 
-        new.mapped = True  # used for visualization
-
         return new
 
     def set_dependencies(
@@ -346,8 +343,8 @@ class Task(Serializable, metaclass=SignatureValidator):
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Dict[str, object] = None,
-        validate: bool = True,
         mapped_tasks=None,
+        validate: bool = True,
     ) -> None:
         """
         Set dependencies for a flow either specified or in the current context using this task
@@ -359,9 +356,9 @@ class Task(Serializable, metaclass=SignatureValidator):
             - downstream_tasks ([object], optional): A list of downtream tasks for this task
             - keyword_tasks ({str, object}}, optional): The results of these tasks will be provided
             to the task under the specified keyword arguments.
-            - validate (bool, optional): Whether or not to check the validity of the flow
             - mapped_tasks ({str, object}}, optional): The results of these
                 tasks will be mapped over under the specified keyword arguments, with `None` specifying a list of upstream dependencies which will also be mapped over
+            - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
             - None

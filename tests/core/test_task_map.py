@@ -37,16 +37,6 @@ def test_map_returns_a_task_copy():
     assert res != a
 
 
-def test_map_returns_a_mapped_task():
-    ll = ListTask()
-    a = AddTask()
-
-    with Flow():
-        res = a.map(ll)
-
-    assert res.mapped == True
-
-
 def test_map_spawns_new_tasks():
     ll = ListTask()
     a = AddTask()
