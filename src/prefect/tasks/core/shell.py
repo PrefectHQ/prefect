@@ -28,7 +28,7 @@ class ShellTask(prefect.Task):
                 on the system
 
         Returns:
-            - stdout + stderr (string): anything printed to standard out /
+            - stdout + stderr (bytes): anything printed to standard out /
                 standard error during command execution
 
         Raises:
