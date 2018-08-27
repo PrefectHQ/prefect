@@ -260,8 +260,9 @@ class FlowRunner:
                 if maps:
                     task_states[task] = executor.map(
                         task_runner.run,
-                        state=task_states.get(task),
+                        maps=maps,
                         upstream_states=upstream_states,
+                        state=task_states.get(task),
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),
                         context=task_contexts.get(task),
@@ -270,7 +271,6 @@ class FlowRunner:
                             for tag in sorted(task.tags)
                             if queues.get(tag)
                         ],
-                        maps=maps,
                     )
                 else:
                     task_states[task] = executor.submit(
