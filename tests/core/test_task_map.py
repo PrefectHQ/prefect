@@ -111,7 +111,7 @@ def test_multiple_map_arguments():
     a = AddTask()
 
     with Flow() as f:
-        res = a.map(x=ll, y=ll)
+        res = a.map(x=ll, y=ll())
 
     s = f.run(return_tasks=f.tasks)
     slist = s.result[res]
