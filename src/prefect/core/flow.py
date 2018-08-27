@@ -351,8 +351,8 @@ class Flow(Serializable):
         upstream_task: Task,
         downstream_task: Task,
         key: str = None,
+        mapped: bool = False,
         validate: bool = None,
-        mapped=False,
     ) -> Edge:
         """
         Add an edge in the flow between two tasks. All edges are directed beginning with
@@ -362,6 +362,8 @@ class Flow(Serializable):
             - upstream_task (Task): The task that the edge should start from
             - downstream_task (Task): The task that the edge should end with
             - key (str, optional): The key to be set for the new edge
+            - mapped (bool, optional): Whether this edge represents a call to
+                `Task.map()`; defaults to `False`
             - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
@@ -652,8 +654,8 @@ class Flow(Serializable):
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Mapping[str, object] = None,
+        mapped_tasks: Dict = None,
         validate: bool = None,
-        mapped_tasks=None,
     ) -> None:
         """
         Convenience function for adding task dependencies on upstream tasks.
@@ -669,10 +671,10 @@ class Flow(Serializable):
                 will be provided to the task under the specified keyword
                 arguments. If any task is not a Task subclass, Prefect will attempt to
                 convert it to one.
-            - validate (bool, optional): Whether or not to check the validity of the flow
             - mapped_tasks ({key: object}, optional): The results of these tasks
                 will be mapped under the specified keyword arguments. If any task is not a Task subclass, Prefect will attempt to
                 convert it to one.
+            - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
             None
@@ -795,7 +797,8 @@ class Flow(Serializable):
         graph = graphviz.Digraph()
 
         for t in self.tasks:
-            shape = "box" if t.mapped else "ellipse"
+            is_mapped = any(edge.mapped for edge in self.edges_to(t))
+            shape = "box" if is_mapped else "ellipse"
             graph.node(str(id(t)), t.name, shape=shape)
 
         for e in self.edges:
