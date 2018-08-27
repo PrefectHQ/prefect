@@ -171,6 +171,28 @@ def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args():
     assert [r.result for r in slist] == [[1 + i, 2 + i, 3 + i] for i in range(3)]
 
 
+def test_map_tracks_non_mapped_upstream_tasks():
+    div = DivTask()
+
+    @task
+    def zeros():
+        return [0, 0, 0]
+
+    @task(trigger=prefect.triggers.all_failed)
+    def register(x):
+        return True
+
+    with Flow() as f:
+        res = register.map(div.map(zeros()), unmapped={None: [div(1)]})
+
+    s = f.run(return_tasks=f.tasks)
+    assert s.is_failed()
+    assert all([sub.is_failed() for sub in s.result[res]])
+    assert all(
+        [isinstance(sub, prefect.engine.state.TriggerFailed) for sub in s.result[res]]
+    )
+
+
 def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args():
     ii = IdTask()
     ll = ListTask()
