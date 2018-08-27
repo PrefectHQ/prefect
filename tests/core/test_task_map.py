@@ -27,11 +27,6 @@ class ListTask(Task):
         return [start + 0, start + 1, start + 2]
 
 
-class SetTask(Task):
-    def run(self):
-        return {1, 2, 3}
-
-
 def test_map_returns_a_task_copy():
     ll = ListTask()
     a = AddTask()
@@ -77,19 +72,6 @@ def test_map_internally_returns_a_list():
 
     s = f.run(return_tasks=f.tasks)
     assert s.result[res].result == [2, 3, 4]
-
-
-@pytest.mark.xfail(reason="This might be too hard")
-def test_map_internally_respects_iterator_type():
-    ll = SetTask()
-    ii = IdTask()
-    a = AddTask()
-
-    with Flow() as f:
-        res = ii(a.map(ll))
-
-    s = f.run(return_tasks=f.tasks)
-    assert s.result[res].result == {2, 3, 4}
 
 
 def test_map_composition():
