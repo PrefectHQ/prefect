@@ -30,7 +30,7 @@ def bagged_list(ss):
 
 def unpack_dict_to_bag(bag, bag_key, **kwargs):
     "Convenience function for packaging up all keywords into a dictionary"
-    return {bag_key: bag, **kwargs}
+    return dict({bag_key: bag}, **kwargs)
 
 
 def merge_lists_to_bag(*args, x, y):
@@ -117,8 +117,9 @@ class DaskExecutor(Executor):
             )  # necessary so dask.bag.map knows this is a list of _delayed_ objects
 
         # dask.bag.map requires string keywords, and `None` is not a string
+        upstream_states.update(maps)
         bagged_states = dask.bag.map(
-            unpack_dict_to_bag, upstreams, None, **maps, **upstream_states
+            unpack_dict_to_bag, upstreams, None, **upstream_states
         )
         return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
 
