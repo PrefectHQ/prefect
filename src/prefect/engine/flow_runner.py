@@ -1,3 +1,4 @@
+
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import functools
@@ -14,6 +15,7 @@ from prefect.engine import signals
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.state import Failed, Pending, Running, State, Success
 from prefect.engine.task_runner import TaskRunner
+from prefect.utilities.collections import flatten_seq
 
 
 def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
@@ -233,40 +235,66 @@ class FlowRunner:
 
                 upstream_states = {}
                 task_inputs = {}
+                maps = {}  # a dictionary of key -> task(s) for mapping
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
 
+                    store = (
+                        maps if edge.mapped else upstream_states
+                    )  # which dict to put this edge in
+
                     # upstream states to pass to the task trigger
                     if edge.key is None:
-                        upstream_states.setdefault(None, []).append(
+                        store.setdefault(None, []).append(
                             task_states[edge.upstream_task]
                         )
                     else:
-                        upstream_states[edge.key] = task_states[edge.upstream_task]
+                        store[edge.key] = task_states[edge.upstream_task]
 
                 if task in start_tasks and task in task_states:
-                    task_inputs.update(task_states[task].cached_inputs)
+                    passed_state = task_states[task]
+                    if not isinstance(passed_state, list):
+                        task_inputs.update(task_states[task].cached_inputs)
 
                 # -- run the task
                 task_runner = self.task_runner_cls(task=task)
-                task_states[task] = executor.submit(
-                    task_runner.run,
-                    state=task_states.get(task),
-                    upstream_states=upstream_states,
-                    inputs=task_inputs,
-                    ignore_trigger=(task in start_tasks),
-                    context=task_contexts.get(task),
-                    queues=[
-                        queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
-                    ],
-                )
+                if maps:
+                    task_states[task] = executor.map(
+                        task_runner.run,
+                        maps=maps,
+                        upstream_states=upstream_states,
+                        state=task_states.get(task),
+                        inputs=task_inputs,
+                        ignore_trigger=(task in start_tasks),
+                        context=task_contexts.get(task),
+                        queues=[
+                            queues.get(tag)
+                            for tag in sorted(task.tags)
+                            if queues.get(tag)
+                        ],
+                    )
+                else:
+                    task_states[task] = executor.submit(
+                        task_runner.run,
+                        state=task_states.get(task),
+                        upstream_states=upstream_states,
+                        inputs=task_inputs,
+                        ignore_trigger=(task in start_tasks),
+                        context=task_contexts.get(task),
+                        queues=[
+                            queues.get(tag)
+                            for tag in sorted(task.tags)
+                            if queues.get(tag)
+                        ],
+                    )
             # ---------------------------------------------
             # Collect results
             # ---------------------------------------------
 
             # terminal tasks determine if the flow is finished
             terminal_tasks = self.flow.terminal_tasks()
+
             # reference tasks determine flow state
             reference_tasks = self.flow.reference_tasks()
 
@@ -276,8 +304,10 @@ class FlowRunner:
                     for t in terminal_tasks.union(reference_tasks).union(return_tasks)
                 }
             )
-            terminal_states = {final_states[t] for t in terminal_tasks}
-            key_states = {final_states[t] for t in reference_tasks}
+            terminal_states = set(
+                flatten_seq([final_states[t] for t in terminal_tasks])
+            )
+            key_states = set(flatten_seq([final_states[t] for t in reference_tasks]))
             return_states = {t: final_states[t] for t in sorted_return_tasks}
 
             # check that the flow is finished
