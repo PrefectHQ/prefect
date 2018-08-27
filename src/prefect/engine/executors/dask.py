@@ -37,7 +37,7 @@ def unpack_dict_to_bag(bag, bag_key, **kwargs):
 
 def merge_lists_to_bag(*args, x, y):
     "Convenience function for concatenating lists."
-    return (x + y + list(args),)
+    return x + y + list(args)
 
 
 class DaskExecutor(Executor):
