@@ -91,15 +91,12 @@ class DaskExecutor(Executor):
 
         # now we need to choose a (key, result) to unpack so that we can
         # convert upstream_states from a dict into a dask.bag
-        # if there are any non-keyed upstream tasks (under key `None`), use
-        # those, otherwise pop a random item to use
         if mapped_non_keyed:
-            bag_key = None
             to_bag = [s for s in mapped_non_keyed if not isinstance(s, dask.bag.Bag)]
             if to_bag:
                 # convert [upstream_tasks which are not mapped] +
                 # [upstream_tasks which are mapped] into an appropriate dask.bag
-                bag = dask.bag.map(
+                upstreams = dask.bag.map(
                     merge_lists_to_bag,
                     *[s for s in mapped_non_keyed if s not in to_bag],
                     x=dask.bag.from_delayed(
@@ -108,17 +105,20 @@ class DaskExecutor(Executor):
                     y=non_keyed
                 )
             else:
-                bag = dask.bag.map(
+                upstreams = dask.bag.map(
                     merge_lists_to_bag,
                     *[s for s in mapped_non_keyed if s not in to_bag],
                     x=[],
                     y=non_keyed
                 )
         else:
-            bag_key, bag = maps.popitem()
+            upstreams = dask.delayed(list)(
+                non_keyed
+            )  # necessary so dask.bag.map knows this is a list of _delayed_ objects
 
+        # dask.bag.map requires string keywords, and `None` is not a string
         bagged_states = dask.bag.map(
-            unpack_dict_to_bag, bag, bag_key, **maps, **upstream_states
+            unpack_dict_to_bag, upstreams, None, **maps, **upstream_states
         )
         return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
 
