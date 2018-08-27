@@ -227,6 +227,21 @@ class Task(Serializable, metaclass=SignatureValidator):
         new.bind(*args, upstream_tasks=upstream_tasks, **kwargs)
         return new
 
+    def _get_bound_signature(self, *args, **kwargs):
+        # this will raise an error if callargs weren't all provided
+        signature = inspect.signature(self.run)
+        callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
+
+        # bind() compresses all variable keyword arguments under the ** argument name,
+        # so we expand them explicitly
+        var_kw_arg = next(
+            (p for p in signature.parameters.values() if p.kind == VAR_KEYWORD), None
+        )
+        if var_kw_arg:
+            callargs.update(callargs.pop(var_kw_arg.name, {}))
+
+        return callargs
+
     def bind(
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
@@ -248,18 +263,8 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         Returns: - Task: the current Task instance
         """
-        # this will raise an error if callargs weren't all provided
-        signature = inspect.signature(self.run)
-        callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
 
-        # bind() compresses all variable keyword arguments under the ** argument name,
-        # so we expand them explicitly
-        var_kw_arg = next(
-            (p for p in signature.parameters.values() if p.kind == VAR_KEYWORD), None
-        )
-        if var_kw_arg:
-            callargs.update(callargs.pop(var_kw_arg.name, {}))
-
+        callargs = self._get_bound_signature(*args, **kwargs)
         flow = prefect.context.get("_flow", None)
         if not flow:
             raise ValueError("Could not infer an active Flow context.")
@@ -273,12 +278,72 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         return self
 
+    def map(
+        self,
+        *args: object,
+        upstream_tasks: Iterable[object] = None,
+        unmapped: Dict[Any, Any] = None,
+        **kwargs: object
+    ) -> "Task":
+        """
+        Map the Task elementwise across one or more Tasks.
+
+        Args:
+            - *args: arguments to map over, which will elementwise be bound to the Task's `run` method
+            - upstream_tasks ([Task], optional): a list of upstream dependencies
+                to map over
+            - unmapped (dict, optional): a dictionary of "key" -> Task
+                specifying keyword arguments which will _not_ be mapped over.  The special key `None` is reserved for
+                optionally including a _list_ of upstream task dependencies
+            - **kwargs: keyword arguments to map over, which will elementwise be bound to the Task's `run` method
+
+        Returns: - Task: a new Task instance
+        """
+        ## collect arguments / keyword arguments / upstream dependencies which will _not_ be mapped over
+        unmapped = unmapped or {}
+        unmapped_upstream = unmapped.pop(
+            None, None
+        )  # possible list of upstream dependencies
+
+        new = self.copy()
+
+        # bind all appropriate tasks to the run() method
+        full_kwargs = dict(kwargs, **unmapped)
+        callargs = new._get_bound_signature(*args, **full_kwargs)
+
+        ## collect arguments / keyword arguments which _will_ be mapped over
+        mapped = {k: v for k, v in callargs.items() if (v in args) or (k in kwargs)}
+
+        if upstream_tasks is not None:
+            mapped[None] = upstream_tasks  # add in mapped upstream dependencies
+
+        unmapped_callargs = {
+            k: v for k, v in callargs.items() if (v not in args) and (k not in kwargs)
+        }
+
+        flow = prefect.context.get("_flow", None)
+        if not flow:
+            raise ValueError("Could not infer an active Flow context.")
+
+        new.set_dependencies(
+            flow=flow,
+            upstream_tasks=unmapped_upstream,
+            keyword_tasks=unmapped_callargs,
+            mapped_tasks=mapped,
+        )
+
+        tags = set(prefect.context.get("_tags", set()))
+        new.tags.update(tags)
+
+        return new
+
     def set_dependencies(
         self,
         flow: "Flow" = None,
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Dict[str, object] = None,
+        mapped_tasks=None,
         validate: bool = True,
     ) -> None:
         """
@@ -291,6 +356,8 @@ class Task(Serializable, metaclass=SignatureValidator):
             - downstream_tasks ([object], optional): A list of downtream tasks for this task
             - keyword_tasks ({str, object}}, optional): The results of these tasks will be provided
             to the task under the specified keyword arguments.
+            - mapped_tasks ({str, object}}, optional): The results of these
+                tasks will be mapped over under the specified keyword arguments, with `None` specifying a list of upstream dependencies which will also be mapped over
             - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
@@ -311,6 +378,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             downstream_tasks=downstream_tasks,
             keyword_tasks=keyword_tasks,
             validate=validate,
+            mapped_tasks=mapped_tasks,
         )
 
     def set_upstream(self, task: object) -> None:

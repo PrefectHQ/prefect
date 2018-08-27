@@ -351,6 +351,7 @@ class Flow(Serializable):
         upstream_task: Task,
         downstream_task: Task,
         key: str = None,
+        mapped: bool = False,
         validate: bool = None,
     ) -> Edge:
         """
@@ -361,6 +362,8 @@ class Flow(Serializable):
             - upstream_task (Task): The task that the edge should start from
             - downstream_task (Task): The task that the edge should end with
             - key (str, optional): The key to be set for the new edge
+            - mapped (bool, optional): Whether this edge represents a call to
+                `Task.map()`; defaults to `False`
             - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
@@ -389,7 +392,10 @@ class Flow(Serializable):
             )
 
         edge = Edge(
-            upstream_task=upstream_task, downstream_task=downstream_task, key=key
+            upstream_task=upstream_task,
+            downstream_task=downstream_task,
+            key=key,
+            mapped=mapped,
         )
         self.edges.add(edge)
 
@@ -648,6 +654,7 @@ class Flow(Serializable):
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Mapping[str, object] = None,
+        mapped_tasks: Dict = None,
         validate: bool = None,
     ) -> None:
         """
@@ -663,6 +670,9 @@ class Flow(Serializable):
             - keyword_tasks ({key: object}, optional): The results of these tasks
                 will be provided to the task under the specified keyword
                 arguments. If any task is not a Task subclass, Prefect will attempt to
+                convert it to one.
+            - mapped_tasks ({key: object}, optional): The results of these tasks
+                will be mapped under the specified keyword arguments. If any task is not a Task subclass, Prefect will attempt to
                 convert it to one.
             - validate (bool, optional): Whether or not to check the validity of the flow
 
@@ -695,6 +705,29 @@ class Flow(Serializable):
             self.add_edge(
                 upstream_task=t, downstream_task=task, key=key, validate=validate
             )
+
+        # add edges for tasks which will be mapped over
+        for key, t in (mapped_tasks or {}).items():
+            if key is None:  # upstream_tasks, a list of upstream dependencies
+                for tt in t:
+                    tt = as_task(tt)
+                    assert isinstance(tt, Task)  # mypy assert
+                    self.add_edge(
+                        upstream_task=tt,
+                        downstream_task=task,
+                        validate=validate,
+                        mapped=True,
+                    )
+            else:
+                t = as_task(t)
+                assert isinstance(t, Task)  # mypy assert
+                self.add_edge(
+                    upstream_task=t,
+                    downstream_task=task,
+                    key=key,
+                    validate=validate,
+                    mapped=True,
+                )
 
     # Execution  ---------------------------------------------------------------
 
@@ -764,10 +797,15 @@ class Flow(Serializable):
         graph = graphviz.Digraph()
 
         for t in self.tasks:
-            graph.node(str(id(t)), t.name)
+            is_mapped = any(edge.mapped for edge in self.edges_to(t))
+            shape = "box" if is_mapped else "ellipse"
+            graph.node(str(id(t)), t.name, shape=shape)
 
         for e in self.edges:
-            graph.edge(str(id(e.upstream_task)), str(id(e.downstream_task)), e.key)
+            style = "dashed" if e.mapped else None
+            graph.edge(
+                str(id(e.upstream_task)), str(id(e.downstream_task)), e.key, style=style
+            )
 
         try:
             if get_ipython().config.get("IPKernelApp") is not None:

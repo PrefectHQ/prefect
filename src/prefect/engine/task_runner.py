@@ -109,6 +109,7 @@ class TaskRunner:
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
         queues: Iterable = None,
+        maps=None,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -146,13 +147,21 @@ class TaskRunner:
             - `State` object representing the final post-run state of the Task
         """
 
+        maps = maps or set()
         queues = queues or []
         state = state or Pending()
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
 
-        task_inputs = {k: v.result for k, v in upstream_states.items() if k is not None}
+        task_inputs = {}
+        for k, v in upstream_states.items():
+            if k is None:
+                continue
+            if isinstance(v, list):
+                task_inputs[k] = [s.result for s in v]
+            else:
+                task_inputs[k] = v.result
         task_inputs.update(inputs)
 
         upstream_states_set = set(
