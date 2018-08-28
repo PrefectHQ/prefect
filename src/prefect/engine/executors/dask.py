@@ -115,7 +115,7 @@ class DaskExecutor(Executor):
             # which we must unpack so that `dask.bag.map()` knows they're there
             # (otherwise dask.bag.map would treat non_keyed as a list and never
             # compute them)
-            # TODO: mapping a task with non-keyed non-mapped upstream tasks
+            # TODO: mapping a task with non-mapped upstream tasks
             # causes a bottleneck in the execution model
             other, upstreams = non_keyed, None
 
@@ -123,7 +123,6 @@ class DaskExecutor(Executor):
             unpack_dict_to_bag, *other, upstreams=upstreams, **upstream_states
         )
 
-        # dask.bag.map requires string keywords, and `None` is not a string
         return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
