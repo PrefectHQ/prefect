@@ -30,14 +30,20 @@ def bagged_list(ss):
     return [list(zz) for zz in zip(*expanded)]
 
 
-def unpack_dict_to_bag(bag, bag_key, **kwargs):
+def unpack_dict_to_bag(*other, upstreams=None, **kwargs):
     "Convenience function for packaging up all keywords into a dictionary"
-    return dict({bag_key: bag}, **kwargs)
+    bag = list(other) or upstreams or []
+    return dict({None: bag}, **kwargs)
 
 
-def merge_lists_to_bag(*args, x, y):
-    "Convenience function for concatenating lists."
-    return x + y + list(args)
+def create_bagged_list(mapped, unmapped):
+    to_bag = [s for s in mapped if not isinstance(s, dask.bag.Bag)]
+    upstreams = dask.bag.map(
+        lambda *args, x: list(args) + x,
+        *[s for s in mapped + unmapped if s not in to_bag],
+        x=dask.bag.from_delayed(bagged_list(to_bag)) if to_bag else []
+    )
+    return upstreams
 
 
 class DaskExecutor(Executor):
@@ -97,39 +103,26 @@ class DaskExecutor(Executor):
             if k in maps and not isinstance(v, dask.bag.Bag)
         }
         maps.update(needs_bagging)
-
-        # now we need to choose a (key, result) to unpack so that we can
-        # convert upstream_states from a dict into a dask.bag
-        if mapped_non_keyed:
-            to_bag = [s for s in mapped_non_keyed if not isinstance(s, dask.bag.Bag)]
-            if to_bag:
-                # convert [upstream_tasks which are not mapped] +
-                # [upstream_tasks which are mapped] into an appropriate dask.bag
-                upstreams = dask.bag.map(
-                    merge_lists_to_bag,
-                    *[s for s in mapped_non_keyed if s not in to_bag],
-                    x=dask.bag.from_delayed(
-                        bagged_list(to_bag)
-                    ),  # those upstream tasks which need to be converted
-                    y=non_keyed
-                )
-            else:
-                upstreams = dask.bag.map(
-                    merge_lists_to_bag,
-                    *[s for s in mapped_non_keyed if s not in to_bag],
-                    x=[],
-                    y=non_keyed
-                )
-        else:
-            upstreams = dask.delayed(list)(
-                non_keyed
-            )  # necessary so dask.bag.map knows this is a list of _delayed_ objects
-
-        # dask.bag.map requires string keywords, and `None` is not a string
         upstream_states.update(maps)
+
+        if mapped_non_keyed:
+            # if there are mapped tasks that don't belong to a keyed Edge,
+            # we must convert them to bags
+            upstreams = create_bagged_list(mapped_non_keyed, non_keyed)
+            other = []
+        else:
+            # otherwise, non_keyed is a simple list of Delayed objects
+            # which we must unpack so that `dask.bag.map()` knows they're there
+            # (otherwise dask.bag.map would treat non_keyed as a list and never
+            # compute them)
+            # TODO: mapping a task with non-mapped upstream tasks
+            # causes a bottleneck in the execution model
+            other, upstreams = non_keyed, None
+
         bagged_states = dask.bag.map(
-            unpack_dict_to_bag, upstreams, None, **upstream_states
+            unpack_dict_to_bag, *other, upstreams=upstreams, **upstream_states
         )
+
         return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
