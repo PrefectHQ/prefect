@@ -2,13 +2,15 @@
 
 import datetime
 from contextlib import contextmanager
+from dask.distributed import Client, get_client, LocalCluster, Queue
 from multiprocessing import Manager
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Dict, Iterable
 
 import dask
 import dask.bag
 import queue
 
+import prefect
 from prefect.engine.executors.base import Executor
 
 
@@ -52,11 +54,12 @@ class DaskExecutor(Executor):
 
     Args:
         - scheduler (string, optional): which dask scheduler to use; defaults to
-            `"synchronous"`.  Other available options are `"threads"` for multithreading and `"processes"` for multiprocessing.
+            `"threads"`.  Other available option is `"processes"` for multiprocessing.
     """
 
-    def __init__(self, scheduler="synchronous"):
+    def __init__(self, scheduler="threads", **kwargs):
         self.scheduler = scheduler
+        self.kwargs = kwargs
         super().__init__()
 
     @contextmanager
@@ -67,23 +70,72 @@ class DaskExecutor(Executor):
         Configures `dask` to run using the provided scheduler and yields the `dask.config` contextmanager.
         """
         try:
-            if self.scheduler == "processes":
-                self.manager = Manager()
+            cluster = LocalCluster(processes=(self.scheduler == "processes"))
 
-            with dask.config.set(scheduler=self.scheduler) as cfg:
-                yield cfg
-
+            with dask.distributed.Client(cluster) as client:
+                self.client = client
+                yield self.client
         finally:
-            if self.scheduler == "processes":
-                self.manager.shutdown()
-                del self.manager
+            self.client.close()
+            del self.client
 
     def queue(self, maxsize=0):
-        if self.scheduler == "processes":
-            q = self.manager.Queue(maxsize=maxsize)
-        else:
-            q = queue.Queue(maxsize=maxsize)
+        q = Queue(maxsize=maxsize)
+        return q
 
+    def map(
+        self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any
+    ) -> dask.bag:
+        pass
+
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
+        """
+        Submit a function to the executor for execution. Returns a `dask.delayed` object.
+
+        Args:
+            - fn (Callable): function which is being submitted for execution
+            - *args (Any): arguments to be passed to `fn`
+            - context (dict): `prefect.utilities.Context` to be used in function execution
+            - **kwargs (Any): keyword arguments to be passed to `fn`
+
+        Returns:
+            - dask.delayed: a `dask.delayed` object which represents the computation of `fn(*args, **kwargs)`
+        """
+
+        return self.client.submit(fn, *args, **kwargs, pure=False)
+
+    def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
+        """
+        Resolves the `dask.delayed` objects to their values. Blocks until the computation is complete.
+
+        Args:
+            - futures (Iterable): iterable of `dask.delayed` objects to compute
+            - timeout (datetime.timedelta): maximum length of time to allow for
+                execution
+
+        Returns:
+            - Iterable: an iterable of resolved futures
+        """
+        return self.client.gather(futures)
+
+
+class SynchronousExecutor(Executor):
+    """
+    An executor that runs all functions synchronously using `dask`.
+    """
+
+    @contextmanager
+    def start(self) -> Iterable[None]:
+        """
+        Context manager for initializing execution.
+
+        Configures `dask` and yields the `dask.config` contextmanager.
+        """
+        with dask.config.set(scheduler="synchronous") as cfg:
+            yield cfg
+
+    def queue(self, maxsize=0):
+        q = queue.Queue(maxsize=maxsize)
         return q
 
     def map(

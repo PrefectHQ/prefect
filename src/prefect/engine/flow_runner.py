@@ -153,7 +153,7 @@ class FlowRunner:
             _flow_name=self.flow.name,
             _flow_version=self.flow.version,
             _parameters=parameters,
-            _executor=executor,
+            _executor_id=executor.executor_id,
         )
 
         try:
@@ -179,7 +179,6 @@ class FlowRunner:
         # ---------------------------------------------
         # Check if the flow run is ready to run
         # ---------------------------------------------
-
         # the flow run is already finished
         if state.is_finished():
             raise signals.DONTRUN("Flow run has already finished.")
@@ -281,7 +280,7 @@ class FlowRunner:
                         upstream_states=upstream_states,
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),
-                        context=task_contexts.get(task),
+                        context=dict(prefect.context, **task_contexts.get(task, {})),
                         queues=[
                             queues.get(tag)
                             for tag in sorted(task.tags)
