@@ -44,8 +44,7 @@ def test_map_spawns_new_tasks():
     with Flow() as f:
         res = a.map(ll)
 
-    with raise_on_exception():
-        s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks)
     slist = s.result[res]
     assert s.is_successful()
     assert isinstance(slist, list)
