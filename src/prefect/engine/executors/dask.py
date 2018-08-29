@@ -89,11 +89,17 @@ class DaskExecutor(Executor):
         mapped_non_keyed = maps.pop(None, [])
         non_keyed = upstream_states.pop(None, [])
 
-        def mapper(_key, _state, fn, *args, upstream_states, **kwargs):
+        def mapper(maps, fn, *args, upstream_states, **kwargs):
             futures = []
+            _key, _state = maps.popitem()
             with worker_client() as client:
-                for elem in _state.result:
-                    upstream_states.update({_key: type(_state)(result=elem)})
+                state_list = (
+                    _state
+                    if isinstance(_state, list)
+                    else [type(_state)(result=elem) for elem in _state.result]
+                )
+                for elem in state_list:
+                    upstream_states.update({_key: elem})
                     futures.append(
                         client.submit(
                             fn, *args, upstream_states=upstream_states, **kwargs
@@ -101,9 +107,8 @@ class DaskExecutor(Executor):
                     )
             return futures
 
-        key, _state = maps.popitem()
         future_list = self.client.submit(
-            mapper, key, _state, fn, *args, upstream_states=upstream_states, **kwargs
+            mapper, maps, fn, *args, upstream_states=upstream_states, **kwargs
         )
         return self.client.gather(future_list)
 
