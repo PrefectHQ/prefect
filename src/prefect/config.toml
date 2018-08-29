@@ -1,8 +1,7 @@
 [server]
-# the Prefect Server address
+# the Prefect Server access
 api_server = "http://127.0.0.1:4200"
 graphql_server = "http://127.0.0.1:4242/graphql"
-
 
 
 [logging]
