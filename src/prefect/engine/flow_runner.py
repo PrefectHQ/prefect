@@ -266,7 +266,7 @@ class FlowRunner:
                         state=task_states.get(task),
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),
-                        context=task_contexts.get(task),
+                        context=dict(prefect.context, **task_contexts.get(task, {})),
                         queues=[
                             queues.get(tag)
                             for tag in sorted(task.tags)
