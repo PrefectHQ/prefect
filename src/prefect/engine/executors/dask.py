@@ -2,12 +2,13 @@
 
 import datetime
 from contextlib import contextmanager
-from dask.distributed import Client, get_client, LocalCluster, Queue, worker_client
+from distributed import Client, get_client, LocalCluster, Queue, worker_client
 from multiprocessing import Manager
 from typing import Any, Callable, Dict, Iterable
 
 import dask
 import dask.bag
+import distributed
 import queue
 
 import prefect
@@ -56,9 +57,9 @@ class DaskExecutor(Executor):
             `"threads"`.  Other available option is `"processes"` for multiprocessing.
     """
 
-    def __init__(self, scheduler="threads", client=None, **kwargs):
+    def __init__(self, address=None, scheduler="threads", **kwargs):
+        self.address = address
         self.scheduler = scheduler
-        self.client = client
         self.kwargs = kwargs
         super().__init__()
 
@@ -70,15 +71,9 @@ class DaskExecutor(Executor):
         Configures `dask` to run using the provided scheduler and yields the `dask.config` contextmanager.
         """
         try:
-            if self.client is None:
-                with LocalCluster(
-                    processes=(self.scheduler == "processes"), **self.kwargs
-                ) as cluster:
-                    with dask.distributed.Client(cluster) as client:
-                        self.client = client
-                        yield self.client
-            else:
-                yield self.client
+            with dask.distributed.Client(self.address, processes=(self.scheduler == "processes")) as client:
+                    self.client = client
+                    yield self.client
         finally:
             self.client = None
 
