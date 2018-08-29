@@ -14,7 +14,6 @@ import prefect
 from prefect.engine.executors.base import Executor
 
 
-@dask.delayed
 def state_to_list(s):
     "Converts a State `s` with a list as its result to a list of states of the same type"
     if isinstance(s, list):
@@ -86,20 +85,26 @@ class DaskExecutor(Executor):
     def map(
         self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any
     ) -> dask.bag:
-        mapped_non_keyed = maps.pop(None, [])
-        non_keyed = upstream_states.pop(None, [])
+        def dict_to_list(dd):
+            mapped_non_keyed = dd.pop(None, [])
+            list_of_lists = list(zip(*[state_to_list(s) for s in mapped_non_keyed]))
+
+            listed = {key: state_to_list(s) for key, s in dd.items()}
+            if list_of_lists:
+                listed.update({None: list_of_lists})
+            return [dict(zip(listed, vals)) for vals in zip(*listed.values())]
 
         def mapper(maps, fn, *args, upstream_states, **kwargs):
-            futures = []
-            _key, _state = maps.popitem()
+            non_keyed = upstream_states.pop(None, [])
+            states = dict_to_list(maps)
+
             with worker_client() as client:
-                state_list = (
-                    _state
-                    if isinstance(_state, list)
-                    else [type(_state)(result=elem) for elem in _state.result]
-                )
-                for elem in state_list:
-                    upstream_states.update({_key: elem})
+                futures = []
+                for elem in states:
+                    upstream_states.update(elem)
+                    upstream_states[None] = (
+                        list(upstream_states.get(None, [])) + non_keyed
+                    )
                     futures.append(
                         client.submit(
                             fn, *args, upstream_states=upstream_states, **kwargs
@@ -174,7 +179,7 @@ class SynchronousExecutor(Executor):
         # bag 2.) the task being mapped over will return a list, in which case
         # we need to pull apart the list into a list of states and then a dask.bag
         needs_bagging = {
-            k: dask.bag.from_delayed(state_to_list(v))
+            k: dask.bag.from_delayed(dask.delayed(state_to_list)(v))
             for k, v in maps.items()
             if k in maps and not isinstance(v, dask.bag.Bag)
         }
