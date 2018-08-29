@@ -71,7 +71,9 @@ class DaskExecutor(Executor):
         """
         try:
             if self.client is None:
-                with LocalCluster(processes=(self.scheduler == "processes"), **self.kwargs) as cluster:
+                with LocalCluster(
+                    processes=(self.scheduler == "processes"), **self.kwargs
+                ) as cluster:
                     with dask.distributed.Client(cluster) as client:
                         self.client = client
                         yield self.client
