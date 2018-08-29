@@ -12,7 +12,7 @@ from prefect.utilities.tests import raise_on_exception
     params=[
         SynchronousExecutor(),
         DaskExecutor(scheduler="threads"),
-        DaskExecutor(scheduler="processes"),
+        DaskExecutor(scheduler="processes", n_workers=2),
     ],
     ids=["dask-sync", "dask-threads", "dask-process"],
 )
@@ -58,6 +58,21 @@ def test_map_spawns_new_tasks(executor):
         res = a.map(ll)
 
     s = f.run(return_tasks=f.tasks, executor=executor)
+    slist = s.result[res]
+    assert s.is_successful()
+    assert isinstance(slist, list)
+    assert len(slist) == 3
+    assert [r.result for r in slist] == [2, 3, 4]
+
+
+def test_map_over_parameters(executor):
+    a = AddTask()
+
+    with Flow() as f:
+        ll = Parameter("list")
+        res = a.map(ll)
+
+    s = f.run(return_tasks=f.tasks, executor=executor, parameters=dict(list=[1, 2, 3]))
     slist = s.result[res]
     assert s.is_successful()
     assert isinstance(slist, list)
