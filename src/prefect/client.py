@@ -13,32 +13,44 @@ class AuthorizationError(Exception):
 
 class Client:
     """
-    Client for the Prefect API.
+    Client for communication with Prefect Cloud
+
+    If the arguments aren't specified the client initialization first checks the prefect
+    configuration and if the server is not set there it checks the current context. The
+    token will only be present in the current context.
+
     Args:
-        - api_server:
-        - graphql_server:
-        - token:
+        - api_server (str, optional): Address for connection to the rest API
+        - graphql_server (str, optional): Address for connection to the GraphQL rest API
+        - token (str, optional): Authentication token server connection
     """
 
     def __init__(self, api_server=None, graphql_server=None, token=None):
         if api_server is None:
-            api_server = prefect.config.get("prefect", "api_server")
+            api_server = prefect.config.server.get("api_server", None)
+
+            # Check context
             if not api_server:
-                api_server = prefect.context.Context.get("api_server", None)
+                api_server = prefect.context.get("api_server", None)
                 if not api_server:
                     raise ValueError("Could not determine API server.")
         self._api_server = api_server
 
         if graphql_server is None:
-            graphql_server = prefect.config.get("prefect", "graphql_server")
+            graphql_server = prefect.config.server.get("graphql_server", None)
+
+            # Check context
             if not graphql_server:
-                graphql_server = prefect.context.Context.get("graphql_server", None)
+                graphql_server = prefect.context.get("graphql_server", None)
+
+                # Default to the API server
                 if not graphql_server:
                     graphql_server = api_server
         self._graphql_server = graphql_server
 
+        # Check context
         if token is None:
-            token = prefect.context.Context.get("token", None)
+            token = prefect.context.get("token", None)
         self._token = token
 
         self.projects = Projects(client=self)
