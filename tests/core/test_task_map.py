@@ -3,8 +3,21 @@ import time
 
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
+from prefect.engine.executors import DaskExecutor, Executor, SynchronousExecutor
 from prefect.utilities.tasks import task
 from prefect.utilities.tests import raise_on_exception
+
+
+@pytest.fixture(
+    params=[
+        SynchronousExecutor(),
+        DaskExecutor(scheduler="threads"),
+        DaskExecutor(scheduler="processes"),
+    ],
+    ids=["dask-sync", "dask-threads", "dask-process"],
+)
+def executor(request):
+    return request.param
 
 
 class AddTask(Task):
@@ -37,14 +50,14 @@ def test_map_returns_a_task_copy():
     assert res != a
 
 
-def test_map_spawns_new_tasks():
+def test_map_spawns_new_tasks(executor):
     ll = ListTask()
     a = AddTask()
 
     with Flow() as f:
         res = a.map(ll)
 
-    s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
     assert s.is_successful()
     assert isinstance(slist, list)
@@ -52,7 +65,7 @@ def test_map_spawns_new_tasks():
     assert [r.result for r in slist] == [2, 3, 4]
 
 
-def test_map_internally_returns_a_list():
+def test_map_internally_returns_a_list(executor):
     ll = ListTask()
     ii = IdTask()
     a = AddTask()
@@ -60,18 +73,18 @@ def test_map_internally_returns_a_list():
     with Flow() as f:
         res = ii(a.map(ll))
 
-    s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     assert s.result[res].result == [2, 3, 4]
 
 
-def test_map_composition():
+def test_map_composition(executor):
     ll = ListTask()
     a = AddTask()
 
     with Flow() as f:
         res = a.map(a.map(ll))
 
-    s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
     assert s.is_successful()
     assert isinstance(slist, list)
@@ -79,14 +92,14 @@ def test_map_composition():
     assert [r.result for r in slist] == [3, 4, 5]
 
 
-def test_multiple_map_arguments():
+def test_multiple_map_arguments(executor):
     ll = ListTask()
     a = AddTask()
 
     with Flow() as f:
         res = a.map(x=ll, y=ll())
 
-    s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
     assert s.is_successful()
     assert isinstance(slist, list)
@@ -94,7 +107,7 @@ def test_multiple_map_arguments():
     assert [r.result for r in slist] == [2, 4, 6]
 
 
-def test_map_failures_dont_leak_out():
+def test_map_failures_dont_leak_out(executor):
     ii = IdTask()
     ll = ListTask()
     a = AddTask()
@@ -103,7 +116,7 @@ def test_map_failures_dont_leak_out():
     with Flow() as f:
         res = ii.map(div.map(a.map(ll(start=-1))))
 
-    s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
     assert s.is_failed()
     assert isinstance(slist, list)
@@ -111,14 +124,14 @@ def test_map_failures_dont_leak_out():
     assert [r.result for r in slist] == [None, 1, 0.5]
 
 
-def test_map_can_handle_fixed_kwargs():
+def test_map_can_handle_fixed_kwargs(executor):
     ll = ListTask()
     a = AddTask()
 
     with Flow() as f:
         res = a.map(ll, unmapped=dict(y=5))
 
-    s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
     assert s.is_successful()
     assert isinstance(slist, list)
@@ -126,13 +139,13 @@ def test_map_can_handle_fixed_kwargs():
     assert [r.result for r in slist] == [6, 7, 8]
 
 
-def test_map_can_handle_nonkeyed_upstreams():
+def test_map_can_handle_nonkeyed_upstreams(executor):
     ll = ListTask()
 
     with Flow() as f:
         res = ll.map(upstream_tasks=[ll()])
 
-    s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
     assert s.is_successful()
     assert isinstance(slist, list)
@@ -140,7 +153,7 @@ def test_map_can_handle_nonkeyed_upstreams():
     assert [r.result for r in slist] == [[1, 2, 3] for _ in range(3)]
 
 
-def test_map_can_handle_nonkeyed_mapped_upstreams():
+def test_map_can_handle_nonkeyed_mapped_upstreams(executor):
     ii = IdTask()
     ll = ListTask()
 
@@ -148,7 +161,7 @@ def test_map_can_handle_nonkeyed_mapped_upstreams():
         mapped = ii.map(ll())  # 1, 2, 3
         res = ll.map(upstream_tasks=[mapped])
 
-    s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
     assert s.is_successful()
     assert isinstance(slist, list)
@@ -156,14 +169,14 @@ def test_map_can_handle_nonkeyed_mapped_upstreams():
     assert [r.result for r in slist] == [[1, 2, 3] for _ in range(3)]
 
 
-def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args():
+def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args(executor):
     ii = IdTask()
     ll = ListTask()
 
     with Flow() as f:
         res = ll.map(start=ll(), unmapped={None: [ii(5)]})
 
-    s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
     assert s.is_successful()
     assert isinstance(slist, list)
@@ -171,7 +184,7 @@ def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args():
     assert [r.result for r in slist] == [[1 + i, 2 + i, 3 + i] for i in range(3)]
 
 
-def test_map_tracks_non_mapped_upstream_tasks():
+def test_map_tracks_non_mapped_upstream_tasks(executor):
     div = DivTask()
 
     @task
@@ -185,7 +198,7 @@ def test_map_tracks_non_mapped_upstream_tasks():
     with Flow() as f:
         res = register.map(div.map(zeros()), unmapped={None: [div(1)]})
 
-    s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     assert s.is_failed()
     assert all([sub.is_failed() for sub in s.result[res]])
     assert all(
@@ -193,7 +206,7 @@ def test_map_tracks_non_mapped_upstream_tasks():
     )
 
 
-def test_map_allows_for_retries():
+def test_map_allows_for_retries(executor):
     ii = IdTask()
     ll = ListTask()
     div = DivTask()
@@ -202,21 +215,26 @@ def test_map_allows_for_retries():
         divved = div.map(ll(start=0))
         res = ii.map(divved)
 
-    states = f.run(return_tasks=[divved])
+    states = f.run(return_tasks=[divved], executor=executor)
     assert states.is_failed()  # division by zero
 
     old = states.result[divved]
     assert [s.result for s in old] == [None, 1.0, 0.5]
 
     old[0] = prefect.engine.state.Success(result=100)
-    states = f.run(return_tasks=[res], start_tasks=[res], task_states={divved: old})
+    states = f.run(
+        return_tasks=[res],
+        start_tasks=[res],
+        task_states={divved: old},
+        executor=executor,
+    )
     assert states.is_successful()  # no divison by 0
 
     new = states.result[res]
     assert [s.result for s in new] == [100, 1.0, 0.5]
 
 
-def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args():
+def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args(executor):
     ii = IdTask()
     ll = ListTask()
 
@@ -224,7 +242,7 @@ def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args():
         mapped = ii.map(ll())  # 1, 2, 3
         res = ll.map(start=ll(), upstream_tasks=[mapped])
 
-    s = f.run(return_tasks=f.tasks)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
     assert s.is_successful()
     assert isinstance(slist, list)

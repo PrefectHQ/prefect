@@ -2,7 +2,7 @@
 
 import datetime
 from contextlib import contextmanager
-from dask.distributed import Client, get_client, LocalCluster, Queue
+from dask.distributed import Client, get_client, LocalCluster, Queue, worker_client
 from multiprocessing import Manager
 from typing import Any, Callable, Dict, Iterable
 
@@ -86,7 +86,25 @@ class DaskExecutor(Executor):
     def map(
         self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any
     ) -> dask.bag:
-        pass
+        mapped_non_keyed = maps.pop(None, [])
+        non_keyed = upstream_states.pop(None, [])
+
+        def mapper(_key, _state, fn, *args, upstream_states, **kwargs):
+            futures = []
+            with worker_client() as client:
+                for elem in _state.result:
+                    upstream_states.update({_key: type(_state)(result=elem)})
+                    futures.append(
+                        client.submit(
+                            fn, *args, upstream_states=upstream_states, **kwargs
+                        )
+                    )
+            return futures
+
+        key, _state = maps.popitem()
+        return self.client.submit(
+            mapper, key, _state, fn, *args, upstream_states=upstream_states, **kwargs
+        )
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """
@@ -116,7 +134,7 @@ class DaskExecutor(Executor):
         Returns:
             - Iterable: an iterable of resolved futures
         """
-        return self.client.gather(futures)
+        return self.client.gather(self.client.gather(futures))
 
 
 class SynchronousExecutor(Executor):
