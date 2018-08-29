@@ -150,9 +150,7 @@ class Client:
         else:
             return to_dotdict(result).data
 
-    def _request(
-        self, method, path, params=None, server=None
-    ) -> requests.models.Response:
+    def _request(self, method, path, params=None, server=None):
         """
         Runs any specified request (GET, POST, DELETE) against the server
 
