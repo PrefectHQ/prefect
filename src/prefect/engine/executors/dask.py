@@ -102,9 +102,10 @@ class DaskExecutor(Executor):
             return futures
 
         key, _state = maps.popitem()
-        return self.client.submit(
+        future_list = self.client.submit(
             mapper, key, _state, fn, *args, upstream_states=upstream_states, **kwargs
         )
+        return self.client.gather(future_list)
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """
@@ -134,7 +135,7 @@ class DaskExecutor(Executor):
         Returns:
             - Iterable: an iterable of resolved futures
         """
-        return self.client.gather(self.client.gather(futures))
+        return self.client.gather(futures)
 
 
 class SynchronousExecutor(Executor):
