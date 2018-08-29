@@ -1,9 +1,9 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import json
 import os
 
 import prefect
+from prefect.utilities import json
 from prefect.utilities.collections import to_dotdict
 
 
@@ -307,7 +307,7 @@ class Projects(ClientModule):
 
         Args:
             - name (str): The name for this new project
-            - account_id (str): Unique ID for this account to create a project under
+            - account_id (str): A unique account identifier
 
         Returns:
             - dict: Data returned from the GraphQL query
@@ -333,7 +333,7 @@ class Projects(ClientModule):
 
 
 class Flows(ClientModule):
-    def create(self, account_id, project_id, serialized_flow):
+    def create(self, account_id, project_id, serialized_flow) -> dict:
         """
         Create a new flow on the server
 
@@ -341,6 +341,9 @@ class Flows(ClientModule):
             - account_id (str): A unique account identifier
             - project_id (str): A unique project identifier
             - serialized_flow (dict): A json serialized version of a flow
+
+        Returns:
+            - dict: Data returned from the GraphQL query
         """
         return self._graphql(
             """
@@ -365,89 +368,34 @@ class Flows(ClientModule):
 
 
 class FlowRuns(ClientModule):
-
-    _path = "/flow_runs"
-
-    def get_state(self, flow_run_id):
+    def set_state(self, account_id, flow_run_id, state) -> dict:
         """
-        Retrieve a flow run's state
+        Set a flow run state
+
         Args:
-            - flow_run_id:
-        """
+            - account_id (str): A unique account identifier
+            - flow_run_id (str): A unique flow_run identifier
+            - state (State): A prefect state object
 
-        data = self._graphql(
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
             """
-             query ($flowRunId: String!){
-                flow_runs(filter: {id: $flowRunId}) {
-                    state {
-                        state
-                        result
-                    }
+            mutation($account_id: String!, $flow_run_id: String!, $state: StateJSONString!) {
+                setFlowRunState(input: {
+                    account_id: $account_id,
+                    flow_run_id: $flow_run_id,
+                    state: $state
+                }) {
+                    flow_state {timestamp}
                 }
-             }
-             """,
-            flowRunId=flow_run_id,
+            }
+            """,
+            account_id=account_id,
+            flow_run_id=flow_run_id,
+            state=json.dumps(state),
         )
-        state = data.flow_runs[0].get("state", {})
-        return prefect.engine.state.FlowState(
-            state=state.get("state", None), result=state.get("result", None)
-        )
-
-    def set_state(self, flow_run_id, state, result=None, expected_state=None):
-        """
-        Retrieve a flow run's state
-        Args:
-            - flow_run_id:
-            - state:
-            - result:
-            - expected_state:
-        """
-        return self._post(
-            path="/{id}/state".format(id=flow_run_id),
-            state=state,
-            result=dict(result=result),
-            expected_state=expected_state,
-        )
-
-    def create(self, flow_id, parameters=None, parent_taskrun_id=None):
-        return self._post(
-            path="/",
-            flow_id=flow_id,
-            parameters=parameters,
-            parent_taskrun_id=parent_taskrun_id,
-        )
-
-    def run(self, flow_run_id, start_tasks=None, inputs=None):
-        """
-        Queue a flow run to be run
-        """
-        if start_tasks is None:
-            start_tasks = []
-        if inputs is None:
-            inputs = {}
-
-        return self._post(
-            path="/{id}/run".format(id=flow_run_id),
-            start_tasks=start_tasks,
-            inputs=inputs,
-        )
-
-    # def get_resume_url(
-    #         self,
-    #         flow_run_id=None,
-    #         start_tasks=None,
-    #         expires_in=datetime.timedelta(hours=1)):
-    #     """
-    #     If flow_run_id is None, it will attempt to infer it from the
-    #     current context.
-    #     """
-    #     if flow_run_id is None:
-    #         flow_run_id = prefect.context.Context.get('flow_run_id')
-    #     data = self._post(
-    #         path='/{id}/get_resume_url'.format(id=flow_run_id),
-    #         start_tasks=start_tasks,
-    #         expires_in=expires_in)
-    #     return data['url']
 
 
 # -------------------------------------------------------------------------
@@ -455,38 +403,31 @@ class FlowRuns(ClientModule):
 
 
 class TaskRuns(ClientModule):
-
-    _path = "/task_runs"
-
-    def get_state(self, task_run_id):
+    def set_state(self, account_id, task_run_id, state) -> dict:
         """
-        Retrieve a flow run's state
+        Set a task run state
+
+        Args:
+            - account_id (str): A unique account identifier
+            - task_run_id (str): A unique task run identifier
+            - state (State): A prefect state object
+
+        Returns:
+            - dict: Data returned from the GraphQL query
         """
-        data = self._graphql(
+        return self._graphql(
             """
-             query ($taskRunId: String!){
-                task_runs(filter: {id: $taskRunId}) {
-                    state {
-                        state
-                        result
-                    }
+            mutation($account_id: String!, $task_run_id: String!, $state: StateJSONString!) {
+                setTaskRunState(input: {
+                    account_id: $account_id,
+                    task_run_id: $task_run_id,
+                    state: $state
+                }) {
+                    task_state {timestamp}
                 }
-             }
-             """,
-            taskRunId=task_run_id,
-        )
-        state = data.task_runs[0].get("state", {})
-        return prefect.engine.state.TaskState(
-            state=state.get("state", None), result=state.get("result", None)
-        )
-
-    def set_state(self, task_run_id, state, result=None, expected_state=None):
-        """
-        Retrieve a task run's state
-        """
-        return self._post(
-            path="/{id}/state".format(id=task_run_id),
-            state=state,
-            result=dict(result=result),
-            expected_state=expected_state,
+            }
+            """,
+            account_id=account_id,
+            task_run_id=task_run_id,
+            state=json.dumps(state),
         )
