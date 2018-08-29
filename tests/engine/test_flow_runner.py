@@ -5,6 +5,8 @@ import time
 
 import pytest
 
+from dask.distributed import Client, Queue
+
 import prefect
 from prefect.core import Flow, Parameter, Task
 from prefect.engine import FlowRunner, signals
@@ -498,43 +500,49 @@ class TestOutputCaching:
         assert flow_state.result[y].result == 100
 
 
-@pytest.mark.skip("Need to figure out the best way to handle queues")
 class TestTagThrottling:
     @pytest.mark.parametrize("num", [1, 2])
     @pytest.mark.parametrize("scheduler", ["threads", "processes"])
     def test_throttle_via_order(self, scheduler, num):
+        if scheduler == "threads":
+            pytest.skip("Queues are currently not functional with multithreading.")
+
         global_exec = DaskExecutor(scheduler=scheduler)
-        executor = DaskExecutor(scheduler=scheduler)
+        with global_exec.start() as client:
+            executor = DaskExecutor(scheduler=scheduler, client=client)
+            global_q = global_exec.queue(0, client=client)
+            ticket_q = global_exec.queue(0, client=client)
 
-        global_q = global_exec.queue(0)
-        ticket_q = global_exec.queue(0)
+            @prefect.task(tags=["connection"])
+            def record_size():
+                ticket_q.put(0)  # each task records its connection
+                time.sleep(random.random() / 10)
+                global_q.put(
+                    ticket_q.qsize()
+                )  # and records the number of active connections
+                ticket_q.get()
 
-        @prefect.task(tags=["connection"])
-        def record_size(q, t):
-            t.put(0)  # each task records its connection
-            time.sleep(random.random() / 10)
-            q.put(t.qsize())  # and records the number of active connections
-            t.get()
+            with Flow() as f:
+                for _ in range(20):
+                    record_size()
 
-        with Flow() as f:
-            for _ in range(20):
-                record_size(global_q, ticket_q)
-
-        f.run(throttle=dict(connection=num), executor=executor)
-        res = max([global_q.get() for _ in range(global_q.qsize())])
+            f.run(throttle=dict(connection=num), executor=executor)
+            res = max([global_q.get() for _ in range(global_q.qsize())])
 
         assert res == num
 
     @pytest.mark.parametrize("num", [1, 2])
     @pytest.mark.parametrize("scheduler", ["threads", "processes"])
     def test_throttle_multiple_tags(self, scheduler, num):
-        global_exec = DaskExecutor(scheduler=scheduler)
-        executor = DaskExecutor(scheduler=scheduler)
+        if scheduler == "threads":
+            pytest.skip("Queues are currently not functional with multithreading.")
 
-        with global_exec.start():
-            global_q = global_exec.queue(0)
-            a_ticket_q = global_exec.queue(0)
-            b_ticket_q = global_exec.queue(0)
+        global_exec = DaskExecutor(scheduler=scheduler)
+        with global_exec.start() as client:
+            executor = DaskExecutor(scheduler=scheduler, client=client)
+            global_q = global_exec.queue(0, client=client)
+            a_ticket_q = global_exec.queue(0, client=client)
+            b_ticket_q = global_exec.queue(0, client=client)
 
             @prefect.task
             def record_size(q, **kwargs):

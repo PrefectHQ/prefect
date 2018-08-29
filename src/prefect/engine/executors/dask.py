@@ -56,8 +56,9 @@ class DaskExecutor(Executor):
             `"threads"`.  Other available option is `"processes"` for multiprocessing.
     """
 
-    def __init__(self, scheduler="threads", **kwargs):
+    def __init__(self, scheduler="threads", client=None, **kwargs):
         self.scheduler = scheduler
+        self.client = client
         self.kwargs = kwargs
         super().__init__()
 
@@ -69,17 +70,21 @@ class DaskExecutor(Executor):
         Configures `dask` to run using the provided scheduler and yields the `dask.config` contextmanager.
         """
         try:
-            cluster = LocalCluster(processes=(self.scheduler == "processes"))
+            if self.client is None:
+                cluster = LocalCluster(processes=(self.scheduler == "processes"))
 
-            with dask.distributed.Client(cluster) as client:
-                self.client = client
+                with dask.distributed.Client(cluster) as client:
+                    self.client = client
+                    yield self.client
+            else:
                 yield self.client
-        finally:
+        except:
             self.client.close()
-            del self.client
+        finally:
+            self.client = None
 
-    def queue(self, maxsize=0):
-        q = Queue(maxsize=maxsize)
+    def queue(self, maxsize=0, client=None):
+        q = Queue(maxsize=maxsize, client=client or self.client)
         return q
 
     def map(
