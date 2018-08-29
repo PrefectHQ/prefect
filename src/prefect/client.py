@@ -233,7 +233,7 @@ class Client:
         # lazy import for performance
         import requests
 
-        url = os.path.join(self._api_server, "auth/login")
+        url = os.path.join(self._api_server, "login")
         response = requests.post(
             url,
             auth=(email, password),
@@ -248,6 +248,7 @@ class Client:
         # User must specify a single account to access
         if not (account_id or account_slug):
             print("No account provided; returning available accounts.")
+            # Will need to be a graphql query
             accounts = self._get("auth/accounts")
             return accounts
 
