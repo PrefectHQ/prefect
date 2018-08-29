@@ -129,7 +129,7 @@ class Client:
 
         Args:
             - query (str): A string representation of a graphql query to be executed
-            - **variables (dict): Variables to be filled into a query with the key being
+            - **variables (kwarg): Variables to be filled into a query with the key being
                 equivalent to the variables that are accepted by the query
 
         Returns:
@@ -301,56 +301,31 @@ class ClientModule:
 
 
 class Projects(ClientModule):
-
-    _path = "/projects"
-
-    def create(self, name):
-        return self._post(path="/", name=name)
-
-    def list(self, per_page=100, page=1):
+    def create(self, name, account_id) -> dict:
         """
-        Lists all available projects
+        Create a new project for this account
+
         Args:
-            - per_page:
-            - page:
-        """
-        data = self._graphql(
-            """
-             query ($perPage: Int!, $page: Int!){
-                projects(perPage: $perPage, page: $page){
-                    id
-                    name
-                }
-             }
-             """,
-            perPage=per_page,
-            page=page,
-        )
-        return data["projects"]
+            - name (str): The name for this new project
+            - account_id (str): Unique ID for this account to create a project under
 
-    def flows(self, project_id):
+        Returns:
+            - dict: Data returned from the GraphQL query
         """
-        Returns the Flows for the specified project
-        Args:
-            - project_id:
-        """
-
-        data = self._graphql(
+        return self._graphql(
             """
-             query ($projectId: String!){
-                projects(filter: {id: $projectId}) {
-                    id
-                    name
-                    flows {
-                        id
-                        name
-                    }
+            mutation($account_id: String!, $name: String!) {
+                createProject(input: {
+                    account_id: $account_id,
+                    name: $name
+                }) {
+                    project {id}
                 }
-             }
-             """,
-            projectId=project_id,
+            }
+            """,
+            name=name,
+            account_id=account_id,
         )
-        return data["projects"]
 
 
 # -------------------------------------------------------------------------
@@ -358,63 +333,31 @@ class Projects(ClientModule):
 
 
 class Flows(ClientModule):
-
-    _path = "/flows"
-
-    def load(self, flow_id, safe=True):
+    def create(self, account_id, project_id, serialized_flow):
         """
-        Retrieve information about a Flow.
+        Create a new flow on the server
+
         Args:
-            - flow_id (str): the Flow's id
+            - account_id (str): A unique account identifier
+            - project_id (str): A unique project identifier
+            - serialized_flow (dict): A json serialized version of a flow
         """
-        if safe:
-            data = self._graphql(
-                """
-                query($flowId: String!) {
-                    flow(id: $flowId) {
-                        safe_serialized
-                    }
+        return self._graphql(
+            """
+            mutation($account_id: String!, $project_id: String!, $serialized_flow: JSONString!) {
+                createFlow(input: {
+                    account_id: $account_id,
+                    project_id: $project_id,
+                    serialized_flow: $serialized_flow
+                }) {
+                    flow {id}
                 }
-                """,
-                flowId=flow_id,
-            )
-
-            return prefect.Flow.safe_deserialize(data["flow"]["safe_serialized"])
-        else:
-            data = self._graphql(
-                """
-                query($flowId: String!) {
-                    flow(id: $flowId) {
-                        serialized
-                        tasks {
-                            serialized
-                        }
-                        edges {
-                            serialized
-                        }
-                    }
-                }
-                """,
-                flowId=flow_id,
-            )
-            return prefect.Flow.deserialize(data["flow"])
-
-    def set_state(self, flow_id, state):
-        """
-        Update a Flow's state
-        Args:
-            - flow_id:
-            - state:
-        """
-        return self._post(path="/{id}/state".format(id=flow_id), state=state)
-
-    def create(self, flow):
-        """
-        Submit a Flow to the server.
-        Args:
-            - flow:
-        """
-        return self._post(path="/", serialized_flow=flow.serialize())
+            }
+            """,
+            account_id=account_id,
+            project_id=project_id,
+            serialized_flow=serialized_flow,
+        )
 
 
 # -------------------------------------------------------------------------
