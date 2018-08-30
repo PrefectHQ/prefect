@@ -258,14 +258,14 @@ class FlowRunner:
 
                 # -- run the task
                 task_runner = self.task_runner_cls(task=task)
-                task_queues = [queues.get(tag)
-                                for tag in sorted(task.tags)
-                                if queues.get(tag)]
+                task_queues = [
+                    queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
+                ]
 
                 def throttle_function(task_state):
                     return task_state
 
-#                throttled_state = executor.submit(throttle_function, task_states.get(task))
+                #                throttled_state = executor.submit(throttle_function, task_states.get(task))
                 throttled_state = task_states.get(task)
 
                 if maps:
