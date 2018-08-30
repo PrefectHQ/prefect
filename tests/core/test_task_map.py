@@ -264,3 +264,40 @@ def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args(executor):
     assert isinstance(slist, list)
     assert len(slist) == 3
     assert [r.result for r in slist] == [[1 + i, 2 + i, 3 + i] for i in range(3)]
+
+
+@pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+def test_map_quietly_maps_smaller_length_task(executor):
+    @prefect.task
+    def ll(n):
+        return list(range(n))
+
+    add = AddTask()
+
+    with Flow() as f:
+        res = add.map(x=ll(3), y=ll(2))
+
+    s = f.run(return_tasks=[res], executor=executor)
+    slist = s.result[res]
+    assert s.is_successful()
+    assert isinstance(slist, list)
+    assert len(slist) == 2
+    assert [r.result for r in slist] == [0, 2]
+
+
+@pytest.mark.parametrize("executor", ["sync"], indirect=True)
+def test_map_quietly_maps_smaller_length_task(executor):
+    @prefect.task
+    def ll(n):
+        return list(range(n))
+
+    add = AddTask()
+
+    with Flow() as f:
+        res = add.map(x=ll(3), y=ll(2))
+
+    s = f.run(return_tasks=[res], executor=executor)
+    assert s.is_failed()
+    assert "map called with multiple bags that aren't identically partitioned" in str(
+        s.message
+    )
