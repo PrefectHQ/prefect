@@ -117,6 +117,23 @@ def test_flow_runner_with_invalid_return_tasks():
         flow_runner.run(return_tasks=[1])
 
 
+def test_flow_runner_prevents_bad_throttle_values():
+    runner = FlowRunner(flow=prefect.Flow())
+    with pytest.raises(ValueError):
+        runner.run(throttle=dict(x=5, y=0))
+
+    with pytest.raises(ValueError):
+        runner.run(throttle=dict(x=-5, y=6))
+
+    with pytest.raises(ValueError) as exc:
+        runner.run(throttle=dict(x=-5, y=0))
+
+    assert (
+        str(exc.value)
+        == 'Cannot throttle tags "x", "y" - an invalid value less than 1 was provided.'
+    )
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 6), reason="Depends on ordered dictionaries of Python 3.6+"
 )
