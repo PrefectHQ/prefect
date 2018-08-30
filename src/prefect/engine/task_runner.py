@@ -4,16 +4,7 @@ import datetime
 import functools
 import logging
 from tornado.util import TimeoutError as TornadoError
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Union,
-    Set,
-    Optional,
-)
+from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
 
 import prefect
 from prefect.core import Task
