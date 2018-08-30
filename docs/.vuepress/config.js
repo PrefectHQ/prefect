@@ -8,10 +8,21 @@ module.exports = {
         repo: 'PrefectHQ/prefect/tree/master/docs',
         editLinks: true,
         // repoLabel: 'GitHub',
-        nav: [
-            { text: "Overview", link: '/introduction.html' },
-            { text: "API Reference", link: '/api/' },
-            { text: "License", link: '/license.html' }, { text: "Log Out", link: '/logout.html' }
+        nav: [{
+                text: "Overview",
+                link: '/introduction.html'
+            },
+            {
+                text: "API Reference",
+                link: '/api/'
+            },
+            {
+                text: "License",
+                link: '/license.html'
+            }, {
+                text: "Log Out",
+                link: '/logout.html'
+            }
         ],
         sidebar: {
             '/api/': [
@@ -49,12 +60,18 @@ module.exports = {
                 },
             ],
             '/license': [],
-            '/': ['introduction', 'getting_started', 'concepts',
+            '/': ['introduction', 'getting_started',
+                {
+                    title: 'Concepts',
+                    collapsable: true,
+                    children: ['concepts/', 'concepts/core', 'concepts/execution', 'concepts/best-practices']
+                },
                 {
                     title: 'Tutorials',
                     collapsable: true,
                     children: ['tutorials/', 'tutorials/etl', 'tutorials/calculator', 'tutorials/task-retries', 'tutorials/triggers-and-references',
-                               'tutorials/visualization']
+                        'tutorials/visualization'
+                    ]
                 },
                 {
                     title: 'Comparisons',
