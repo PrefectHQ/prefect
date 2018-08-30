@@ -2,16 +2,13 @@
 
 import datetime
 from contextlib import contextmanager
-from distributed import Client, get_client, LocalCluster, Queue, worker_client
-from multiprocessing import Manager
-from typing import Any, Callable, Dict, Iterable
+from distributed import Client, Queue, worker_client
+from typing import Any, Callable, Iterable
 
 import dask
 import dask.bag
-import distributed
 import queue
 
-import prefect
 from prefect.engine.executors.base import Executor
 
 
@@ -71,7 +68,7 @@ class DaskExecutor(Executor):
         Configures `dask` to run using the provided scheduler and yields the `dask.config` contextmanager.
         """
         try:
-            with distributed.Client(
+            with Client(
                 self.address, processes=(self.scheduler == "processes")
             ) as client:
                 self.client = client
