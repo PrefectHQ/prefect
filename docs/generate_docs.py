@@ -159,6 +159,7 @@ OUTLINE = [
             prefect.engine.executors.base.Executor,
             prefect.engine.executors.dask.DaskExecutor,
             prefect.engine.executors.local.LocalExecutor,
+            prefect.engine.executors.dask.SynchronousExecutor,
         ],
         "title": "Executors",
         "top-level-doc": prefect.engine.executors,
