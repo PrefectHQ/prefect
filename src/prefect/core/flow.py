@@ -6,15 +6,7 @@ import inspect
 import tempfile
 import uuid
 from collections import Counter
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Set,
-    Tuple,
-)
+from typing import Any, Dict, Iterable, List, Mapping, Set, Tuple
 
 import xxhash
 from mypy_extensions import TypedDict
