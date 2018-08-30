@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from dask.distributed import Client, Queue
+from distributed import Client, Queue
 
 import prefect
 from prefect.core import Flow, Parameter, Task
@@ -32,19 +32,6 @@ from prefect.engine.state import (
 )
 from prefect.triggers import manual_only
 from prefect.utilities.tests import raise_on_exception
-
-
-@pytest.fixture(
-    params=[
-        SynchronousExecutor(),
-        DaskExecutor(scheduler="threads"),
-        DaskExecutor(scheduler="processes"),
-        LocalExecutor(),
-    ],
-    ids=["dask-sync", "dask-threads", "dask-process", "local"],
-)
-def executor(request):
-    return request.param
 
 
 class SuccessTask(Task):
@@ -386,6 +373,9 @@ class TestStartTasks:
 
 
 class TestInputCaching:
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "multi", "threaded"], indirect=True
+    )
     def test_retries_use_cached_inputs(self, executor):
         with Flow() as f:
             a = CountTask()
@@ -406,6 +396,9 @@ class TestInputCaching:
         assert isinstance(second_state, Success)
         assert second_state.result[res].result == 1
 
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "multi", "threaded"], indirect=True
+    )
     def test_retries_only_uses_cache_data(self, executor):
         with Flow() as f:
             t1 = Task()
@@ -421,6 +414,9 @@ class TestInputCaching:
         assert isinstance(state, Success)
         assert state.result[t2].result == 5
 
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "multi", "threaded"], indirect=True
+    )
     def test_retries_caches_parameters_as_well(self, executor):
         with Flow() as f:
             x = Parameter("x")
@@ -445,6 +441,9 @@ class TestInputCaching:
         assert isinstance(second_state, Success)
         assert second_state.result[res].result == 1
 
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "multi", "threaded"], indirect=True
+    )
     def test_manual_only_trigger_caches_inputs(self, executor):
         with Flow() as f:
             x = Parameter("x")
@@ -468,6 +467,9 @@ class TestInputCaching:
 
 
 class TestOutputCaching:
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "multi", "threaded"], indirect=True
+    )
     def test_providing_cachedstate_with_simple_example(self, executor):
         class TestTask(Task):
             call_count = 0

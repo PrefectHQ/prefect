@@ -71,9 +71,11 @@ class DaskExecutor(Executor):
         Configures `dask` to run using the provided scheduler and yields the `dask.config` contextmanager.
         """
         try:
-            with dask.distributed.Client(self.address, processes=(self.scheduler == "processes")) as client:
-                    self.client = client
-                    yield self.client
+            with distributed.Client(
+                self.address, processes=(self.scheduler == "processes")
+            ) as client:
+                self.client = client
+                yield self.client
         finally:
             self.client = None
 
