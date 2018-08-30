@@ -136,12 +136,24 @@ class FlowRunner:
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
+
+        Raises:
+            - ValueError: if any throttle values are `<= 0`
         """
         state = state or Pending()
         context = context or {}
         return_tasks = return_tasks or []
         executor = executor or DEFAULT_EXECUTOR
         throttle = throttle or self.flow.throttle
+        if min(throttle.values(), default=1) <= 0:
+            bad_tags = ", ".join(
+                ['"' + tag + '"' for tag, num in throttle.items() if num <= 0]
+            )
+            raise ValueError(
+                "Cannot throttle tags {0} - an invalid value less than 1 was provided.".format(
+                    bad_tags
+                )
+            )
 
         if set(return_tasks).difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")

@@ -99,6 +99,9 @@ class Flow(Serializable):
         - throttle (dict, optional): dictionary of tags -> int specifying
             how many tasks with a given tag should be allowed to run simultaneously. Used
             for throttling resource usage.
+
+    Raises:
+        - ValueError: if any throttle values are `<= 0`
     """
 
     def __init__(
@@ -147,6 +150,15 @@ class Flow(Serializable):
             self.register()
 
         self.throttle = throttle or {}
+        if min(self.throttle.values(), default=1) <= 0:
+            bad_tags = ", ".join(
+                ['"' + tag + '"' for tag, num in throttle.items() if num <= 0]
+            )
+            raise ValueError(
+                "Cannot throttle tags {0} - an invalid value less than 1 was provided.".format(
+                    bad_tags
+                )
+            )
         super().__init__()
 
     def __eq__(self, other: Any) -> bool:

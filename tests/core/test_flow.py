@@ -71,6 +71,21 @@ class TestCreateFlow:
         f2 = Flow(schedule=cron)
         assert f2.schedule == cron
 
+    def test_flow_prevents_bad_throttle_values(self):
+        with pytest.raises(ValueError):
+            f = Flow(throttle=dict(x=5, y=0))
+
+        with pytest.raises(ValueError):
+            f = Flow(throttle=dict(x=-5, y=6))
+
+        with pytest.raises(ValueError) as exc:
+            f = Flow(throttle=dict(x=-5, y=0))
+
+        assert (
+            str(exc.value)
+            == 'Cannot throttle tags "x", "y" - an invalid value less than 1 was provided.'
+        )
+
 
 def test_add_task_to_flow():
     f = Flow()
