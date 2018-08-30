@@ -1,4 +1,5 @@
 import datetime
+import queue
 import random
 import sys
 import time
@@ -536,3 +537,19 @@ def test_flow_runner_uses_user_provided_executor():
     with raise_on_exception():
         with pytest.raises(NotImplementedError):
             FlowRunner(flow=f).run(executor=Executor())
+
+
+@pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+def test_flow_runner_captures_and_exposes_dask_errors(executor):
+    q = queue.Queue()
+
+    @prefect.task
+    def put():
+        q.put(55)
+
+    f = Flow(tasks=[put])
+    state = f.run(executor=executor)
+
+    assert state.is_failed()
+    assert isinstance(state.message, TypeError)
+    assert str(state.message) == "can't pickle _thread.lock objects"
