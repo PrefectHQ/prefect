@@ -3,9 +3,6 @@
 import datetime
 import functools
 import logging
-import types
-import uuid
-from contextlib import contextmanager
 from tornado.util import TimeoutError as TornadoError
 from typing import (
     Any,
@@ -13,7 +10,6 @@ from typing import (
     Dict,
     Iterable,
     List,
-    MutableMapping,
     Union,
     Set,
     Optional,
@@ -25,7 +21,6 @@ from prefect.engine import signals
 from prefect.engine.state import (
     CachedState,
     Failed,
-    MessageType,
     Pending,
     Retrying,
     Running,

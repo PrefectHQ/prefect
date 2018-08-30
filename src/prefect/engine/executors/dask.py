@@ -59,7 +59,7 @@ class DaskExecutor(Executor):
     def queue(self, maxsize=0, client=None):
         """
         Creates an executor-compatible Queue object which can share state
-        across tasks
+        across tasks.
 
         Args:
             - maxsize (int, optional): `maxsize` for the Queue; defaults to 0
@@ -101,7 +101,7 @@ class DaskExecutor(Executor):
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """
-        Submit a function to the executor for execution. Returns a `dask.delayed` object.
+        Submit a function to the executor for execution. Returns a Future object.
 
         Args:
             - fn (Callable): function which is being submitted for execution
@@ -110,17 +110,17 @@ class DaskExecutor(Executor):
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
-            - dask.delayed: a `dask.delayed` object which represents the computation of `fn(*args, **kwargs)`
+            - Future: a Future-like object which represents the computation of `fn(*args, **kwargs)`
         """
 
         return self.client.submit(fn, *args, **kwargs, pure=False)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """
-        Resolves the `dask.delayed` objects to their values. Blocks until the computation is complete.
+        Resolves the Future objects to their values. Blocks until the computation is complete.
 
         Args:
-            - futures (Iterable): iterable of `dask.delayed` objects to compute
+            - futures (Iterable): iterable of future-like objects to compute
             - timeout (datetime.timedelta): maximum length of time to allow for
                 execution
 

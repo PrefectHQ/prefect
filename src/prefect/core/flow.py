@@ -6,20 +6,14 @@ import inspect
 import tempfile
 import uuid
 from collections import Counter
-from contextlib import contextmanager
 from typing import (
-    TYPE_CHECKING,
     Any,
-    AnyStr,
     Dict,
     Iterable,
-    Iterator,
     List,
     Mapping,
-    Optional,
     Set,
     Tuple,
-    Union,
 )
 
 import xxhash
