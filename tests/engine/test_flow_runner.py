@@ -32,6 +32,7 @@ from prefect.engine.state import (
 )
 from prefect.triggers import manual_only
 from prefect.utilities.tests import raise_on_exception
+from unittest.mock import MagicMock
 
 
 class SuccessTask(Task):
@@ -502,104 +503,30 @@ class TestOutputCaching:
         assert flow_state.result[y].result == 100
 
 
-@pytest.mark.skip("TBD")
 class TestTagThrottling:
-    @pytest.mark.parametrize("num", [1, 2])
-    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
-    def test_throttle_via_order(self, scheduler, num):
-        if scheduler == "threads":
-            pytest.skip("Queues are currently not functional with multithreading.")
-
-        global_exec = DaskExecutor(scheduler=scheduler)
-        with global_exec.start() as client:
-            executor = DaskExecutor(scheduler=scheduler, client=client)
-            global_q = global_exec.queue(0, client=client)
-            ticket_q = global_exec.queue(0, client=client)
-
-            @prefect.task(tags=["connection"])
-            def record_size():
-                ticket_q.put(0)  # each task records its connection
-                time.sleep(random.random() / 10)
-                global_q.put(
-                    ticket_q.qsize()
-                )  # and records the number of active connections
-                ticket_q.get()
-
-            with Flow() as f:
-                for _ in range(20):
-                    record_size()
-
-            f.run(throttle=dict(connection=num), executor=executor)
-            res = max([global_q.get() for _ in range(global_q.qsize())])
-
-        assert res == num
-
-    @pytest.mark.parametrize("num", [1, 2])
-    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
-    def test_throttle_multiple_tags(self, scheduler, num):
-        if scheduler == "threads":
-            pytest.skip("Queues are currently not functional with multithreading.")
-
-        global_exec = DaskExecutor(scheduler=scheduler)
-        with global_exec.start() as client:
-            executor = DaskExecutor(scheduler=scheduler, client=client)
-            global_q = global_exec.queue(0, client=client)
-            a_ticket_q = global_exec.queue(0, client=client)
-            b_ticket_q = global_exec.queue(0, client=client)
-
-            @prefect.task
-            def record_size(q, **kwargs):
-                for name, val in kwargs.items():
-                    val.put(0)  # each task records its connection
-                time.sleep(random.random() / 100)
-                for name, val in kwargs.items():
-                    q.put(
-                        (name, val.qsize())
-                    )  # and records the number of active connections
-                    val.get()
-
-            with Flow() as f:
-                for _ in range(10):
-                    a = record_size(global_q, a=a_ticket_q)
-                    a.tags = ["a"]
-                for _ in range(10):
-                    b = record_size(global_q, b=b_ticket_q)
-                    b.tags = ["b"]
-                for _ in range(10):
-                    c = record_size(global_q, a=a_ticket_q, b=b_ticket_q)
-                    c.tags = ["a", "b"]
-
-            f.run(throttle=dict(a=num, b=num + 1), executor=executor)
-            res = [global_q.get() for _ in range(global_q.qsize())]
-
-        a_res = [val for tag, val in res if tag == "a"]
-        b_res = [val for tag, val in res if tag == "b"]
-        assert max(a_res) <= num
-        assert max(b_res) <= num + 1
-
-    @pytest.mark.xfail(reason="Timing tests are brittle")
-    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
-    def test_extreme_throttling_prevents_parallelism(self, scheduler):
-        if scheduler == "threads":
-            pytest.skip("Queues are currently not functional with multithreading.")
-
-        executor = DaskExecutor(scheduler=scheduler)
-
-        @prefect.task(tags=["there-can-be-only-one"])
-        def timed():
-            time.sleep(0.05)
+    @pytest.mark.parametrize("executor", ["multi"], indirect=True)
+    def test_throttle_via_order(self, executor, monkeypatch):
+        @prefect.task(tags=["connection"])
+        def record_size():
+            time.sleep(1)
             return time.time()
 
-        with prefect.Flow() as f:
-            a, b = timed(), timed()
+        with Flow() as f:
+            for _ in range(10):
+                record_size()
 
-        res = f.run(
-            executor=executor,
-            return_tasks=f.tasks,
-            throttle={"there-can-be-only-one": 1},
+        uu = MagicMock()
+        # raises a TypeError because non-Exceptions can't be "excepted"
+        monkeypatch.setattr(prefect.engine.task_runner, "TornadoError", uu)
+        state = f.run(
+            throttle=dict(connection=1), executor=executor, return_tasks=f.tasks
         )
-        times = [s.result for t, s in res.result.items()]
-        assert abs(times[0] - times[1]) > 0.05
+        assert state.is_failed()
+        assert isinstance(state.message, TypeError)
+        assert (
+            str(state.message)
+            == "catching classes that do not inherit from BaseException is not allowed"
+        )
 
 
 def test_flow_runner_uses_user_provided_executor():

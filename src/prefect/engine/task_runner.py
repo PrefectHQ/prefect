@@ -6,6 +6,7 @@ import logging
 import types
 import uuid
 from contextlib import contextmanager
+from tornado.util import TimeoutError as TornadoError
 from typing import (
     Any,
     Callable,
@@ -172,12 +173,13 @@ class TaskRunner:
             tickets = []
             while True:
                 for q in queues:
-                    tickets.append(q.get(timeout=2))  # timeout after 2 seconds
+                    try:
+                        tickets.append(q.get(timeout=2))  # timeout after 2 seconds
+                    except TornadoError:
+                        for ticket, q in zip(tickets, queues):
+                            q.put(ticket)
                 if len(tickets) == len(queues):
                     break
-                else:  # release tickets
-                    for ticket, q in zip(tickets, queues):
-                        q.put(ticket)
 
             try:
                 state = self.get_pre_run_state(

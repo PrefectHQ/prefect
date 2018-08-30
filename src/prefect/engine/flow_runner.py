@@ -286,6 +286,7 @@ class FlowRunner:
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),
                         context=dict(prefect.context, **task_contexts.get(task, {})),
+                        queues=task_queues,
                     )
             # ---------------------------------------------
             # Collect results
