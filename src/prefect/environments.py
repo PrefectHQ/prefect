@@ -96,7 +96,8 @@ class ContainerEnvironment(Environment):
 
     Args:
         - image (str): The image to pull that is used as a base for the Docker container
-        - tag (str, optional): The tag for this container
+        *Note*: An image that is provided must be able to handle `python` and `pip` commands
+        - tag (str): The tag for this container
         - python_dependencies (list, optional): The list of pip installable python packages
         that will be installed on build of the Docker container
         - secrets ([Secret], optional): Iterable list of Secrets that will be used as
@@ -106,7 +107,7 @@ class ContainerEnvironment(Environment):
     def __init__(
         self,
         image: str,
-        tag: str = None,
+        tag: str,
         python_dependencies: list = None,
         secrets: Iterable[Secret] = None,
     ) -> None:
@@ -117,7 +118,7 @@ class ContainerEnvironment(Environment):
         self.tag = tag
         self._python_dependencies = python_dependencies
         self.client = docker.from_env()
-        self.running_container_id = None
+        self.last_container_id = None
 
         super().__init__(secrets=secrets)
 
@@ -125,6 +126,16 @@ class ContainerEnvironment(Environment):
     def python_dependencies(self) -> list:
         """Get the specified Python dependencies"""
         return self._python_dependencies
+
+    @property
+    def tag(self) -> str:
+        """Get the container's tag"""
+        return self.tag
+
+    @property
+    def client(self) -> "docker.client.DockerClient":
+        """Get the environment's client"""
+        return self.client
 
     def build(self, flow) -> tuple:
         """Build the Docker container
@@ -146,26 +157,20 @@ class ContainerEnvironment(Environment):
 
             return container
 
-    def run(self, key: bytes, cli_cmd: str, tty: bool = False) -> None:
+    def run(self, key: bytes, cli_cmd: str) -> None:
         """Run a command in the Docker container
 
         Args:
             - cli_cmd (str, optional): An initial cli_cmd that will be executed on container run
-            - tty (bool, optional): Sets whether the container stays active once it is started
 
         Returns:
             - `docker.models.containers.Container` object
 
         """
-
-        # Kill instance of this container currently running
-        if self.running_container_id:
-            self.client.containers.get(self.running_container_id).kill()
-
         running_container = self.client.containers.run(
-            self.tag, command=cli_cmd, tty=tty, detach=True
+            self.tag, command=cli_cmd, detach=True
         )
-        self.running_container_id = running_container.id
+        self.last_container_id = running_container.id
 
         return running_container
 
@@ -215,6 +220,9 @@ class ContainerEnvironment(Environment):
                 for secret in self.secrets:
                     env_vars += "{}={} \\\n".format(secret.name, secret.value)
 
+            # Due to prefect being a private repo it currently will require a
+            # personal access token. Once pip installable this will change
+
             file_contents = textwrap.dedent(
                 """\
                 FROM {}
@@ -224,8 +232,8 @@ class ContainerEnvironment(Environment):
                 {}
                 {}
 
-                # RUN echo "pip install prefect"
-                # RUN echo "add the flow code"
+                RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
+                RUN pip install -e prefect
             """.format(
                     self.image, env_vars, pip_installs
                 )
