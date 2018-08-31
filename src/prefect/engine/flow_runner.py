@@ -271,26 +271,21 @@ class FlowRunner:
                     queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
                 ]
 
-                def throttle_function(task_state):
-                    return task_state
-
-                #                throttled_state = executor.submit(throttle_function, task_states.get(task))
-                throttled_state = task_states.get(task)
-
                 if maps:
                     task_states[task] = executor.map(
                         task_runner.run,
                         maps=maps,
                         upstream_states=upstream_states,
-                        state=throttled_state,
+                        state=task_states.get(task),
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),
                         context=dict(prefect.context, **task_contexts.get(task, {})),
+                        queues=task_queues,
                     )
                 else:
                     task_states[task] = executor.submit(
                         task_runner.run,
-                        state=throttled_state,
+                        state=task_states.get(task),
                         upstream_states=upstream_states,
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),

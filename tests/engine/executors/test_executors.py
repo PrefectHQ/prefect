@@ -1,4 +1,5 @@
 import pytest
+import tempfile
 import time
 
 import prefect
@@ -65,9 +66,9 @@ class TestLocalExecutor:
 
 
 class TestDaskExecutor:
-    def test_submit_and_wait(self):
+    @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+    def test_submit_and_wait(self, executor):
         to_compute = {}
-        executor = DaskExecutor()
         with executor.start():
             to_compute["x"] = executor.submit(lambda: 3)
             to_compute["y"] = executor.submit(lambda x: x + 1, to_compute["x"])
@@ -77,8 +78,8 @@ class TestDaskExecutor:
         assert computed["x"] == 3
         assert computed["y"] == 4
 
-    def test_submit_with_context(self):
-        executor = DaskExecutor()
+    @pytest.mark.parametrize("executor", ["threaded"], indirect=True)
+    def test_submit_with_context(self, executor):
         context_fn = lambda: prefect.context.get("abc")
         context = dict(abc="abc")
 
@@ -90,26 +91,37 @@ class TestDaskExecutor:
             context.clear()
             assert executor.wait(fut) == "abc"
 
-    def test_submit_with_context_requires_context_kwarg(self):
+    @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+    def test_submit_with_context_requires_context_kwarg(self, executor):
         with pytest.raises(TypeError) as exc:
-            executor = DaskExecutor()
             with executor.start():
                 executor.submit_with_context(lambda: 1)
         assert "missing 1 required keyword-only argument: 'context'" in str(exc.value)
 
-    @pytest.mark.xfail(reason="Timing tests are brittle")
-    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
-    def test_executor_implements_parallelism(self, scheduler):
-        executor = DaskExecutor(scheduler=scheduler)
+    @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+    def test_runs_in_parallel(self, executor):
+        num = 50
 
-        @prefect.task
-        def timed():
-            time.sleep(0.1)
-            return time.time()
+        def alice(fname):
+            for _ in range(num):
+                with open(fname, "a") as f:
+                    f.write("alice was here\n")
 
-        with prefect.Flow() as f:
-            a, b = timed(), timed()
+        def bob(fname):
+            for _ in range(num):
+                with open(fname, "a") as f:
+                    f.write("bob was here\n")
 
-        res = f.run(executor=executor, return_tasks=f.tasks)
-        times = [s.result for t, s in res.result.items()]
-        assert abs(times[0] - times[1]) < 0.1
+        with tempfile.NamedTemporaryFile() as f:
+            with executor.start() as client:
+                a = client.submit(alice, f.name)
+                b = client.submit(bob, f.name)
+                client.gather([a, b])
+
+            with open(f.name, "r") as ff:
+                output = ff.readlines()
+
+        alice_first = ["alice was here\n"] * num + ["bob was here\n"] * num
+        bob_first = ["bob was here\n"] * num + ["alice was here\n"] * num
+        assert output != alice_first
+        assert output != bob_first
