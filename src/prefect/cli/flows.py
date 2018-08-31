@@ -88,3 +88,14 @@ def push(id):
     return flow.environment.client.images.push(
         config_data["REGISTRY_URL"], tag=flow.environment.tag
     )
+
+
+@flows.command()
+@click.argument("command")
+def exec(command):
+    """
+    Send command to container
+    """
+    # This will send a command through the client to the server where it will exec into
+    # the pod running the container and run some command
+    pass
