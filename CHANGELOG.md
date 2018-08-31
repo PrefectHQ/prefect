@@ -3,8 +3,9 @@
 ## 0.4.0 <Badge text="development" type="warn">
 
 ### Major Features
-- Local parallelism with `DaskExecutor` (#151)
-- Resource throttling based on `tags` (#158)
+- Local parallelism with `DaskExecutor` (#151, #186)
+- Resource throttling based on `tags` (#158, #186)
+- `Task.map` for mapping tasks (#186)
 
 ### Minor Features
 - Use Netlify to deploy docs (#156)
@@ -16,6 +17,7 @@
 
 ### Breaking Changes
 - Cleaned up signatures of TaskRunner methods (#171)
+- Locally, Python 3.4 users can only run the `LocalExecutor` and `SynchronousExecutor` (#186)
 
 
 ## 0.3.0 <Badge text="alpha" type="warn">
