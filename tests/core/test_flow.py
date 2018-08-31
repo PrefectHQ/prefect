@@ -81,8 +81,11 @@ class TestCreateFlow:
         with pytest.raises(ValueError) as exc:
             f = Flow(throttle=dict(x=-5, y=0))
 
-        base_msg= 'Cannot throttle tags "{0}", "{1}" - an invalid value less than 1 was provided.'
-        assert str(exc.value) in [base_msg.format("x", "y"), base_msg.format("y", "x")] # for py34
+        base_msg = 'Cannot throttle tags "{0}", "{1}" - an invalid value less than 1 was provided.'
+        assert str(exc.value) in [
+            base_msg.format("x", "y"),
+            base_msg.format("y", "x"),
+        ]  # for py34
 
 
 def test_add_task_to_flow():
