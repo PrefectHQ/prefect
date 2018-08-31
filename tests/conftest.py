@@ -35,7 +35,7 @@ def sync():
 def multi():
     "Multi-threaded executor"
     with Client(processes=True) as client:
-        yield DaskExecutor(client.scheduler.address)
+        yield DaskExecutor(client.scheduler.address, processes=True)
 
 
 @pytest.fixture()

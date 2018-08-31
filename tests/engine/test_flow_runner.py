@@ -2,6 +2,7 @@ import datetime
 import queue
 import random
 import sys
+import tempfile
 import time
 
 import pytest
@@ -523,28 +524,34 @@ class TestOutputCaching:
 
 class TestTagThrottling:
     @pytest.mark.parametrize("executor", ["multi"], indirect=True)
-    def test_throttle_via_order(self, executor, monkeypatch):
-        @prefect.task(tags=["connection"])
-        def record_size():
-            time.sleep(1)
-            return time.time()
-
-        with Flow() as f:
+    def test_throttle_via_file_writes(self, executor):
+        @prefect.task(tags=["io"])
+        def alice(fname):
             for _ in range(10):
-                record_size()
+                with open(fname, "a") as f:
+                    f.write("alice was here\n")
 
-        uu = MagicMock()
-        # raises a TypeError because non-Exceptions can't be "excepted"
-        monkeypatch.setattr(prefect.engine.task_runner, "TornadoError", uu)
-        state = f.run(
-            throttle=dict(connection=1), executor=executor, return_tasks=f.tasks
-        )
-        assert state.is_failed()
-        assert isinstance(state.message, TypeError)
-        assert (
-            str(state.message)
-            == "catching classes that do not inherit from BaseException is not allowed"
-        )
+        @prefect.task(tags=["io"])
+        def bob(fname):
+            for _ in range(10):
+                with open(fname, "a") as f:
+                    f.write("bob was here\n")
+
+        with Flow() as flow:
+            fname = Parameter("fname")
+            alice(fname), bob(fname)
+
+        with tempfile.NamedTemporaryFile() as f:
+            state = flow.run(
+                throttle=dict(io=1), executor=executor, parameters=dict(fname=f.name)
+            )
+            assert state.is_successful()
+            with open(f.name, "r") as ff:
+                output = ff.readlines()
+
+        alice_first = ["alice was here\n"] * 10 + ["bob was here\n"] * 10
+        bob_first = ["bob was here\n"] * 10 + ["alice was here\n"] * 10
+        assert (output == alice_first) or (output == bob_first)
 
 
 def test_flow_runner_uses_user_provided_executor():
@@ -570,3 +577,41 @@ def test_flow_runner_captures_and_exposes_dask_errors(executor):
     assert state.is_failed()
     assert isinstance(state.message, TypeError)
     assert str(state.message) == "can't pickle _thread.lock objects"
+
+
+@pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+def test_flow_runner_allows_for_parallelism(executor):
+
+    if executor.processes:
+        pytest.skip(
+            "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
+        )
+
+    num = 50
+
+    @prefect.task
+    def alice(fname):
+        for _ in range(num):
+            with open(fname, "a") as f:
+                f.write("alice was here\n")
+
+    @prefect.task
+    def bob(fname):
+        for _ in range(num):
+            with open(fname, "a") as f:
+                f.write("bob was here\n")
+
+    with Flow() as flow:
+        fname = Parameter("fname")
+        alice(fname), bob(fname)
+
+    with tempfile.NamedTemporaryFile() as f:
+        state = flow.run(executor=executor, parameters=dict(fname=f.name))
+        assert state.is_successful()
+        with open(f.name, "r") as ff:
+            output = ff.readlines()
+
+    alice_first = ["alice was here\n"] * num + ["bob was here\n"] * num
+    bob_first = ["bob was here\n"] * num + ["alice was here\n"] * num
+    assert output != alice_first
+    assert output != bob_first
