@@ -7,7 +7,9 @@ import time
 
 import pytest
 
+import distributed
 from distributed import Client, Queue
+from distutils.version import LooseVersion
 
 import prefect
 from prefect.core import Flow, Parameter, Task
@@ -523,8 +525,13 @@ class TestOutputCaching:
 
 
 class TestTagThrottling:
-    @pytest.mark.parametrize("executor", ["multi"], indirect=True)
+    @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
     def test_throttle_via_file_writes(self, executor):
+        if executor.processes is False and LooseVersion(
+            distributed.__version__
+        ) < LooseVersion("1.23.0"):
+            pytest.skip("https://github.com/dask/distributed/issues/2220")
+
         @prefect.task(tags=["io"])
         def alice(fname):
             for _ in range(10):
