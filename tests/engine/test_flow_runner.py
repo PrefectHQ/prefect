@@ -123,10 +123,8 @@ def test_flow_runner_prevents_bad_throttle_values():
     with pytest.raises(ValueError) as exc:
         runner.run(throttle=dict(x=-5, y=0))
 
-    assert (
-        str(exc.value)
-        == 'Cannot throttle tags "x", "y" - an invalid value less than 1 was provided.'
-    )
+    base_msg= 'Cannot throttle tags "{0}", "{1}" - an invalid value less than 1 was provided.'
+    assert str(exc.value) in [base_msg.format("x", "y"), base_msg.format("y", "x")] # for py34
 
 
 @pytest.mark.skipif(
@@ -532,8 +530,8 @@ class TestTagThrottling:
         @prefect.task(tags=["io"])
         def record_times():
             res = []
-            pause = random.randint(0, 50)
-            for i in range(50):
+            pause = random.randint(0, 75)
+            for i in range(75):
                 if i == pause:
                     time.sleep(0.1)
                 res.append(time.time())
@@ -550,8 +548,8 @@ class TestTagThrottling:
         ]
         names = [name for name, time in sorted(times, key=lambda x: x[1])]
 
-        alice_first = ["alice"] * 50 + ["bob"] * 50
-        bob_first = ["bob"] * 50 + ["alice"] * 50
+        alice_first = ["alice"] * 75 + ["bob"] * 75
+        bob_first = ["bob"] * 75 + ["alice"] * 75
 
         assert (names == alice_first) or (names == bob_first)
 
@@ -619,8 +617,8 @@ def test_flow_runner_allows_for_parallelism_with_times(executor):
     @prefect.task
     def record_times():
         res = []
-        pause = random.randint(0, 50)
-        for i in range(50):
+        pause = random.randint(0, 75)
+        for i in range(75):
             if i == pause:
                 time.sleep(0.1)  # add a little noise
             res.append(time.time())
@@ -637,8 +635,8 @@ def test_flow_runner_allows_for_parallelism_with_times(executor):
     ]
     names = [name for name, time in sorted(times, key=lambda x: x[1])]
 
-    alice_first = ["alice"] * 50 + ["bob"] * 50
-    bob_first = ["bob"] * 50 + ["alice"] * 50
+    alice_first = ["alice"] * 75 + ["bob"] * 75
+    bob_first = ["bob"] * 75 + ["alice"] * 75
 
     assert names != alice_first
     assert names != bob_first
