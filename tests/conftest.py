@@ -1,11 +1,15 @@
 import pytest
+import sys
 from cryptography.fernet import Fernet
-from distributed import Client
+
 
 import prefect
-from prefect.engine.executors import DaskExecutor, LocalExecutor, SynchronousExecutor
+from prefect.engine.executors import LocalExecutor, SynchronousExecutor
 from prefect.utilities import tests
 
+if sys.version_info >= (3, 5):
+    from prefect.engine.executors import DaskExecutor
+    from distributed import Client
 
 # ----------------
 # set up executor fixtures
@@ -15,8 +19,11 @@ from prefect.utilities import tests
 @pytest.fixture(scope="module")
 def threaded():
     "Multi-threaded executor"
-    with Client(processes=False) as client:
-        yield DaskExecutor(client.scheduler.address)
+    if sys.version_info >= (3, 5):
+        with Client(processes=False) as client:
+            yield DaskExecutor(client.scheduler.address)
+    else:
+        pytest.skip("dask.distributed does not support Python 3.4")
 
 
 @pytest.fixture(scope="module")
@@ -34,8 +41,11 @@ def sync():
 @pytest.fixture(scope="module")
 def multi():
     "Multi-threaded executor"
-    with Client(processes=True) as client:
-        yield DaskExecutor(client.scheduler.address, processes=True)
+    if sys.version_info >= (3, 5):
+        with Client(processes=True) as client:
+            yield DaskExecutor(client.scheduler.address, processes=True)
+    else:
+        pytest.skip("dask.distributed does not support Python 3.4")
 
 
 @pytest.fixture()

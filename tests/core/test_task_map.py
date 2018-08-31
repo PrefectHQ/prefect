@@ -3,7 +3,6 @@ import time
 
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
-from prefect.engine.executors import DaskExecutor, Executor, SynchronousExecutor
 from prefect.utilities.tasks import task
 from prefect.utilities.tests import raise_on_exception
 

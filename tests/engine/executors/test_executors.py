@@ -1,9 +1,13 @@
 import pytest
+import sys
 import tempfile
 import time
 
 import prefect
-from prefect.engine.executors import DaskExecutor, Executor, LocalExecutor
+from prefect.engine.executors import Executor, Executor, LocalExecutor
+
+if sys.version_info >= (3, 5):
+    from prefect.engine.executors import DaskExecutor
 
 
 class TestBaseExecutor:
@@ -65,6 +69,9 @@ class TestLocalExecutor:
         assert LocalExecutor().wait(prefect) is prefect
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
+)
 class TestDaskExecutor:
     @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
     def test_submit_and_wait(self, executor):
@@ -100,6 +107,10 @@ class TestDaskExecutor:
 
     @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
     def test_runs_in_parallel(self, executor):
+        if executor.processes:
+            pytest.skip(
+                "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
+            )
         num = 50
 
         def alice(fname):
