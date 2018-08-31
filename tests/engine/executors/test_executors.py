@@ -1,4 +1,5 @@
 import pytest
+import random
 import sys
 import tempfile
 import time
@@ -107,32 +108,27 @@ class TestDaskExecutor:
 
     @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
     def test_runs_in_parallel(self, executor):
-        if executor.processes:
-            pytest.skip(
-                "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
-            )
-        num = 50
+        # related: "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
 
-        def alice(fname):
-            for _ in range(num):
-                with open(fname, "a") as f:
-                    f.write("alice was here\n")
+        def record_times():
+            res = []
+            pause = random.randint(0, 50)
+            for i in range(50):
+                if i == pause:
+                    time.sleep(0.1)  # add a little noise
+                res.append(time.time())
+            return res
 
-        def bob(fname):
-            for _ in range(num):
-                with open(fname, "a") as f:
-                    f.write("bob was here\n")
+        with executor.start() as client:
+            a = client.submit(record_times)
+            b = client.submit(record_times)
+            res = client.gather([a, b])
 
-        with tempfile.NamedTemporaryFile() as f:
-            with executor.start() as client:
-                a = client.submit(alice, f.name)
-                b = client.submit(bob, f.name)
-                client.gather([a, b])
+        times = [("alice", t) for t in res[0]] + [("bob", t) for t in res[1]]
+        names = [name for name, time in sorted(times, key=lambda x: x[1])]
 
-            with open(f.name, "r") as ff:
-                output = ff.readlines()
+        alice_first = ["alice"] * 50 + ["bob"] * 50
+        bob_first = ["bob"] * 50 + ["alice"] * 50
 
-        alice_first = ["alice was here\n"] * num + ["bob was here\n"] * num
-        bob_first = ["bob was here\n"] * num + ["alice was here\n"] * num
-        assert output != alice_first
-        assert output != bob_first
+        assert names != alice_first
+        assert names != bob_first
