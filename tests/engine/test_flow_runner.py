@@ -2,7 +2,6 @@ import datetime
 import queue
 import random
 import sys
-import tempfile
 import time
 
 import pytest
@@ -522,7 +521,7 @@ class TestOutputCaching:
 )
 class TestTagThrottling:
     @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
-    def test_throttle_via_file_writes(self, executor):
+    def test_throttle_via_time(self, executor):
         import distributed
 
         if executor.processes is False and LooseVersion(
@@ -531,32 +530,30 @@ class TestTagThrottling:
             pytest.skip("https://github.com/dask/distributed/issues/2220")
 
         @prefect.task(tags=["io"])
-        def alice(fname):
-            for _ in range(10):
-                with open(fname, "a") as f:
-                    f.write("alice was here\n")
-
-        @prefect.task(tags=["io"])
-        def bob(fname):
-            for _ in range(10):
-                with open(fname, "a") as f:
-                    f.write("bob was here\n")
+        def record_times():
+            res = []
+            pause = random.randint(0, 50)
+            for i in range(50):
+                if i == pause:
+                    time.sleep(0.1)
+                res.append(time.time())
+            return res
 
         with Flow() as flow:
-            fname = Parameter("fname")
-            alice(fname), bob(fname)
+            a, b = record_times(), record_times()
 
-        with tempfile.NamedTemporaryFile() as f:
-            state = flow.run(
-                throttle=dict(io=1), executor=executor, parameters=dict(fname=f.name)
-            )
-            assert state.is_successful()
-            with open(f.name, "r") as ff:
-                output = ff.readlines()
+        state = flow.run(throttle=dict(io=1), executor=executor, return_tasks=[a, b])
+        assert state.is_successful()
 
-        alice_first = ["alice was here\n"] * 10 + ["bob was here\n"] * 10
-        bob_first = ["bob was here\n"] * 10 + ["alice was here\n"] * 10
-        assert (output == alice_first) or (output == bob_first)
+        times = [("alice", t) for t in state.result[a].result] + [
+            ("bob", t) for t in state.result[b].result
+        ]
+        names = [name for name, time in sorted(times, key=lambda x: x[1])]
+
+        alice_first = ["alice"] * 50 + ["bob"] * 50
+        bob_first = ["bob"] * 50 + ["alice"] * 50
+
+        assert (names == alice_first) or (names == bob_first)
 
 
 def test_flow_runner_uses_user_provided_executor():
@@ -585,38 +582,63 @@ def test_flow_runner_captures_and_exposes_dask_errors(executor):
 
 
 @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
-def test_flow_runner_allows_for_parallelism(executor):
+def test_flow_runner_allows_for_parallelism_with_prints(capsys, executor):
 
-    if executor.processes:
-        pytest.skip(
-            "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
-        )
-
-    num = 50
+    # related:
+    # "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
 
     @prefect.task
-    def alice(fname):
-        for _ in range(num):
-            with open(fname, "a") as f:
-                f.write("alice was here\n")
+    def alice():
+        for _ in range(75):
+            print("alice")
 
     @prefect.task
-    def bob(fname):
-        for _ in range(num):
-            with open(fname, "a") as f:
-                f.write("bob was here\n")
+    def bob():
+        for _ in range(75):
+            print("bob")
 
     with Flow() as flow:
-        fname = Parameter("fname")
-        alice(fname), bob(fname)
+        alice(), bob()
 
-    with tempfile.NamedTemporaryFile() as f:
-        state = flow.run(executor=executor, parameters=dict(fname=f.name))
-        assert state.is_successful()
-        with open(f.name, "r") as ff:
-            output = ff.readlines()
+    state = flow.run(executor=executor)
+    assert state.is_successful()
+    captured = capsys.readouterr()
 
-    alice_first = ["alice was here\n"] * num + ["bob was here\n"] * num
-    bob_first = ["bob was here\n"] * num + ["alice was here\n"] * num
-    assert output != alice_first
-    assert output != bob_first
+    alice_first = ["alice"] * 75 + ["bob"] * 75
+    bob_first = ["bob"] * 75 + ["alice"] * 75
+    assert captured.out != alice_first
+    assert captured.out != bob_first
+
+
+@pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+def test_flow_runner_allows_for_parallelism_with_times(executor):
+
+    # related:
+    # "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
+
+    @prefect.task
+    def record_times():
+        res = []
+        pause = random.randint(0, 50)
+        for i in range(50):
+            if i == pause:
+                time.sleep(0.1)  # add a little noise
+            res.append(time.time())
+        return res
+
+    with Flow() as flow:
+        a, b = record_times(), record_times()
+
+    state = flow.run(executor=executor, return_tasks=[a, b])
+    assert state.is_successful()
+
+    times = [("alice", t) for t in state.result[a].result] + [
+        ("bob", t) for t in state.result[b].result
+    ]
+    names = [name for name, time in sorted(times, key=lambda x: x[1])]
+
+    alice_first = ["alice"] * 50 + ["bob"] * 50
+    bob_first = ["bob"] * 50 + ["alice"] * 50
+
+    assert names != alice_first
+    assert names != bob_first
