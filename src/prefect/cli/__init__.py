@@ -10,7 +10,7 @@ import sys
 import prefect
 
 from .flows import flows
-
+from .configure import configure
 
 @click.group()
 @click.option("--registry-path")
@@ -24,5 +24,5 @@ def cli(registry_path=None, registry_encryption_key=None):
             registry_path, encryption_key=registry_encryption_key
         )
 
-
 cli.add_command(flows)
+cli.add_command(configure)
