@@ -7,20 +7,13 @@ import time
 
 import pytest
 
-import distributed
-from distributed import Client, Queue
 from distutils.version import LooseVersion
 
 import prefect
 from prefect.core import Flow, Parameter, Task
 from prefect.engine import FlowRunner, signals
 from prefect.engine.cache_validators import duration_only
-from prefect.engine.executors import (
-    DaskExecutor,
-    Executor,
-    LocalExecutor,
-    SynchronousExecutor,
-)
+from prefect.engine.executors import Executor
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -524,9 +517,14 @@ class TestOutputCaching:
         assert flow_state.result[y].result == 100
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
+)
 class TestTagThrottling:
     @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
     def test_throttle_via_file_writes(self, executor):
+        import distributed
+
         if executor.processes is False and LooseVersion(
             distributed.__version__
         ) < LooseVersion("1.23.0"):
