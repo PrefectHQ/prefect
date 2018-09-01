@@ -203,7 +203,13 @@ class Task(Serializable, metaclass=SignatureValidator):
                 "in the active flow context. The copy will not retain those dependencies."
             )
 
-        return copy.copy(self)
+        new = copy.copy(self)
+
+        new.tags = copy.deepcopy(self.tags)
+        tags = set(prefect.context.get("_tags", set()))
+        new.tags.update(tags)
+
+        return new
 
     def __call__(
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object

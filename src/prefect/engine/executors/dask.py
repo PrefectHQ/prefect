@@ -50,7 +50,9 @@ class DaskExecutor(Executor):
         Creates a `dask.distributed.Client` and yields it.
         """
         try:
-            with Client(self.address, processes=self.processes) as client:
+            with Client(
+                self.address, processes=self.processes, **self.kwargs
+            ) as client:
                 self.client = client
                 yield self.client
         finally:
