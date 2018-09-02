@@ -59,8 +59,9 @@ class DotDict(MutableMapping):
         return self.__dict__[key]
 
     def __setitem__(self, key, value):
-        if hasattr(MutableMapping, key):
-            raise ValueError("no sir")
+        # prevent overwriting any critical attributes
+        if isinstance(key, str) and hasattr(MutableMapping, key):
+            raise ValueError('Invalid key: "{}"'.format(key))
         self.__dict__[key] = value
 
     def __setattr__(self, attr, value):
