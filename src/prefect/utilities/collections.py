@@ -76,6 +76,14 @@ class DotDict(MutableMapping):
     def __len__(self):
         return len(self.__dict__)
 
+    def __repr__(self) -> str:
+        if len(self) > 0:
+            return "<{}: {}>".format(
+                type(self).__name__, ", ".join(sorted(repr(k) for k in self.keys()))
+            )
+        else:
+            return "<{}>".format(type(self).__name__)
+
     def copy(self):
         "Returns a shallow copy of the current DotDict"
         return type(self)(self.__dict__.copy())
