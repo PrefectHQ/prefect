@@ -160,6 +160,14 @@ class TestDotDict:
         d = DotDict({1: 1, "a": 2})
         assert d[1] == 1 and d["a"] == 2
 
+    def test_repr_sorts_mixed_keys(self):
+        d = DotDict()
+        assert repr(d) == "<DotDict>"
+        d["a"] = 1
+        d[1] = 1
+        d["b"] = 1
+        assert repr(d) == "<DotDict: 'a', 'b', 1>"
+
     def test_keyerror_is_thrown_when_accessing_nonexistent_key(self):
         d = DotDict(data=5)
         with pytest.raises(KeyError):
