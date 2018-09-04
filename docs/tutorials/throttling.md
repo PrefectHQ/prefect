@@ -39,7 +39,7 @@ import sys
 
 @task(tags=["print"])
 def say_hi(name):
-    "print `name` 10 times."
+    """Prints `name` 10 times."""
     pause_at = random.randint(0, 10)
     for i in range(10):
         if i == pause_at:
@@ -74,7 +74,7 @@ with Flow(throttle={'print': 1}) as f:
 f.run(throttle={'print': 1})
 ```
 ::: warning Throttling is an upper bound
-To be clear, the throttle number you provide for each tag serves as an _upper bound_ on the number of tasks which can be run in parallel; it does not guarantee that ...
+To be clear, the throttle number you provide for each tag serves as an _upper bound_ on the number of tasks which can be run in parallel; it doesn't _guarantee_ any fixed amount of parallelism.
 :::
 
 Let's run our flow with default settings to see how this flow normally behaves:
