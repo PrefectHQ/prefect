@@ -16,8 +16,7 @@ INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 
 
 class Config(collections.DotDict):
-    def __repr__(self) -> str:
-        return "<Config: {}>".format(", ".join(sorted(self.keys())))
+    pass
 
 
 def interpolate_env_var(env_var: str) -> str:
