@@ -266,7 +266,9 @@ def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args(executor):
 
 
 @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
-def test_map_quietly_maps_smaller_length_task(executor):
+def test_map_behaves_like_zip_with_differing_length_results(executor):
+    "Tests that map stops combining elements after the smallest list is exhausted."
+
     @prefect.task
     def ll(n):
         return list(range(n))
@@ -288,7 +290,7 @@ def test_map_quietly_maps_smaller_length_task(executor):
     reason="Is sensitive to how dask.bag partitions -- occasionally passes."
 )
 @pytest.mark.parametrize("executor", ["sync"], indirect=True)
-def test_map_quietly_maps_smaller_length_task(executor):
+def test_synchronous_map_cannot_handle_mapping_different_length_results(executor):
     @prefect.task
     def ll(n):
         return list(range(n))
