@@ -17,7 +17,7 @@ if sys.version_info >= (3, 5):
 # for every test that needs a dask executor
 # ----------------
 @pytest.fixture(scope="module")
-def threaded():
+def mthread():
     "Multi-threaded executor"
     if sys.version_info >= (3, 5):
         with Client(processes=False) as client:
@@ -39,8 +39,8 @@ def sync():
 
 
 @pytest.fixture(scope="module")
-def multi():
-    "Multi-threaded executor"
+def mproc():
+    "Multi-processing executor"
     if sys.version_info >= (3, 5):
         with Client(processes=True) as client:
             yield DaskExecutor(client.scheduler.address, processes=True)
@@ -49,14 +49,14 @@ def multi():
 
 
 @pytest.fixture()
-def _switch(threaded, local, sync, multi):
+def _switch(mthread, local, sync, mproc):
     """
     A construct needed so we can parametrize the executor fixture.
 
     This isn't straightforward since each executor needs to be initialized
     in slightly different ways.
     """
-    execs = dict(threaded=threaded, local=local, sync=sync, multi=multi)
+    execs = dict(mthread=mthread, local=local, sync=sync, mproc=mproc)
     return lambda e: execs[e]
 
 
@@ -67,7 +67,7 @@ def executor(request, _switch):
     Parametrize your test by decorating:
         ```
         @pytest.mark.parametrize(
-            "executor", ["local", "sync", "multi", "threaded"], indirect=True
+            "executor", ["local", "sync", "mproc", "mthread"], indirect=True
         )
         ```
     or with some subset of executors that you want to use.

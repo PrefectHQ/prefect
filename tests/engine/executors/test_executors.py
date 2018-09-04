@@ -83,7 +83,7 @@ def test_importing_dask_raises_informative_import_error():
     sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
 )
 class TestDaskExecutor:
-    @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_submit_and_wait(self, executor):
         to_compute = {}
         with executor.start():
@@ -95,7 +95,7 @@ class TestDaskExecutor:
         assert computed["x"] == 3
         assert computed["y"] == 4
 
-    @pytest.mark.parametrize("executor", ["threaded"], indirect=True)
+    @pytest.mark.parametrize("executor", ["mthread"], indirect=True)
     def test_submit_with_context(self, executor):
         context_fn = lambda: prefect.context.get("abc")
         context = dict(abc="abc")
@@ -108,14 +108,14 @@ class TestDaskExecutor:
             context.clear()
             assert executor.wait(fut) == "abc"
 
-    @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_submit_with_context_requires_context_kwarg(self, executor):
         with pytest.raises(TypeError) as exc:
             with executor.start():
                 executor.submit_with_context(lambda: 1)
         assert "missing 1 required keyword-only argument: 'context'" in str(exc.value)
 
-    @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_runs_in_parallel(self, executor):
         # related: "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
 
