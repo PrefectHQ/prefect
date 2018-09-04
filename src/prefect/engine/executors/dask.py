@@ -1,8 +1,11 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import sys
+
 if sys.version_info < (3, 5):
-    raise ImportError("""The DaskExecutor is only locally compatible with Python 3.5+""")
+    raise ImportError(
+        """The DaskExecutor is only locally compatible with Python 3.5+"""
+    )
 
 import datetime
 from contextlib import contextmanager
@@ -15,12 +18,7 @@ import queue
 import warnings
 
 from prefect.engine.executors.base import Executor
-from prefect.utilities.executors import (
-    create_bagged_list,
-    dict_to_list,
-    state_to_list,
-    unpack_dict_to_bag,
-)
+from prefect.utilities.executors import dict_to_list
 
 
 class DaskExecutor(Executor):

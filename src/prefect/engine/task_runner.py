@@ -3,7 +3,6 @@
 import datetime
 import functools
 import logging
-from tornado.util import TimeoutError as TornadoError
 from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
 
 import prefect
@@ -156,12 +155,12 @@ class TaskRunner:
         )
 
         with prefect.context(context, _task_name=self.task.name):
-            tickets = []
             while True:
+                tickets = []
                 for q in queues:
                     try:
                         tickets.append(q.get(timeout=2))  # timeout after 2 seconds
-                    except TornadoError:
+                    except Exception:
                         for ticket, q in zip(tickets, queues):
                             q.put(ticket)
                 if len(tickets) == len(queues):
