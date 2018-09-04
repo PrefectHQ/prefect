@@ -71,6 +71,15 @@ class TestLocalExecutor:
 
 
 @pytest.mark.skipif(
+    sys.version_info >= (3, 5), reason="Only raised in Python 3.4"
+)
+def test_importing_dask_raises_informative_import_error():
+    with pytest.raises(ImportError) as exc:
+        from prefect.engine.executors.dask import DaskExecutor
+    assert exc.value.msg == 'The DaskExecutor is only locally compatible with Python 3.5+'
+
+
+@pytest.mark.skipif(
     sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
 )
 class TestDaskExecutor:
