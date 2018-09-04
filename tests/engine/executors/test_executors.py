@@ -117,6 +117,8 @@ class TestDaskExecutor:
 
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_runs_in_parallel(self, executor):
+        """This test is designed to have two tasks record and return their multiple execution times;
+        if the tasks run in parallel, we expect the times to be scrambled."""
         # related: "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
 
         def record_times():
