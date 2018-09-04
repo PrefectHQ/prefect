@@ -167,26 +167,28 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return tuple(inspect.signature(self.run).parameters.keys())
 
-    def run(self):  # type: ignore
+    def run(self) -> None:  # type: ignore
         """
-        The main entrypoint for tasks.
+        The `run()` method is called (with arguments, if appropriate) to run a task.
 
         In addition to running arbitrary functions, tasks can interact with
         Prefect in a few ways:
             1. Return an optional result. When this function runs successfully,
-                the task is considered successful and the result (if any) is
-                made available to downstream edges.
+                the task is considered successful and the result (if any) can be
+                made available to downstream tasks.
             2. Raise an error. Errors are interpreted as failure.
-            3. Raise a signal. Signals can include `FAIL`, `SUCCESS`, `WAIT`, etc.
+            3. Raise a signal. Signals can include `FAIL`, `SUCCESS`, RETRY`, `SKIP`, etc.
                 and indicate that the task should be put in the indicated
                 state.
                 - `FAIL` will lead to retries if appropriate
-                - `WAIT` will end execution and skip all downstream tasks with
-                    state WAITING_FOR_UPSTREAM (unless appropriate triggers
-                    are set). The task can be run again and should check
-                    context.is_waiting to see if it was placed in a WAIT.
+                - `SUCCESS` will cause the task to be marked successful
+                - `RETRY` will cause the task to be marked for retry, even if `max_retries`
+                    has been exceeded
+                - `SKIP` will skip the task and possibly propogate the skip state through the
+                    flow, depending on whether downstream tasks have
+                    `skip_on_upstream_skip=True`.
         """
-        raise NotImplementedError()
+        pass
 
     # Dependencies -------------------------------------------------------------
 

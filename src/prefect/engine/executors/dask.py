@@ -1,5 +1,12 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import sys
+
+if sys.version_info < (3, 5):
+    raise ImportError(
+        """The DaskExecutor is only locally compatible with Python 3.5+"""
+    )
+
 import datetime
 from contextlib import contextmanager
 from distributed import Client, Queue, worker_client
@@ -11,12 +18,7 @@ import queue
 import warnings
 
 from prefect.engine.executors.base import Executor
-from prefect.utilities.executors import (
-    create_bagged_list,
-    dict_to_list,
-    state_to_list,
-    unpack_dict_to_bag,
-)
+from prefect.utilities.executors import dict_to_list
 
 
 class DaskExecutor(Executor):
@@ -75,20 +77,29 @@ class DaskExecutor(Executor):
     def map(
         self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any
     ):
+        overlapping_keys = maps.keys() & upstream_states.keys()
+        if overlapping_keys - set([None]):
+            bad = ", ".join(overlapping_keys - set([None]))
+            raise ValueError(
+                "{0} ambiguously submitted for mapping and as an unmapped upstream state.".format(
+                    bad
+                )
+            )
+
         def mapper(maps, fn, *args, upstream_states, **kwargs):
-            non_keyed = upstream_states.pop(None, [])
             states = dict_to_list(maps)
 
             with worker_client() as client:
                 futures = []
                 for elem in states:
-                    upstream_states.update(elem)
-                    upstream_states[None] = (
-                        list(upstream_states.get(None, [])) + non_keyed
+                    upstreams = list(elem.pop(None, []))
+                    submitted_states = dict(upstream_states, **elem)
+                    submitted_states[None] = upstreams + list(
+                        upstream_states.get(None, [])
                     )
                     futures.append(
                         client.submit(
-                            fn, *args, upstream_states=upstream_states, **kwargs
+                            fn, *args, upstream_states=submitted_states, **kwargs
                         )
                     )
             return futures
@@ -115,7 +126,7 @@ class DaskExecutor(Executor):
             - Future: a Future-like object which represents the computation of `fn(*args, **kwargs)`
         """
 
-        return self.client.submit(fn, *args, **kwargs, pure=False)
+        return self.client.submit(fn, *args, pure=False, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """

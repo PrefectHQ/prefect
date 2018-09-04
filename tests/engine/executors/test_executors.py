@@ -72,11 +72,20 @@ class TestLocalExecutor:
         assert LocalExecutor().wait(prefect) is prefect
 
 
+@pytest.mark.skipif(sys.version_info >= (3, 5), reason="Only raised in Python 3.4")
+def test_importing_dask_raises_informative_import_error():
+    with pytest.raises(ImportError) as exc:
+        from prefect.engine.executors.dask import DaskExecutor
+    assert (
+        exc.value.msg == "The DaskExecutor is only locally compatible with Python 3.5+"
+    )
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
 )
 class TestDaskExecutor:
-    @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_submit_and_wait(self, executor):
         to_compute = {}
         with executor.start():
@@ -88,7 +97,7 @@ class TestDaskExecutor:
         assert computed["x"] == 3
         assert computed["y"] == 4
 
-    @pytest.mark.parametrize("executor", ["threaded"], indirect=True)
+    @pytest.mark.parametrize("executor", ["mthread"], indirect=True)
     def test_submit_with_context(self, executor):
         context_fn = lambda: prefect.context.get("abc")
         context = dict(abc="abc")
@@ -101,15 +110,17 @@ class TestDaskExecutor:
             context.clear()
             assert executor.wait(fut) == "abc"
 
-    @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_submit_with_context_requires_context_kwarg(self, executor):
         with pytest.raises(TypeError) as exc:
             with executor.start():
                 executor.submit_with_context(lambda: 1)
         assert "missing 1 required keyword-only argument: 'context'" in str(exc.value)
 
-    @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_runs_in_parallel(self, executor):
+        """This test is designed to have two tasks record and return their multiple execution times;
+        if the tasks run in parallel, we expect the times to be scrambled."""
         # related: "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
 
         def record_times():
