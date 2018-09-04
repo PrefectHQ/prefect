@@ -23,5 +23,5 @@ Overview of different triggers, such as `manual_only`, which allows for manual a
 ## [Flow Visualization](visualization.md)
 Visualize your Prefect flows with `flow.visualize()` and their local execution with the `BokehRunner`
 
-## [Task Throttling](throttling.md)
+## [Task Throttling](throttling.md)<Badge text="advanced" type="warn"/><Badge text="0.4.0+"/>
 Learn how to use local parallelism for executing flows, and how to leverage _task throttling_ to prevent too many tasks from being executed simultaneously
