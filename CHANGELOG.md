@@ -3,9 +3,9 @@
 ## 0.4.0 <Badge text="development" type="warn">
 
 ### Major Features
-- Local parallelism with `DaskExecutor` (#151, #186)
-- Resource throttling based on `tags` (#158, #186)
-- `Task.map` for mapping tasks (#186)
+- Local parallelism with `DaskExecutor` [#151](https://github.com/PrefectHQ/prefect/pull/151), [#186](https://github.com/PrefectHQ/prefect/pull/186)
+- Resource throttling based on `tags` [#158](https://github.com/PrefectHQ/prefect/pull/158), [#186](https://github.com/PrefectHQ/prefect/pull/186)
+- `Task.map` for mapping tasks [#186](https://github.com/PrefectHQ/prefect/pull/186)
 
 ### Minor Features
 - Use Netlify to deploy docs (#156)
@@ -17,7 +17,7 @@
 
 ### Breaking Changes
 - Cleaned up signatures of TaskRunner methods (#171)
-- Locally, Python 3.4 users can only run the `LocalExecutor` and `SynchronousExecutor` (#186)
+- Locally, Python 3.4 users can not run the more advanced parallel executors (`DaskExecutor`) [#186](https://github.com/PrefectHQ/prefect/pull/186)
 
 
 ## 0.3.0 <Badge text="alpha" type="warn">
