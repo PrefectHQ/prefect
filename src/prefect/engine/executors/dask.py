@@ -1,5 +1,9 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import sys
+if sys.version_info < (3, 5):
+    raise ImportError("""The DaskExecutor is only locally compatible with Python 3.5+""")
+
 import datetime
 from contextlib import contextmanager
 from distributed import Client, Queue, worker_client
@@ -113,7 +117,7 @@ class DaskExecutor(Executor):
             - Future: a Future-like object which represents the computation of `fn(*args, **kwargs)`
         """
 
-        return self.client.submit(fn, *args, **kwargs, pure=False)
+        return self.client.submit(fn, *args, pure=False, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """
