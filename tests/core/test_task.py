@@ -103,6 +103,11 @@ class TestCreateTask:
             Task(cache_validator=all_inputs)
 
 
+def test_task_produces_no_result():
+    t = Task()
+    assert t.run() is None
+
+
 def test_task_is_not_iterable():
     t = Task()
     with pytest.raises(TypeError):
