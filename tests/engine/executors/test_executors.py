@@ -1,8 +1,14 @@
 import pytest
+import random
+import sys
+import tempfile
 import time
 
 import prefect
-from prefect.engine.executors import DaskExecutor, Executor, LocalExecutor
+from prefect.engine.executors import Executor, Executor, LocalExecutor
+
+if sys.version_info >= (3, 5):
+    from prefect.engine.executors import DaskExecutor
 
 
 class TestBaseExecutor:
@@ -64,47 +70,76 @@ class TestLocalExecutor:
         assert LocalExecutor().wait(prefect) is prefect
 
 
+@pytest.mark.skipif(sys.version_info >= (3, 5), reason="Only raised in Python 3.4")
+def test_importing_dask_raises_informative_import_error():
+    with pytest.raises(ImportError) as exc:
+        from prefect.engine.executors.dask import DaskExecutor
+    assert (
+        exc.value.msg == "The DaskExecutor is only locally compatible with Python 3.5+"
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
+)
 class TestDaskExecutor:
-    def test_submit_and_wait(self):
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+    def test_submit_and_wait(self, executor):
         to_compute = {}
-        to_compute["x"] = DaskExecutor().submit(lambda: 3)
-        to_compute["y"] = DaskExecutor().submit(lambda x: x + 1, to_compute["x"])
-        computed = DaskExecutor().wait(to_compute)
+        with executor.start():
+            to_compute["x"] = executor.submit(lambda: 3)
+            to_compute["y"] = executor.submit(lambda x: x + 1, to_compute["x"])
+            computed = executor.wait(to_compute)
         assert "x" in computed
         assert "y" in computed
         assert computed["x"] == 3
         assert computed["y"] == 4
 
-    def test_submit_with_context(self):
-        executor = DaskExecutor()
+    @pytest.mark.parametrize("executor", ["mthread"], indirect=True)
+    def test_submit_with_context(self, executor):
         context_fn = lambda: prefect.context.get("abc")
         context = dict(abc="abc")
 
-        assert executor.wait(executor.submit(context_fn)) is None
-        with prefect.context(context):
-            assert executor.wait(executor.submit(context_fn)) == "abc"
-        fut = executor.submit_with_context(context_fn, context=context)
-        context.clear()
-        assert executor.wait(fut) == "abc"
+        with executor.start():
+            assert executor.wait(executor.submit(context_fn)) is None
+            with prefect.context(context):
+                assert executor.wait(executor.submit(context_fn)) == "abc"
+            fut = executor.submit_with_context(context_fn, context=context)
+            context.clear()
+            assert executor.wait(fut) == "abc"
 
-    def test_submit_with_context_requires_context_kwarg(self):
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+    def test_submit_with_context_requires_context_kwarg(self, executor):
         with pytest.raises(TypeError) as exc:
-            DaskExecutor().submit_with_context(lambda: 1)
+            with executor.start():
+                executor.submit_with_context(lambda: 1)
         assert "missing 1 required keyword-only argument: 'context'" in str(exc.value)
 
-    @pytest.mark.xfail(reason="Timing tests are brittle")
-    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
-    def test_executor_implements_parallelism(self, scheduler):
-        executor = DaskExecutor(scheduler=scheduler)
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+    def test_runs_in_parallel(self, executor):
+        """This test is designed to have two tasks record and return their multiple execution times;
+        if the tasks run in parallel, we expect the times to be scrambled."""
+        # related: "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
 
-        @prefect.task
-        def timed():
-            time.sleep(0.1)
-            return time.time()
+        def record_times():
+            res = []
+            pause = random.randint(0, 50)
+            for i in range(50):
+                if i == pause:
+                    time.sleep(0.1)  # add a little noise
+                res.append(time.time())
+            return res
 
-        with prefect.Flow() as f:
-            a, b = timed(), timed()
+        with executor.start() as client:
+            a = client.submit(record_times)
+            b = client.submit(record_times)
+            res = client.gather([a, b])
 
-        res = f.run(executor=executor, return_tasks=f.tasks)
-        times = [s.result for t, s in res.result.items()]
-        assert abs(times[0] - times[1]) < 0.1
+        times = [("alice", t) for t in res[0]] + [("bob", t) for t in res[1]]
+        names = [name for name, time in sorted(times, key=lambda x: x[1])]
+
+        alice_first = ["alice"] * 50 + ["bob"] * 50
+        bob_first = ["bob"] * 50 + ["alice"] * 50
+
+        assert names != alice_first
+        assert names != bob_first

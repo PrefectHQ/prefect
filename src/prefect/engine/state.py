@@ -17,7 +17,7 @@ The four types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, an
 `Skipped`.
 """
 import datetime
-from typing import Any, Dict, Iterable, List, Union
+from typing import Any, Dict, Union
 
 from prefect.utilities.json import Serializable
 
