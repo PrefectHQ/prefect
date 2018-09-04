@@ -391,7 +391,7 @@ class TestStartTasks:
 
 class TestInputCaching:
     @pytest.mark.parametrize(
-        "executor", ["local", "sync", "multi", "threaded"], indirect=True
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_retries_use_cached_inputs(self, executor):
         with Flow() as f:
@@ -414,7 +414,7 @@ class TestInputCaching:
         assert second_state.result[res].result == 1
 
     @pytest.mark.parametrize(
-        "executor", ["local", "sync", "multi", "threaded"], indirect=True
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_retries_only_uses_cache_data(self, executor):
         with Flow() as f:
@@ -432,7 +432,7 @@ class TestInputCaching:
         assert state.result[t2].result == 5
 
     @pytest.mark.parametrize(
-        "executor", ["local", "sync", "multi", "threaded"], indirect=True
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_retries_caches_parameters_as_well(self, executor):
         with Flow() as f:
@@ -459,7 +459,7 @@ class TestInputCaching:
         assert second_state.result[res].result == 1
 
     @pytest.mark.parametrize(
-        "executor", ["local", "sync", "multi", "threaded"], indirect=True
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_manual_only_trigger_caches_inputs(self, executor):
         with Flow() as f:
@@ -485,7 +485,7 @@ class TestInputCaching:
 
 class TestOutputCaching:
     @pytest.mark.parametrize(
-        "executor", ["local", "sync", "multi", "threaded"], indirect=True
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_providing_cachedstate_with_simple_example(self, executor):
         class TestTask(Task):
@@ -523,7 +523,7 @@ class TestOutputCaching:
     sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
 )
 class TestTagThrottling:
-    @pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_throttle_via_time(self, executor):
         import distributed
 
@@ -568,7 +568,7 @@ def test_flow_runner_uses_user_provided_executor():
             FlowRunner(flow=f).run(executor=Executor())
 
 
-@pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
 def test_flow_runner_captures_and_exposes_dask_errors(executor):
     q = queue.Queue()
 
@@ -584,7 +584,7 @@ def test_flow_runner_captures_and_exposes_dask_errors(executor):
     assert str(state.message) == "can't pickle _thread.lock objects"
 
 
-@pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
 def test_flow_runner_allows_for_parallelism_with_prints(capsys, executor):
 
     # related:
@@ -614,7 +614,7 @@ def test_flow_runner_allows_for_parallelism_with_prints(capsys, executor):
 
 
 @pytest.mark.xfail(reason="This test fails on CircleCI for Python 3.5+")
-@pytest.mark.parametrize("executor", ["multi", "threaded"], indirect=True)
+@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
 def test_flow_runner_allows_for_parallelism_with_times(executor):
 
     # related:
