@@ -182,7 +182,7 @@ def load_configuration(
 config = load_configuration(config_path=DEFAULT_CONFIG, env_var_prefix=ENV_VAR_PREFIX)
 
 # if user config exists, load and merge it with default config
-if os.path.isfile(config.general.user_config_path):
+if os.path.isfile(config.get("general", {}).get("user_config_path", "")):
     config = load_configuration(
         config_path=config.general.user_config_path,
         env_var_prefix=ENV_VAR_PREFIX,
