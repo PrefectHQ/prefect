@@ -5,6 +5,7 @@ from prefect.configuration import config
 import prefect.utilities
 from prefect.utilities.context import context
 
+from prefect.client import Client
 import prefect.schedules
 import prefect.serializers
 import prefect.triggers

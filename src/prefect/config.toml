@@ -4,7 +4,6 @@ api_server = "http://127.0.0.1:4200"
 graphql_server = "http://127.0.0.1:4242/graphql"
 
 
-
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
 level = "INFO"

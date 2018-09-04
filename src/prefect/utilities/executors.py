@@ -7,7 +7,8 @@ import dask.bag
 def dict_to_list(dd):
     """
     Given a dictionary of keys to States (or lists of States) which need to be
-    iterated over, effectively zips the values together and returns a list of
+    iterated over, effectively converts any states which return a list to a list of individual states and
+    zips the values together to return a list of
     dictionaries, with each key now associated to a single element.
 
     Example:
