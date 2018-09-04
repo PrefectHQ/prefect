@@ -49,6 +49,11 @@ def test_keys(config):
     assert "x" not in config
 
 
+def test_repr(config):
+    assert repr(config) == "<Config: 'env_vars', 'general', 'interpolation', 'logging'>"
+    assert repr(config.general) == "<Config: 'nested', 'x', 'y'>"
+
+
 def test_general(config):
     assert config.general.x == 1
     assert config.general.y == "hi"

@@ -1,0 +1,432 @@
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+
+import os
+
+import prefect
+from prefect.utilities import json
+from prefect.utilities.collections import to_dotdict
+
+
+class AuthorizationError(Exception):
+    pass
+
+
+class Client:
+    """
+    Client for communication with Prefect Cloud
+
+    If the arguments aren't specified the client initialization first checks the prefect
+    configuration and if the server is not set there it checks the current context. The
+    token will only be present in the current context.
+
+    Args:
+        - api_server (str, optional): Address for connection to the rest API
+        - graphql_server (str, optional): Address for connection to the GraphQL rest API
+        - token (str, optional): Authentication token server connection
+    """
+
+    def __init__(self, api_server=None, graphql_server=None, token=None):
+        if api_server is None:
+            api_server = prefect.config.server.get("api_server", None)
+
+            # Check context
+            if not api_server:
+                api_server = prefect.context.get("api_server", None)
+                if not api_server:
+                    raise ValueError("Could not determine API server.")
+        self._api_server = api_server
+
+        if graphql_server is None:
+            graphql_server = prefect.config.server.get("graphql_server", None)
+
+            # Check context
+            if not graphql_server:
+                graphql_server = prefect.context.get("graphql_server", None)
+
+                # Default to the API server
+                if not graphql_server:
+                    graphql_server = api_server
+        self._graphql_server = graphql_server
+
+        # Check context
+        if token is None:
+            token = prefect.context.get("token", None)
+        self._token = token
+
+        self.projects = Projects(client=self)
+        self.flows = Flows(client=self)
+        self.flow_runs = FlowRuns(client=self)
+        self.task_runs = TaskRuns(client=self)
+
+    # -------------------------------------------------------------------------
+    # Utilities
+
+    def _get(self, path, *, _json=True, _server=None, **params) -> dict:
+        """
+        Convenience function for calling the Prefect API with token auth and GET request
+
+        Args:
+            - path (str): the path of the API url. For example, to GET
+                http://prefect-server/v1/auth/login, path would be 'auth/login'.
+            - params (dict): GET parameters
+
+        Returns:
+            - dict: Dictionary representation of the request made
+        """
+        response = self._request(method="GET", path=path, params=params, server=_server)
+        if _json:
+            if response.text:
+                response = response.json()
+            else:
+                response = {}
+        return response
+
+    def _post(self, path, *, _json=True, _server=None, **params) -> dict:
+        """
+        Convenience function for calling the Prefect API with token auth and POST request
+
+        Args:
+            - path (str): the path of the API url. For example, to POST
+                http://prefect-server/v1/auth/login, path would be 'auth/login'.
+            - params (dict): POST parameters
+
+        Returns:
+            - dict: Dictionary representation of the request made
+        """
+        response = self._request(
+            method="POST", path=path, params=params, server=_server
+        )
+        if _json:
+            if response.text:
+                return response.json()
+            else:
+                response = {}
+        else:
+            return response
+
+    def _delete(self, path, *, _server=None, _json=True) -> dict:
+        """
+        Convenience function for calling the Prefect API with token auth and DELETE request
+
+        Args:
+            - path (str): the path of the API url. For example, to DELETE
+                http://prefect-server/v1/auth/login, path would be 'auth/login'
+
+        Returns:
+            - dict: Dictionary representation of the request made
+        """
+        response = self._request(method="DELETE", path=path, server=_server)
+        if _json:
+            if response.text:
+                response = response.json()
+            else:
+                response = {}
+        return response
+
+    def graphql(self, query, **variables) -> dict:
+        """
+        Convenience function for running queries against the Prefect GraphQL API
+
+        Args:
+            - query (str): A string representation of a graphql query to be executed
+            - **variables (kwarg): Variables to be filled into a query with the key being
+                equivalent to the variables that are accepted by the query
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+
+        Raises:
+            - ValueError if there are errors raised in the graphql query
+        """
+        result = self._post(
+            path="",
+            query=query,
+            variables=json.dumps(variables),
+            _server=self._graphql_server,
+        )
+
+        if "errors" in result:
+            raise ValueError(result["errors"])
+        else:
+            return to_dotdict(result).data
+
+    def _request(self, method, path, params=None, server=None):
+        """
+        Runs any specified request (GET, POST, DELETE) against the server
+
+        Args:
+            - method (str): The type of request to be made (GET, POST, DELETE)
+            - path (str): Path of the API URL
+            - params (dict, optional): Parameters used for the request
+            - server (str, optional): The server to make requests against, base API 
+                server is used if not specified
+
+        Returns:
+            - requests.models.Response: The response returned from the request
+
+        Raises:
+            - ValueError if the client token is not in the context (due to not being logged in)
+            - ValueError if a method is specified outside of the accepted GET, POST, DELETE
+            - requests.HTTPError if a status code is returned that is not `200` or `401`
+        """
+        # lazy import for performance
+        import requests
+
+        if server is None:
+            server = self._api_server
+
+        if self._token is None:
+            raise ValueError("Call Client.login() to set the client token.")
+
+        url = os.path.join(server, path.lstrip("/")).rstrip("/")
+
+        params = params or {}
+
+        # write this as a function to allow reuse in next try/except block
+        def request_fn():
+            headers = {"Authorization": "Bearer " + self._token}
+            if method == "GET":
+                response = requests.get(url, headers=headers, params=params)
+            elif method == "POST":
+                response = requests.post(url, headers=headers, json=params)
+            elif method == "DELETE":
+                response = requests.delete(url, headers=headers)
+            else:
+                raise ValueError("Invalid method: {}".format(method))
+
+            # Check if request returned a successful status
+            response.raise_for_status()
+
+            return response
+
+        # If a 401 status code is returned, refresh the login token
+        try:
+            return request_fn()
+        except requests.HTTPError as err:
+            if err.response.status_code == 401:
+                self.refresh_token()
+                return request_fn()
+            raise
+
+    # -------------------------------------------------------------------------
+    # Auth
+    # -------------------------------------------------------------------------
+
+    def login(self, email, password, account_slug=None, account_id=None):
+        """
+        Login to the server in order to gain access
+
+        Args:
+            - email (str): User's email on the platform
+            - password (str): User's password on the platform
+            - account_slug (str, optional): Slug that is unique to the user
+            - account_id (str, optional): Specific Account ID for this user to use
+
+        Returns:
+            - dict: Request with the list of accounts linked to this email/password combination
+                Will not return anything if a single account is logged in to
+
+        Raises:
+            - ValueError if unable to login to the server (request does not return `200`)
+        """
+
+        # lazy import for performance
+        import requests
+
+        url = os.path.join(self._api_server, "login")
+        response = requests.post(
+            url,
+            auth=(email, password),
+            json=dict(account_id=account_id, account_slug=account_slug),
+        )
+
+        # Load the current auth token if able to login
+        if not response.ok:
+            raise ValueError("Could not log in.")
+        self._token = response.json().get("token")
+
+        # User must specify a single account to access
+        if not (account_id or account_slug):
+            print("No account provided; returning available accounts.")
+            # Will need to be a graphql query
+            accounts = self._get("auth/accounts")
+            return accounts
+
+    def refresh_token(self):
+        """
+        Refresh the auth token for this user on the server. It is only valid for fifteen minutes.
+        """
+        # lazy import for performance
+        import requests
+
+        url = os.path.join(self._api_server, "auth/refresh")
+        response = requests.post(
+            url, headers={"Authorization": "Bearer " + self._token}
+        )
+        self._token = response.json().get("token")
+
+
+class ClientModule:
+
+    _path = ""
+
+    def __init__(self, client, name=None):
+        if name is None:
+            name = type(self).__name__
+        self._name = name
+        self._client = client
+
+    def __repr__(self):
+        return "<Client Module: {name}>".format(name=self._name)
+
+    def _get(self, path, **params):
+        path = path.lstrip("/")
+        return self._client._get(os.path.join(self._path, path), **params)
+
+    def _post(self, path, **data):
+        path = path.lstrip("/")
+        return self._client._post(os.path.join(self._path, path), **data)
+
+    def _delete(self, path, **params):
+        path = path.lstrip("/")
+        return self._client._delete(os.path.join(self._path, path), **params)
+
+    def _graphql(self, query, **variables):
+        return self._client.graphql(query=query, **variables)
+
+
+# -------------------------------------------------------------------------
+# Projects
+
+
+class Projects(ClientModule):
+    def create(self, name, account_id) -> dict:
+        """
+        Create a new project for this account
+
+        Args:
+            - name (str): The name for this new project
+            - account_id (str): A unique account identifier
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            mutation($account_id: String!, $name: String!) {
+                createProject(input: {
+                    account_id: $account_id,
+                    name: $name
+                }) {
+                    project {id}
+                }
+            }
+            """,
+            name=name,
+            account_id=account_id,
+        )
+
+
+# -------------------------------------------------------------------------
+# Flows
+
+
+class Flows(ClientModule):
+    def create(self, account_id, project_id, serialized_flow) -> dict:
+        """
+        Create a new flow on the server
+
+        Args:
+            - account_id (str): A unique account identifier
+            - project_id (str): A unique project identifier
+            - serialized_flow (dict): A json serialized version of a flow
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            mutation($account_id: String!, $project_id: String!, $serialized_flow: JSONString!) {
+                createFlow(input: {
+                    account_id: $account_id,
+                    project_id: $project_id,
+                    serialized_flow: $serialized_flow
+                }) {
+                    flow {id}
+                }
+            }
+            """,
+            account_id=account_id,
+            project_id=project_id,
+            serialized_flow=serialized_flow,
+        )
+
+
+# -------------------------------------------------------------------------
+# FlowRuns
+
+
+class FlowRuns(ClientModule):
+    def set_state(self, account_id, flow_run_id, state) -> dict:
+        """
+        Set a flow run state
+
+        Args:
+            - account_id (str): A unique account identifier
+            - flow_run_id (str): A unique flow_run identifier
+            - state (State): A prefect state object
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            mutation($account_id: String!, $flow_run_id: String!, $state: StateJSONString!) {
+                setFlowRunState(input: {
+                    account_id: $account_id,
+                    flow_run_id: $flow_run_id,
+                    state: $state
+                }) {
+                    flow_state {timestamp}
+                }
+            }
+            """,
+            account_id=account_id,
+            flow_run_id=flow_run_id,
+            state=json.dumps(state),
+        )
+
+
+# -------------------------------------------------------------------------
+# TaskRuns
+
+
+class TaskRuns(ClientModule):
+    def set_state(self, account_id, task_run_id, state) -> dict:
+        """
+        Set a task run state
+
+        Args:
+            - account_id (str): A unique account identifier
+            - task_run_id (str): A unique task run identifier
+            - state (State): A prefect state object
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            mutation($account_id: String!, $task_run_id: String!, $state: StateJSONString!) {
+                setTaskRunState(input: {
+                    account_id: $account_id,
+                    task_run_id: $task_run_id,
+                    state: $state
+                }) {
+                    task_state {timestamp}
+                }
+            }
+            """,
+            account_id=account_id,
+            task_run_id=task_run_id,
+            state=json.dumps(state),
+        )
