@@ -10,19 +10,16 @@ Environments will serve a big purpose on accompanying the execution lifecycle fo
 Prefect Server and due to ongoing development this file is subject to large changes.
 """
 
-import base64
 import subprocess
 import tempfile
 import textwrap
 from typing import Any, Iterable
 
-import cloudpickle
 import docker
 from cryptography.fernet import Fernet
 
 import prefect
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
-from prefect.utilities.tests import set_temporary_config
 
 
 class Secret(Serializable):

@@ -1,15 +1,18 @@
 import datetime
+import queue
 import random
 import sys
 import time
 
 import pytest
 
+from distutils.version import LooseVersion
+
 import prefect
 from prefect.core import Flow, Parameter, Task
 from prefect.engine import FlowRunner, signals
 from prefect.engine.cache_validators import duration_only
-from prefect.engine.executors import DaskExecutor, Executor, LocalExecutor
+from prefect.engine.executors import Executor
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -25,19 +28,7 @@ from prefect.engine.state import (
 )
 from prefect.triggers import manual_only
 from prefect.utilities.tests import raise_on_exception
-
-
-@pytest.fixture(
-    params=[
-        DaskExecutor(scheduler="synchronous"),
-        DaskExecutor(scheduler="threads"),
-        DaskExecutor(scheduler="processes"),
-        LocalExecutor(),
-    ],
-    ids=["dask-sync", "dask-threads", "dask-process", "local"],
-)
-def executor(request):
-    return request.param
+from unittest.mock import MagicMock
 
 
 class SuccessTask(Task):
@@ -119,6 +110,26 @@ def test_flow_runner_with_invalid_return_tasks():
     flow_runner = FlowRunner(flow=flow)
     with pytest.raises(ValueError):
         flow_runner.run(return_tasks=[1])
+
+
+def test_flow_runner_prevents_bad_throttle_values():
+    runner = FlowRunner(flow=prefect.Flow())
+    with pytest.raises(ValueError):
+        runner.run(throttle=dict(x=5, y=0))
+
+    with pytest.raises(ValueError):
+        runner.run(throttle=dict(x=-5, y=6))
+
+    with pytest.raises(ValueError) as exc:
+        runner.run(throttle=dict(x=-5, y=0))
+
+    base_msg = (
+        'Cannot throttle tags "{0}", "{1}" - an invalid value less than 1 was provided.'
+    )
+    assert str(exc.value) in [
+        base_msg.format("x", "y"),
+        base_msg.format("y", "x"),
+    ]  # for py34
 
 
 @pytest.mark.skipif(
@@ -390,6 +401,9 @@ class TestStartTasks:
 
 
 class TestInputCaching:
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
     def test_retries_use_cached_inputs(self, executor):
         with Flow() as f:
             a = CountTask()
@@ -410,6 +424,9 @@ class TestInputCaching:
         assert isinstance(second_state, Success)
         assert second_state.result[res].result == 1
 
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
     def test_retries_only_uses_cache_data(self, executor):
         with Flow() as f:
             t1 = Task()
@@ -425,6 +442,9 @@ class TestInputCaching:
         assert isinstance(state, Success)
         assert state.result[t2].result == 5
 
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
     def test_retries_caches_parameters_as_well(self, executor):
         with Flow() as f:
             x = Parameter("x")
@@ -449,6 +469,9 @@ class TestInputCaching:
         assert isinstance(second_state, Success)
         assert second_state.result[res].result == 1
 
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
     def test_manual_only_trigger_caches_inputs(self, executor):
         with Flow() as f:
             x = Parameter("x")
@@ -472,6 +495,9 @@ class TestInputCaching:
 
 
 class TestOutputCaching:
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
     def test_providing_cachedstate_with_simple_example(self, executor):
         class TestTask(Task):
             call_count = 0
@@ -504,94 +530,44 @@ class TestOutputCaching:
         assert flow_state.result[y].result == 100
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
+)
 class TestTagThrottling:
-    @pytest.mark.parametrize("num", [1, 2])
-    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
-    def test_throttle_via_order(self, scheduler, num):
-        global_exec = DaskExecutor(scheduler=scheduler)
-        executor = DaskExecutor(scheduler=scheduler)
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+    def test_throttle_via_time(self, executor):
+        import distributed
 
-        with global_exec.start():
-            global_q = global_exec.queue(0)
-            ticket_q = global_exec.queue(0)
+        if executor.processes is False and LooseVersion(
+            distributed.__version__
+        ) < LooseVersion("1.23.0"):
+            pytest.skip("https://github.com/dask/distributed/issues/2220")
 
-            @prefect.task(tags=["connection"])
-            def record_size(q, t):
-                t.put(0)  # each task records its connection
-                time.sleep(random.random() / 10)
-                q.put(t.qsize())  # and records the number of active connections
-                t.get()
+        @prefect.task(tags=["io"])
+        def record_times():
+            res = []
+            pause = random.randint(0, 75)
+            for i in range(75):
+                if i == pause:
+                    time.sleep(0.1)
+                res.append(time.time())
+            return res
 
-            with Flow() as f:
-                for _ in range(20):
-                    record_size(global_q, ticket_q)
+        with Flow() as flow:
+            a, b = record_times(), record_times()
 
-            f.run(throttle=dict(connection=num), executor=executor)
-            res = max([global_q.get() for _ in range(global_q.qsize())])
+        state = flow.run(throttle=dict(io=1), executor=executor, return_tasks=[a, b])
+        assert state.is_successful()
 
-        assert res == num
+        times = [("alice", t) for t in state.result[a].result] + [
+            ("bob", t) for t in state.result[b].result
+        ]
+        names = [name for name, time in sorted(times, key=lambda x: x[1])]
 
-    @pytest.mark.parametrize("num", [1, 2])
-    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
-    def test_throttle_multiple_tags(self, scheduler, num):
-        global_exec = DaskExecutor(scheduler=scheduler)
-        executor = DaskExecutor(scheduler=scheduler)
+        alice_first = ["alice"] * 75 + ["bob"] * 75
+        bob_first = ["bob"] * 75 + ["alice"] * 75
 
-        with global_exec.start():
-            global_q = global_exec.queue(0)
-            a_ticket_q = global_exec.queue(0)
-            b_ticket_q = global_exec.queue(0)
-
-            @prefect.task
-            def record_size(q, **kwargs):
-                for name, val in kwargs.items():
-                    val.put(0)  # each task records its connection
-                time.sleep(random.random() / 100)
-                for name, val in kwargs.items():
-                    q.put(
-                        (name, val.qsize())
-                    )  # and records the number of active connections
-                    val.get()
-
-            with Flow() as f:
-                for _ in range(10):
-                    a = record_size(global_q, a=a_ticket_q)
-                    a.tags = ["a"]
-                for _ in range(10):
-                    b = record_size(global_q, b=b_ticket_q)
-                    b.tags = ["b"]
-                for _ in range(10):
-                    c = record_size(global_q, a=a_ticket_q, b=b_ticket_q)
-                    c.tags = ["a", "b"]
-
-            f.run(throttle=dict(a=num, b=num + 1), executor=executor)
-            res = [global_q.get() for _ in range(global_q.qsize())]
-
-        a_res = [val for tag, val in res if tag == "a"]
-        b_res = [val for tag, val in res if tag == "b"]
-        assert max(a_res) <= num
-        assert max(b_res) <= num + 1
-
-    @pytest.mark.xfail(reason="Timing tests are brittle")
-    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
-    def test_extreme_throttling_prevents_parallelism(self, scheduler):
-        executor = DaskExecutor(scheduler=scheduler)
-
-        @prefect.task(tags=["there-can-be-only-one"])
-        def timed():
-            time.sleep(0.05)
-            return time.time()
-
-        with prefect.Flow() as f:
-            a, b = timed(), timed()
-
-        res = f.run(
-            executor=executor,
-            return_tasks=f.tasks,
-            throttle={"there-can-be-only-one": 1},
-        )
-        times = [s.result for t, s in res.result.items()]
-        assert abs(times[0] - times[1]) > 0.05
+        assert (names == alice_first) or (names == bob_first)
 
 
 def test_flow_runner_uses_user_provided_executor():
@@ -601,3 +577,83 @@ def test_flow_runner_uses_user_provided_executor():
     with raise_on_exception():
         with pytest.raises(NotImplementedError):
             FlowRunner(flow=f).run(executor=Executor())
+
+
+@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+def test_flow_runner_captures_and_exposes_dask_errors(executor):
+    q = queue.Queue()
+
+    @prefect.task
+    def put():
+        q.put(55)
+
+    f = Flow(tasks=[put])
+    state = f.run(executor=executor)
+
+    assert state.is_failed()
+    assert isinstance(state.message, TypeError)
+    assert str(state.message) == "can't pickle _thread.lock objects"
+
+
+@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+def test_flow_runner_allows_for_parallelism_with_prints(capsys, executor):
+
+    # related:
+    # "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
+
+    @prefect.task
+    def alice():
+        for _ in range(75):
+            print("alice")
+
+    @prefect.task
+    def bob():
+        for _ in range(75):
+            print("bob")
+
+    with Flow() as flow:
+        alice(), bob()
+
+    state = flow.run(executor=executor)
+    assert state.is_successful()
+    captured = capsys.readouterr()
+
+    alice_first = ["alice"] * 75 + ["bob"] * 75
+    bob_first = ["bob"] * 75 + ["alice"] * 75
+    assert captured.out != alice_first
+    assert captured.out != bob_first
+
+
+@pytest.mark.xfail(reason="This test fails on CircleCI for Python 3.5+")
+@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+def test_flow_runner_allows_for_parallelism_with_times(executor):
+
+    # related:
+    # "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
+
+    @prefect.task
+    def record_times():
+        res = []
+        pause = random.randint(0, 75)
+        for i in range(75):
+            if i == pause:
+                time.sleep(0.1)  # add a little noise
+            res.append(time.time())
+        return res
+
+    with Flow() as flow:
+        a, b = record_times(), record_times()
+
+    state = flow.run(executor=executor, return_tasks=[a, b])
+    assert state.is_successful()
+
+    times = [("alice", t) for t in state.result[a].result] + [
+        ("bob", t) for t in state.result[b].result
+    ]
+    names = [name for name, time in sorted(times, key=lambda x: x[1])]
+
+    alice_first = ["alice"] * 75 + ["bob"] * 75
+    bob_first = ["bob"] * 75 + ["alice"] * 75
+
+    assert names != alice_first
+    assert names != bob_first

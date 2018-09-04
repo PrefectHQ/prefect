@@ -3,9 +3,9 @@
 ## 0.4.0 <Badge text="development" type="warn">
 
 ### Major Features
-
-- Local parallelism with `DaskExecutor` - [#151](https://github.com/prefecthq/prefect/issues/151)
-- Resource throttling based on `tags` - [#158](https://github.com/prefecthq/prefect/issues/158)
+- Local parallelism with `DaskExecutor` [#151](https://github.com/PrefectHQ/prefect/issues/151), [#186](https://github.com/PrefectHQ/prefect/issues/186)
+- Resource throttling based on `tags` [#158](https://github.com/PrefectHQ/prefect/issues/158), [#186](https://github.com/PrefectHQ/prefect/issues/186)
+- `Task.map` for mapping tasks [#186](https://github.com/PrefectHQ/prefect/issues/186)
 
 ### Minor Features
 
@@ -19,8 +19,8 @@
 - `DotDicts` can have non-string keys - [#193](https://github.com/prefecthq/prefect/issues/193)
 
 ### Breaking Changes
-
 - Cleaned up signatures of `TaskRunner` methods - [#171](https://github.com/prefecthq/prefect/issues/171)
+- Locally, Python 3.4 users can not run the more advanced parallel executors (`DaskExecutor`) [#186](https://github.com/PrefectHQ/prefect/issues/186)
 
 ## 0.3.0 <Badge text="alpha" type="warn">
 
