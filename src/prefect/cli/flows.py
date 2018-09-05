@@ -10,6 +10,7 @@ import requests
 import toml
 
 import prefect
+from prefect.client import Client
 from prefect.core import registry
 from prefect.utilities import json as prefect_json
 
@@ -75,6 +76,7 @@ def push(id, path):
 
     if not config_data:
         click.echo("CLI not configured. Run 'prefect configure init'")
+        return
 
     flow = prefect.core.registry.load_flow(id)
 
@@ -93,11 +95,22 @@ def push(id, path):
 
 
 @flows.command()
-@click.argument("command")
-def exec(command):
+@click.option("--run", "-r", multiple=True)
+@click.argument("path", required=False)
+@click.argument("account_id")
+def exec(run, path, account_id):
     """
     Send command to container
     """
-    # This will send a command through the client to the server where it will exec into
-    # the pod running the container and run some command
-    pass
+    if not path:
+        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+
+    if Path(path).is_file():
+        config_data = toml.load(path)
+
+    if not config_data:
+        click.echo("CLI not configured. Run 'prefect configure init'")
+        return
+
+    if run:
+        Client().run_flow(flow_id=run, account_id=account_id)
