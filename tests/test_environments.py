@@ -67,69 +67,51 @@ def test_environment_build_error():
 
 
 def test_create_container():
-    container = ContainerEnvironment(image="test")
+    container = ContainerEnvironment(image="image", tag="tag")
     assert container
 
 
 def test_container_image():
-    container = ContainerEnvironment(image="test")
-    assert container.image == "test"
+    container = ContainerEnvironment(image="image", tag="tag")
+    assert container.image == "image"
 
 
 def test_container_tag():
-    container = ContainerEnvironment(image="test", tag="test_tag")
-    assert container.tag == "test_tag"
+    container = ContainerEnvironment(image="image", tag="tag")
+    assert container.tag == "tag"
 
 
 def test_container_tag_none():
-    container = ContainerEnvironment(image="test")
-    assert container.tag == "test"
+    container = ContainerEnvironment(image="image", tag=None)
+    assert container.tag == "image"
 
 
-@pytest.mark.skipif(os.getenv("SKIP_DOCKER_ENVIRONMENT_TESTS"))
-def test_build_image():
+def test_container_python_dependencies():
     container = ContainerEnvironment(
-        image="python:3.6-alpine", python_dependencies=["docker", "raven", "toml"]
+        image="image", tag=None, python_dependencies=["dependency"]
     )
-    image = container.build()
+    assert len(container.python_dependencies) == 1
+    assert container.python_dependencies[0] == "dependency"
+
+
+def test_container_client():
+    container = ContainerEnvironment(image="image", tag="tag")
+    assert container.client
+
+
+def test_build_image_process():
+
+    personal_access_token = Secret(name="PERSONAL_ACCESS_TOKEN")
+    personal_access_token.value = os.getenv("PERSONAL_ACCESS_TOKEN", None)
+
+    container = ContainerEnvironment(
+        image="python:3.6", tag="tag", secrets=[personal_access_token]
+    )
+    image = container.build(Flow())
     assert image
 
-
-@pytest.mark.skipif(os.getenv("SKIP_DOCKER_ENVIRONMENT_TESTS"))
-def test_run_container():
-    container = ContainerEnvironment(image="python:3.6-alpine")
-    container_running = container.run()
-    assert container_running
-
-
-@pytest.mark.skipif(os.getenv("SKIP_DOCKER_ENVIRONMENT_TESTS"))
-def test_check_pip_installs():
-    container = ContainerEnvironment(
-        image="python:3.6-alpine", python_dependencies=["docker"]
-    )
-    container_running = container.run(tty=True)
-
-    pip_output = container_running.exec_run("pip freeze")
-    assert b"docker" in pip_output[1]
-
-    container_running.kill()
-
-
-@pytest.mark.skipif(os.getenv("SKIP_DOCKER_ENVIRONMENT_TESTS"))
-def test_environment_variables():
-    secret = Secret("TEST")
-    secret.value = "test_value"
-
-    container = ContainerEnvironment(image="python:3.6-alpine", secrets=[secret])
-    container.build()
-    container_running = container.run(tty=True)
-
-    echo_output = container_running.exec_run(
-        "python -c 'import os; print(os.getenv(\"TEST\"))'"
-    )
-    assert b"test_value\n" == echo_output[1]
-
-    container_running.kill()
+    # Need to test running stuff in container, however circleci won't be able to build
+    # a container
 
 
 #################################

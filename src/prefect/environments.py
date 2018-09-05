@@ -114,10 +114,10 @@ class ContainerEnvironment(Environment):
         if tag is None:
             tag = image
 
-        self.image = image
-        self.tag = tag
+        self._image = image
+        self._tag = tag
         self._python_dependencies = python_dependencies
-        self.client = docker.from_env()
+        self._client = docker.from_env()
         self.last_container_id = None
 
         super().__init__(secrets=secrets)
@@ -128,26 +128,38 @@ class ContainerEnvironment(Environment):
         return self._python_dependencies
 
     @property
+    def image(self) -> str:
+        """Get the container's base image"""
+        return self._image
+
+    @property
     def tag(self) -> str:
         """Get the container's tag"""
-        return self.tag
+        return self._tag
 
     @property
     def client(self) -> "docker.client.DockerClient":
         """Get the environment's client"""
-        return self.client
+        return self._client
 
     def build(self, flow) -> tuple:
         """Build the Docker container
 
         Args:
-            - None
+            - flow (prefect.Flow): Flow to be placed in container
 
         Returns:
             - tuple with (`docker.models.images.Image`, iterable logs)
 
         """
         with tempfile.TemporaryDirectory() as tempdir:
+
+            # Write temp file of serialized registry to same location of Dockerfile
+            serialized_registry = LocalEnvironment().build(flow)
+            self.serialized_registry_to_file(
+                serialized_registry=serialized_registry, directory=tempdir
+            )
+
             self.pull_image()
             self.create_dockerfile(directory=tempdir)
 
@@ -216,12 +228,13 @@ class ContainerEnvironment(Environment):
             # Generate the creation of environment variables from Secrets
             env_vars = ""
             if self.secrets:
-                env_vars += "ENV "
                 for secret in self.secrets:
-                    env_vars += "{}={} \\\n".format(secret.name, secret.value)
+                    env_vars += "ENV {}={}\n".format(secret.name, secret.value)
 
             # Due to prefect being a private repo it currently will require a
-            # personal access token. Once pip installable this will change
+            # personal access token. Once pip installable this will change and there won't
+            # be a need for the personal access token or git anymore.
+            # Note: this currently prevents alpine images from being used
 
             file_contents = textwrap.dedent(
                 """\
@@ -232,6 +245,10 @@ class ContainerEnvironment(Environment):
                 {}
                 {}
 
+                RUN apt-get -qq -y update && apt-get -qq -y install --no-install-recommends --no-install-suggests git
+
+                COPY registry registry
+
                 RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN pip install -e prefect
             """.format(
@@ -240,6 +257,24 @@ class ContainerEnvironment(Environment):
             )
 
             dockerfile.write(file_contents)
+
+    def serialized_registry_to_file(
+        self, serialized_registry: bytes, directory: str = None
+    ) -> None:
+        """
+        Write a serialized registry to a temporary file so it can be added to the container
+
+        Args:
+            - serialized_registry (bytes): The encrypted and pickled flow registry
+            - directory (str, optional): A directory where the Dockerfile will be created,
+            if no directory is specified is will be created in the current working directory
+
+        Returns:
+            - None
+        """
+        path = "{}/registry".format(directory)
+        with open(path, "wb+") as registry_file:
+            registry_file.write(serialized_registry)
 
 
 class LocalEnvironment(Environment):
