@@ -212,7 +212,7 @@ class Client:
     # Auth
     # -------------------------------------------------------------------------
 
-    def login(self, email, password, account_slug=None, account_id=None):
+    def login(self, email, password, account_slug=None, account_id=None) -> dict:
         """
         Login to the server in order to gain access
 
@@ -252,7 +252,7 @@ class Client:
             accounts = self._get("auth/accounts")
             return accounts
 
-    def refresh_token(self):
+    def refresh_token(self) -> None:
         """
         Refresh the auth token for this user on the server. It is only valid for fifteen minutes.
         """
@@ -263,6 +263,35 @@ class Client:
         response = requests.post(
             url, headers={"Authorization": "Bearer " + self._token}
         )
+        self._token = response.json().get("token")
+
+    # -------------------------------------------------------------------------
+    # Execution
+    # -------------------------------------------------------------------------
+
+    def run_flow(self, flow_id: str, account_id: str) -> None:
+        """
+        Run the flow on the server
+
+        Args:
+            - flow_id (str): ID of a flow to be run
+            - account_id (str): Specific Account ID for this user to use
+
+        Returns:
+            - None
+
+        Raises:
+            - ValueError if unable to run flow on the server (request does not return `200`)
+        """
+
+        url = os.path.join(self._api_server, "run_flow")
+        response = self._request(
+            method="POST", path=url, params=dict(flow_id=flow_id, account_id=account_id)
+        )
+
+        # Load the current auth token if able to run flow
+        if not response.ok:
+            raise ValueError("Could not run flow {}".format(flow_id))
         self._token = response.json().get("token")
 
 

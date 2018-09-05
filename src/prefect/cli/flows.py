@@ -7,6 +7,7 @@ import sys
 import click
 import docker
 import requests
+import toml
 
 import prefect
 from prefect.core import registry
@@ -61,15 +62,16 @@ def build(id):
 
 @flows.command()
 @click.argument("id")
-def push(id):
+@click.argument("path", required=False)
+def push(id, path):
     """
     Push a flow's container environment to a registry
     """
-    config_file_path = "{}/prefect_cloud_configuration".format(sys.exec_prefix)
+    if not path:
+        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
 
-    if Path(config_file_path).is_file():
-        with open(config_file_path, "r+") as config_file:
-            config_data = json.load(config_file)
+    if Path(path).is_file():
+        config_data = toml.load(path)
 
     if not config_data:
         click.echo("CLI not configured. Run 'prefect configure init'")
