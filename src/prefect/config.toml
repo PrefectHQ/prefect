@@ -1,3 +1,9 @@
+[general]
+
+# the location of the user's config file
+user_config_path = "$HOME/.prefect/config.toml"
+
+
 [server]
 # the Prefect Server address
 api_server = "http://127.0.0.1:4200"
