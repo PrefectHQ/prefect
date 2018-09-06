@@ -1,8 +1,7 @@
 import datetime
 import uuid
 from contextlib import contextmanager
-from functools import wraps
-from typing import Any, Callable, Dict, Iterable, List, TypeVar, Union
+from typing import Any, Callable, Dict, Iterable
 
 import prefect
 from prefect.utilities.json import Serializable
@@ -29,6 +28,23 @@ class Executor(Serializable):
     def map(
         self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any
     ) -> Any:
+        """
+        Submit a function to be mapped over.
+
+        Args:
+            - fn (Callable): function which is being submitted for execution
+            - *args (Any): arguments to be passed to `fn` with each call
+            - maps (dict): dictionary of keyword name -> [State] which represent
+                the arguments to map `fn` over.  The special key `None` is reserved for
+                a list of upstream dependencies which do not have any associated `key`
+            - upstream_states ([State]): a list of upstream dependencies which
+                are not keyword arguments to be passed on each call
+            - **kwargs (Any): keyword arguments to be passed to `fn` with each
+                call
+
+        Returns:
+            - [Futures]: an iterable of future-like objects
+        """
         raise NotImplementedError()
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
@@ -61,7 +77,8 @@ class Executor(Serializable):
 
     def queue(self, maxsize=0):
         """
-        Creates a new executor-compatibile queue object.
+        Creates an executor-compatible Queue object which can share state
+        across tasks.
 
         Args:
             - maxsize (int): maxsize of the queue; defaults to 0 (infinite)

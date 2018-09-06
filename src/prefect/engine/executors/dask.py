@@ -1,62 +1,47 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import sys
+
+if sys.version_info < (3, 5):
+    raise ImportError(
+        """The DaskExecutor is only locally compatible with Python 3.5+"""
+    )
+
 import datetime
 from contextlib import contextmanager
-from multiprocessing import Manager
+from distributed import Client, Queue, worker_client
 from typing import Any, Callable, Iterable
 
 import dask
 import dask.bag
 import queue
+import warnings
 
 from prefect.engine.executors.base import Executor
-
-
-@dask.delayed
-def state_to_list(s):
-    "Converts a State `s` with a list as its result to a list of states of the same type"
-    if isinstance(s, list):
-        return s
-    return [type(s)(result=elem) for elem in s.result]
-
-
-@dask.delayed
-def bagged_list(ss):
-    """Converts a list of states, each of which returns a list of the same size, to
-    a list of lists of states.
-    E.g. [State(result=[1, 2]), State(result=[7, 8])] -> [[State(result=1), State(result=7)], [State(result=2), State(result=8)]]
-    """
-    expanded = [[type(s)(result=elem) for elem in s.result] for s in ss]
-    return [list(zz) for zz in zip(*expanded)]
-
-
-def unpack_dict_to_bag(*other, upstreams=None, **kwargs):
-    "Convenience function for packaging up all keywords into a dictionary"
-    bag = list(other) or upstreams or []
-    return dict({None: bag}, **kwargs)
-
-
-def create_bagged_list(mapped, unmapped):
-    to_bag = [s for s in mapped if not isinstance(s, dask.bag.Bag)]
-    upstreams = dask.bag.map(
-        lambda *args, x: list(args) + x,
-        *[s for s in mapped + unmapped if s not in to_bag],
-        x=dask.bag.from_delayed(bagged_list(to_bag)) if to_bag else []
-    )
-    return upstreams
+from prefect.utilities.executors import dict_to_list
 
 
 class DaskExecutor(Executor):
     """
-    An executor that runs all functions synchronously using `dask`.
+    An executor that runs all functions using the `dask.distributed` scheduler on
+    a local dask cluster.  If you already have one running, simply provide the
+    address of the scheduler upon initialization; otherwise, one will be created
+    (and subsequently torn down) within the `start()` contextmanager.
 
     Args:
-        - scheduler (string, optional): which dask scheduler to use; defaults to
-            `"synchronous"`.  Other available options are `"threads"` for multithreading and `"processes"` for multiprocessing.
+        - address (string, optional): address of a currently running dask
+            scheduler; defaults to `None`
+        - processes (bool, optional): whether to use multiprocessing or not
+            (computations will still be multithreaded). Ignored if address is provided.
+            Defaults to `False`.
+        - **kwargs (dict, optional): additional kwargs to be passed to the
+            `dask.distributed.Client` upon initialization (e.g., `n_workers`)
     """
 
-    def __init__(self, scheduler="synchronous"):
-        self.scheduler = scheduler
+    def __init__(self, address=None, processes=False, **kwargs):
+        self.address = address
+        self.processes = processes
+        self.kwargs = kwargs
         super().__init__()
 
     @contextmanager
@@ -64,92 +49,95 @@ class DaskExecutor(Executor):
         """
         Context manager for initializing execution.
 
-        Configures `dask` to run using the provided scheduler and yields the `dask.config` contextmanager.
+        Creates a `dask.distributed.Client` and yields it.
         """
         try:
-            if self.scheduler == "processes":
-                self.manager = Manager()
-
-            with dask.config.set(scheduler=self.scheduler) as cfg:
-                yield cfg
-
+            with Client(
+                self.address, processes=self.processes, **self.kwargs
+            ) as client:
+                self.client = client
+                yield self.client
         finally:
-            if self.scheduler == "processes":
-                self.manager.shutdown()
-                del self.manager
+            self.client = None
 
-    def queue(self, maxsize=0):
-        if self.scheduler == "processes":
-            q = self.manager.Queue(maxsize=maxsize)
-        else:
-            q = queue.Queue(maxsize=maxsize)
+    def queue(self, maxsize=0, client=None):
+        """
+        Creates an executor-compatible Queue object which can share state
+        across tasks.
 
+        Args:
+            - maxsize (int, optional): `maxsize` for the Queue; defaults to 0
+                (interpreted as no size limitation)
+            - client (dask.distributed.Client, optional): which client to
+                associate the Queue with
+        """
+        q = Queue(maxsize=maxsize, client=client or self.client)
         return q
 
     def map(
         self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any
-    ) -> dask.bag:
-        mapped_non_keyed = maps.pop(None, [])
-        non_keyed = upstream_states.pop(None, [])
+    ):
+        overlapping_keys = maps.keys() & upstream_states.keys()
+        if overlapping_keys - set([None]):
+            bad = ", ".join(overlapping_keys - set([None]))
+            raise ValueError(
+                "{0} ambiguously submitted for mapping and as an unmapped upstream state.".format(
+                    bad
+                )
+            )
 
-        # every task which is being mapped over needs its state represented as a
-        # dask.bag; there are two situations: 1.) the task being mapped over is
-        # itself a result of a mapped task, in which case it will already be a
-        # bag 2.) the task being mapped over will return a list, in which case
-        # we need to pull apart the list into a list of states and then a dask.bag
-        needs_bagging = {
-            k: dask.bag.from_delayed(state_to_list(v))
-            for k, v in maps.items()
-            if k in maps and not isinstance(v, dask.bag.Bag)
-        }
-        maps.update(needs_bagging)
-        upstream_states.update(maps)
+        def mapper(maps, fn, *args, upstream_states, **kwargs):
+            states = dict_to_list(maps)
 
-        if mapped_non_keyed:
-            # if there are mapped tasks that don't belong to a keyed Edge,
-            # we must convert them to bags
-            upstreams = create_bagged_list(mapped_non_keyed, non_keyed)
-            other = []
-        else:
-            # otherwise, non_keyed is a simple list of Delayed objects
-            # which we must unpack so that `dask.bag.map()` knows they're there
-            # (otherwise dask.bag.map would treat non_keyed as a list and never
-            # compute them)
-            # TODO: mapping a task with non-mapped upstream tasks
-            # causes a bottleneck in the execution model
-            other, upstreams = non_keyed, None
+            with worker_client() as client:
+                futures = []
+                for elem in states:
+                    upstreams = list(elem.pop(None, []))
+                    submitted_states = dict(upstream_states, **elem)
+                    submitted_states[None] = upstreams + list(
+                        upstream_states.get(None, [])
+                    )
+                    futures.append(
+                        client.submit(
+                            fn, *args, upstream_states=submitted_states, **kwargs
+                        )
+                    )
+            return futures
 
-        bagged_states = dask.bag.map(
-            unpack_dict_to_bag, *other, upstreams=upstreams, **upstream_states
+        future_list = self.client.submit(
+            mapper, maps, fn, *args, upstream_states=upstream_states, **kwargs
         )
-
-        return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
+        ## gather is needed simply to convert the future_list -> list
+        ## since more futures were submitted within the function
+        ## this will not block for the futures contained in that list
+        return self.client.gather(future_list)
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """
-        Submit a function to the executor for execution. Returns a `dask.delayed` object.
+        Submit a function to the executor for execution. Returns a Future object.
 
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
+            - context (dict): `prefect.utilities.Context` to be used in function execution
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
-            - dask.delayed: a `dask.delayed` object which represents the computation of `fn(*args, **kwargs)`
+            - Future: a Future-like object which represents the computation of `fn(*args, **kwargs)`
         """
-        return dask.delayed(fn)(*args, **kwargs)
+
+        return self.client.submit(fn, *args, pure=False, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """
-        Resolves the `dask.delayed` objects to their values. Blocks until the computation is complete.
+        Resolves the Future objects to their values. Blocks until the computation is complete.
 
         Args:
-            - futures (Iterable): iterable of `dask.delayed` objects to compute
+            - futures (Iterable): iterable of future-like objects to compute
             - timeout (datetime.timedelta): maximum length of time to allow for
                 execution
 
         Returns:
             - Iterable: an iterable of resolved futures
         """
-        computed = dask.compute(futures)
-        return computed[0]
+        return self.client.gather(futures)
