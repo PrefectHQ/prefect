@@ -4,7 +4,7 @@ import subprocess
 
 from prefect import Flow
 from prefect.engine import signals
-from prefect.tasks.core.shell import ShellTask
+from prefect.tasks.shell import ShellTask
 
 
 def test_shell_initializes_and_runs_basic_cmd():
