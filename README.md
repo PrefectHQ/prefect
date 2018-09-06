@@ -76,7 +76,7 @@ Open [http://localhost:8080](http://localhost:8080) to see the documentation.
 `Prefect` auto-generates markdown files from the package's docstrings, which [VuePress](https://vuepress.vuejs.org/) compiles into static html. In order for docstrings to compile correctly, please follow the following rules:
 
 - all documentation about class initialization should go into the class docstring, _not_ the `__init__` method docstring
-- argument and return lists should be formatted as markdown lists with colons denoting the beginning of a description `- name (type):` For example:
+- argument, return and raise lists should be formatted as markdown lists with colons denoting the beginning of a description `- name (type):` For example:
 
 ```python
 def function(x: int, y: float, z: str = None):
@@ -94,6 +94,9 @@ def function(x: int, y: float, z: str = None):
 
     Returns:
         - None
+
+    Raises:
+        - ValueError: if `x == 0`
     """
 ```
 

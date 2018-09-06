@@ -3,20 +3,7 @@
 import datetime
 import functools
 import logging
-import types
-import uuid
-from contextlib import contextmanager
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    MutableMapping,
-    Union,
-    Set,
-    Optional,
-)
+from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
 
 import prefect
 from prefect.core import Task
@@ -24,7 +11,6 @@ from prefect.engine import signals
 from prefect.engine.state import (
     CachedState,
     Failed,
-    MessageType,
     Pending,
     Retrying,
     Running,
@@ -169,15 +155,16 @@ class TaskRunner:
         )
 
         with prefect.context(context, _task_name=self.task.name):
-            tickets = []
             while True:
+                tickets = []
                 for q in queues:
-                    tickets.append(q.get(timeout=2))  # timeout after 2 seconds
+                    try:
+                        tickets.append(q.get(timeout=2))  # timeout after 2 seconds
+                    except Exception:
+                        for ticket, q in zip(tickets, queues):
+                            q.put(ticket)
                 if len(tickets) == len(queues):
                     break
-                else:  # release tickets
-                    for ticket, q in zip(tickets, queues):
-                        q.put(ticket)
 
             try:
                 state = self.get_pre_run_state(

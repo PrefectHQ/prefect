@@ -4,7 +4,6 @@ api_server = "http://127.0.0.1:4200"
 graphql_server = "http://127.0.0.1:4242/graphql"
 
 
-
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
 level = "INFO"
@@ -47,5 +46,5 @@ load_on_startup = ""
 
 [engine]
 # the default executor for all Flow runs, specified using a full path
-executor = "prefect.engine.executors.DaskExecutor"
+executor = "prefect.engine.executors.SynchronousExecutor"
 
