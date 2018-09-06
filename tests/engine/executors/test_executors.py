@@ -4,6 +4,8 @@ import sys
 import tempfile
 import time
 
+from unittest.mock import MagicMock
+
 import prefect
 from prefect.engine.executors import Executor, Executor, LocalExecutor
 
@@ -143,3 +145,12 @@ class TestDaskExecutor:
 
         assert names != alice_first
         assert names != bob_first
+
+    def test_init_kwargs_are_passed_to_init(self, monkeypatch):
+        client = MagicMock()
+        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+        executor = DaskExecutor(test_kwarg="test_value")
+        with executor.start():
+            pass
+        assert client.called
+        assert client.call_args[-1]["test_kwarg"] == "test_value"

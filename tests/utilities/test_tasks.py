@@ -102,6 +102,16 @@ def test_tag_contextmanager_works_with_task_decorator():
     assert other.tags == {"chris", "default"}
 
 
+def test_copying_then_setting_tags_doesnt_leak_backwards():
+    with Flow():
+        t1 = Task()
+        with tasks.tags("init-tag"):
+            t2 = t1.copy()
+
+    assert t2.tags == {"init-tag"}
+    assert t1.tags == set()
+
+
 def test_setting_tags_then_calling_copies_tags():
     with tasks.tags("init-tag"):
         t1 = Task()
