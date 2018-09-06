@@ -1,6 +1,6 @@
 # Core Concepts
 
-Prefect provides a number of building blocks that can be combined to create sophisticated data applications.
+Prefect provides a number of core building blocks that can be combined to create sophisticated data applications.
 
 ## Tasks
 
@@ -127,7 +127,7 @@ flow.set_dependencies(
 flow.visualize()
 ```
 
-![](./assets/concepts/imperative_flow_example.png)
+![](/assets/concepts/imperative_flow_example.png)
 
 ::: tip
 `flow.set_dependencies()` and `task.set_dependencies()` (the latter is only available inside an active flow context) are the main entrypoints for the imperative API. Flows also provide some lower-level methods like `add_task()` and `add_edge()` that can be used to manipulate the graph directly.
@@ -195,62 +195,3 @@ with Flow() as flow:
 flow.run(parameters=dict(x=1)) # prints 2
 flow.run(parameters=dict(x=100)) # prints 101
 ```
-
-## Signals
-Prefect does its best to infer the state of a running task. If the `run()` method succeeds, Prefect sets the state to `Success` and records any data that was returned. If the `run()` method raises an error, Prefect sets the state to `Failed` with an appropriate message.
-
-Sometimes, you may want finer control over a task's state. For example, you may want a task to be skipped or to force a task to retry. In that case, raise the appropriate Prefect `signal`. It will be intercepted and transformed into the appropriate state.
-
-Prefect provides signals for most states, including `RETRY`, `SKIP`, `FAILED`, and `SUCCESS`.
-
-```python
-from prefect import task
-from prefect.engine import signals
-
-def retry_if_negative(x):
-    if x < 0:
-        raise signals.RETRY()
-    else:
-        return x
-```
-
-Another common use of Prefect signals is when the task in question will be nested under other functions that could intercept its normal result or error. In that case, a signal could be used to "bubble up" a desired state change and bypass the normal return mechanism.
-
-
-## Context
-
-Prefect provides a powerful `Context` object to share information without requiring explicit arguments on a task's `run()` method.
-
-The `Context` can be accessed at any time, and will be pre-populated with information before and during each flow run.
-
-```python
-@task
-def try_unlock():
-    if prefect.context.key == 'abc':
-        return True
-    else:
-        raise signals.FAIL()
-
-with Flow() as flow:
-    try_unlock()
-
-flow.run() # this run fails
-
-with prefect.context(key='abc'):
-    flow.run() # this run is successful
-```
-
-## Triggers
-
-Triggers allow tasks to define how their state dependencies work. By default, every task has an `all_successful` trigger, meaning it will only run if all upstream tasks succeed. Other triggers include:
-    - `all_failed`
-    - `any_successful`
-    - `any_failed`
-    - `all_finished`, which is the same as always running
-    - `manual_only`, which means Prefect will never run the task automatically
-
-::: tip Use `manual_only` to pause a flow
-
-When a flow encounters a `manual_only` trigger mid-run, it simply stops at that point. Tasks with `manual_only` triggers will never be run automatically unless they are one of the `start_tasks` of a run - meaning the user explicitly asked to run that task. Therefore, this trigger can be used to introduce pause/resume functionality in a flow.
-
-:::
