@@ -78,22 +78,50 @@ def test_env_var_interpolation(config):
 
 
 def test_env_var_overrides(test_config_file_path):
-    os.environ["PREFECT__ENV_VARS__TEST"] = "OVERRIDE!"
-    assert config(test_config_file_path).env_vars.test == "OVERRIDE!"
+    try:
+        ev = "PREFECT__ENV_VARS__TEST"
+        os.environ[ev] = "OVERRIDE!"
+        config = configuration.load_config_file(
+            test_config_file_path, env_var_prefix="PREFECT"
+        )
+        assert config.env_vars.test == "OVERRIDE!"
+    finally:
+        del os.environ[ev]
 
 
-def test_load_user_config_and_update_default(test_config_file_path):
+def test_merge_configurations(test_config_file_path):
+
+    default_config = configuration.config
+
+    assert default_config.logging.format != "log-format"
+    assert default_config.flows.default_version == "1"
+
     config = configuration.load_configuration(
-        default_config_path=configuration.DEFAULT_CONFIG,
-        user_config_path=test_config_file_path,
+        config_path=test_config_file_path, merge_into_config=default_config
     )
-    assert "logging" in config
 
-    # this comes from default
-    assert config.logging.level == "INFO"
-    # this comes from user
     assert config.logging.format == "log-format"
+    assert config.flows.default_version == "1"
+    assert config.interpolation.value == 1
 
-    # this comes from user
-    assert "general" in config
-    assert config.general.nested.x == 1
+
+def test_load_user_config(test_config_file_path):
+
+    with tempfile.NamedTemporaryFile() as user_config:
+        user_config.write(
+            b"""
+            [general]
+            x = 2
+
+            [user]
+            foo = "bar"
+            """
+        )
+        user_config.seek(0)
+
+        test_config = configuration.load_configuration(test_config_file_path)
+        config = configuration.load_configuration(
+            user_config.name, merge_into_config=test_config
+        )
+        assert config.general.x == 2
+        assert config.user.foo == "bar"
