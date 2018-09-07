@@ -85,8 +85,11 @@ class DotDict(MutableMapping):
             return "<{}>".format(type(self).__name__)
 
     def copy(self):
-        "Returns a shallow copy of the current DotDict"
+        """Returns a shallow copy of the current DotDict"""
         return type(self)(self.__dict__.copy())
+
+    def __json__(self):
+        return dict(self)
 
 
 def merge_dicts(d1: MutableMapping, d2: MutableMapping) -> MutableMapping:
