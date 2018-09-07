@@ -15,6 +15,18 @@ class ShellTask(prefect.Task):
         - command (string, optional): shell command to be executed; can also be
             provided post-initialization by calling this task instance
         - **kwargs: additional keyword arguments to pass to the Task constructor
+
+    Example:
+        ```python
+        from prefect import Flow
+        from prefect.tasks.shell import ShellTask
+
+        task = ShellTask(cd='/usr/bin')
+        with Flow() as f:
+            res = task(command='ls')
+
+        out = f.run(return_tasks=[res])
+        ```
     """
 
     def __init__(self, shell="bash", cd=None, command=None, **kwargs):
