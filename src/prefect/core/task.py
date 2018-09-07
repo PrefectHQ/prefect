@@ -177,7 +177,7 @@ class Task(Serializable, metaclass=SignatureValidator):
                 the task is considered successful and the result (if any) can be
                 made available to downstream tasks.
             2. Raise an error. Errors are interpreted as failure.
-            3. Raise a signal. Signals can include `FAIL`, `SUCCESS`, RETRY`, `SKIP`, etc.
+            3. Raise a signal. Signals can include `FAIL`, `SUCCESS`, `RETRY`, `SKIP`, etc.
                 and indicate that the task should be put in the indicated
                 state.
                 - `FAIL` will lead to retries if appropriate
