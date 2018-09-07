@@ -10,13 +10,16 @@ class ShellTask(prefect.Task):
 
     Args:
         - shell (string, optional): shell to run the command with; defaults to "bash"
+        - cd (string, optional): string specifying the absolute path to a
+            directory to run the `command` from
         - command (string, optional): shell command to be executed; can also be
             provided post-initialization by calling this task instance
         - **kwargs: additional keyword arguments to pass to the Task constructor
     """
 
-    def __init__(self, shell="bash", command=None, **kwargs):
+    def __init__(self, shell="bash", cd=None, command=None, **kwargs):
         self.shell = shell
+        self.cd = cd
         self.command = command
         super().__init__(**kwargs)
 
@@ -42,6 +45,9 @@ class ShellTask(prefect.Task):
         command = command or self.command
         if command is None:
             raise TypeError("run() missing required argument: 'command'")
+
+        if self.cd is not None:
+            command = "cd {} && ".format(self.cd) + command
 
         current_env = env or os.environ.copy()
         try:

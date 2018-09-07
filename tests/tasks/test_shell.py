@@ -1,6 +1,7 @@
 import os
 import pytest
 import subprocess
+import tempfile
 
 from prefect import Flow
 from prefect.engine import signals
@@ -97,3 +98,37 @@ def test_shell_task_raises_fail_if_cmd_fails():
     out = f.run(return_tasks=[task])
     assert out.is_failed()
     assert "Command failed with exit code" in str(out.result[task].message)
+
+
+def test_shell_task_accepts_and_uses_cd_kwarg_at_init():
+    with tempfile.TemporaryDirectory() as tempdir:
+        with open(tempdir + "/testfile.txt", "w") as f:
+            f.write("this is a test")
+
+        with Flow() as f:
+            task = ShellTask(cd=tempdir)(command="ls")
+        out = f.run(return_tasks=[task])
+
+    assert out.is_successful()
+    assert out.result[task].result == b"testfile.txt\n"
+
+
+def test_shell_task_cd_kwarg_handles_multiline_commands():
+    cmd = """
+    for file in $(ls)
+    do
+        cat $file
+    done
+    """
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        with open(tempdir + "/testfile.txt", "w") as f:
+            f.write("this is a test")
+
+        with Flow() as f:
+            task = ShellTask(cd=tempdir)(command=cmd)
+
+        out = f.run(return_tasks=[task])
+
+    assert out.is_successful()
+    assert out.result[task].result == b"this is a test"
