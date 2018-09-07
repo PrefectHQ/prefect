@@ -192,6 +192,9 @@ class Flow(Serializable):
         yield from self.sorted_tasks()
 
     def copy(self) -> "Flow":
+        """
+        Returns a copy of the current Flow.
+        """
         new = copy.copy(self)
         new._cache = dict()
         new.tasks = self.tasks.copy()
