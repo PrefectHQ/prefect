@@ -5,6 +5,7 @@ import subprocess
 from prefect import Flow
 from prefect.engine import signals
 from prefect.tasks.shell import ShellTask
+from prefect.utilities.tests import raise_on_exception
 
 
 def test_shell_initializes_and_runs_basic_cmd():
@@ -13,6 +14,23 @@ def test_shell_initializes_and_runs_basic_cmd():
     out = f.run(return_tasks=[task])
     assert out.is_successful()
     assert out.result[task].result == b"hello world"
+
+
+def test_shell_initializes_with_basic_cmd():
+    with Flow() as f:
+        task = ShellTask(command="echo -n 'hello world'")()
+    out = f.run(return_tasks=[task])
+    assert out.is_successful()
+    assert out.result[task].result == b"hello world"
+
+
+def test_shell_raises_if_no_command_provided():
+    with Flow() as f:
+        task = ShellTask()()
+
+    with pytest.raises(TypeError):
+        with raise_on_exception():
+            out = f.run(return_tasks=[task])
 
 
 @pytest.mark.skipif(subprocess.call(["which", "zsh"]), reason="zsh not installed.")
