@@ -193,6 +193,9 @@ class Task(Serializable, metaclass=SignatureValidator):
     # Dependencies -------------------------------------------------------------
 
     def copy(self):
+        """
+        Returns a copy of the current Task.
+        """
 
         flow = prefect.context.get("_flow", None)
         if (
