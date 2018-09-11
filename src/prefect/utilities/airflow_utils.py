@@ -33,6 +33,8 @@ class AirTask(prefect.tasks.shell.ShellTask):
             command=cmd,
             trigger=trigger,
             skip_on_upstream_skip=False,
+            max_retries=task.retries,
+            tags=task.pool,
             **kwargs
         )
 
@@ -55,12 +57,18 @@ class AirTask(prefect.tasks.shell.ShellTask):
         )
 
         if status == "None":
-            raise prefect.engine.signals.DONTRUN("Airflow task state marked as 'None' in airflow db")
+            raise prefect.engine.signals.DONTRUN(
+                "Airflow task state marked as 'None' in airflow db"
+            )
         if status == "skipped":
-            raise prefect.engine.signals.SKIP("Airflow task state marked as 'skipped' in airflow db")
+            raise prefect.engine.signals.SKIP(
+                "Airflow task state marked as 'skipped' in airflow db"
+            )
         elif status != "success":
             raise prefect.engine.signals.FAIL(
-                "Airflow task state marked as {} in airflow db".format(status.decode().rstrip())
+                "Airflow task state marked as {} in airflow db".format(
+                    status.decode().rstrip()
+                )
             )
 
     def run(self):
