@@ -224,7 +224,6 @@ class FlowRunner:
         )
         start_tasks = start_tasks or []
         return_tasks = set(return_tasks or [])
-        sorted_return_tasks = []
         task_contexts = task_contexts or {}
         throttle = throttle or {}
 
@@ -243,9 +242,6 @@ class FlowRunner:
                 queues[tag] = q
 
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
-
-                if task in return_tasks:
-                    sorted_return_tasks.append(task)
 
                 upstream_states = {}
                 task_inputs = {}
@@ -315,7 +311,7 @@ class FlowRunner:
                     for t, state in final_states.items()
                     if isinstance(state, (Failed, Retrying))
                 ]
-                sorted_return_tasks = failed_tasks + sorted_return_tasks
+                return_tasks.update(failed_tasks)
             else:
                 final_states = executor.wait(
                     {
@@ -330,7 +326,7 @@ class FlowRunner:
                 flatten_seq([final_states[t] for t in terminal_tasks])
             )
             key_states = set(flatten_seq([final_states[t] for t in reference_tasks]))
-            return_states = {t: final_states[t] for t in sorted_return_tasks}
+            return_states = {t: final_states[t] for t in return_tasks}
 
             # check that the flow is finished
             if not all(s.is_finished() for s in terminal_states):
