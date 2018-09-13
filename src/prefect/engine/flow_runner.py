@@ -103,6 +103,7 @@ class FlowRunner:
         task_states: Dict[Task, State] = None,
         start_tasks: Iterable[Task] = None,
         return_tasks: Iterable[Task] = None,
+        return_failed: bool = False,
         parameters: Dict[str, Any] = None,
         executor: "prefect.engine.executors.Executor" = None,
         context: Dict[str, Any] = None,
@@ -123,6 +124,9 @@ class FlowRunner:
                 Defaults to `self.flow.root_tasks()`
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
+            - return_failed (bool, optional): whether to return all tasks
+                which fail, regardless of whether they are terminal tasks or in `return_tasks`.
+                Defaults to `False`
             - parameters (dict, optional): dictionary of any needed Parameter
                 values, with keys being strings representing Parameter names and values being their corresponding values
             - executor (Executor, optional): executor to use when performing
@@ -173,6 +177,7 @@ class FlowRunner:
                     task_states=task_states,
                     start_tasks=start_tasks,
                     return_tasks=return_tasks,
+                    return_failed=return_failed,
                     executor=executor,
                     task_contexts=task_contexts,
                     throttle=throttle,
@@ -210,6 +215,7 @@ class FlowRunner:
         return_tasks: Iterable[Task],
         task_contexts: Dict[Task, Dict[str, Any]],
         executor: "prefect.engine.executors.base.Executor",
+        return_failed: bool = False,
         throttle: Dict[str, int] = None,
     ) -> State:
 
@@ -302,12 +308,22 @@ class FlowRunner:
             # reference tasks determine flow state
             reference_tasks = self.flow.reference_tasks()
 
-            final_states = executor.wait(
-                {
-                    t: task_states[t]
-                    for t in terminal_tasks.union(reference_tasks).union(return_tasks)
-                }
-            )
+            if return_failed:
+                final_states = executor.wait(dict(task_states))
+                failed_tasks = [
+                    t for t, state in final_states.items() if state.is_failed()
+                ]
+                sorted_return_tasks = failed_tasks + sorted_return_tasks
+            else:
+                final_states = executor.wait(
+                    {
+                        t: task_states[t]
+                        for t in terminal_tasks.union(reference_tasks).union(
+                            return_tasks
+                        )
+                    }
+                )
+
             terminal_states = set(
                 flatten_seq([final_states[t] for t in terminal_tasks])
             )
