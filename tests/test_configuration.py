@@ -128,6 +128,9 @@ def test_env_var_interpolation_doesnt_match_internal_dollar_sign(config):
     assert config.env_vars.not_interpolated_path == "xxx$PATHxxx"
 
 
+def test_env_var_interpolation_with_nonexistant_key(config):
+    assert config.interpolation.bad_value == ""
+
 
 def test_env_var_overrides_new_key(config):
     assert config.env_vars.new_key == "TEST"
