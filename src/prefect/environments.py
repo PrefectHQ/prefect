@@ -244,7 +244,9 @@ class ContainerEnvironment(Environment):
 
                 RUN apt-get -qq -y update && apt-get -qq -y install --no-install-recommends --no-install-suggests git
 
-                COPY registry registry
+                COPY registry ./registry
+
+                ENV PREFECT__REGISRTY__LOAD_ON_STARTUP ./registry
 
                 RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN pip install -e prefect

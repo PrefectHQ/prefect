@@ -90,8 +90,10 @@ def push(id, path):
             password=config_data["REGISTRY_PASSWORD"],
         )
 
+    # Push to registry
     return flow.environment.client.images.push(
-        config_data["REGISTRY_URL"], tag=flow.environment.tag
+        "{}/{}".format(config_data["REGISTRY_URL"], flow.environment.image),
+        tag=flow.environment.tag,
     )
 
 
