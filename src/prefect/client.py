@@ -445,17 +445,50 @@ class TaskRuns(ClientModule):
         """
         return self._graphql(
             """
-            mutation($account_id: String!, $task_run_id: String!, $state: StateJSONString!) {
+            mutation($accountId: String!, $taskRunId: String!, $state: StateJSONString!) {
                 setTaskRunState(input: {
-                    account_id: $account_id,
-                    task_run_id: $task_run_id,
+                    accountId: $accountId,
+                    taskRunId: $taskRunId,
                     state: $state
                 }) {
-                    task_state {timestamp}
+                    taskState {timestamp}
                 }
             }
             """,
-            account_id=account_id,
-            task_run_id=task_run_id,
+            accountId=account_id,
+            taskRunId=task_run_id,
             state=json.dumps(state),
+        )
+
+# -------------------------------------------------------------------------
+# Execution
+
+class RunFlow(ClientModule):
+    def run_flow(self, image_name, image_tag, flow_id) -> dict:
+        """
+        Run a flow
+
+        Args:
+            - image_name (str): The image container name the flow is in
+            - image_tag (str): The tag of the flow's image
+            - flow_id (str): The ID of the flow to be ran
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            mutation($imageName: String!, $imageTag: String!, $flowId: StateJSONString!) {
+                runFlow(input: {
+                    imageName: $imageName,
+                    imageTag: $imageTag,
+                    flowId: $flowId
+                }) {
+                    status
+                }
+            }
+            """,
+            imageName=image_name,
+            imageTag=image_tag,
+            flowId=flow_id,
         )
