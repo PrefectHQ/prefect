@@ -132,19 +132,6 @@ def test_flow_runner_prevents_bad_throttle_values():
     ]  # for py34
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="Depends on ordered dictionaries of Python 3.6+"
-)
-def test_return_tasks_are_sorted():
-    flow = prefect.Flow()
-    a, b, c = SuccessTask(), SuccessTask(), SuccessTask()
-    flow.add_edge(a, b)
-    flow.add_edge(b, c)
-    flow_runner = FlowRunner(flow=flow)
-    result = flow_runner.run(return_tasks=[c, b, a])
-    assert list(result.result.keys()) == [a, b, c]
-
-
 def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
     flow = prefect.Flow()
     task1 = SuccessTask()
