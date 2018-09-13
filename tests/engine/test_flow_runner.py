@@ -560,6 +560,16 @@ class TestReturnFailed:
         assert state.is_failed()
         assert len(state.result) == 2
 
+    def test_return_failed_includes_retries(self):
+        with Flow() as f:
+            s = SuccessTask()
+            e = ErrorTask(max_retries=1)
+            s.set_upstream(e)
+        state = FlowRunner(flow=f).run(return_failed=True)
+        assert state.is_pending()
+        assert e in state.result
+        assert isinstance(state.result[e], Retrying)
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
