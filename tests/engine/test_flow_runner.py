@@ -26,7 +26,7 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
-from prefect.triggers import manual_only
+from prefect.triggers import manual_only, any_failed
 from prefect.utilities.tests import raise_on_exception
 from unittest.mock import MagicMock
 
@@ -528,6 +528,37 @@ class TestOutputCaching:
         )
         assert isinstance(flow_state, Success)
         assert flow_state.result[y].result == 100
+
+
+class TestReturnFailed:
+    def test_return_failed_works_when_all_fail(self):
+        with Flow() as f:
+            s = SuccessTask()
+            e = ErrorTask()
+            s.set_upstream(e)
+        state = FlowRunner(flow=f).run(return_failed=True)
+        assert state.is_failed()
+        assert e in state.result
+        assert s in state.result
+
+    def test_return_failed_works_when_non_terminal_fails(self):
+        with Flow() as f:
+            s = SuccessTask(trigger=any_failed)
+            e = ErrorTask()
+            s.set_upstream(e)
+        state = FlowRunner(flow=f).run(return_failed=True)
+        assert state.is_successful()
+        assert e in state.result
+        assert s not in state.result
+
+    def test_return_failed_doesnt_duplicate(self):
+        with Flow() as f:
+            s = SuccessTask()
+            e = ErrorTask()
+            s.set_upstream(e)
+        state = FlowRunner(flow=f).run(return_tasks=f.tasks, return_failed=True)
+        assert state.is_failed()
+        assert len(state.result) == 2
 
 
 @pytest.mark.skipif(
