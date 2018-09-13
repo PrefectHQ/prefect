@@ -194,7 +194,7 @@ def load_config_file(path: str, env_var_prefix: str = None) -> Config:
             # get the referenced key from the config value
             ref_key = collections.CompoundKey(matched_key.split("."))
             # get the value corresponding to the referenced key
-            ref_value = flat_config[ref_key]
+            ref_value = flat_config.get(ref_key, "")
 
             # if the matched was the entire value, replace it with the interpolated value
             if flat_config[k] == matched_string:
