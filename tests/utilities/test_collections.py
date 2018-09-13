@@ -1,6 +1,6 @@
 import pytest
 import types
-from prefect.utilities import collections
+from prefect.utilities import collections, json
 from prefect.utilities.collections import DotDict, merge_dicts, to_dotdict
 
 
@@ -142,6 +142,32 @@ class TestDotDict:
         assert d.get("no_data") is None
         assert d.get("no_data", "fallback") == "fallback"
 
+    def test_setitem(self):
+        d = DotDict()
+        d["a"] = 1
+        assert d["a"] == 1
+        d["a"] = 2
+        assert d["a"] == 2
+
+    def test_setitem_nonstring_key(self):
+        d = DotDict()
+        d[1] = 1
+        assert d[1] == 1
+        d[1] = 2
+        assert d[1] == 2
+
+    def test_initialize_from_nonstring_keys(self):
+        d = DotDict({1: 1, "a": 2})
+        assert d[1] == 1 and d["a"] == 2
+
+    def test_repr_sorts_mixed_keys(self):
+        d = DotDict()
+        assert repr(d) == "<DotDict>"
+        d["a"] = 1
+        d[1] = 1
+        d["b"] = 1
+        assert repr(d) == "<DotDict: 'a', 'b', 1>"
+
     def test_keyerror_is_thrown_when_accessing_nonexistent_key(self):
         d = DotDict(data=5)
         with pytest.raises(KeyError):
@@ -196,6 +222,15 @@ class TestDotDict:
         assert dotdict.a == 1
         assert dotdict.b[1].c == 3
         assert dotdict.d.e[0].f == 4
+
+    def test_dotdict_is_not_json_serializable_with_default_encoder(self):
+        import json as default_json
+
+        with pytest.raises(TypeError):
+            default_json.dumps(DotDict(x=1))
+
+    def test_dotdict_is_json_serialiable_with_prefect_encoder(self):
+        assert json.loads(json.dumps(DotDict(x=1))) == {"x": 1}
 
 
 @pytest.mark.parametrize("dct_class", [dict, DotDict])

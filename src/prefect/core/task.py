@@ -177,7 +177,7 @@ class Task(Serializable, metaclass=SignatureValidator):
                 the task is considered successful and the result (if any) can be
                 made available to downstream tasks.
             2. Raise an error. Errors are interpreted as failure.
-            3. Raise a signal. Signals can include `FAIL`, `SUCCESS`, RETRY`, `SKIP`, etc.
+            3. Raise a signal. Signals can include `FAIL`, `SUCCESS`, `RETRY`, `SKIP`, etc.
                 and indicate that the task should be put in the indicated
                 state.
                 - `FAIL` will lead to retries if appropriate
@@ -193,6 +193,9 @@ class Task(Serializable, metaclass=SignatureValidator):
     # Dependencies -------------------------------------------------------------
 
     def copy(self):
+        """
+        Returns a copy of the current Task.
+        """
 
         flow = prefect.context.get("_flow", None)
         if (
@@ -205,7 +208,13 @@ class Task(Serializable, metaclass=SignatureValidator):
                 "in the active flow context. The copy will not retain those dependencies."
             )
 
-        return copy.copy(self)
+        new = copy.copy(self)
+
+        new.tags = copy.deepcopy(self.tags)
+        tags = set(prefect.context.get("_tags", set()))
+        new.tags.update(tags)
+
+        return new
 
     def __call__(
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object

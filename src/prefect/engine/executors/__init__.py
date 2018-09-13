@@ -6,13 +6,18 @@ Prefect Executors encapsulate the logic for how Tasks are run.
 For example, decisions about multi-threading or whether to use parallelism
 are handled by choice of Executor.
 """
+import sys
+
 from warnings import warn as _warn
 from importlib import import_module as _import_module
 
 import prefect as _prefect
 from prefect.engine.executors.base import Executor
 from prefect.engine.executors.local import LocalExecutor
-from prefect.engine.executors.dask import DaskExecutor
+from prefect.engine.executors.sync import SynchronousExecutor
+
+if sys.version_info >= (3, 5):
+    from prefect.engine.executors.dask import DaskExecutor
 
 try:
     cfg_exec = _prefect.config.engine.executor

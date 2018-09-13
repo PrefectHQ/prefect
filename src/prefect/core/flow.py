@@ -6,21 +6,7 @@ import inspect
 import tempfile
 import uuid
 from collections import Counter
-from contextlib import contextmanager
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    AnyStr,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-)
+from typing import Any, Dict, Iterable, List, Mapping, Set, Tuple
 
 import xxhash
 from mypy_extensions import TypedDict
@@ -113,6 +99,9 @@ class Flow(Serializable):
         - throttle (dict, optional): dictionary of tags -> int specifying
             how many tasks with a given tag should be allowed to run simultaneously. Used
             for throttling resource usage.
+
+    Raises:
+        - ValueError: if any throttle values are `<= 0`
     """
 
     def __init__(
@@ -161,6 +150,15 @@ class Flow(Serializable):
             self.register()
 
         self.throttle = throttle or {}
+        if min(self.throttle.values(), default=1) <= 0:
+            bad_tags = ", ".join(
+                ['"' + tag + '"' for tag, num in throttle.items() if num <= 0]
+            )
+            raise ValueError(
+                "Cannot throttle tags {0} - an invalid value less than 1 was provided.".format(
+                    bad_tags
+                )
+            )
         super().__init__()
 
     def __eq__(self, other: Any) -> bool:
@@ -194,6 +192,9 @@ class Flow(Serializable):
         yield from self.sorted_tasks()
 
     def copy(self) -> "Flow":
+        """
+        Returns a copy of the current Flow.
+        """
         new = copy.copy(self)
         new._cache = dict()
         new.tasks = self.tasks.copy()

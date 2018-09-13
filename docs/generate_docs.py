@@ -159,6 +159,7 @@ OUTLINE = [
             prefect.engine.executors.base.Executor,
             prefect.engine.executors.dask.DaskExecutor,
             prefect.engine.executors.local.LocalExecutor,
+            prefect.engine.executors.sync.SynchronousExecutor,
         ],
         "title": "Executors",
         "top-level-doc": prefect.engine.executors,
@@ -175,7 +176,7 @@ OUTLINE = [
         "page": "tasks/function.md",
         "classes": [prefect.tasks.core.function.FunctionTask],
     },
-    {"page": "tasks/shell.md", "classes": [prefect.tasks.core.shell.ShellTask]},
+    {"page": "tasks/shell.md", "classes": [prefect.tasks.shell.ShellTask]},
     {"page": "utilities/bokeh.md", "classes": [BokehRunner]},
     {
         "page": "utilities/collections.md",
@@ -233,7 +234,7 @@ def format_lists(doc):
     lists = re.findall(
         r"(Args\:|Returns\:|Raises\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL
     )  # find formatted lists
-    for section, _, items, _ in lists:
+    for section, _, items, ending in lists:
         if section.startswith(("Returns:", "Raises:")) and ":" not in items:
             doc = doc.replace(items, "<ul><li>" + items.lstrip("- ") + "</li></ul>", 1)
             continue
@@ -246,14 +247,14 @@ def format_lists(doc):
             block += f"<li>`{item}`:{descr}</li>"
         list_block = f"<ul>{block}</ul>"
         doc = doc.replace(items + "\n\n", list_block, 1).replace(items, list_block, 1)
-    return doc
+    return doc.replace("\n\nRaises:", "Raises:")
 
 
 def format_doc(doc, in_table=False):
     body = doc or ""
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
-        body = body.replace(block, f"$CODEBLOCK{num}")
+        body = body.replace(block, f"$CODEBLOCK{num}", 1)
     body = format_lists(body)
     lines = body.split("\n")
     cleaned = "\n".join([clean_line(line) for line in lines])

@@ -3,11 +3,8 @@
 
 import functools
 import logging
-import warnings
 from collections import defaultdict
-from contextlib import contextmanager
-from importlib import import_module
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Union
+from typing import Any, Callable, Dict, Iterable
 
 import prefect
 from prefect.core import Flow, Task
@@ -139,12 +136,24 @@ class FlowRunner:
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
+
+        Raises:
+            - ValueError: if any throttle values are `<= 0`
         """
         state = state or Pending()
         context = context or {}
         return_tasks = return_tasks or []
         executor = executor or DEFAULT_EXECUTOR
         throttle = throttle or self.flow.throttle
+        if min(throttle.values(), default=1) <= 0:
+            bad_tags = ", ".join(
+                ['"' + tag + '"' for tag, num in throttle.items() if num <= 0]
+            )
+            raise ValueError(
+                "Cannot throttle tags {0} - an invalid value less than 1 was provided.".format(
+                    bad_tags
+                )
+            )
 
         if set(return_tasks).difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
@@ -153,7 +162,7 @@ class FlowRunner:
             _flow_name=self.flow.name,
             _flow_version=self.flow.version,
             _parameters=parameters,
-            _executor=executor,
+            _executor_id=executor.executor_id,
         )
 
         try:
@@ -179,7 +188,6 @@ class FlowRunner:
         # ---------------------------------------------
         # Check if the flow run is ready to run
         # ---------------------------------------------
-
         # the flow run is already finished
         if state.is_finished():
             raise signals.DONTRUN("Flow run has already finished.")
@@ -259,6 +267,10 @@ class FlowRunner:
 
                 # -- run the task
                 task_runner = self.task_runner_cls(task=task)
+                task_queues = [
+                    queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
+                ]
+
                 if maps:
                     task_states[task] = executor.map(
                         task_runner.run,
@@ -267,12 +279,8 @@ class FlowRunner:
                         state=task_states.get(task),
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),
-                        context=task_contexts.get(task),
-                        queues=[
-                            queues.get(tag)
-                            for tag in sorted(task.tags)
-                            if queues.get(tag)
-                        ],
+                        context=dict(prefect.context, **task_contexts.get(task, {})),
+                        queues=task_queues,
                     )
                 else:
                     task_states[task] = executor.submit(
@@ -281,12 +289,8 @@ class FlowRunner:
                         upstream_states=upstream_states,
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),
-                        context=task_contexts.get(task),
-                        queues=[
-                            queues.get(tag)
-                            for tag in sorted(task.tags)
-                            if queues.get(tag)
-                        ],
+                        context=dict(prefect.context, **task_contexts.get(task, {})),
+                        queues=task_queues,
                     )
             # ---------------------------------------------
             # Collect results

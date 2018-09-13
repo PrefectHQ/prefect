@@ -59,8 +59,9 @@ class DotDict(MutableMapping):
         return self.__dict__[key]
 
     def __setitem__(self, key, value):
-        if hasattr(MutableMapping, key):
-            raise ValueError("no sir")
+        # prevent overwriting any critical attributes
+        if isinstance(key, str) and hasattr(MutableMapping, key):
+            raise ValueError('Invalid key: "{}"'.format(key))
         self.__dict__[key] = value
 
     def __setattr__(self, attr, value):
@@ -75,9 +76,20 @@ class DotDict(MutableMapping):
     def __len__(self):
         return len(self.__dict__)
 
+    def __repr__(self) -> str:
+        if len(self) > 0:
+            return "<{}: {}>".format(
+                type(self).__name__, ", ".join(sorted(repr(k) for k in self.keys()))
+            )
+        else:
+            return "<{}>".format(type(self).__name__)
+
     def copy(self):
-        "Returns a shallow copy of the current DotDict"
+        """Returns a shallow copy of the current DotDict"""
         return type(self)(self.__dict__.copy())
+
+    def __json__(self):
+        return dict(self)
 
 
 def merge_dicts(d1: MutableMapping, d2: MutableMapping) -> MutableMapping:

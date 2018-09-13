@@ -57,6 +57,9 @@ coverage.xml
 *.log
 local_settings.py
 
+# Dask stuff:
+*dask-worker-space/*
+
 # Flask stuff:
 instance/
 .webassets-cache
