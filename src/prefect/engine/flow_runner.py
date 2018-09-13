@@ -10,7 +10,7 @@ import prefect
 from prefect.core import Flow, Task
 from prefect.engine import signals
 from prefect.engine.executors import DEFAULT_EXECUTOR
-from prefect.engine.state import Failed, Pending, Running, State, Success
+from prefect.engine.state import Failed, Pending, Retrying, Running, State, Success
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
 
@@ -311,7 +311,9 @@ class FlowRunner:
             if return_failed:
                 final_states = executor.wait(dict(task_states))
                 failed_tasks = [
-                    t for t, state in final_states.items() if state.is_failed()
+                    t
+                    for t, state in final_states.items()
+                    if isinstance(state, (Failed, Retrying))
                 ]
                 sorted_return_tasks = failed_tasks + sorted_return_tasks
             else:
