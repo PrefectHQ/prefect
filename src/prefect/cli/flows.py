@@ -11,7 +11,7 @@ import requests
 import toml
 
 import prefect
-from prefect.client import Client
+from prefect.client import RunFlow
 from prefect.core import registry
 from prefect.utilities import json as prefect_json
 
@@ -98,12 +98,12 @@ def push(id, path):
 
 
 @flows.command()
-@click.option("--run", "-r", multiple=True)
+@click.argument("id")
 @click.argument("path", required=False)
-@click.argument("account_id")
-def exec(run, path, account_id):
+@click.option("--run", "-r", multiple=True)
+def exec(id, path, run):
     """
-    Send command to container
+    Send flow command
     """
     if not path:
         path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
@@ -115,5 +115,13 @@ def exec(run, path, account_id):
         click.echo("CLI not configured. Run 'prefect configure init'")
         return
 
+    flow = prefect.core.registry.load_flow(id)
+
     if run:
-        Client().run_flow(flow_id=run, account_id=account_id)
+        RunFlow().run_flow(
+            image_name=flow.environment.image,
+            image_tag=flow.environment.tag,
+            flow_id=id,
+        )
+    else:
+        click.echo("No command specified")
