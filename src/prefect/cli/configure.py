@@ -47,7 +47,7 @@ def init(path):
 @configure.command()
 @click.argument("variable")
 @click.argument("path", required=False)
-def set(variable, path):
+def set_variable(variable, path):
     """
     Sets a specific configuration variable
     """
@@ -68,7 +68,7 @@ def set(variable, path):
 
 @configure.command()
 @click.argument("path", required=False)
-def list(path):
+def ls(path):
     """
     List all configuration variables
     """

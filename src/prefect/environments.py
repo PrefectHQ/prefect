@@ -249,7 +249,7 @@ class ContainerEnvironment(Environment):
                 ENV PREFECT__REGISRTY__LOAD_ON_STARTUP ./registry
 
                 RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
-                RUN pip install -e prefect
+                RUN pip install prefect
             """.format(
                     self.image, env_vars, pip_installs
                 )
