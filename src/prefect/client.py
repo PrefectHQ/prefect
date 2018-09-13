@@ -265,35 +265,6 @@ class Client:
         )
         self._token = response.json().get("token")
 
-    # -------------------------------------------------------------------------
-    # Execution
-    # -------------------------------------------------------------------------
-
-    def run_flow(self, flow_id: str, account_id: str) -> None:
-        """
-        Run the flow on the server
-
-        Args:
-            - flow_id (str): ID of a flow to be run
-            - account_id (str): Specific Account ID for this user to use
-
-        Returns:
-            - None
-
-        Raises:
-            - ValueError if unable to run flow on the server (request does not return `200`)
-        """
-
-        url = os.path.join(self._api_server, "run_flow")
-        response = self._request(
-            method="POST", path=url, params=dict(flow_id=flow_id, account_id=account_id)
-        )
-
-        # Load the current auth token if able to run flow
-        if not response.ok:
-            raise ValueError("Could not run flow {}".format(flow_id))
-        self._token = response.json().get("token")
-
 
 class ClientModule:
 
@@ -460,8 +431,10 @@ class TaskRuns(ClientModule):
             state=json.dumps(state),
         )
 
+
 # -------------------------------------------------------------------------
 # Execution
+
 
 class RunFlow(ClientModule):
     def run_flow(self, image_name, image_tag, flow_id) -> dict:
