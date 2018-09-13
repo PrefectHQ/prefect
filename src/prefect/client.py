@@ -342,9 +342,9 @@ class Projects(ClientModule):
         """
         return self._graphql(
             """
-            mutation($account_id: String!, $name: String!) {
+            mutation($accountId: String!, $name: String!) {
                 createProject(input: {
-                    account_id: $account_id,
+                    accountId: $accountId,
                     name: $name
                 }) {
                     project {id}
@@ -352,7 +352,7 @@ class Projects(ClientModule):
             }
             """,
             name=name,
-            account_id=account_id,
+            accountId=account_id,
         )
 
 
@@ -375,19 +375,19 @@ class Flows(ClientModule):
         """
         return self._graphql(
             """
-            mutation($account_id: String!, $project_id: String!, $serialized_flow: JSONString!) {
+            mutation($accountId: String!, $projectId: String!, $serializedFlow: JSONString!) {
                 createFlow(input: {
-                    account_id: $account_id,
-                    project_id: $project_id,
-                    serialized_flow: $serialized_flow
+                    accountId: $accountId,
+                    projectId: $projectId,
+                    serializedFlow: $serializedFlow
                 }) {
                     flow {id}
                 }
             }
             """,
-            account_id=account_id,
-            project_id=project_id,
-            serialized_flow=serialized_flow,
+            accountId=account_id,
+            projectId=project_id,
+            serializedFlow=serialized_flow,
         )
 
 
@@ -410,18 +410,18 @@ class FlowRuns(ClientModule):
         """
         return self._graphql(
             """
-            mutation($account_id: String!, $flow_run_id: String!, $state: StateJSONString!) {
+            mutation($accountId: String!, $flowRunId: String!, $state: StateJSONString!) {
                 setFlowRunState(input: {
-                    account_id: $account_id,
-                    flow_run_id: $flow_run_id,
+                    accountId: $accountId,
+                    flowRunId: $flowRunId,
                     state: $state
                 }) {
-                    flow_state {timestamp}
+                    flowState {timestamp}
                 }
             }
             """,
-            account_id=account_id,
-            flow_run_id=flow_run_id,
+            accountId=account_id,
+            flowRunId=flow_run_id,
             state=json.dumps(state),
         )
 
