@@ -5,7 +5,7 @@ import os
 import re
 
 import toml
-
+from typing import Union
 from prefect.utilities import collections
 
 DEFAULT_CONFIG = os.path.join(os.path.dirname(__file__), "config.toml")
@@ -17,6 +17,49 @@ class Config(collections.DotDict):
     pass
 
 
+def string_to_type(val: str) -> Union[bool, int, float, str]:
+    """
+    Helper function for transforming string env var values into typed values.
+
+    Maps:
+        - "true" or "True" to `True`
+        - "false" or "False" to `False`
+        - integers to `int`
+        - floats to `float`
+
+    Arguments:
+        - val (str): the string value of an environment variable
+
+    Returns:
+        Union[bool, int, float, str]: the type-cast env var value
+    """
+
+    # bool
+    if val in ["true", "True"]:
+        return True
+    elif val in ["false", "False"]:
+        return False
+
+    # int
+    try:
+        val_as_int = int(val)
+        if str(val_as_int) == val:
+            return val_as_int
+    except Exception:
+        pass
+
+    # float
+    try:
+        val_as_float = float(val)
+        if str(val_as_float) == val:
+            return val_as_float
+    except Exception:
+        pass
+
+    # return string value
+    return val
+
+
 def interpolate_env_var(env_var: str) -> str:
     """
     Expands (potentially nested) env vars by repeatedly applying
@@ -25,12 +68,21 @@ def interpolate_env_var(env_var: str) -> str:
     """
     if not env_var or not isinstance(env_var, str):
         return env_var
-    while True:
-        substituted = os.path.expanduser(os.path.expandvars(str(env_var)))
-        if substituted == env_var:
-            return substituted
+
+    counter = 0
+
+    while counter < 10:
+        interpolated = os.path.expanduser(os.path.expandvars(str(env_var)))
+        if interpolated == env_var:
+            # if a change was made, apply string-to-type casts; otherwise leave alone
+            # this is because we don't want to override TOML type-casting if this function
+            # is applied to a non-interpolated value
+            if counter > 1:
+                interpolated = string_to_type(interpolated)
+            return interpolated
         else:
-            env_var = substituted
+            env_var = interpolated
+        counter += 1
 
 
 def create_user_config(dest_path: str, source_path: str = DEFAULT_CONFIG) -> None:
@@ -87,7 +139,8 @@ def load_config_file(path: str, env_var_prefix: str = None) -> Config:
 
     # --------------------- Interpolate env vars -----------------------
     # check if any env var sets a configuration value with the format:
-    # [ENV_VAR_PREFIX]__[Section]__[Optional Sub-Sections...]__[Key] = Value
+    #     [ENV_VAR_PREFIX]__[Section]__[Optional Sub-Sections...]__[Key] = Value
+    # and if it does, add it to the config file.
     if env_var_prefix:
         for env_var in os.environ:
             if env_var.startswith(env_var_prefix + "__"):
@@ -103,7 +156,9 @@ def load_config_file(path: str, env_var_prefix: str = None) -> Config:
                 config_option = collections.CompoundKey(
                     env_var_option.lower().split("__")
                 )
-                flat_config[config_option] = interpolate_env_var(os.getenv(env_var))
+                flat_config[config_option] = string_to_type(
+                    interpolate_env_var(os.getenv(env_var))
+                )
 
     # interpolate any env vars referenced
     for k, v in list(flat_config.items()):
@@ -139,7 +194,7 @@ def load_config_file(path: str, env_var_prefix: str = None) -> Config:
             # get the referenced key from the config value
             ref_key = collections.CompoundKey(matched_key.split("."))
             # get the value corresponding to the referenced key
-            ref_value = flat_config[ref_key]
+            ref_value = flat_config.get(ref_key, "")
 
             # if the matched was the entire value, replace it with the interpolated value
             if flat_config[k] == matched_string:
