@@ -101,7 +101,7 @@ def push(id, path):
 @click.argument("id")
 @click.argument("path", required=False)
 @click.option("--run", "-r", multiple=True)
-def exec(id, path, run):
+def exec_command(id, path, run):
     """
     Send flow command
     """

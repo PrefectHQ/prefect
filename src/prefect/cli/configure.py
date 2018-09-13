@@ -68,7 +68,7 @@ def set_variable(variable, path):
 
 @configure.command()
 @click.argument("path", required=False)
-def ls(path):
+def list_config(path):
     """
     List all configuration variables
     """
