@@ -8,6 +8,7 @@ import sys
 import click
 import toml
 
+
 @click.group()
 def configure():
     """
@@ -41,6 +42,7 @@ def init(path):
     )
 
     toml.dump(config_data, path)
+
 
 @configure.command()
 @click.argument("variable")

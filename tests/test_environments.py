@@ -1,6 +1,5 @@
 import json
 import os
-import tempfile
 
 import pytest
 
@@ -99,6 +98,7 @@ def test_container_client():
     assert container.client
 
 
+@pytest.mark.skip("Circle will need to handle container building")
 def test_build_image_process():
 
     personal_access_token = Secret(name="PERSONAL_ACCESS_TOKEN")
