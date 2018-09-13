@@ -85,7 +85,7 @@ def list_config(path):
 
 @configure.command()
 @click.argument("path", required=False)
-def open(path):
+def open_config(path):
     """
     Opens the configuration file
     """
