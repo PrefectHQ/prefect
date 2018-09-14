@@ -219,7 +219,7 @@ Great - 5 minutes isn't so bad!  An astute reader might notice that each mapped 
 In order to allow for parallel execution of tasks, we don't need to "recompile" our flow: we simply provide an executor which can handle parallelism in our call to `run`.  In the local case, Prefect offers the `DaskExecutor` for executing parallel flows.  These execution pipelines can either spawn new processes (`processes=True`), or only use threads; we have chosen to use `processes=True` in our example below.
 
 :::tip What is an executor, anyway?
-- an interface; start, submit, wait
+A Prefect executor is the core driver of computation - an executor specifies _how_ and _where_ each task in a flow should be run.
 :::
 
 This is great, but what if, under the hood, we end up with 20 requests going to this website simultaneously?  As good citizens of the internet, we should actively avoid this situation - to do so, we use the `throttle` keyword along with the fact that we proactively "tagged" our scraping tasks as `"web"` (for more information on throttling, see the [Task Throttling Tutorial](throttling.md)).
