@@ -10,7 +10,7 @@ import prefect
 from prefect.core import Flow, Task
 from prefect.engine import signals
 from prefect.engine.executors import DEFAULT_EXECUTOR
-from prefect.engine.state import Failed, Pending, Running, State, Success
+from prefect.engine.state import Failed, Pending, Retrying, Running, State, Success
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
 
@@ -103,6 +103,7 @@ class FlowRunner:
         task_states: Dict[Task, State] = None,
         start_tasks: Iterable[Task] = None,
         return_tasks: Iterable[Task] = None,
+        return_failed: bool = False,
         parameters: Dict[str, Any] = None,
         executor: "prefect.engine.executors.Executor" = None,
         context: Dict[str, Any] = None,
@@ -123,6 +124,9 @@ class FlowRunner:
                 Defaults to `self.flow.root_tasks()`
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
+            - return_failed (bool, optional): whether to return all tasks
+                which fail, regardless of whether they are terminal tasks or in `return_tasks`.
+                Defaults to `False`
             - parameters (dict, optional): dictionary of any needed Parameter
                 values, with keys being strings representing Parameter names and values being their corresponding values
             - executor (Executor, optional): executor to use when performing
@@ -173,6 +177,7 @@ class FlowRunner:
                     task_states=task_states,
                     start_tasks=start_tasks,
                     return_tasks=return_tasks,
+                    return_failed=return_failed,
                     executor=executor,
                     task_contexts=task_contexts,
                     throttle=throttle,
@@ -210,6 +215,7 @@ class FlowRunner:
         return_tasks: Iterable[Task],
         task_contexts: Dict[Task, Dict[str, Any]],
         executor: "prefect.engine.executors.base.Executor",
+        return_failed: bool = False,
         throttle: Dict[str, int] = None,
     ) -> State:
 
@@ -218,7 +224,6 @@ class FlowRunner:
         )
         start_tasks = start_tasks or []
         return_tasks = set(return_tasks or [])
-        sorted_return_tasks = []
         task_contexts = task_contexts or {}
         throttle = throttle or {}
 
@@ -237,9 +242,6 @@ class FlowRunner:
                 queues[tag] = q
 
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
-
-                if task in return_tasks:
-                    sorted_return_tasks.append(task)
 
                 upstream_states = {}
                 task_inputs = {}
@@ -302,17 +304,29 @@ class FlowRunner:
             # reference tasks determine flow state
             reference_tasks = self.flow.reference_tasks()
 
-            final_states = executor.wait(
-                {
-                    t: task_states[t]
-                    for t in terminal_tasks.union(reference_tasks).union(return_tasks)
-                }
-            )
+            if return_failed:
+                final_states = executor.wait(dict(task_states))
+                failed_tasks = [
+                    t
+                    for t, state in final_states.items()
+                    if isinstance(state, (Failed, Retrying))
+                ]
+                return_tasks.update(failed_tasks)
+            else:
+                final_states = executor.wait(
+                    {
+                        t: task_states[t]
+                        for t in terminal_tasks.union(reference_tasks).union(
+                            return_tasks
+                        )
+                    }
+                )
+
             terminal_states = set(
                 flatten_seq([final_states[t] for t in terminal_tasks])
             )
             key_states = set(flatten_seq([final_states[t] for t in reference_tasks]))
-            return_states = {t: final_states[t] for t in sorted_return_tasks}
+            return_states = {t: final_states[t] for t in return_tasks}
 
             # check that the flow is finished
             if not all(s.is_finished() for s in terminal_states):

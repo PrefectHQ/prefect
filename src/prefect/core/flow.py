@@ -800,7 +800,7 @@ class Flow(Serializable):
         for t in self.tasks:
             is_mapped = any(edge.mapped for edge in self.edges_to(t))
             shape = "box" if is_mapped else "ellipse"
-            name = "mapped: {}".format(t.name) if is_mapped else t.name
+            name = "{} <map>".format(t.name) if is_mapped else t.name
             graph.node(str(id(t)), name, shape=shape)
 
         for e in self.edges:
