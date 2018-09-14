@@ -313,17 +313,13 @@ class Projects(ClientModule):
         """
         return self._graphql(
             """
-            mutation($accountId: String!, $name: String!) {
-                createProject(input: {
-                    accountId: $accountId,
-                    name: $name
-                }) {
+            mutation(input: CreateProjectInput!) {
+                createProject(input: $input) {
                     project {id}
                 }
             }
             """,
-            name=name,
-            accountId=account_id,
+            input=dict(name=name, accountId=account_id),
         )
 
 
@@ -346,19 +342,17 @@ class Flows(ClientModule):
         """
         return self._graphql(
             """
-            mutation($accountId: String!, $projectId: String!, $serializedFlow: JSONString!) {
-                createFlow(input: {
-                    accountId: $accountId,
-                    projectId: $projectId,
-                    serializedFlow: $serializedFlow
-                }) {
+            mutation(input: CreateFlowInput!) {
+                createFlow(input: $input) {
                     flow {id}
                 }
             }
             """,
-            accountId=account_id,
-            projectId=project_id,
-            serializedFlow=serialized_flow,
+            input=dict(
+                accountId=account_id,
+                projectId=project_id,
+                serializedFlow=serialized_flow,
+            ),
         )
 
 
@@ -381,19 +375,15 @@ class FlowRuns(ClientModule):
         """
         return self._graphql(
             """
-            mutation($accountId: String!, $flowRunId: String!, $state: StateJSONString!) {
-                setFlowRunState(input: {
-                    accountId: $accountId,
-                    flowRunId: $flowRunId,
-                    state: $state
-                }) {
+            mutation(input: SetFlowRunStateInput!) {
+                setFlowRunState(input: $input) {
                     flowState {timestamp}
                 }
             }
             """,
-            accountId=account_id,
-            flowRunId=flow_run_id,
-            state=json.dumps(state),
+            input=dict(
+                accountId=account_id, flowRunId=flow_run_id, state=json.dumps(state)
+            ),
         )
 
 
@@ -416,19 +406,15 @@ class TaskRuns(ClientModule):
         """
         return self._graphql(
             """
-            mutation($accountId: String!, $taskRunId: String!, $state: StateJSONString!) {
-                setTaskRunState(input: {
-                    accountId: $accountId,
-                    taskRunId: $taskRunId,
-                    state: $state
-                }) {
+            mutation(input: SetTaskRunStateInput!) {
+                setTaskRunState(input: $input) {
                     taskState {timestamp}
                 }
             }
             """,
-            accountId=account_id,
-            taskRunId=task_run_id,
-            state=json.dumps(state),
+            input=dict(
+                accountId=account_id, taskRunId=task_run_id, state=json.dumps(state)
+            ),
         )
 
 
@@ -451,17 +437,12 @@ class RunFlow(ClientModule):
         """
         return self._graphql(
             """
-            mutation($imageName: String!, $imageTag: String!, $flowId: StateJSONString!) {
-                runFlow(input: {
-                    imageName: $imageName,
-                    imageTag: $imageTag,
-                    flowId: $flowId
-                }) {
+            mutation(input: RunFlowInput!) {
+                runFlow(input: $input) {
                     status
                 }
             }
             """,
-            imageName=image_name,
-            imageTag=image_tag,
-            flowId=flow_id,
+            input=dict(imageName=image_name, imageTag=image_tag, flowId=flow_id),
         )
+
