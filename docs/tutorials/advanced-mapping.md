@@ -4,12 +4,13 @@
 Here we will dig into some of the more advanced features that Prefect offers; in the process, we will construct a real world workflow that highlights how Prefect can be a powerful tool for local development, allowing us to expressively and efficiently create, inspect and extend custom data workflows.
 
 ::: tip Our Goal
-Inspired by the recent revival of the TV show "The X-Files" along with recent advances in Natural Language Processing, we seek to scrape transcripts of every X-Files episode from the internet and save them to a database so that we can create a chatbot based on the character of Dana Scully (actually creating the chatbot is left as an exercise to the reader).
+Inspired by the revival of the TV show "The X-Files" along with recent advances in Natural Language Processing, we seek to scrape transcripts of every X-Files episode from the internet and save them to a database so that we can create a chatbot based on the character of Dana Scully (actually creating the chatbot is left as an exercise to the reader).
 :::
 
+## Outline
 We will proceed in stages, introducing Prefect functionality as we go:
-1. First, we will scrape a specific episode to test our scraping logic; this will only require the core Prefect building blocks
-2. Next, we will compile a _list_ of all episodes, and then scrape each individual episode; for this we will introduce the concept of "mapping" a Task to efficiently re-use our scraping logic across each episode
+1. First, we will scrape a specific episode to test our scraping logic; this will only require the core Prefect building blocks.
+2. Next, we will compile a _list_ of all episodes, and then scrape each individual episode; for this we will introduce the concept of "mapping" a Task to efficiently re-use our scraping logic across each episode.
 3. To speed up processing time, we will re-execute our flow to exploit the inherit _parallelism_ of our mapped tasks; moreover, to prevent opening too many simultaneous connections to the website, we will _throttle_ the scraping tasks.  To achieve this we need to use a new Prefect _executor_.  We will also save the results of this run to prevent re-running the scraping jobs as we extend our flow further.
 4. Finally, we want to create a simple sqlite database and store all of our data in it.
 
@@ -23,7 +24,7 @@ conda install beautifulsoup4
 ```
 :::
 
-### Setting up the flow for a single episode
+## Setting up the flow for a single episode
 
 Luckily for us, [Inside the X-Files](http://www.insidethex.co.uk/) has maintained a curated list of X-Files episode transcripts for the past 20 years; moreover, the webpage is still written using basic 1990s HTML, meaning it's very easy to scrape!
 
@@ -33,7 +34,7 @@ We begin by setting up two Prefect tasks:
 - `retrieve_url`: a task which simply pulls the raw HTML to our local machine
 - `scrape_dialogue`: a task which takes that HTML, and processes it to extract the relevant dialogue by character
 
-Foreseeing our need to throttle the tasks which open web connections, we will _tag_ the `retrieve_url` task.  Moreover, because we want to re-use these tasks for other episodes, we will leave the URL as a Parameter which should be provided at runtime. We assume you have familiarized yourself with [the basics](etl.html) of constructing a Prefect flow and the [use of Parameters](calculator.html).
+Foreseeing our need to throttle the tasks which open web connections, we will _tag_ the `retrieve_url` task.  Moreover, because we want to re-use these tasks for other episodes, we will leave the URL as a Parameter which should be provided at runtime. We assume you have familiarized yourself with [the basics](etl.html) of constructing a Prefect flow and the [use of `Parameters`](calculator.html).
 
 
 ```python
@@ -92,13 +93,16 @@ Awesome!  We've constructed our flow and everything looks good; all that's left 
 - `parameters`: a dictionary of the required parameter values (in our case, `url`)
 - `return_tasks`: a list of the tasks we want returned in the flow's state; in this case we ask for the `dialogue` task so we can see if our scraping worked as intended
 
+We then print the first five spoken lines of the episode.
 
 ```python
 episode_url = "http://www.insidethex.co.uk/transcrp/scrp320.htm"
 outer_space = flow.run(parameters={"url": episode_url},
                        return_tasks=[dialogue])
 
-print(''.join([f'{p}: {t}' for p, t in outer_space.result[dialogue].result[1][:5]]))
+state = outer_space.result[dialogue] # the `State` object for the dialogue task
+first_five_spoken_lines = state.result[1][:5] # state.result is a tuple (episode_name, [dialogue])
+print(''.join([f'{speaker}: {words}' for speaker, words in first_five_spoken_lines))
 ```
 
     ROKY CRIKENSON:  Yeah, this is Roky. I checked all the connections. I
@@ -119,7 +123,7 @@ print(''.join([f'{p}: {t}' for p, t in outer_space.result[dialogue].result[1][:5
 
 Intrigued? Great! We can spot check against [the actual website](http://www.insidethex.co.uk/transcrp/scrp320.htm), and it looks like our scraping logic is sound.  Let's scale up and scrape _everything_.
 
-### Scaling to all episodes
+## Scaling to all episodes
 
 Now that we're reasonably confident in our scraping logic, we want to reproduce the above example for _every_ episode while maintaining backwards compatibility for a single page.  To do so, we need to compile a list of the URLs for every episode, and then proceed to scrape each one.
 
@@ -150,7 +154,7 @@ def create_episode_list(base_url, main_html, bypass):
 
 Now that we have all of the building blocks for scraping everything, the question remains: how do we fit it all together?  Without Prefect, you might consider writing a loop that iterates over the results of `create_episode_list`.  For each episode, you could put everything within a `try / except` block to capture any errors and let other episodes proceed.  If you then wanted to exploit parallelism, you'd need to refactor further, taking into account that you _don't yet know_ how many episodes `create_episode_list` will return.  
 
-All of these ideas are perfectly fine, but consider this: we've already written the code that we _want_ executed; everything else is additional boilerplate to avoid the various errors and negative outcomes that might arise.  This is _precisely_ where Prefect can be so useful - if we piece our functions together into a flow, everything is taken care of and the intent of our code is still immediately apparent, without having to wade through the defensive logic.
+Any of these ideas would work, but consider this: we've already written the code that we _want_ executed; everything else is additional boilerplate to avoid the various errors and negative outcomes that might arise.  This is _precisely_ where Prefect can be so useful - if we piece our functions together into a flow, everything is taken care of and the intent of our code is still immediately apparent, without having to wade through the defensive logic.
 
 In our current situation, instead of a loop, we utilize the `map()` method of tasks.  At a high level, at runtime `task.map(iterable_task)` is roughly equivalent to:
 ```python
@@ -195,6 +199,10 @@ outer_space = flow.run(parameters={"url": episode_url, "bypass": True},
                        return_tasks=[dialogue])
 ```
 In this case, we provide `bypass=True` so that the full episode list is not scraped; morever, we explicitly tell the flow to begin execution with the Parameters and the `create_episode_list` task, avoiding the task which would retrieve the homepage html.  See the diagram above to better understand what is occuring here - we'll see this pattern again shortly.
+:::
+
+::: tip How mapped tasks are returned
+In a normal flow run, `flow_state.result[task]` returns the post-run `State` of the `task` (e.g., `Success("Task run succeeded")`).  If, however, the task was the result of calling `.map()`, `flow_state.result[task]` will be a _list_ of states - one for each mapped instance.
 :::
 
 Now let's run our flow and time its execution:
@@ -254,7 +262,7 @@ print('\n'.join([f'{s.result[0]}: {s}' for s in scraped_state.result[dialogue][:
 
 Awesome - we significantly improved our execution speed practically for free!
 
-### Extend flow to write to a database
+## Extend flow to write to a database
 
 Now that we have successfully scraped all of the dialogue, the next natural step is to store this in a database for querying.  In order to ensure our entire workflow remains reproducible in the future, we want to extend the current flow with new tasks (as opposed to creating a new flow from scratch).  To this end, we first create two new tasks:
 - `create_db`: creates a new `"XFILES"` table if one does not already exist
@@ -350,7 +358,7 @@ print(programming_mentions)
 
 Disappointing, especially considering "The Springfield Files" was a Simpson's episode spoof of The X-Files.
 
-### Reusability
+## Reusability
 
 Suppose some time has passed, and a _new_ transcript has been uploaded - we've already put together all the necessary logic for going from a URL to the database, but how can we reuse that logic?  Simple! 
 
