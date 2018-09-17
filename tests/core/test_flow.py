@@ -156,7 +156,7 @@ def test_set_dependencies_creates_mapped_edges():
     assert edge.mapped is True
 
 
-def test_set_dependencies_creates_respects_unmapped():
+def test_set_dependencies_respects_unmapped():
     t1 = Task()
     t2 = Task()
     f = Flow()
