@@ -138,7 +138,7 @@ def test_map_can_handle_fixed_kwargs(executor):
     a = AddTask()
 
     with Flow() as f:
-        res = a.map(ll, unmapped=dict(y=5))
+        res = a.map(ll, y=unmapped(5))
 
     s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]

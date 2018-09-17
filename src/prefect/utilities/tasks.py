@@ -128,5 +128,32 @@ def task(
 
 
 class unmapped:
+    """
+    A container for specifying that a task should _not_ be mapped over when
+    called with `task.map`.
+
+    Arguments:
+        - task (Task): the task to mark as "unmapped"; if not a Task subclass,
+            Prefect will attempt to convert it to one.
+
+    Example:
+        ```python
+        from prefect import Flow, Task, unmapped
+
+        class AddTask(Task):
+            def run(self, x, y):
+                return x + y
+
+        class ListTask(Task):
+            def run(self):
+                return [1, 2, 3]
+
+        with Flow():
+            add = AddTask()
+            ll = ListTask()
+            result = add.map(x=ll, y=unmapped(5), upstream_tasks=[unmapped(Task())])
+        ```
+    """
+
     def __init__(self, task):
-        self.task = task
+        self.task = as_task(task)
