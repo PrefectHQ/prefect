@@ -8,7 +8,7 @@ from toolz import curry
 
 import prefect
 
-__all__ = ["tags", "as_task", "task"]
+__all__ = ["tags", "as_task", "task", "unmapped"]
 
 
 @contextmanager
@@ -123,3 +123,8 @@ def task(
     ```
     """
     return prefect.tasks.core.function.FunctionTask(fn=fn, **task_init_kwargs)
+
+
+class unmapped:
+    def __init__(self, task):
+        self.task = task
