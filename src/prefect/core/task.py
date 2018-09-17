@@ -293,7 +293,8 @@ class Task(Serializable, metaclass=SignatureValidator):
         self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         """
-        Map the Task elementwise across one or more Tasks.
+        Map the Task elementwise across one or more Tasks. Arguments which should _not_ be mapped over
+        should be placed in the `prefect.utilities.tasks.unmapped` container.
 
         Args:
             - *args: arguments to map over, which will elementwise be bound to the Task's `run` method
