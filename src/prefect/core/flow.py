@@ -691,7 +691,12 @@ class Flow(Serializable):
             is_mapped = mapped & (not isinstance(t, unmapped))
             t = as_task(t)
             assert isinstance(t, Task)  # mypy assert
-            self.add_edge(upstream_task=t, downstream_task=task, validate=validate, mapped=is_mapped)
+            self.add_edge(
+                upstream_task=t,
+                downstream_task=task,
+                validate=validate,
+                mapped=is_mapped,
+            )
 
         # add downstream tasks
         for t in downstream_tasks or []:
@@ -705,7 +710,11 @@ class Flow(Serializable):
             t = as_task(t)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(
-                upstream_task=t, downstream_task=task, key=key, validate=validate, mapped=is_mapped
+                upstream_task=t,
+                downstream_task=task,
+                key=key,
+                validate=validate,
+                mapped=is_mapped,
             )
 
     # Execution  ---------------------------------------------------------------

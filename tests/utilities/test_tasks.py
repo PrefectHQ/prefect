@@ -148,6 +148,11 @@ def test_unmapped_initializes_with_task():
     assert unmapped_t1.task is t1
 
 
+def test_unmapped_converts_its_argument_to_task():
+    unmapped_t1 = tasks.unmapped(5)
+    assert isinstance(unmapped_t1.task, Task)
+
+
 def test_as_task_unpacks_unmapped_objects():
     t1 = Task()
     unmapped_t1 = tasks.unmapped(t1)

@@ -290,10 +290,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         return self
 
     def map(
-        self,
-        *args: object,
-        upstream_tasks: Iterable[object] = None,
-        **kwargs: object
+        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         """
         Map the Task elementwise across one or more Tasks.
