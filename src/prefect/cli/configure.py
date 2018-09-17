@@ -41,7 +41,11 @@ def init(path):
         "API Access Key", default=config_data.get("API_ACCESS_KEY")
     )
 
-    toml.dump(config_data, path)
+    config_data["api_server"] = config_data["API_URL"]
+    config_data["graphql_server"] = os.path.join(config_data["API_URL"], "graphql/")
+
+    with open(path, "w") as config_file:
+        toml.dump(config_data, config_file)
 
 
 @configure.command()
@@ -63,7 +67,8 @@ def set_variable(variable, path):
         "{}".format(variable), default=config_data.get(variable)
     )
 
-    toml.dump(config_data, path)
+    with open(path, "w") as config_file:
+        toml.dump(config_data, config_file)
 
 
 @configure.command()
