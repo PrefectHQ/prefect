@@ -5,6 +5,8 @@ Here we will dig into some of the more advanced features that Prefect offers; in
 
 ::: tip Our Goal
 Inspired by the revival of the TV show "The X-Files" along with recent advances in Natural Language Processing, we seek to scrape transcripts of every X-Files episode from the internet and save them to a database so that we can create a chatbot based on the character of Dana Scully (actually creating the chatbot is left as an exercise to the reader).
+
+All code examples are intended to be executable on your local machine within an interactive Python or IPython session. 
 :::
 
 ## Outline
@@ -234,6 +236,8 @@ This is great, but what if, under the hood, we end up with 20 requests going to 
 
 ::: warning System limits
 Using parallelism locally can open large numbers of ["file descriptors"](https://stackoverflow.com/a/5256705/1617887) on your machine and occasionally cause cryptic errors - you should check your system limit and increase it if necessary.
+
+If you are following along and executing the code locally, it is recommended you do so using an interactive Python or IPython session; because the `DaskExecutor` will spawn new subprocesses, [issues can arise if executed within a script incorrectly](https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods).
 :::
 
 ```python
