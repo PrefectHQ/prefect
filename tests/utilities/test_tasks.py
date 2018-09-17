@@ -140,3 +140,9 @@ def test_context_manager_for_setting_tags():
 
             t3 = Task(tags=["5"])
             assert t3.tags == set(["1", "2", "3", "4", "5"])
+
+
+def test_unmapped_initializes_with_task():
+    t1 = Task()
+    unmapped_t1 = tasks.unmapped(t1)
+    assert unmapped_t1.task is t1
