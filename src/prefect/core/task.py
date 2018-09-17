@@ -303,34 +303,14 @@ class Task(Serializable, metaclass=SignatureValidator):
             - *args: arguments to map over, which will elementwise be bound to the Task's `run` method
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 to map over
-            - unmapped (dict, optional): a dictionary of "key" -> Task
-                specifying keyword arguments which will _not_ be mapped over.  The special key `None` is reserved for
-                optionally including a _list_ of upstream task dependencies
             - **kwargs: keyword arguments to map over, which will elementwise be bound to the Task's `run` method
 
         Returns: - Task: a new Task instance
         """
-        ## collect arguments / keyword arguments / upstream dependencies which will _not_ be mapped over
-        unmapped = unmapped or {}
-        unmapped_upstream = unmapped.pop(
-            None, None
-        )  # possible list of upstream dependencies
-
         new = self.copy()
 
         # bind all appropriate tasks to the run() method
-        full_kwargs = dict(kwargs, **unmapped)
-        callargs = new._get_bound_signature(*args, **full_kwargs)
-
-        ## collect arguments / keyword arguments which _will_ be mapped over
-        mapped = {k: v for k, v in callargs.items() if (v in args) or (k in kwargs)}
-
-        if upstream_tasks is not None:
-            mapped[None] = upstream_tasks  # add in mapped upstream dependencies
-
-        unmapped_callargs = {
-            k: v for k, v in callargs.items() if (v not in args) and (k not in kwargs)
-        }
+        callargs = new._get_bound_signature(*args, **kwargs)
 
         flow = prefect.context.get("_flow", None)
         if not flow:
@@ -338,9 +318,9 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         new.set_dependencies(
             flow=flow,
-            upstream_tasks=unmapped_upstream,
-            keyword_tasks=unmapped_callargs,
-            mapped_tasks=mapped,
+            upstream_tasks=upstream_tasks,
+            keyword_tasks=callargs,
+            mapped=True,
         )
 
         tags = set(prefect.context.get("_tags", set()))
@@ -354,7 +334,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Dict[str, object] = None,
-        mapped_tasks=None,
+        mapped=False,
         validate: bool = True,
     ) -> None:
         """
@@ -367,8 +347,8 @@ class Task(Serializable, metaclass=SignatureValidator):
             - downstream_tasks ([object], optional): A list of downtream tasks for this task
             - keyword_tasks ({str, object}}, optional): The results of these tasks will be provided
             to the task under the specified keyword arguments.
-            - mapped_tasks ({str, object}}, optional): The results of these
-                tasks will be mapped over under the specified keyword arguments, with `None` specifying a list of upstream dependencies which will also be mapped over
+            - mapped (bool, optional): Whether the results of these tasks should be mapped over
+                with the specified keyword arguments
             - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
@@ -389,7 +369,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             downstream_tasks=downstream_tasks,
             keyword_tasks=keyword_tasks,
             validate=validate,
-            mapped_tasks=mapped_tasks,
+            mapped=mapped,
         )
 
     def set_upstream(self, task: object) -> None:

@@ -146,3 +146,9 @@ def test_unmapped_initializes_with_task():
     t1 = Task()
     unmapped_t1 = tasks.unmapped(t1)
     assert unmapped_t1.task is t1
+
+
+def test_as_task_unpacks_unmapped_objects():
+    t1 = Task()
+    unmapped_t1 = tasks.unmapped(t1)
+    assert tasks.as_task(t1) is t1
