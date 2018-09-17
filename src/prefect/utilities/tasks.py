@@ -52,6 +52,8 @@ def as_task(x: Any) -> "prefect.core.Task":
     # task objects
     if isinstance(x, prefect.core.Task):
         return x
+    elif isinstance(x, unmapped):
+        return x.task
 
     # collections
     elif isinstance(x, list):

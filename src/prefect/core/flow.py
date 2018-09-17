@@ -17,7 +17,7 @@ from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.environments import Environment
 from prefect.utilities.json import Serializable, dumps
-from prefect.utilities.tasks import as_task
+from prefect.utilities.tasks import as_task, unmapped
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
@@ -655,7 +655,7 @@ class Flow(Serializable):
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Mapping[str, object] = None,
-        mapped_tasks: Dict = None,
+        mapped: bool = False,
         validate: bool = None,
     ) -> None:
         """
@@ -672,9 +672,8 @@ class Flow(Serializable):
                 will be provided to the task under the specified keyword
                 arguments. If any task is not a Task subclass, Prefect will attempt to
                 convert it to one.
-            - mapped_tasks ({key: object}, optional): The results of these tasks
-                will be mapped under the specified keyword arguments. If any task is not a Task subclass, Prefect will attempt to
-                convert it to one.
+            - mapped (bool, optional): Whether the upstream tasks (both keyed
+                and non-keyed) should be mapped over; defaults to `False`
             - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
@@ -689,9 +688,10 @@ class Flow(Serializable):
 
         # add upstream tasks
         for t in upstream_tasks or []:
+            is_mapped = mapped & (not isinstance(t, unmapped))
             t = as_task(t)
             assert isinstance(t, Task)  # mypy assert
-            self.add_edge(upstream_task=t, downstream_task=task, validate=validate)
+            self.add_edge(upstream_task=t, downstream_task=task, validate=validate, mapped=is_mapped)
 
         # add downstream tasks
         for t in downstream_tasks or []:
@@ -701,34 +701,12 @@ class Flow(Serializable):
 
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
+            is_mapped = mapped & (not isinstance(t, unmapped))
             t = as_task(t)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(
-                upstream_task=t, downstream_task=task, key=key, validate=validate
+                upstream_task=t, downstream_task=task, key=key, validate=validate, mapped=is_mapped
             )
-
-        # add edges for tasks which will be mapped over
-        for key, t in (mapped_tasks or {}).items():
-            if key is None:  # upstream_tasks, a list of upstream dependencies
-                for tt in t:
-                    tt = as_task(tt)
-                    assert isinstance(tt, Task)  # mypy assert
-                    self.add_edge(
-                        upstream_task=tt,
-                        downstream_task=task,
-                        validate=validate,
-                        mapped=True,
-                    )
-            else:
-                t = as_task(t)
-                assert isinstance(t, Task)  # mypy assert
-                self.add_edge(
-                    upstream_task=t,
-                    downstream_task=task,
-                    key=key,
-                    validate=validate,
-                    mapped=True,
-                )
 
     # Execution  ---------------------------------------------------------------
 
