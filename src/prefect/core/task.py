@@ -293,7 +293,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         self,
         *args: object,
         upstream_tasks: Iterable[object] = None,
-        unmapped: Dict[Any, Any] = None,
         **kwargs: object
     ) -> "Task":
         """
