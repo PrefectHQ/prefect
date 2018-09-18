@@ -36,8 +36,7 @@ We begin by setting up two Prefect tasks:
 - `retrieve_url`: a task which simply pulls the raw HTML to our local machine
 - `scrape_dialogue`: a task which takes that HTML, and processes it to extract the relevant dialogue by character
 
-Foreseeing our need to throttle the tasks which open web connections, we will _tag_ the `retrieve_url` task.  Moreover, because we want to re-use these tasks for other episodes, we will leave the URL as a Parameter which should be provided at runtime. We assume you have familiarized yourself with [the basics](etl.html) of constructing a Prefect flow and the [use of `Parameters`](calculator.html).
-
+To ease in, let's import everything we need and create the `retrieve_url` task:
 
 ```python
 import requests
@@ -57,8 +56,12 @@ def retrieve_url(url):
         return html.text
     else:
         raise ValueError("{} could not be retrieved.".format(url))
-        
-        
+```
+Foreseeing our need to throttle the tasks which open web connections, we have _tagged_ the `retrieve_url` task with `"web"` (any string can be provided as a tag).
+
+Next we create our `scrape_dialogue` task, which will contain the logic for parsing the raw HTML and extracting only the episode name and the dialogue (represented as a list of tuples `[(character, text)]`).  Because this task does not need to access the web, we do not need to tag it:
+
+```python
 @task
 def scrape_dialogue(episode_html):
     """
@@ -77,8 +80,11 @@ def scrape_dialogue(episode_html):
         what = str(item.next_sibling).rstrip(' *').replace("'", "''")
         dialogue.append((who, what))
     return (title, dialogue)
+```
 
+Now that we have our tasks, all that's left is to put them together into a flow; because we want to re-use these tasks for other episodes, we will leave the URL as a `Parameter` which should be provided at runtime. We assume you have familiarized yourself with [the basics](etl.html) of constructing a Prefect flow and the [use of `Parameters`](calculator.html).
 
+```python
 with Flow("xfiles") as flow:
     url = Parameter("url")
     episode = retrieve_url(url)
@@ -161,12 +167,17 @@ Any of these ideas would work, but consider this: we've already written the code
 In our current situation, instead of a loop, we utilize the `map()` method of tasks.  At a high level, at runtime `task.map(iterable_task)` is roughly equivalent to:
 ```python
 results = iterable_task.run()
+
 for item in results:
     task.run(item)
 ```
 Prefect will _dynamically_ create a task for each element of results, without needing to know how many there will be _a priori_.
 
-We now proceed to actually construct the flow:
+We now proceed to actually construct the flow; you'll notice a few additional lines from the first flow we created:
+- a `bypass` parameter for allowing us to bypass scraping the homepage for a list of all episodes
+- in this case, we will use the `retrieve_url` task for the home page as well as all the episode pages (being able to re-use our functions with new arguments is one of the great benefits of a functional workflow tool)
+- `retrieve_url` and `scrape_dialogue` will now be called with `.map()` as discussed above
+
 ```python
 with Flow("xfiles") as flow:
     url = Parameter("url")
@@ -183,17 +194,9 @@ The `Parameter` class has a few useful settings that we need in the above exampl
 - `required`: a boolean specifying whether or not the parameter is required at flow runtime; if not provided, the default value will be used
 :::
 
-To highlight the benefits of `map`, note that we went from scraping a single episode to scraping all episodes by writing one new function and recompliling our flow with minimal change: our original flow had _three_ tasks, while our new flow has _hundreds_!
-
-
-```python
-flow.visualize()
-```
-
-![](/full_scrape_flow.svg) {style="text-align: center;"}
-
+<a name="scrape_single_box"></a>
 :::tip Scraping a single episode
-To reproduce [the first example](#setting-up-the-flow-for-a-single-episode) we ran using our new flow, we would run:
+To reproduce [the first example](#setting-up-the-flow-for-a-single-episode) we ran using our new flow, we could now run:
 ```python
 episode_url = "http://www.insidethex.co.uk/transcrp/scrp320.htm"
 outer_space = flow.run(parameters={"url": episode_url, "bypass": True},
@@ -203,18 +206,27 @@ outer_space = flow.run(parameters={"url": episode_url, "bypass": True},
 In this case, we provide `bypass=True` so that the full episode list is not scraped; morever, we explicitly tell the flow to begin execution with the Parameters and the `create_episode_list` task, avoiding the task which would retrieve the homepage html.  See the diagram above to better understand what is occuring here - we'll see this pattern again shortly.
 :::
 
+To highlight the benefits of `map`, note that we went from scraping a single episode to scraping all episodes by writing one new function and recompliling our flow with minimal change: our original flow had _three_ tasks, while our new flow has _hundreds_!
+
+```python
+flow.visualize()
+```
+
+![](/full_scrape_flow.svg) {style="text-align: center;"}
+
 ::: tip How mapped tasks are returned
 In a normal flow run, `flow_state.result[task]` returns the post-run `State` of the `task` (e.g., `Success("Task run succeeded")`).  If, however, the task was the result of calling `.map()`, `flow_state.result[task]` will be a _list_ of states - one for each mapped instance.
 :::
 
-Now let's run our flow and time its execution:
+Now let's run our flow, time its execution, and print the states for the first five scraped episodes:
 ```python
 %%time
 scraped_state = flow.run(parameters={"url": "http://www.insidethex.co.uk/"}, return_tasks=[dialogue])
 #    CPU times: user 7.48 s, sys: 241 ms, total: 7.73 s
 #    Wall time: 4min 46s
 
-print('\n'.join([f'{s.result[0]}: {s}' for s in scraped_state.result[dialogue][:5]]))
+dialogue_state = scraped_state.result[dialogue] # list of State objects
+print('\n'.join([f'{s.result[0]}: {s}' for s in dialogue_state[:5]]))
 ```
 
     BABYLON - 1AYW04: Success("Task run succeeded.")
@@ -254,7 +266,8 @@ scraped_state = flow.run(parameters={"url": "http://www.insidethex.co.uk/"},
 #    CPU times: user 9.7 s, sys: 1.67 s, total: 11.4 s
 #    Wall time: 1min 34s
 
-print('\n'.join([f'{s.result[0]}: {s}' for s in scraped_state.result[dialogue][:5]]))
+dialogue_state = scraped_state.result[dialogue] # list of State objects
+print('\n'.join([f'{s.result[0]}: {s}' for s in dialogue_state[:5]]))
 ```
 
     BABYLON - 1AYW04: Success("Task run succeeded.")
@@ -272,7 +285,7 @@ Now that we have successfully scraped all of the dialogue, the next natural step
 - `create_db`: creates a new `"XFILES"` table if one does not already exist
 - `insert_episode`: inserts dialogue into the `"XFILES"` table
 
-As before, we tag each task with `"db"` so that we can throttle database connections when we actually run the flow.
+As before, we tag each task with `"db"` so that we can throttle database connections when we actually run the flow (strictly speaking, this isn't necessary for a `sqlite3` database, we will still include it for the sake of illustration).
 
 
 ```python
@@ -300,18 +313,22 @@ def insert_episode(db_file, episode):
             conn.commit()
 ```
 
-To extend our flow, we simply use our current `flow` to open a context manager and add tasks like normal.  Note that we are utilizing the fact that `dialogue` is a task that was defined in our current session.
+To extend our flow, we can simply use our current `flow` to open a context manager and add tasks like normal.  Note that we are utilizing the fact that `dialogue` is a task that was defined in our current session.
 
 ```python
+from prefect import unmapped
+
 with flow:
     db_file = Parameter("db_file")
     db = create_db(db_file)
-    final = insert_episode.map(episode=dialogue, 
-                               unmapped={None: [db], "db_file": db_file})
+    final = insert_episode.map(episode=dialogue, db_file=unmapped(db_file), 
+                               upstream_tasks=[unmapped(db)])
 ```
 
 ::: tip task.map()
-In the above example, we utilize a new call signature for `task.map()`.  It is often the case that some arguments to your task should _not_ be mapped over (they remain static).  This can be specified with the special `unmapped` keyword argument to `map`.  In our example above, the argument `"db_file"` is _not_ mapped over and is simply provided as-is to `insert_episode`.  Moreover, the special `None` key is reserved for those tasks which are stateful dependencies of the task, but do not pass any data.
+In the above example, we utilize a new call signature for `task.map()`.  It is often the case that some arguments to your task should _not_ be mapped over (they remain static).  This can be specified with the special `unmapped` container which we use to wrap such arguments to `map`.  In our example above, the argument `"db_file"` is _not_ mapped over and is simply provided as-is to `insert_episode`.  
+
+You also might notice the special `upstream_tasks` keyword argument; this is not unique to `map` and is simply a way of functionally specifying upstream dependencies which do not pass any data.
 :::
 
 
@@ -362,7 +379,7 @@ Disappointing, especially considering "The Springfield Files" was a Simpson's ep
 
 ## Reusability
 
-Suppose some time has passed, and a _new_ transcript has been uploaded - we've already put together all the necessary logic for going from a URL to the database, but how can we reuse that logic?  Simple! 
+Suppose some time has passed, and a _new_ transcript has been uploaded - we've already put together all the necessary logic for going from a URL to the database, but how can we reuse that logic?  Simple - we use the [same pattern we used for scraping a single episode above](#scrape_single_box)!
 
 Fun fact: The X-Files resulted in a spinoff TV series called "The Lone Gunmen"; the transcripts of this series are also [posted on the website we've been using](http://www.insidethex.co.uk/scripts.htm#tlg), so let's scrape Episode 5 using our already constructed flow; to do so, we'll utilize our custom `bypass` flag along with the `start_tasks` keyword argument for avoiding the initial scrape of the home page:
 
