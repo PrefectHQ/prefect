@@ -204,6 +204,7 @@ OUTLINE = [
             prefect.utilities.tasks.tags,
             prefect.utilities.tasks.as_task,
             prefect.utilities.tasks.task,
+            prefect.utilities.tasks.unmapped,
         ],
         "title": "Tasks",
     },
