@@ -30,10 +30,14 @@ def _validate_run_signature(run):
             "to *args."
         )
 
-    if "upstream_tasks" in run_sig.args:
-        raise ValueError(
-            "Tasks cannot have an `upstream_tasks` argument name; this is a reserved keyword argument."
+    reserved_kwargs = ["upstream_tasks", "mapped"]
+    violations = [kw for kw in reserved_kwargs if kw in run_sig.args]
+    if violations:
+        msg = "Tasks cannot have the following argument names: {}.".format(
+            ", ".join(violations)
         )
+        msg += " These are reserved keyword arguments."
+        raise ValueError(msg)
 
 
 class SignatureValidator(type):
@@ -217,7 +221,11 @@ class Task(Serializable, metaclass=SignatureValidator):
         return new
 
     def __call__(
-        self, *args: object, mapped: bool = False, upstream_tasks: Iterable[object] = None, **kwargs: object
+        self,
+        *args: object,
+        mapped: bool = False,
+        upstream_tasks: Iterable[object] = None,
+        **kwargs: object
     ) -> "Task":
         """
         Calling a Task instance will first create a _copy_ of the instance, and then
@@ -243,7 +251,11 @@ class Task(Serializable, metaclass=SignatureValidator):
         return new
 
     def bind(
-        self, *args: object, mapped: bool = False, upstream_tasks: Iterable[object] = None, **kwargs: object
+        self,
+        *args: object,
+        mapped: bool = False,
+        upstream_tasks: Iterable[object] = None,
+        **kwargs: object
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
@@ -285,7 +297,10 @@ class Task(Serializable, metaclass=SignatureValidator):
             raise ValueError("Could not infer an active Flow context.")
 
         self.set_dependencies(
-            flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs, mapped=mapped,
+            flow=flow,
+            upstream_tasks=upstream_tasks,
+            keyword_tasks=callargs,
+            mapped=mapped,
         )
 
         tags = set(prefect.context.get("_tags", set()))
