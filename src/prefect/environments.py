@@ -162,10 +162,7 @@ class ContainerEnvironment(Environment):
         with tempfile.TemporaryDirectory() as tempdir:
 
             # Write temp file of serialized registry to same location of Dockerfile
-            serialized_registry = LocalEnvironment().build(flow)
-            self.serialized_registry_to_file(
-                serialized_registry=serialized_registry, directory=tempdir
-            )
+            self.serialized_registry_to_file(flow=flow, directory=tempdir)
 
             self.pull_image()
             self.create_dockerfile(directory=tempdir)
@@ -293,13 +290,13 @@ class ContainerEnvironment(Environment):
                 {env_vars}
                 {pip_installs}
 
-                RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
-                RUN pip install ./prefect
-
                 RUN mkdir $HOME/.prefect/
                 COPY registry $HOME/.prefect/registry
 
-                ENV PREFECT__REGISRTY__STARTUP_REGISTRY_PATH ./registry
+                ENV PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="$HOME/.prefect/registry"
+
+                RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
+                RUN pip install ./prefect
             """.format(
                     image=self.image, env_vars=env_vars, pip_installs=pip_installs
                 )
@@ -308,19 +305,26 @@ class ContainerEnvironment(Environment):
             dockerfile.write(file_contents)
 
     def serialized_registry_to_file(
-        self, serialized_registry: bytes, directory: str = None
+        self, flow: "prefect.Flow", directory: str = None
     ) -> None:
         """
         Write a serialized registry to a temporary file so it can be added to the container
 
         Args:
-            - serialized_registry (bytes): The encrypted and pickled flow registry
+            - flow (prefect.Flow): The flow to be contained in the serialized registry
             - directory (str, optional): A directory where the Dockerfile will be created,
             if no directory is specified is will be created in the current working directory
 
         Returns:
             - None
         """
+
+        registry = {}
+        flow.register(registry=registry)
+        serialized_registry = prefect.core.registry.serialize_registry(
+            registry=registry, include_ids=[flow.id]
+        )
+
         path = "{}/registry".format(directory)
         with open(path, "wb+") as registry_file:
             registry_file.write(serialized_registry)
