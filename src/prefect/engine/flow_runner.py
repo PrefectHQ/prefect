@@ -245,23 +245,14 @@ class FlowRunner:
 
                 upstream_states = {}
                 task_inputs = {}
-                maps = {}  # a dictionary of key -> task(s) for mapping
+                mapped = False
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
+                    upstream_states[edge] = task_states[edge.upstream_task]
+                    mapped |= edge.mapped
 
-                    store = (
-                        maps if edge.mapped else upstream_states
-                    )  # which dict to put this edge in
-
-                    # upstream states to pass to the task trigger
-                    if edge.key is None:
-                        store.setdefault(None, []).append(
-                            task_states[edge.upstream_task]
-                        )
-                    else:
-                        store[edge.key] = task_states[edge.upstream_task]
-
+                # TODO: comment about why this is here
                 if task in start_tasks and task in task_states:
                     passed_state = task_states[task]
                     if not isinstance(passed_state, list):
@@ -273,10 +264,9 @@ class FlowRunner:
                     queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
                 ]
 
-                if maps:
+                if mapped:
                     task_states[task] = executor.map(
                         task_runner.run,
-                        maps=maps,
                         upstream_states=upstream_states,
                         state=task_states.get(task),
                         inputs=task_inputs,
