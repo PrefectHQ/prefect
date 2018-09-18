@@ -778,10 +778,12 @@ class Flow(Serializable):
 
     # Visualization ------------------------------------------------------------
 
-    def visualize(self):
+    def visualize(self, flow_state=None):
         """
         Creates graphviz object for representing the current flow
 
+        Args:
+            - flow_state (State, optional): flow state object used to optionally color the nodes
         Raises:
             - ImportError: if `graphviz` is not installed
         """
@@ -795,13 +797,35 @@ class Flow(Serializable):
             )
             raise ImportError(msg)
 
+        def get_color(task):
+            colors = {
+                "Retrying": "#FFFF0080",
+                "CachedState": "orange",
+                "Pending": "lightgrey",
+                "Skipped": "honeydew",
+                "Success": "#00800080",
+                "Failed": "#FF0000BF",
+                "TriggerFailed": "#F0808080",
+                "Unknown": "#00000080",
+            }
+            try:
+                state = flow_state.result.get(task)
+                return colors.get(type(state).__name__, "#00000080")
+            except:
+                return "#00000080"
+
         graph = graphviz.Digraph()
 
         for t in self.tasks:
             is_mapped = any(edge.mapped for edge in self.edges_to(t))
             shape = "box" if is_mapped else "ellipse"
             name = "{} <map>".format(t.name) if is_mapped else t.name
-            graph.node(str(id(t)), name, shape=shape)
+            kwargs = (
+                {}
+                if not flow_state
+                else dict(color=get_color(t), style="filled", colorscheme="svg")
+            )
+            graph.node(str(id(t)), name, shape=shape, **kwargs)
 
         for e in self.edges:
             style = "dashed" if e.mapped else None
@@ -867,9 +891,14 @@ class Flow(Serializable):
             throttle=self.throttle,
         )
 
-    def register(self) -> None:
-        """Register the flow."""
-        return prefect.core.registry.register_flow(self)
+    def register(self, registry=None) -> None:
+        """
+        Register the flow.
+
+        Args:
+            - registry (dict): a registry (defaults to the global registry)
+        """
+        return prefect.core.registry.register_flow(self, registry=registry)
 
     @cache
     def build_environment(self) -> bytes:

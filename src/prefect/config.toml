@@ -46,7 +46,7 @@ encryption_key = ''
 
 
 # a path containing a serialized registry object
-load_on_startup = ""
+startup_registry_path = ""
 
 
 

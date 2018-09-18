@@ -299,8 +299,7 @@ class ContainerEnvironment(Environment):
                 RUN mkdir $HOME/.prefect/
                 COPY registry $HOME/.prefect/registry
 
-                ENV HI=5
-                ENV PREFECT__REGISTRY__LOAD_ON_STARTUP="$HOME/.prefect/registry"
+                ENV PREFECT__REGISRTY__STARTUP_REGISTRY_PATH ./registry
             """.format(
                     image=self.image, env_vars=env_vars, pip_installs=pip_installs
                 )
@@ -349,15 +348,11 @@ class LocalEnvironment(Environment):
         Returns:
             - bytes: The encrypted and pickled flow registry
         """
-        tmp_registration = False
-        if flow.id not in prefect.core.registry.REGISTRY:
-            tmp_registration = True
-            flow.register()
+        registry = {}
+        flow.register(registry=registry)
         serialized = prefect.core.registry.serialize_registry(
-            include_ids=[flow.id], encryption_key=self.encryption_key
+            registry=registry, include_ids=[flow.id], encryption_key=self.encryption_key
         )
-        if tmp_registration:
-            del prefect.core.registry.REGISTRY[flow.id]
         return serialized
 
     def run(self, key: bytes, cli_cmd: str):
@@ -377,7 +372,7 @@ class LocalEnvironment(Environment):
                 f.write(key)
 
             env = [
-                'PREFECT__REGISTRY__LOAD_ON_STARTUP="{}"'.format(tmp.name),
+                'PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="{}"'.format(tmp.name),
                 'PREFECT__REGISTRY__ENCRYPTION_KEY="{}"'.format(self.encryption_key),
             ]
 

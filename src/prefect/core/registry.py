@@ -15,15 +15,18 @@ from prefect.utilities.json import dumps
 REGISTRY = {}
 
 
-def register_flow(flow: Flow) -> None:
+def register_flow(flow: Flow, registry: dict = None) -> None:
     """
     Registers a flow by storing it in the registry
 
     Args:
         - flow (Flow): the flow to register
+        - registry (dict): a registry (defaults to the global registry)
     """
+    if registry is None:
+        registry = REGISTRY
 
-    if any(flow.key() == f.key() for f in REGISTRY.values()):
+    if any(flow.key() == f.key() for f in registry.values()):
         _warn(
             "The registered flow has the same key {} as an already-registered flow.".format(
                 flow.key()
@@ -32,34 +35,44 @@ def register_flow(flow: Flow) -> None:
 
     if not isinstance(flow, Flow):
         raise TypeError("Expected a Flow; received {}".format(type(flow)))
-    REGISTRY[flow.id] = flow
+    registry[flow.id] = flow
 
 
-def build_flows() -> dict:
+def build_flows(registry: dict = None) -> dict:
     """
     Build environments for all flows in the registry and produce a metadata dictionary.
+
+    Args:
+        - registry (dict): a registry (defaults to the global registry)
 
     Returns:
         - dict: a dictionary keyed by flow.id and containing the serialized version of each
             flow.
     """
-    return {flow.id: flow.serialize() for flow in REGISTRY.values()}
+    if registry is None:
+        registry = REGISTRY
+
+    return {flow.id: flow.serialize() for flow in registry.values()}
 
 
-def load_flow(id: str) -> Flow:
+def load_flow(id: str, registry: dict = None) -> Flow:
     """
     Loads a flow from the registry.
 
     Args:
         - id (str): the flow's id
+        - registry (dict): a registry (defaults to the global registry)
     """
-    if id not in REGISTRY:
+    if registry is None:
+        registry = REGISTRY
+
+    if id not in registry:
         raise ValueError("Flow not found: {}".format(id))
-    return REGISTRY[id]
+    return registry[id]
 
 
 def serialize_registry(
-    include_ids: Iterable = None, encryption_key: str = None
+    registry: dict = None, include_ids: Iterable = None, encryption_key: str = None
 ) -> bytes:
     """
     Serialize the registry to bytes.
@@ -71,10 +84,12 @@ def serialize_registry(
             (the default), then the key in `prefect.config.registry.encryption_key` is
             used. If that key is unavailable, a warning is raised.
     """
+    if registry is None:
+        registry = REGISTRY
+
     if include_ids:
-        registry = {k: v for k, v in REGISTRY.items() if k in include_ids}
-    else:
-        registry = REGISTRY.copy()
+        registry = {k: v for k, v in registry.items() if k in include_ids}
+
     serialized = cloudpickle.dumps(registry)
     encryption_key = encryption_key or prefect.config.registry.encryption_key
     if not encryption_key:
@@ -89,7 +104,9 @@ def serialize_registry(
     return serialized
 
 
-def load_serialized_registry(serialized: bytes, encryption_key: str = None) -> None:
+def load_serialized_registry(
+    serialized: bytes, encryption_key: str = None, dest_registry: dict = None
+) -> None:
     """
     Deserialize a serialized registry. This function updates the current registry without
     clearing it first.
@@ -100,7 +117,13 @@ def load_serialized_registry(serialized: bytes, encryption_key: str = None) -> N
             (the default), then the key in `prefect.config.registry.encryption_key`
             is used. If that key is unavailable, deserialization will procede without
             decryption.
+        - dest_registry (dict): a registry to update with the serialized registry
+            (defaults to the global registry)
+
     """
+    if dest_registry is None:
+        dest_registry = REGISTRY
+
     encryption_key = encryption_key or prefect.config.registry.encryption_key
     if not encryption_key:
         _warn(
@@ -111,10 +134,12 @@ def load_serialized_registry(serialized: bytes, encryption_key: str = None) -> N
     else:
         serialized = Fernet(encryption_key).decrypt(serialized)
 
-    REGISTRY.update(cloudpickle.loads(serialized))
+    dest_registry.update(cloudpickle.loads(serialized))
 
 
-def load_serialized_registry_from_path(path: str, encryption_key: str = None) -> None:
+def load_serialized_registry_from_path(
+    path: str, encryption_key: str = None, dest_registry: dict = None
+) -> None:
     """
     Deserialize a serialized registry from a file. This function updates the current
     registry without clearing it first.
@@ -125,7 +150,12 @@ def load_serialized_registry_from_path(path: str, encryption_key: str = None) ->
             (the default), then the key in `prefect.config.registry.encryption_key`
             is used. If that key is unavailable, deserialization will procede without
             decryption.
+        - dest_registry (dict): a registry to update with the serialized registry
+            (defaults to the global registry)
+
     """
     with open(path, "rb") as f:
         serialized_registry = f.read()
-    load_serialized_registry(serialized_registry, encryption_key=encryption_key)
+    load_serialized_registry(
+        serialized_registry, encryption_key=encryption_key, dest_registry=dest_registry
+    )

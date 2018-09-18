@@ -23,7 +23,7 @@ from ._version import get_versions
 __version__ = get_versions()["version"]
 del get_versions
 
-if prefect.config.registry.load_on_startup:
+if prefect.config.registry.startup_registry_path:
     prefect.core.registry.load_serialized_registry_from_path(
-        prefect.config.registry.load_on_startup
+        prefect.config.registry.startup_registry_path
     )
