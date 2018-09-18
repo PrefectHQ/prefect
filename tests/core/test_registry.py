@@ -18,6 +18,8 @@ def flow():
 @pytest.fixture(autouse=True)
 def clear_data():
     registry.REGISTRY.clear()
+    yield
+    registry.REGISTRY.clear()
 
 
 @pytest.fixture(autouse=True, scope="module")
