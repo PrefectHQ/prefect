@@ -321,11 +321,9 @@ flow.visualize()
 
 ![](/full_db_flow.svg) {style="text-align: center;"}
 
-We are now ready to execute our flow! Of course, we have _already_ scraped all the dialogue - there's no real need to redo all that work.  This is where our previous flow state (`scraped_state`) comes in handy!  
+We are now ready to execute our flow! Of course, we have _already_ scraped all the dialogue - there's no real need to redo all that work.  This is where our previous flow state (`scraped_state`) comes in handy! Recall that `scraped_state.result` will be a dictionary of tasks to their corresponding states; consequently we can feed this information to the next flow run via the `task_states` keyword argument.  These states will then be used in determining whether each task should be run or whether they are already finished.  Because we have added _new_ tasks to the flow, the new tasks will not have a corresponding state in this dictionary and will run as expected.  
 
-- use `start_tasks` combined with `task_states`
-
-meh, just call out `start_tasks`
+Moreover, to avoid a lot of unnecsesary processing, we can explicitly tell the flow to start running at the three tasks we just added using the `start_tasks` keyword argument:
 
 
 ```python
