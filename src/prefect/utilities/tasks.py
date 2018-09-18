@@ -8,7 +8,7 @@ from toolz import curry
 
 import prefect
 
-__all__ = ["tags", "as_task", "task"]
+__all__ = ["tags", "as_task", "task", "unmapped"]
 
 
 @contextmanager
@@ -52,6 +52,8 @@ def as_task(x: Any) -> "prefect.core.Task":
     # task objects
     if isinstance(x, prefect.core.Task):
         return x
+    elif isinstance(x, unmapped):
+        return x.task
 
     # collections
     elif isinstance(x, list):
@@ -123,3 +125,35 @@ def task(
     ```
     """
     return prefect.tasks.core.function.FunctionTask(fn=fn, **task_init_kwargs)
+
+
+class unmapped:
+    """
+    A container for specifying that a task should _not_ be mapped over when
+    called with `task.map`.
+
+    Args:
+        - task (Task): the task to mark as "unmapped"; if not a Task subclass,
+            Prefect will attempt to convert it to one.
+
+    Example:
+        ```python
+        from prefect import Flow, Task, unmapped
+
+        class AddTask(Task):
+            def run(self, x, y):
+                return x + y
+
+        class ListTask(Task):
+            def run(self):
+                return [1, 2, 3]
+
+        with Flow():
+            add = AddTask()
+            ll = ListTask()
+            result = add.map(x=ll, y=unmapped(5), upstream_tasks=[unmapped(Task())])
+        ```
+    """
+
+    def __init__(self, task):
+        self.task = as_task(task)

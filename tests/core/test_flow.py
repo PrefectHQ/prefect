@@ -9,7 +9,7 @@ from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
 from prefect.tasks.core.function import FunctionTask
-from prefect.utilities.tasks import task
+from prefect.utilities.tasks import task, unmapped
 from prefect.utilities.tests import set_temporary_config
 
 
@@ -143,6 +143,28 @@ def test_set_dependencies_converts_arguments_to_tasks():
         task=t1, upstream_tasks=[t2], downstream_tasks=[t3], keyword_tasks={"x": t4}
     )
     assert len(f.tasks) == 4
+
+
+def test_set_dependencies_creates_mapped_edges():
+    t1 = Task()
+    t2 = Task()
+    f = Flow()
+
+    f.set_dependencies(task=t1, upstream_tasks=[t2], mapped=True)
+    assert len(f.edges) == 1
+    edge = f.edges.pop()
+    assert edge.mapped is True
+
+
+def test_set_dependencies_respects_unmapped():
+    t1 = Task()
+    t2 = Task()
+    f = Flow()
+
+    f.set_dependencies(task=t1, upstream_tasks=[unmapped(t2)], mapped=True)
+    assert len(f.edges) == 1
+    edge = f.edges.pop()
+    assert edge.mapped is False
 
 
 def test_binding_a_task_in_context_adds_it_to_flow():
@@ -721,8 +743,14 @@ def test_register():
     flow = Flow()
     assert flow.id not in prefect.core.registry.REGISTRY
     flow.register()
-    assert flow.id in prefect.core.registry.REGISTRY
     assert prefect.core.registry.REGISTRY[flow.id] is flow
+
+
+def test_register_nondefault():
+    r = {}
+    flow = Flow()
+    flow.register(registry=r)
+    assert r[flow.id] is flow
 
 
 def test_register_init():
