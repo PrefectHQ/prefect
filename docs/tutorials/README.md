@@ -25,3 +25,6 @@ Visualize your Prefect flows with `flow.visualize()` and their local execution w
 
 ## [Task Throttling](throttling.md)<Badge text="advanced" type="warn"/><Badge text="0.4.0+"/>
 Learn how to use local parallelism for executing flows, and how to leverage _task throttling_ to prevent too many tasks from being executed simultaneously
+
+## [Advanced Features](advanced-mapping.md)<Badge text="advanced" type="warn"/><Badge text="0.4.0+"/>
+Dynamically create large numbers of tasks using `task.map()`! Using a real-world web-scraping project as an example, walks through the more advanced features of Prefect including advanced parameter usage, task mapping, parallelism and throttling. 
