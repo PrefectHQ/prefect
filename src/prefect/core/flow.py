@@ -673,7 +673,9 @@ class Flow(Serializable):
                 arguments. If any task is not a Task subclass, Prefect will attempt to
                 convert it to one.
             - mapped (bool, optional): Whether the upstream tasks (both keyed
-                and non-keyed) should be mapped over; defaults to `False`
+                and non-keyed) should be mapped over; defaults to `False`. If `True`, any
+                tasks wrapped in the `prefect.utilities.tasks.unmapped` container will
+                _not_ be mapped over.
             - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
