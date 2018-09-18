@@ -721,8 +721,14 @@ def test_register():
     flow = Flow()
     assert flow.id not in prefect.core.registry.REGISTRY
     flow.register()
-    assert flow.id in prefect.core.registry.REGISTRY
     assert prefect.core.registry.REGISTRY[flow.id] is flow
+
+
+def test_register_nondefault():
+    r = {}
+    flow = Flow()
+    flow.register(registry=r)
+    assert r[flow.id] is flow
 
 
 def test_register_init():

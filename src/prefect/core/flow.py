@@ -891,9 +891,14 @@ class Flow(Serializable):
             throttle=self.throttle,
         )
 
-    def register(self) -> None:
-        """Register the flow."""
-        return prefect.core.registry.register_flow(self)
+    def register(self, registry=None) -> None:
+        """
+        Register the flow.
+
+        Args:
+            - registry (dict): a registry (defaults to the global registry)
+        """
+        return prefect.core.registry.register_flow(self, registry=registry)
 
     @cache
     def build_environment(self) -> bytes:

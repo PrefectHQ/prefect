@@ -246,7 +246,7 @@ class ContainerEnvironment(Environment):
 
                 COPY registry ./registry
 
-                ENV PREFECT__REGISRTY__LOAD_ON_STARTUP ./registry
+                ENV PREFECT__REGISRTY__STARTUP_REGISTRY_PATH ./registry
 
                 RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN pip install prefect
@@ -326,7 +326,7 @@ class LocalEnvironment(Environment):
                 f.write(key)
 
             env = [
-                'PREFECT__REGISTRY__LOAD_ON_STARTUP="{}"'.format(tmp.name),
+                'PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="{}"'.format(tmp.name),
                 'PREFECT__REGISTRY__ENCRYPTION_KEY="{}"'.format(self.encryption_key),
             ]
 
