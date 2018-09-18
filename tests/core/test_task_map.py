@@ -37,6 +37,16 @@ def test_map_returns_a_task_copy():
     assert res != a
 
 
+def test_calling_map_with_bind_returns_self():
+    ll = ListTask()
+    a = AddTask()
+
+    with Flow():
+        res = a.bind(ll, mapped=True)
+
+    assert res is a
+
+
 @pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
 def test_map_spawns_new_tasks(executor):
     ll = ListTask()

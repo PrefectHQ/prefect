@@ -217,7 +217,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         return new
 
     def __call__(
-        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
+        self, *args: object, mapped: bool = False, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         """
         Calling a Task instance will first create a _copy_ of the instance, and then
@@ -227,6 +227,10 @@ class Task(Serializable, metaclass=SignatureValidator):
         Args:
             - *args: arguments to bind to the new Task's `run` method
             - **kwargs: keyword arguments to bind to the new Task's `run` method
+            - mapped (bool, optional): Whether the results of these tasks should be mapped over
+                with the specified keyword arguments; defaults to `False`.
+                If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
+                container will _not_ be mapped over.
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 for the new task.  This kwarg can be used to functionally specify
                 dependencies without binding their result to `run()`
@@ -235,26 +239,11 @@ class Task(Serializable, metaclass=SignatureValidator):
             - Task: a new Task instance
         """
         new = self.copy()
-        new.bind(*args, upstream_tasks=upstream_tasks, **kwargs)
+        new.bind(*args, mapped=mapped, upstream_tasks=upstream_tasks, **kwargs)
         return new
 
-    def _get_bound_signature(self, *args, **kwargs):
-        # this will raise an error if callargs weren't all provided
-        signature = inspect.signature(self.run)
-        callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
-
-        # bind() compresses all variable keyword arguments under the ** argument name,
-        # so we expand them explicitly
-        var_kw_arg = next(
-            (p for p in signature.parameters.values() if p.kind == VAR_KEYWORD), None
-        )
-        if var_kw_arg:
-            callargs.update(callargs.pop(var_kw_arg.name, {}))
-
-        return callargs
-
     def bind(
-        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
+        self, *args: object, mapped: bool = False, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
@@ -268,6 +257,10 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         Args:
             - *args: arguments to bind to the current Task's `run` method
+            - mapped (bool, optional): Whether the results of these tasks should be mapped over
+                with the specified keyword arguments; defaults to `False`.
+                If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
+                container will _not_ be mapped over.
             - upstream_tasks ([Task], optional): a list of upstream dependencies for the
                 current task.
             - **kwargs: keyword arguments to bind to the current Task's `run` method
@@ -275,13 +268,24 @@ class Task(Serializable, metaclass=SignatureValidator):
         Returns: - Task: the current Task instance
         """
 
-        callargs = self._get_bound_signature(*args, **kwargs)
+        # this will raise an error if callargs weren't all provided
+        signature = inspect.signature(self.run)
+        callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
+
+        # bind() compresses all variable keyword arguments under the ** argument name,
+        # so we expand them explicitly
+        var_kw_arg = next(
+            (p for p in signature.parameters.values() if p.kind == VAR_KEYWORD), None
+        )
+        if var_kw_arg:
+            callargs.update(callargs.pop(var_kw_arg.name, {}))
+
         flow = prefect.context.get("_flow", None)
         if not flow:
             raise ValueError("Could not infer an active Flow context.")
 
         self.set_dependencies(
-            flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs
+            flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs, mapped=mapped,
         )
 
         tags = set(prefect.context.get("_tags", set()))
@@ -305,25 +309,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         Returns: - Task: a new Task instance
         """
         new = self.copy()
-
-        # bind all appropriate tasks to the run() method
-        callargs = new._get_bound_signature(*args, **kwargs)
-
-        flow = prefect.context.get("_flow", None)
-        if not flow:
-            raise ValueError("Could not infer an active Flow context.")
-
-        new.set_dependencies(
-            flow=flow,
-            upstream_tasks=upstream_tasks,
-            keyword_tasks=callargs,
-            mapped=True,
-        )
-
-        tags = set(prefect.context.get("_tags", set()))
-        new.tags.update(tags)
-
-        return new
+        return new.bind(*args, mapped=True, upstream_tasks=upstream_tasks, **kwargs)
 
     def set_dependencies(
         self,
