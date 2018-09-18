@@ -132,7 +132,7 @@ class unmapped:
     A container for specifying that a task should _not_ be mapped over when
     called with `task.map`.
 
-    Arguments:
+    Args:
         - task (Task): the task to mark as "unmapped"; if not a Task subclass,
             Prefect will attempt to convert it to one.
 
