@@ -298,15 +298,11 @@ class LocalEnvironment(Environment):
         Returns:
             - bytes: The encrypted and pickled flow registry
         """
-        tmp_registration = False
-        if flow.id not in prefect.core.registry.REGISTRY:
-            tmp_registration = True
-            flow.register()
+        registry = {}
+        flow.register(registry=registry)
         serialized = prefect.core.registry.serialize_registry(
-            include_ids=[flow.id], encryption_key=self.encryption_key
+            registry=registry, include_ids=[flow.id], encryption_key=self.encryption_key
         )
-        if tmp_registration:
-            del prefect.core.registry.REGISTRY[flow.id]
         return serialized
 
     def run(self, key: bytes, cli_cmd: str):
