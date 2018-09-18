@@ -26,7 +26,7 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
-from prefect.triggers import manual_only
+from prefect.triggers import manual_only, any_failed
 from prefect.utilities.tests import raise_on_exception
 from unittest.mock import MagicMock
 
@@ -130,19 +130,6 @@ def test_flow_runner_prevents_bad_throttle_values():
         base_msg.format("x", "y"),
         base_msg.format("y", "x"),
     ]  # for py34
-
-
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="Depends on ordered dictionaries of Python 3.6+"
-)
-def test_return_tasks_are_sorted():
-    flow = prefect.Flow()
-    a, b, c = SuccessTask(), SuccessTask(), SuccessTask()
-    flow.add_edge(a, b)
-    flow.add_edge(b, c)
-    flow_runner = FlowRunner(flow=flow)
-    result = flow_runner.run(return_tasks=[c, b, a])
-    assert list(result.result.keys()) == [a, b, c]
 
 
 def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
@@ -528,6 +515,47 @@ class TestOutputCaching:
         )
         assert isinstance(flow_state, Success)
         assert flow_state.result[y].result == 100
+
+
+class TestReturnFailed:
+    def test_return_failed_works_when_all_fail(self):
+        with Flow() as f:
+            s = SuccessTask()
+            e = ErrorTask()
+            s.set_upstream(e)
+        state = FlowRunner(flow=f).run(return_failed=True)
+        assert state.is_failed()
+        assert e in state.result
+        assert s in state.result
+
+    def test_return_failed_works_when_non_terminal_fails(self):
+        with Flow() as f:
+            s = SuccessTask(trigger=any_failed)
+            e = ErrorTask()
+            s.set_upstream(e)
+        state = FlowRunner(flow=f).run(return_failed=True)
+        assert state.is_successful()
+        assert e in state.result
+        assert s not in state.result
+
+    def test_return_failed_doesnt_duplicate(self):
+        with Flow() as f:
+            s = SuccessTask()
+            e = ErrorTask()
+            s.set_upstream(e)
+        state = FlowRunner(flow=f).run(return_tasks=f.tasks, return_failed=True)
+        assert state.is_failed()
+        assert len(state.result) == 2
+
+    def test_return_failed_includes_retries(self):
+        with Flow() as f:
+            s = SuccessTask()
+            e = ErrorTask(max_retries=1)
+            s.set_upstream(e)
+        state = FlowRunner(flow=f).run(return_failed=True)
+        assert state.is_pending()
+        assert e in state.result
+        assert isinstance(state.result[e], Retrying)
 
 
 @pytest.mark.skipif(
