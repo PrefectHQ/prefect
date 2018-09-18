@@ -3,7 +3,7 @@ import time
 
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
-from prefect.utilities.tasks import task
+from prefect.utilities.tasks import task, unmapped
 from prefect.utilities.tests import raise_on_exception
 
 
@@ -35,6 +35,16 @@ def test_map_returns_a_task_copy():
         res = a.map(ll)
 
     assert res != a
+
+
+def test_calling_map_with_bind_returns_self():
+    ll = ListTask()
+    a = AddTask()
+
+    with Flow():
+        res = a.bind(ll, mapped=True)
+
+    assert res is a
 
 
 @pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
@@ -138,7 +148,7 @@ def test_map_can_handle_fixed_kwargs(executor):
     a = AddTask()
 
     with Flow() as f:
-        res = a.map(ll, unmapped=dict(y=5))
+        res = a.map(ll, y=unmapped(5))
 
     s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
@@ -186,7 +196,7 @@ def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args(executor):
     ll = ListTask()
 
     with Flow() as f:
-        res = ll.map(start=ll(), unmapped={None: [ii(5)]})
+        res = ll.map(start=ll(), upstream_tasks=[unmapped(ii(5))])
 
     s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
@@ -209,7 +219,7 @@ def test_map_tracks_non_mapped_upstream_tasks(executor):
         return True
 
     with Flow() as f:
-        res = register.map(div.map(zeros()), unmapped={None: [div(1)]})
+        res = register.map(div.map(zeros()), upstream_tasks=[unmapped(div(1))])
 
     s = f.run(return_tasks=f.tasks, executor=executor)
     assert s.is_failed()
