@@ -77,6 +77,19 @@ class TestCreateTask:
                 def run(self, x, *y):
                     pass
 
+    def test_class_instantiation_rejects_mapped_kwarg(self):
+        with pytest.raises(ValueError):
+
+            class MappedTasks(Task):
+                def run(self, x, mapped):
+                    pass
+
+        with pytest.raises(ValueError):
+
+            class MappedTasks(Task):
+                def run(self, x, mapped=None):
+                    pass
+
     def test_class_instantiation_rejects_upstream_tasks_kwarg(self):
         with pytest.raises(ValueError):
 

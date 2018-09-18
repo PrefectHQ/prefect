@@ -12,6 +12,9 @@
 - Use Netlify to deploy docs - [#156](https://github.com/prefecthq/prefect/issues/156)
 - Add changelog - [#153](https://github.com/prefecthq/prefect/issues/153)
 - `ShellTask` - [#150](https://github.com/prefecthq/prefect/issues/150)
+- Base `Task` class can now be run as a dummy task - [#191](https://github.com/PrefectHQ/prefect/pull/191)
+- new `return_failed` keyword to `flow.run()` for returning failed tasks - [#205](https://github.com/PrefectHQ/prefect/pull/205)
+- some minor changes to `flow.visualize()` for visualizing mapped tasks and coloring nodes by state - [#202](https://github.com/PrefectHQ/prefect/issues/202)
 
 ### Fixes
 

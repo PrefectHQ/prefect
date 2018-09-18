@@ -10,6 +10,7 @@ import sys
 import prefect
 
 from .flows import flows
+from .configure import configure
 
 
 @click.group()
@@ -26,3 +27,4 @@ def cli(registry_path=None, registry_encryption_key=None):
 
 
 cli.add_command(flows)
+cli.add_command(configure)

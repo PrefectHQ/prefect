@@ -212,7 +212,7 @@ class Client:
     # Auth
     # -------------------------------------------------------------------------
 
-    def login(self, email, password, account_slug=None, account_id=None):
+    def login(self, email, password, account_slug=None, account_id=None) -> dict:
         """
         Login to the server in order to gain access
 
@@ -252,7 +252,7 @@ class Client:
             accounts = self._get("auth/accounts")
             return accounts
 
-    def refresh_token(self):
+    def refresh_token(self) -> None:
         """
         Refresh the auth token for this user on the server. It is only valid for fifteen minutes.
         """
@@ -313,17 +313,13 @@ class Projects(ClientModule):
         """
         return self._graphql(
             """
-            mutation($account_id: String!, $name: String!) {
-                createProject(input: {
-                    account_id: $account_id,
-                    name: $name
-                }) {
+            mutation(input: CreateProjectInput!) {
+                createProject(input: $input) {
                     project {id}
                 }
             }
             """,
-            name=name,
-            account_id=account_id,
+            input=dict(name=name, accountId=account_id),
         )
 
 
@@ -346,19 +342,17 @@ class Flows(ClientModule):
         """
         return self._graphql(
             """
-            mutation($account_id: String!, $project_id: String!, $serialized_flow: JSONString!) {
-                createFlow(input: {
-                    account_id: $account_id,
-                    project_id: $project_id,
-                    serialized_flow: $serialized_flow
-                }) {
+            mutation(input: CreateFlowInput!) {
+                createFlow(input: $input) {
                     flow {id}
                 }
             }
             """,
-            account_id=account_id,
-            project_id=project_id,
-            serialized_flow=serialized_flow,
+            input=dict(
+                accountId=account_id,
+                projectId=project_id,
+                serializedFlow=serialized_flow,
+            ),
         )
 
 
@@ -381,19 +375,15 @@ class FlowRuns(ClientModule):
         """
         return self._graphql(
             """
-            mutation($account_id: String!, $flow_run_id: String!, $state: StateJSONString!) {
-                setFlowRunState(input: {
-                    account_id: $account_id,
-                    flow_run_id: $flow_run_id,
-                    state: $state
-                }) {
-                    flow_state {timestamp}
+            mutation(input: SetFlowRunStateInput!) {
+                setFlowRunState(input: $input) {
+                    flowState {timestamp}
                 }
             }
             """,
-            account_id=account_id,
-            flow_run_id=flow_run_id,
-            state=json.dumps(state),
+            input=dict(
+                accountId=account_id, flowRunId=flow_run_id, state=json.dumps(state)
+            ),
         )
 
 
@@ -416,17 +406,42 @@ class TaskRuns(ClientModule):
         """
         return self._graphql(
             """
-            mutation($account_id: String!, $task_run_id: String!, $state: StateJSONString!) {
-                setTaskRunState(input: {
-                    account_id: $account_id,
-                    task_run_id: $task_run_id,
-                    state: $state
-                }) {
-                    task_state {timestamp}
+            mutation(input: SetTaskRunStateInput!) {
+                setTaskRunState(input: $input) {
+                    taskState {timestamp}
                 }
             }
             """,
-            account_id=account_id,
-            task_run_id=task_run_id,
-            state=json.dumps(state),
+            input=dict(
+                accountId=account_id, taskRunId=task_run_id, state=json.dumps(state)
+            ),
+        )
+
+
+# -------------------------------------------------------------------------
+# Execution
+
+
+class RunFlow(ClientModule):
+    def run_flow(self, image_name, image_tag, flow_id) -> dict:
+        """
+        Run a flow
+
+        Args:
+            - image_name (str): The image container name the flow is in
+            - image_tag (str): The tag of the flow's image
+            - flow_id (str): The ID of the flow to be ran
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            mutation(input: RunFlowInput!) {
+                runFlow(input: $input) {
+                    status
+                }
+            }
+            """,
+            input=dict(imageName=image_name, imageTag=image_tag, flowId=flow_id),
         )
