@@ -10,13 +10,17 @@ Environments will serve a big purpose on accompanying the execution lifecycle fo
 Prefect Server and due to ongoing development this file is subject to large changes.
 """
 
+import os
+from pathlib import Path
 import subprocess
 import tempfile
 import textwrap
 from typing import Any, Iterable
+import uuid
 
 import docker
 from cryptography.fernet import Fernet
+import toml
 
 import prefect
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
@@ -94,7 +98,8 @@ class ContainerEnvironment(Environment):
     Args:
         - image (str): The image to pull that is used as a base for the Docker container
         *Note*: An image that is provided must be able to handle `python` and `pip` commands
-        - tag (str): The tag for this container
+        - name (str): The name the image will take on the registry
+        - tag (str, optional): The tag for this container
         - python_dependencies (list, optional): The list of pip installable python packages
         that will be installed on build of the Docker container
         - secrets ([Secret], optional): Iterable list of Secrets that will be used as
@@ -104,17 +109,16 @@ class ContainerEnvironment(Environment):
     def __init__(
         self,
         image: str,
-        tag: str,
+        name: str,
+        tag: str = None,
         python_dependencies: list = None,
         secrets: Iterable[Secret] = None,
     ) -> None:
-        if tag is None:
-            tag = image
-
         self._image = image
-        self._tag = tag
+        self._name = name
+        self._tag = tag or str(uuid.uuid4())
         self._python_dependencies = python_dependencies
-        self._client = docker.from_env()
+        # self._client = docker.from_env()
         self.last_container_id = None
 
         super().__init__(secrets=secrets)
@@ -130,6 +134,11 @@ class ContainerEnvironment(Environment):
         return self._image
 
     @property
+    def name(self) -> str:
+        """Get the name of the image"""
+        return self._name
+
+    @property
     def tag(self) -> str:
         """Get the container's tag"""
         return self._tag
@@ -137,13 +146,14 @@ class ContainerEnvironment(Environment):
     @property
     def client(self) -> "docker.client.DockerClient":
         """Get the environment's client"""
-        return self._client
+        return docker.from_env()
 
-    def build(self, flow) -> tuple:
+    def build(self, flow, push: bool = True) -> tuple:
         """Build the Docker container
 
         Args:
             - flow (prefect.Flow): Flow to be placed in container
+            - push (bool): Whether or not to push to registry after build
 
         Returns:
             - tuple with (`docker.models.images.Image`, iterable logs)
@@ -160,9 +170,31 @@ class ContainerEnvironment(Environment):
             self.pull_image()
             self.create_dockerfile(directory=tempdir)
 
-            container = self.client.images.build(
-                path=tempdir, tag=self.tag, forcerm=True
+            client = docker.from_env()
+
+            path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+
+            if Path(path).is_file():
+                config_data = toml.load(path)
+            else:
+                config_data = {}
+
+            if not config_data["REGISTRY_URL"]:
+                raise Exception("Registry not specified.")
+
+            image_name = os.path.join(config_data["REGISTRY_URL"], self.name)
+
+            print(image_name)
+
+            container = client.images.build(
+                path=tempdir, tag="{}:{}".format(image_name, self.tag), forcerm=True
             )
+
+            # Should have optional argument (on default) to delete container locally after
+            # a successful push
+
+            if push:
+                self.push(image_name, self.tag)
 
             return container
 
@@ -176,12 +208,28 @@ class ContainerEnvironment(Environment):
             - `docker.models.containers.Container` object
 
         """
-        running_container = self.client.containers.run(
+        client = docker.from_env()
+
+        running_container = client.containers.run(
             self.tag, command=cli_cmd, detach=True
         )
         self.last_container_id = running_container.id
 
         return running_container
+
+    def push(self, image_name: str, image_tag: str) -> None:
+        """Push this environment to a registry
+
+        Args:
+            - image_name (str): Name for the image
+            - image_tag (str): Tag for the image
+
+        Returns:
+            - None
+        """
+        client = docker.from_env()
+        print(image_name, image_tag)
+        client.images.push(image_name, tag=image_tag)
 
     def pull_image(self) -> None:
         """Pull the image specified so it can be built.
@@ -196,7 +244,8 @@ class ContainerEnvironment(Environment):
         Returns:
             - None
         """
-        self.client.images.pull(self.image)
+        client = docker.from_env()
+        client.images.pull(self.image)
 
     def create_dockerfile(self, directory: str = None) -> None:
         """Creates a dockerfile to use as the container.
@@ -235,23 +284,25 @@ class ContainerEnvironment(Environment):
 
             file_contents = textwrap.dedent(
                 """\
-                FROM {}
-
-                RUN pip install pip --upgrade
-                RUN pip install wheel
-                {}
-                {}
+                FROM {image}
 
                 RUN apt-get -qq -y update && apt-get -qq -y install --no-install-recommends --no-install-suggests git
 
-                COPY registry ./registry
-
-                ENV PREFECT__REGISRTY__LOAD_ON_STARTUP ./registry
+                RUN pip install pip --upgrade
+                RUN pip install wheel
+                {env_vars}
+                {pip_installs}
 
                 RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
-                RUN pip install prefect
+                RUN pip install ./prefect
+
+                RUN mkdir $HOME/.prefect/
+                COPY registry $HOME/.prefect/registry
+
+                ENV HI=5
+                ENV PREFECT__REGISTRY__LOAD_ON_STARTUP="$HOME/.prefect/registry"
             """.format(
-                    self.image, env_vars, pip_installs
+                    image=self.image, env_vars=env_vars, pip_installs=pip_installs
                 )
             )
 

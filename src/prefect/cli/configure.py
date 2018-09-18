@@ -8,6 +8,8 @@ import sys
 import click
 import toml
 
+from prefect.client import Client
+
 
 @click.group()
 def configure():
@@ -98,3 +100,21 @@ def open_config(path):
         path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
 
     click.launch(path)
+
+
+@configure.command()
+@click.argument("email")
+@click.argument("password")
+def login(email, password):
+    """
+    Login to Prefect Cloud
+    """
+    path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+
+    if Path(path).is_file():
+        config_data = toml.load(path)
+    else:
+        config_data = {}
+
+    client = Client(config_data["api_server"], config_data["graphql_server"])
+    client.login(email=email, password=password)
