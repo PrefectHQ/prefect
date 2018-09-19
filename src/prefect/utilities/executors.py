@@ -17,13 +17,12 @@ def dict_to_list(dd):
         # [{'x': State(result=1), 'y': State(3)}, {'x': State(result=2), 'y': State(result=4)}]
         ```
     """
-    mapped_non_keyed = dd.pop(None, [])
-    list_of_lists = list(zip(*[state_to_list(s) for s in mapped_non_keyed]))
-
-    listed = {key: state_to_list(s) for key, s in dd.items()}
-    if list_of_lists:
-        listed.update({None: list_of_lists})
-    return [dict(zip(listed, vals)) for vals in zip(*listed.values())]
+    mapped = {e: state_to_list(s) for e, s in dd.items() if e.mapped}
+    unmapped = {e: s for e, s in dd.items() if not e.mapped}
+    m_list = [dict(zip(mapped, vals)) for vals in zip(*mapped.values())]
+    for d in m_list:
+        d.update(unmapped)
+    return m_list
 
 
 def state_to_list(s):
