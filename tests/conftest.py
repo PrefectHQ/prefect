@@ -73,8 +73,6 @@ def executor(request, _switch):
     or with some subset of executors that you want to use.
     """
     if sys.version_info < (3, 5) and request.param in ["mthread", "mproc"]:
-        # needs to be xfail(run=False) so pytest doesn't apply this to the
-        # entire test
         request.applymarker(
             pytest.mark.xfail(
                 run=False,
