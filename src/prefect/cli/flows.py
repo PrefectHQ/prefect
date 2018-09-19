@@ -116,9 +116,13 @@ def exec_command(image_name, image_tag, flow_id, path):
         click.echo("CLI not configured. Run 'prefect configure init'")
         return
 
-    os.path.join(config_data["REGISTRY_URL"], image_name)
+    client = Client(
+        config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
+    )
 
-    print(image_name)
+    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"], account_slug="rebels")
 
-    rf = RunFlow(client=Client())
+    image_name = os.path.join(config_data["REGISTRY_URL"], image_name)
+
+    rf = RunFlow(client=client)
     rf.run_flow(image_name=image_name, image_tag=image_tag, flow_id=flow_id)

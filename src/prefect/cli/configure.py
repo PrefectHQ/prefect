@@ -103,18 +103,29 @@ def open_config(path):
 
 
 @configure.command()
-@click.argument("email")
-@click.argument("password")
-def login(email, password):
+@click.argument("path", required=False)
+def login(path):
     """
     Login to Prefect Cloud
     """
-    path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+    if not path:
+        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
 
     if Path(path).is_file():
         config_data = toml.load(path)
     else:
         config_data = {}
 
-    client = Client(config_data["api_server"], config_data["graphql_server"])
-    client.login(email=email, password=password)
+    config_data["EMAIL"] = click.prompt("email", default=config_data.get("EMAIL"))
+    config_data["PASSWORD"] = click.prompt(
+        "password", default=config_data.get("PASSWORD"), hide_input=True
+    )
+
+    client = Client(
+        config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
+    )
+
+    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+
+    with open(path, "w") as config_file:
+        toml.dump(config_data, config_file)

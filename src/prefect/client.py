@@ -158,7 +158,7 @@ class Client:
             - method (str): The type of request to be made (GET, POST, DELETE)
             - path (str): Path of the API URL
             - params (dict, optional): Parameters used for the request
-            - server (str, optional): The server to make requests against, base API 
+            - server (str, optional): The server to make requests against, base API
                 server is used if not specified
 
         Returns:
@@ -245,12 +245,13 @@ class Client:
             raise ValueError("Could not log in.")
         self._token = response.json().get("token")
 
+        # Functionality not yet ready
         # User must specify a single account to access
-        if not (account_id or account_slug):
-            print("No account provided; returning available accounts.")
-            # Will need to be a graphql query
-            accounts = self._get("auth/accounts")
-            return accounts
+        # if not (account_id or account_slug):
+        #     print("No account provided; returning available accounts.")
+        #     # Will need to be a graphql query
+        #     accounts = self._get("auth/accounts")
+        #     return accounts
 
     def refresh_token(self) -> None:
         """
@@ -313,7 +314,7 @@ class Projects(ClientModule):
         """
         return self._graphql(
             """
-            mutation(input: CreateProjectInput!) {
+            mutation($input: CreateProjectInput!) {
                 createProject(input: $input) {
                     project {id}
                 }
@@ -342,7 +343,7 @@ class Flows(ClientModule):
         """
         return self._graphql(
             """
-            mutation(input: CreateFlowInput!) {
+            mutation($input: CreateFlowInput!) {
                 createFlow(input: $input) {
                     flow {id}
                 }
@@ -375,7 +376,7 @@ class FlowRuns(ClientModule):
         """
         return self._graphql(
             """
-            mutation(input: SetFlowRunStateInput!) {
+            mutation($input: SetFlowRunStateInput!) {
                 setFlowRunState(input: $input) {
                     flowState {timestamp}
                 }
@@ -406,7 +407,7 @@ class TaskRuns(ClientModule):
         """
         return self._graphql(
             """
-            mutation(input: SetTaskRunStateInput!) {
+            mutation($input: SetTaskRunStateInput!) {
                 setTaskRunState(input: $input) {
                     taskState {timestamp}
                 }
@@ -437,7 +438,7 @@ class RunFlow(ClientModule):
         """
         return self._graphql(
             """
-            mutation(input: RunFlowInput!) {
+            mutation($input: RunFlowInput!) {
                 runFlow(input: $input) {
                     status
                 }
