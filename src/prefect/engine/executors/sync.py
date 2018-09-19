@@ -11,7 +11,6 @@ import warnings
 
 from prefect.engine.executors.base import Executor
 from prefect.utilities.executors import (
-    create_bagged_list,
     state_to_list,
     unpack_dict_to_bag,
 )
