@@ -10,10 +10,7 @@ import queue
 import warnings
 
 from prefect.engine.executors.base import Executor
-from prefect.utilities.executors import (
-    state_to_list,
-    unpack_dict_to_bag,
-)
+from prefect.utilities.executors import state_to_list, unpack_dict_to_bag
 
 
 class SynchronousExecutor(Executor):
