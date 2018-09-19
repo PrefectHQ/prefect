@@ -83,6 +83,7 @@ class AirFlow(prefect.core.flow.Flow):
         self.dag = airflow.models.DagBag().dags[dag_id]
         super().__init__(*args, **kwargs)
         self.populate_tasks()
+        self.env = self.init_db()
 
     def init_db(self):
         self.td = tempfile.TemporaryDirectory(prefix="prefect-airflow")
@@ -94,8 +95,7 @@ class AirFlow(prefect.core.flow.Flow):
         return env
 
     def run(self, execution_date, *args, **kwargs):
-        env = self.init_db()
-        with prefect.context(_execution_date=execution_date, _airflow_env=env):
+        with prefect.context(_execution_date=execution_date, _airflow_env=self.env):
             return super().run(*args, **kwargs)
 
     def issue_warnings(self, task):
