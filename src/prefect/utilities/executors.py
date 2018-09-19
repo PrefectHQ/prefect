@@ -52,10 +52,9 @@ def _bagged_list(ss):
     return [list(zz) for zz in zip(*expanded)]
 
 
-def unpack_dict_to_bag(*other, upstreams=None, **kwargs):
+def unpack_dict_to_bag(*values, keys):
     "Convenience function for packaging up all keywords into a dictionary"
-    bag = list(other) or upstreams or []
-    return dict({None: bag}, **kwargs)
+    return {k: v for k, v in zip(keys, values)}
 
 
 def create_bagged_list(mapped, unmapped):
