@@ -319,6 +319,13 @@ def test_synchronous_map_cannot_handle_mapping_different_length_results(executor
 
 @pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
 def test_map_works_with_retries_and_cached_states(executor):
+    """
+    This test isn't meant to test the correct way of handling caching for mapped
+    tasks, but is meant to test the only way that works right now - instead of
+    passing in a list of states for the mapped task, we instead pass in a list of
+    states for the _upstream_ task to the mapped task.
+    """
+
     @prefect.task
     def ll():
         return [0, 1, 2]
@@ -334,10 +341,18 @@ def test_map_works_with_retries_and_cached_states(executor):
     assert slist[0].is_pending()
     assert slist[1].is_successful()
     assert slist[2].is_successful()
-    slist[0].cached_inputs = {'x': 10} # artificially alter state
 
-    ll_state = s.result[ll] # necessary right now
-    with raise_on_exception():
-        s = f.run(return_tasks=[res], executor=executor, task_states={res: slist, ll: ll_state}, start_tasks=[res])
+    # this is the part that is non-standard
+    # we create a list of _new_ states for the _upstream_ tasks of res
+    ll_state = s.result[ll]
+    cached_state = [type(ll_state)(result=x) for x in ll_state.result]
+    cached_state[0].result = 10
+
+    s = f.run(
+        return_tasks=[res],
+        executor=executor,
+        task_states={ll: cached_state},
+        start_tasks=[res],
+    )
     assert s.is_successful()
     assert s.result[res][0].result == 1 / 10
