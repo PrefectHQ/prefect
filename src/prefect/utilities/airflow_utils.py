@@ -8,9 +8,6 @@ import tempfile
 import prefect
 
 
-## TODO:
-## - retries
-
 trigger_mapping = {
     "all_success": prefect.triggers.all_successful,
     "all_failed": prefect.triggers.all_failed,
