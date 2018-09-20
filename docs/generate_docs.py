@@ -395,9 +395,9 @@ if __name__ == "__main__":
     GIT_SHA = os.getenv("GIT_SHA", "0000000")
     SHORT_SHA = GIT_SHA[:7]
     auto_generated_footer = (
-        "<hr>\n\n<sub>*This documentation was auto-generated from "
-        "[{short_sha}](https://github.com/PrefectHQ/prefect/commit/{git_sha})"
-        "*</sub>".format(short_sha=SHORT_SHA, git_sha=GIT_SHA)
+        "<hr>\n\n<p><small><i>This documentation was auto-generated from "
+        "<a href='https://github.com/PrefectHQ/prefect/commit/{git_sha}'>{short_sha}</a>"
+        "</i></small></p>".format(short_sha=SHORT_SHA, git_sha=GIT_SHA)
     )
 
     front_matter = textwrap.dedent(
