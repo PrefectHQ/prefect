@@ -74,38 +74,20 @@ class DaskExecutor(Executor):
         q = Queue(maxsize=maxsize, client=client or self.client)
         return q
 
-    def map(
-        self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any
-    ):
-        overlapping_keys = maps.keys() & upstream_states.keys()
-        if overlapping_keys - set([None]):
-            bad = ", ".join(overlapping_keys - set([None]))
-            raise ValueError(
-                "{0} ambiguously submitted for mapping and as an unmapped upstream state.".format(
-                    bad
-                )
-            )
-
-        def mapper(maps, fn, *args, upstream_states, **kwargs):
-            states = dict_to_list(maps)
+    def map(self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any):
+        def mapper(fn, *args, upstream_states, **kwargs):
+            states = dict_to_list(upstream_states)
 
             with worker_client() as client:
                 futures = []
                 for elem in states:
-                    upstreams = list(elem.pop(None, []))
-                    submitted_states = dict(upstream_states, **elem)
-                    submitted_states[None] = upstreams + list(
-                        upstream_states.get(None, [])
-                    )
                     futures.append(
-                        client.submit(
-                            fn, *args, upstream_states=submitted_states, **kwargs
-                        )
+                        client.submit(fn, *args, upstream_states=elem, **kwargs)
                     )
             return futures
 
         future_list = self.client.submit(
-            mapper, maps, fn, *args, upstream_states=upstream_states, **kwargs
+            mapper, fn, *args, upstream_states=upstream_states, **kwargs
         )
         ## gather is needed simply to convert the future_list -> list
         ## since more futures were submitted within the function
