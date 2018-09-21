@@ -356,3 +356,28 @@ def test_map_works_with_retries_and_cached_states(executor):
     )
     assert s.is_successful()
     assert s.result[res][0].result == 1 / 10
+
+
+@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+def test_task_map_doesnt_bottleneck(executor):
+    @prefect.task
+    def ll():
+        return [1, 2, 3]
+
+    @prefect.task
+    def zz(s):
+        return s == 1 or time.sleep(1.5) # we dont expect sleep to complete
+
+    @prefect.task
+    def rec(s):
+        if s == 1:
+            raise SyntaxError("flower")
+        else:
+            raise NotImplementedError("cactus")
+
+    with Flow() as f:
+        res = rec.map(zz.map(ll))
+
+    with pytest.raises(SyntaxError) as exc:
+        with raise_on_exception():
+            state = f.run(executor=executor)
