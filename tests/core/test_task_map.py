@@ -422,7 +422,7 @@ def test_task_map_doesnt_assume_purity_of_functions(executor):
 
     @prefect.task
     def zz(s):
-        return random.random()
+        return round(random.random(), 4)
 
     with Flow() as f:
         res = zz.map(ll)
