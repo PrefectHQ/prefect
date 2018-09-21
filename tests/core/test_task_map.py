@@ -1,4 +1,5 @@
 import pytest
+import random
 import time
 
 import prefect
@@ -381,3 +382,23 @@ def test_task_map_doesnt_bottleneck(executor):
     with pytest.raises(SyntaxError) as exc:
         with raise_on_exception():
             state = f.run(executor=executor)
+
+
+@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+def test_task_map_doesnt_assume_purity_of_functions(executor):
+    @prefect.task
+    def ll():
+        return [1, 1, 1]
+
+    @prefect.task
+    def zz(s):
+        return random.random()
+
+    with Flow() as f:
+        res = zz.map(ll)
+
+    state = f.run(executor=executor, return_tasks=[res])
+    assert state.is_successful()
+    outputs = [s.result for s in state.result[res]]
+    assert len(set(outputs)) == 3
+    print(set(outputs))
