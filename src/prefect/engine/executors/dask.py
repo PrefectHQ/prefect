@@ -99,7 +99,7 @@ class DaskExecutor(Executor):
         future_list = self.client.submit(
             mapper, fn, *args, upstream_states=upstream_states, **kwargs
         )
-        if not mapped:
+        if not mapped:  # if this task is not mapped further
             return self.client.gather(future_list)
         else:
             return future_list
