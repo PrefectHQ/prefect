@@ -17,14 +17,15 @@ Example:
 """
 
 import contextlib
+import threading
 from typing import Any, Iterator, MutableMapping
 
 from prefect.utilities.collections import DotDict
 
 
-class Context(DotDict):
+class Context(DotDict, threading.local):
     """
-    A context store for Prefect data.
+    A thread safe context store for Prefect data.
     """
 
     def __repr__(self) -> str:
