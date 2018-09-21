@@ -366,7 +366,7 @@ def test_task_map_doesnt_bottleneck(executor):
 
     @prefect.task
     def zz(s):
-        return s == 1 or time.sleep(1.5) # we dont expect sleep to complete
+        return s == 1 or time.sleep(1.5)  # we dont expect sleep to complete
 
     @prefect.task
     def rec(s):

@@ -74,7 +74,14 @@ class DaskExecutor(Executor):
         q = Queue(maxsize=maxsize, client=client or self.client)
         return q
 
-    def map(self, fn: Callable, *args: Any, mapped: bool=False, upstream_states=None, **kwargs: Any):
+    def map(
+        self,
+        fn: Callable,
+        *args: Any,
+        mapped: bool = False,
+        upstream_states=None,
+        **kwargs: Any
+    ):
         def mapper(fn, *args, upstream_states, **kwargs):
             states = dict_to_list(upstream_states)
 
@@ -84,7 +91,9 @@ class DaskExecutor(Executor):
                     futures.append(
                         client.submit(fn, *args, upstream_states=elem, **kwargs)
                     )
-                fire_and_forget(futures) # tells dask we dont expect worker_client to track these
+                fire_and_forget(
+                    futures
+                )  # tells dask we dont expect worker_client to track these
             return futures
 
         future_list = self.client.submit(
@@ -123,4 +132,6 @@ class DaskExecutor(Executor):
         Returns:
             - Iterable: an iterable of resolved futures
         """
-        return self.client.gather(self.client.gather(futures)) # we expect worker_client submitted futures
+        return self.client.gather(
+            self.client.gather(futures)
+        )  # we expect worker_client submitted futures
