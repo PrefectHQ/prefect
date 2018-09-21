@@ -9,11 +9,9 @@ if sys.version_info < (3, 5):
 
 import datetime
 from contextlib import contextmanager
-from distributed import Client, fire_and_forget, Queue, worker_client
+from distributed import Client, fire_and_forget, Future, Queue, worker_client
 from typing import Any, Callable, Iterable
 
-import dask
-import dask.bag
 import queue
 import warnings
 
@@ -60,7 +58,7 @@ class DaskExecutor(Executor):
         finally:
             self.client = None
 
-    def queue(self, maxsize=0, client=None):
+    def queue(self, maxsize=0, client=None) -> Queue:
         """
         Creates an executor-compatible Queue object which can share state
         across tasks.
@@ -81,7 +79,7 @@ class DaskExecutor(Executor):
         mapped: bool = False,
         upstream_states=None,
         **kwargs: Any
-    ):
+    ) -> Future:
         def mapper(fn, *args, upstream_states, **kwargs):
             states = dict_to_list(upstream_states)
 
@@ -104,7 +102,7 @@ class DaskExecutor(Executor):
         else:
             return future_list
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:
         """
         Submit a function to the executor for execution. Returns a Future object.
 
