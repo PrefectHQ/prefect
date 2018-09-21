@@ -267,6 +267,7 @@ class FlowRunner:
                 if mapped:
                     task_states[task] = executor.map(
                         task_runner.run,
+                        mapped=any([e.mapped for e in self.flow.edges_from(task)]),
                         upstream_states=upstream_states,
                         state=task_states.get(task),
                         inputs=task_inputs,

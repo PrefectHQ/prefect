@@ -9,7 +9,7 @@ if sys.version_info < (3, 5):
 
 import datetime
 from contextlib import contextmanager
-from distributed import Client, Queue, worker_client
+from distributed import Client, fire_and_forget, Queue, worker_client
 from typing import Any, Callable, Iterable
 
 import dask
@@ -74,7 +74,7 @@ class DaskExecutor(Executor):
         q = Queue(maxsize=maxsize, client=client or self.client)
         return q
 
-    def map(self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any):
+    def map(self, fn: Callable, *args: Any, mapped: bool=False, upstream_states=None, **kwargs: Any):
         def mapper(fn, *args, upstream_states, **kwargs):
             states = dict_to_list(upstream_states)
 
@@ -84,15 +84,16 @@ class DaskExecutor(Executor):
                     futures.append(
                         client.submit(fn, *args, upstream_states=elem, **kwargs)
                     )
+                fire_and_forget(futures) # tells dask we dont expect worker_client to track these
             return futures
 
         future_list = self.client.submit(
             mapper, fn, *args, upstream_states=upstream_states, **kwargs
         )
-        ## gather is needed simply to convert the future_list -> list
-        ## since more futures were submitted within the function
-        ## this will not block for the futures contained in that list
-        return self.client.gather(future_list)
+        if not mapped:
+            return self.client.gather(future_list)
+        else:
+            return future_list
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """
@@ -122,4 +123,4 @@ class DaskExecutor(Executor):
         Returns:
             - Iterable: an iterable of resolved futures
         """
-        return self.client.gather(futures)
+        return self.client.gather(self.client.gather(futures)) # we expect worker_client submitted futures
