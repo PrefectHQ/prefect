@@ -73,12 +73,7 @@ class DaskExecutor(Executor):
         return q
 
     def map(
-        self,
-        fn: Callable,
-        *args: Any,
-        mapped: bool = False,
-        upstream_states=None,
-        **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
     ) -> Future:
         def mapper(fn, *args, upstream_states, **kwargs):
             states = dict_to_list(upstream_states)
@@ -97,10 +92,7 @@ class DaskExecutor(Executor):
         future_list = self.client.submit(
             mapper, fn, *args, upstream_states=upstream_states, **kwargs
         )
-        if not mapped:  # if this task is not mapped further
-            return self.client.gather(future_list)
-        else:
-            return future_list
+        return future_list
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:
         """

@@ -234,6 +234,7 @@ class FlowRunner:
 
         with executor.start():
 
+            mapped_tasks = set()
             queues = {}
             for tag, size in throttle.items():
                 q = executor.queue(size)
@@ -265,9 +266,9 @@ class FlowRunner:
                 ]
 
                 if mapped:
+                    mapped_tasks.add(task)
                     task_states[task] = executor.map(
                         task_runner.run,
-                        mapped=any([e.mapped for e in self.flow.edges_from(task)]),
                         upstream_states=upstream_states,
                         state=task_states.get(task),
                         inputs=task_inputs,
@@ -276,6 +277,12 @@ class FlowRunner:
                         queues=task_queues,
                     )
                 else:
+                    upstream_mapped = {
+                        e: executor.wait(f)
+                        for e, f in upstream_states.items()
+                        if e.upstream_task in mapped_tasks
+                    }
+                    upstream_states.update(upstream_mapped)
                     task_states[task] = executor.submit(
                         task_runner.run,
                         state=task_states.get(task),

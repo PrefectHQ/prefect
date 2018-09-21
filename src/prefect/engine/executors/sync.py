@@ -33,12 +33,7 @@ class SynchronousExecutor(Executor):
         return q
 
     def map(
-        self,
-        fn: Callable,
-        *args: Any,
-        mapped: bool = False,
-        upstream_states=None,
-        **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
     ) -> dask.bag:
         # every task which is being mapped over needs its state represented as a
         # dask.bag; there are two situations: 1.) the task being mapped over is
