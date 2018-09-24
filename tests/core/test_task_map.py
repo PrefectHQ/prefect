@@ -1,4 +1,5 @@
 import pytest
+import random
 import time
 
 import prefect
@@ -356,3 +357,78 @@ def test_map_works_with_retries_and_cached_states(executor):
     )
     assert s.is_successful()
     assert s.result[res][0].result == 1 / 10
+
+
+@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+def test_task_map_doesnt_bottleneck(executor):
+    """
+    This test also revealed a thread safety issue w/ mthread executor;
+    the `_raise_on_exception=True` flag persisted into future test contexts.
+    """
+
+    @prefect.task
+    def ll():
+        return [1, 2, 3]
+
+    @prefect.task
+    def zz(s):
+        return s == 1 or time.sleep(1.5)  # we dont expect sleep to complete
+
+    @prefect.task
+    def rec(s):
+        if s == 1:
+            raise SyntaxError("flower")
+        else:
+            raise NotImplementedError("cactus")
+
+    with Flow() as f:
+        res = rec.map(zz.map(ll))
+
+    with pytest.raises(SyntaxError) as exc:
+        with raise_on_exception():
+            state = f.run(executor=executor)
+
+
+@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+def test_task_map_can_be_passed_to_upstream_with_and_without_map(executor):
+    @prefect.task
+    def ll():
+        return [1, 2, 3]
+
+    @prefect.task
+    def add(x):
+        return x + 1
+
+    @prefect.task
+    def append_four(l):
+        return l + [4]
+
+    with Flow() as f:
+        added = add.map(ll)
+        big_list = append_four(added)
+        again = add.map(added)
+
+    state = f.run(executor=executor, return_tasks=f.tasks)
+    assert state.is_successful()
+    assert len(state.result[added]) == 3
+    assert state.result[big_list].result == [2, 3, 4, 4]
+    assert [s.result for s in state.result[again]] == [3, 4, 5]
+
+
+@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+def test_task_map_doesnt_assume_purity_of_functions(executor):
+    @prefect.task
+    def ll():
+        return [1, 1, 1]
+
+    @prefect.task
+    def zz(s):
+        return round(random.random(), 4)
+
+    with Flow() as f:
+        res = zz.map(ll)
+
+    state = f.run(executor=executor, return_tasks=[res])
+    assert state.is_successful()
+    outputs = [s.result for s in state.result[res]]
+    assert len(set(outputs)) == 3

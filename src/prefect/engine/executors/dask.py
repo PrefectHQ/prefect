@@ -9,11 +9,9 @@ if sys.version_info < (3, 5):
 
 import datetime
 from contextlib import contextmanager
-from distributed import Client, Queue, worker_client
+from distributed import Client, fire_and_forget, Future, Queue, worker_client
 from typing import Any, Callable, Iterable
 
-import dask
-import dask.bag
 import queue
 import warnings
 
@@ -60,7 +58,7 @@ class DaskExecutor(Executor):
         finally:
             self.client = None
 
-    def queue(self, maxsize=0, client=None):
+    def queue(self, maxsize=0, client=None) -> Queue:
         """
         Creates an executor-compatible Queue object which can share state
         across tasks.
@@ -74,7 +72,9 @@ class DaskExecutor(Executor):
         q = Queue(maxsize=maxsize, client=client or self.client)
         return q
 
-    def map(self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any):
+    def map(
+        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
+    ) -> Future:
         def mapper(fn, *args, upstream_states, **kwargs):
             states = dict_to_list(upstream_states)
 
@@ -84,17 +84,17 @@ class DaskExecutor(Executor):
                     futures.append(
                         client.submit(fn, *args, upstream_states=elem, **kwargs)
                     )
+                fire_and_forget(
+                    futures
+                )  # tells dask we dont expect worker_client to track these
             return futures
 
         future_list = self.client.submit(
             mapper, fn, *args, upstream_states=upstream_states, **kwargs
         )
-        ## gather is needed simply to convert the future_list -> list
-        ## since more futures were submitted within the function
-        ## this will not block for the futures contained in that list
-        return self.client.gather(future_list)
+        return future_list
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:
         """
         Submit a function to the executor for execution. Returns a Future object.
 
@@ -122,4 +122,6 @@ class DaskExecutor(Executor):
         Returns:
             - Iterable: an iterable of resolved futures
         """
-        return self.client.gather(futures)
+        return self.client.gather(
+            self.client.gather(futures)
+        )  # we expect worker_client submitted futures
