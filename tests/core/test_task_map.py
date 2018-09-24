@@ -412,6 +412,7 @@ def test_task_map_can_be_passed_to_upstream_with_and_without_map(executor):
     assert state.is_successful()
     assert len(state.result[added]) == 3
     assert state.result[big_list].result == [2, 3, 4, 4]
+    assert [s.result for s in state.result[again]] == [3, 4, 5]
 
 
 @pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
