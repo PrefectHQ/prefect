@@ -39,9 +39,6 @@ def init(path):
         "Registry URL", default=config_data.get("REGISTRY_URL")
     )
     config_data["API_URL"] = click.prompt("API URL", default=config_data.get("API_URL"))
-    config_data["API_ACCESS_KEY"] = click.prompt(
-        "API Access Key", default=config_data.get("API_ACCESS_KEY")
-    )
 
     config_data["api_server"] = config_data["API_URL"]
     config_data["graphql_server"] = os.path.join(config_data["API_URL"], "graphql/")
