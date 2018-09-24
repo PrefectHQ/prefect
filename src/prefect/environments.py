@@ -181,17 +181,16 @@ class ContainerEnvironment(Environment):
 
             image_name = os.path.join(config_data["REGISTRY_URL"], self.name)
 
-            print(image_name)
-
+            print("Building the flow's container environment...")
             container = client.images.build(
                 path=tempdir, tag="{}:{}".format(image_name, self.tag), forcerm=True
             )
 
-            # Should have optional argument (on default) to delete container locally after
-            # a successful push
-
             if push:
                 self.push(image_name, self.tag)
+
+            # Remove the image locally after being pushed
+            client.images.remove("{}:{}".format(image_name, self.tag))
 
             return container
 
@@ -225,7 +224,11 @@ class ContainerEnvironment(Environment):
             - None
         """
         client = docker.from_env()
-        print(image_name, image_tag)
+
+        # Another possibility would be to name/tag each push with the flow's ID
+        # This would ensure the uniqueness each time a flow is built and allow for
+        # only the need of specifying the flow ID when talking to the registry
+        print("Pushing image to the registry...")
         client.images.push(image_name, tag=image_tag)
 
     def pull_image(self) -> None:
