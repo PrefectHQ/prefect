@@ -48,19 +48,24 @@ class AirTask(prefect.tasks.shell.ShellTask):
         )
 
     def pre_check(self, execution_date, airflow_env):
-        check_cmd = "airflow task_state {0} {1} {2} | tail -1".format(
-            self.dag_id, self.name, execution_date
+        check_query = "select state from task_instance where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
+        dbfile = airflow_env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")[
+            10:
+        ]  # removes sqlite:/// noise
+        status = custom_query(
+            dbfile, check_query.format(self.name, self.dag_id, execution_date)
         )
-        status = subprocess.check_output(["bash", "-c", check_cmd], env=airflow_env)
-        if status.decode().rstrip() == "skipped":
+        if status and status[0][0] == "skipped":
             raise prefect.engine.signals.SKIP("Task marked as 'skipped' in airflow db")
 
     def post_check(self, execution_date, airflow_env):
         check_query = "select state from task_instance where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
-        dbfile = airflow_env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")[10:] # removes sqlite:/// noise
-        status = custom_query(dbfile, check_query.format(self.name,
-                                                         self.dag_id,
-                                                         execution_date))[0][0]
+        dbfile = airflow_env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")[
+            10:
+        ]  # removes sqlite:/// noise
+        status = custom_query(
+            dbfile, check_query.format(self.name, self.dag_id, execution_date)
+        )[0][0]
 
         if status == "None":
             raise prefect.engine.signals.DONTRUN(
@@ -79,10 +84,12 @@ class AirTask(prefect.tasks.shell.ShellTask):
 
     def pull_xcom(self, execution_date, airflow_env):
         check_query = "select value from xcom where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
-        dbfile = airflow_env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")[10:] # removes sqlite:/// noise
-        data = custom_query(dbfile, check_query.format(self.name,
-                                                         self.dag_id,
-                                                         execution_date))
+        dbfile = airflow_env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")[
+            10:
+        ]  # removes sqlite:/// noise
+        data = custom_query(
+            dbfile, check_query.format(self.name, self.dag_id, execution_date)
+        )
         if data:
             return pickle.loads(data[0][0])
 
