@@ -341,29 +341,27 @@ def get_source(obj):
     begins_at = dir_struct.index("src") + 2
     line_no = inspect.getsourcelines(obj)[1]
     url_ending = "/".join(dir_struct[begins_at:]) + f"#L{line_no}"
-    source_tag = f'<span style="float:right; font-size:0.8em; width: 50%; max-width: 6em;">[[source]]({base_url}{url_ending})</span>'
+    link = f'<a href="{base_url}{url_ending}">[source]</a>'
+    source_tag = f'<span style="text-align:right; float:right; font-size:0.8em; width: 50%; max-width: 6em; display: inline-block;">{link}</span>'
     return source_tag
 
 
 @preprocess
 def format_subheader(obj, level=1, in_table=False):
     class_sig = format_signature(obj)
-    header_attrs = ""
-    if level == 1 and inspect.isclass(obj):
-        header = f"## {obj.__name__}\n\n###"
-
-        # add display: flex to the header to nicely format long signatures
-        header_attrs = r'{style="display: flex; align-items: baseline;"}'
+    if inspect.isclass(obj):
+        header = ""
     elif not in_table:
         header = "##" + "#" * level
     else:
         header = "|"
-    is_class = (
-        '<span style="font-size:0.85em;">Class: </span>' if inspect.isclass(obj) else ""
-    )
-    class_name = f"{create_absolute_path(obj)}.{obj.__qualname__}"
+    is_class = "<em><b>class </b></em>" if inspect.isclass(obj) else ""
+    class_name = f"<b>{create_absolute_path(obj)}.{obj.__qualname__}</b>"
+    div_tag = f"<div class='sig' style='padding-left:3.5em;text-indent:-3.5em;'>"
 
-    call_sig = f" {header} {is_class} ```{class_name}({class_sig})```{get_source(obj)} {header_attrs}\n"
+    call_sig = (
+        f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>"
+    )
     return call_sig
 
 
@@ -460,7 +458,7 @@ if __name__ == "__main__":
 
             top_doc = page.get("top-level-doc")
             if top_doc is not None:
-                f.write(inspect.getdoc(top_doc) + "\n<hr>\n")
+                f.write(inspect.getdoc(top_doc) + "\n\n")
             for obj in classes:
                 f.write(format_subheader(obj))
 
