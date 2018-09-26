@@ -51,3 +51,21 @@ def test_new_edge_objects_can_test_membership_in_flow():
     flow.add_edge(t1, t2, key="a_key")
 
     assert Edge(t1, t2, key="a_key") in flow.edges
+
+
+def test_edge_replace():
+    t1 = Task()
+    t2 = TaskWithKey()
+    t3 = Task()
+    edge = Edge(t1, t2, key="a_key")
+    edge.replace(t1, t3)
+    assert edge.upstream_task == t3
+
+
+def test_edge_replace_raises_if_task_not_known():
+    t1 = Task()
+    t2 = TaskWithKey()
+    t3 = Task()
+    edge = Edge(t1, t2, key="a_key")
+    with pytest.raises(ValueError):
+        edge.replace(t3, t1)

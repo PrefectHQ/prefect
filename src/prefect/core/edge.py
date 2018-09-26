@@ -93,6 +93,25 @@ class Edge:
 
     # Comparison --------------------------------------------------------------
 
+    def replace(self, old: Task, new: Task) -> None:
+        """
+        Performs an inplace replacement of the old task with the provided new task.
+
+        Args:
+            - old (Task):
+            - new (Task):
+
+        Raises:
+            - ValueError: if the `old` task is not a part of this edge
+        """
+        if old not in [self.upstream_task, self.downstream_task]:
+            raise ValueError("Task {0} not contained within {1}".format(old, self))
+
+        if old == self.upstream_task:
+            self.upstream_task = new
+        if old == self.downstream_task:
+            self.downstream_task = new
+
     def __repr__(self) -> str:
         return "<Edge{k}: {u} to {d}>".format(
             u=self.upstream_task.name,
