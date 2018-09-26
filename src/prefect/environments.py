@@ -98,7 +98,7 @@ class ContainerEnvironment(Environment):
     Args:
         - image (str): The image to pull that is used as a base for the Docker container
         *Note*: An image that is provided must be able to handle `python` and `pip` commands
-        - name (str): The name the image will take on the registry
+        - name (str, optional): The name the image will take on the registry
         - tag (str, optional): The tag for this container
         - python_dependencies (list, optional): The list of pip installable python packages
         that will be installed on build of the Docker container
@@ -109,16 +109,15 @@ class ContainerEnvironment(Environment):
     def __init__(
         self,
         image: str,
-        name: str,
+        name: str = None,
         tag: str = None,
         python_dependencies: list = None,
         secrets: Iterable[Secret] = None,
     ) -> None:
         self._image = image
-        self._name = name
+        self._name = name or str(uuid.uuid4())
         self._tag = tag or str(uuid.uuid4())
         self._python_dependencies = python_dependencies
-        # self._client = docker.from_env()
         self.last_container_id = None
 
         super().__init__(secrets=secrets)
@@ -165,9 +164,6 @@ class ContainerEnvironment(Environment):
             self.serialized_registry_to_file(flow=flow, directory=tempdir)
 
             self.pull_image()
-            self.create_dockerfile(directory=tempdir)
-
-            client = docker.from_env()
 
             path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
 
@@ -175,6 +171,14 @@ class ContainerEnvironment(Environment):
                 config_data = toml.load(path)
             else:
                 config_data = {}
+
+            # Make copy of config.toml in temporary directory
+            with open("{}/config.toml".format(tempdir), "w") as config_file:
+                toml.dump(config_data, config_file)
+
+            self.create_dockerfile(directory=tempdir)
+
+            client = docker.from_env()
 
             if not config_data["REGISTRY_URL"]:
                 raise Exception("Registry not specified.")
@@ -295,6 +299,7 @@ class ContainerEnvironment(Environment):
 
                 RUN mkdir $HOME/.prefect/
                 COPY registry $HOME/.prefect/registry
+                COPY config.toml $HOME/.prefect/config.toml
 
                 ENV PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="$HOME/.prefect/registry"
 

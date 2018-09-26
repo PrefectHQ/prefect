@@ -120,7 +120,7 @@ def exec_command(image_name, image_tag, flow_id, path):
         config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
     )
 
-    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"], account_slug="rebels")
+    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
 
     image_name = os.path.join(config_data["REGISTRY_URL"], image_name)
 
