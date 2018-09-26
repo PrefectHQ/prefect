@@ -42,6 +42,13 @@ class TestCreateFlow:
         f2 = Flow(name="test")
         assert f2.name == "test"
 
+    def test_create_flow_with_edges(self):
+        f1 = Flow(
+            edges=[Edge(upstream_task=Task(), downstream_task=AddTask(), key="x")]
+        )
+        assert len(f1.edges) == 1
+        assert len(f1.tasks) == 2
+
     def test_create_flow_with_version(self):
         f1 = Flow()
         assert f1.version == prefect.config.flows.default_version
