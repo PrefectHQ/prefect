@@ -214,7 +214,7 @@ class TaskRunner:
             isinstance(s, Skipped) for s in upstream_states
         ):
             return Skipped(
-                message="Upstream task was skipped; if this was not the intended behavior, consider changing the `skip_on_upstream_skip` attribute of this task."
+                message="Upstream task was skipped; if this was not the intended behavior, consider changing `skip_on_upstream_skip=False` for this task."
             )
 
         # ---------------------------------------------------------
