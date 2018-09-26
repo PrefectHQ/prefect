@@ -106,8 +106,8 @@ class Edge:
         Performs an inplace replacement of the old task with the provided new task.
 
         Args:
-            - old (Task):
-            - new (Task):
+            - old (Task): the old task to replace
+            - new (Task): the new task to replace the old with
 
         Raises:
             - ValueError: if the `old` task is not a part of this edge
