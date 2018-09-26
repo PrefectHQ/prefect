@@ -2,6 +2,7 @@
 
 # the location of the user's config file
 user_config_path = "$HOME/.prefect/config.toml"
+dev_mode = false
 
 
 [server]
