@@ -1041,3 +1041,34 @@ class TestReplace:
         t3 = Task(name="t3")
         with pytest.raises(ValueError):
             f.replace(t3, t1)
+
+    def test_replace_runs_smoothly(self):
+        add = AddTask()
+
+        class SubTask(Task):
+            def run(self, x, y):
+                return x - y
+
+        sub = SubTask()
+
+        with Flow() as f:
+            x, y = Parameter("x"), Parameter("y")
+            res = add(x, y)
+
+        state = f.run(return_tasks=[res], x=10, y=11)
+        assert state.result[res].result == 21
+
+        f.replace(res, sub)
+        state = f.run(return_tasks=[sub], x=10, y=11)
+        assert state.result[sub].result == -1
+
+    def test_replace_converts_new_to_task(self):
+        add = AddTask()
+        with Flow() as f:
+            x, y = Parameter("x"), Parameter("y")
+            res = add(x, y)
+        f.replace(x, 55)
+        assert len(f.tasks) == 3
+        state = f.run(return_tasks=[res], y=6)
+        assert state.is_successful()
+        assert state.result[res].result == 61

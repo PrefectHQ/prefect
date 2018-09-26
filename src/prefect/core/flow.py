@@ -210,13 +210,16 @@ class Flow(Serializable):
 
         Args:
             - old (Task): the old task to replace
-            - new (Task): the new task to replace the old with
+            - new (Task): the new task to replace the old with; if not a Prefect
+                Task, Prefect will attempt to convert it to one
 
         Raises:
             - ValueError: if the `old` task is not a part of this flow
         """
         if old not in self.tasks:
             raise ValueError("Task {t} was not found in Flow {f}".format(t=old, f=self))
+
+        new = as_task(new)
 
         # update tasks
         self.tasks = {t for t in self.tasks if t != old}
