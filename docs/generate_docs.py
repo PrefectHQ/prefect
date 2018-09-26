@@ -175,9 +175,14 @@ OUTLINE = [
     {
         "page": "tasks/function.md",
         "classes": [prefect.tasks.core.function.FunctionTask],
+        "title": "FunctionTask",
     },
-    {"page": "tasks/shell.md", "classes": [prefect.tasks.shell.ShellTask]},
-    {"page": "utilities/bokeh.md", "classes": [BokehRunner]},
+    {
+        "page": "tasks/shell.md",
+        "classes": [prefect.tasks.shell.ShellTask],
+        "title": "ShellTask",
+    },
+    {"page": "utilities/bokeh.md", "classes": [BokehRunner], "title": "BokehRunner"},
     {
         "page": "utilities/collections.md",
         "classes": [prefect.utilities.collections.DotDict],
@@ -308,7 +313,7 @@ def get_call_signature(obj):
         kwargs = list(zip(args[-len(defaults) :], defaults))  # true kwargs
 
     varargs = [f"*{varargs}"] if varargs else []
-    varkwargs = [f"*{varkwargs}"] if varkwargs else []
+    varkwargs = [f"**{varkwargs}"] if varkwargs else []
 
     return standalone, varargs, kwargs, varkwargs
 
@@ -318,8 +323,12 @@ def format_signature(obj):
     standalone, varargs, kwargs, varkwargs = get_call_signature(obj)
     # NOTE: I assume the call signature is f(x, y, ..., *args, z=1, ...,
     # **kwargs) and NOT f(*args, x, y, ...)
+    add_quotes = lambda s: f'"{s}"' if isinstance(s, str) else s
     psig = ", ".join(
-        standalone + varargs + [f"{name}={val}" for name, val in kwargs] + varkwargs
+        standalone
+        + varargs
+        + [f"{name}={add_quotes(val)}" for name, val in kwargs]
+        + varkwargs
     )
     return psig
 
