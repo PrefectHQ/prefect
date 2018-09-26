@@ -1015,3 +1015,29 @@ class TestCache:
         f._cache[1] = 2
         f.set_reference_tasks([t1])
         assert 1 not in f._cache
+
+
+class TestReplace:
+    def test_replace_replaces_all_the_things(self):
+        with Flow() as f:
+            t1 = Task(name="t1")()
+            t2 = Task(name="t2")(upstream_tasks=[t1])
+        t3 = Task(name="t3")
+        f.set_reference_tasks([t1])
+        f.replace(t1, t3)
+
+        assert f.tasks == {t2, t3}
+        assert {e.upstream_task for e in f.edges} == {t3}
+        assert {e.downstream_task for e in f.edges} == {t2}
+        assert f.reference_tasks() == {t3}
+        assert f.terminal_tasks() == {t2}
+
+        with pytest.raises(ValueError):
+            f.edges_to(t1)
+
+    def test_replace_complains_about_tasks_not_in_flow(self):
+        with Flow() as f:
+            t1 = Task(name="t1")()
+        t3 = Task(name="t3")
+        with pytest.raises(ValueError):
+            f.replace(t3, t1)

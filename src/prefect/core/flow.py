@@ -204,6 +204,26 @@ class Flow(Serializable):
 
     # Identification -----------------------------------------------------------
 
+    def replace(self, old: Task, new: Task) -> None:
+        if old not in self.tasks:
+            raise ValueError("Task {t} was not found in Flow {f}".format(t=old, f=self))
+
+        # update tasks
+        self.tasks = {t for t in self.tasks if t != old}
+        self.tasks.add(new)
+
+        # update edges
+        affected_edges = {e for e in self.edges if old in e.tasks}
+        for edge in affected_edges:
+            edge.replace(old, new)
+
+        # update auxiliary task collections
+        ref_tasks = self.reference_tasks()
+        new_refs = [t for t in ref_tasks if t != old] + (
+            [new] if old in ref_tasks else []
+        )
+        self.set_reference_tasks(new_refs)
+
     @property
     def id(self) -> str:
         return self._id
