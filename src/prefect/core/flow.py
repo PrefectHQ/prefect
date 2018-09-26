@@ -205,6 +205,16 @@ class Flow(Serializable):
     # Identification -----------------------------------------------------------
 
     def replace(self, old: Task, new: Task) -> None:
+        """
+        Performs an inplace replacement of the old task with the provided new task.
+
+        Args:
+            - old (Task): the old task to replace
+            - new (Task): the new task to replace the old with
+
+        Raises:
+            - ValueError: if the `old` task is not a part of this flow
+        """
         if old not in self.tasks:
             raise ValueError("Task {t} was not found in Flow {f}".format(t=old, f=self))
 
