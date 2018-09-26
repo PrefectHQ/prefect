@@ -95,10 +95,11 @@ class Task(Serializable, metaclass=SignatureValidator):
         - timeout (timedelta, optional): The amount of time to wait while running before a timeout occurs
         - trigger (callable, optional): a function that determines whether the task should run, based
                 on the states of any upstream tasks.
-        - skip_on_upstream_skip (bool, optional): if True and any upstream tasks skipped, this task
+        - skip_on_upstream_skip (bool, optional): if `True` and any upstream tasks skipped, this task
                 will automatically be skipped as well. By default, this prevents tasks from
-                attempting to use either state or data from tasks that didn't run. if False,
+                attempting to use either state or data from tasks that didn't run. If `False`,
                 the task's trigger will be called as normal; skips are considered successes.
+                Defaults to `True`.
         - cache_for (timedelta, optional): The amount of time to maintain cache
         - cache_validator (Callable, optional): Validator telling what to cache
 
