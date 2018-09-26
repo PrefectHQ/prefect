@@ -78,43 +78,47 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
         map_counts = defaultdict(lambda: 0)
         mapped_tasks = {}
         edges = []
+
         for task in self.flow.sorted_tasks():
             old_edges = self.flow.edges_to(task)
-            for edge in old_edges:
-                if not edge.mapped:
-                    if edge.upstream_task in mapped_tasks:
-                        new_edges = [
-                            prefect.core.edge.Edge(
-                                upstream_task=t, downstream_task=task
-                            )
-                            for t in mapped_tasks[edge.upstream_task]
-                        ]
-                        edges.extend(new_edges)
-                    else:
-                        edges.append(edge)
-                else:
-                    # create copies corresponding to each mapped result
-                    new_tasks = [task.copy() for _ in state.result[task]]
-                    mapped_tasks[task] = new_tasks
-                    for t in new_tasks:
-                        t.name = task.name + "<mapped-{}>".format(map_counts[task.name])
-                        map_counts[task.name] += 1
+            mapped_edges = [e for e in old_edges if e.mapped]
+            unmapped_edges = [e for e in old_edges if not e.mapped]
 
-                    if edge.upstream_task in mapped_tasks:
-                        upstream = [t for t in mapped_tasks[edge.upstream_task]]
-                    else:
-                        upstream = [edge.upstream_task for _ in range(len(new_tasks))]
-
+            # update unmapped edges
+            for edge in unmapped_edges:
+                if edge.upstream_task in mapped_tasks:
                     new_edges = [
-                        prefect.core.edge.Edge(
-                            upstream_task=up, downstream_task=task, key=edge.key
-                        )
-                        for up, task in zip(upstream, new_tasks)
+                        prefect.core.edge.Edge(upstream_task=t, downstream_task=task)
+                        for t in mapped_tasks[edge.upstream_task]
                     ]
                     edges.extend(new_edges)
-                    states = state.result.pop(task)
-                    for t, s in zip(new_tasks, states):
-                        state.result[t] = s
+                else:
+                    edges.append(edge)
+
+            # update mapped edges
+            for edge in mapped_edges:
+                # create copies corresponding to each mapped result
+                new_tasks = [task.copy() for _ in state.result[task]]
+                mapped_tasks[task] = new_tasks
+                for t in new_tasks:
+                    t.name = task.name + "<mapped-{}>".format(map_counts[task.name])
+                    map_counts[task.name] += 1
+
+                if edge.upstream_task in mapped_tasks:
+                    upstream = [t for t in mapped_tasks[edge.upstream_task]]
+                else:
+                    upstream = [edge.upstream_task for _ in range(len(new_tasks))]
+
+                new_edges = [
+                    prefect.core.edge.Edge(
+                        upstream_task=up, downstream_task=task, key=edge.key
+                    )
+                    for up, task in zip(upstream, new_tasks)
+                ]
+                edges.extend(new_edges)
+                states = state.result.pop(task)
+                for t, s in zip(new_tasks, states):
+                    state.result[t] = s
 
         self.flow = prefect.Flow(edges=edges, name=self.flow.name)
         self.flow_state = state
