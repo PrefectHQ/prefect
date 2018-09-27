@@ -204,6 +204,60 @@ class Flow(Serializable):
 
     # Identification -----------------------------------------------------------
 
+    def replace(self, old: Task, new: Task, validate: bool = True) -> None:
+        """
+        Performs an inplace replacement of the old task with the provided new task.
+
+        Args:
+            - old (Task): the old task to replace
+            - new (Task): the new task to replace the old with; if not a Prefect
+                Task, Prefect will attempt to convert it to one
+            - validate (boolean, optional): whether to validate the Flow after
+                the replace has been completed; defaults to `True`
+
+        Raises:
+            - ValueError: if the `old` task is not a part of this flow
+        """
+        if old not in self.tasks:
+            raise ValueError("Task {t} was not found in Flow {f}".format(t=old, f=self))
+
+        new = as_task(new)
+
+        # update tasks
+        self.tasks.remove(old)
+        self._task_ids.pop(old)
+        self.add_task(new)
+
+        self._cache.clear()
+
+        affected_edges = {e for e in self.edges if old in e.tasks}
+
+        # remove old edges
+        for edge in affected_edges:
+            self.edges.remove(edge)
+
+        # replace with new edges
+        for edge in affected_edges:
+            upstream = new if edge.upstream_task == old else edge.upstream_task
+            downstream = new if edge.downstream_task == old else edge.downstream_task
+            self.add_edge(
+                upstream_task=upstream,
+                downstream_task=downstream,
+                key=edge.key,
+                mapped=edge.mapped,
+                validate=False,
+            )
+
+        # update auxiliary task collections
+        ref_tasks = self.reference_tasks()
+        new_refs = [t for t in ref_tasks if t != old] + (
+            [new] if old in ref_tasks else []
+        )
+        self.set_reference_tasks(new_refs)
+
+        if validate:
+            self.validate()
+
     @property
     def id(self) -> str:
         return self._id
@@ -556,6 +610,9 @@ class Flow(Serializable):
         """
         Checks that the flow is valid.
 
+        Returns:
+            - None
+
         Raises:
             - ValueError: if edges refer to tasks that are not in this flow
             - ValueError: if specified reference tasks are not in this flow
@@ -773,6 +830,7 @@ class Flow(Serializable):
 
         Args:
             - flow_state (State, optional): flow state object used to optionally color the nodes
+
         Raises:
             - ImportError: if `graphviz` is not installed
         """
