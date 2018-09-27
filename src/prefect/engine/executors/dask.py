@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import logging
 import sys
 
 if sys.version_info < (3, 5):
@@ -9,14 +10,13 @@ if sys.version_info < (3, 5):
 
 import datetime
 from contextlib import contextmanager
-from distributed import Client, Queue, worker_client
+from distributed import Client, fire_and_forget, Future, Queue, worker_client
 from typing import Any, Callable, Iterable
 
-import dask
-import dask.bag
 import queue
 import warnings
 
+from prefect import config
 from prefect.engine.executors.base import Executor
 from prefect.utilities.executors import dict_to_list
 
@@ -38,9 +38,10 @@ class DaskExecutor(Executor):
             `dask.distributed.Client` upon initialization (e.g., `n_workers`)
     """
 
-    def __init__(self, address=None, processes=False, **kwargs):
+    def __init__(self, address=None, processes=False, debug=config.debug, **kwargs):
         self.address = address
         self.processes = processes
+        self.debug = debug
         self.kwargs = kwargs
         super().__init__()
 
@@ -52,6 +53,9 @@ class DaskExecutor(Executor):
         Creates a `dask.distributed.Client` and yields it.
         """
         try:
+            self.kwargs.update(
+                silence_logs=logging.CRITICAL if not self.debug else logging.WARNING
+            )
             with Client(
                 self.address, processes=self.processes, **self.kwargs
             ) as client:
@@ -60,7 +64,7 @@ class DaskExecutor(Executor):
         finally:
             self.client = None
 
-    def queue(self, maxsize=0, client=None):
+    def queue(self, maxsize=0, client=None) -> Queue:
         """
         Creates an executor-compatible Queue object which can share state
         across tasks.
@@ -75,44 +79,28 @@ class DaskExecutor(Executor):
         return q
 
     def map(
-        self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any
-    ):
-        overlapping_keys = maps.keys() & upstream_states.keys()
-        if overlapping_keys - set([None]):
-            bad = ", ".join(overlapping_keys - set([None]))
-            raise ValueError(
-                "{0} ambiguously submitted for mapping and as an unmapped upstream state.".format(
-                    bad
-                )
-            )
-
-        def mapper(maps, fn, *args, upstream_states, **kwargs):
-            states = dict_to_list(maps)
+        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
+    ) -> Future:
+        def mapper(fn, *args, upstream_states, **kwargs):
+            states = dict_to_list(upstream_states)
 
             with worker_client() as client:
                 futures = []
                 for elem in states:
-                    upstreams = list(elem.pop(None, []))
-                    submitted_states = dict(upstream_states, **elem)
-                    submitted_states[None] = upstreams + list(
-                        upstream_states.get(None, [])
-                    )
                     futures.append(
-                        client.submit(
-                            fn, *args, upstream_states=submitted_states, **kwargs
-                        )
+                        client.submit(fn, *args, upstream_states=elem, **kwargs)
                     )
+                fire_and_forget(
+                    futures
+                )  # tells dask we dont expect worker_client to track these
             return futures
 
         future_list = self.client.submit(
-            mapper, maps, fn, *args, upstream_states=upstream_states, **kwargs
+            mapper, fn, *args, upstream_states=upstream_states, **kwargs
         )
-        ## gather is needed simply to convert the future_list -> list
-        ## since more futures were submitted within the function
-        ## this will not block for the futures contained in that list
-        return self.client.gather(future_list)
+        return future_list
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:
         """
         Submit a function to the executor for execution. Returns a Future object.
 
@@ -140,4 +128,6 @@ class DaskExecutor(Executor):
         Returns:
             - Iterable: an iterable of resolved futures
         """
-        return self.client.gather(futures)
+        return self.client.gather(
+            self.client.gather(futures)
+        )  # we expect worker_client submitted futures

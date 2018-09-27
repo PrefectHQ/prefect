@@ -23,7 +23,7 @@ def mthread():
         with Client(processes=False) as client:
             yield DaskExecutor(client.scheduler.address)
     else:
-        pytest.skip("dask.distributed does not support Python 3.4")
+        yield
 
 
 @pytest.fixture(scope="module")
@@ -45,7 +45,7 @@ def mproc():
         with Client(processes=True) as client:
             yield DaskExecutor(client.scheduler.address, processes=True)
     else:
-        pytest.skip("dask.distributed does not support Python 3.4")
+        yield
 
 
 @pytest.fixture()
@@ -72,6 +72,13 @@ def executor(request, _switch):
         ```
     or with some subset of executors that you want to use.
     """
+    if sys.version_info < (3, 5) and request.param in ["mthread", "mproc"]:
+        request.applymarker(
+            pytest.mark.xfail(
+                run=False,
+                reason="dask.distributed does not officially support Python 3.4",
+            )
+        )
     return _switch(request.param)
 
 

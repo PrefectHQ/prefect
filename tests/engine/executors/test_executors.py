@@ -1,3 +1,4 @@
+import logging
 import pytest
 import random
 import sys
@@ -81,6 +82,18 @@ def test_importing_dask_raises_informative_import_error():
     )
 
 
+@pytest.mark.parametrize("executor", ["mproc", "mthread", "sync"], indirect=True)
+def test_submit_does_not_assume_pure_functions(executor):
+    def random_fun():
+        return random.random()
+
+    with executor.start():
+        one = executor.wait(executor.submit(random_fun))
+        two = executor.wait(executor.submit(random_fun))
+
+    assert one != two
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
 )
@@ -97,7 +110,7 @@ class TestDaskExecutor:
         assert computed["x"] == 3
         assert computed["y"] == 4
 
-    @pytest.mark.parametrize("executor", ["mthread"], indirect=True)
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_submit_with_context(self, executor):
         context_fn = lambda: prefect.context.get("abc")
         context = dict(abc="abc")
@@ -105,7 +118,9 @@ class TestDaskExecutor:
         with executor.start():
             assert executor.wait(executor.submit(context_fn)) is None
             with prefect.context(context):
-                assert executor.wait(executor.submit(context_fn)) == "abc"
+                assert (
+                    executor.wait(executor.submit(context_fn)) is None
+                )  # not inherited to subprocesses / threads
             fut = executor.submit_with_context(context_fn, context=context)
             context.clear()
             assert executor.wait(fut) == "abc"
@@ -154,3 +169,21 @@ class TestDaskExecutor:
             pass
         assert client.called
         assert client.call_args[-1]["test_kwarg"] == "test_value"
+
+    def test_debug_is_converted_to_silence_logs(self, monkeypatch):
+        client = MagicMock()
+        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+
+        # debug False
+        executor = DaskExecutor(debug=False)
+        with executor.start():
+            pass
+        assert client.called
+        assert client.call_args[-1]["silence_logs"] == logging.CRITICAL
+
+        # debug True
+        executor = DaskExecutor(debug=True)
+        with executor.start():
+            pass
+        assert client.called
+        assert client.call_args[-1]["silence_logs"] == logging.WARNING

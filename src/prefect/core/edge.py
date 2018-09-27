@@ -1,6 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import keyword
+from typing import Set
 
 from prefect.core.task import Task
 
@@ -92,6 +93,13 @@ class Edge:
         self.key = key
 
     # Comparison --------------------------------------------------------------
+
+    @property
+    def tasks(self) -> Set[Task]:
+        """
+        Returns a set of both upstream and downstream tasks for this edge.
+        """
+        return {self.upstream_task, self.downstream_task}
 
     def __repr__(self) -> str:
         return "<Edge{k}: {u} to {d}>".format(

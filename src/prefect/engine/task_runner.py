@@ -6,7 +6,7 @@ import logging
 from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
 
 import prefect
-from prefect.core import Task
+from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.state import (
     CachedState,
@@ -90,12 +90,11 @@ class TaskRunner:
     def run(
         self,
         state: State = None,
-        upstream_states: Dict[Optional[str], Union[State, List[State]]] = None,
+        upstream_states: Dict[Edge, Union[State, List[State]]] = None,
         inputs: Dict[str, Any] = None,
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
         queues: Iterable = None,
-        maps=None,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -105,20 +104,9 @@ class TaskRunner:
         Args:
             - state (State, optional): initial `State` to begin task run from;
                 defaults to `Pending()`
-            - upstream_states (Dict[Optional[str], Union[State, List[State]]]): a dictionary
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): a dictionary
                 representing the states of any tasks upstream of this one. The keys of the
-                dictionary should correspond to the keys of any edges leading to the task,
-                plus an extra `None` key containing a list of results from tasks that
-                don't pass data.
-
-                For example, if the run signature was `def run(self, x, y):` then a valid
-                upstream_states dict would be:
-                    ```python
-                    upstream_states = dict(
-                        x=Success(result=1),
-                        y=Success(result=2),
-                        None=[Success()])
-                    ```
+                dictionary should correspond to the edges leading to the task.
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments. Any keys that are provided will override the
                 `State`-based inputs provided in upstream_states.
@@ -133,7 +121,6 @@ class TaskRunner:
             - `State` object representing the final post-run state of the Task
         """
 
-        maps = maps or set()
         queues = queues or []
         state = state or Pending()
         upstream_states = upstream_states or {}
@@ -141,13 +128,13 @@ class TaskRunner:
         context = context or {}
 
         task_inputs = {}
-        for k, v in upstream_states.items():
-            if k is None:
+        for edge, v in upstream_states.items():
+            if edge.key is None:
                 continue
             if isinstance(v, list):
-                task_inputs[k] = [s.result for s in v]
+                task_inputs[edge.key] = [s.result for s in v]
             else:
-                task_inputs[k] = v.result
+                task_inputs[edge.key] = v.result
         task_inputs.update(inputs)
 
         upstream_states_set = set(
@@ -226,7 +213,9 @@ class TaskRunner:
         if self.task.skip_on_upstream_skip and any(
             isinstance(s, Skipped) for s in upstream_states
         ):
-            return Skipped(message="Upstream task was skipped.")
+            return Skipped(
+                message="Upstream task was skipped; if this was not the intended behavior, consider changing `skip_on_upstream_skip=False` for this task."
+            )
 
         # ---------------------------------------------------------
         # check trigger

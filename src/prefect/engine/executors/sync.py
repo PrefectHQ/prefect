@@ -10,11 +10,7 @@ import queue
 import warnings
 
 from prefect.engine.executors.base import Executor
-from prefect.utilities.executors import (
-    create_bagged_list,
-    state_to_list,
-    unpack_dict_to_bag,
-)
+from prefect.utilities.executors import state_to_list, unpack_dict_to_bag
 
 
 class SynchronousExecutor(Executor):
@@ -37,41 +33,27 @@ class SynchronousExecutor(Executor):
         return q
 
     def map(
-        self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
     ) -> dask.bag:
-        mapped_non_keyed = maps.pop(None, [])
-        non_keyed = upstream_states.pop(None, [])
-
         # every task which is being mapped over needs its state represented as a
         # dask.bag; there are two situations: 1.) the task being mapped over is
         # itself a result of a mapped task, in which case it will already be a
         # bag 2.) the task being mapped over will return a list, in which case
         # we need to pull apart the list into a list of states and then a dask.bag
         needs_bagging = {
-            k: dask.bag.from_delayed(dask.delayed(state_to_list)(v))
-            for k, v in maps.items()
-            if k in maps and not isinstance(v, dask.bag.Bag)
+            edge: dask.bag.from_delayed(dask.delayed(state_to_list)(v))
+            for edge, v in upstream_states.items()
+            if edge.mapped and not isinstance(v, dask.bag.Bag)
         }
-        maps.update(needs_bagging)
-        upstream_states.update(maps)
+        upstream_states.update(needs_bagging)
 
-        if mapped_non_keyed:
-            # if there are mapped tasks that don't belong to a keyed Edge,
-            # we must convert them to bags
-            upstreams = create_bagged_list(mapped_non_keyed, non_keyed)
-            other = []
-        else:
-            # otherwise, non_keyed is a simple list of Delayed objects
-            # which we must unpack so that `dask.bag.map()` knows they're there
-            # (otherwise dask.bag.map would treat non_keyed as a list and never
-            # compute them)
-            # TODO: mapping a task with non-mapped upstream tasks
-            # causes a bottleneck in the execution model
-            other, upstreams = non_keyed, None
-
-        bagged_states = dask.bag.map(
-            unpack_dict_to_bag, *other, upstreams=upstreams, **upstream_states
-        )
+        # in order to call `dask.bag.map()` on the provided function `fn`,
+        # we need a dask.bag to map over; moreover, because the keys of
+        # upstream_states are Edges (not strings), we can't just splat them into a
+        # function call --> hence, we unpack them (maintaining order) and
+        # convert them to a bag
+        keys, values = list(zip(*upstream_states.items()))
+        bagged_states = dask.bag.map(unpack_dict_to_bag, *values, keys=keys)
 
         return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
 
