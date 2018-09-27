@@ -63,10 +63,16 @@ class AirTask(prefect.tasks.shell.ShellTask):
         dbfile = airflow_env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")[
             10:
         ]  # removes sqlite:/// noise
-        status = custom_query(
+        query = custom_query(
             dbfile, check_query.format(self.name, self.dag_id, execution_date)
-        )[0][0]
+        )
 
+        if query:
+            status = query[0][0]
+        else:
+            raise prefect.engine.signals.SKIP(
+                "Airflow task state not present in airflow db, was skipped."
+            )
         if status == "None":
             raise prefect.engine.signals.DONTRUN(
                 "Airflow task state marked as 'None' in airflow db"
@@ -77,9 +83,7 @@ class AirTask(prefect.tasks.shell.ShellTask):
             )
         elif status != "success":
             raise prefect.engine.signals.FAIL(
-                "Airflow task state marked as {} in airflow db".format(
-                    status.decode().rstrip()
-                )
+                "Airflow task state marked as {} in airflow db".format(status.rstrip())
             )
 
     def pull_xcom(self, execution_date, airflow_env):
@@ -99,6 +103,8 @@ class AirTask(prefect.tasks.shell.ShellTask):
         self.pre_check(execution_date, airflow_env)
         self.command = self.command.replace("!execution_date", execution_date)
         res = super().run(env=airflow_env)
+        if "Task is not able to be run" in res.decode():
+            raise prefect.engine.signals.SKIP("Airflow task was not run.")
         self.post_check(execution_date, airflow_env)
         data = self.pull_xcom(execution_date, airflow_env)
         return data
