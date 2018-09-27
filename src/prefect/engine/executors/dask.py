@@ -39,7 +39,7 @@ class DaskExecutor(Executor):
     """
 
     def __init__(
-        self, address=None, processes=False, debug=config.general.dev_mode, **kwargs
+        self, address=None, processes=False, debug=config.debug, **kwargs
     ):
         self.address = address
         self.processes = processes
