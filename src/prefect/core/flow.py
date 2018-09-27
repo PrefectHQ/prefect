@@ -204,7 +204,7 @@ class Flow(Serializable):
 
     # Identification -----------------------------------------------------------
 
-    def replace(self, old: Task, new: Task) -> None:
+    def replace(self, old: Task, new: Task, validate: bool = True) -> None:
         """
         Performs an inplace replacement of the old task with the provided new task.
 
@@ -212,6 +212,8 @@ class Flow(Serializable):
             - old (Task): the old task to replace
             - new (Task): the new task to replace the old with; if not a Prefect
                 Task, Prefect will attempt to convert it to one
+            - validate (boolean, optional): whether to validate the Flow after
+                the replace has been completed; defaults to `True`
 
         Raises:
             - ValueError: if the `old` task is not a part of this flow
@@ -222,13 +224,24 @@ class Flow(Serializable):
         new = as_task(new)
 
         # update tasks
-        self.tasks = {t for t in self.tasks if t != old}
-        self.tasks.add(new)
+        self.tasks.remove(old)
+        self._task_ids.pop(old)
+        self.add_task(new)
 
         # update edges
         affected_edges = {e for e in self.edges if old in e.tasks}
         for edge in affected_edges:
-            edge.replace(old, new)
+            self.edges.remove(edge)
+            upstream = new if edge.upstream_task == old else edge.upstream_task
+            downstream = new if edge.downstream_task == old else edge.downstream_task
+            self.edges.add(
+                Edge(
+                    upstream_task=upstream,
+                    downstream_task=downstream,
+                    key=edge.key,
+                    mapped=edge.mapped,
+                )
+            )
 
         # update auxiliary task collections
         ref_tasks = self.reference_tasks()
@@ -236,6 +249,8 @@ class Flow(Serializable):
             [new] if old in ref_tasks else []
         )
         self.set_reference_tasks(new_refs)
+        if validate:
+            self.validate()
 
     @property
     def id(self) -> str:
