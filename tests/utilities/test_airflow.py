@@ -66,3 +66,12 @@ def test_example_short_circuit_operator():
             assert isinstance(state, Skipped)
         elif "true" in task.name:
             assert isinstance(state, Success)
+
+
+def test_example_bash_operator():
+    flow = AirFlow(dag_id="example_bash_operator")
+    res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
+    assert res.is_successful()
+
+    for task, state in res.result.items():
+        assert isinstance(state, Success)
