@@ -1,9 +1,6 @@
 import pytest
 
-try:
-    import airflow
-except ImportError:
-    pytest.skip(reason="Airflow not installed.")
+airflow = pytest.importorskip("airflow")
 
 from prefect.engine.state import Success, Skipped, Failed
 from prefect.utilities.airflow_utils import AirFlow
