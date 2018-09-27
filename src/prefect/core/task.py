@@ -95,10 +95,11 @@ class Task(Serializable, metaclass=SignatureValidator):
         - timeout (timedelta, optional): The amount of time to wait while running before a timeout occurs
         - trigger (callable, optional): a function that determines whether the task should run, based
                 on the states of any upstream tasks.
-        - skip_on_upstream_skip (bool, optional): if True and any upstream tasks skipped, this task
+        - skip_on_upstream_skip (bool, optional): if `True` and any upstream tasks skipped, this task
                 will automatically be skipped as well. By default, this prevents tasks from
-                attempting to use either state or data from tasks that didn't run. if False,
+                attempting to use either state or data from tasks that didn't run. If `False`,
                 the task's trigger will be called as normal; skips are considered successes.
+                Defaults to `True`.
         - cache_for (timedelta, optional): The amount of time to maintain cache
         - cache_validator (Callable, optional): Validator telling what to cache
 
@@ -175,22 +176,21 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         The `run()` method is called (with arguments, if appropriate) to run a task.
 
-        In addition to running arbitrary functions, tasks can interact with
-        Prefect in a few ways:
-            1. Return an optional result. When this function runs successfully,
-                the task is considered successful and the result (if any) can be
-                made available to downstream tasks.
-            2. Raise an error. Errors are interpreted as failure.
-            3. Raise a signal. Signals can include `FAIL`, `SUCCESS`, `RETRY`, `SKIP`, etc.
-                and indicate that the task should be put in the indicated
-                state.
-                - `FAIL` will lead to retries if appropriate
-                - `SUCCESS` will cause the task to be marked successful
-                - `RETRY` will cause the task to be marked for retry, even if `max_retries`
-                    has been exceeded
-                - `SKIP` will skip the task and possibly propogate the skip state through the
-                    flow, depending on whether downstream tasks have
-                    `skip_on_upstream_skip=True`.
+        In addition to running arbitrary functions, tasks can interact with Prefect in a few ways:
+        <ul><li> Return an optional result. When this function runs successfully,
+            the task is considered successful and the result (if any) can be
+            made available to downstream tasks. </li>
+        <li> Raise an error. Errors are interpreted as failure. </li>
+        <li> Raise a [signal](../engine/signals.html). Signals can include `FAIL`, `SUCCESS`, `RETRY`, `SKIP`, etc.
+            and indicate that the task should be put in the indicated state.
+                <ul>
+                <li> `FAIL` will lead to retries if appropriate </li>
+                <li> `SUCCESS` will cause the task to be marked successful </li>
+                <li> `RETRY` will cause the task to be marked for retry, even if `max_retries`
+                    has been exceeded </li>
+                <li> `SKIP` will skip the task and possibly propogate the skip state through the
+                    flow, depending on whether downstream tasks have `skip_on_upstream_skip=True`. </li></ul>
+        </li></ul>
         """
         pass
 
