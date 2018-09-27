@@ -12,6 +12,9 @@ from contextlib import closing
 import prefect
 
 
+__all__ = ["AirFlow"]
+
+
 trigger_mapping = {
     "all_success": prefect.triggers.all_successful,
     "all_failed": prefect.triggers.all_failed,
