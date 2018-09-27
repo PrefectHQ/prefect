@@ -70,7 +70,7 @@ module.exports = {
                     title: 'Tutorials',
                     collapsable: true,
                     children: ['tutorials/', 'tutorials/etl', 'tutorials/calculator', 'tutorials/task-retries', 'tutorials/triggers-and-references',
-                        'tutorials/visualization', 'tutorials/throttling', 'tutorials/advanced-mapping']
+                        'tutorials/visualization', 'tutorials/throttling', 'tutorials/advanced-mapping', 'tutorials/airflow_migration']
                 },
                 {
                     title: 'Comparisons',
