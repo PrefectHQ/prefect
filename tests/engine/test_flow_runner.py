@@ -685,3 +685,30 @@ def test_flow_runner_allows_for_parallelism_with_times(executor):
 
     assert names != alice_first
     assert names != bob_first
+
+
+@pytest.mark.parametrize("executor", ["mproc", "mthread", "sync"], indirect=True)
+def test_flow_runner_properly_provides_context_to_task_runners(executor):
+    @prefect.task
+    def my_name():
+        return prefect.context.get("_my_name")
+
+    @prefect.task
+    def flow_name():
+        return prefect.context.get("_flow_name")
+
+    flow = Flow(name="test-dummy", tasks=[flow_name, my_name])
+    with prefect.context(_my_name="marvin"):
+        res = flow.run(executor=executor, return_tasks=flow.tasks)
+
+    assert res.result[flow_name].result == "test-dummy"
+    assert res.result[my_name].result == "marvin"
+
+    with Flow("test-map") as f:
+        tt = flow_name.map(upstream_tasks=[my_name])
+
+    with prefect.context(_my_name="mapped-marvin"):
+        res = f.run(executor=executor, return_tasks=f.tasks)
+
+    assert res.result[my_name].result == "mapped-marvin"
+    assert res.result[tt][0].result == "test-map"

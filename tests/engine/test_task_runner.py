@@ -5,6 +5,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
+from prefect.core.edge import Edge
 from prefect.core.task import Task
 from prefect.engine import TaskRunner, signals
 from prefect.engine.cache_validators import (
@@ -145,6 +146,14 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
 def test_task_that_raises_skip_gets_skipped():
     task_runner = TaskRunner(task=RaiseSkipTask())
     assert isinstance(task_runner.run(), Skipped)
+
+
+def test_task_that_has_upstream_skip_gets_skipped_with_informative_message():
+    task_runner = TaskRunner(task=SuccessTask())
+    edge = Edge(RaiseSkipTask(), SuccessTask(skip_on_upstream_skip=True))
+    state = task_runner.run(upstream_states={edge: Skipped()})
+    assert isinstance(state, Skipped)
+    assert "skip_on_upstream_skip" in state.message
 
 
 def test_task_that_is_running_doesnt_run():
@@ -559,3 +568,26 @@ def test_task_runner_returns_tickets_to_the_right_place():
     assert bq.put.call_count == 1
     assert bq.put.call_args[0][0] == "bad_ticket"
     assert all([args[0][0] == "ticket" for args in q.put.call_args_list])
+
+
+def test_task_runner_accepts_dictionary_of_edges():
+    add = AddTask()
+    ex = Edge(SuccessTask(), add, key="x")
+    ey = Edge(SuccessTask(), add, key="y")
+    runner = TaskRunner(add)
+    state = runner.run(upstream_states={ex: Success(result=1), ey: Success(result=1)})
+    assert state.is_successful()
+    assert state.result == 2
+
+
+def test_task_runner_prioritizes_inputs():
+    add = AddTask()
+    ex = Edge(SuccessTask(), add, key="x")
+    ey = Edge(SuccessTask(), add, key="y")
+    runner = TaskRunner(add)
+    state = runner.run(
+        upstream_states={ex: Success(result=1), ey: Success(result=1)},
+        inputs=dict(x=10, y=20),
+    )
+    assert state.is_successful()
+    assert state.result == 30
