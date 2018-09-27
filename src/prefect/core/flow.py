@@ -234,7 +234,7 @@ class Flow(Serializable):
 
         # remove old edges
         for edge in affected_edges:
-            affected_edges.remove(edge)
+            self.edges.remove(edge)
 
         # replace with new edges
         for edge in affected_edges:
