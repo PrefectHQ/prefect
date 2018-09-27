@@ -610,6 +610,9 @@ class Flow(Serializable):
         """
         Checks that the flow is valid.
 
+        Returns:
+            - None
+
         Raises:
             - ValueError: if edges refer to tasks that are not in this flow
             - ValueError: if specified reference tasks are not in this flow
@@ -827,6 +830,7 @@ class Flow(Serializable):
 
         Args:
             - flow_state (State, optional): flow state object used to optionally color the nodes
+
         Raises:
             - ImportError: if `graphviz` is not installed
         """
