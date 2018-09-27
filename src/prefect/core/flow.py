@@ -136,13 +136,13 @@ class Flow(Serializable):
         for t in tasks or []:
             self.add_task(t)
 
+        self.set_reference_tasks(reference_tasks or [])
         for e in edges or []:
             self.add_edge(
                 upstream_task=e.upstream_task,
                 downstream_task=e.downstream_task,
                 key=e.key,
             )
-        self.set_reference_tasks(reference_tasks or [])
 
         self._prefect_version = prefect.__version__
 

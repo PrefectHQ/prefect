@@ -213,7 +213,9 @@ class TaskRunner:
         if self.task.skip_on_upstream_skip and any(
             isinstance(s, Skipped) for s in upstream_states
         ):
-            return Skipped(message="Upstream task was skipped.")
+            return Skipped(
+                message="Upstream task was skipped; if this was not the intended behavior, consider changing `skip_on_upstream_skip=False` for this task."
+            )
 
         # ---------------------------------------------------------
         # check trigger
