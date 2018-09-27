@@ -228,19 +228,20 @@ class Flow(Serializable):
         self._task_ids.pop(old)
         self.add_task(new)
 
+        self._cache.clear()
+
         # update edges
         affected_edges = {e for e in self.edges if old in e.tasks}
         for edge in affected_edges:
             self.edges.remove(edge)
             upstream = new if edge.upstream_task == old else edge.upstream_task
             downstream = new if edge.downstream_task == old else edge.downstream_task
-            self.edges.add(
-                Edge(
-                    upstream_task=upstream,
-                    downstream_task=downstream,
-                    key=edge.key,
-                    mapped=edge.mapped,
-                )
+            self.add_edge(
+                upstream_task=upstream,
+                downstream_task=downstream,
+                key=edge.key,
+                mapped=edge.mapped,
+                validate=False,
             )
 
         # update auxiliary task collections
