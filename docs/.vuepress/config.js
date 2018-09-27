@@ -30,7 +30,7 @@ module.exports = {
                 {
                     title: 'prefect',
                     collapsable: true,
-                    children: ['environments', 'schedules', 'serializers', 'triggers']
+                    children: ['environments', 'triggers']
                 },
 
                 {

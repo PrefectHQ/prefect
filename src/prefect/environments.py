@@ -1,13 +1,14 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 """
-Environments in the prefect library serve the purpose of taking fully executable flows,
-serializing them, and then putting that flow into some type of environment where it can
-be loaded and executed. Currently environments consists of a Docker Container environment
-and a LocalEnvironment.
+Environments in the Prefect library serve as containers capable of serializing, loading and executing
+flows. Currently, available environments consist of a Docker `ContainerEnvironment`
+and a `LocalEnvironment`.
 
-Environments will serve a big purpose on accompanying the execution lifecycle for the
-Prefect Server and due to ongoing development this file is subject to large changes.
+Environments will be a crucial element in the execution lifecycle for a Flow
+through the Prefect Server.
+
+**Note:** Due to ongoing development this file is subject to large changes.
 """
 
 import subprocess
@@ -26,17 +27,6 @@ class Secret(Serializable):
     """
     A Secret is a serializable object used to represent a secret key & value that is
     to live inside of an environment.
-
-    Example secret variables could look something like:
-    ```
-    key: AWS_SECRET_KEY
-    value: secret_encoded_value
-
-    or
-
-    key: TOGGLE
-    value: False
-    ```
 
     Args:
         - name (str): The name of the secret to be put into the environment
@@ -76,24 +66,35 @@ class Environment(Serializable):
         """
         Build the environment. Returns a key that must be passed to interact with the
         environment.
+
+        Args:
+            - flow (prefect.Flow): the Flow to build the environment for
+
+        Returns:
+            - bytes: a key required for interacting with the environment
         """
         raise NotImplementedError()
 
     def run(self, key: bytes, cli_cmd: str) -> int:
-        """Issue a CLI command to the environment."""
+        """Issue a CLI command to the environment.
+
+        Args:
+            - key (bytes): the environment key
+            - cli_cmd (str): the command to issue
+        """
         raise NotImplementedError()
 
 
 class ContainerEnvironment(Environment):
     """
-    Container class used to represent a Docker container
+    Container class used to represent a Docker container.
 
-    *Note:* this class is still experimental, does not fully support all functions,
+    **Note:** this class is still experimental, does not fully support all functions,
     and is subject to change.
 
     Args:
         - image (str): The image to pull that is used as a base for the Docker container
-        *Note*: An image that is provided must be able to handle `python` and `pip` commands
+        (*Note*: An image that is provided must be able to handle `python` and `pip` commands)
         - tag (str): The tag for this container
         - python_dependencies (list, optional): The list of pip installable python packages
         that will be installed on build of the Docker container
@@ -146,8 +147,7 @@ class ContainerEnvironment(Environment):
             - flow (prefect.Flow): Flow to be placed in container
 
         Returns:
-            - tuple with (`docker.models.images.Image`, iterable logs)
-
+            - tuple: tuple consisting of (`docker.models.images.Image`, iterable logs)
         """
         with tempfile.TemporaryDirectory() as tempdir:
 
@@ -189,12 +189,6 @@ class ContainerEnvironment(Environment):
         In order for the docker python library to use a base image it must be pulled
         from either the main docker registry or a separate registry that must be set in
         the environment variables.
-
-        Args:
-            - None
-
-        Returns:
-            - None
         """
         self.client.images.pull(self.image)
 
@@ -207,7 +201,7 @@ class ContainerEnvironment(Environment):
 
         Args:
             - directory (str, optional): A directory where the Dockerfile will be created,
-            if no directory is specified is will be created in the current working directory
+                if no directory is specified is will be created in the current working directory
 
         Returns:
             - None
@@ -293,7 +287,7 @@ class LocalEnvironment(Environment):
         Build the LocalEnvironment
 
         Args:
-            - flow (Flow): The prefect Flow object
+            - flow (Flow): The prefect Flow object to build the environment for
 
         Returns:
             - bytes: The encrypted and pickled flow registry
@@ -307,7 +301,7 @@ class LocalEnvironment(Environment):
 
     def run(self, key: bytes, cli_cmd: str):
         """
-        Run a command in the LocalEnvironment. This functions by writing a pickled
+        Run a command in the `LocalEnvironment`. This functions by writing a pickled
         flow to temporary memory and then executing prefect CLI commands against it.
 
         Args:
@@ -315,7 +309,7 @@ class LocalEnvironment(Environment):
             - cli_cmd (str): The prefect CLI command to be run
 
         Returns:
-            - A subprocess with the command ran against the flow
+            - bytes: the output of `subprocess.check_output` from the command run against the flow
         """
         with tempfile.NamedTemporaryFile() as tmp:
             with open(tmp.name, "wb") as f:
