@@ -1,3 +1,5 @@
+debug = false
+
 [general]
 
 # the location of the user's config file

@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import logging
 import sys
 
 if sys.version_info < (3, 5):
@@ -15,6 +16,7 @@ from typing import Any, Callable, Iterable
 import queue
 import warnings
 
+from prefect import config
 from prefect.engine.executors.base import Executor
 from prefect.utilities.executors import dict_to_list
 
@@ -36,9 +38,10 @@ class DaskExecutor(Executor):
             `dask.distributed.Client` upon initialization (e.g., `n_workers`)
     """
 
-    def __init__(self, address=None, processes=False, **kwargs):
+    def __init__(self, address=None, processes=False, debug=config.debug, **kwargs):
         self.address = address
         self.processes = processes
+        self.debug = debug
         self.kwargs = kwargs
         super().__init__()
 
@@ -50,6 +53,9 @@ class DaskExecutor(Executor):
         Creates a `dask.distributed.Client` and yields it.
         """
         try:
+            self.kwargs.update(
+                silence_logs=logging.CRITICAL if not self.debug else logging.WARNING
+            )
             with Client(
                 self.address, processes=self.processes, **self.kwargs
             ) as client:

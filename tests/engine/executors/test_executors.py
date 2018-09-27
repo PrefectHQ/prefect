@@ -1,3 +1,4 @@
+import logging
 import pytest
 import random
 import sys
@@ -168,3 +169,21 @@ class TestDaskExecutor:
             pass
         assert client.called
         assert client.call_args[-1]["test_kwarg"] == "test_value"
+
+    def test_debug_is_converted_to_silence_logs(self, monkeypatch):
+        client = MagicMock()
+        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+
+        # debug False
+        executor = DaskExecutor(debug=False)
+        with executor.start():
+            pass
+        assert client.called
+        assert client.call_args[-1]["silence_logs"] == logging.CRITICAL
+
+        # debug True
+        executor = DaskExecutor(debug=True)
+        with executor.start():
+            pass
+        assert client.called
+        assert client.call_args[-1]["silence_logs"] == logging.WARNING
