@@ -230,10 +230,14 @@ class Flow(Serializable):
 
         self._cache.clear()
 
-        # update edges
         affected_edges = {e for e in self.edges if old in e.tasks}
+
+        # remove old edges
         for edge in affected_edges:
-            self.edges.remove(edge)
+            affected_edges.remove(edge)
+
+        # replace with new edges
+        for edge in affected_edges:
             upstream = new if edge.upstream_task == old else edge.upstream_task
             downstream = new if edge.downstream_task == old else edge.downstream_task
             self.add_edge(
@@ -250,6 +254,7 @@ class Flow(Serializable):
             [new] if old in ref_tasks else []
         )
         self.set_reference_tasks(new_refs)
+
         if validate:
             self.validate()
 
