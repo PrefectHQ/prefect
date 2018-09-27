@@ -148,6 +148,14 @@ def test_task_that_raises_skip_gets_skipped():
     assert isinstance(task_runner.run(), Skipped)
 
 
+def test_task_that_has_upstream_skip_gets_skipped_with_informative_message():
+    task_runner = TaskRunner(task=SuccessTask())
+    edge = Edge(RaiseSkipTask(), SuccessTask(skip_on_upstream_skip=True))
+    state = task_runner.run(upstream_states={edge: Skipped()})
+    assert isinstance(state, Skipped)
+    assert "skip_on_upstream_skip" in state.message
+
+
 def test_task_that_is_running_doesnt_run():
     task_runner = TaskRunner(task=SuccessTask())
     initial_state = Running()
