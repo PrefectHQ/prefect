@@ -182,7 +182,12 @@ OUTLINE = [
         "classes": [prefect.tasks.shell.ShellTask],
         "title": "ShellTask",
     },
-    {"page": "utilities/bokeh.md", "classes": [BokehRunner], "title": "BokehRunner"},
+    {
+        "page": "utilities/bokeh.md",
+        "classes": [BokehRunner],
+        "title": "BokehRunner",
+        "top-level-doc": prefect.utilities.bokeh_runner,
+    },
     {
         "page": "utilities/collections.md",
         "classes": [prefect.utilities.collections.DotDict],
@@ -292,7 +297,7 @@ def create_methods_table(members, title):
         table += "|:----|\n"
     for method in members:
         table += format_subheader(method, level=2, in_table=True).replace(
-            "\n", "<br><br>"
+            "\n\n", "<br>"
         )
         table += format_doc(inspect.getdoc(method), in_table=True)
         table += "|\n"
@@ -377,9 +382,7 @@ def format_subheader(obj, level=1, in_table=False):
     class_name = f"<b>{create_absolute_path(obj)}.{obj.__qualname__}</b>"
     div_tag = f"<div class='sig' style='padding-left:3.5em;text-indent:-3.5em;'>"
 
-    call_sig = (
-        f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>"
-    )
+    call_sig = f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>\n\n"
     return call_sig
 
 
