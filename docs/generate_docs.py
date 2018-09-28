@@ -240,9 +240,13 @@ def format_lists(doc):
     lists = re.findall(
         r"(Args\:|Returns\:|Raises\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL
     )  # find formatted lists
+    ul_tag = "<ul style='padding-left:3.5em;text-indent:-3.5em;'>"
+    li_tag = "<li style='padding-left:3.5em;text-indent:-3.5em;'>"
     for section, _, items, ending in lists:
         if section.startswith(("Returns:", "Raises:")) and ":" not in items:
-            doc = doc.replace(items, "<ul><li>" + items.lstrip("- ") + "</li></ul>", 1)
+            doc = doc.replace(
+                items, f"{ul_tag}{li_tag}" + items.lstrip("- ") + "</li></ul>", 1
+            )
             continue
         args = re.split(r"-\s+(.*?)\:(?![^{]*\})", items)  # collect all list items
         if not args:
@@ -250,8 +254,8 @@ def format_lists(doc):
         block = ""
         list_items = zip(args[1::2], args[2::2])
         for item, descr in list_items:
-            block += f"<li>`{item}`:{descr}</li>"
-        list_block = f"<ul>{block}</ul>"
+            block += f"{li_tag}`{item}`:{descr}</li>"
+        list_block = f"{ul_tag}{block}</ul>"
         doc = doc.replace(items + "\n\n", list_block, 1).replace(items, list_block, 1)
     return doc.replace("\n\nRaises:", "Raises:")
 
