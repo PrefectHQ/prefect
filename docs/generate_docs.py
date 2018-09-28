@@ -479,7 +479,8 @@ if __name__ == "__main__":
 
             top_doc = page.get("top-level-doc")
             if top_doc is not None:
-                f.write(inspect.getdoc(top_doc) + "\n\n")
+                f.write(inspect.getdoc(top_doc))
+                f.write("\n<hr>\n<br>\n\n")
             for obj in classes:
                 f.write(format_subheader(obj))
 
