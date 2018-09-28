@@ -83,11 +83,11 @@ class Task(Serializable, metaclass=SignatureValidator):
         t2 = a(5, 7) # t2 != a
     ```
 
-    To bind values to a Task's run method imperatively, see `Task.bind`.
+    To bind values to a Task's run method imperatively (and without making a copy), see `Task.bind`.
 
     Args:
         - name (str, optional): The name of this task
-        - slug (str, optional): The slug for this task, it must be unique withing a given Flow
+        - slug (str, optional): The slug for this task, it must be unique within a given Flow
         - description (str, optional): Descriptive information about this task
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
@@ -95,13 +95,17 @@ class Task(Serializable, metaclass=SignatureValidator):
         - timeout (timedelta, optional): The amount of time to wait while running before a timeout occurs
         - trigger (callable, optional): a function that determines whether the task should run, based
                 on the states of any upstream tasks.
-        - skip_on_upstream_skip (bool, optional): if `True` and any upstream tasks skipped, this task
-                will automatically be skipped as well. By default, this prevents tasks from
-                attempting to use either state or data from tasks that didn't run. If `False`,
-                the task's trigger will be called as normal; skips are considered successes.
-                Defaults to `True`.
-        - cache_for (timedelta, optional): The amount of time to maintain cache
-        - cache_validator (Callable, optional): Validator telling what to cache
+        - skip_on_upstream_skip (bool, optional): if `True`, if any immediately
+                upstream tasks are skipped, this task will automatically be skipped as well,
+                regardless of trigger. By default, this prevents tasks from attempting to use either state or data
+                from tasks that didn't run. If `False`, the task's trigger will be called as normal,
+                with skips considered successes. Defaults to `True`.
+        - cache_for (timedelta, optional): The amount of time to maintain a cache
+            of the outputs of this task.  Useful for situations where the containing Flow
+            will be rerun multiple times, but this task doesn't need to be.
+        - cache_validator (Callable, optional): Validator which will determine
+            whether the cache for this task is still valid (only required if `cache_for`
+            is provided; defaults to `prefect.engine.cache_validators.duration_only`)
 
     Raises:
         - TypeError: if `tags` is of type `str`

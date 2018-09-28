@@ -337,7 +337,9 @@ def format_signature(obj):
 def create_absolute_path(obj):
     dir_struct = inspect.getfile(obj).split("/")
     begins_at = dir_struct.index("src") + 1
-    return ".".join([d.rstrip(".py") for d in dir_struct[begins_at:]])
+    filename = dir_struct.pop(-1)
+    dir_struct.append(filename[:-3] if filename.endswith(".py") else filename)
+    return ".".join([d for d in dir_struct[begins_at:]])
 
 
 @preprocess
