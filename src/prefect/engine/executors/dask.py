@@ -35,6 +35,8 @@ class DaskExecutor(Executor):
         - processes (bool, optional): whether to use multiprocessing or not
             (computations will still be multithreaded). Ignored if address is provided.
             Defaults to `False`.
+        - debug (bool, optional): whether to operate in debug mode; `debug=True`
+            will produce many additional dask logs. Defaults to the `debug` value in your Prefect configuration
         - **kwargs (dict, optional): additional kwargs to be passed to the
             `dask.distributed.Client` upon initialization (e.g., `n_workers`)
     """

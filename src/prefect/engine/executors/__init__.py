@@ -25,6 +25,9 @@ Currently, the available executor options are:
     synchronous dask scheduler; currently the default executor
 - `DaskExecutor`: the most feature-rich of the executors, this executor runs
     on `dask.distributed` and has support for multiprocessing, multithreading, and distributed execution.
+
+Which executor you choose depends on whether you intend to use things like parallelism
+of task execution.
 """
 import sys
 
