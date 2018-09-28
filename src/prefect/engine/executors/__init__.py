@@ -1,10 +1,30 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 """
-Prefect Executors encapsulate the logic for how Tasks are run.
+Prefect Executors implement the logic for how Tasks are run. The standard interface
+for an Executor consists of the following methods:
 
-For example, decisions about multi-threading or whether to use parallelism
-are handled by choice of Executor.
+- `submit(fn, *args, **kwargs)`: submit `fn(*args, **kwargs)` for execution;
+    note that this function is (in general) non-blocking, meaning that `executor.submit(...)`
+    will _immediately_ return a future-like object regardless of whether `fn(*args, **kwargs)`
+    has completed running
+- `submit_with_context(fn, *args, context, **kwargs)`: submit `fn(*args,
+    **kwargs)` for execution with the provided `prefect.context`
+- `wait(object)`: resolves any objects returned by `executor.submit` to
+    their values; this function _will_ block until execution of `object` is complete
+- `map(fn, *args, upstream_states, **kwargs)`: submit function to be mapped
+    over based on the edge information contained in `upstream_states`.  Any "mapped" Edge
+    will be converted into multiple function submissions, one for each value of the upstream mapped tasks.
+
+Currently, the available executor options are:
+
+- `LocalExecutor`: the no frills, straightforward executor - great for simple
+    debugging; tasks are executed immediately upon being called by `executor.submit()`.
+    Note that the `map` feature is currently _not_ supported with this executor.
+- `SynchronousExecutor`: an executor that runs on `dask` primitives with the
+    synchronous dask scheduler; currently the default executor
+- `DaskExecutor`: the most feature-rich of the executors, this executor runs
+    on `dask.distributed` and has support for multiprocessing, multithreading, and distributed execution.
 """
 import sys
 
