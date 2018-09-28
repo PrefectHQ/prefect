@@ -37,8 +37,8 @@ class Edge:
     """
     Edges represent connections between Tasks.
 
-    At a minimum, edges link an `upstream_task` and a `downstream_task`
-    indicating that the downstream task shouldn't run until the upstream
+    At a minimum, an edge links an `upstream_task` and a `downstream_task`
+    indicating that the downstream task shouldn't attempt to run until the upstream
     task is complete.
 
     In addition, edges can specify a key that describe how upstream results
@@ -50,9 +50,9 @@ class Edge:
             `upstream_task`. The upstream task state is passed to the
             downstream task's trigger function to determine whether the
             downstream task should run.
-        - key (str): Optional. Passing a key indicates
+        - key (str, optional): Passing a key indicates
             that the upstream result should be passed to the downstream
-            task as a keyword argument.
+            task as a keyword argument given by `key`.
 
     The key indicates that the result of the upstream task should be passed
     to the downstream task under the key.
