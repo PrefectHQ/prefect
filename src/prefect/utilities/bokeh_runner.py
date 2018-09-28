@@ -60,7 +60,7 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
 
     Initialized and handled exactly like the standard FlowRunner class.
 
-    Example:
+    **Example:**
         ```python
         from prefect.utilities.bokeh_runner import BokehRunner
         from prefect import task, Flow
@@ -110,7 +110,7 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
             - task_contexts (dict, optional): dictionary of individual contexts
                 to use for each Task run
             - title (str, optional): optional title for the webapp plot;
-                defaults to "Prefect Flow Interactive Demonstration: {{ flow.name }}"
+                defaults to "Prefect Flow Interactive Demonstration: flow.name"
             - viz (bool, optional): if `False`, will simply run the Flow and
                 return its state (with all tasks returned) without opening the webapp.
 
