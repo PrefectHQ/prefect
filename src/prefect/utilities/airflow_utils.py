@@ -37,7 +37,7 @@ class AirTask(prefect.tasks.shell.ShellTask):
         name = task.task_id
         dag_id = task.dag_id
         trigger = trigger_mapping[task.trigger_rule]
-        cmd = "airflow run {0} {1} !execution_date".format(dag_id, name)
+        cmd = "airflow run {0} {1} {2}"
         self.dag_id = dag_id
         self.task = task
         super().__init__(
@@ -104,7 +104,7 @@ class AirTask(prefect.tasks.shell.ShellTask):
         execution_date = prefect.context.get("_execution_date")
         airflow_env = prefect.context.get("_airflow_env")
         self.pre_check(execution_date, airflow_env)
-        self.command = self.command.replace("!execution_date", execution_date)
+        self.command = self.command.format(self.dag_id, self.name, execution_date)
         res = super().run(env=airflow_env)
         if "Task is not able to be run" in res.decode():
             raise prefect.engine.signals.SKIP("Airflow task was not run.")

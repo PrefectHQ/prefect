@@ -1,26 +1,51 @@
 # Airflow Conversion Tool
 
+## Overview
+
 Prefect is actively building out support for migrating workflows from Airflow to Prefect.  The current version of this functionality is not meant for production use cases _yet_; instead it is intended to whet your appetite with the possibilities, and to demonstrate as a proof-of-concept how easy it could be to migrate.
 
 ::: tip Be the change
-We are still actively soliciting feedback for features that would be necessary in order for this tool to be production ready!
+**We are still actively soliciting feedback for any features or touch-ups that would be necessary in order for this tool to be production ready!**  <a href="mailto:hello@prefect.io?subject=Migrating from Airflow">Please reach out if you have a use case or feedback</a>.
 :::
 
-There are a few implementation details you should be aware of:
+There are many ways one might imagine migrating a workflow created in Airflow to Prefect:
+1. maintain an "engine" that inspects your tasks and DAG and literally converts the Airflow code to Prefect code.
+    - this is simply infeasible and undesirable; Prefect and Airflow are [not perfect mirrors of each other](../comparisons/airflow.html)
+2. package the full Airflow DAG into a _single_ Prefect task which calls out to Airflow for execution
+    - this would work, but isn't very modular and doesn't allow you to take advantage of many of Prefect's useful features
+3. represent each Airflow task as a corresponding Prefect task; during execution, each task's run method simply calls out to Airflow for isolated task execution
+    - this is the approach taken here; we import the DAG, create a Prefect representation of each task within the DAG, use Prefect to schedule / execute it, but each task is individually executed by Airflow under the hood
+
+
+::: warning There are a few implementation details you should be aware of:
 - In order to leave your Airflow DAGs unaffected, each `AirFlow` flow will spin up its own temporary sqlite3 database
 - each task in your DAG will be mapped to a corresponding Prefect task which can be inspected with Prefect; the underlying Airflow task is still present under the hood, but **Prefect controls all execution logic**.  This is important because it highlights what is and isn't possible with the current tool:
     - any parallelism or resource pooling settings in Airflow will need to be explicitly set with Prefect
     - if you remove or replace a Prefect Airflow task, Airflow will still reference it and expect it to be run for its downstream dependencies
     - all triggers are converted automatically
 - XComs pushed from a task are converted to the _return value_ for the corresponding Prefect task, because Prefect allows for data to be passed downstream
+:::
 
 These are subject to change per customer feedback!
 
+## Example Airflow DAG
 To see this functionality at work, let's begin with a contrived DAG meant to highlight the various features and benefits you might find by allowing Prefect to run your Airflow DAG.  Moreover, this exercise will highlight many of the differences between Airflow and Prefect.
 
-The following code is _pure Airflow_ which you should save in a `.py` file in your DAG folder and run before continuing.
+::: tip Roadmap of our example DAG
+- `run_this_first`: a dummy operator
+- `branching`: a `BranchPythonOperator` which will randomly return one of `"branch_a"` or `"branch_b"`
+    - `branch_a`: a dummy operator immediately downstream of `branching`
+        - `push_xcom_for_branch_a`: downstream of `branch_a`; if run, pushes an XCom value of `"branch_a"`
+    - `branch_b`: a dummy operator immediately downstream of `branching`
+        - `push_xcom_for_branch_b`: downstream of `branch_b`; if run, pushes an XCom value of `"branch_b"`
+- `join`: a final dummy operator which is downstream of the `push_xcom` tasks; will run as long as at least one of those is successful
+:::
 
-```
+The following code is _pure Airflow_ which you should save in a `.py` file in your DAG folder and run before continuing.  
+
+<div class=comp-code>
+
+```python
 import airflow
 from airflow.operators.python_operator import BranchPythonOperator, PythonOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -74,8 +99,10 @@ for option in options:
     t.set_downstream(xcom_follow)
     xcom_follow.set_downstream(join)
 ```
+</div>
 
-After adding this DAG to your Airflow database, we can now import it as a Prefect flow and manipulate it as a first-class Prefect object.
+## Import DAG as a Prefect Flow
+After adding the above DAG to your Airflow database, we can now import it as a Prefect flow and manipulate it as a first-class Prefect object.
 
 ::: tip Don't Panic
 All code below is Prefect code!
@@ -95,7 +122,7 @@ flow.visualize()
 
 Reminder: underlying each of these Prefect tasks is _still_ an Airflow task which is a part of an Airflow DAG; consequently, it is not currently recommended that you manipulate the individual tasks themselves.
 
-However, we _can_ build on top of this using pure Prefect!  Importantly, because Prefect allows for data flow as a first-class operation, we can add downstream dependencies of any task which pushes an XCom and use the pushed XCom value without touching Airflow!
+However, we _can_ build on top of this using pure Prefect!  Importantly, because Prefect allows for dataflow as a first-class operation, we can add downstream dependencies of any task which pushes an XCom and use the pushed XCom value without touching Airflow!
 
 
 ```python
@@ -122,7 +149,8 @@ flow.visualize()
 
 ![svg](/extended_airflow_dag.svg) {style="text-align: center;"}
 
-In Airflow, time is intimiately tied with DAG and task execution; that is not always the case in Prefect.  In order to execute an `AirFlow` you will also need to provide an `execution_date` to the `run()` method - this is only necessary for flows which have been converted from Airflow.
+## Execution
+In Airflow, time is intimately tied with DAG and task execution; that is not always the case in Prefect.  In order to execute a Prefect `AirFlow` (apologies for the pun) you will also need to provide an `execution_date` to the `run()` method - this is only necessary for flows which have been converted from Airflow.
 
 When we execute this, we expect to see two print statements:
 1. a print of the branch name which was run by the `branching` operator 
