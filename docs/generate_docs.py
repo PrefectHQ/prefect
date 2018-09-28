@@ -497,7 +497,7 @@ if __name__ == "__main__":
                     method for (name, method) in members if not name.startswith("_")
                 ]
                 f.write(create_methods_table(public_members, title="methods:"))
-                f.write("\n---\n<br>\n")
+                f.write("\n---\n<br>\n\n")
 
             if fns:
                 f.write("## Functions\n")
