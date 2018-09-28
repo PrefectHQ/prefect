@@ -36,7 +36,7 @@ module.exports = {
                 {
                     title: 'prefect.core',
                     collapsable: true,
-                    children: ['core/task', 'core/flow', 'core/edge', 'core/registry']
+                    children: ['core/task', 'core/flow', 'core/edge']
                 },
 
                 {

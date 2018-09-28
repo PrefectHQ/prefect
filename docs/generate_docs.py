@@ -305,6 +305,7 @@ def get_call_signature(obj):
     # collect data
     sig = inspect.getfullargspec(obj)
     args, defaults = sig.args, sig.defaults or []
+    kwonly, kwonlydefaults = sig.kwonlyargs, sig.kwonlydefaults
     varargs, varkwargs = sig.varargs, sig.varkw
 
     if args == []:
@@ -318,6 +319,8 @@ def get_call_signature(obj):
 
     varargs = [f"*{varargs}"] if varargs else []
     varkwargs = [f"**{varkwargs}"] if varkwargs else []
+    if kwonlydefaults:
+        kwargs.extend([(kw, default) for kw, default in kwonlydefaults.items()])
 
     return standalone, varargs, kwargs, varkwargs
 
