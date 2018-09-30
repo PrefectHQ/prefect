@@ -2,22 +2,15 @@
 
 ## Overview
 
-Prefect is actively building out support for migrating workflows from Airflow to Prefect.  The current version of this functionality is not meant for production use cases _yet_; instead it is intended to whet your appetite with the possibilities, and to demonstrate as a proof-of-concept how easy it could be to migrate.
+Prefect is actively building out support for migrating workflows from Airflow to Prefect.  The current version of this functionality is not meant for production use cases _yet_; instead it is intended to be a proof-of-concept which whets your appetite for the possibilities, and demonstrates how easy it could be to migrate.
 
 ::: tip Be the change
 **We are still actively soliciting feedback for any features or touch-ups that would be necessary in order for this tool to be production ready!**  <a href="mailto:hello@prefect.io?subject=Migrating from Airflow">Please reach out if you have a use case or feedback</a>.
 :::
 
-There are many ways one might imagine migrating a workflow created in Airflow to Prefect:
-1. maintain an "engine" that inspects your tasks and DAG and literally converts the Airflow code to Prefect code.
-    - this is simply infeasible and undesirable; Prefect and Airflow are [not perfect mirrors of each other](../comparisons/airflow.html)
-2. package the full Airflow DAG into a _single_ Prefect task which calls out to Airflow for execution
-    - this would work, but isn't very modular and doesn't allow you to take advantage of many of Prefect's useful features
-3. represent each Airflow task as a corresponding Prefect task; during execution, each task's run method simply calls out to Airflow for isolated task execution
-    - this is the approach taken here; we import the DAG, create a Prefect representation of each task within the DAG, use Prefect to schedule / execute it, but each task is individually executed by Airflow under the hood
+The utility presented here introspects a given Airflow DAG and creates a corresponding Prefect Flow object (called an `AirFlow`, pardon the pun) which _represents_ the underlying Airflow DAG.  Each Airflow operator of the DAG is represented by a corresponding Prefect task of the same name. Moreover, all dependency information is transferred to and handled by Prefect (triggers, skips, etc.).  During execution, each Prefect task runs its corresponding Airflow operator. This allows users to augment their Flow with new Prefect tasks, as well as taking advantage of Prefect functionality, all without giving up Airflow-specific operators and functions.
 
-
-::: warning There are a few implementation details you should be aware of:
+::: warning There are a few additional implementation details you should be aware of:
 - In order to leave your Airflow DAGs unaffected, each `AirFlow` flow will spin up its own temporary sqlite3 database
 - each task in your DAG will be mapped to a corresponding Prefect task which can be inspected with Prefect; the underlying Airflow task is still present under the hood, but **Prefect controls all execution logic**.  This is important because it highlights what is and isn't possible with the current tool:
     - any parallelism or resource pooling settings in Airflow will need to be explicitly set with Prefect
