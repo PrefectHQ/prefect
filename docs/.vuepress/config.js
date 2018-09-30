@@ -60,7 +60,7 @@ module.exports = {
                 },
             ],
             '/license': [],
-            '/': ['introduction', 'getting_started',
+            '/': ['introduction', 'changelog', 'getting_started',
                 {
                     title: 'Concepts',
                     collapsable: true,
