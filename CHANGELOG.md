@@ -1,5 +1,22 @@
 # Prefect Changelog
 
+## 0.4.0 <Badge text="alpha" type="warn">
+### Major Features
+
+- None
+
+### Minor Features
+
+- None
+
+### Fixes
+
+- Flow consistenly raises if passed a parameter that doesn't exist [#149](https://github.com/PrefectHQ/prefect/issues/149)
+
+### Breaking Changes
+
+- None
+
 ## 0.3.2 <Badge text="alpha" type="warn">
 
 ### Major Features
