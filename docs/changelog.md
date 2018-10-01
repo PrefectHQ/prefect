@@ -26,6 +26,7 @@ sidebarDepth: 1
 - Update `BokehRunner` for visualizing mapped tasks
 - Env var configuration settings are typed
 - Support for user configuration files
+- Implement `map` functionality for the `LocalExecutor`
 
 ### Fixes
 
