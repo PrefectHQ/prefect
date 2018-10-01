@@ -666,7 +666,7 @@ def test_sorted_tasks_with_start_task():
     assert set(f.sorted_tasks(root_tasks=[t3])) == set([t3, t4, t5])
 
 
-def test_flow_ignores_irrelevant_user_provided_parameters():
+def test_flow_raises_for_irrelevant_user_provided_parameters():
     class ParameterTask(Task):
         def run(self):
             return prefect.context.get("_parameters")
@@ -677,8 +677,11 @@ def test_flow_ignores_irrelevant_user_provided_parameters():
         f.add_task(x)
         f.add_task(t)
 
-    state = f.run(return_tasks=[t], parameters=dict(x=10, y=3, z=9))
-    assert state.result[t].result == dict(x=10)
+    with pytest.raises(TypeError):
+        state = f.run(return_tasks=[t], parameters=dict(x=10, y=3, z=9))
+
+    with pytest.raises(TypeError):
+        state = f.run(return_tasks=[t], x=10, y=3, z=9)
 
 
 def test_validate_cycles():
