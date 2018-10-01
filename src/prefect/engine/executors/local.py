@@ -1,6 +1,9 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+from typing import Any, Callable, Iterable
+
 from prefect.engine.executors.base import Executor
+from prefect.utilities.executors import dict_to_list
 
 
 class LocalExecutor(Executor):
@@ -8,6 +11,17 @@ class LocalExecutor(Executor):
     An executor that runs all functions synchronously and immediately in
     the local thread.  To be used mainly for debugging purposes.
     """
+
+    def map(
+        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
+    ) -> Iterable[Any]:
+
+        states = dict_to_list(upstream_states)
+        results = []
+        for elem in states:
+            results.append(self.submit(fn, *args, upstream_states=elem, **kwargs))
+
+        return results
 
     def submit(self, fn, *args, **kwargs):
         """

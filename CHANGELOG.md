@@ -21,6 +21,7 @@
 - Add `debug` kwarg to `DaskExecutor` for optionally silencing dask logs - [#209](https://github.com/PrefectHQ/prefect/issues/209)
 - Update `BokehRunner` for visualizing mapped tasks - [#220](https://github.com/PrefectHQ/prefect/issues/220)
 - Env var configuration settings are typed - [#204](https://github.com/PrefectHQ/prefect/pull/204)
+- Implement `map` functionality for the `LocalExecutor` - [#233](https://github.com/PrefectHQ/prefect/issues/233)
 
 ### Fixes
 
