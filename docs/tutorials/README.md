@@ -23,8 +23,8 @@ Overview of different triggers, such as `manual_only`, which allows for manual a
 ## [Flow Visualization](visualization.md)
 Visualize your Prefect flows with `flow.visualize()` and their local execution with the `BokehRunner`
 
-## [Task Throttling](throttling.md)<Badge text="advanced" type="warn"/><Badge text="0.4.0+"/>
+## [Task Throttling](throttling.md)<Badge text="advanced" type="warn"/><Badge text="0.3.2+"/>
 Learn how to use local parallelism for executing flows, and how to leverage _task throttling_ to prevent too many tasks from being executed simultaneously
 
-## [Advanced Features](advanced-mapping.md)<Badge text="advanced" type="warn"/><Badge text="0.4.0+"/>
+## [Advanced Features](advanced-mapping.md)<Badge text="advanced" type="warn"/><Badge text="0.3.2+"/>
 Dynamically create large numbers of tasks using `task.map()`! Using a real-world web-scraping project as an example, walks through the more advanced features of Prefect including advanced parameter usage, task mapping, parallelism and throttling. 

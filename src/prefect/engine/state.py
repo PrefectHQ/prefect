@@ -4,9 +4,11 @@
 State is the main currency in the Prefect platform. It is used to represent the current
 status of a task.
 
-This module contains is a series of objects, all inheriting from the base State class.
+This module contains all Prefect state classes, all ultimately inheriting from the base State class as follows:
 
-Every task is initialized with the `Pending` state meaning that it is waiting for
+![](/state_inheritance_diagram.svg) {style="text-align: center;"}
+
+Every task is initialized with the `Pending` state, meaning that it is waiting for
 execution. The other types of `Pending` states are `CachedState`, `Scheduled`, and
 `Retrying`.
 
@@ -26,7 +28,17 @@ MessageType = Union[str, Exception]
 
 class State(Serializable):
     """
-    Create a new State object.
+    Base state class implementing the basic helper methods for checking state.
+
+    **Note:** Each state-checking method (e.g., `is_failed()`) will also return `True`
+    for all _subclasses_ of the parent state.  So, for example:
+    ```python
+    my_state = TriggerFailed()
+    my_state.is_failed() # returns True
+
+    another_state = Retrying()
+    another_state.is_pending() # returns True
+    ```
 
     Args:
         - result (Any, optional): Defaults to `None`. A data payload for the state.
@@ -70,7 +82,7 @@ class State(Serializable):
         """Checks if the object is currently in a pending state
 
         Returns:
-            - True (bool) if the state is Pending, False otherwise
+            - bool: `True` if the state is pending, `False` otherwise
         """
         return isinstance(self, Pending)
 
@@ -78,7 +90,7 @@ class State(Serializable):
         """Checks if the object is currently in a running state
 
         Returns:
-            - True (bool) if the state is Running, False otherwise
+            - bool: `True` if the state is running, `False` otherwise
         """
         return isinstance(self, Running)
 
@@ -86,7 +98,7 @@ class State(Serializable):
         """Checks if the object is currently in a finished state
 
         Returns:
-            - True (bool) if the state is Finished, False otherwise
+            - bool: `True` if the state is finished, `False` otherwise
         """
         return isinstance(self, Finished)
 
@@ -94,7 +106,7 @@ class State(Serializable):
         """Checks if the object is currently in a successful state
 
         Returns:
-            - True (bool) if the state is Success, False otherwise
+            - bool: `True` if the state is successful, `False` otherwise
         """
         return isinstance(self, Success)
 
@@ -102,7 +114,7 @@ class State(Serializable):
         """Checks if the object is currently in a failed state
 
         Returns:
-            - True (bool) if the state is Failed, False otherwise
+            - bool: `True` if the state is failed, `False` otherwise
         """
         return isinstance(self, Failed)
 
@@ -147,7 +159,8 @@ class CachedState(Pending):
         - cached_result (Any): Defaults to `None`. Cached result from a
         successful Task run.
         - cached_parameters (dict): Defaults to `None`
-        - cached_result_expiration (datetime): Defaults to `None`
+        - cached_result_expiration (datetime): The time at which this cache
+            expires and can no longer be used. Defaults to `None`
     """
 
     def __init__(
@@ -166,7 +179,17 @@ class CachedState(Pending):
 
 
 class Scheduled(Pending):
-    """Pending state indicating the object has been scheduled to run"""
+    """
+    Pending state indicating the object has been scheduled to run.
+
+    Args:
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - scheduled_time (datetime): time at which the task is scheduled to run
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to values.  Used / set if the Task requires Retries.
+    """
 
     def __init__(
         self,
@@ -180,7 +203,17 @@ class Scheduled(Pending):
 
 
 class Retrying(Scheduled):
-    """Pending state indicating the object has been scheduled to be retried"""
+    """
+    Pending state indicating the object has been scheduled to be retried.
+
+    Args:
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - scheduled_time (datetime): time at which the task is scheduled to be retried
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to values.  Used / set if the Task requires Retries.
+    """
 
 
 # -------------------------------------------------------------------
@@ -198,11 +231,20 @@ class Running(State):
 
 
 class Finished(State):
-    """Base finished state. Indicates when a class has reached some for of completion."""
+    """Base finished state. Indicates when a class has reached some form of completion."""
 
 
 class Success(Finished):
-    """Finished state indicating success"""
+    """
+    Finished state indicating success.
+
+    Args:
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - cached (CachedState): a `CachedState` which can be used for future
+            runs of this task (if the cache is still valid); this attribute should only be set by the task runner.
+    """
 
     def __init__(
         self,
@@ -224,3 +266,6 @@ class TriggerFailed(Failed):
 
 class Skipped(Success):
     """Finished state indicating success on account of being skipped"""
+
+    def __init__(self, result: Any = None, message: MessageType = None) -> None:
+        super().__init__(result=result, message=message)

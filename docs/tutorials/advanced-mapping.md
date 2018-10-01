@@ -1,4 +1,4 @@
-# Advanced Features <Badge text="advanced" type="warn"/><Badge text="0.4.0+"/>
+# Advanced Features <Badge text="advanced" type="warn"/><Badge text="0.3.2+"/>
 > Topics covered: _mapping tasks_, _resource throttling_, _parallelization_, _parameters_, _flow.run() keyword arguments_
 
 Here we will dig into some of the more advanced features that Prefect offers; in the process, we will construct a real world workflow that highlights how Prefect can be a powerful tool for local development, allowing us to expressively and efficiently create, inspect and extend custom data workflows.

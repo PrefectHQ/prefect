@@ -24,16 +24,19 @@ from prefect.utilities.executors import dict_to_list
 class DaskExecutor(Executor):
     """
     An executor that runs all functions using the `dask.distributed` scheduler on
-    a local dask cluster.  If you already have one running, simply provide the
+    a (possibly local) dask cluster.  If you already have one running, simply provide the
     address of the scheduler upon initialization; otherwise, one will be created
     (and subsequently torn down) within the `start()` contextmanager.
 
     Args:
         - address (string, optional): address of a currently running dask
-            scheduler; defaults to `None`
+            scheduler; if one is not provided, a `distributed.LocalCluster()` will be created in `executor.start()`.
+            Defaults to `None`
         - processes (bool, optional): whether to use multiprocessing or not
             (computations will still be multithreaded). Ignored if address is provided.
             Defaults to `False`.
+        - debug (bool, optional): whether to operate in debug mode; `debug=True`
+            will produce many additional dask logs. Defaults to the `debug` value in your Prefect configuration
         - **kwargs (dict, optional): additional kwargs to be passed to the
             `dask.distributed.Client` upon initialization (e.g., `n_workers`)
     """
@@ -73,7 +76,7 @@ class DaskExecutor(Executor):
             - maxsize (int, optional): `maxsize` for the Queue; defaults to 0
                 (interpreted as no size limitation)
             - client (dask.distributed.Client, optional): which client to
-                associate the Queue with
+                associate the Queue with; defaults to `self.client`
         """
         q = Queue(maxsize=maxsize, client=client or self.client)
         return q
@@ -107,7 +110,6 @@ class DaskExecutor(Executor):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - context (dict): `prefect.utilities.Context` to be used in function execution
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:

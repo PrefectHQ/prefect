@@ -8,7 +8,9 @@ sidebarDepth: 0
 
 Thank you for being one of our early partners. Your feedback is critical to making sure Prefect does everything it's supposed to do. You can always reach us at [help@prefect.io]().
 
-We're very excited to share what we've been working on. This first preview release is `0.3.0`, which includes all the tools for building, testing, and executing workflows locally.
+We're very excited to share what we've been working on. After our first preview release `0.3.0`, we received enough interest in the new features we were developing that we decided to cut a new release!  Where version `0.3.0` included all the tools for building, testing, and executing workflows locally, version `0.3.2` augments that with new bells and whistles, more powerful execution options, and a richer vocabulary for easily creating custom workflow logic.  
+
+[See the full change log for details on what's new](changelog.html).
 
 ### Overview
 
@@ -18,7 +20,7 @@ Users organize `Tasks` into `Flows`, and Prefect takes care of the rest! With a 
 
 ### What works now 🚀
 
-Prefect `0.3.0` is a nearly-complete implementation of Prefect's core workflow logic. We're confident it can be used to design a wide variety of data workflows, and we're ready for you to kick the tires!
+Prefect `0.3.2` is a nearly-complete implementation of Prefect's core workflow logic. We're confident it can be used to design a wide variety of data workflows, and we're ready for you to kick the tires!
 
 This release supports:
 
@@ -30,13 +32,12 @@ This release supports:
 
 ### What's coming soon ⏰
 
-Prefect `0.3.0` does not include a few important features that will be available in future preview releases. Some of those features include:
+Prefect `0.3.2` does not include a few important features that will be available in future preview releases. Some of those features include:
 
 - our scheduler, server, database, UI, and GraphQL API
 - a standard library of tasks
 - building flows as containers for distribution
 - remote execution clusters
-- Airflow backward-compatibility
 
 Stay tuned for more...
 
