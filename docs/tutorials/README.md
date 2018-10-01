@@ -28,3 +28,6 @@ Learn how to use local parallelism for executing flows, and how to leverage _tas
 
 ## [Advanced Features](advanced-mapping.md)<Badge text="advanced" type="warn"/><Badge text="0.3.2+"/>
 Dynamically create large numbers of tasks using `task.map()`! Using a real-world web-scraping project as an example, walks through the more advanced features of Prefect including advanced parameter usage, task mapping, parallelism and throttling. 
+
+## [Migrating from Airflow](airflow_migration.md)<Badge text="advanced" type="warn"/><Badge text="0.3.2+"/>
+Learn how to use Prefect to import, execute, extend and _improve_ your current Airflow DAGs!

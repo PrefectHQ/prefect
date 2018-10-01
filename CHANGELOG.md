@@ -6,6 +6,7 @@
 - Local parallelism with `DaskExecutor` [#151](https://github.com/PrefectHQ/prefect/issues/151), [#186](https://github.com/PrefectHQ/prefect/issues/186)
 - Resource throttling based on `tags` [#158](https://github.com/PrefectHQ/prefect/issues/158), [#186](https://github.com/PrefectHQ/prefect/issues/186)
 - `Task.map` for mapping tasks [#186](https://github.com/PrefectHQ/prefect/issues/186)
+- added `AirFlow` utility for importing Airflow DAGs as Prefect Flows [#232](https://github.com/PrefectHQ/prefect/pull/232)
 
 ### Minor Features
 

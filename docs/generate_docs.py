@@ -22,6 +22,7 @@ import warnings
 import toolz
 
 import prefect
+from prefect.utilities.airflow_utils import AirFlow
 from prefect.utilities.bokeh_runner import BokehRunner
 
 OUTLINE = [
@@ -217,6 +218,12 @@ OUTLINE = [
             prefect.utilities.tasks.unmapped,
         ],
         "title": "Tasks",
+    },
+    {
+        "page": "utilities/airflow.md",
+        "classes": [AirFlow],
+        "title": "Airflow Conversion Tools",
+        "top-level-doc": prefect.utilities.airflow_utils,
     },
 ]
 
