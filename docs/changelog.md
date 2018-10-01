@@ -10,6 +10,7 @@ sidebarDepth: 1
 - Local parallelism with `DaskExecutor` 
 - Resource throttling based on `tags` 
 - `Task.map` for mapping tasks 
+- added `AirFlow` utility for importing Airflow DAGs as Prefect Flows
 
 ### Minor Features
 
