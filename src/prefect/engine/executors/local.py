@@ -26,6 +26,6 @@ class LocalExecutor(Executor):
     def wait(self, futures, timeout=None):
         """
         Returns:
-            - Iterable: `futures`
+            - Any: whatever `futures` were provided
         """
         return futures
