@@ -17,7 +17,7 @@ from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.environments import Environment
 from prefect.utilities.json import Serializable, dumps
-from prefect.utilities.tasks import as_task
+from prefect.utilities.tasks import as_task, unmapped
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
@@ -136,13 +136,13 @@ class Flow(Serializable):
         for t in tasks or []:
             self.add_task(t)
 
+        self.set_reference_tasks(reference_tasks or [])
         for e in edges or []:
             self.add_edge(
                 upstream_task=e.upstream_task,
                 downstream_task=e.downstream_task,
                 key=e.key,
             )
-        self.set_reference_tasks(reference_tasks or [])
 
         self._prefect_version = prefect.__version__
 
@@ -203,6 +203,60 @@ class Flow(Serializable):
         return new
 
     # Identification -----------------------------------------------------------
+
+    def replace(self, old: Task, new: Task, validate: bool = True) -> None:
+        """
+        Performs an inplace replacement of the old task with the provided new task.
+
+        Args:
+            - old (Task): the old task to replace
+            - new (Task): the new task to replace the old with; if not a Prefect
+                Task, Prefect will attempt to convert it to one
+            - validate (boolean, optional): whether to validate the Flow after
+                the replace has been completed; defaults to `True`
+
+        Raises:
+            - ValueError: if the `old` task is not a part of this flow
+        """
+        if old not in self.tasks:
+            raise ValueError("Task {t} was not found in Flow {f}".format(t=old, f=self))
+
+        new = as_task(new)
+
+        # update tasks
+        self.tasks.remove(old)
+        self._task_ids.pop(old)
+        self.add_task(new)
+
+        self._cache.clear()
+
+        affected_edges = {e for e in self.edges if old in e.tasks}
+
+        # remove old edges
+        for edge in affected_edges:
+            self.edges.remove(edge)
+
+        # replace with new edges
+        for edge in affected_edges:
+            upstream = new if edge.upstream_task == old else edge.upstream_task
+            downstream = new if edge.downstream_task == old else edge.downstream_task
+            self.add_edge(
+                upstream_task=upstream,
+                downstream_task=downstream,
+                key=edge.key,
+                mapped=edge.mapped,
+                validate=False,
+            )
+
+        # update auxiliary task collections
+        ref_tasks = self.reference_tasks()
+        new_refs = [t for t in ref_tasks if t != old] + (
+            [new] if old in ref_tasks else []
+        )
+        self.set_reference_tasks(new_refs)
+
+        if validate:
+            self.validate()
 
     @property
     def id(self) -> str:
@@ -556,6 +610,9 @@ class Flow(Serializable):
         """
         Checks that the flow is valid.
 
+        Returns:
+            - None
+
         Raises:
             - ValueError: if edges refer to tasks that are not in this flow
             - ValueError: if specified reference tasks are not in this flow
@@ -655,7 +712,7 @@ class Flow(Serializable):
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Mapping[str, object] = None,
-        mapped_tasks: Dict = None,
+        mapped: bool = False,
         validate: bool = None,
     ) -> None:
         """
@@ -672,9 +729,10 @@ class Flow(Serializable):
                 will be provided to the task under the specified keyword
                 arguments. If any task is not a Task subclass, Prefect will attempt to
                 convert it to one.
-            - mapped_tasks ({key: object}, optional): The results of these tasks
-                will be mapped under the specified keyword arguments. If any task is not a Task subclass, Prefect will attempt to
-                convert it to one.
+            - mapped (bool, optional): Whether the upstream tasks (both keyed
+                and non-keyed) should be mapped over; defaults to `False`. If `True`, any
+                tasks wrapped in the `prefect.utilities.tasks.unmapped` container will
+                _not_ be mapped over.
             - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
@@ -689,9 +747,15 @@ class Flow(Serializable):
 
         # add upstream tasks
         for t in upstream_tasks or []:
+            is_mapped = mapped & (not isinstance(t, unmapped))
             t = as_task(t)
             assert isinstance(t, Task)  # mypy assert
-            self.add_edge(upstream_task=t, downstream_task=task, validate=validate)
+            self.add_edge(
+                upstream_task=t,
+                downstream_task=task,
+                validate=validate,
+                mapped=is_mapped,
+            )
 
         # add downstream tasks
         for t in downstream_tasks or []:
@@ -701,34 +765,16 @@ class Flow(Serializable):
 
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
+            is_mapped = mapped & (not isinstance(t, unmapped))
             t = as_task(t)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(
-                upstream_task=t, downstream_task=task, key=key, validate=validate
+                upstream_task=t,
+                downstream_task=task,
+                key=key,
+                validate=validate,
+                mapped=is_mapped,
             )
-
-        # add edges for tasks which will be mapped over
-        for key, t in (mapped_tasks or {}).items():
-            if key is None:  # upstream_tasks, a list of upstream dependencies
-                for tt in t:
-                    tt = as_task(tt)
-                    assert isinstance(tt, Task)  # mypy assert
-                    self.add_edge(
-                        upstream_task=tt,
-                        downstream_task=task,
-                        validate=validate,
-                        mapped=True,
-                    )
-            else:
-                t = as_task(t)
-                assert isinstance(t, Task)  # mypy assert
-                self.add_edge(
-                    upstream_task=t,
-                    downstream_task=task,
-                    key=key,
-                    validate=validate,
-                    mapped=True,
-                )
 
     # Execution  ---------------------------------------------------------------
 
@@ -784,6 +830,7 @@ class Flow(Serializable):
 
         Args:
             - flow_state (State, optional): flow state object used to optionally color the nodes
+
         Raises:
             - ImportError: if `graphviz` is not installed
         """

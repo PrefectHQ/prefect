@@ -1,4 +1,3 @@
-
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import functools
@@ -234,6 +233,7 @@ class FlowRunner:
 
         with executor.start():
 
+            mapped_tasks = set()
             queues = {}
             for tag, size in throttle.items():
                 q = executor.queue(size)
@@ -245,23 +245,14 @@ class FlowRunner:
 
                 upstream_states = {}
                 task_inputs = {}
-                maps = {}  # a dictionary of key -> task(s) for mapping
+                mapped = False
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
+                    upstream_states[edge] = task_states[edge.upstream_task]
+                    mapped |= edge.mapped
 
-                    store = (
-                        maps if edge.mapped else upstream_states
-                    )  # which dict to put this edge in
-
-                    # upstream states to pass to the task trigger
-                    if edge.key is None:
-                        store.setdefault(None, []).append(
-                            task_states[edge.upstream_task]
-                        )
-                    else:
-                        store[edge.key] = task_states[edge.upstream_task]
-
+                # TODO: comment about why this is here
                 if task in start_tasks and task in task_states:
                     passed_state = task_states[task]
                     if not isinstance(passed_state, list):
@@ -273,10 +264,10 @@ class FlowRunner:
                     queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
                 ]
 
-                if maps:
+                if mapped:
+                    mapped_tasks.add(task)
                     task_states[task] = executor.map(
                         task_runner.run,
-                        maps=maps,
                         upstream_states=upstream_states,
                         state=task_states.get(task),
                         inputs=task_inputs,
@@ -285,6 +276,12 @@ class FlowRunner:
                         queues=task_queues,
                     )
                 else:
+                    upstream_mapped = {
+                        e: executor.wait(f)
+                        for e, f in upstream_states.items()
+                        if e.upstream_task in mapped_tasks
+                    }
+                    upstream_states.update(upstream_mapped)
                     task_states[task] = executor.submit(
                         task_runner.run,
                         state=task_states.get(task),

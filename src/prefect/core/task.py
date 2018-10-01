@@ -30,10 +30,14 @@ def _validate_run_signature(run):
             "to *args."
         )
 
-    if "upstream_tasks" in run_sig.args:
-        raise ValueError(
-            "Tasks cannot have an `upstream_tasks` argument name; this is a reserved keyword argument."
+    reserved_kwargs = ["upstream_tasks", "mapped"]
+    violations = [kw for kw in reserved_kwargs if kw in run_sig.args]
+    if violations:
+        msg = "Tasks cannot have the following argument names: {}.".format(
+            ", ".join(violations)
         )
+        msg += " These are reserved keyword arguments."
+        raise ValueError(msg)
 
 
 class SignatureValidator(type):
@@ -91,10 +95,11 @@ class Task(Serializable, metaclass=SignatureValidator):
         - timeout (timedelta, optional): The amount of time to wait while running before a timeout occurs
         - trigger (callable, optional): a function that determines whether the task should run, based
                 on the states of any upstream tasks.
-        - skip_on_upstream_skip (bool, optional): if True and any upstream tasks skipped, this task
+        - skip_on_upstream_skip (bool, optional): if `True` and any upstream tasks skipped, this task
                 will automatically be skipped as well. By default, this prevents tasks from
-                attempting to use either state or data from tasks that didn't run. if False,
+                attempting to use either state or data from tasks that didn't run. If `False`,
                 the task's trigger will be called as normal; skips are considered successes.
+                Defaults to `True`.
         - cache_for (timedelta, optional): The amount of time to maintain cache
         - cache_validator (Callable, optional): Validator telling what to cache
 
@@ -171,22 +176,21 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         The `run()` method is called (with arguments, if appropriate) to run a task.
 
-        In addition to running arbitrary functions, tasks can interact with
-        Prefect in a few ways:
-            1. Return an optional result. When this function runs successfully,
-                the task is considered successful and the result (if any) can be
-                made available to downstream tasks.
-            2. Raise an error. Errors are interpreted as failure.
-            3. Raise a signal. Signals can include `FAIL`, `SUCCESS`, `RETRY`, `SKIP`, etc.
-                and indicate that the task should be put in the indicated
-                state.
-                - `FAIL` will lead to retries if appropriate
-                - `SUCCESS` will cause the task to be marked successful
-                - `RETRY` will cause the task to be marked for retry, even if `max_retries`
-                    has been exceeded
-                - `SKIP` will skip the task and possibly propogate the skip state through the
-                    flow, depending on whether downstream tasks have
-                    `skip_on_upstream_skip=True`.
+        In addition to running arbitrary functions, tasks can interact with Prefect in a few ways:
+        <ul><li> Return an optional result. When this function runs successfully,
+            the task is considered successful and the result (if any) can be
+            made available to downstream tasks. </li>
+        <li> Raise an error. Errors are interpreted as failure. </li>
+        <li> Raise a [signal](../engine/signals.html). Signals can include `FAIL`, `SUCCESS`, `RETRY`, `SKIP`, etc.
+            and indicate that the task should be put in the indicated state.
+                <ul>
+                <li> `FAIL` will lead to retries if appropriate </li>
+                <li> `SUCCESS` will cause the task to be marked successful </li>
+                <li> `RETRY` will cause the task to be marked for retry, even if `max_retries`
+                    has been exceeded </li>
+                <li> `SKIP` will skip the task and possibly propogate the skip state through the
+                    flow, depending on whether downstream tasks have `skip_on_upstream_skip=True`. </li></ul>
+        </li></ul>
         """
         pass
 
@@ -217,7 +221,11 @@ class Task(Serializable, metaclass=SignatureValidator):
         return new
 
     def __call__(
-        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
+        self,
+        *args: object,
+        mapped: bool = False,
+        upstream_tasks: Iterable[object] = None,
+        **kwargs: object
     ) -> "Task":
         """
         Calling a Task instance will first create a _copy_ of the instance, and then
@@ -227,6 +235,10 @@ class Task(Serializable, metaclass=SignatureValidator):
         Args:
             - *args: arguments to bind to the new Task's `run` method
             - **kwargs: keyword arguments to bind to the new Task's `run` method
+            - mapped (bool, optional): Whether the results of these tasks should be mapped over
+                with the specified keyword arguments; defaults to `False`.
+                If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
+                container will _not_ be mapped over.
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 for the new task.  This kwarg can be used to functionally specify
                 dependencies without binding their result to `run()`
@@ -235,26 +247,15 @@ class Task(Serializable, metaclass=SignatureValidator):
             - Task: a new Task instance
         """
         new = self.copy()
-        new.bind(*args, upstream_tasks=upstream_tasks, **kwargs)
+        new.bind(*args, mapped=mapped, upstream_tasks=upstream_tasks, **kwargs)
         return new
 
-    def _get_bound_signature(self, *args, **kwargs):
-        # this will raise an error if callargs weren't all provided
-        signature = inspect.signature(self.run)
-        callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
-
-        # bind() compresses all variable keyword arguments under the ** argument name,
-        # so we expand them explicitly
-        var_kw_arg = next(
-            (p for p in signature.parameters.values() if p.kind == VAR_KEYWORD), None
-        )
-        if var_kw_arg:
-            callargs.update(callargs.pop(var_kw_arg.name, {}))
-
-        return callargs
-
     def bind(
-        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
+        self,
+        *args: object,
+        mapped: bool = False,
+        upstream_tasks: Iterable[object] = None,
+        **kwargs: object
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
@@ -268,6 +269,10 @@ class Task(Serializable, metaclass=SignatureValidator):
 
         Args:
             - *args: arguments to bind to the current Task's `run` method
+            - mapped (bool, optional): Whether the results of these tasks should be mapped over
+                with the specified keyword arguments; defaults to `False`.
+                If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
+                container will _not_ be mapped over.
             - upstream_tasks ([Task], optional): a list of upstream dependencies for the
                 current task.
             - **kwargs: keyword arguments to bind to the current Task's `run` method
@@ -275,13 +280,27 @@ class Task(Serializable, metaclass=SignatureValidator):
         Returns: - Task: the current Task instance
         """
 
-        callargs = self._get_bound_signature(*args, **kwargs)
+        # this will raise an error if callargs weren't all provided
+        signature = inspect.signature(self.run)
+        callargs = dict(signature.bind(*args, **kwargs).arguments)  # type: Dict
+
+        # bind() compresses all variable keyword arguments under the ** argument name,
+        # so we expand them explicitly
+        var_kw_arg = next(
+            (p for p in signature.parameters.values() if p.kind == VAR_KEYWORD), None
+        )
+        if var_kw_arg:
+            callargs.update(callargs.pop(var_kw_arg.name, {}))
+
         flow = prefect.context.get("_flow", None)
         if not flow:
             raise ValueError("Could not infer an active Flow context.")
 
         self.set_dependencies(
-            flow=flow, upstream_tasks=upstream_tasks, keyword_tasks=callargs
+            flow=flow,
+            upstream_tasks=upstream_tasks,
+            keyword_tasks=callargs,
+            mapped=mapped,
         )
 
         tags = set(prefect.context.get("_tags", set()))
@@ -290,63 +309,22 @@ class Task(Serializable, metaclass=SignatureValidator):
         return self
 
     def map(
-        self,
-        *args: object,
-        upstream_tasks: Iterable[object] = None,
-        unmapped: Dict[Any, Any] = None,
-        **kwargs: object
+        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
     ) -> "Task":
         """
-        Map the Task elementwise across one or more Tasks.
+        Map the Task elementwise across one or more Tasks. Arguments which should _not_ be mapped over
+        should be placed in the `prefect.utilities.tasks.unmapped` container.
 
         Args:
             - *args: arguments to map over, which will elementwise be bound to the Task's `run` method
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 to map over
-            - unmapped (dict, optional): a dictionary of "key" -> Task
-                specifying keyword arguments which will _not_ be mapped over.  The special key `None` is reserved for
-                optionally including a _list_ of upstream task dependencies
             - **kwargs: keyword arguments to map over, which will elementwise be bound to the Task's `run` method
 
         Returns: - Task: a new Task instance
         """
-        ## collect arguments / keyword arguments / upstream dependencies which will _not_ be mapped over
-        unmapped = unmapped or {}
-        unmapped_upstream = unmapped.pop(
-            None, None
-        )  # possible list of upstream dependencies
-
         new = self.copy()
-
-        # bind all appropriate tasks to the run() method
-        full_kwargs = dict(kwargs, **unmapped)
-        callargs = new._get_bound_signature(*args, **full_kwargs)
-
-        ## collect arguments / keyword arguments which _will_ be mapped over
-        mapped = {k: v for k, v in callargs.items() if (v in args) or (k in kwargs)}
-
-        if upstream_tasks is not None:
-            mapped[None] = upstream_tasks  # add in mapped upstream dependencies
-
-        unmapped_callargs = {
-            k: v for k, v in callargs.items() if (v not in args) and (k not in kwargs)
-        }
-
-        flow = prefect.context.get("_flow", None)
-        if not flow:
-            raise ValueError("Could not infer an active Flow context.")
-
-        new.set_dependencies(
-            flow=flow,
-            upstream_tasks=unmapped_upstream,
-            keyword_tasks=unmapped_callargs,
-            mapped_tasks=mapped,
-        )
-
-        tags = set(prefect.context.get("_tags", set()))
-        new.tags.update(tags)
-
-        return new
+        return new.bind(*args, mapped=True, upstream_tasks=upstream_tasks, **kwargs)
 
     def set_dependencies(
         self,
@@ -354,7 +332,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Dict[str, object] = None,
-        mapped_tasks=None,
+        mapped=False,
         validate: bool = True,
     ) -> None:
         """
@@ -367,8 +345,8 @@ class Task(Serializable, metaclass=SignatureValidator):
             - downstream_tasks ([object], optional): A list of downtream tasks for this task
             - keyword_tasks ({str, object}}, optional): The results of these tasks will be provided
             to the task under the specified keyword arguments.
-            - mapped_tasks ({str, object}}, optional): The results of these
-                tasks will be mapped over under the specified keyword arguments, with `None` specifying a list of upstream dependencies which will also be mapped over
+            - mapped (bool, optional): Whether the results of these tasks should be mapped over
+                with the specified keyword arguments
             - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
@@ -389,7 +367,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             downstream_tasks=downstream_tasks,
             keyword_tasks=keyword_tasks,
             validate=validate,
-            mapped_tasks=mapped_tasks,
+            mapped=mapped,
         )
 
     def set_upstream(self, task: object) -> None:

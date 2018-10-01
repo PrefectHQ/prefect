@@ -16,7 +16,7 @@ import prefect.core.registry
 import prefect.engine
 import prefect.tasks
 import prefect.flows
-from prefect.utilities.tasks import task, tags
+from prefect.utilities.tasks import task, tags, unmapped
 
 from ._version import get_versions
 

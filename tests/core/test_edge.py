@@ -51,3 +51,11 @@ def test_new_edge_objects_can_test_membership_in_flow():
     flow.add_edge(t1, t2, key="a_key")
 
     assert Edge(t1, t2, key="a_key") in flow.edges
+
+
+def test_edge_has_tasks_property():
+    t1 = Task()
+    t2 = TaskWithKey()
+    t3 = Task()
+    edge = Edge(t1, t2, key="a_key")
+    assert edge.tasks == {t1, t2}

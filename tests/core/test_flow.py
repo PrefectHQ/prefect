@@ -9,7 +9,7 @@ from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
 from prefect.tasks.core.function import FunctionTask
-from prefect.utilities.tasks import task
+from prefect.utilities.tasks import task, unmapped
 from prefect.utilities.tests import set_temporary_config
 
 
@@ -41,6 +41,13 @@ class TestCreateFlow:
 
         f2 = Flow(name="test")
         assert f2.name == "test"
+
+    def test_create_flow_with_edges(self):
+        f1 = Flow(
+            edges=[Edge(upstream_task=Task(), downstream_task=AddTask(), key="x")]
+        )
+        assert len(f1.edges) == 1
+        assert len(f1.tasks) == 2
 
     def test_create_flow_with_version(self):
         f1 = Flow()
@@ -143,6 +150,28 @@ def test_set_dependencies_converts_arguments_to_tasks():
         task=t1, upstream_tasks=[t2], downstream_tasks=[t3], keyword_tasks={"x": t4}
     )
     assert len(f.tasks) == 4
+
+
+def test_set_dependencies_creates_mapped_edges():
+    t1 = Task()
+    t2 = Task()
+    f = Flow()
+
+    f.set_dependencies(task=t1, upstream_tasks=[t2], mapped=True)
+    assert len(f.edges) == 1
+    edge = f.edges.pop()
+    assert edge.mapped is True
+
+
+def test_set_dependencies_respects_unmapped():
+    t1 = Task()
+    t2 = Task()
+    f = Flow()
+
+    f.set_dependencies(task=t1, upstream_tasks=[unmapped(t2)], mapped=True)
+    assert len(f.edges) == 1
+    edge = f.edges.pop()
+    assert edge.mapped is False
 
 
 def test_binding_a_task_in_context_adds_it_to_flow():
@@ -993,3 +1022,60 @@ class TestCache:
         f._cache[1] = 2
         f.set_reference_tasks([t1])
         assert 1 not in f._cache
+
+
+class TestReplace:
+    def test_replace_replaces_all_the_things(self):
+        with Flow() as f:
+            t1 = Task(name="t1")()
+            t2 = Task(name="t2")(upstream_tasks=[t1])
+        t3 = Task(name="t3")
+        f.set_reference_tasks([t1])
+        f.replace(t1, t3)
+
+        assert f.tasks == {t2, t3}
+        assert {e.upstream_task for e in f.edges} == {t3}
+        assert {e.downstream_task for e in f.edges} == {t2}
+        assert f.reference_tasks() == {t3}
+        assert f.terminal_tasks() == {t2}
+
+        with pytest.raises(ValueError):
+            f.edges_to(t1)
+
+    def test_replace_complains_about_tasks_not_in_flow(self):
+        with Flow() as f:
+            t1 = Task(name="t1")()
+        t3 = Task(name="t3")
+        with pytest.raises(ValueError):
+            f.replace(t3, t1)
+
+    def test_replace_runs_smoothly(self):
+        add = AddTask()
+
+        class SubTask(Task):
+            def run(self, x, y):
+                return x - y
+
+        sub = SubTask()
+
+        with Flow() as f:
+            x, y = Parameter("x"), Parameter("y")
+            res = add(x, y)
+
+        state = f.run(return_tasks=[res], x=10, y=11)
+        assert state.result[res].result == 21
+
+        f.replace(res, sub)
+        state = f.run(return_tasks=[sub], x=10, y=11)
+        assert state.result[sub].result == -1
+
+    def test_replace_converts_new_to_task(self):
+        add = AddTask()
+        with Flow() as f:
+            x, y = Parameter("x"), Parameter("y")
+            res = add(x, y)
+        f.replace(x, 55)
+        assert len(f.tasks) == 3
+        state = f.run(return_tasks=[res], y=6)
+        assert state.is_successful()
+        assert state.result[res].result == 61
