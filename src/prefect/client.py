@@ -158,7 +158,7 @@ class Client:
             - method (str): The type of request to be made (GET, POST, DELETE)
             - path (str): Path of the API URL
             - params (dict, optional): Parameters used for the request
-            - server (str, optional): The server to make requests against, base API 
+            - server (str, optional): The server to make requests against, base API
                 server is used if not specified
 
         Returns:
@@ -300,13 +300,12 @@ class ClientModule:
 
 
 class Projects(ClientModule):
-    def create(self, name, account_id) -> dict:
+    def create(self, name) -> dict:
         """
         Create a new project for this account
 
         Args:
             - name (str): The name for this new project
-            - account_id (str): A unique account identifier
 
         Returns:
             - dict: Data returned from the GraphQL query
@@ -319,7 +318,7 @@ class Projects(ClientModule):
                 }
             }
             """,
-            input=dict(name=name, accountId=account_id),
+            input=dict(name=name),
         )
 
 
@@ -328,12 +327,11 @@ class Projects(ClientModule):
 
 
 class Flows(ClientModule):
-    def create(self, account_id, project_id, serialized_flow) -> dict:
+    def create(self, project_id, serialized_flow) -> dict:
         """
         Create a new flow on the server
 
         Args:
-            - account_id (str): A unique account identifier
             - project_id (str): A unique project identifier
             - serialized_flow (dict): A json serialized version of a flow
 
@@ -348,11 +346,7 @@ class Flows(ClientModule):
                 }
             }
             """,
-            input=dict(
-                accountId=account_id,
-                projectId=project_id,
-                serializedFlow=serialized_flow,
-            ),
+            input=dict(projectId=project_id, serializedFlow=serialized_flow),
         )
 
 
@@ -361,12 +355,11 @@ class Flows(ClientModule):
 
 
 class FlowRuns(ClientModule):
-    def set_state(self, account_id, flow_run_id, state) -> dict:
+    def set_state(self, flow_run_id, state) -> dict:
         """
         Set a flow run state
 
         Args:
-            - account_id (str): A unique account identifier
             - flow_run_id (str): A unique flow_run identifier
             - state (State): A prefect state object
 
@@ -381,9 +374,7 @@ class FlowRuns(ClientModule):
                 }
             }
             """,
-            input=dict(
-                accountId=account_id, flowRunId=flow_run_id, state=json.dumps(state)
-            ),
+            input=dict(flowRunId=flow_run_id, state=json.dumps(state)),
         )
 
 
@@ -392,12 +383,11 @@ class FlowRuns(ClientModule):
 
 
 class TaskRuns(ClientModule):
-    def set_state(self, account_id, task_run_id, state) -> dict:
+    def set_state(self, task_run_id, state) -> dict:
         """
         Set a task run state
 
         Args:
-            - account_id (str): A unique account identifier
             - task_run_id (str): A unique task run identifier
             - state (State): A prefect state object
 
@@ -412,9 +402,7 @@ class TaskRuns(ClientModule):
                 }
             }
             """,
-            input=dict(
-                accountId=account_id, taskRunId=task_run_id, state=json.dumps(state)
-            ),
+            input=dict(taskRunId=task_run_id, state=json.dumps(state)),
         )
 
 
