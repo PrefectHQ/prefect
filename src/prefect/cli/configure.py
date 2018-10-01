@@ -40,8 +40,9 @@ def init(path):
     )
     config_data["API_URL"] = click.prompt("API URL", default=config_data.get("API_URL"))
 
-    config_data["api_server"] = config_data["API_URL"]
-    config_data["graphql_server"] = os.path.join(config_data["API_URL"], "graphql/")
+    # May not be needed due to API_URL being specified in Client initialization
+    # config_data["api_server"] = config_data["API_URL"]
+    # config_data["graphql_server"] = os.path.join(config_data["API_URL"], "graphql/")
 
     with open(path, "w") as config_file:
         toml.dump(config_data, config_file)

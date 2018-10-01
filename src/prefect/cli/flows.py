@@ -4,6 +4,9 @@ import json
 import os
 from pathlib import Path
 import sys
+from subprocess import Popen, PIPE, STDOUT
+
+from IPython import get_ipython
 
 import click
 import docker
@@ -29,7 +32,7 @@ def info():
     """
     Prints a JSON string of information about all registered flows.
     """
-    print(prefect_json.dumps([f.serialize() for f in registry.REGISTRY.values()]))
+    click.echo(prefect_json.dumps([f.serialize() for f in registry.REGISTRY.values()]))
 
 
 @flows.command()
@@ -38,7 +41,7 @@ def ids():
     Prints all the flows in the registry.
     """
     output = {id: f.key() for id, f in registry.REGISTRY.items()}
-    print(prefect_json.dumps(output, sort_keys=True))
+    click.echo(prefect_json.dumps(output, sort_keys=True))
 
 
 @flows.command()
@@ -53,13 +56,49 @@ def run(id):
 
 
 @flows.command()
-@click.argument("id")
-def build(id):
+@click.argument("project")
+@click.argument("name")
+@click.argument("version")
+@click.option(
+    "--file",
+    required=False,
+    help="Path to a file which contains the flow.",
+    type=click.Path(exists=True),
+)
+def build(project, name, version, file):
     """
     Build a flow's environment
     """
-    flow = prefect.core.registry.load_flow(id)
-    return flow.environment.build(flow=flow)
+
+    if file:
+        # Load the registry from the file into the current process's environment
+        exec(open(file).read())
+
+    # Load the user specified flow
+    for flow_id, registry_flow in registry.REGISTRY.items():
+        if (
+            registry_flow.project == project
+            and registry_flow.name == name
+            and registry_flow.version == version
+        ):
+            flow = prefect.core.registry.load_flow(flow_id)
+
+
+    path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+
+    if Path(path).is_file():
+        config_data = toml.load(path)
+
+    client = Client(
+        config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
+    )
+
+    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+
+    print(client._token)
+
+    # flow = prefect.core.registry.load_flow(id)
+    # flow.environment.build(flow=flow)
 
 
 @flows.command()
