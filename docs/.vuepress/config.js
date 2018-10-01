@@ -56,7 +56,7 @@ module.exports = {
                 {
                     title: 'prefect.utilities',
                     collapsable: true,
-                    children: ['utilities/bokeh', 'utilities/collections', 'utilities/json', 'utilities/tasks']
+                    children: ['utilities/bokeh', 'utilities/collections', 'utilities/json', 'utilities/tasks', 'utilities/airflow']
                 },
             ],
             '/license': [],
@@ -70,7 +70,7 @@ module.exports = {
                     title: 'Tutorials',
                     collapsable: true,
                     children: ['tutorials/', 'tutorials/etl', 'tutorials/calculator', 'tutorials/task-retries', 'tutorials/triggers-and-references',
-                        'tutorials/visualization', 'tutorials/throttling', 'tutorials/advanced-mapping']
+                        'tutorials/visualization', 'tutorials/throttling', 'tutorials/advanced-mapping', 'tutorials/airflow_migration']
                 },
                 {
                     title: 'Comparisons',
