@@ -1,4 +1,5 @@
 import datetime
+from time import sleep
 
 import pytest
 
@@ -69,6 +70,11 @@ class RaiseRetryTask(Task):
 class AddTask(Task):
     def run(self, x, y):
         return x + y
+
+
+class SlowTask(Task):
+    def run(self, secs):
+        sleep(secs)
 
 
 class RaiseDontRunTask(Task):
@@ -459,7 +465,7 @@ class TestTaskRunner_get_run_state:
         assert "required positional arguments" in str(state.message).lower()
 
     def test_raise_dontrun_results_in_skip(self):
-        class DontRunTask:
+        class DontRunTask(Task):
             def run(self):
                 raise signals.DONTRUN()
 
@@ -591,3 +597,11 @@ def test_task_runner_prioritizes_inputs():
     )
     assert state.is_successful()
     assert state.result == 30
+
+
+def test_task_runner_times_out():
+    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    runner = TaskRunner(sleeper)
+    state = runner.run(inputs={"secs": 3})
+    assert state.is_failed()
+    assert isinstance(state.message, TimeoutError)
