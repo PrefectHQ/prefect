@@ -109,7 +109,7 @@ We can easily create custom task classes. All a task requires is a `run()` metho
 
 Here, we create an addition class that raises an error if the values aren't above a certain threshold. This also introduces a new concept: `signals`. Prefect tries very hard to guess the right state for a task - if the `run()` method succeeds, it's successful; if it has an error, it fails. Sometimes, you want more control over a task's state. Prefect provides various `signals` to indicate desired state changes. Common ones include `RETRY` and `SKIP`, to force those behaviors, but `FAIL` and `SUCCESS` can be useful as well.
 
-::: tip **init**() vs run()
+::: tip __init__() vs run()
 In general, anything that can be provided to a custom task's `__init__()` function could also be provided as an argument to the `run()` function. The decision of how to parameterize a custom task class largely depends on how you want users to interact with the class.
 
 As a guideline, consider whether the information needs to be available to any other tasks besides this one (including other instances of the same class). If it does, it may represent a key part of your pipeline and belong in the flow itself; if not, it's a local variable and more appropriate for `__init__()`.

@@ -30,13 +30,13 @@ module.exports = {
                 {
                     title: 'prefect',
                     collapsable: true,
-                    children: ['environments', 'schedules', 'serializers', 'triggers']
+                    children: ['environments', 'triggers']
                 },
 
                 {
                     title: 'prefect.core',
                     collapsable: true,
-                    children: ['core/task', 'core/flow', 'core/edge', 'core/registry']
+                    children: ['core/task', 'core/flow', 'core/edge']
                 },
 
                 {
@@ -60,7 +60,7 @@ module.exports = {
                 },
             ],
             '/license': [],
-            '/': ['introduction', 'getting_started',
+            '/': ['introduction', 'changelog', 'getting_started',
                 {
                     title: 'Concepts',
                     collapsable: true,

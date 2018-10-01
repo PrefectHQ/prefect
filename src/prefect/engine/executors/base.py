@@ -25,20 +25,17 @@ class Executor(Serializable):
         """
         yield
 
-    def map(
-        self, fn: Callable, *args: Any, maps=None, upstream_states=None, **kwargs: Any
-    ) -> Any:
+    def map(self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any) -> Any:
         """
         Submit a function to be mapped over.
 
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn` with each call
-            - maps (dict): dictionary of keyword name -> [State] which represent
-                the arguments to map `fn` over.  The special key `None` is reserved for
-                a list of upstream dependencies which do not have any associated `key`
-            - upstream_states ([State]): a list of upstream dependencies which
-                are not keyword arguments to be passed on each call
+            - upstream_states ({Edge: State}): a dictionary of upstream
+                dependencies, keyed by Edge; the values are upstream states (or lists of states).
+                This dictionary is used to determine which upstream depdencies should be mapped over,
+                and under what keys (if any).
             - **kwargs (Any): keyword arguments to be passed to `fn` with each
                 call
 
@@ -49,7 +46,7 @@ class Executor(Serializable):
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         """
-        Submit a function to the executor for execution. Returns a future.
+        Submit a function to the executor for execution. Returns a future-like object.
 
         Args:
             - fn (Callable): function which is being submitted for execution
@@ -77,15 +74,13 @@ class Executor(Serializable):
 
     def queue(self, maxsize=0):
         """
-        Creates an executor-compatible Queue object which can share state
-        across tasks.
+        Creates an executor-compatible Queue object which can share state across tasks.
 
         Args:
             - maxsize (int): maxsize of the queue; defaults to 0 (infinite)
 
         Returns:
-            - Queue: an executor compatible queue which can be shared among
-                tasks
+            - Queue: an executor compatible queue which can be shared among tasks
         """
         raise NotImplementedError()
 
