@@ -3,6 +3,8 @@
 import datetime
 import functools
 import logging
+import signal
+from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
 
 import prefect
@@ -69,6 +71,23 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
     return inner
 
 
+def timeout_handler(signum, frame):
+    raise TimeoutError("Execution timed out.")
+
+
+@contextmanager
+def timeout(seconds=None):
+    if seconds:
+        try:
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(round(seconds))
+            yield
+        finally:
+            signal.alarm(0)
+    else:
+        yield
+
+
 class TaskRunner:
     """
     TaskRunners handle the execution of Tasks and determine the State of a Task
@@ -85,6 +104,7 @@ class TaskRunner:
 
     def __init__(self, task: Task, logger_name: str = None) -> None:
         self.task = task
+        self.timeout = task.timeout.total_seconds() if task.timeout else None
         self.logger = logging.getLogger(logger_name or type(self).__name__)
 
     def run(
@@ -160,7 +180,8 @@ class TaskRunner:
                     ignore_trigger=ignore_trigger,
                     inputs=inputs,
                 )
-                state = self.get_run_state(state=state, inputs=task_inputs)
+                with timeout(self.timeout):
+                    state = self.get_run_state(state=state, inputs=task_inputs)
                 state = self.get_post_run_state(state=state, inputs=task_inputs)
 
             # a DONTRUN signal at any point breaks the chain and we return

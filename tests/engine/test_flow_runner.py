@@ -83,6 +83,11 @@ class ReturnTask(Task):
         return 1 / (x - 1)
 
 
+class SlowTask(Task):
+    def run(self, secs):
+        time.sleep(secs)
+
+
 def test_flow_runner_runs_basic_flow_with_1_task():
     flow = prefect.Flow()
     task = SuccessTask()
@@ -712,3 +717,15 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
 
     assert res.result[my_name].result == "mapped-marvin"
     assert res.result[tt][0].result == "test-map"
+
+
+@pytest.mark.parametrize("executor", ["local", "mproc", "mthread", "sync"], indirect=True)
+def test_flow_runner_handles_timeouts(executor):
+    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+
+    with Flow() as flow:
+        res = sleeper(3)
+
+    state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
+    assert state.is_failed()
+    assert isinstance(state.result[res].message, TimeoutError)
