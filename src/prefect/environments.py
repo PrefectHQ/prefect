@@ -14,7 +14,7 @@ through the Prefect Server.
 import subprocess
 import tempfile
 import textwrap
-from typing import Any, Iterable
+from typing import Any, Iterable, Optional
 
 import docker
 from cryptography.fernet import Fernet
@@ -75,7 +75,7 @@ class Environment(Serializable):
         """
         raise NotImplementedError()
 
-    def run(self, key: bytes, cli_cmd: str) -> int:
+    def run(self, key: bytes, cli_cmd: str) -> Optional[bytes]:
         """Issue a CLI command to the environment.
 
         Args:
@@ -114,7 +114,7 @@ class ContainerEnvironment(Environment):
 
         self._image = image
         self._tag = tag
-        self._python_dependencies = python_dependencies
+        self._python_dependencies = python_dependencies or []
         self._client = docker.from_env()
         self.last_container_id = None
 
@@ -140,7 +140,7 @@ class ContainerEnvironment(Environment):
         """Get the environment's client"""
         return self._client
 
-    def build(self, flow) -> tuple:
+    def build(self, flow: "prefect.Flow") -> tuple:
         """Build the Docker container
 
         Args:
@@ -279,7 +279,7 @@ class LocalEnvironment(Environment):
         automatically if None is passed.
     """
 
-    def __init__(self, encryption_key: str = None):
+    def __init__(self, encryption_key: str = None) -> None:
         self.encryption_key = encryption_key or Fernet.generate_key().decode()
 
     def build(self, flow: "prefect.Flow") -> bytes:
@@ -292,14 +292,14 @@ class LocalEnvironment(Environment):
         Returns:
             - bytes: The encrypted and pickled flow registry
         """
-        registry = {}
+        registry: dict = {}
         flow.register(registry=registry)
         serialized = prefect.core.registry.serialize_registry(
             registry=registry, include_ids=[flow.id], encryption_key=self.encryption_key
         )
         return serialized
 
-    def run(self, key: bytes, cli_cmd: str):
+    def run(self, key: bytes, cli_cmd: str) -> bytes:
         """
         Run a command in the `LocalEnvironment`. This functions by writing a pickled
         flow to temporary memory and then executing prefect CLI commands against it.
