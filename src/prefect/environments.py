@@ -292,7 +292,7 @@ class LocalEnvironment(Environment):
         Returns:
             - bytes: The encrypted and pickled flow registry
         """
-        registry = {} # type: dict
+        registry = {}  # type: dict
         flow.register(registry=registry)
         serialized = prefect.core.registry.serialize_registry(
             registry=registry, include_ids=[flow.id], encryption_key=self.encryption_key
