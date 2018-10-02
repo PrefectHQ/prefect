@@ -815,6 +815,14 @@ class Flow(Serializable):
         """
         runner = prefect.engine.flow_runner.FlowRunner(flow=self)
         parameters = parameters or []
+        unknown_params = [p for p in parameters if p not in self.parameters()]
+        if unknown_params:
+            fmt_params = ", ".join(unknown_params)
+            raise TypeError(
+                "Flow.run received the following unexpected parameters: {}".format(
+                    fmt_params
+                )
+            )
 
         passed_parameters = {}
         for p in self.parameters():
