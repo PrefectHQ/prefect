@@ -5,7 +5,7 @@ from collections.abc import MutableMapping
 from typing import Any, Generator, Iterable, Iterator, Union
 
 
-DictLike = Union[dict, DotDict]
+DictLike = Union[dict, "DotDict"]
 
 
 def flatten_seq(seq: Iterable) -> Generator:
