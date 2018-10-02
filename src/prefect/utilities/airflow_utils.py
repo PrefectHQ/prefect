@@ -119,7 +119,7 @@ class AirTask(prefect.tasks.shell.ShellTask):
         execution_date = prefect.context.get("_execution_date", "")
         airflow_env = prefect.context.get("_airflow_env", {})
         self.pre_check(execution_date, airflow_env)
-        self.command = self.command.format( # type: ignore
+        self.command = self.command.format(  # type: ignore
             self.dag_id, self.name, execution_date
         )
         res = super().run(env=airflow_env)
