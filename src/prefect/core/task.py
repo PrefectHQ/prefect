@@ -256,10 +256,10 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     def bind(
         self,
-        *args: object,
+        *args: Any,
         mapped: bool = False,
-        upstream_tasks: Iterable[object] = None,
-        **kwargs: object
+        upstream_tasks: Iterable["Task"] = None,
+        **kwargs: Any
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
