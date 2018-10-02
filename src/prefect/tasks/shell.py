@@ -1,5 +1,6 @@
 import os
 import subprocess
+from typing import Any
 
 import prefect
 
@@ -29,13 +30,13 @@ class ShellTask(prefect.Task):
         ```
     """
 
-    def __init__(self, shell="bash", cd=None, command=None, **kwargs):
+    def __init__(self, shell: str = "bash", cd: str = None, command: str = None, **kwargs: Any) -> None:
         self.shell = shell
         self.cd = cd
         self.command = command
         super().__init__(**kwargs)
 
-    def run(self, command=None, env=None):
+    def run(self, command: str = None, env: dict = None) -> bytes: # type: ignore
         """
         Run the shell command.
 
