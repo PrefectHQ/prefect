@@ -1082,3 +1082,35 @@ class TestReplace:
         state = f.run(return_tasks=[res], y=6)
         assert state.is_successful()
         assert state.result[res].result == 61
+
+
+class TestGetTasks:
+    def test_get_tasks_defaults_to_return_everything(self):
+        t1, t2 = Task(name="t1"), Task(name="t2")
+        f = Flow(tasks=[t1, t2])
+        assert f.get_tasks() == [t1, t2]
+
+    def test_get_tasks_defaults_to_name(self):
+        t1, t2 = Task(name="t1"), Task(name="t2")
+        f = Flow(tasks=[t1, t2])
+        assert f.get_tasks("t1") == [t1]
+
+    def test_get_tasks_takes_intersection(self):
+        t1, t2 = Task(name="t1", slug="11"), Task(name="t1", slug="22")
+        f = Flow(tasks=[t1, t2])
+        assert f.get_tasks(name="t1") == [t1, t2]
+        assert f.get_tasks(name="t1", slug="11") == [t1]
+        assert f.get_tasks(name="t1", slug="11", tags=["atag"]) == []
+
+    def test_get_tasks_accepts_tags_and_requires_all_tags(self):
+        t1, t2 = Task(name="t1", tags=["a", "b"]), Task(name="t1", tags=["a"])
+        f = Flow(tasks=[t1, t2])
+        assert f.get_tasks(tags=["a", "b"]) == [t1]
+
+    def test_get_tasks_can_check_types(self):
+        class Specific(Task):
+            pass
+
+        t1, t2 = Task(name="t1", tags=["a", "b"]), Specific(name="t1", tags=["a"])
+        f = Flow(tasks=[t1, t2])
+        assert f.get_tasks(task_type=Specific) == [t2]
