@@ -90,7 +90,7 @@ class FlowRunner:
     """
 
     def __init__(
-        self, flow: Flow, task_runner_cls=None, logger_name: str = None
+        self, flow: Flow, task_runner_cls: type = None, logger_name: str = None
     ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
@@ -244,7 +244,7 @@ class FlowRunner:
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
                 upstream_states = {}
-                task_inputs = {}
+                task_inputs = {}  # type: Dict[str, Any]
                 mapped = False
 
                 # -- process each edge to the task
