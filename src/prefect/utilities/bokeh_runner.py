@@ -78,18 +78,18 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
         ```
     """
 
-    def run(
+    def run(  # type: ignore
         self,
-        state=None,
-        task_states=None,
-        start_tasks=None,
-        parameters=None,
-        executor=None,
-        context=None,
-        task_contexts=None,
-        title=None,
-        viz=True,
-    ):
+        state: "prefect.engine.state.State" = None,
+        task_states: Dict["prefect.Task", "prefect.engine.state.State"] = None,
+        start_tasks: Iterable["prefect.Task"] = None,
+        parameters: Dict[str, Any] = None,
+        executor: "prefect.engine.executors.Executor" = None,
+        context: Dict[str, Any] = None,
+        task_contexts: Dict["prefect.Task", Dict[str, Any]] = None,
+        title: str = None,
+        viz: bool = True,
+    ) -> "prefect.engine.state.State":
         """
         Runs the Flow, and then opens up a Bokeh webapp for retroactively inspecting
         the execution of the Flow.
@@ -150,7 +150,7 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
                 )
         return self.flow_state
 
-    def _reset_flow(self, state):
+    def _reset_flow(self, state: "prefect.engine.state.State") -> None:
         """
         Expands out any mapped tasks into the appropriate number of copies, based
         on the data provided in `state`.  Creates a new Flow and a new flow state
@@ -163,8 +163,8 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
         Returns:
             - None
         """
-        map_counts = defaultdict(lambda: 0)
-        mapped_tasks = {}
+        map_counts = defaultdict(lambda: 0)  # type: dict
+        mapped_tasks = {}  # type: Dict["prefect.Task", List["prefect.Task"]]
         edges = []
 
         for task in self.flow.sorted_tasks():
@@ -211,7 +211,7 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
         self.flow = prefect.Flow(edges=edges, name=self.flow.name)
         self.flow_state = state
 
-    def _compute_depths(self):
+    def _compute_depths(self) -> Dict["prefect.Task", int]:
         flow = self.flow
         depths = {task: 0 for task in flow.tasks}
         for task in flow.sorted_tasks():
