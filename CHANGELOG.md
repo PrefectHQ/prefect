@@ -7,7 +7,7 @@
 
 ### Minor Features
 
-- None
+- Add a new method `flow.get_tasks()` for easily filtering flow tasks by attribute [#242](https://github.com/PrefectHQ/prefect/pull/242)
 
 ### Fixes
 
