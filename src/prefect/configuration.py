@@ -14,13 +14,6 @@ INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 
 
 class Config(collections.DotDict):
-    logging: collections.DotDict
-    general: collections.DotDict
-    server: collections.DotDict
-    flows: collections.DotDict
-    registry: collections.DotDict
-    engine: collections.DotDict
-    debug: bool
     pass
 
 
