@@ -204,6 +204,43 @@ class Flow(Serializable):
 
     # Identification -----------------------------------------------------------
 
+    def get_tasks(
+        self,
+        name: str = None,
+        slug: str = None,
+        tags: Iterable[str] = None,
+        task_type: type = None,
+    ) -> List[Task]:
+        """
+        Helper method for retrieving tasks from this flow based on certain attributes.
+        The _intersection_ of all provided attributes is taken, i.e., only those tasks
+        which match _all_ provided conditions are returned.
+
+        Args:
+            - name (str, optional): the name of the task
+            - slug (str, optional): the slug of the task
+            - tags ([str], optional): an iterable of task tags
+            - task_type (type, optional): a possible task class type
+
+        Returns:
+            - [Task]: a list of tasks which meet the required conditions
+        """
+
+        def sieve(t: Task) -> bool:
+            keep = True
+            if name is not None:
+                keep &= t.name == name
+            if slug is not None:
+                keep &= t.slug == slug
+            if tags is not None:
+                keep &= t.tags.issuperset(tags)
+            if task_type is not None:
+                keep &= isinstance(t, task_type)
+            return keep
+
+        keep_tasks = filter(sieve, self.tasks)
+        return list(keep_tasks)
+
     def replace(self, old: Task, new: Task, validate: bool = True) -> None:
         """
         Performs an inplace replacement of the old task with the provided new task.
