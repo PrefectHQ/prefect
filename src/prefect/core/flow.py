@@ -204,6 +204,28 @@ class Flow(Serializable):
 
     # Identification -----------------------------------------------------------
 
+    def get_tasks(
+        self,
+        name: str = None,
+        slug: str = None,
+        tags: Iterable[str] = None,
+        task_type: type = None,
+    ):
+        def sieve(t):
+            keep = True
+            if name is not None:
+                keep &= t.name == name
+            if slug is not None:
+                keep &= t.slug == slug
+            if tags is not None:
+                keep &= t.tags.issuperset(tags)
+            if task_type is not None:
+                keep &= isinstance(t, task_type)
+            return keep
+
+        keep_tasks = filter(sieve, self.tasks)
+        return list(keep_tasks)
+
     def replace(self, old: Task, new: Task, validate: bool = True) -> None:
         """
         Performs an inplace replacement of the old task with the provided new task.
