@@ -11,7 +11,7 @@
 
 ### Fixes
 
-- Flow consistenly raises if passed a parameter that doesn't exist [#149](https://github.com/PrefectHQ/prefect/issues/149)
+- Flow consistently raises if passed a parameter that doesn't exist [#149](https://github.com/PrefectHQ/prefect/issues/149)
 
 ### Breaking Changes
 
