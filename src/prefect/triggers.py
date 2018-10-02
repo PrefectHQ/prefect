@@ -6,10 +6,10 @@ the state of preceding tasks.
 """
 from typing import Set
 
-from prefect.engine import signals
+from prefect.engine import signals, state
 
 
-def all_finished(upstream_states: Set["prefect.engine.state.State"]) -> bool:
+def all_finished(upstream_states: Set["state.State"]) -> bool:
     """
     This task will run no matter what the upstream states are, as long as they are finished.
     """
@@ -21,7 +21,7 @@ def all_finished(upstream_states: Set["prefect.engine.state.State"]) -> bool:
     return True
 
 
-def manual_only(upstream_states: Set["prefect.engine.state.State"]) -> bool:
+def manual_only(upstream_states: Set["state.State"]) -> bool:
     """
     This task will never run automatically. It will only run if it is
     specifically instructed, either by ignoring the trigger or adding it
@@ -37,7 +37,7 @@ always_run = all_finished
 never_run = manual_only
 
 
-def all_successful(upstream_states: Set["prefect.engine.state.State"]) -> bool:
+def all_successful(upstream_states: Set["state.State"]) -> bool:
     """
     Runs if all upstream tasks were successful. Note that `SKIPPED` tasks are considered
     successes and `TRIGGER_FAILED` tasks are considered failures.
@@ -50,7 +50,7 @@ def all_successful(upstream_states: Set["prefect.engine.state.State"]) -> bool:
     return True
 
 
-def all_failed(upstream_states: Set["prefect.engine.state.State"]) -> bool:
+def all_failed(upstream_states: Set["state.State"]) -> bool:
     """
     Runs if all upstream tasks failed. Note that `SKIPPED` tasks are considered successes
     and `TRIGGER_FAILED` tasks are considered failures.
@@ -63,7 +63,7 @@ def all_failed(upstream_states: Set["prefect.engine.state.State"]) -> bool:
     return True
 
 
-def any_successful(upstream_states: Set["prefect.engine.state.State"]) -> bool:
+def any_successful(upstream_states: Set["state.State"]) -> bool:
     """
     Runs if any tasks were successful. Note that `SKIPPED` tasks are considered successes
     and `TRIGGER_FAILED` tasks are considered failures.
@@ -76,7 +76,7 @@ def any_successful(upstream_states: Set["prefect.engine.state.State"]) -> bool:
     return True
 
 
-def any_failed(upstream_states: Set["prefect.engine.state.State"]) -> bool:
+def any_failed(upstream_states: Set["state.State"]) -> bool:
     """
     Runs if any tasks failed. Note that `SKIPPED` tasks are considered successes and
     `TRIGGER_FAILED` tasks are considered failures.
