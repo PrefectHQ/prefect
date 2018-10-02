@@ -200,7 +200,7 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     # Dependencies -------------------------------------------------------------
 
-    def copy(self) -> Task:
+    def copy(self) -> "Task":
         """
         Returns a copy of the current Task.
         """
