@@ -210,8 +210,23 @@ class Flow(Serializable):
         slug: str = None,
         tags: Iterable[str] = None,
         task_type: type = None,
-    ):
-        def sieve(t):
+    ) -> List[Task]:
+        """
+        Helper method for retrieving tasks from this flow based on certain attributes.
+        The _intersection_ of all provided attributes is taken, i.e., only those tasks
+        which match _all_ provided conditions are returned.
+
+        Args:
+            - name (str, optional): the name of the task
+            - slug (str, optional): the slug of the task
+            - tags ([str], optional): an iterable of task tags
+            - task_type (type, optional): a possible task class type
+
+        Returns:
+            - [Task]: a list of tasks which meet the required conditions
+        """
+
+        def sieve(t: Task) -> bool:
             keep = True
             if name is not None:
                 keep &= t.name == name
