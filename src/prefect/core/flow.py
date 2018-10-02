@@ -798,7 +798,7 @@ class Flow(Serializable):
         self,
         parameters: Dict[str, Any] = None,
         return_tasks: Iterable[Task] = None,
-        **kwargs: Any,
+        **kwargs: Any
     ) -> "prefect.engine.state.State":
         """
         Run the flow using an instance of a FlowRunner
