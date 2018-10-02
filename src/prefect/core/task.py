@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
 
-def _validate_run_signature(run):
+def _validate_run_signature(run: Callable) -> None:
     run_sig = inspect.getfullargspec(run)
     if run_sig.varargs:
         raise ValueError(
@@ -41,7 +41,7 @@ def _validate_run_signature(run):
 
 
 class SignatureValidator(type):
-    def __new__(cls, name, parents, methods):
+    def __new__(cls, name: str, parents: tuple, methods: dict) -> type:
         run = methods.get("run", lambda: None)
         _validate_run_signature(run)
 
@@ -162,7 +162,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         return "<Task: {self.name}>".format(self=self)
 
     # reimplement __hash__ because we override __eq__
-    def __hash__(self):
+    def __hash__(self) -> int:
         return id(self)
 
     # Run  --------------------------------------------------------------------
@@ -200,7 +200,7 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     # Dependencies -------------------------------------------------------------
 
-    def copy(self):
+    def copy(self) -> Task:
         """
         Returns a copy of the current Task.
         """
@@ -336,7 +336,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Dict[str, object] = None,
-        mapped=False,
+        mapped: bool = False,
         validate: bool = True,
     ) -> None:
         """
@@ -486,7 +486,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.GetItem().bind(self, key)
 
-    def __or__(self, other: object) -> "Task":
+    def __or__(self, other: object) -> object:
         """
         Creates a state dependency between `self` and `other`
             `self | other --> self.set_dependencies(downstream_tasks=[other])`
@@ -841,6 +841,6 @@ class Parameter(Task):
         return params.get(self.name, self.default)
 
     def info(self) -> Dict[str, Any]:
-        info = super().info()
+        info = super().info()  # type: ignore
         info.update(required=self.required, default=self.default)
         return info
