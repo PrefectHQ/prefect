@@ -228,7 +228,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         self,
         *args: Any,
         mapped: bool = False,
-        upstream_tasks: Iterable["Task"] = None,
+        upstream_tasks: Iterable[Any] = None,
         **kwargs: Any
     ) -> "Task":
         """
@@ -258,7 +258,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         self,
         *args: Any,
         mapped: bool = False,
-        upstream_tasks: Iterable["Task"] = None,
+        upstream_tasks: Iterable[Any] = None,
         **kwargs: Any
     ) -> "Task":
         """
@@ -313,7 +313,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         return self
 
     def map(
-        self, *args: Any, upstream_tasks: Iterable["Task"] = None, **kwargs: Any
+        self, *args: Any, upstream_tasks: Iterable[Any] = None, **kwargs: Any
     ) -> "Task":
         """
         Map the Task elementwise across one or more Tasks. Arguments which should _not_ be mapped over
