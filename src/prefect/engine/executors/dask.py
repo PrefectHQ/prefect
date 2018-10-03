@@ -1,6 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import logging
+import multiprocessing
 import sys
 
 if sys.version_info < (3, 5):
@@ -18,6 +19,7 @@ import warnings
 
 from prefect import config
 from prefect.engine.executors.base import Executor
+from prefect.engine.state import Failed
 from prefect.utilities.executors import dict_to_list
 
 
@@ -103,7 +105,7 @@ class DaskExecutor(Executor):
         )
         return future_list
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:
+    def submit(self, fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any) -> Future:
         """
         Submit a function to the executor for execution. Returns a Future object.
 
@@ -116,7 +118,28 @@ class DaskExecutor(Executor):
             - Future: a Future-like object which represents the computation of `fn(*args, **kwargs)`
         """
 
+        if timeout:
+            return self.submit_with_timeout(fn, *args, timeout.total_seconds(), **kwargs)
         return self.client.submit(fn, *args, pure=False, **kwargs)
+
+    def submit_with_timeout(self, fn, *args, timeout: int, **kwargs):
+
+        def retrieve_value(*args, _container, **kwargs):
+            _container.put(fn(*args, **kwargs))
+
+        def handler(*args, **kwargs):
+            q = multiprocessing.Queue()
+            kwargs['_container'] = q
+            p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
+            p.start()
+            p.join(timeout)
+            p.terminate()
+            if not q.empty():
+                return q.get()
+            else:
+                return Failed(message=TimeoutError("Execution timed out."))
+
+        return self.client.submit(handler, *args, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """
