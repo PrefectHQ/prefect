@@ -18,6 +18,15 @@ def test_string_formatter_simply_formats():
     assert res.result[ans].result == "Ford is from Betelgeuse"
 
 
+def test_string_formatter_can_be_provided_template_at_runtime():
+    task = StringFormatterTask()
+    with Flow() as f:
+        ans = task(template="{name} is from {place}", name="Ford", place="Betelgeuse")
+    res = f.run(return_tasks=[ans])
+    assert res.is_successful()
+    assert res.result[ans].result == "Ford is from Betelgeuse"
+
+
 def test_string_formatter_formats_from_context():
     task = StringFormatterTask(template="I am {_task_name}", name="foo")
     f = Flow(tasks=[task])
@@ -41,6 +50,17 @@ def test_jinja_template_simply_formats():
     task = JinjaTemplateTask(template="{{ name }} is from {{ place }}")
     with Flow() as f:
         ans = task(name="Ford", place="Betelgeuse")
+    res = f.run(return_tasks=[ans])
+    assert res.is_successful()
+    assert res.result[ans].result == "Ford is from Betelgeuse"
+
+
+def test_jinja_template_can_be_provided_template_at_runtime():
+    task = JinjaTemplateTask()
+    with Flow() as f:
+        ans = task(
+            template="{{ name }} is from {{ place }}", name="Ford", place="Betelgeuse"
+        )
     res = f.run(return_tasks=[ans])
     assert res.is_successful()
     assert res.result[ans].result == "Ford is from Betelgeuse"
