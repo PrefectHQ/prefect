@@ -317,11 +317,11 @@ def get_call_signature(obj):
     # collect data
     sig = inspect.getfullargspec(obj)
     args, defaults = sig.args, sig.defaults or []
-    kwonly, kwonlydefaults = sig.kwonlyargs, sig.kwonlydefaults
+    kwonly, kwonlydefaults = sig.kwonlyargs or [], sig.kwonlydefaults or {}
     varargs, varkwargs = sig.varargs, sig.varkw
 
     if args == []:
-        standalone, kwargs = [], dict()
+        standalone, kwargs = [], []
     else:
         if args[0] == "self":
             args = args[1:]  # remove self from displayed signature
@@ -331,21 +331,21 @@ def get_call_signature(obj):
 
     varargs = [f"*{varargs}"] if varargs else []
     varkwargs = [f"**{varkwargs}"] if varkwargs else []
-    if kwonlydefaults:
+    if kwonly:
         kwargs.extend([(kw, default) for kw, default in kwonlydefaults.items()])
+        kwonly = [k for k in kwonly if k not in kwonlydefaults]
 
-    return standalone, varargs, kwargs, varkwargs
+    return standalone, varargs, kwonly, kwargs, varkwargs
 
 
 @preprocess
 def format_signature(obj):
-    standalone, varargs, kwargs, varkwargs = get_call_signature(obj)
-    # NOTE: I assume the call signature is f(x, y, ..., *args, z=1, ...,
-    # **kwargs) and NOT f(*args, x, y, ...)
+    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
     add_quotes = lambda s: f'"{s}"' if isinstance(s, str) else s
     psig = ", ".join(
         standalone
         + varargs
+        + kwonly
         + [f"{name}={add_quotes(val)}" for name, val in kwargs]
         + varkwargs
     )
