@@ -1,12 +1,12 @@
 import pytest
 
 airflow = pytest.importorskip("airflow")
-pytest.mark.airflow()
 
 from prefect.engine.state import Success, Skipped, Failed
 from prefect.utilities.airflow_utils import AirFlow
 
 
+@pytest.mark.airflow()
 def test_example_branch_operator():
     flow = AirFlow(dag_id="example_branch_operator")
     res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
@@ -35,6 +35,7 @@ def test_example_branch_operator():
     )
 
 
+@pytest.mark.airflow()
 def test_example_xcom():
     flow = AirFlow(dag_id="example_xcom")
     res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
@@ -52,6 +53,7 @@ def test_example_xcom():
             assert state.result == {"a": "b"}
 
 
+@pytest.mark.airflow()
 def test_example_short_circuit_operator():
     flow = AirFlow(dag_id="example_short_circuit_operator")
     res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
@@ -66,6 +68,7 @@ def test_example_short_circuit_operator():
             assert isinstance(state, Success)
 
 
+@pytest.mark.airflow()
 def test_example_bash_operator():
     flow = AirFlow(dag_id="example_bash_operator")
     res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
