@@ -184,6 +184,14 @@ OUTLINE = [
         "title": "ShellTask",
     },
     {
+        "page": "tasks/strings.md",
+        "classes": [
+            prefect.tasks.strings.StringFormatterTask,
+            prefect.tasks.strings.JinjaTemplateTask,
+        ],
+        "title": "String Templating Tasks",
+    },
+    {
         "page": "utilities/bokeh.md",
         "classes": [BokehRunner],
         "title": "BokehRunner",

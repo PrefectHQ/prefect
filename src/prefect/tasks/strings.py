@@ -13,6 +13,12 @@ class JinjaTemplateTask(Task):
     upstream tasks and returned.
 
     Variables from `prefect.context` are also available for rendering.
+
+    Args:
+        - template (str, optional): the template string to render at runtime;
+            can also be provided at runtime
+        - **kwargs (optional): additional keyword arguments to pass to the
+            standard Task constructor
     """
 
     def __init__(self, template: str = None, **kwargs: Any) -> None:
@@ -20,6 +26,15 @@ class JinjaTemplateTask(Task):
         super().__init__(**kwargs)
 
     def run(self, template: str = None, **format_kwargs: Any) -> str:  # type: ignore
+        """
+        Args:
+            - template (str, optional): the template string to render; if not
+                provided, `self.template` will be used
+            - **format_kwargs (optional): keyword arguments to use for rendering
+
+        Returns:
+            - str: the rendered string
+        """
         if template is None:
             template = self.template
         with prefect.context(**format_kwargs) as data:
@@ -32,6 +47,12 @@ class StringFormatterTask(Task):
     upstream tasks and returned.
 
     Variables from `prefect.context` are also available for formatting.
+
+    Args:
+        - template (str, optional): the template string to format at runtime;
+            can also be provided at runtime
+        - **kwargs (optional): additional keyword arguments to pass to the
+            standard Task constructor
     """
 
     def __init__(self, template: str = None, **kwargs: Any) -> None:
@@ -39,6 +60,15 @@ class StringFormatterTask(Task):
         super().__init__(**kwargs)
 
     def run(self, template: str = None, **format_kwargs: Any) -> str:  # type: ignore
+        """
+        Args:
+            - template (str, optional): the template string to format; if not
+                provided, `self.template` will be used
+            - **format_kwargs (optional): keyword arguments to use for formatting
+
+        Returns:
+            - str: the formatted string
+        """
         if template is None:
             template = self.template
         with prefect.context(**format_kwargs) as data:
