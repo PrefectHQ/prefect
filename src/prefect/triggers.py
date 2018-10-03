@@ -29,12 +29,22 @@ def manual_only(upstream_states: Set["state.State"]) -> bool:
 
     Note this doesn't raise a failure, it simply doesn't run the task.
     """
-    raise signals.DONTRUN('Trigger function is "manual_only"')
+    raise signals.PAUSE('Trigger function is "manual_only"')
+
+
+def never_run(upstream_states: Set["state.State"]) -> bool:
+    """
+    This task will never run automatically. It will only run if it is
+    specifically instructed, either by ignoring the trigger or adding it
+    as a flow run's start task.
+
+    Note this doesn't raise a failure, it simply doesn't run the task.
+    """
+    raise signals.DONTRUN('Trigger function is "never_run"')
 
 
 # aliases
 always_run = all_finished
-never_run = manual_only
 
 
 def all_successful(upstream_states: Set["state.State"]) -> bool:
