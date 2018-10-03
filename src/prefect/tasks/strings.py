@@ -15,8 +15,8 @@ class JinjaTemplateTask(Task):
     Variables from `prefect.context` are also available for rendering.
 
     Args:
-        - template (str, optional): the template string to render at runtime;
-            can also be provided at runtime
+        - template (str, optional): the optional _default_ template string to render at runtime;
+            can also be provided as a keyword to `run`, which takes precendence over this default.
         - **kwargs (optional): additional keyword arguments to pass to the
             standard Task constructor
     """
@@ -48,8 +48,8 @@ class StringFormatterTask(Task):
     Variables from `prefect.context` are also available for formatting.
 
     Args:
-        - template (str, optional): the template string to format at runtime;
-            can also be provided at runtime
+        - template (str, optional): the optional _default_ template string to format at runtime;
+            can also be provided as a keyword to `run`, which takes precendence over this default.
         - **kwargs (optional): additional keyword arguments to pass to the
             standard Task constructor
     """
