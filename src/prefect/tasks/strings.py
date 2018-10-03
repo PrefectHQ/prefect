@@ -35,8 +35,7 @@ class JinjaTemplateTask(Task):
         Returns:
             - str: the rendered string
         """
-        if template is None:
-            template = self.template
+        template = self.template if template is None else Template(template)
         with prefect.context(**format_kwargs) as data:
             return template.render(**data)
 
