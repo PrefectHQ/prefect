@@ -1,22 +1,50 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import json
 import os
 from pathlib import Path
-import sys
-from subprocess import Popen, PIPE, STDOUT
-
-from IPython import get_ipython
 
 import click
-import docker
-import requests
 import toml
 
 import prefect
-from prefect.client import Client, RunFlow
+from prefect.client import Client, RunFlow, Projects, Flows, FlowRuns
 from prefect.core import registry
+from prefect.environments import ContainerEnvironment
 from prefect.utilities import json as prefect_json
+
+
+def load_prefect_config(path):
+    if not path:
+        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+
+    if Path(path).is_file():
+        config_data = toml.load(path)
+
+    if not config_data:
+        raise click.ClickException("CLI not configured. Run 'prefect configure init'")
+
+    return config_data
+
+
+def load_flow(project, name, version, file):
+    if file:
+        # Load the registry from the file into the current process's environment
+        exec(open(file).read())
+
+    # Load the user specified flow
+    flow = None
+    for flow_id, registry_flow in registry.REGISTRY.items():
+        if (
+            registry_flow.project == project
+            and registry_flow.name == name
+            and registry_flow.version == version
+        ):
+            flow = prefect.core.registry.load_flow(flow_id)
+
+    if not flow:
+        raise click.ClickException("{} not found in {}".format(name, file))
+
+    return flow
 
 
 @click.group()
@@ -65,29 +93,13 @@ def run(id):
     help="Path to a file which contains the flow.",
     type=click.Path(exists=True),
 )
-def build(project, name, version, file):
+@click.argument("path", required=False)
+def build(project, name, version, file, path):
     """
     Build a flow's environment
     """
-
-    if file:
-        # Load the registry from the file into the current process's environment
-        exec(open(file).read())
-
-    # Load the user specified flow
-    for flow_id, registry_flow in registry.REGISTRY.items():
-        if (
-            registry_flow.project == project
-            and registry_flow.name == name
-            and registry_flow.version == version
-        ):
-            flow = prefect.core.registry.load_flow(flow_id)
-
-
-    path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
-
-    if Path(path).is_file():
-        config_data = toml.load(path)
+    config_data = load_prefect_config(path)
+    flow = load_flow(project, name, version, file)
 
     client = Client(
         config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
@@ -95,30 +107,49 @@ def build(project, name, version, file):
 
     client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
 
-    print(client._token)
+    # Create the flow's project
+    # projects_gql = Projects(client=client)
+    # project_id = projects_gql.create(name=flow.project)
 
-    # flow = prefect.core.registry.load_flow(id)
+    # print(project_id)
+
+    # Create the flow
+    flows_gql = Flows(client=client)
+
+    try:
+        flows_gql.create(serialized_flow=flow.serialize())
+    except ValueError as value_error:
+        if "No project found for" in str(value_error):
+            raise click.ClickException("No project found for {}".format(project))
+        else:
+            raise click.ClickException(value_error)
+
+    # Environment is built and pushed to the registry (unless otherwise specified)
     # flow.environment.build(flow=flow)
 
 
 @flows.command()
-@click.argument("id")
+@click.argument("project")
+@click.argument("name")
+@click.argument("version")
+@click.option(
+    "--file",
+    required=False,
+    help="Path to a file which contains the flow.",
+    type=click.Path(exists=True),
+)
 @click.argument("path", required=False)
-def push(id, path):
+def push(project, name, version, file, path):
     """
     Push a flow's container environment to a registry
     """
-    if not path:
-        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+    config_data = load_prefect_config(path)
+    flow = load_flow(project, name, version, file)
 
-    if Path(path).is_file():
-        config_data = toml.load(path)
-
-    if not config_data:
-        click.echo("CLI not configured. Run 'prefect configure init'")
-        return
-
-    flow = prefect.core.registry.load_flow(id)
+    if not isinstance(flow.environment, ContainerEnvironment):
+        raise click.ClickException(
+            "{} does not have a ContainerEnvironment".format(name)
+        )
 
     # Check if login access was provided for registry
     if config_data.get("REGISTRY_USERNAME", None) and config_data.get(
@@ -137,23 +168,22 @@ def push(id, path):
 
 
 @flows.command()
-@click.argument("image_name")
-@click.argument("image_tag")
-@click.argument("flow_id")
+@click.argument("project")
+@click.argument("name")
+@click.argument("version")
+@click.option(
+    "--file",
+    required=False,
+    help="Path to a file which contains the flow.",
+    type=click.Path(exists=True),
+)
 @click.argument("path", required=False)
-def exec_command(image_name, image_tag, flow_id, path):
+def deploy(project, name, version, file, path):
     """
-    Send flow command
+    Deploy the flow
     """
-    if not path:
-        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
-
-    if Path(path).is_file():
-        config_data = toml.load(path)
-
-    if not config_data:
-        click.echo("CLI not configured. Run 'prefect configure init'")
-        return
+    config_data = load_prefect_config(path)
+    flow = load_flow(project, name, version, file)
 
     client = Client(
         config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
@@ -161,7 +191,7 @@ def exec_command(image_name, image_tag, flow_id, path):
 
     client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
 
-    image_name = os.path.join(config_data["REGISTRY_URL"], image_name)
+    image_name = os.path.join(config_data["REGISTRY_URL"], flow.environment.image)
 
     rf = RunFlow(client=client)
-    rf.run_flow(image_name=image_name, image_tag=image_tag, flow_id=flow_id)
+    rf.run_flow(image_name=image_name, image_tag=flow.environment.tag, flow_id=flow.id)

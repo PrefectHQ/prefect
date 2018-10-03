@@ -146,7 +146,8 @@ class Client:
         )
 
         if "errors" in result:
-            raise ValueError(result["errors"])
+            raise ValueError(result)
+            # raise ValueError(result["errors"])
         else:
             return to_dotdict(result).data
 
@@ -328,12 +329,11 @@ class Projects(ClientModule):
 
 
 class Flows(ClientModule):
-    def create(self, project_id, serialized_flow) -> dict:
+    def create(self, serialized_flow) -> dict:
         """
         Create a new flow on the server
 
         Args:
-            - project_id (str): A unique project identifier
             - serialized_flow (dict): A json serialized version of a flow
 
         Returns:
@@ -347,7 +347,7 @@ class Flows(ClientModule):
                 }
             }
             """,
-            input=dict(projectId=project_id, serializedFlow=serialized_flow),
+            input=dict(serializedFlow=json.dumps(serialized_flow)),
         )
 
 
