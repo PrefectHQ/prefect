@@ -11,7 +11,7 @@ class VarArgsTask(Task):
     """
 
     def bind(
-        self, *args: Any, upstream_tasks: Iterable[Task] = None, mapped: bool = False
+        self, *args: Any, upstream_tasks: Iterable[Any] = None, mapped: bool = False
     ) -> Task:
         kwargs = {"arg_{}".format(i + 1): a for i, a in enumerate(args)}
         return super().bind(upstream_tasks=upstream_tasks, **kwargs)
