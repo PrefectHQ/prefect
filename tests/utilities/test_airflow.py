@@ -1,6 +1,7 @@
 import pytest
 
 airflow = pytest.importorskip("airflow")
+pytest.mark.airflow()
 
 from prefect.engine.state import Success, Skipped, Failed
 from prefect.utilities.airflow_utils import AirFlow
