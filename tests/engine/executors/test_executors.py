@@ -109,6 +109,9 @@ def test_executor_has_compatible_timeout_handler(executor):
             )
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
+)
 def test_dask_processes_executor_raises_if_timeout_attempted(mproc):
     slow_fn = lambda: time.sleep(3)
     with mproc.start():
