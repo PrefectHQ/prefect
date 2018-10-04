@@ -1,3 +1,4 @@
+import datetime
 import logging
 import pytest
 import random
@@ -9,6 +10,7 @@ from unittest.mock import MagicMock
 
 import prefect
 from prefect.engine.executors import Executor, Executor, LocalExecutor
+from prefect.engine.state import Failed
 
 if sys.version_info >= (3, 5):
     from prefect.engine.executors import DaskExecutor
@@ -18,6 +20,10 @@ class TestBaseExecutor:
     def test_submit_raises_notimplemented(self):
         with pytest.raises(NotImplementedError):
             Executor().submit(lambda: 1)
+
+    def test_submit_with_timeout_raises_notimplemented(self):
+        with pytest.raises(NotImplementedError):
+            Executor().submit_with_timeout(lambda: 1, timeout=2)
 
     def test_map_raises_notimplemented(self):
         with pytest.raises(NotImplementedError):
@@ -92,6 +98,30 @@ def test_submit_does_not_assume_pure_functions(executor):
         two = executor.wait(executor.submit(random_fun))
 
     assert one != two
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "mproc", "mthread", "sync"], indirect=True
+)
+@pytest.mark.parametrize("timeout", [1, datetime.timedelta(seconds=1)])
+def test_submit_with_timeout(executor, timeout):
+    slow_fn = lambda: time.sleep(3)
+    with executor.start():
+        res = executor.wait(executor.submit_with_timeout(slow_fn, timeout=timeout))
+    assert isinstance(res, Failed)
+    assert isinstance(res.message, TimeoutError)
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "mproc", "mthread", "sync"], indirect=True
+)
+@pytest.mark.parametrize("timeout", [1, datetime.timedelta(seconds=1)])
+def test_simple_submit_with_timeout(executor, timeout):
+    slow_fn = lambda: time.sleep(3)
+    with executor.start():
+        res = executor.wait(executor.submit(slow_fn, timeout=timeout))
+    assert isinstance(res, Failed)
+    assert isinstance(res.message, TimeoutError)
 
 
 @pytest.mark.skipif(

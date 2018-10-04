@@ -2,6 +2,34 @@
 
 import dask
 import dask.bag
+import multiprocessing
+import signal
+
+from prefect.engine.state import Failed
+
+
+def multiprocessing_timeout(fn, timeout):
+    def retrieve_value(*args, _container, **kwargs):
+        """Puts the return value in a multiprocessing-safe container"""
+        _container.put(fn(*args, **kwargs))
+
+    def timeout_handler(*args, **kwargs):
+        q = multiprocessing.Queue()
+        kwargs["_container"] = q
+        p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
+        p.start()
+        p.join(timeout)
+        p.terminate()
+        if not q.empty():
+            return q.get()
+        else:
+            return Failed(message=TimeoutError("Execution timed out."))
+
+    return timeout_handler
+
+
+def main_thread_timeout(fn, *args, timeout, **kwargs):
+    pass
 
 
 def dict_to_list(dd):

@@ -719,7 +719,9 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
     assert res.result[tt][0].result == "test-map"
 
 
-@pytest.mark.parametrize("executor", ["local", "mproc", "mthread", "sync"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "mproc", "mthread", "sync"], indirect=True
+)
 def test_flow_runner_handles_timeouts(executor):
     sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
 

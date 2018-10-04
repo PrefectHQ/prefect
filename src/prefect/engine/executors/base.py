@@ -1,10 +1,15 @@
 import datetime
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterable
+from typing import Any, Callable, Dict, Iterable, Union
 
 import prefect
+from prefect.engine.state import Failed
+from prefect.utilities.executors import multiprocessing_timeout
 from prefect.utilities.json import Serializable
+
+
+time_type = Union[datetime.timedelta, int]
 
 
 class Executor(Serializable):
@@ -12,8 +17,9 @@ class Executor(Serializable):
     Base Executor class which all other executors inherit from.
     """
 
-    def __init__(self):
+    def __init__(self, timeout_handler=multiprocessing_timeout):
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
+        self.timeout_handler = timeout_handler
 
     @contextmanager
     def start(self) -> Iterable[None]:
@@ -44,13 +50,17 @@ class Executor(Serializable):
         """
         raise NotImplementedError()
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
+    def submit(
+        self, fn: Callable, *args: Any, timeout: time_type = None, **kwargs: Any
+    ) -> Any:
         """
         Submit a function to the executor for execution. Returns a future-like object.
 
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
+            - timeout (datetime.timedelta or int): maximum length of time to allow for
+                execution; if `int` is provided, interpreted as seconds.
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
@@ -58,14 +68,41 @@ class Executor(Serializable):
         """
         raise NotImplementedError()
 
-    def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
+    def submit_with_timeout(
+        self, fn: Callable, *args: Any, timeout: time_type = None, **kwargs: Any
+    ) -> Any:
+        """
+        Submit a function to the executor for execution with a timeout constraint. Returns a future-like object.
+        Note: The default implementation uses multiprocessing.
+
+        Args:
+            - fn (Callable): function which is being submitted for execution
+            - *args (Any): arguments to be passed to `fn`
+            - timeout (datetime.timedelta or int): maximum length of time to allow for
+                execution; if `int` is provided, interpreted as seconds.
+            - **kwargs (Any): keyword arguments to be passed to `fn`
+
+        Returns:
+            - Any: a future-like object
+        """
+        # implementing in BaseExecutor so that this feature is implemented for
+        # all executors, but can be overriden as is necessary
+
+        if isinstance(timeout, datetime.timedelta):
+            timeout = timeout.total_seconds()
+        elif timeout is not None:
+            timeout = round(timeout)
+
+        return self.submit(self.timeout_handler(fn, timeout), *args, **kwargs)
+
+    def wait(self, futures: Iterable, timeout: time_type = None) -> Iterable:
         """
         Resolves futures to their values. Blocks until the future is complete.
 
         Args:
             - futures (Iterable): iterable of futures to compute
-            - timeout (datetime.timedelta): maximum length of time to allow for
-                execution
+            - timeout (datetime.timedelta or int): maximum length of time to allow for
+                execution; if `int` is provided, interpreted as seconds.
 
         Returns:
             - Iterable: an iterable of resolved futures
