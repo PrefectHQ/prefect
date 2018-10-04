@@ -6,7 +6,7 @@ import inspect
 import tempfile
 import uuid
 from collections import Counter
-from typing import Any, Dict, Iterable, List, Mapping, Set, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Set, Tuple
 
 import xxhash
 from mypy_extensions import TypedDict
@@ -22,7 +22,7 @@ from prefect.utilities.tasks import as_task, unmapped
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
 
-def cache(method):
+def cache(method: Callable) -> Callable:
     """
     Decorator for caching Flow methods.
 
@@ -33,7 +33,7 @@ def cache(method):
     """
 
     @functools.wraps(method)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self, *args, **kwargs):  # type: ignore
 
         cache_check = dict(
             tasks=self.tasks.copy(),
@@ -118,7 +118,7 @@ class Flow(Serializable):
         register: bool = False,
         throttle: Dict[str, int] = None,
     ) -> None:
-        self._cache = {}
+        self._cache = {}  # type: dict
 
         self._id = str(uuid.uuid4())
         self._task_ids = dict()  # type: Dict[Task, str]
@@ -152,7 +152,7 @@ class Flow(Serializable):
         self.throttle = throttle or {}
         if min(self.throttle.values(), default=1) <= 0:
             bad_tags = ", ".join(
-                ['"' + tag + '"' for tag, num in throttle.items() if num <= 0]
+                ['"' + tag + '"' for tag, num in self.throttle.items() if num <= 0]
             )
             raise ValueError(
                 "Cannot throttle tags {0} - an invalid value less than 1 was provided.".format(
@@ -203,6 +203,43 @@ class Flow(Serializable):
         return new
 
     # Identification -----------------------------------------------------------
+
+    def get_tasks(
+        self,
+        name: str = None,
+        slug: str = None,
+        tags: Iterable[str] = None,
+        task_type: type = None,
+    ) -> List[Task]:
+        """
+        Helper method for retrieving tasks from this flow based on certain attributes.
+        The _intersection_ of all provided attributes is taken, i.e., only those tasks
+        which match _all_ provided conditions are returned.
+
+        Args:
+            - name (str, optional): the name of the task
+            - slug (str, optional): the slug of the task
+            - tags ([str], optional): an iterable of task tags
+            - task_type (type, optional): a possible task class type
+
+        Returns:
+            - [Task]: a list of tasks which meet the required conditions
+        """
+
+        def sieve(t: Task) -> bool:
+            keep = True
+            if name is not None:
+                keep &= t.name == name
+            if slug is not None:
+                keep &= t.slug == slug
+            if tags is not None:
+                keep &= t.tags.issuperset(tags)
+            if task_type is not None:
+                keep &= isinstance(t, task_type)
+            return keep
+
+        keep_tasks = filter(sieve, self.tasks)
+        return list(keep_tasks)
 
     def replace(self, old: Task, new: Task, validate: bool = True) -> None:
         """
@@ -310,7 +347,7 @@ class Flow(Serializable):
         return set(t for t in self.tasks if not self.edges_from(t))
 
     @cache
-    def parameters(self, only_required=False) -> Dict[str, ParameterDetails]:
+    def parameters(self, only_required: bool = False) -> Dict[str, ParameterDetails]:
         """
         Get details about any Parameters in this flow.
 
@@ -480,7 +517,7 @@ class Flow(Serializable):
 
         return edge
 
-    def chain(self, *tasks, validate: bool = None) -> List[Edge]:
+    def chain(self, *tasks: Task, validate: bool = None) -> List[Edge]:
         """
         Adds a sequence of dependent tasks to the flow; each task should be provided
         as an argument (or splatted from a list).
@@ -798,7 +835,7 @@ class Flow(Serializable):
         self,
         parameters: Dict[str, Any] = None,
         return_tasks: Iterable[Task] = None,
-        **kwargs
+        **kwargs: Any
     ) -> "prefect.engine.state.State":
         """
         Run the flow using an instance of a FlowRunner
@@ -815,6 +852,14 @@ class Flow(Serializable):
         """
         runner = prefect.engine.flow_runner.FlowRunner(flow=self)
         parameters = parameters or []
+        unknown_params = [p for p in parameters if p not in self.parameters()]
+        if unknown_params:
+            fmt_params = ", ".join(unknown_params)
+            raise TypeError(
+                "Flow.run received the following unexpected parameters: {}".format(
+                    fmt_params
+                )
+            )
 
         passed_parameters = {}
         for p in self.parameters():
@@ -840,7 +885,7 @@ class Flow(Serializable):
 
     # Visualization ------------------------------------------------------------
 
-    def visualize(self, flow_state=None):
+    def visualize(self, flow_state: "prefect.engine.state.State" = None) -> object:
         """
         Creates graphviz object for representing the current flow; this graphviz
         object will be rendered inline if called from an IPython notebook, otherwise
@@ -862,7 +907,7 @@ class Flow(Serializable):
             )
             raise ImportError(msg)
 
-        def get_color(task):
+        def get_color(task: Task) -> str:
             colors = {
                 "Retrying": "#FFFF0080",
                 "CachedState": "orange",
@@ -909,7 +954,7 @@ class Flow(Serializable):
 
     # Building / Serialization ----------------------------------------------------
 
-    def serialize(self, build=False) -> dict:
+    def serialize(self, build: bool = False) -> dict:
         """
         Creates a serialized representation of the flow.
 
@@ -956,7 +1001,7 @@ class Flow(Serializable):
             throttle=self.throttle,
         )
 
-    def register(self, registry=None) -> None:
+    def register(self, registry: dict = None) -> None:
         """
         Register the flow.
 
@@ -1191,5 +1236,5 @@ class Flow(Serializable):
         return ids
 
 
-def _hash(value):
+def _hash(value: str) -> bytes:
     return xxhash.xxh64(value).digest()

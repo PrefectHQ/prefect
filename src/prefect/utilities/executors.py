@@ -6,8 +6,14 @@ import datetime
 import multiprocessing
 import signal
 from functools import wraps
+from typing import Any, Dict, List, Union
 
+import prefect
+from prefect.core.edge import Edge
 from prefect.engine.state import Failed
+
+
+StateList = Union["prefect.engine.state.State", List["prefect.engine.state.State"]]
 
 
 def multiprocessing_timeout(exec_method):
@@ -82,7 +88,7 @@ def main_thread_timeout(exec_method):
     return wrapped_timeout_method
 
 
-def dict_to_list(dd):
+def dict_to_list(dd: Dict[Edge, StateList]) -> List[dict]:
     """
     Given a dictionary of {Edge: States (or lists of States)} which need to be
     iterated over, effectively converts any states which return a list to a list of individual states and
@@ -96,7 +102,7 @@ def dict_to_list(dd):
     return m_list
 
 
-def state_to_list(s):
+def state_to_list(s: StateList) -> List["prefect.engine.state.State"]:
     """
     Converts a State `s` with an iterator as its result to a list of states of the same type.
 
@@ -110,6 +116,6 @@ def state_to_list(s):
     return [type(s)(result=elem) for elem in s.result]
 
 
-def unpack_dict_to_bag(*values, keys):
+def unpack_dict_to_bag(*values: Any, keys: List[str]) -> dict:
     "Convenience function for packaging up all keywords into a dictionary"
     return {k: v for k, v in zip(keys, values)}

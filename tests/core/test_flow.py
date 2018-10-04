@@ -666,7 +666,7 @@ def test_sorted_tasks_with_start_task():
     assert set(f.sorted_tasks(root_tasks=[t3])) == set([t3, t4, t5])
 
 
-def test_flow_ignores_irrelevant_user_provided_parameters():
+def test_flow_raises_for_irrelevant_user_provided_parameters():
     class ParameterTask(Task):
         def run(self):
             return prefect.context.get("_parameters")
@@ -677,8 +677,11 @@ def test_flow_ignores_irrelevant_user_provided_parameters():
         f.add_task(x)
         f.add_task(t)
 
-    state = f.run(return_tasks=[t], parameters=dict(x=10, y=3, z=9))
-    assert state.result[t].result == dict(x=10)
+    with pytest.raises(TypeError):
+        state = f.run(return_tasks=[t], parameters=dict(x=10, y=3, z=9))
+
+    with pytest.raises(TypeError):
+        state = f.run(return_tasks=[t], x=10, y=3, z=9)
 
 
 def test_validate_cycles():
@@ -1079,3 +1082,35 @@ class TestReplace:
         state = f.run(return_tasks=[res], y=6)
         assert state.is_successful()
         assert state.result[res].result == 61
+
+
+class TestGetTasks:
+    def test_get_tasks_defaults_to_return_everything(self):
+        t1, t2 = Task(name="t1"), Task(name="t2")
+        f = Flow(tasks=[t1, t2])
+        assert f.get_tasks() == [t1, t2]
+
+    def test_get_tasks_defaults_to_name(self):
+        t1, t2 = Task(name="t1"), Task(name="t2")
+        f = Flow(tasks=[t1, t2])
+        assert f.get_tasks("t1") == [t1]
+
+    def test_get_tasks_takes_intersection(self):
+        t1, t2 = Task(name="t1", slug="11"), Task(name="t1", slug="22")
+        f = Flow(tasks=[t1, t2])
+        assert f.get_tasks(name="t1") == [t1, t2]
+        assert f.get_tasks(name="t1", slug="11") == [t1]
+        assert f.get_tasks(name="t1", slug="11", tags=["atag"]) == []
+
+    def test_get_tasks_accepts_tags_and_requires_all_tags(self):
+        t1, t2 = Task(name="t1", tags=["a", "b"]), Task(name="t1", tags=["a"])
+        f = Flow(tasks=[t1, t2])
+        assert f.get_tasks(tags=["a", "b"]) == [t1]
+
+    def test_get_tasks_can_check_types(self):
+        class Specific(Task):
+            pass
+
+        t1, t2 = Task(name="t1", tags=["a", "b"]), Specific(name="t1", tags=["a"])
+        f = Flow(tasks=[t1, t2])
+        assert f.get_tasks(task_type=Specific) == [t2]

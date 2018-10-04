@@ -127,8 +127,8 @@ def print_value(x):
     print(x)
     
 
-xcom_a = list(filter(lambda t: t.name == 'push_xcom_for_branch_a', flow.tasks))[0]
-xcom_b = list(filter(lambda t: t.name == 'push_xcom_for_branch_b', flow.tasks))[0]
+xcom_a = flow.get_tasks(name='push_xcom_for_branch_a')[0]
+xcom_b = flow.get_tasks(name='push_xcom_for_branch_b')[0]
 
 
 with flow:
