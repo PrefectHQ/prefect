@@ -36,8 +36,14 @@ class SynchronousExecutor(Executor):
         q = queue.Queue(maxsize=maxsize)
         return q
 
+    @multiprocessing_timeout
     def map(
-        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
+        self,
+        fn: Callable,
+        *args: Any,
+        timeout: time_type = None,
+        upstream_states=None,
+        **kwargs: Any
     ) -> dask.bag:
         """
         Submit a function to be mapped over.
@@ -45,6 +51,8 @@ class SynchronousExecutor(Executor):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn` with each call
+            - timeout (datetime.timedelta or int): maximum length of time to allow for
+                execution of each individual task; if `int` is provided, interpreted as seconds.
             - upstream_states ({Edge: State}): a dictionary of upstream
                 dependencies, keyed by Edge; the values are upstream states (or lists of states).
                 This dictionary is used to determine which upstream depdencies should be mapped over,
@@ -97,13 +105,13 @@ class SynchronousExecutor(Executor):
         """
         return dask.delayed(fn)(*args, **kwargs)
 
-    def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
+    def wait(self, futures: Iterable, timeout: time_type = None) -> Iterable:
         """
         Resolves the `dask.delayed` objects to their values. Blocks until the computation is complete.
 
         Args:
             - futures (Iterable): iterable of `dask.delayed` objects to compute
-            - timeout (datetime.timedelta): maximum length of time to allow for
+            - timeout (datetime.timedelta or int): maximum length of time to allow for
                 execution
 
         Returns:
