@@ -4,7 +4,7 @@
 Prefect Executors implement the logic for how Tasks are run. The standard interface
 for an Executor consists of the following methods:
 
-- `submit(fn, *args, **kwargs)`: submit `fn(*args, **kwargs)` for execution;
+- `submit(fn, *args, timeout, **kwargs)`: submit `fn(*args, **kwargs)` for execution;
     note that this function is (in general) non-blocking, meaning that `executor.submit(...)`
     will _immediately_ return a future-like object regardless of whether `fn(*args, **kwargs)`
     has completed running
@@ -12,7 +12,7 @@ for an Executor consists of the following methods:
     **kwargs)` for execution with the provided `prefect.context`
 - `wait(object)`: resolves any objects returned by `executor.submit` to
     their values; this function _will_ block until execution of `object` is complete
-- `map(fn, *args, upstream_states, **kwargs)`: submit function to be mapped
+- `map(fn, *args, timeout, upstream_states, **kwargs)`: submit function to be mapped
     over based on the edge information contained in `upstream_states`.  Any "mapped" Edge
     will be converted into multiple function submissions, one for each value of the upstream mapped tasks.
 

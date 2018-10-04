@@ -111,7 +111,7 @@ class Executor(Serializable):
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
             - context (dict): `prefect.utilities.Context` to be used in function execution
-            - **kwargs (Any): keyword arguments to be passed to `fn`
+            - **kwargs (Any): keyword arguments to be passed to `executor.submit`
 
         Returns:
             - Any: a future-like object

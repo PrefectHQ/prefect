@@ -11,6 +11,11 @@ from prefect.engine.state import Failed
 
 
 def multiprocessing_timeout(exec_method):
+    """
+    Decorator for executor methods to implement timeouts on function executions.
+    Implemented by spawning a new multiprocess.Process() and joining with timeout.
+    """
+
     @wraps(exec_method)
     def wrapped_timeout_method(self, fn, *args, timeout=None, **kwargs):
         if timeout is None:
@@ -43,6 +48,11 @@ def multiprocessing_timeout(exec_method):
 
 
 def main_thread_timeout(exec_method):
+    """
+    Decorator for executor methods to implement timeouts on function executions.
+    Implemented by setting a `signal` alarm on a timer.
+    """
+
     @wraps(exec_method)
     def wrapped_timeout_method(self, fn, *args, timeout=None, **kwargs):
         if timeout is None:
