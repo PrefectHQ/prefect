@@ -22,6 +22,7 @@ import warnings
 import toolz
 
 import prefect
+from prefect.utilities.airflow_utils import AirFlow
 from prefect.utilities.bokeh_runner import BokehRunner
 
 OUTLINE = [
@@ -182,7 +183,20 @@ OUTLINE = [
         "classes": [prefect.tasks.shell.ShellTask],
         "title": "ShellTask",
     },
-    {"page": "utilities/bokeh.md", "classes": [BokehRunner], "title": "BokehRunner"},
+    {
+        "page": "tasks/strings.md",
+        "classes": [
+            prefect.tasks.strings.StringFormatterTask,
+            prefect.tasks.strings.JinjaTemplateTask,
+        ],
+        "title": "String Templating Tasks",
+    },
+    {
+        "page": "utilities/bokeh.md",
+        "classes": [BokehRunner],
+        "title": "BokehRunner",
+        "top-level-doc": prefect.utilities.bokeh_runner,
+    },
     {
         "page": "utilities/collections.md",
         "classes": [prefect.utilities.collections.DotDict],
@@ -213,6 +227,12 @@ OUTLINE = [
         ],
         "title": "Tasks",
     },
+    {
+        "page": "utilities/airflow.md",
+        "classes": [AirFlow],
+        "title": "Airflow Conversion Tools",
+        "top-level-doc": prefect.utilities.airflow_utils,
+    },
 ]
 
 
@@ -240,9 +260,13 @@ def format_lists(doc):
     lists = re.findall(
         r"(Args\:|Returns\:|Raises\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL
     )  # find formatted lists
+    ul_tag = "<ul style='padding-left:3.5em;text-indent:-3.5em;'>"
+    li_tag = "<li style='padding-left:3.5em;text-indent:-3.5em;'>"
     for section, _, items, ending in lists:
         if section.startswith(("Returns:", "Raises:")) and ":" not in items:
-            doc = doc.replace(items, "<ul><li>" + items.lstrip("- ") + "</li></ul>", 1)
+            doc = doc.replace(
+                items, f"{ul_tag}{li_tag}" + items.lstrip("- ") + "</li></ul>", 1
+            )
             continue
         args = re.split(r"-\s+(.*?)\:(?![^{]*\})", items)  # collect all list items
         if not args:
@@ -250,8 +274,8 @@ def format_lists(doc):
         block = ""
         list_items = zip(args[1::2], args[2::2])
         for item, descr in list_items:
-            block += f"<li>`{item}`:{descr}</li>"
-        list_block = f"<ul>{block}</ul>"
+            block += f"{li_tag}`{item}`:{descr}</li>"
+        list_block = f"{ul_tag}{block}</ul>"
         doc = doc.replace(items + "\n\n", list_block, 1).replace(items, list_block, 1)
     return doc.replace("\n\nRaises:", "Raises:")
 
@@ -288,7 +312,7 @@ def create_methods_table(members, title):
         table += "|:----|\n"
     for method in members:
         table += format_subheader(method, level=2, in_table=True).replace(
-            "\n", "<br><br>"
+            "\n\n", "<br>"
         )
         table += format_doc(inspect.getdoc(method), in_table=True)
         table += "|\n"
@@ -301,6 +325,7 @@ def get_call_signature(obj):
     # collect data
     sig = inspect.getfullargspec(obj)
     args, defaults = sig.args, sig.defaults or []
+    kwonly, kwonlydefaults = sig.kwonlyargs, sig.kwonlydefaults
     varargs, varkwargs = sig.varargs, sig.varkw
 
     if args == []:
@@ -314,6 +339,8 @@ def get_call_signature(obj):
 
     varargs = [f"*{varargs}"] if varargs else []
     varkwargs = [f"**{varkwargs}"] if varkwargs else []
+    if kwonlydefaults:
+        kwargs.extend([(kw, default) for kw, default in kwonlydefaults.items()])
 
     return standalone, varargs, kwargs, varkwargs
 
@@ -337,7 +364,9 @@ def format_signature(obj):
 def create_absolute_path(obj):
     dir_struct = inspect.getfile(obj).split("/")
     begins_at = dir_struct.index("src") + 1
-    return ".".join([d.rstrip(".py") for d in dir_struct[begins_at:]])
+    filename = dir_struct.pop(-1)
+    dir_struct.append(filename[:-3] if filename.endswith(".py") else filename)
+    return ".".join([d for d in dir_struct[begins_at:]])
 
 
 @preprocess
@@ -368,9 +397,7 @@ def format_subheader(obj, level=1, in_table=False):
     class_name = f"<b>{create_absolute_path(obj)}.{obj.__qualname__}</b>"
     div_tag = f"<div class='sig' style='padding-left:3.5em;text-indent:-3.5em;'>"
 
-    call_sig = (
-        f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>"
-    )
+    call_sig = f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>\n\n"
     return call_sig
 
 
@@ -467,7 +494,8 @@ if __name__ == "__main__":
 
             top_doc = page.get("top-level-doc")
             if top_doc is not None:
-                f.write(inspect.getdoc(top_doc) + "\n\n")
+                f.write(inspect.getdoc(top_doc))
+                f.write("\n<hr>\n<br>\n\n")
             for obj in classes:
                 f.write(format_subheader(obj))
 
@@ -485,7 +513,7 @@ if __name__ == "__main__":
                     method for (name, method) in members if not name.startswith("_")
                 ]
                 f.write(create_methods_table(public_members, title="methods:"))
-                f.write("\n")
+                f.write("\n---\n<br>\n\n")
 
             if fns:
                 f.write("## Functions\n")

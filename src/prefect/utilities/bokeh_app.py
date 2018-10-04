@@ -61,7 +61,7 @@ def get_state_msg(task, task_states):
 
 
 def compute_layout(runner):
-    depths = runner.compute_depths()
+    depths = runner._compute_depths()
     max_depth = max([depth for depth in depths.values()])
     widths = {
         x: sum([1 for task, depth in depths.items() if depth == x])
@@ -92,6 +92,7 @@ def compile_data(runner):
         set(runner.flow.sorted_tasks(runner.start_tasks))
     )
     for task in runner.flow.sorted_tasks():
+        plot_data["task"].append(id(task))
         plot_data["name"].append(task.name)
         plot_data["state"].append(
             get_state_name(task, runner.task_states, not_run=(task in not_run))
@@ -164,8 +165,8 @@ plot.circle(
 
 for edge in list(runner.flow.edges):
     a, b = edge.upstream_task, edge.downstream_task
-    a_index = source.data["name"].index(a.name)
-    b_index = source.data["name"].index(b.name)
+    a_index = source.data["task"].index(id(a))
+    b_index = source.data["task"].index(id(b))
     plot.add_layout(
         Arrow(
             end=NormalHead(fill_color="grey", size=7, fill_alpha=0.5),

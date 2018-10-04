@@ -48,7 +48,9 @@ def test_calling_map_with_bind_returns_self():
     assert res is a
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_spawns_new_tasks(executor):
     ll = ListTask()
     a = AddTask()
@@ -64,7 +66,9 @@ def test_map_spawns_new_tasks(executor):
     assert [r.result for r in slist] == [2, 3, 4]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_over_parameters(executor):
     a = AddTask()
 
@@ -80,7 +84,9 @@ def test_map_over_parameters(executor):
     assert [r.result for r in slist] == [2, 3, 4]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_internally_returns_a_list(executor):
     ll = ListTask()
     ii = IdTask()
@@ -93,7 +99,9 @@ def test_map_internally_returns_a_list(executor):
     assert s.result[res].result == [2, 3, 4]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_composition(executor):
     ll = ListTask()
     a = AddTask()
@@ -109,7 +117,9 @@ def test_map_composition(executor):
     assert [r.result for r in slist] == [3, 4, 5]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_multiple_map_arguments(executor):
     ll = ListTask()
     a = AddTask()
@@ -125,7 +135,9 @@ def test_multiple_map_arguments(executor):
     assert [r.result for r in slist] == [2, 4, 6]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_failures_dont_leak_out(executor):
     ii = IdTask()
     ll = ListTask()
@@ -143,7 +155,9 @@ def test_map_failures_dont_leak_out(executor):
     assert [r.result for r in slist] == [None, 1, 0.5]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_can_handle_fixed_kwargs(executor):
     ll = ListTask()
     a = AddTask()
@@ -159,7 +173,9 @@ def test_map_can_handle_fixed_kwargs(executor):
     assert [r.result for r in slist] == [6, 7, 8]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_can_handle_nonkeyed_upstreams(executor):
     ll = ListTask()
 
@@ -174,7 +190,9 @@ def test_map_can_handle_nonkeyed_upstreams(executor):
     assert [r.result for r in slist] == [[1, 2, 3] for _ in range(3)]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_can_handle_nonkeyed_mapped_upstreams(executor):
     ii = IdTask()
     ll = ListTask()
@@ -191,7 +209,9 @@ def test_map_can_handle_nonkeyed_mapped_upstreams(executor):
     assert [r.result for r in slist] == [[1, 2, 3] for _ in range(3)]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args(executor):
     ii = IdTask()
     ll = ListTask()
@@ -207,7 +227,9 @@ def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args(executor):
     assert [r.result for r in slist] == [[1 + i, 2 + i, 3 + i] for i in range(3)]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_tracks_non_mapped_upstream_tasks(executor):
     div = DivTask()
 
@@ -230,7 +252,9 @@ def test_map_tracks_non_mapped_upstream_tasks(executor):
     )
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_allows_for_retries(executor):
     ii = IdTask()
     ll = ListTask()
@@ -259,7 +283,9 @@ def test_map_allows_for_retries(executor):
     assert [s.result for s in new] == [100, 1.0, 0.5]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args(executor):
     ii = IdTask()
     ll = ListTask()
@@ -276,7 +302,7 @@ def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args(executor):
     assert [r.result for r in slist] == [[1 + i, 2 + i, 3 + i] for i in range(3)]
 
 
-@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize("executor", ["local", "mproc", "mthread"], indirect=True)
 def test_map_behaves_like_zip_with_differing_length_results(executor):
     "Tests that map stops combining elements after the smallest list is exhausted."
 
@@ -318,7 +344,9 @@ def test_synchronous_map_cannot_handle_mapping_different_length_results(executor
     )
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_works_with_retries_and_cached_states(executor):
     """
     This test isn't meant to test the correct way of handling caching for mapped
@@ -389,7 +417,9 @@ def test_task_map_doesnt_bottleneck(executor):
             state = f.run(executor=executor)
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_task_map_can_be_passed_to_upstream_with_and_without_map(executor):
     @prefect.task
     def ll():
@@ -415,7 +445,9 @@ def test_task_map_can_be_passed_to_upstream_with_and_without_map(executor):
     assert [s.result for s in state.result[again]] == [3, 4, 5]
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_task_map_doesnt_assume_purity_of_functions(executor):
     @prefect.task
     def ll():

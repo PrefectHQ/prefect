@@ -1,4 +1,4 @@
-# Task Throttling <Badge text="advanced" type="warn"/><Badge text="0.4.0+"/>
+# Task Throttling <Badge text="advanced" type="warn"/><Badge text="0.3.2+"/>
 
 > Topics covered: _executors_, _parallelism_, _tags_,  _throttling_
 

@@ -35,6 +35,23 @@ class SynchronousExecutor(Executor):
     def map(
         self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
     ) -> dask.bag:
+        """
+        Submit a function to be mapped over.
+
+        Args:
+            - fn (Callable): function which is being submitted for execution
+            - *args (Any): arguments to be passed to `fn` with each call
+            - upstream_states ({Edge: State}): a dictionary of upstream
+                dependencies, keyed by Edge; the values are upstream states (or lists of states).
+                This dictionary is used to determine which upstream depdencies should be mapped over,
+                and under what keys (if any).
+            - **kwargs (Any): keyword arguments to be passed to `fn` with each
+                call
+
+        Returns:
+            - dask.bag: an `dask.bag` collection representing the computation of
+                ecah `fn(*args, **kwargs)` call
+        """
         # every task which is being mapped over needs its state represented as a
         # dask.bag; there are two situations: 1.) the task being mapped over is
         # itself a result of a mapped task, in which case it will already be a

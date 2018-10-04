@@ -11,11 +11,11 @@ class SerializeTask(Task):
     Serialize a result using a serializer. The serialized result must be less than 1kb.
     """
 
-    def __init__(self, serializer: Serializer, *args, **kwargs) -> None:
+    def __init__(self, serializer: Serializer, *args: Any, **kwargs: Any) -> None:
         self.serializer = serializer
         super().__init__(*args, **kwargs)
 
-    def run(self, data: Any) -> str:
+    def run(self, data: Any) -> str:  # type: ignore
         serialized = self.serializer.serialize(data)
         if not isinstance(serialized, str):
             raise TypeError(
@@ -33,9 +33,9 @@ class DeserializeTask(Task):
     Deserialize a result from a serialized value.
     """
 
-    def __init__(self, serializer: Serializer, *args, **kwargs) -> None:
+    def __init__(self, serializer: Serializer, *args: Any, **kwargs: Any) -> None:
         self.serializer = serializer
         super().__init__(*args, **kwargs)
 
-    def run(self, serialized: str) -> Any:
+    def run(self, serialized: str) -> Any:  # type: ignore
         return self.serializer.deserialize(serialized)

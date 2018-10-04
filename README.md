@@ -50,7 +50,7 @@ pytest
 
 ### Black formatting
 
-Merging to master in Prefect requires your code to pass [black](https://github.com/ambv/black). This can be easy to forget when developing, and for that reason some developers may choose to install a pre-push hook for black, as follows:
+Merging to master in Prefect requires that your code passes [black](https://github.com/ambv/black). This can be easy to forget when developing, and for that reason some developers may choose to install a pre-push hook for black, as follows:
 ```
 pip install pre-commit # installs pre-commit package
 cd prefect/ # make sure you are in the root directory of the prefect repo
@@ -69,7 +69,7 @@ yarn install # only the first time!
 yarn docs:dev
 ```
 
-Open [http://localhost:8080](http://localhost:8080) to see the documentation.
+And then open [http://localhost:8080](http://localhost:8080) to see the freshly built documentation.
 
 ### Style guide for docstrings
 
@@ -90,7 +90,7 @@ def function(x: int, y: float, z: str = None):
 
     Additional information if desired; note that backticks for code formatting
     is encouraged within argument descriptions, but should *not* be used in
-    the list itself.  Also, all other documentation can contain markdown.
+    the argument type.  Also, all other documentation can contain markdown.
 
     Returns:
         - None

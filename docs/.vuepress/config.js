@@ -30,13 +30,13 @@ module.exports = {
                 {
                     title: 'prefect',
                     collapsable: true,
-                    children: ['environments', 'schedules', 'serializers', 'triggers']
+                    children: ['environments', 'triggers']
                 },
 
                 {
                     title: 'prefect.core',
                     collapsable: true,
-                    children: ['core/task', 'core/flow', 'core/edge', 'core/registry']
+                    children: ['core/task', 'core/flow', 'core/edge']
                 },
 
                 {
@@ -51,16 +51,16 @@ module.exports = {
                 {
                     title: 'prefect.tasks',
                     collapsable: true,
-                    children: ['tasks/control_flow', 'tasks/function', 'tasks/shell']
+                    children: ['tasks/control_flow', 'tasks/function', 'tasks/shell', 'tasks/strings']
                 },
                 {
                     title: 'prefect.utilities',
                     collapsable: true,
-                    children: ['utilities/bokeh', 'utilities/collections', 'utilities/json', 'utilities/tasks']
+                    children: ['utilities/bokeh', 'utilities/collections', 'utilities/json', 'utilities/tasks', 'utilities/airflow']
                 },
             ],
             '/license': [],
-            '/': ['introduction', 'getting_started',
+            '/': ['introduction', 'changelog', 'getting_started',
                 {
                     title: 'Concepts',
                     collapsable: true,
@@ -70,7 +70,7 @@ module.exports = {
                     title: 'Tutorials',
                     collapsable: true,
                     children: ['tutorials/', 'tutorials/etl', 'tutorials/calculator', 'tutorials/task-retries', 'tutorials/triggers-and-references',
-                        'tutorials/visualization', 'tutorials/throttling', 'tutorials/advanced-mapping']
+                        'tutorials/visualization', 'tutorials/throttling', 'tutorials/advanced-mapping', 'tutorials/airflow_migration']
                 },
                 {
                     title: 'Comparisons',

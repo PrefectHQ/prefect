@@ -1,23 +1,44 @@
 # Prefect Changelog
 
-## 0.4.0 <Badge text="development" type="warn">
+## 0.4.0 <Badge text="alpha" type="warn">
+### Major Features
+
+- None
+
+### Minor Features
+
+- Add a new method `flow.get_tasks()` for easily filtering flow tasks by attribute [#242](https://github.com/PrefectHQ/prefect/pull/242)
+
+### Fixes
+
+- Flow consistently raises if passed a parameter that doesn't exist [#149](https://github.com/PrefectHQ/prefect/issues/149)
+
+### Breaking Changes
+
+- None
+
+## 0.3.2 <Badge text="alpha" type="warn">
 
 ### Major Features
+
 - Local parallelism with `DaskExecutor` [#151](https://github.com/PrefectHQ/prefect/issues/151), [#186](https://github.com/PrefectHQ/prefect/issues/186)
 - Resource throttling based on `tags` [#158](https://github.com/PrefectHQ/prefect/issues/158), [#186](https://github.com/PrefectHQ/prefect/issues/186)
 - `Task.map` for mapping tasks [#186](https://github.com/PrefectHQ/prefect/issues/186)
+- Added `AirFlow` utility for importing Airflow DAGs as Prefect Flows [#232](https://github.com/PrefectHQ/prefect/pull/232)
 
 ### Minor Features
 
 - Use Netlify to deploy docs - [#156](https://github.com/prefecthq/prefect/issues/156)
 - Add changelog - [#153](https://github.com/prefecthq/prefect/issues/153)
-- `ShellTask` - [#150](https://github.com/prefecthq/prefect/issues/150)
+- Add `ShellTask` - [#150](https://github.com/prefecthq/prefect/issues/150)
 - Base `Task` class can now be run as a dummy task - [#191](https://github.com/PrefectHQ/prefect/pull/191)
-- new `return_failed` keyword to `flow.run()` for returning failed tasks - [#205](https://github.com/PrefectHQ/prefect/pull/205)
+- New `return_failed` keyword to `flow.run()` for returning failed tasks - [#205](https://github.com/PrefectHQ/prefect/pull/205)
 - some minor changes to `flow.visualize()` for visualizing mapped tasks and coloring nodes by state - [#202](https://github.com/PrefectHQ/prefect/issues/202)
-- added new `flow.replace()` method for swapping out tasks within flows - [#230](https://github.com/PrefectHQ/prefect/pull/230)
-- add `debug` kwarg to `DaskExecutor` for optionally silencing dask logs - [#209](https://github.com/PrefectHQ/prefect/issues/209)
-- update `BokehRunner` for visualizing mapped tasks - [#220](https://github.com/PrefectHQ/prefect/issues/220)
+- Added new `flow.replace()` method for swapping out tasks within flows - [#230](https://github.com/PrefectHQ/prefect/pull/230)
+- Add `debug` kwarg to `DaskExecutor` for optionally silencing dask logs - [#209](https://github.com/PrefectHQ/prefect/issues/209)
+- Update `BokehRunner` for visualizing mapped tasks - [#220](https://github.com/PrefectHQ/prefect/issues/220)
+- Env var configuration settings are typed - [#204](https://github.com/PrefectHQ/prefect/pull/204)
+- Implement `map` functionality for the `LocalExecutor` - [#233](https://github.com/PrefectHQ/prefect/issues/233)
 
 ### Fixes
 
@@ -25,14 +46,33 @@
 - `DotDicts` can have non-string keys - [#193](https://github.com/prefecthq/prefect/issues/193)
 - Fix unexpected behavior in assigning tags using contextmanagers - [#190](https://github.com/PrefectHQ/prefect/issues/190)
 - Fix bug in initialization of Flows with only `edges` - [#225](https://github.com/PrefectHQ/prefect/pull/225)
+- Remove "bottleneck" when creating pipelines of mapped tasks - [#224](https://github.com/PrefectHQ/prefect/pull/224)
 
 ### Breaking Changes
+
+- Runner refactor - [#221](https://github.com/PrefectHQ/prefect/pull/221)
 - Cleaned up signatures of `TaskRunner` methods - [#171](https://github.com/prefecthq/prefect/issues/171)
 - Locally, Python 3.4 users can not run the more advanced parallel executors (`DaskExecutor`) [#186](https://github.com/PrefectHQ/prefect/issues/186)
 
-## 0.3.0 <Badge text="alpha" type="warn">
+## 0.3.1 <Badge text="alpha" type="warn">
 
-0.3.0 is the preview release of Prefect.
+### Major Features
+
+- Support for user configuration files - [#195](https://github.com/PrefectHQ/prefect/pull/195)
+
+### Minor Features
+
+- None
+
+### Fixes
+
+- Let DotDicts accept non-string keys - [#194](https://github.com/PrefectHQ/prefect/pull/194)
+
+### Breaking Changes
+
+- None
+
+## 0.3.0 <Badge text="alpha" type="warn">
 
 ### Major Features
 

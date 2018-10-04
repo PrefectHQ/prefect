@@ -1,4 +1,37 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+"""
+The BokehRunner class is a special [FlowRunner](../engine/flow_runner.html) subclass meant for debugging, exploring, visualizing, and
+demonstrating Prefect Flow state logic.
+
+This is _not_ intended as a replacement for a full-fledge UI, but simply an additional tool
+for locally inspecting and groking how Prefect handles Flow execution logic, including how
+states propagate throughout the Flow.
+
+**Example:**
+
+```python
+from prefect import Flow, task
+from prefect.utilities.bokeh_runner import BokehRunner
+
+@task
+def add(x, y):
+    return x + y
+
+@task
+def div(x, y):
+    return x / y
+
+with Flow("bokeh-example") as f:
+    x, y = Parameter("x"), Parameter("y")
+    t1 = add(x, y)
+    t2 = div(x, y)
+    t3 = add(t1, t2)
+
+BokehRunner(flow=f).run(parameters={"x": 5, "y": 0}) # opens a new webapp
+```
+
+<img src='/bokeh_runner_doc_example.png'>
+"""
 
 import os
 import subprocess
@@ -26,23 +59,66 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
     demonstrating Prefect Flow state logic.
 
     Initialized and handled exactly like the standard FlowRunner class.
+
+    **Example:**
+        ```python
+        from prefect.utilities.bokeh_runner import BokehRunner
+        from prefect import task, Flow
+
+        @task
+        def add(x, y):
+            return x + y
+
+        with Flow() as f:
+            one = add(0, 1)
+            two = add(0, 2)
+            res = add(one, two)
+
+        BokehRunner(flow=f).run() # opens up a webapp
+        ```
     """
 
-    def run(
+    def run(  # type: ignore
         self,
-        state=None,
-        task_states=None,
-        start_tasks=None,
-        parameters=None,
-        executor=None,
-        context=None,
-        task_contexts=None,
-        title=None,
-        viz=True,
-    ):
+        state: "prefect.engine.state.State" = None,
+        task_states: Dict["prefect.Task", "prefect.engine.state.State"] = None,
+        start_tasks: Iterable["prefect.Task"] = None,
+        parameters: Dict[str, Any] = None,
+        executor: "prefect.engine.executors.Executor" = None,
+        context: Dict[str, Any] = None,
+        task_contexts: Dict["prefect.Task", Dict[str, Any]] = None,
+        title: str = None,
+        viz: bool = True,
+    ) -> "prefect.engine.state.State":
         """
         Runs the Flow, and then opens up a Bokeh webapp for retroactively inspecting
         the execution of the Flow.
+
+        Args:
+            - state (State, optional): starting state for the Flow. Defaults to
+                `Pending`
+            - task_states (dict, optional): dictionary of task states to begin
+                computation with, with keys being Tasks and values their corresponding state
+            - start_tasks ([Task], optional): list of Tasks to begin computation
+                from; if any `start_tasks` have upstream dependencies, their states may need to be provided as well.
+                Defaults to `self.flow.root_tasks()`
+            - parameters (dict, optional): dictionary of any needed Parameter
+                values, with keys being strings representing Parameter names and values being their corresponding values
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor provided in your prefect configuration
+            - context (dict, optional): prefect.Context to use for execution
+            - task_contexts (dict, optional): dictionary of individual contexts
+                to use for each Task run
+            - title (str, optional): optional title for the webapp plot;
+                defaults to "Prefect Flow Interactive Demonstration: flow.name"
+            - viz (bool, optional): if `False`, will simply run the Flow and
+                return its state (with all tasks returned) without opening the webapp.
+
+        Returns:
+            - State: `State` representing the final post-run state of the `Flow`.
+
+        Raises:
+            - ValueError: if any throttle values are `<= 0`
         """
         self.task_states = task_states or {}
         self.start_tasks = start_tasks or []
@@ -57,7 +133,7 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
             context=context,
             task_contexts=task_contexts,
         )
-        self.reset_flow(self.flow_state)
+        self._reset_flow(self.flow_state)
         self.title = title or "Prefect Flow Interactive Demonstration: {}".format(
             self.flow.name
         )
@@ -74,9 +150,21 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
                 )
         return self.flow_state
 
-    def reset_flow(self, state):
-        map_counts = defaultdict(lambda: 0)
-        mapped_tasks = {}
+    def _reset_flow(self, state: "prefect.engine.state.State") -> None:
+        """
+        Expands out any mapped tasks into the appropriate number of copies, based
+        on the data provided in `state`.  Creates a new Flow and a new flow state
+        and saves them in `self.flow` and `self.flow_state` attributes, in place.
+
+        Args:
+            - state (State): the final, post-run Flow state used for determining
+                how many task copies to make for mapped tasks
+
+        Returns:
+            - None
+        """
+        map_counts = defaultdict(lambda: 0)  # type: dict
+        mapped_tasks = {}  # type: Dict["prefect.Task", List["prefect.Task"]]
         edges = []
 
         for task in self.flow.sorted_tasks():
@@ -123,7 +211,7 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
         self.flow = prefect.Flow(edges=edges, name=self.flow.name)
         self.flow_state = state
 
-    def compute_depths(self):
+    def _compute_depths(self) -> Dict["prefect.Task", int]:
         flow = self.flow
         depths = {task: 0 for task in flow.tasks}
         for task in flow.sorted_tasks():

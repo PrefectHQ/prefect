@@ -6,7 +6,7 @@ import inspect
 import tempfile
 import uuid
 from collections import Counter
-from typing import Any, Dict, Iterable, List, Mapping, Set, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Set, Tuple
 
 import xxhash
 from mypy_extensions import TypedDict
@@ -22,7 +22,7 @@ from prefect.utilities.tasks import as_task, unmapped
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
 
-def cache(method):
+def cache(method: Callable) -> Callable:
     """
     Decorator for caching Flow methods.
 
@@ -33,7 +33,7 @@ def cache(method):
     """
 
     @functools.wraps(method)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self, *args, **kwargs):  # type: ignore
 
         cache_check = dict(
             tasks=self.tasks.copy(),
@@ -118,7 +118,7 @@ class Flow(Serializable):
         register: bool = False,
         throttle: Dict[str, int] = None,
     ) -> None:
-        self._cache = {}
+        self._cache = {}  # type: dict
 
         self._id = str(uuid.uuid4())
         self._task_ids = dict()  # type: Dict[Task, str]
@@ -152,7 +152,7 @@ class Flow(Serializable):
         self.throttle = throttle or {}
         if min(self.throttle.values(), default=1) <= 0:
             bad_tags = ", ".join(
-                ['"' + tag + '"' for tag, num in throttle.items() if num <= 0]
+                ['"' + tag + '"' for tag, num in self.throttle.items() if num <= 0]
             )
             raise ValueError(
                 "Cannot throttle tags {0} - an invalid value less than 1 was provided.".format(
@@ -203,6 +203,43 @@ class Flow(Serializable):
         return new
 
     # Identification -----------------------------------------------------------
+
+    def get_tasks(
+        self,
+        name: str = None,
+        slug: str = None,
+        tags: Iterable[str] = None,
+        task_type: type = None,
+    ) -> List[Task]:
+        """
+        Helper method for retrieving tasks from this flow based on certain attributes.
+        The _intersection_ of all provided attributes is taken, i.e., only those tasks
+        which match _all_ provided conditions are returned.
+
+        Args:
+            - name (str, optional): the name of the task
+            - slug (str, optional): the slug of the task
+            - tags ([str], optional): an iterable of task tags
+            - task_type (type, optional): a possible task class type
+
+        Returns:
+            - [Task]: a list of tasks which meet the required conditions
+        """
+
+        def sieve(t: Task) -> bool:
+            keep = True
+            if name is not None:
+                keep &= t.name == name
+            if slug is not None:
+                keep &= t.slug == slug
+            if tags is not None:
+                keep &= t.tags.issuperset(tags)
+            if task_type is not None:
+                keep &= isinstance(t, task_type)
+            return keep
+
+        keep_tasks = filter(sieve, self.tasks)
+        return list(keep_tasks)
 
     def replace(self, old: Task, new: Task, validate: bool = True) -> None:
         """
@@ -291,7 +328,8 @@ class Flow(Serializable):
     @cache
     def root_tasks(self) -> Set[Task]:
         """
-        Get the tasks in the flow that have no upstream dependencies
+        Get the tasks in the flow that have no upstream dependencies; these are
+        the tasks which, by default, flow execution begins with.
 
         Returns:
             - set of Task objects that have no upstream dependencies
@@ -309,15 +347,17 @@ class Flow(Serializable):
         return set(t for t in self.tasks if not self.edges_from(t))
 
     @cache
-    def parameters(self, only_required=False) -> Dict[str, ParameterDetails]:
+    def parameters(self, only_required: bool = False) -> Dict[str, ParameterDetails]:
         """
-        Get details about any Parameters in this flow
+        Get details about any Parameters in this flow.
 
         Args:
-            - only_required (bool, optional): Whether or not to only get required parameters
+            - only_required (bool, optional): Whether or not to only get
+            required parameters; defaults to `False`
 
         Returns:
-            - dict with format {task name: task} which is a Parameter
+            - dict: of `{task.name: task}` for all tasks in the flow which are
+            Parameters
         """
         return {
             t.name: {"required": t.required, "default": t.default}
@@ -327,19 +367,21 @@ class Flow(Serializable):
 
     def reference_tasks(self) -> Set[Task]:
         """
-        A flow's "reference tasks" are used to determine its state when it runs. If all the key
+        A flow's "reference tasks" are used to determine its state when it runs. If all the reference
         tasks are successful, then the flow run is considered successful. However, if
         any of the reference tasks fail, the flow is considered to fail. (Note that skips are
-        counted as successes.)
+        counted as successes; see [the state documentation](../engine/state.html) for a full description
+        of what is considered failure, success, etc.)
 
         By default, a flow's reference tasks are its terminal tasks. This means the state of a
-        flow is determined by the last tasks that run.
+        flow is determined by those tasks which have no downstream dependencies.
 
-        In some situations, users may want to customize that behavior; for example, if a
-        flow's terminal tasks are "clean up" tasks for the rest of the flow. The
-        flow.set_reference_tasks() method can be used to set custom reference_tasks.
+        In some situations, users may want to customize this behavior; for example, if a
+        flow's terminal tasks are "clean up" tasks for the rest of the flow that only run
+        if certain (more relevant) tasks fail, we might not want them determining the overall
+        state of the flow run. The `flow.set_reference_tasks()` method can be used to set such custom `reference_tasks`.
 
-        Please note that even if reference_tasks are provided that are not terminal tasks, the flow
+        Please note that even if `reference_tasks` are provided that are not terminal tasks, the flow
         will not be considered "finished" until all terminal tasks have completed. Only then
         will state be determined, using the reference tasks.
 
@@ -353,7 +395,7 @@ class Flow(Serializable):
 
     def set_reference_tasks(self, tasks: Iterable[Task]) -> None:
         """
-        Sets the "reference tasks" for the flow. See flow.reference_tasks() for more details.
+        Sets the `reference_tasks` for the flow. See `flow.reference_tasks` for more details.
 
         Args:
             - tasks ([Task]): the tasks that should be set as a flow's reference tasks
@@ -378,11 +420,11 @@ class Flow(Serializable):
             - task (Task): the new Task to be added to the flow
 
         Returns:
-            - The Task object passed in if the task was successfully added
+            - Task: the `Task` object passed in if the task was successfully added
 
         Raises:
-            - TypeError: if the the value for `task` is not of type `Task`
-            - ValueError: if the `task.slug` matches that of a task in the flow
+            - TypeError: if the `task` is not of type `Task`
+            - ValueError: if the `task.slug` matches that of a task already in the flow
         """
         if not isinstance(task, Task):
             raise TypeError(
@@ -416,13 +458,16 @@ class Flow(Serializable):
         Args:
             - upstream_task (Task): The task that the edge should start from
             - downstream_task (Task): The task that the edge should end with
-            - key (str, optional): The key to be set for the new edge
-            - mapped (bool, optional): Whether this edge represents a call to
-                `Task.map()`; defaults to `False`
-            - validate (bool, optional): Whether or not to check the validity of the flow
+            - key (str, optional): The key to be set for the new edge; this is
+                the argument name the result of the upstream task will be bound to in the
+                `run()` method of the downstream task
+            - mapped (bool, optional): Whether this edge represents a call to `Task.map()`; defaults to `False`
+            - validate (bool, optional): Whether or not to check the validity of
+                the flow (e.g., presence of cycles).  Defaults to the value of `eager_edge_validation`
+                in your prefect configuration file.
 
         Returns:
-            - The Edge object that was successfully added to the flow
+            - prefect.core.edge.Edge: The `Edge` object that was successfully added to the flow
 
         Raises:
             - ValueError: if the `downstream_task` is of type `Parameter`
@@ -472,13 +517,16 @@ class Flow(Serializable):
 
         return edge
 
-    def chain(self, *tasks, validate: bool = None) -> List[Edge]:
+    def chain(self, *tasks: Task, validate: bool = None) -> List[Edge]:
         """
-        Adds a sequence of dependent tasks to the flow.
+        Adds a sequence of dependent tasks to the flow; each task should be provided
+        as an argument (or splatted from a list).
 
         Args:
-            - *tasks (list): A list of tasks
-            - validate (bool, optional): Whether or not to check the validity of the flow
+            - *tasks (list): A list of tasks to chain together
+            - validate (bool, optional): Whether or not to check the validity of
+                the flow (e.g., presence of cycles).  Defaults to the value of `eager_edge_validation`
+                in your prefect configuration file.
 
         Returns:
             - A list of Edge objects added to the flow
@@ -519,7 +567,8 @@ class Flow(Serializable):
     @cache
     def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
         """
-        Get all of the upstream edges in the flow
+        Returns a dictionary relating each task in the Flow to the set of
+        all _upstream_ edges for the task
 
         Returns:
             - dict with the key as tasks and the value as a set of upstream edges
@@ -532,7 +581,8 @@ class Flow(Serializable):
     @cache
     def all_downstream_edges(self) -> Dict[Task, Set[Edge]]:
         """
-        Get all of the downstream edges in the flow
+        Returns a dictionary relating each task in the Flow to the set of
+        all _downstream_ edges for the task
 
         Returns:
             - dict with the key as tasks and the value as a set of downstream edges
@@ -544,7 +594,7 @@ class Flow(Serializable):
 
     def edges_to(self, task: Task) -> Set[Edge]:
         """
-        Get all of the edges leading to a task
+        Get all of the edges leading to a task (i.e., the upstream edges)
 
         Args:
             - task (Task): The task that we want to find edges leading to
@@ -564,7 +614,7 @@ class Flow(Serializable):
 
     def edges_from(self, task: Task) -> Set[Edge]:
         """
-        Get all of the edges leading from a task
+        Get all of the edges leading from a task (i.e., the downstream edges)
 
         Args:
             - task (Task): The task that we want to find edges leading from
@@ -640,7 +690,8 @@ class Flow(Serializable):
         cycles exist in this flow's DAG.
 
         Args:
-            - root_tasks ([Tasks], optional): an `Iterable` of `Task` objects
+            - root_tasks ([Tasks], optional): an `Iterable` of `Task` objects to
+            start the sorting from
 
         Returns:
             - tuple of task objects that were sorted
@@ -716,7 +767,7 @@ class Flow(Serializable):
         validate: bool = None,
     ) -> None:
         """
-        Convenience function for adding task dependencies on upstream tasks.
+        Convenience function for adding task dependencies.
 
         Args:
             - task (object): a Task that will become part of the Flow. If the task is not a
@@ -733,10 +784,12 @@ class Flow(Serializable):
                 and non-keyed) should be mapped over; defaults to `False`. If `True`, any
                 tasks wrapped in the `prefect.utilities.tasks.unmapped` container will
                 _not_ be mapped over.
-            - validate (bool, optional): Whether or not to check the validity of the flow
+            - validate (bool, optional): Whether or not to check the validity of
+                the flow (e.g., presence of cycles).  Defaults to the value of `eager_edge_validation`
+                in your prefect configuration file.
 
         Returns:
-            None
+            - None
         """
 
         task = as_task(task)
@@ -782,7 +835,7 @@ class Flow(Serializable):
         self,
         parameters: Dict[str, Any] = None,
         return_tasks: Iterable[Task] = None,
-        **kwargs
+        **kwargs: Any
     ) -> "prefect.engine.state.State":
         """
         Run the flow using an instance of a FlowRunner
@@ -799,6 +852,14 @@ class Flow(Serializable):
         """
         runner = prefect.engine.flow_runner.FlowRunner(flow=self)
         parameters = parameters or []
+        unknown_params = [p for p in parameters if p not in self.parameters()]
+        if unknown_params:
+            fmt_params = ", ".join(unknown_params)
+            raise TypeError(
+                "Flow.run received the following unexpected parameters: {}".format(
+                    fmt_params
+                )
+            )
 
         passed_parameters = {}
         for p in self.parameters():
@@ -824,9 +885,11 @@ class Flow(Serializable):
 
     # Visualization ------------------------------------------------------------
 
-    def visualize(self, flow_state=None):
+    def visualize(self, flow_state: "prefect.engine.state.State" = None) -> object:
         """
-        Creates graphviz object for representing the current flow
+        Creates graphviz object for representing the current flow; this graphviz
+        object will be rendered inline if called from an IPython notebook, otherwise
+        it will be rendered in a new window.
 
         Args:
             - flow_state (State, optional): flow state object used to optionally color the nodes
@@ -844,7 +907,7 @@ class Flow(Serializable):
             )
             raise ImportError(msg)
 
-        def get_color(task):
+        def get_color(task: Task) -> str:
             colors = {
                 "Retrying": "#FFFF0080",
                 "CachedState": "orange",
@@ -891,14 +954,14 @@ class Flow(Serializable):
 
     # Building / Serialization ----------------------------------------------------
 
-    def serialize(self, build=False) -> dict:
+    def serialize(self, build: bool = False) -> dict:
         """
         Creates a serialized representation of the flow.
 
         Args:
             - build (bool, optional): if `True`, the flow's environment is built and the resulting
                 `environment_key` is included in the serialized flow. If `False` (default),
-                the environment is not build and the `environment_key` is `None`.
+                the environment is not built and the `environment_key` is `None`.
 
         Returns:
             - dict representing the flow
@@ -938,7 +1001,7 @@ class Flow(Serializable):
             throttle=self.throttle,
         )
 
-    def register(self, registry=None) -> None:
+    def register(self, registry: dict = None) -> None:
         """
         Register the flow.
 
@@ -1173,5 +1236,5 @@ class Flow(Serializable):
         return ids
 
 
-def _hash(value):
+def _hash(value: str) -> bytes:
     return xxhash.xxh64(value).digest()
