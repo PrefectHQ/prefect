@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import json
 import os
 from pathlib import Path
 
@@ -50,7 +51,7 @@ def load_flow(project, name, version, file):
 @click.group()
 def flows():
     """
-    Interact with Prefect flows
+    Interact with Prefect flows.
     """
     pass
 
@@ -96,7 +97,7 @@ def run(id):
 @click.argument("path", required=False)
 def build(project, name, version, file, path):
     """
-    Build a flow's environment
+    Build a flow's environment and push it to a registry.
     """
     config_data = load_prefect_config(path)
     flow = load_flow(project, name, version, file)
@@ -107,25 +108,22 @@ def build(project, name, version, file, path):
 
     client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
 
-    # Create the flow's project
-    # projects_gql = Projects(client=client)
-    # project_id = projects_gql.create(name=flow.project)
+    # Environment is built and pushed to the registry
+    environment_metadata = flow.environment.build(flow=flow)
 
-    # print(project_id)
-
-    # Create the flow
+    # Create the flow in the database
     flows_gql = Flows(client=client)
 
     try:
-        flows_gql.create(serialized_flow=flow.serialize())
+        # Store metadata of environment to avoid storing client secrets
+        serialized_flow = flow.serialize()
+        serialized_flow["environment"] = prefect_json.dumps(environment_metadata)
+        flows_gql.create(serialized_flow=serialized_flow)
     except ValueError as value_error:
         if "No project found for" in str(value_error):
             raise click.ClickException("No project found for {}".format(project))
         else:
-            raise click.ClickException(value_error)
-
-    # Environment is built and pushed to the registry (unless otherwise specified)
-    # flow.environment.build(flow=flow)
+            raise click.ClickException(str(value_error))
 
 
 @flows.command()
@@ -141,7 +139,7 @@ def build(project, name, version, file, path):
 @click.argument("path", required=False)
 def push(project, name, version, file, path):
     """
-    Push a flow's container environment to a registry
+    Push a flow's container environment to a registry.
     """
     config_data = load_prefect_config(path)
     flow = load_flow(project, name, version, file)
@@ -180,7 +178,7 @@ def push(project, name, version, file, path):
 @click.argument("path", required=False)
 def deploy(project, name, version, file, path):
     """
-    Deploy the flow
+    Deploy a running flow.
     """
     config_data = load_prefect_config(path)
     flow = load_flow(project, name, version, file)
@@ -191,7 +189,18 @@ def deploy(project, name, version, file, path):
 
     client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
 
-    image_name = os.path.join(config_data["REGISTRY_URL"], flow.environment.image)
+    # Create the flow in the database
+    flows_gql = Flows(client=client)
+    environment = flows_gql.query_environment_metadata(
+        flow.project, flow.name, flow.version
+    )
+
+    # Load flow id and environment metadata
+    flow_id = environment.flows[0].id
+    environment = prefect_json.loads(environment.flows[0].environment)
+    image_name = os.path.join(config_data["REGISTRY_URL"], environment["image_name"])
 
     rf = RunFlow(client=client)
-    rf.run_flow(image_name=image_name, image_tag=flow.environment.tag, flow_id=flow.id)
+    rf.run_flow(image_name=image_name, image_tag=environment["image_tag"], flow_id=environment["flow_id"])
+
+    click.echo("{} deployed.".format(name))

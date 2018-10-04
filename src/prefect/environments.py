@@ -186,7 +186,7 @@ class ContainerEnvironment(Environment):
             image_name = os.path.join(config_data["REGISTRY_URL"], self.name)
 
             print("Building the flow's container environment...")
-            container = client.images.build(
+            client.images.build(
                 path=tempdir, tag="{}:{}".format(image_name, self.tag), forcerm=True
             )
 
@@ -196,7 +196,7 @@ class ContainerEnvironment(Environment):
             # Remove the image locally after being pushed
             client.images.remove("{}:{}".format(image_name, self.tag))
 
-            return container
+            return {"image_name": self.name, "image_tag": self.tag, "flow_id": flow.id}
 
     def run(self, key: bytes, cli_cmd: str) -> None:
         """Run a command in the Docker container

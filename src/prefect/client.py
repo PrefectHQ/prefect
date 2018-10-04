@@ -146,8 +146,7 @@ class Client:
         )
 
         if "errors" in result:
-            raise ValueError(result)
-            # raise ValueError(result["errors"])
+            raise ValueError(result["errors"])
         else:
             return to_dotdict(result).data
 
@@ -337,7 +336,7 @@ class Flows(ClientModule):
             - serialized_flow (dict): A json serialized version of a flow
 
         Returns:
-            - dict: Data returned from the GraphQL query
+            - dict: Data returned from the GraphQL mutation
         """
         return self._graphql(
             """
@@ -348,6 +347,38 @@ class Flows(ClientModule):
             }
             """,
             input=dict(serializedFlow=json.dumps(serialized_flow)),
+        )
+
+    def query_environment_metadata(self, project_name, flow_name, flow_version) -> dict:
+        """
+        Retrieve a flow's environment metadata
+
+        Args:
+            - project_name (str): Name of the project that the flow belongs to
+            - flow_name (str): Name of the flow
+            - flow_version (str): Version of the flow
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            query($name: String!, $project_name: String!, $version: String!) {
+                flows(where: {
+                    name: $name,
+                    version: $version,
+                    project: {
+                        name: $project_name
+                    }
+                }) {
+                    id,
+                    environment
+                }
+            }
+            """,
+            name=flow_name,
+            version=flow_version,
+            project_name=project_name,
         )
 
 
