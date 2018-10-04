@@ -740,3 +740,9 @@ def test_flow_runner_handles_mapped_timeouts(executor):
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
     assert state.is_failed()
+
+    mapped_states = state.result[res]
+    assert mapped_states[0].is_successful()
+    for fstate in mapped_states[1:]:
+        assert fstate.is_failed()
+        assert isinstance(fstate.message, TimeoutError)

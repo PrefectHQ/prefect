@@ -29,13 +29,22 @@ class Executor(Serializable):
         """
         yield
 
-    def map(self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any) -> Any:
+    def map(
+        self,
+        fn: Callable,
+        *args: Any,
+        timeout: time_type = None,
+        upstream_states=None,
+        **kwargs: Any
+    ) -> Any:
         """
         Submit a function to be mapped over.
 
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn` with each call
+            - timeout (datetime.timedelta or int): maximum length of time to allow for
+                execution of each individual task; if `int` is provided, interpreted as seconds.
             - upstream_states ({Edge: State}): a dictionary of upstream
                 dependencies, keyed by Edge; the values are upstream states (or lists of states).
                 This dictionary is used to determine which upstream depdencies should be mapped over,
