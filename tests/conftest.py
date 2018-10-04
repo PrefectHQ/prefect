@@ -98,3 +98,27 @@ def clear_registry():
     """
     yield
     prefect.core.registry.REGISTRY.clear()
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--airflow",
+        action="store_true",
+        dest="airflow",
+        help="including this flag will attempt to run airflow compatibility tests",
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "airflow: mark test to run only when --airflow flag is provided."
+    )
+
+
+def pytest_runtest_setup(item):
+    mark = item.get_marker("airflow")
+    if mark is not None:
+        if item.config.getoption("--airflow") is False:
+            pytest.mark.skip(
+                "Airflow tests skipped by default unless --airflow flag provided to pytest."
+            )

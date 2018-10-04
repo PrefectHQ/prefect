@@ -46,6 +46,11 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
             logging.debug("DONTRUN signal raised: {}".format(exc))
             raise
 
+        # PAUSE signals get raised for handling
+        except signals.PAUSE as exc:
+            logging.debug("PAUSE signal raised: {}".format(exc))
+            raise
+
         # RETRY signals are trapped and turned into Retry states
         except signals.RETRY as exc:
             logging.debug("RETRY signal raised")
@@ -168,10 +173,10 @@ class TaskRunner:
             # a DONTRUN signal at any point breaks the chain and we return
             # the most recently computed state
             except signals.DONTRUN as exc:
-                if "manual_only" in str(exc):
-                    state.cached_inputs = task_inputs or {}
-                    state.message = exc
                 pass
+            except signals.PAUSE as exc:
+                state.cached_inputs = task_inputs or {}
+                state.message = exc
             finally:  # resource is now available
                 for ticket, q in zip(tickets, queues):
                     q.put(ticket)
