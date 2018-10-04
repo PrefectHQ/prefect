@@ -43,7 +43,6 @@ OUTLINE = [
             prefect.triggers.all_finished,
             prefect.triggers.manual_only,
             prefect.triggers.always_run,
-            prefect.triggers.never_run,
             prefect.triggers.all_successful,
             prefect.triggers.all_failed,
             prefect.triggers.any_successful,
