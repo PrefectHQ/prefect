@@ -100,16 +100,6 @@ def test_submit_does_not_assume_pure_functions(executor):
     assert one != two
 
 
-@pytest.mark.parametrize("timeout", [1, datetime.timedelta(seconds=1)])
-@pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
-def test_submit_with_timeout(executor, timeout):
-    slow_fn = lambda: time.sleep(3)
-    with executor.start():
-        res = executor.wait(executor.submit_with_timeout(slow_fn, timeout=timeout))
-    assert isinstance(res, Failed)
-    assert isinstance(res.message, TimeoutError)
-
-
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
 @pytest.mark.parametrize("timeout", [1, datetime.timedelta(seconds=1)])
 def test_simple_submit_with_timeout(executor, timeout):

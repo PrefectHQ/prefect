@@ -24,6 +24,7 @@ def multiprocessing_timeout(exec_method):
             """Puts the return value in a multiprocessing-safe container"""
             _container.put(fn(*args, **kwargs))
 
+        @wraps(fn)
         def timeout_handler(*args, **kwargs):
             q = multiprocessing.Queue()
             kwargs["_container"] = q
@@ -37,25 +38,38 @@ def multiprocessing_timeout(exec_method):
                 return Failed(message=TimeoutError("Execution timed out."))
 
         return exec_method(self, timeout_handler, *args, **kwargs)
+
     return wrapped_timeout_method
 
 
-def main_thread_timeout(fn, timeout):
-    def error_handler(signum, frame):
-        raise TimeoutError("Execution timed out.")
+def main_thread_timeout(exec_method):
+    @wraps(exec_method)
+    def wrapped_timeout_method(self, fn, *args, timeout=None, **kwargs):
+        if timeout is None:
+            return exec_method(self, fn, *args, **kwargs)
+        elif isinstance(timeout, datetime.timedelta):
+            timeout = round(timeout.total_seconds())
+        else:
+            timeout = round(timeout)
 
-    def timeout_handler(*args, **kwargs):
-        try:
-            signal.signal(signal.SIGALRM, error_handler)
-            signal.alarm(timeout)
-            res = fn(*args, **kwargs)
-            return res
-        except TimeoutError as exc:
-            return Failed(message=exc)
-        finally:
-            signal.alarm(0)
+        def error_handler(signum, frame):
+            raise TimeoutError("Execution timed out.")
 
-    return timeout_handler
+        @wraps(fn)
+        def timeout_handler(*args, **kwargs):
+            try:
+                signal.signal(signal.SIGALRM, error_handler)
+                signal.alarm(timeout)
+                res = fn(*args, **kwargs)
+                return res
+            except TimeoutError as exc:
+                return Failed(message=exc)
+            finally:
+                signal.alarm(0)
+
+        return exec_method(self, timeout_handler, *args, **kwargs)
+
+    return wrapped_timeout_method
 
 
 def dict_to_list(dd):
