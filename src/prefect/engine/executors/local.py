@@ -3,7 +3,7 @@
 from typing import Any, Callable, Iterable
 
 from prefect.engine.executors.base import Executor, time_type
-from prefect.utilities.executors import dict_to_list
+from prefect.utilities.executors import dict_to_list, main_thread_timeout
 
 
 class LocalExecutor(Executor):
@@ -11,6 +11,8 @@ class LocalExecutor(Executor):
     An executor that runs all functions synchronously and immediately in
     the local thread.  To be used mainly for debugging purposes.
     """
+
+    _default_timeout_handler = staticmethod(main_thread_timeout)
 
     def map(
         self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any

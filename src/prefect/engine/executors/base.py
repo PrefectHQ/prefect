@@ -17,9 +17,11 @@ class Executor(Serializable):
     Base Executor class which all other executors inherit from.
     """
 
-    def __init__(self, timeout_handler=multiprocessing_timeout):
+    _default_timeout_handler = staticmethod(multiprocessing_timeout)
+
+    def __init__(self, timeout_handler=None):
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
-        self.timeout_handler = timeout_handler
+        self.timeout_handler = timeout_handler or self._default_timeout_handler
 
     @contextmanager
     def start(self) -> Iterable[None]:
@@ -89,7 +91,7 @@ class Executor(Serializable):
         # all executors, but can be overriden as is necessary
 
         if isinstance(timeout, datetime.timedelta):
-            timeout = timeout.total_seconds()
+            timeout = round(timeout.total_seconds())
         elif timeout is not None:
             timeout = round(timeout)
 
