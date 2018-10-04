@@ -17,9 +17,16 @@ A cache validator returns `True` if the cache is still valid, and `False` otherw
 """
 from datetime import datetime
 from toolz import curry
+from typing import Any, Dict, Iterable
+
+import prefect
 
 
-def never_use(state, inputs, parameters) -> bool:
+def never_use(
+    state: "prefect.engine.state.CachedState",
+    inputs: Dict[str, Any],
+    parameters: Dict[str, Any],
+) -> bool:
     """
     Never uses the cache.
 
@@ -36,7 +43,11 @@ def never_use(state, inputs, parameters) -> bool:
     return False
 
 
-def duration_only(state, inputs, parameters) -> bool:
+def duration_only(
+    state: "prefect.engine.state.CachedState",
+    inputs: Dict[str, Any],
+    parameters: Dict[str, Any],
+) -> bool:
     """
     Validates the cache based only on cache expiration.
 
@@ -58,7 +69,11 @@ def duration_only(state, inputs, parameters) -> bool:
         return False
 
 
-def all_inputs(state, inputs, parameters) -> bool:
+def all_inputs(
+    state: "prefect.engine.state.CachedState",
+    inputs: Dict[str, Any],
+    parameters: Dict[str, Any],
+) -> bool:
     """
     Validates the cache based on cache expiration _and_ all inputs which were provided
     on the last successful run.
@@ -81,7 +96,11 @@ def all_inputs(state, inputs, parameters) -> bool:
         return False
 
 
-def all_parameters(state, inputs, parameters) -> bool:
+def all_parameters(
+    state: "prefect.engine.state.CachedState",
+    inputs: Dict[str, Any],
+    parameters: Dict[str, Any],
+) -> bool:
     """
     Validates the cache based on cache expiration _and_ all parameters which were provided
     on the last successful run.
@@ -105,7 +124,12 @@ def all_parameters(state, inputs, parameters) -> bool:
 
 
 @curry
-def partial_parameters_only(state, inputs, parameters, validate_on=None) -> bool:
+def partial_parameters_only(
+    state: "prefect.engine.state.CachedState",
+    inputs: Dict[str, Any],
+    parameters: Dict[str, Any],
+    validate_on: Iterable[str] = None,
+) -> bool:
     """
     Validates the cache based on cache expiration _and_ a subset of parameters (determined by the
     `validate_on` keyword) which were provided on the last successful run.
@@ -164,7 +188,12 @@ def partial_parameters_only(state, inputs, parameters, validate_on=None) -> bool
 
 
 @curry
-def partial_inputs_only(state, inputs, parameters, validate_on=None) -> bool:
+def partial_inputs_only(
+    state: "prefect.engine.state.CachedState",
+    inputs: Dict[str, Any],
+    parameters: Dict[str, Any],
+    validate_on: Iterable[str] = None,
+) -> bool:
     """
     Validates the cache based on cache expiration _and_ a subset of inputs (determined by the
     `validate_on` keyword) which were provided on the last successful run.

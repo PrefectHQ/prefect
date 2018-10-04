@@ -29,12 +29,11 @@ def manual_only(upstream_states: Set["state.State"]) -> bool:
 
     Note this doesn't raise a failure, it simply doesn't run the task.
     """
-    raise signals.DONTRUN('Trigger function is "manual_only"')
+    raise signals.PAUSE('Trigger function is "manual_only"')
 
 
 # aliases
 always_run = all_finished
-never_run = manual_only
 
 
 def all_successful(upstream_states: Set["state.State"]) -> bool:

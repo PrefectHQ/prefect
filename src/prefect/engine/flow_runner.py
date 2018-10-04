@@ -90,7 +90,7 @@ class FlowRunner:
     """
 
     def __init__(
-        self, flow: Flow, task_runner_cls=None, logger_name: str = None
+        self, flow: Flow, task_runner_cls: type = None, logger_name: str = None
     ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
@@ -244,7 +244,7 @@ class FlowRunner:
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
                 upstream_states = {}
-                task_inputs = {}
+                task_inputs = {}  # type: Dict[str, Any]
                 mapped = False
 
                 # -- process each edge to the task
@@ -252,11 +252,13 @@ class FlowRunner:
                     upstream_states[edge] = task_states[edge.upstream_task]
                     mapped |= edge.mapped
 
-                # TODO: comment about why this is here
+                # if a task is provided as a start_task and its state is also
+                # provided, we assume that means it requires cached_inputs
                 if task in start_tasks and task in task_states:
                     passed_state = task_states[task]
                     if not isinstance(passed_state, list):
-                        task_inputs.update(task_states[task].cached_inputs)
+                        assert isinstance(passed_state, Pending)  # mypy assertion
+                        task_inputs.update(passed_state.cached_inputs)
 
                 # -- run the task
                 task_runner = self.task_runner_cls(task=task)
