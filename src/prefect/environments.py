@@ -297,7 +297,7 @@ class ContainerEnvironment(Environment):
 
                 ENV PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="$HOME/.prefect/registry"
 
-                RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
+                RUN git clone -b josh/ie https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN cd prefect; git checkout tags/0.3.2; cd ..
                 RUN pip install ./prefect
             """.format(
