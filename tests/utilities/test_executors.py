@@ -18,7 +18,10 @@ def test_timeout_handler_passes_args_and_kwargs_and_returns(handler):
     def do_nothing(x, y=None):
         return x, y
 
-    assert handler(do_nothing, 5, timeout=timedelta(seconds=1), y="yellow") == (5, "yellow")
+    assert handler(do_nothing, 5, timeout=timedelta(seconds=1), y="yellow") == (
+        5,
+        "yellow",
+    )
 
 
 @pytest.mark.parametrize("handler", [multiprocessing_timeout, main_thread_timeout])
@@ -50,6 +53,8 @@ def test_timeout_handler_reraises(handler):
 def test_timeout_handler_allows_function_to_spawn_new_process(handler):
     def my_process():
         p = multiprocessing.Process(target=lambda: 5)
-        p.start(); p.join(); p.terminate()
+        p.start()
+        p.join()
+        p.terminate()
 
     assert handler(my_process, timeout=timedelta(seconds=1)) is None
