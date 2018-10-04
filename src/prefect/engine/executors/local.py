@@ -12,8 +12,6 @@ class LocalExecutor(Executor):
     the main thread.  To be used mainly for debugging purposes.
     """
 
-    _default_timeout_handler = staticmethod(main_thread_timeout)
-
     def map(
         self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
     ) -> Iterable[Any]:
@@ -25,6 +23,7 @@ class LocalExecutor(Executor):
 
         return results
 
+    @main_thread_timeout
     def submit(self, fn, *args, timeout: time_type = None, **kwargs):
         """
         Submit a function to the executor for execution. Returns the result of the computation.

@@ -42,13 +42,7 @@ class DaskExecutor(Executor):
             `dask.distributed.Client` upon initialization (e.g., `n_workers`)
     """
 
-    def __init__(
-        self,
-        address=None,
-        processes=False,
-        debug=config.debug,
-        **kwargs
-    ):
+    def __init__(self, address=None, processes=False, debug=config.debug, **kwargs):
         self.address = address
         self.processes = processes
         self.debug = debug

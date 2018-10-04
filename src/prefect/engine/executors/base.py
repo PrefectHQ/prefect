@@ -5,7 +5,6 @@ from typing import Any, Callable, Dict, Iterable, Union
 
 import prefect
 from prefect.engine.state import Failed
-from prefect.utilities.executors import main_thread_timeout
 from prefect.utilities.json import Serializable
 
 
@@ -15,17 +14,10 @@ time_type = Union[datetime.timedelta, int]
 class Executor(Serializable):
     """
     Base Executor class which all other executors inherit from.
-
-    Args:
-        - timeout_handler (callable, optional): callable for handling
-            submissions with timeout constraints; defaults to `prefect.utilities.executors.main_thread_timeout`
     """
 
-    _default_timeout_handler = staticmethod(main_thread_timeout)
-
-    def __init__(self, timeout_handler=None):
+    def __init__(self):
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
-        self.timeout_handler = timeout_handler or self._default_timeout_handler
 
     @contextmanager
     def start(self) -> Iterable[None]:
@@ -73,33 +65,6 @@ class Executor(Serializable):
             - Any: a future-like object
         """
         raise NotImplementedError()
-
-    def submit_with_timeout(
-        self, fn: Callable, *args: Any, timeout: time_type = None, **kwargs: Any
-    ) -> Any:
-        """
-        Submit a function to the executor for execution with a timeout constraint. Returns a future-like object.
-        Note: The default implementation uses multiprocessing.
-
-        Args:
-            - fn (Callable): function which is being submitted for execution
-            - *args (Any): arguments to be passed to `fn`
-            - timeout (datetime.timedelta or int): maximum length of time to allow for
-                execution; if `int` is provided, interpreted as seconds.
-            - **kwargs (Any): keyword arguments to be passed to `fn`
-
-        Returns:
-            - Any: a future-like object
-        """
-        # implementing in BaseExecutor so that this feature is implemented for
-        # all executors, but can be overriden as is necessary
-
-        if isinstance(timeout, datetime.timedelta):
-            timeout = round(timeout.total_seconds())
-        elif timeout is not None:
-            timeout = round(timeout)
-
-        return self.submit(self.timeout_handler(fn, timeout), *args, **kwargs)
 
     def wait(self, futures: Iterable, timeout: time_type = None) -> Iterable:
         """

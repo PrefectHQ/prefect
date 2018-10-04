@@ -10,7 +10,11 @@ import queue
 import warnings
 
 from prefect.engine.executors.base import Executor, time_type
-from prefect.utilities.executors import state_to_list, unpack_dict_to_bag
+from prefect.utilities.executors import (
+    multiprocessing_timeout,
+    state_to_list,
+    unpack_dict_to_bag,
+)
 
 
 class SynchronousExecutor(Executor):
@@ -74,6 +78,7 @@ class SynchronousExecutor(Executor):
 
         return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
 
+    @multiprocessing_timeout
     def submit(
         self, fn: Callable, *args: Any, timeout: time_type = None, **kwargs: Any
     ) -> dask.delayed:
@@ -90,8 +95,6 @@ class SynchronousExecutor(Executor):
         Returns:
             - dask.delayed: a `dask.delayed` object which represents the computation of `fn(*args, **kwargs)`
         """
-        if timeout is not None:
-            return self.submit_with_timeout(fn, *args, timeout=timeout, **kwargs)
         return dask.delayed(fn)(*args, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
