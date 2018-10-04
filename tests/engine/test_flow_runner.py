@@ -720,7 +720,7 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
 
 
 @pytest.mark.parametrize(
-    "executor", ["local", "mproc", "mthread", "sync"], indirect=True
+    "executor", ["local", "mthread", "sync"], indirect=True
 )
 def test_flow_runner_handles_timeouts(executor):
     sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
@@ -731,3 +731,16 @@ def test_flow_runner_handles_timeouts(executor):
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
     assert state.is_failed()
     assert isinstance(state.result[res].message, TimeoutError)
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "mthread", "sync"], indirect=True
+)
+def test_flow_runner_handles_mapped_timeouts(executor):
+    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+
+    with Flow() as flow:
+        res = sleeper.map([0, 2, 3])
+
+    state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
+    assert state.is_failed()

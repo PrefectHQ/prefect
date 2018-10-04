@@ -92,7 +92,8 @@ class Task(Serializable, metaclass=SignatureValidator):
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
-        - timeout (timedelta, optional): The amount of time to wait while running before a timeout occurs
+        - timeout (timedelta or int, optional): The amount of time to wait while
+            running before a timeout occurs; if `int`, interpreted as seconds
         - trigger (callable, optional): a function that determines whether the task should run, based
                 on the states of any upstream tasks.
         - skip_on_upstream_skip (bool, optional): if `True`, if any immediately
