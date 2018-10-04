@@ -196,15 +196,24 @@ def deploy(project, name, version, file, path):
     )
 
     # Load flow id and environment metadata
-    flow_id = environment.flows[0].id
+    flow_db_id = environment.flows[0].id
     environment = prefect_json.loads(environment.flows[0].environment)
     image_name = os.path.join(config_data["REGISTRY_URL"], environment["image_name"])
 
-    rf = RunFlow(client=client)
-    rf.run_flow(
+    # Create Flow Run
+    flow_runs_gql = FlowRuns(client=client)
+    flow_run_output = flow_runs_gql.create(
+        flow_id=flow_db_id, parameters=flow.parameters()
+    )
+    flow_run_id = flow_run_output.createFlowRun.flow_run.id
+
+    # Run Flow
+    run_flow_gql = RunFlow(client=client)
+    run_flow_gql.run_flow(
         image_name=image_name,
         image_tag=environment["image_tag"],
         flow_id=environment["flow_id"],
+        flow_run_id=flow_run_id,
     )
 
     click.echo("{} deployed.".format(name))

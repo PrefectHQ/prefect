@@ -387,6 +387,28 @@ class Flows(ClientModule):
 
 
 class FlowRuns(ClientModule):
+    def create(self, flow_id, parameters) -> dict:
+        """
+        Create a flow run
+
+        Args:
+            - flow_id (str): A unique flow identifier
+            - parameters (dict): Paramaters set on a flow
+
+        Returns:
+            - dict: Data returned from the GraphQL mutation
+        """
+        return self._graphql(
+            """
+            mutation($input: CreateFlowRunInput!) {
+                createFlowRun(input: $input) {
+                    flow_run {id}
+                }
+            }
+            """,
+            input=dict(flowId=flow_id, parameters=json.dumps(parameters)),
+        )
+
     def set_state(self, flow_run_id, state) -> dict:
         """
         Set a flow run state
@@ -443,14 +465,15 @@ class TaskRuns(ClientModule):
 
 
 class RunFlow(ClientModule):
-    def run_flow(self, image_name, image_tag, flow_id) -> dict:
+    def run_flow(self, image_name, image_tag, flow_id, flow_run_id=None) -> dict:
         """
         Run a flow
 
         Args:
             - image_name (str): The image container name the flow is in
             - image_tag (str): The tag of the flow's image
-            - flow_id (str): The ID of the flow to be ran
+            - flow_id (str): The ID of the flow to be run
+            - flow_run_id (str, optional): The flow run to communicate to
 
         Returns:
             - dict: Data returned from the GraphQL query
@@ -463,5 +486,11 @@ class RunFlow(ClientModule):
                 }
             }
             """,
-            input=dict(imageName=image_name, imageTag=image_tag, flowId=flow_id),
+            input=dict(
+                imageName=image_name,
+                imageTag=image_tag,
+                flowId=flow_id,
+                flowRunId=flow_run_id,
+            ),
         )
+
