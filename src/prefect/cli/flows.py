@@ -30,7 +30,7 @@ def load_prefect_config(path):
 def load_flow(project, name, version, file):
     if file:
         # Load the registry from the file into the current process's environment
-        exec(open(file).read())
+        exec(open(file).read(), locals())
 
     # Load the user specified flow
     flow = None

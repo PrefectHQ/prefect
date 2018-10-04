@@ -16,7 +16,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import textwrap
-from typing import Any, Iterable
+from typing import Any, Iterable, Optional
 import uuid
 
 import docker
@@ -119,7 +119,6 @@ class ContainerEnvironment(Environment):
         self._name = name or str(uuid.uuid4())
         self._tag = tag or str(uuid.uuid4())
         self._python_dependencies = python_dependencies or []
-        self._client = docker.from_env()
         self.last_container_id = None
 
         super().__init__(secrets=secrets)
@@ -279,7 +278,7 @@ class ContainerEnvironment(Environment):
             # Due to prefect being a private repo it currently will require a
             # personal access token. Once pip installable this will change and there won't
             # be a need for the personal access token or git anymore.
-            # Note: this currently prevents alpine images from being used
+            # *Note*: this currently prevents alpine images from being used
 
             file_contents = textwrap.dedent(
                 """\
@@ -298,7 +297,8 @@ class ContainerEnvironment(Environment):
 
                 ENV PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="$HOME/.prefect/registry"
 
-                RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git@0.3.2
+                RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
+                RUN cd prefect; git checkout tags/0.3.2; cd ..
                 RUN pip install ./prefect
             """.format(
                     image=self.image, env_vars=env_vars, pip_installs=pip_installs
