@@ -18,7 +18,6 @@ import warnings
 
 from prefect import config
 from prefect.engine.executors.base import Executor
-from prefect.engine.state import Failed
 from prefect.utilities.executors import dict_to_list
 
 
