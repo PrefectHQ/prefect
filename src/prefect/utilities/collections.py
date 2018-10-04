@@ -2,7 +2,10 @@
 
 import collections
 from collections.abc import MutableMapping
-from typing import Any, Iterable, Generator
+from typing import Any, Generator, Iterable, Iterator, Union
+
+
+DictLike = Union[dict, "DotDict"]
 
 
 def flatten_seq(seq: Iterable) -> Generator:
@@ -50,30 +53,30 @@ class DotDict(MutableMapping):
         ```
     """
 
-    def __init__(self, init_dict=None, **kwargs):
+    def __init__(self, init_dict: DictLike = None, **kwargs: Any) -> None:
         if init_dict:
             self.update(init_dict)
         self.update(kwargs)
 
-    def __getitem__(self, key):
-        return self.__dict__[key]
+    def __getitem__(self, key: str) -> Any:
+        return self.__dict__[key]  # __dict__ expects string keys
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any) -> None:
         # prevent overwriting any critical attributes
         if isinstance(key, str) and hasattr(MutableMapping, key):
             raise ValueError('Invalid key: "{}"'.format(key))
         self.__dict__[key] = value
 
-    def __setattr__(self, attr, value):
+    def __setattr__(self, attr: str, value: Any) -> None:
         self[attr] = value
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self.__dict__.keys())
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: str) -> None:
         del self.__dict__[key]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__dict__)
 
     def __repr__(self) -> str:
@@ -84,15 +87,15 @@ class DotDict(MutableMapping):
         else:
             return "<{}>".format(type(self).__name__)
 
-    def copy(self):
+    def copy(self) -> "DotDict":
         """Returns a shallow copy of the current DotDict"""
         return type(self)(self.__dict__.copy())
 
-    def __json__(self):
+    def __json__(self) -> dict:
         return dict(self)
 
 
-def merge_dicts(d1: MutableMapping, d2: MutableMapping) -> MutableMapping:
+def merge_dicts(d1: DictLike, d2: DictLike) -> DictLike:
     """
     Updates `d1` from `d2` by replacing each `(k, v1)` pair in `d1` with the
     corresponding `(k, v2)` pair in `d2`.
@@ -120,7 +123,9 @@ def merge_dicts(d1: MutableMapping, d2: MutableMapping) -> MutableMapping:
     return new_dict
 
 
-def to_dotdict(obj: Any) -> DotDict:
+def to_dotdict(
+    obj: Union[DictLike, Iterable[DictLike]]
+) -> Union[DictLike, Iterable[DictLike]]:
     """
     Given a obj formatted as a dictionary, returns an object
     that also supports "dot" access:
@@ -161,7 +166,7 @@ def dict_to_flatdict(dct: dict, parent: CompoundKey = None) -> dict:
         A flattened dict
     """
 
-    items = []
+    items = []  # type: list
     parent = parent or CompoundKey()
     for k, v in dct.items():
         k_parent = CompoundKey(parent + (k,))
@@ -188,7 +193,9 @@ def flatdict_to_dict(dct: dict, dct_class: type = None) -> MutableMapping:
         if isinstance(k, CompoundKey):
             current_dict = result
             for ki in k[:-1]:
-                current_dict = current_dict.setdefault(ki, (dct_class or dict)())
+                current_dict = current_dict.setdefault(  # type: ignore
+                    ki, (dct_class or dict)()
+                )
             current_dict[k[-1]] = v
         else:
             result[k] = v

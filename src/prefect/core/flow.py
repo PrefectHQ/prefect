@@ -124,8 +124,8 @@ class Flow(Serializable):
         self._task_ids = dict()  # type: Dict[Task, str]
 
         self.name = name or type(self).__name__
-        self.version = version or prefect.config.flows.default_version
-        self.project = project or prefect.config.flows.default_project
+        self.version = version or prefect.config.flows.default_version  # type: ignore
+        self.project = project or prefect.config.flows.default_project  # type: ignore
         self.description = description or None
         self.schedule = schedule or prefect.schedules.NoSchedule()
         self.environment = environment
@@ -510,7 +510,7 @@ class Flow(Serializable):
 
         # check for cycles
         if validate is None:
-            validate = prefect.config.flows.eager_edge_validation
+            validate = prefect.config.flows.eager_edge_validation  # type: ignore
 
         if validate:
             self.validate()
@@ -850,8 +850,8 @@ class Flow(Serializable):
         Returns:
             - State of the flow after it is run resulting from it's return tasks
         """
-        runner = prefect.engine.flow_runner.FlowRunner(flow=self)
-        parameters = parameters or []
+        runner = prefect.engine.flow_runner.FlowRunner(flow=self)  # type: ignore
+        parameters = parameters or {}
         unknown_params = [p for p in parameters if p not in self.parameters()]
         if unknown_params:
             fmt_params = ", ".join(unknown_params)
@@ -919,6 +919,8 @@ class Flow(Serializable):
                 "Unknown": "#00000080",
             }
             try:
+                assert flow_state  # mypy assert
+                assert isinstance(flow_state.result, dict)  # mypy assert
                 state = flow_state.result.get(task)
                 return colors.get(type(state).__name__, "#00000080")
             except:
@@ -951,6 +953,8 @@ class Flow(Serializable):
 
         with tempfile.NamedTemporaryFile() as tmp:
             graph.render(tmp.name, view=True)
+
+        return graph
 
     # Building / Serialization ----------------------------------------------------
 
