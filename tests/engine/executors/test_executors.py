@@ -10,7 +10,6 @@ from unittest.mock import MagicMock
 
 import prefect
 from prefect.engine.executors import Executor, Executor, LocalExecutor
-from prefect.engine.state import Failed
 
 if sys.version_info >= (3, 5):
     from prefect.engine.executors import DaskExecutor

@@ -3,7 +3,6 @@
 import datetime
 import functools
 import logging
-import warnings
 from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
 
@@ -93,7 +92,6 @@ class TaskRunner:
 
     def __init__(self, task: Task, logger_name: str = None) -> None:
         self.task = task
-        self.timeout = task.timeout.total_seconds() if task.timeout else None
         self.logger = logging.getLogger(logger_name or type(self).__name__)
 
     def run(

@@ -18,7 +18,7 @@ def multiprocessing_timeout(
     fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any
 ):
     """
-    Decorator for implementing timeouts on function executions.
+    Helper function for implementing timeouts on function executions.
     Implemented by spawning a new multiprocess.Process() and joining with timeout.
 
     Args:
@@ -32,6 +32,7 @@ def multiprocessing_timeout(
         - the result of `f(*args, **kwargs)`
 
     Raises:
+        - AssertionError: if run from a daemonic process
         - TimeoutError: if function execution exceeds the allowed timeout
     """
 
@@ -66,7 +67,7 @@ def main_thread_timeout(
     fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any
 ):
     """
-    Decorator for implementing timeouts on function executions.
+    Helper function for implementing timeouts on function executions.
     Implemented by setting a `signal` alarm on a timer. Must be run in the main thread.
 
     Args:
@@ -81,6 +82,7 @@ def main_thread_timeout(
 
     Raises:
         - TimeoutError: if function execution exceeds the allowed timeout
+        - ValueError: if run from outside the main thread
     """
 
     if timeout is None:

@@ -4,7 +4,6 @@ from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterable
 
 import prefect
-from prefect.engine.state import Failed
 from prefect.utilities.executors import multiprocessing_timeout
 from prefect.utilities.json import Serializable
 
