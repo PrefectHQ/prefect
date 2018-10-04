@@ -3,7 +3,6 @@
 import datetime
 import functools
 import logging
-import signal
 from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
 
@@ -69,23 +68,6 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
             return Failed(message=exc)
 
     return inner
-
-
-def timeout_handler(signum, frame):
-    raise TimeoutError("Execution timed out.")
-
-
-@contextmanager
-def timeout(seconds=None):
-    if seconds:
-        try:
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(round(seconds))
-            yield
-        finally:
-            signal.alarm(0)
-    else:
-        yield
 
 
 class TaskRunner:
@@ -180,8 +162,7 @@ class TaskRunner:
                     ignore_trigger=ignore_trigger,
                     inputs=inputs,
                 )
-                with timeout(self.timeout):
-                    state = self.get_run_state(state=state, inputs=task_inputs)
+                state = self.get_run_state(state=state, inputs=task_inputs)
                 state = self.get_post_run_state(state=state, inputs=task_inputs)
 
             # a DONTRUN signal at any point breaks the chain and we return
