@@ -11,7 +11,6 @@ import warnings
 
 from prefect.engine.executors.base import Executor
 from prefect.utilities.executors import (
-    multiprocessing_timeout,
     state_to_list,
     unpack_dict_to_bag,
 )
@@ -36,12 +35,10 @@ class SynchronousExecutor(Executor):
         q = queue.Queue(maxsize=maxsize)
         return q
 
-    @multiprocessing_timeout
     def map(
         self,
         fn: Callable,
         *args: Any,
-        timeout: datetime.timedelta = None,
         upstream_states=None,
         **kwargs: Any
     ) -> dask.bag:
@@ -51,8 +48,6 @@ class SynchronousExecutor(Executor):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn` with each call
-            - timeout (datetime.timedelta): maximum length of time to allow for
-                execution of each individual task
             - upstream_states ({Edge: State}): a dictionary of upstream
                 dependencies, keyed by Edge; the values are upstream states (or lists of states).
                 This dictionary is used to determine which upstream depdencies should be mapped over,
@@ -86,12 +81,10 @@ class SynchronousExecutor(Executor):
 
         return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
 
-    @multiprocessing_timeout
     def submit(
         self,
         fn: Callable,
         *args: Any,
-        timeout: datetime.timedelta = None,
         **kwargs: Any
     ) -> dask.delayed:
         """
@@ -100,7 +93,6 @@ class SynchronousExecutor(Executor):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - timeout (datetime.timedelta): maximum length of time to allow for execution
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:

@@ -24,15 +24,13 @@ class LocalExecutor(Executor):
 
         return results
 
-    @main_thread_timeout
-    def submit(self, fn, *args, timeout: datetime.timedelta = None, **kwargs):
+    def submit(self, fn, *args, **kwargs):
         """
         Submit a function to the executor for execution. Returns the result of the computation.
 
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - timeout (datetime.timedelta): maximum length of time to allow for execution
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:

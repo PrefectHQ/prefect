@@ -5,83 +5,94 @@ import dask.bag
 import datetime
 import multiprocessing
 import signal
-from functools import wraps
-from typing import Any, Dict, List, Union
+from typing import Any, Callable, Dict, List, Union
 
 import prefect
 from prefect.core.edge import Edge
-from prefect.engine.state import Failed
 
 
 StateList = Union["prefect.engine.state.State", List["prefect.engine.state.State"]]
 
 
-def multiprocessing_timeout(exec_method):
+def multiprocessing_timeout(fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any):
     """
-    Decorator for executor methods to implement timeouts on function executions.
+    Decorator for implementing timeouts on function executions.
     Implemented by spawning a new multiprocess.Process() and joining with timeout.
+
+    Args:
+        - fn (callable): the function to execute
+        - *args (Any): arguments to pass to the function
+        - timeout (datetime.timedelta): the length of time to allow for
+            execution before raising a `TimeoutError`
+        - **kwargs (Any): keyword arguments to pass to the function
+
+    Returns:
+        - the result of `f(*args, **kwargs)`
+
+    Raises:
+        - TimeoutError: if function execution exceeds the allowed timeout
     """
 
-    @wraps(exec_method)
-    def wrapped_timeout_method(self, fn, *args, timeout=None, **kwargs):
-        if timeout is None:
-            return exec_method(self, fn, *args, **kwargs)
-        else:
-            timeout = timeout.total_seconds()
+    if timeout is None:
+        return fn(*args, **kwargs)
+    else:
+        timeout = timeout.total_seconds()
 
-        def retrieve_value(*args, _container, **kwargs):
-            """Puts the return value in a multiprocessing-safe container"""
+    def retrieve_value(*args, _container, **kwargs):
+        """Puts the return value in a multiprocessing-safe container"""
+        try:
             _container.put(fn(*args, **kwargs))
+        except Exception as exc:
+            _container.put(exc)
 
-        @wraps(fn)
-        def timeout_handler(*args, **kwargs):
-            q = multiprocessing.Queue()
-            kwargs["_container"] = q
-            p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
-            p.start()
-            p.join(timeout)
-            p.terminate()
-            if not q.empty():
-                return q.get()
-            else:
-                return Failed(message=TimeoutError("Execution timed out."))
-
-        return exec_method(self, timeout_handler, *args, **kwargs)
-
-    return wrapped_timeout_method
+    q = multiprocessing.Queue()
+    kwargs["_container"] = q
+    p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
+    p.start()
+    p.join(timeout)
+    p.terminate()
+    if not q.empty():
+        res = q.get()
+        if isinstance(res, Exception):
+            raise res
+        return res
+    else:
+        raise TimeoutError("Execution timed out.")
 
 
-def main_thread_timeout(exec_method):
+def main_thread_timeout(fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any):
     """
-    Decorator for executor methods to implement timeouts on function executions.
-    Implemented by setting a `signal` alarm on a timer.
+    Decorator for implementing timeouts on function executions.
+    Implemented by setting a `signal` alarm on a timer. Must be run in the main thread.
+
+    Args:
+        - fn (callable): the function to execute
+        - *args (Any): arguments to pass to the function
+        - timeout (datetime.timedelta): the length of time to allow for
+            execution before raising a `TimeoutError`
+        - **kwargs (Any): keyword arguments to pass to the function
+
+    Returns:
+        - the result of `f(*args, **kwargs)`
+
+    Raises:
+        - TimeoutError: if function execution exceeds the allowed timeout
     """
 
-    @wraps(exec_method)
-    def wrapped_timeout_method(self, fn, *args, timeout=None, **kwargs):
-        if timeout is None:
-            return exec_method(self, fn, *args, **kwargs)
-        else:
-            timeout = round(timeout.total_seconds())
+    if timeout is None:
+        return fn(*args, **kwargs)
+    else:
+        timeout = round(timeout.total_seconds())
 
-        def error_handler(signum, frame):
-            raise TimeoutError("Execution timed out.")
+    def error_handler(signum, frame):
+        raise TimeoutError("Execution timed out.")
 
-        @wraps(fn)
-        def timeout_handler(*args, **kwargs):
-            try:
-                signal.signal(signal.SIGALRM, error_handler)
-                signal.alarm(timeout)
-                res = fn(*args, **kwargs)
-                return res
-            except TimeoutError as exc:
-                return Failed(message=exc)
-            finally:
-                signal.alarm(0)
-
-        return exec_method(self, timeout_handler, *args, **kwargs)
-
-    return wrapped_timeout_method
+    try:
+        signal.signal(signal.SIGALRM, error_handler)
+        signal.alarm(timeout)
+        return fn(*args, **kwargs)
+    finally:
+        signal.alarm(0)
 
 
 def dict_to_list(dd: Dict[Edge, StateList]) -> List[dict]:
