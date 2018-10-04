@@ -82,7 +82,7 @@ def test_container_tag():
 
 def test_container_tag_none():
     container = ContainerEnvironment(image="image", tag=None)
-    assert container.tag == "image"
+    assert container.tag
 
 
 def test_container_python_dependencies():

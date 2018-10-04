@@ -6,12 +6,19 @@ from collections import defaultdict
 from typing import Any, Callable, Dict, Iterable
 
 import prefect
+from prefect import config
+from prefect.client import Client, FlowRuns
 from prefect.core import Flow, Task
 from prefect.engine import signals
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.state import Failed, Pending, Retrying, Running, State, Success
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
+
+# TODO: Move elsewhere
+import os
+from pathlib import Path
+import toml
 
 
 def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
@@ -54,6 +61,25 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
             return Failed(message=exc)
 
     return inner
+
+
+# TODO: Move elsewhere
+def initialize_client() -> "prefect.client.Client":
+    path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+
+    if Path(path).is_file():
+        config_data = toml.load(path)
+
+    if not config_data:
+        raise Exception("CLI not configured. Run 'prefect configure init'")
+
+    client = Client(
+        config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
+    )
+
+    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+
+    return client
 
 
 class FlowRunner:
@@ -168,9 +194,17 @@ class FlowRunner:
             _executor_id=executor.executor_id,
         )
 
+        if hasattr(config, "flow_run_id"):
+            client = initialize_client()
+            flow_runs_gql = FlowRuns(client=client)
+
         try:
             with prefect.context(context):
                 state = self.get_pre_run_state(state=state)
+
+                if hasattr(config, "flow_run_id"):
+                    flow_runs_gql.set_state(config.flow_run_id, state)
+
                 state = self.get_run_state(
                     state=state,
                     task_states=task_states,
@@ -181,6 +215,9 @@ class FlowRunner:
                     task_contexts=task_contexts,
                     throttle=throttle,
                 )
+
+                if hasattr(config, "flow_run_id"):
+                    flow_runs_gql.set_state(config.flow_run_id, state)
 
         except signals.DONTRUN:
             pass

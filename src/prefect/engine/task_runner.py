@@ -6,6 +6,8 @@ import logging
 from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
 
 import prefect
+from prefect import config
+from prefect.client import Client, TaskRuns
 from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.state import (
@@ -19,6 +21,11 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
+
+# TODO: Move elsewhere
+import os
+from pathlib import Path
+import toml
 
 
 def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
@@ -67,6 +74,25 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
             return Failed(message=exc)
 
     return inner
+
+
+# TODO: Move elsewhere
+def initialize_client() -> "prefect.client.Client":
+    path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+
+    if Path(path).is_file():
+        config_data = toml.load(path)
+
+    if not config_data:
+        raise Exception("CLI not configured. Run 'prefect configure init'")
+
+    client = Client(
+        config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
+    )
+
+    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+
+    return client
 
 
 class TaskRunner:
@@ -141,6 +167,13 @@ class TaskRunner:
             prefect.utilities.collections.flatten_seq(upstream_states.values())
         )
 
+        if hasattr(config, "flow_run_id"):
+            client = initialize_client()
+            task_runs_gql = TaskRuns(client=client)
+            task_run_id = task_runs_gql.query(
+                flow_run_id=config.flow_run_id, task_id=self.task.id
+            )
+
         with prefect.context(context, _task_name=self.task.name):
             while True:
                 tickets = []
@@ -160,8 +193,19 @@ class TaskRunner:
                     ignore_trigger=ignore_trigger,
                     inputs=inputs,
                 )
+
+                if hasattr(config, "flow_run_id"):
+                    task_runs_gql.set_state(task_run_id, state)
+
                 state = self.get_run_state(state=state, inputs=task_inputs)
+
+                if hasattr(config, "flow_run_id"):
+                    task_runs_gql.set_state(task_run_id, state)
+
                 state = self.get_post_run_state(state=state, inputs=task_inputs)
+
+                if hasattr(config, "flow_run_id"):
+                    task_runs_gql.set_state(task_run_id, state)
 
             # a DONTRUN signal at any point breaks the chain and we return
             # the most recently computed state

@@ -424,7 +424,7 @@ class FlowRuns(ClientModule):
             """
             mutation($input: SetFlowRunStateInput!) {
                 setFlowRunState(input: $input) {
-                    flowState {timestamp}
+                    flow_state {state}
                 }
             }
             """,
@@ -452,11 +452,37 @@ class TaskRuns(ClientModule):
             """
             mutation($input: SetTaskRunStateInput!) {
                 setTaskRunState(input: $input) {
-                    taskState {timestamp}
+                    task_state {state}
                 }
             }
             """,
             input=dict(taskRunId=task_run_id, state=json.dumps(state)),
+        )
+
+    def query(self, flow_run_id, task_id) -> dict:
+        """
+        Retrieve a flow's environment metadata
+
+        Args:
+            - flow_run_id (str): Unique identifier of a flow run this task run belongs to
+            - task_id (str): Unique identifier of this task
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            query($flow_run_id: ID!, $task_id: ID!) {
+                taskRuns(where: {
+                    flow_run_id: $flow_run_id,
+                    task_id: $task_id,
+                }) {
+                    id
+                }
+            }
+            """,
+            flow_run_id=flow_run_id,
+            task_id=task_id,
         )
 
 
