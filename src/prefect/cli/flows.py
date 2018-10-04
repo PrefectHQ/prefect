@@ -201,6 +201,10 @@ def deploy(project, name, version, file, path):
     image_name = os.path.join(config_data["REGISTRY_URL"], environment["image_name"])
 
     rf = RunFlow(client=client)
-    rf.run_flow(image_name=image_name, image_tag=environment["image_tag"], flow_id=environment["flow_id"])
+    rf.run_flow(
+        image_name=image_name,
+        image_tag=environment["image_tag"],
+        flow_id=environment["flow_id"],
+    )
 
     click.echo("{} deployed.".format(name))
