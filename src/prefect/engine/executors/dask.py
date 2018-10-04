@@ -83,11 +83,7 @@ class DaskExecutor(Executor):
         return q
 
     def map(
-        self,
-        fn: Callable,
-        *args: Any,
-        upstream_states=None,
-        **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
     ) -> Future:
         def mapper(fn, *args, upstream_states, **kwargs):
             states = dict_to_list(upstream_states)
@@ -108,12 +104,7 @@ class DaskExecutor(Executor):
         )
         return future_list
 
-    def submit(
-        self,
-        fn: Callable,
-        *args: Any,
-        **kwargs: Any
-    ) -> Future:
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:
         """
         Submit a function to the executor for execution. Returns a Future object.
 

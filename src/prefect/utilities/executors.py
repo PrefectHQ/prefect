@@ -14,7 +14,9 @@ from prefect.core.edge import Edge
 StateList = Union["prefect.engine.state.State", List["prefect.engine.state.State"]]
 
 
-def multiprocessing_timeout(fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any):
+def multiprocessing_timeout(
+    fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any
+):
     """
     Decorator for implementing timeouts on function executions.
     Implemented by spawning a new multiprocess.Process() and joining with timeout.
@@ -60,7 +62,9 @@ def multiprocessing_timeout(fn: Callable, *args: Any, timeout: datetime.timedelt
         raise TimeoutError("Execution timed out.")
 
 
-def main_thread_timeout(fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any):
+def main_thread_timeout(
+    fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any
+):
     """
     Decorator for implementing timeouts on function executions.
     Implemented by setting a `signal` alarm on a timer. Must be run in the main thread.

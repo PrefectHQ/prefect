@@ -597,3 +597,10 @@ def test_task_runner_prioritizes_inputs():
     )
     assert state.is_successful()
     assert state.result == 30
+
+
+def test_task_runner_can_handle_timeouts():
+    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    state = TaskRunner(sleeper).run(inputs=dict(secs=2))
+    assert state.is_failed()
+    assert isinstance(state.message, TimeoutError)

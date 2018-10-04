@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, Iterable
 
 import prefect
 from prefect.engine.state import Failed
+from prefect.utilities.executors import multiprocessing_timeout
 from prefect.utilities.json import Serializable
 
 
@@ -12,6 +13,8 @@ class Executor(Serializable):
     """
     Base Executor class which all other executors inherit from.
     """
+
+    timeout_handler = staticmethod(multiprocessing_timeout)
 
     def __init__(self):
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
@@ -26,13 +29,7 @@ class Executor(Serializable):
         """
         yield
 
-    def map(
-        self,
-        fn: Callable,
-        *args: Any,
-        upstream_states=None,
-        **kwargs: Any
-    ) -> Any:
+    def map(self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any) -> Any:
         """
         Submit a function to be mapped over.
 
@@ -51,12 +48,7 @@ class Executor(Serializable):
         """
         raise NotImplementedError()
 
-    def submit(
-        self,
-        fn: Callable,
-        *args: Any,
-        **kwargs: Any
-    ) -> Any:
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         """
         Submit a function to the executor for execution. Returns a future-like object.
 

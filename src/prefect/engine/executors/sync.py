@@ -10,10 +10,7 @@ import queue
 import warnings
 
 from prefect.engine.executors.base import Executor
-from prefect.utilities.executors import (
-    state_to_list,
-    unpack_dict_to_bag,
-)
+from prefect.utilities.executors import state_to_list, unpack_dict_to_bag
 
 
 class SynchronousExecutor(Executor):
@@ -36,11 +33,7 @@ class SynchronousExecutor(Executor):
         return q
 
     def map(
-        self,
-        fn: Callable,
-        *args: Any,
-        upstream_states=None,
-        **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
     ) -> dask.bag:
         """
         Submit a function to be mapped over.
@@ -81,12 +74,7 @@ class SynchronousExecutor(Executor):
 
         return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
 
-    def submit(
-        self,
-        fn: Callable,
-        *args: Any,
-        **kwargs: Any
-    ) -> dask.delayed:
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """
         Submit a function to the executor for execution. Returns a `dask.delayed` object.
 

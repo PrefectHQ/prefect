@@ -13,6 +13,8 @@ class LocalExecutor(Executor):
     the main thread.  To be used mainly for debugging purposes.
     """
 
+    timeout_handler = staticmethod(main_thread_timeout)
+
     def map(
         self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
     ) -> Iterable[Any]:
