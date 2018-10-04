@@ -28,8 +28,22 @@ def multiprocessing_timeout(fn, timeout):
     return timeout_handler
 
 
-def main_thread_timeout(fn, *args, timeout, **kwargs):
-    pass
+def main_thread_timeout(fn, timeout):
+    def error_handler(signum, frame):
+        raise TimeoutError("Execution timed out.")
+
+    def timeout_handler(*args, **kwargs):
+        try:
+            signal.signal(signal.SIGALRM, error_handler)
+            signal.alarm(timeout)
+            res = fn(*args, **kwargs)
+            return res
+        except TimeoutError as exc:
+            return Failed(message=exc)
+        finally:
+            signal.alarm(0)
+
+    return timeout_handler
 
 
 def dict_to_list(dd):
