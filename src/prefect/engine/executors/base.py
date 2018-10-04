@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, Iterable, Union
 
 import prefect
 from prefect.engine.state import Failed
-from prefect.utilities.executors import multiprocessing_timeout
+from prefect.utilities.executors import main_thread_timeout
 from prefect.utilities.json import Serializable
 
 
@@ -15,9 +15,13 @@ time_type = Union[datetime.timedelta, int]
 class Executor(Serializable):
     """
     Base Executor class which all other executors inherit from.
+
+    Args:
+        - timeout_handler (callable, optional): callable for handling
+            submissions with timeout constraints; defaults to `prefect.utilities.executors.main_thread_timeout`
     """
 
-    _default_timeout_handler = staticmethod(multiprocessing_timeout)
+    _default_timeout_handler = staticmethod(main_thread_timeout)
 
     def __init__(self, timeout_handler=None):
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
