@@ -97,14 +97,31 @@ def test_submit_does_not_assume_pure_functions(executor):
 
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
-def test_simple_submit_with_timeout(executor):
+def test_executor_has_compatible_timeout_handler(executor):
     slow_fn = lambda: time.sleep(3)
     with executor.start():
-        res = executor.wait(
-            executor.submit(slow_fn, timeout=datetime.timedelta(seconds=1))
-        )
-    assert isinstance(res, Failed)
-    assert isinstance(res.message, TimeoutError)
+        with pytest.raises(TimeoutError):
+            res = executor.wait(
+                executor.submit(
+                    executor.timeout_handler,
+                    slow_fn,
+                    timeout=datetime.timedelta(seconds=1),
+                )
+            )
+
+
+def test_dask_processes_executor_raises_if_timeout_attempted(mproc):
+    slow_fn = lambda: time.sleep(3)
+    with mproc.start():
+        with pytest.raises(AssertionError) as exc:
+            res = mproc.wait(
+                mproc.submit(
+                    mproc.timeout_handler,
+                    slow_fn,
+                    timeout=datetime.timedelta(seconds=1),
+                )
+            )
+    assert "daemonic" in str(exc)
 
 
 @pytest.mark.skipif(
