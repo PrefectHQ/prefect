@@ -2,7 +2,9 @@ import multiprocessing
 import pytest
 import time
 from datetime import timedelta
+from unittest.mock import MagicMock
 
+import prefect
 from prefect.utilities.executors import multiprocessing_timeout, main_thread_timeout
 
 
@@ -58,3 +60,17 @@ def test_timeout_handler_allows_function_to_spawn_new_process(handler):
         p.terminate()
 
     assert handler(my_process, timeout=timedelta(seconds=1)) is None
+
+
+def test_main_thread_timeout_doesnt_do_anything_if_no_timeout(monkeypatch):
+    monkeypatch.delattr(prefect.utilities.executors.signal, "signal")
+    with pytest.raises(AttributeError):  # to test the test's usefulness...
+        main_thread_timeout(lambda: 4, timeout=timedelta(seconds=1))
+    assert main_thread_timeout(lambda: 4) == 4
+
+
+def test_multiprocessing_timeout_doesnt_do_anything_if_no_timeout(monkeypatch):
+    monkeypatch.delattr(prefect.utilities.executors.multiprocessing, "Process")
+    with pytest.raises(AttributeError):  # to test the test's usefulness...
+        multiprocessing_timeout(lambda: 4, timeout=timedelta(seconds=1))
+    assert multiprocessing_timeout(lambda: 4) == 4
