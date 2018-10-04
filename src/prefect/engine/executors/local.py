@@ -1,8 +1,9 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import datetime
 from typing import Any, Callable, Iterable
 
-from prefect.engine.executors.base import Executor, time_type
+from prefect.engine.executors.base import Executor
 from prefect.utilities.executors import dict_to_list, main_thread_timeout
 
 
@@ -24,22 +25,19 @@ class LocalExecutor(Executor):
         return results
 
     @main_thread_timeout
-    def submit(self, fn, *args, timeout: time_type = None, **kwargs):
+    def submit(self, fn, *args, timeout: datetime.timedelta = None, **kwargs):
         """
         Submit a function to the executor for execution. Returns the result of the computation.
 
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - timeout (datetime.timedelta or int): maximum length of time to allow for
-                execution; if `int` is provided, interpreted as seconds.
+            - timeout (datetime.timedelta): maximum length of time to allow for execution
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
             - Any: the result of `fn(*args, **kwargs)`
         """
-        if timeout is not None:
-            return self.submit_with_timeout(fn, *args, timeout=timeout, **kwargs)
         return fn(*args, **kwargs)
 
     def wait(self, futures, timeout=None):

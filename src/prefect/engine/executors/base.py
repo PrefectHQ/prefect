@@ -1,14 +1,11 @@
 import datetime
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Iterable
 
 import prefect
 from prefect.engine.state import Failed
 from prefect.utilities.json import Serializable
-
-
-time_type = Union[datetime.timedelta, int]
 
 
 class Executor(Serializable):
@@ -33,7 +30,7 @@ class Executor(Serializable):
         self,
         fn: Callable,
         *args: Any,
-        timeout: time_type = None,
+        timeout: datetime.timedelta = None,
         upstream_states=None,
         **kwargs: Any
     ) -> Any:
@@ -43,8 +40,8 @@ class Executor(Serializable):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn` with each call
-            - timeout (datetime.timedelta or int): maximum length of time to allow for
-                execution of each individual task; if `int` is provided, interpreted as seconds.
+            - timeout (datetime.timedelta): maximum length of time to allow for
+                execution of each individual task
             - upstream_states ({Edge: State}): a dictionary of upstream
                 dependencies, keyed by Edge; the values are upstream states (or lists of states).
                 This dictionary is used to determine which upstream depdencies should be mapped over,
@@ -58,7 +55,11 @@ class Executor(Serializable):
         raise NotImplementedError()
 
     def submit(
-        self, fn: Callable, *args: Any, timeout: time_type = None, **kwargs: Any
+        self,
+        fn: Callable,
+        *args: Any,
+        timeout: datetime.timedelta = None,
+        **kwargs: Any
     ) -> Any:
         """
         Submit a function to the executor for execution. Returns a future-like object.
@@ -66,8 +67,7 @@ class Executor(Serializable):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - timeout (datetime.timedelta or int): maximum length of time to allow for
-                execution; if `int` is provided, interpreted as seconds.
+            - timeout (datetime.timedelta): maximum length of time to allow for execution
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
@@ -75,14 +75,13 @@ class Executor(Serializable):
         """
         raise NotImplementedError()
 
-    def wait(self, futures: Iterable, timeout: time_type = None) -> Iterable:
+    def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """
         Resolves futures to their values. Blocks until the future is complete.
 
         Args:
             - futures (Iterable): iterable of futures to compute
-            - timeout (datetime.timedelta or int): maximum length of time to allow for
-                execution; if `int` is provided, interpreted as seconds.
+            - timeout (datetime.timedelta): maximum length of time to allow for execution
 
         Returns:
             - Iterable: an iterable of resolved futures
