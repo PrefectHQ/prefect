@@ -30,7 +30,6 @@ class Executor(Serializable):
         self,
         fn: Callable,
         *args: Any,
-        timeout: datetime.timedelta = None,
         upstream_states=None,
         **kwargs: Any
     ) -> Any:
@@ -40,8 +39,6 @@ class Executor(Serializable):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn` with each call
-            - timeout (datetime.timedelta): maximum length of time to allow for
-                execution of each individual task
             - upstream_states ({Edge: State}): a dictionary of upstream
                 dependencies, keyed by Edge; the values are upstream states (or lists of states).
                 This dictionary is used to determine which upstream depdencies should be mapped over,
@@ -58,7 +55,6 @@ class Executor(Serializable):
         self,
         fn: Callable,
         *args: Any,
-        timeout: datetime.timedelta = None,
         **kwargs: Any
     ) -> Any:
         """
@@ -67,7 +63,6 @@ class Executor(Serializable):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - timeout (datetime.timedelta): maximum length of time to allow for execution
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:

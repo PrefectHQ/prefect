@@ -82,12 +82,10 @@ class DaskExecutor(Executor):
         q = Queue(maxsize=maxsize, client=client or self.client)
         return q
 
-    @multiprocessing_timeout
     def map(
         self,
         fn: Callable,
         *args: Any,
-        timeout: datetime.timedelta = None,
         upstream_states=None,
         **kwargs: Any
     ) -> Future:
@@ -110,12 +108,10 @@ class DaskExecutor(Executor):
         )
         return future_list
 
-    @multiprocessing_timeout
     def submit(
         self,
         fn: Callable,
         *args: Any,
-        timeout: datetime.timedelta = None,
         **kwargs: Any
     ) -> Future:
         """
@@ -124,7 +120,6 @@ class DaskExecutor(Executor):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - timeout (datetime.timedelta, optional): maximum length of time to allow for execution
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
