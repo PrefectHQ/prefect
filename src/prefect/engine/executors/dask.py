@@ -38,27 +38,22 @@ class DaskExecutor(Executor):
             Defaults to `False`. Note that timeouts are not supported if `processes=True`
         - debug (bool, optional): whether to operate in debug mode; `debug=True`
             will produce many additional dask logs. Defaults to the `debug` value in your Prefect configuration
-        - timeout_handler (callable, optional): callable for handling
-            submissions with timeout constraints; defaults to `prefect.utilities.executors.multiprocessing_timeout`
         - **kwargs (dict, optional): additional kwargs to be passed to the
             `dask.distributed.Client` upon initialization (e.g., `n_workers`)
     """
-
-    _default_timeout_handler = staticmethod(multiprocessing_timeout)
 
     def __init__(
         self,
         address=None,
         processes=False,
         debug=config.debug,
-        timeout_handler=None,
         **kwargs
     ):
         self.address = address
         self.processes = processes
         self.debug = debug
         self.kwargs = kwargs
-        super().__init__(timeout_handler=timeout_handler)
+        super().__init__()
 
     @contextmanager
     def start(self) -> Iterable[None]:
@@ -115,6 +110,7 @@ class DaskExecutor(Executor):
         )
         return future_list
 
+    @multiprocessing_timeout
     def submit(
         self,
         fn: Callable,
@@ -134,8 +130,6 @@ class DaskExecutor(Executor):
             - Future: a Future-like object which represents the computation of `fn(*args, **kwargs)`
         """
 
-        if timeout is not None:
-            return self.submit_with_timeout(fn, *args, timeout, **kwargs)
         return self.client.submit(fn, *args, pure=False, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:

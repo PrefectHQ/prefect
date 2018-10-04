@@ -2,30 +2,42 @@
 
 import dask
 import dask.bag
+import datetime
 import multiprocessing
 import signal
+from functools import wraps
 
 from prefect.engine.state import Failed
 
 
-def multiprocessing_timeout(fn, timeout):
-    def retrieve_value(*args, _container, **kwargs):
-        """Puts the return value in a multiprocessing-safe container"""
-        _container.put(fn(*args, **kwargs))
-
-    def timeout_handler(*args, **kwargs):
-        q = multiprocessing.Queue()
-        kwargs["_container"] = q
-        p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
-        p.start()
-        p.join(timeout)
-        p.terminate()
-        if not q.empty():
-            return q.get()
+def multiprocessing_timeout(exec_method):
+    @wraps(exec_method)
+    def wrapped_timeout_method(self, fn, *args, timeout=None, **kwargs):
+        if timeout is None:
+            return exec_method(self, fn, *args, **kwargs)
+        elif isinstance(timeout, datetime.timedelta):
+            timeout = timeout.total_seconds()
         else:
-            return Failed(message=TimeoutError("Execution timed out."))
+            timeout = round(timeout)
 
-    return timeout_handler
+        def retrieve_value(*args, _container, **kwargs):
+            """Puts the return value in a multiprocessing-safe container"""
+            _container.put(fn(*args, **kwargs))
+
+        def timeout_handler(*args, **kwargs):
+            q = multiprocessing.Queue()
+            kwargs["_container"] = q
+            p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
+            p.start()
+            p.join(timeout)
+            p.terminate()
+            if not q.empty():
+                return q.get()
+            else:
+                return Failed(message=TimeoutError("Execution timed out."))
+
+        return exec_method(self, timeout_handler, *args, **kwargs)
+    return wrapped_timeout_method
 
 
 def main_thread_timeout(fn, timeout):
