@@ -17,7 +17,7 @@ import queue
 import warnings
 
 from prefect import config
-from prefect.engine.executors.base import Executor, time_type
+from prefect.engine.executors.base import Executor
 from prefect.engine.state import Failed
 from prefect.utilities.executors import dict_to_list, multiprocessing_timeout
 
@@ -87,7 +87,7 @@ class DaskExecutor(Executor):
         self,
         fn: Callable,
         *args: Any,
-        timeout: time_type = None,
+        timeout: datetime.timedelta = None,
         upstream_states=None,
         **kwargs: Any
     ) -> Future:
@@ -112,7 +112,11 @@ class DaskExecutor(Executor):
 
     @multiprocessing_timeout
     def submit(
-        self, fn: Callable, *args: Any, timeout: time_type = None, **kwargs: Any
+        self,
+        fn: Callable,
+        *args: Any,
+        timeout: datetime.timedelta = None,
+        **kwargs: Any
     ) -> Future:
         """
         Submit a function to the executor for execution. Returns a Future object.
@@ -120,6 +124,7 @@ class DaskExecutor(Executor):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
+            - timeout (datetime.timedelta, optional): maximum length of time to allow for execution
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
@@ -128,13 +133,13 @@ class DaskExecutor(Executor):
 
         return self.client.submit(fn, *args, pure=False, **kwargs)
 
-    def wait(self, futures: Iterable, timeout: time_type = None) -> Iterable:
+    def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """
         Resolves the Future objects to their values. Blocks until the computation is complete.
 
         Args:
             - futures (Iterable): iterable of future-like objects to compute
-            - timeout (datetime.timedelta or int, optional): maximum length of time to allow for
+            - timeout (datetime.timedelta, optional): maximum length of time to allow for
                 execution
 
         Returns:

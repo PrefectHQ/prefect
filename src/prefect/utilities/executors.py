@@ -26,10 +26,8 @@ def multiprocessing_timeout(exec_method):
     def wrapped_timeout_method(self, fn, *args, timeout=None, **kwargs):
         if timeout is None:
             return exec_method(self, fn, *args, **kwargs)
-        elif isinstance(timeout, datetime.timedelta):
-            timeout = timeout.total_seconds()
         else:
-            timeout = round(timeout)
+            timeout = timeout.total_seconds()
 
         def retrieve_value(*args, _container, **kwargs):
             """Puts the return value in a multiprocessing-safe container"""
@@ -63,10 +61,8 @@ def main_thread_timeout(exec_method):
     def wrapped_timeout_method(self, fn, *args, timeout=None, **kwargs):
         if timeout is None:
             return exec_method(self, fn, *args, **kwargs)
-        elif isinstance(timeout, datetime.timedelta):
-            timeout = round(timeout.total_seconds())
         else:
-            timeout = round(timeout)
+            timeout = round(timeout.total_seconds())
 
         def error_handler(signum, frame):
             raise TimeoutError("Execution timed out.")

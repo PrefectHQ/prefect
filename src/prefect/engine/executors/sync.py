@@ -9,7 +9,7 @@ import dask.bag
 import queue
 import warnings
 
-from prefect.engine.executors.base import Executor, time_type
+from prefect.engine.executors.base import Executor
 from prefect.utilities.executors import (
     multiprocessing_timeout,
     state_to_list,
@@ -41,7 +41,7 @@ class SynchronousExecutor(Executor):
         self,
         fn: Callable,
         *args: Any,
-        timeout: time_type = None,
+        timeout: datetime.timedelta = None,
         upstream_states=None,
         **kwargs: Any
     ) -> dask.bag:
@@ -51,8 +51,8 @@ class SynchronousExecutor(Executor):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn` with each call
-            - timeout (datetime.timedelta or int): maximum length of time to allow for
-                execution of each individual task; if `int` is provided, interpreted as seconds.
+            - timeout (datetime.timedelta): maximum length of time to allow for
+                execution of each individual task
             - upstream_states ({Edge: State}): a dictionary of upstream
                 dependencies, keyed by Edge; the values are upstream states (or lists of states).
                 This dictionary is used to determine which upstream depdencies should be mapped over,
@@ -88,7 +88,11 @@ class SynchronousExecutor(Executor):
 
     @multiprocessing_timeout
     def submit(
-        self, fn: Callable, *args: Any, timeout: time_type = None, **kwargs: Any
+        self,
+        fn: Callable,
+        *args: Any,
+        timeout: datetime.timedelta = None,
+        **kwargs: Any
     ) -> dask.delayed:
         """
         Submit a function to the executor for execution. Returns a `dask.delayed` object.
@@ -96,8 +100,7 @@ class SynchronousExecutor(Executor):
         Args:
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - timeout (datetime.timedelta or int): maximum length of time to allow for
-                execution; if `int` is provided, interpreted as seconds.
+            - timeout (datetime.timedelta): maximum length of time to allow for execution
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
@@ -105,14 +108,13 @@ class SynchronousExecutor(Executor):
         """
         return dask.delayed(fn)(*args, **kwargs)
 
-    def wait(self, futures: Iterable, timeout: time_type = None) -> Iterable:
+    def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """
         Resolves the `dask.delayed` objects to their values. Blocks until the computation is complete.
 
         Args:
             - futures (Iterable): iterable of `dask.delayed` objects to compute
-            - timeout (datetime.timedelta or int): maximum length of time to allow for
-                execution
+            - timeout (datetime.timedelta): maximum length of time to allow for execution
 
         Returns:
             - Iterable: an iterable of resolved futures
