@@ -78,19 +78,9 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
 
 # TODO: Move elsewhere
 def initialize_client() -> "prefect.client.Client":
-    path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+    client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))
 
-    if Path(path).is_file():
-        config_data = toml.load(path)
-
-    if not config_data:
-        raise Exception("CLI not configured. Run 'prefect configure init'")
-
-    client = Client(
-        config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
-    )
-
-    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+    client.login(email=config.EMAIL, password=config.PASSWORD)
 
     return client
 
