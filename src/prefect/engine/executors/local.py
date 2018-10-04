@@ -9,7 +9,7 @@ from prefect.utilities.executors import dict_to_list, main_thread_timeout
 class LocalExecutor(Executor):
     """
     An executor that runs all functions synchronously and immediately in
-    the local thread.  To be used mainly for debugging purposes.
+    the main thread.  To be used mainly for debugging purposes.
     """
 
     _default_timeout_handler = staticmethod(main_thread_timeout)

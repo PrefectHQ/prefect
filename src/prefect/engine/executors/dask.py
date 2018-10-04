@@ -19,7 +19,7 @@ import warnings
 from prefect import config
 from prefect.engine.executors.base import Executor
 from prefect.engine.state import Failed
-from prefect.utilities.executors import dict_to_list
+from prefect.utilities.executors import dict_to_list, multiprocessing_timeout
 
 
 class DaskExecutor(Executor):
@@ -35,19 +35,30 @@ class DaskExecutor(Executor):
             Defaults to `None`
         - processes (bool, optional): whether to use multiprocessing or not
             (computations will still be multithreaded). Ignored if address is provided.
-            Defaults to `False`.
+            Defaults to `False`. Note that timeouts are not supported if `processes=True`
         - debug (bool, optional): whether to operate in debug mode; `debug=True`
             will produce many additional dask logs. Defaults to the `debug` value in your Prefect configuration
+        - timeout_handler (callable, optional): callable for handling
+            submissions with timeout constraints; defaults to `prefect.utilities.executors.multiprocessing_timeout`
         - **kwargs (dict, optional): additional kwargs to be passed to the
             `dask.distributed.Client` upon initialization (e.g., `n_workers`)
     """
 
-    def __init__(self, address=None, processes=False, debug=config.debug, **kwargs):
+    _default_timeout_handler = staticmethod(multiprocessing_timeout)
+
+    def __init__(
+        self,
+        address=None,
+        processes=False,
+        debug=config.debug,
+        timeout_handler=None,
+        **kwargs
+    ):
         self.address = address
         self.processes = processes
         self.debug = debug
         self.kwargs = kwargs
-        super().__init__()
+        super().__init__(timeout_handler=timeout_handler)
 
     @contextmanager
     def start(self) -> Iterable[None]:
