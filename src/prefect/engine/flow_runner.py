@@ -270,13 +270,13 @@ class FlowRunner:
                     mapped_tasks.add(task)
                     task_states[task] = executor.map(
                         task_runner.run,
-                        timeout=task.timeout,
                         upstream_states=upstream_states,
                         state=task_states.get(task),
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),
                         context=dict(prefect.context, **task_contexts.get(task, {})),
                         queues=task_queues,
+                        timeout_handler=executor.timeout_handler,
                     )
                 else:
                     upstream_mapped = {
@@ -287,13 +287,13 @@ class FlowRunner:
                     upstream_states.update(upstream_mapped)
                     task_states[task] = executor.submit(
                         task_runner.run,
-                        timeout=task.timeout,
                         state=task_states.get(task),
                         upstream_states=upstream_states,
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),
                         context=dict(prefect.context, **task_contexts.get(task, {})),
                         queues=task_queues,
+                        timeout_handler=executor.timeout_handler,
                     )
             # ---------------------------------------------
             # Collect results
