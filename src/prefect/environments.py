@@ -330,7 +330,6 @@ class ContainerEnvironment(Environment):
         )
 
         path = "{}/registry".format(directory)
-        print(path)
         with open(path, "wb+") as registry_file:
             registry_file.write(serialized_registry)
 
