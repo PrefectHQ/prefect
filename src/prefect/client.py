@@ -409,7 +409,7 @@ class FlowRuns(ClientModule):
             input=dict(flowId=flow_id, parameters=json.dumps(parameters)),
         )
 
-    def set_state(self, flow_run_id, state, ex=False) -> dict:
+    def set_state(self, flow_run_id, state) -> dict:
         """
         Set a flow run state
 
@@ -420,8 +420,6 @@ class FlowRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        if ex:
-            raise Exception(vars(state))
         state.result = None  # Temporary until we have cloud pickling
         return self._graphql(
             """

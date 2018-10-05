@@ -207,7 +207,7 @@ class FlowRunner:
                 )
 
                 if hasattr(config, "flow_run_id"):
-                    flow_runs_gql.set_state(config.flow_run_id, state, ex=True)
+                    flow_runs_gql.set_state(config.flow_run_id, state)
 
         except signals.DONTRUN:
             pass

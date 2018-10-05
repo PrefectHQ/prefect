@@ -160,9 +160,13 @@ class TaskRunner:
         if hasattr(config, "flow_run_id"):
             client = initialize_client()
             task_runs_gql = TaskRuns(client=client)
-            task_run_id = task_runs_gql.query(
-                flow_run_id=config.flow_run_id, task_id=self.task.id
-            )
+
+            # TODO: Tasks need some type of standard ID
+            task_run_id = None
+            if hasattr(self.task, "id"):
+                task_run_id = task_runs_gql.query(
+                    flow_run_id=config.flow_run_id, task_id=self.task.id
+                )
 
         with prefect.context(context, _task_name=self.task.name):
             while True:
@@ -184,17 +188,17 @@ class TaskRunner:
                     inputs=inputs,
                 )
 
-                if hasattr(config, "flow_run_id"):
+                if hasattr(config, "flow_run_id") and task_run_id:
                     task_runs_gql.set_state(task_run_id, state)
 
                 state = self.get_run_state(state=state, inputs=task_inputs)
 
-                if hasattr(config, "flow_run_id"):
+                if hasattr(config, "flow_run_id") and task_run_id:
                     task_runs_gql.set_state(task_run_id, state)
 
                 state = self.get_post_run_state(state=state, inputs=task_inputs)
 
-                if hasattr(config, "flow_run_id"):
+                if hasattr(config, "flow_run_id") and task_run_id:
                     task_runs_gql.set_state(task_run_id, state)
 
             # a DONTRUN signal at any point breaks the chain and we return
