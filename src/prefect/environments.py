@@ -165,6 +165,7 @@ class ContainerEnvironment(Environment):
 
             self.pull_image()
 
+            # TODO: This doesn't appear to work
             path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
 
             if Path(path).is_file():
@@ -191,7 +192,7 @@ class ContainerEnvironment(Environment):
             )
 
             if push:
-                self.push(image_name, self.tag)
+               self.push(image_name, self.tag)
 
             # Remove the image locally after being pushed
             client.images.remove("{}:{}".format(image_name, self.tag))
@@ -296,6 +297,7 @@ class ContainerEnvironment(Environment):
                 COPY config.toml $HOME/.prefect/config.toml
 
                 ENV PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="$HOME/.prefect/registry"
+                ENV PREFECT__GENERAL__USER_CONFIG_PATH="$HOME/.prefect/config.toml"
 
                 RUN pip install jinja2
                 RUN git clone -b josh/ie https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
