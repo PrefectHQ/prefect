@@ -161,7 +161,7 @@ class TaskRunner:
             client = initialize_client()
             task_runs_gql = TaskRuns(client=client)
 
-            # TODO: Tasks need some type of standard ID
+            # TODO: Tasks need some type of standard ID, obj_id instead of task.id
             task_run_id = None
             if hasattr(self.task, "id"):
                 task_run_id = task_runs_gql.query(
