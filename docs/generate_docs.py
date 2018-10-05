@@ -218,6 +218,14 @@ OUTLINE = [
         "title": "JSON",
     },
     {
+        "page": "utilities/executors.md",
+        "functions": [
+            prefect.utilities.executors.main_thread_timeout,
+            prefect.utilities.executors.multiprocessing_timeout,
+        ],
+        "title": "Executors",
+    },
+    {
         "page": "utilities/tasks.md",
         "functions": [
             prefect.utilities.tasks.tags,

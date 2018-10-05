@@ -34,7 +34,7 @@ class DaskExecutor(Executor):
             Defaults to `None`
         - processes (bool, optional): whether to use multiprocessing or not
             (computations will still be multithreaded). Ignored if address is provided.
-            Defaults to `False`.
+            Defaults to `False`. Note that timeouts are not supported if `processes=True`
         - debug (bool, optional): whether to operate in debug mode; `debug=True`
             will produce many additional dask logs. Defaults to the `debug` value in your Prefect configuration
         - **kwargs (dict, optional): additional kwargs to be passed to the
@@ -124,7 +124,7 @@ class DaskExecutor(Executor):
 
         Args:
             - futures (Iterable): iterable of future-like objects to compute
-            - timeout (datetime.timedelta): maximum length of time to allow for
+            - timeout (datetime.timedelta, optional): maximum length of time to allow for
                 execution
 
         Returns:
