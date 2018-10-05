@@ -3,6 +3,7 @@
 import datetime
 import functools
 import logging
+from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
 
 import prefect
@@ -21,6 +22,7 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
+from prefect.utilities.executors import main_thread_timeout
 
 # TODO: Move elsewhere
 import os
@@ -50,6 +52,11 @@ def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
         # DONTRUN signals get raised for handling
         except signals.DONTRUN as exc:
             logging.debug("DONTRUN signal raised: {}".format(exc))
+            raise
+
+        # PAUSE signals get raised for handling
+        except signals.PAUSE as exc:
+            logging.debug("PAUSE signal raised: {}".format(exc))
             raise
 
         # RETRY signals are trapped and turned into Retry states
@@ -111,6 +118,7 @@ class TaskRunner:
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
         queues: Iterable = None,
+        timeout_handler: Callable = None,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -132,6 +140,9 @@ class TaskRunner:
             - queues ([queue], optional): list of queues of tickets to use when deciding
                 whether it's safe for the Task to run based on resource limitations. The
                 Task will only begin running when a ticket from each queue is available.
+            - timeout_handler (Callable, optional): function for timing out
+                task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
+                `prefect.utilities.executors.main_thread_timeout`
 
         Returns:
             - `State` object representing the final post-run state of the Task
@@ -204,10 +215,10 @@ class TaskRunner:
             # a DONTRUN signal at any point breaks the chain and we return
             # the most recently computed state
             except signals.DONTRUN as exc:
-                if "manual_only" in str(exc):
-                    state.cached_inputs = task_inputs or {}
-                    state.message = exc
                 pass
+            except signals.PAUSE as exc:
+                state.cached_inputs = task_inputs or {}
+                state.message = exc
             finally:  # resource is now available
                 for ticket, q in zip(tickets, queues):
                     q.put(ticket)
@@ -292,7 +303,9 @@ class TaskRunner:
         return Running(message="Starting task run")
 
     @handle_signals
-    def get_run_state(self, state: State, inputs: Dict[str, Any]) -> State:
+    def get_run_state(
+        self, state: State, inputs: Dict[str, Any], timeout_handler: Callable = None
+    ) -> State:
         """
         Runs a task.
 
@@ -303,15 +316,21 @@ class TaskRunner:
             - state (State): the current task State.
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
-
+            - timeout_handler (Callable, optional): function for timing out
+                task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
+                `prefect.utilities.executors.main_thread_timeout`
         """
 
         if not state.is_running():
             raise signals.DONTRUN("Task is not in a Running state.")
 
+        timeout_handler = timeout_handler or main_thread_timeout
+
         try:
             self.logger.debug("Starting TaskRun")
-            result = self.task.run(**inputs)  # type: ignore
+            result = timeout_handler(
+                self.task.run, timeout=self.task.timeout, **inputs
+            )  # type: ignore
         except signals.DONTRUN as exc:
             raise signals.SKIP(
                 message="DONTRUN was raised inside a task and interpreted as SKIP. "

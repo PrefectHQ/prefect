@@ -72,17 +72,17 @@ def test_always_run_with_mixed_states():
 
 
 def test_manual_only_with_all_success():
-    with pytest.raises(signals.DONTRUN):
+    with pytest.raises(signals.PAUSE):
         triggers.manual_only(generate_states(success=3))
 
 
 def test_manual_only_with_all_failed():
-    with pytest.raises(signals.DONTRUN):
+    with pytest.raises(signals.PAUSE):
         triggers.manual_only(generate_states(failed=3))
 
 
 def test_manual_only_with_mixed_states():
-    with pytest.raises(signals.DONTRUN):
+    with pytest.raises(signals.PAUSE):
         triggers.manual_only(generate_states(success=1, failed=1, skipped=1))
 
 

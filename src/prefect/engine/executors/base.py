@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterable
 
 import prefect
+from prefect.utilities.executors import multiprocessing_timeout
 from prefect.utilities.json import Serializable
 
 
@@ -11,6 +12,8 @@ class Executor(Serializable):
     """
     Base Executor class which all other executors inherit from.
     """
+
+    timeout_handler = staticmethod(multiprocessing_timeout)
 
     def __init__(self):
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
@@ -64,8 +67,7 @@ class Executor(Serializable):
 
         Args:
             - futures (Iterable): iterable of futures to compute
-            - timeout (datetime.timedelta): maximum length of time to allow for
-                execution
+            - timeout (datetime.timedelta): maximum length of time to allow for execution
 
         Returns:
             - Iterable: an iterable of resolved futures
@@ -94,7 +96,7 @@ class Executor(Serializable):
             - fn (Callable): function which is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
             - context (dict): `prefect.utilities.Context` to be used in function execution
-            - **kwargs (Any): keyword arguments to be passed to `fn`
+            - **kwargs (Any): keyword arguments to be passed to `executor.submit`
 
         Returns:
             - Any: a future-like object

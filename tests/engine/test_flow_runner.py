@@ -83,6 +83,11 @@ class ReturnTask(Task):
         return 1 / (x - 1)
 
 
+class SlowTask(Task):
+    def run(self, secs):
+        time.sleep(secs)
+
+
 def test_flow_runner_runs_basic_flow_with_1_task():
     flow = prefect.Flow()
     task = SuccessTask()
@@ -712,3 +717,46 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
 
     assert res.result[my_name].result == "mapped-marvin"
     assert res.result[tt][0].result == "test-map"
+
+
+@pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
+def test_flow_runner_handles_timeouts(executor):
+    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+
+    with Flow() as flow:
+        res = sleeper(3)
+
+    state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
+    assert state.is_failed()
+    assert isinstance(state.result[res].message, TimeoutError)
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
+)
+def test_flow_runner_handles_timeout_error_with_mproc(mproc):
+    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+
+    with Flow() as flow:
+        res = sleeper(3)
+
+    state = FlowRunner(flow=flow).run(return_tasks=[res], executor=mproc)
+    assert state.is_failed()
+    assert isinstance(state.result[res].message, AssertionError)
+
+
+@pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
+def test_flow_runner_handles_mapped_timeouts(executor):
+    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+
+    with Flow() as flow:
+        res = sleeper.map([0, 2, 3])
+
+    state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
+    assert state.is_failed()
+
+    mapped_states = state.result[res]
+    assert mapped_states[0].is_successful()
+    for fstate in mapped_states[1:]:
+        assert fstate.is_failed()
+        assert isinstance(fstate.message, TimeoutError)
