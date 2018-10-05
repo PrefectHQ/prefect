@@ -420,6 +420,7 @@ class FlowRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
+        state.result = None  # Temporary until we have cloud pickling
         return self._graphql(
             """
             mutation($input: SetFlowRunStateInput!) {
@@ -448,6 +449,7 @@ class TaskRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
+        state.result = None  # Temporary until we have cloud pickling
         return self._graphql(
             """
             mutation($input: SetTaskRunStateInput!) {
