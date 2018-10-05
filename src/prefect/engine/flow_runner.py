@@ -206,11 +206,12 @@ class FlowRunner:
                     throttle=throttle,
                 )
 
-                if hasattr(config, "flow_run_id"):
-                    flow_runs_gql.set_state(config.flow_run_id, state)
-
         except signals.DONTRUN:
             pass
+
+        if hasattr(config, "flow_run_id"):
+            flow_runs_gql.set_state(config.flow_run_id, state)
+
         return state
 
     @handle_signals
