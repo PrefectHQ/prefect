@@ -192,7 +192,7 @@ class ContainerEnvironment(Environment):
             )
 
             if push:
-               self.push(image_name, self.tag)
+                self.push(image_name, self.tag)
 
             # Remove the image locally after being pushed
             client.images.remove("{}:{}".format(image_name, self.tag))
