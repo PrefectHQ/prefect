@@ -276,6 +276,7 @@ class FlowRunner:
                         ignore_trigger=(task in start_tasks),
                         context=dict(prefect.context, **task_contexts.get(task, {})),
                         queues=task_queues,
+                        timeout_handler=executor.timeout_handler,
                     )
                 else:
                     upstream_mapped = {
@@ -292,6 +293,7 @@ class FlowRunner:
                         ignore_trigger=(task in start_tasks),
                         context=dict(prefect.context, **task_contexts.get(task, {})),
                         queues=task_queues,
+                        timeout_handler=executor.timeout_handler,
                     )
             # ---------------------------------------------
             # Collect results
