@@ -984,6 +984,21 @@ class Flow(Serializable):
         else:
             environment_key = None
 
+        tasks = []
+        for t in self.tasks:
+            task_info = t.serialize()
+            task_info.update(self.task_info[t])
+            tasks.append(task_info)
+
+        edges = []
+        for e in self.edges:
+            edge_info = e.serialize()
+            upstream_task = edge_info.pop("upstream_task")
+            edge_info["upstream_task_id"] = self.task_info[upstream_task]["id"]
+            downstream_task = edge_info.pop("downstream_task")
+            edge_info["downstream_task_id"] = self.task_info[downstream_task]["id"]
+            edges.append(edge_info)
+
         return dict(
             id=self.id,
             name=self.name,
@@ -994,17 +1009,9 @@ class Flow(Serializable):
             environment_key=environment_key,
             parameters=self.parameters(),
             schedule=self.schedule,
-            tasks=[dict(**self.task_info[t], **t.serialize()) for t in self.tasks],
+            tasks=tasks,
+            edges=edges,
             reference_tasks=[self.task_info[t]["id"] for t in self.reference_tasks()],
-            edges=[
-                dict(
-                    upstream_task_id=self.task_info[e.upstream_task]["id"],
-                    downstream_task_id=self.task_info[e.downstream_task]["id"],
-                    key=e.key,
-                    mapped=e.mapped,
-                )
-                for e in self.edges
-            ],
             throttle=self.throttle,
         )
 
