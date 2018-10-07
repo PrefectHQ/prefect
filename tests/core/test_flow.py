@@ -730,23 +730,64 @@ def test_validate_missing_reference_tasks():
     assert "reference tasks are not contained" in str(exc.value).lower()
 
 
-def test_validate_missing_task_ids():
+def test_validate_missing_task_info():
     f = Flow()
     t1 = Task()
     f.tasks.add(t1)
     with pytest.raises(ValueError) as exc:
         f.validate()
-    assert "tasks do not have ids assigned" in str(exc.value).lower()
+    assert "tasks are not in the task_info" in str(exc.value).lower()
 
 
-def test_auto_generate_task_ids():
+def test_task_ids_are_cached():
+    f = Flow()
+    t1 = Task()
+    t2 = Task()
+    f.add_task(t1)
+    f.add_task(t2)
+
+    assert len(f.task_ids) == 2
+
+    for t in [t1, t2]:
+        assert not f.task_info[t]["mapped"]
+
+
+def test_auto_create_task_info_entries():
     f = Flow()
     t1 = Task()
     t2 = Task()
     f.add_edge(t1, t2)
 
-    assert len(f._task_ids) == 2
-    assert set([t1, t2]) == set(f._task_ids)
+    assert len(f.task_info) == 2
+    assert set([t1, t2]) == set(f.task_info)
+
+    for t in [t1, t2]:
+        assert not f.task_info[t]["mapped"]
+
+
+def test_task_info_entries_not_created_if_task_already_exists():
+    f = Flow()
+    t1 = Task()
+
+    assert f.task_info == {}
+    f.add_task(t1)
+    assert t1 in f.task_info
+    t1_id = f.task_info[t1]["id"]
+    f.add_task(t1)
+    assert f.task_info[t1]["id"] == t1_id
+
+
+def test_create_task_mapped_info_entries():
+    f = Flow()
+    t1 = Task()
+    t2 = Task()
+
+    # this is legal, though probably not useful
+    f.add_edge(t1, t2, mapped=True)
+    f.add_edge(t1, t2, mapped=False)
+
+    assert not f.task_info[t1]["mapped"]
+    assert f.task_info[t2]["mapped"]
 
 
 def test_register():
@@ -812,12 +853,19 @@ def test_serialize_tasks():
 
     serialized = flow.serialize()
     assert len(serialized["tasks"]) == 3
-    for t in serialized["tasks"].values():
+    for t in serialized["tasks"]:
         assert "id" in t
-        assert "local_id" in t
+        assert "mapped" in t
+        assert "name" in t
+        assert "max_retries" in t
     assert len(serialized["edges"]) == 1
     for e in serialized["edges"]:
-        assert e.keys() == set(["upstream_task_id", "downstream_task_id", "key"])
+        assert e.keys() == set(
+            ["upstream_task_id", "downstream_task_id", "key", "mapped"]
+        )
+        assert e['upstream_task_id'] in flow.task_ids
+        assert e['downstream_task_id'] in flow.task_ids
+    assert set([flow.task_ids[i] for i in serialized['reference_tasks']]) == set([t2, t3])
 
 
 def test_serialize_build():
@@ -904,6 +952,26 @@ class TestCache:
 
         f.add_edge(t2, t3)
         assert f.root_tasks() == set([t1])
+
+    def test_cache_task_ids(self):
+        f = Flow()
+        t1 = Task()
+        t2 = Task()
+        t3 = Task()
+        f.add_edge(t1, t2)
+
+        ids = f.task_ids
+
+        # check that cache holds result
+        key = ("task_ids", ())
+        assert f._cache[key] == ids
+
+        # check that cache is read
+        f._cache[key] = 1
+        assert f.task_ids == 1
+
+        f.add_edge(t2, t3)
+        assert len(f.task_ids) == 3
 
     def test_cache_terminal_tasks(self):
         f = Flow()
