@@ -863,9 +863,11 @@ def test_serialize_tasks():
         assert e.keys() == set(
             ["upstream_task_id", "downstream_task_id", "key", "mapped"]
         )
-        assert e['upstream_task_id'] in flow.task_ids
-        assert e['downstream_task_id'] in flow.task_ids
-    assert set([flow.task_ids[i] for i in serialized['reference_tasks']]) == set([t2, t3])
+        assert e["upstream_task_id"] in flow.task_ids
+        assert e["downstream_task_id"] in flow.task_ids
+    assert set([flow.task_ids[i] for i in serialized["reference_tasks"]]) == set(
+        [t2, t3]
+    )
 
 
 def test_serialize_build():
