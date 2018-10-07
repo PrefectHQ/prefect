@@ -132,4 +132,3 @@ class Edge:
             key=self.key,
             mapped=self.mapped,
         )
-
