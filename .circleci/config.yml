@@ -40,7 +40,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -v
+          command: pytest -vv
 
   test-3.5:
     docker:
@@ -56,6 +56,24 @@ jobs:
     docker:
       - image: python:3.7
     steps: *run_test_steps
+
+  test-airflow:
+    docker:
+      - image: python:3.6
+    steps: 
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Install prefect and airflow
+          command: pip install ".[dev]" && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow
+
+      - run:
+          name: Run tests w/ airflow
+          command: pytest -vv --airflow
 
 
 workflows:
@@ -79,3 +97,7 @@ workflows:
       - test-3.7:
           requires:
             - check_formatting
+
+      - test-airflow:
+          requires:
+            - test-3.6
