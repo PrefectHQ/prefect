@@ -158,19 +158,24 @@ class AirFlow(prefect.core.flow.Flow):
         ```
     """
 
-    def __init__(self, dag_id: str, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self, dag_id: str, *args: Any, db_file: str = None, **kwargs: Any
+    ) -> None:
         self.dag = airflow.models.DagBag().dags[dag_id]
         super().__init__(*args, **kwargs)
         self._populate_tasks()
-        self.env = self._init_db()
+        self.env = self._init_db(db_file=db_file)
 
-    def _init_db(self) -> dict:
-        self.td = tempfile.TemporaryDirectory(prefix="prefect-airflow")
+    def _init_db(self, db_file: str = None) -> dict:
         env = os.environ.copy()
-        env["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = (
-            "sqlite:///" + self.td.name + "/prefect-airflow.db"
-        )
-        status = subprocess.check_output(["bash", "-c", "airflow initdb"], env=env)
+        if db_file is not None:
+            env["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "sqlite:///" + db_file
+        else:
+            self.td = tempfile.TemporaryDirectory(prefix="prefect-airflow")
+            env["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = (
+                "sqlite:///" + self.td.name + "/prefect-airflow.db"
+            )
+            status = subprocess.check_output(["bash", "-c", "airflow initdb"], env=env)
         return env
 
     def run(  # type: ignore
