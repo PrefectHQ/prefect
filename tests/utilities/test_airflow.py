@@ -7,6 +7,14 @@ from prefect.utilities.airflow_utils import AirFlow
 
 
 @pytest.mark.airflow()
+def test_airflow_accepts_existing_sqlite_db():
+    flow = AirFlow(dag_id="example_bash_operator", db_file="test_doesnt_exist")
+    assert (
+        flow.env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN") == "sqlite:///test_doesnt_exist"
+    )
+
+
+@pytest.mark.airflow()
 def test_example_branch_operator():
     flow = AirFlow(dag_id="example_branch_operator")
     res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
