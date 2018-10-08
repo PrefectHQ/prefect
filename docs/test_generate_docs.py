@@ -2,7 +2,9 @@ import pytest
 from functools import wraps
 from toolz import curry
 
-from generate_docs import format_signature, format_subheader
+from generate_docs import create_absolute_path, format_signature, format_subheader
+from prefect import task
+from prefect.engine.state import State
 
 
 def no_args():
@@ -30,6 +32,17 @@ def varargs_with_default(*args, iso=None, **kwargs):
 
 
 class A:
+    """
+    A class called "A".
+
+    Args:
+        - attr (str): meaningless
+        - keep (bool, optional): whatever, defaults to `True`
+
+    Raises:
+        - TypeError: if you don't provide `attr`
+    """
+
     def __init__(self, attr, keep=True):
         pass
 
@@ -94,3 +107,18 @@ def test_format_signature_with_wraps(obj, exp):
         return obj(*args, **kwargs)
 
     assert format_signature(new_func) == exp
+
+
+@pytest.mark.parametrize(
+    "obj,exp",
+    [(task, "prefect.utilities.tasks.task"), (State, "prefect.engine.state.State")],
+)
+def test_create_absolute_path_on_prefect_object(obj, exp):
+    path = create_absolute_path(obj)
+    assert path == exp
+
+
+@pytest.mark.parametrize("obj,exp", [(A, "A"), (A.run, "A.run"), (no_args, "no_args")])
+def test_create_absolute_path_on_nonprefect_object(obj, exp):
+    path = create_absolute_path(obj)
+    assert path == exp
