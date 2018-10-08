@@ -387,10 +387,13 @@ def get_source(obj):
         commit
     )
     dir_struct = inspect.getfile(obj).split("/")
-    begins_at = dir_struct.index("src") + 2
-    line_no = inspect.getsourcelines(obj)[1]
-    url_ending = "/".join(dir_struct[begins_at:]) + f"#L{line_no}"
-    link = f'<a href="{base_url}{url_ending}">[source]</a>'
+    if "src" not in dir_struct:
+        link = "[source]"  # dead-link
+    else:
+        begins_at = dir_struct.index("src") + 2
+        line_no = inspect.getsourcelines(obj)[1]
+        url_ending = "/".join(dir_struct[begins_at:]) + f"#L{line_no}"
+        link = f'<a href="{base_url}{url_ending}">[source]</a>'
     source_tag = f'<span style="text-align:right; float:right; font-size:0.8em; width: 50%; max-width: 6em; display: inline-block;">{link}</span>'
     return source_tag
 
