@@ -1,5 +1,5 @@
 import pytest
-from functools import wraps
+from functools import partial, wraps
 from toolz import curry
 
 from generate_docs import (
@@ -10,6 +10,7 @@ from generate_docs import (
 )
 from prefect import task
 from prefect.engine.state import State
+from prefect.utilities.json import dumps, loads
 
 
 def no_args():
@@ -17,6 +18,15 @@ def no_args():
 
 
 def one_arg(x):
+    """
+    Wraps a function, collection, or constant with the appropriate Task type.
+
+    Args:
+        -x (object): any Python object to convert to a prefect Task
+
+    Returns:
+        - a prefect Task representing the passed object
+    """
     pass
 
 
@@ -95,6 +105,15 @@ def test_format_signature_with_curry(obj, exp):
 
 @pytest.mark.parametrize(
     "obj,exp",
+    [(one_string_kwarg, "k=42"), (standard_sig, "x, y, k=42, q=None, b=True")],
+)
+def test_format_signature_with_partial(obj, exp):
+    new_func = partial(obj, k=42)
+    assert format_signature(new_func) == exp
+
+
+@pytest.mark.parametrize(
+    "obj,exp",
     [
         (no_args, ""),
         (one_arg, "x"),
@@ -127,6 +146,11 @@ def test_create_absolute_path_on_prefect_object(obj, exp):
 def test_create_absolute_path_on_nonprefect_object(obj, exp):
     path = create_absolute_path(obj)
     assert path == exp
+
+
+@pytest.mark.parametrize("obj", [dumps, loads])
+def test_format_subheader_doesnt_raise_on_json_utils(obj):
+    doc = format_subheader(A)
 
 
 def test_format_subheader():

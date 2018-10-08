@@ -20,6 +20,7 @@ import textwrap
 import warnings
 
 import toolz
+from functools import partial
 
 import prefect
 from prefect.utilities.airflow_utils import AirFlow
@@ -244,9 +245,17 @@ OUTLINE = [
 ]
 
 
-def preprocess(f):
+@toolz.curry
+def preprocess(f, remove_partial=True):
     def wrapped(*args, **kwargs):
-        new_obj = getattr(args[0], "__wrapped__", getattr(args[0], "func", args[0]))
+        new_obj = getattr(args[0], "__wrapped__", args[0])
+        if not isinstance(new_obj, partial):
+            new_obj = getattr(new_obj, "func", new_obj)
+        elif isinstance(new_obj, partial) and remove_partial:
+            # because partial sets kwargs in the signature, we dont always
+            # want that stripped for call signature inspection but we _do_
+            # for doc inspection
+            new_obj = getattr(new_obj, "func", new_obj)
         new_args = list(args)
         new_args[0] = new_obj
         return f(*new_args, **kwargs)
@@ -327,7 +336,7 @@ def create_methods_table(members, title):
     return table
 
 
-@preprocess
+@preprocess(remove_partial=False)
 def get_call_signature(obj):
     assert callable(obj), f"{obj} is not callable, cannot format signature."
     # collect data
@@ -354,7 +363,7 @@ def get_call_signature(obj):
     return standalone, varargs, kwonly, kwargs, varkwargs
 
 
-@preprocess
+@preprocess(remove_partial=False)
 def format_signature(obj):
     standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
     add_quotes = lambda s: f'"{s}"' if isinstance(s, str) else s
