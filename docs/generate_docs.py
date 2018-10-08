@@ -371,10 +371,13 @@ def format_signature(obj):
 @preprocess
 def create_absolute_path(obj):
     dir_struct = inspect.getfile(obj).split("/")
+    if "src" not in dir_struct:
+        return obj.__qualname__
     begins_at = dir_struct.index("src") + 1
     filename = dir_struct.pop(-1)
     dir_struct.append(filename[:-3] if filename.endswith(".py") else filename)
-    return ".".join([d for d in dir_struct[begins_at:]])
+    path = ".".join([d for d in dir_struct[begins_at:]])
+    return f"{path}.{obj.__qualname__}"
 
 
 @preprocess
@@ -402,7 +405,7 @@ def format_subheader(obj, level=1, in_table=False):
     else:
         header = "|"
     is_class = "<em><b>class </b></em>" if inspect.isclass(obj) else ""
-    class_name = f"<b>{create_absolute_path(obj)}.{obj.__qualname__}</b>"
+    class_name = f"<b>{create_absolute_path(obj)}</b>"
     div_tag = f"<div class='sig' style='padding-left:3.5em;text-indent:-3.5em;'>"
 
     call_sig = f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>\n\n"
