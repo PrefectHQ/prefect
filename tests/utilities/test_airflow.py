@@ -5,7 +5,8 @@ import tempfile
 
 airflow = pytest.importorskip("airflow")
 
-from prefect.engine.state import Success, Skipped, Failed
+from prefect import task, Task, triggers
+from prefect.engine.state import Success, Skipped, Failed, TriggerFailed
 from prefect.utilities.airflow_utils import AirFlow
 
 
@@ -106,3 +107,20 @@ def test_example_bash_operator(airflow_db):
 
     for task, state in res.result.items():
         assert isinstance(state, Success)
+
+
+@pytest.mark.airflow()
+def test_extending_airflow_dag_with_prefect_task(airflow_db):
+    flow = AirFlow(dag_id="example_bash_operator", db_file=airflow_db)
+    run_task0 = flow.get_tasks(name="runme_0")
+    with flow:
+        t1 = Task(trigger=triggers.all_failed)(upstream_tasks=[run_task0])
+
+    res = flow.run(execution_date="2018-09-21", return_tasks=flow.tasks)
+    assert res.is_failed()
+
+    for task, state in res.result.items():
+        if task == t1:
+            assert isinstance(state, TriggerFailed)
+        else:
+            assert isinstance(state, Success)
