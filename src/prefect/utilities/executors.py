@@ -2,13 +2,103 @@
 
 import dask
 import dask.bag
-from typing import Any, Dict, List, Union
+import datetime
+import multiprocessing
+import signal
+from typing import Any, Callable, Dict, List, Union
 
 import prefect
 from prefect.core.edge import Edge
 
 
 StateList = Union["prefect.engine.state.State", List["prefect.engine.state.State"]]
+
+
+def multiprocessing_timeout(
+    fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any
+):
+    """
+    Helper function for implementing timeouts on function executions.
+    Implemented by spawning a new multiprocess.Process() and joining with timeout.
+
+    Args:
+        - fn (callable): the function to execute
+        - *args (Any): arguments to pass to the function
+        - timeout (datetime.timedelta): the length of time to allow for
+            execution before raising a `TimeoutError`
+        - **kwargs (Any): keyword arguments to pass to the function
+
+    Returns:
+        - the result of `f(*args, **kwargs)`
+
+    Raises:
+        - AssertionError: if run from a daemonic process
+        - TimeoutError: if function execution exceeds the allowed timeout
+    """
+
+    if timeout is None:
+        return fn(*args, **kwargs)
+    else:
+        timeout = timeout.total_seconds()
+
+    def retrieve_value(*args, _container, **kwargs):
+        """Puts the return value in a multiprocessing-safe container"""
+        try:
+            _container.put(fn(*args, **kwargs))
+        except Exception as exc:
+            _container.put(exc)
+
+    q = multiprocessing.Queue()
+    kwargs["_container"] = q
+    p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
+    p.start()
+    p.join(timeout)
+    p.terminate()
+    if not q.empty():
+        res = q.get()
+        if isinstance(res, Exception):
+            raise res
+        return res
+    else:
+        raise TimeoutError("Execution timed out.")
+
+
+def main_thread_timeout(
+    fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any
+):
+    """
+    Helper function for implementing timeouts on function executions.
+    Implemented by setting a `signal` alarm on a timer. Must be run in the main thread.
+
+    Args:
+        - fn (callable): the function to execute
+        - *args (Any): arguments to pass to the function
+        - timeout (datetime.timedelta): the length of time to allow for
+            execution before raising a `TimeoutError`
+        - **kwargs (Any): keyword arguments to pass to the function
+
+    Returns:
+        - the result of `f(*args, **kwargs)`
+
+    Raises:
+        - TimeoutError: if function execution exceeds the allowed timeout
+        - ValueError: if run from outside the main thread
+    """
+
+    if timeout is None:
+        return fn(*args, **kwargs)
+    else:
+        timeout = round(timeout.total_seconds())
+
+    def error_handler(signum, frame):
+        raise TimeoutError("Execution timed out.")
+
+    try:
+        signal.signal(signal.SIGALRM, error_handler)
+        signal.alarm(timeout)
+        return fn(*args, **kwargs)
+    finally:
+        signal.alarm(0)
 
 
 def dict_to_list(dd: Dict[Edge, StateList]) -> List[dict]:

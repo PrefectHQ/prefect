@@ -79,7 +79,11 @@ class Edge:
     """
 
     def __init__(
-        self, upstream_task: Task, downstream_task: Task, key: str = None, mapped=False
+        self,
+        upstream_task: Task,
+        downstream_task: Task,
+        key: str = None,
+        mapped: bool = False,
     ) -> None:
         self.upstream_task = upstream_task
         self.downstream_task = downstream_task
