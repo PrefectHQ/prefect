@@ -30,6 +30,13 @@ import prefect
 __all__ = ["AirFlow"]
 
 
+def custom_query(db: str, query: str) -> List:
+    with closing(sqlite3.connect(db)) as connection:
+        with closing(connection.cursor()) as cursor:
+            cursor.execute(query)
+            return cursor.fetchall()
+
+
 trigger_mapping = {
     "all_success": prefect.triggers.all_successful,
     "all_failed": prefect.triggers.all_failed,
@@ -38,13 +45,6 @@ trigger_mapping = {
     "one_failed": prefect.triggers.any_failed,
     "dummy": prefect.triggers.always_run,
 }
-
-
-def custom_query(db: str, query: str) -> List:
-    with closing(sqlite3.connect(db)) as connection:
-        with closing(connection.cursor()) as cursor:
-            cursor.execute(query)
-            return cursor.fetchall()
 
 
 class AirTask(prefect.tasks.shell.ShellTask):
@@ -58,10 +58,10 @@ class AirTask(prefect.tasks.shell.ShellTask):
         super().__init__(
             name=name,
             command=cmd,
-            trigger=trigger,
             skip_on_upstream_skip=False,
             max_retries=task.retries,
             tags=task.pool,
+            trigger=trigger,
             **kwargs
         )
 
@@ -159,15 +159,22 @@ class AirFlow(prefect.core.flow.Flow):
     """
 
     def __init__(
-        self, dag_id: str, *args: Any, db_file: str = None, **kwargs: Any
+        self,
+        dag_id: str,
+        *args: Any,
+        db_file: str = None,
+        dag_folder: str = None,
+        **kwargs: Any
     ) -> None:
-        self.dag = airflow.models.DagBag().dags[dag_id]
+        self.dag = airflow.models.DagBag(dag_folder=dag_folder).dags[dag_id]
         super().__init__(*args, **kwargs)
         self._populate_tasks()
-        self.env = self._init_db(db_file=db_file)
+        self.env = self._init_db(db_file=db_file, dag_folder=dag_folder)
 
-    def _init_db(self, db_file: str = None) -> dict:
+    def _init_db(self, db_file: str = None, dag_folder: str = None) -> dict:
         env = os.environ.copy()
+        if dag_folder is not None:
+            env["AIRFLOW__CORE__DAGS_FOLDER"] = dag_folder
         if db_file is not None:
             env["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "sqlite:///" + db_file
         else:
