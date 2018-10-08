@@ -4,6 +4,7 @@ from toolz import curry
 
 from generate_docs import (
     create_absolute_path,
+    format_doc,
     format_lists,
     format_signature,
     format_subheader,
@@ -147,9 +148,10 @@ def test_format_subheader_doesnt_raise_on_json_utils(obj):
 
 def test_format_subheader_on_class():
     doc = format_subheader(A)
-    assert (
-        doc
-        == "  <div class='sig' style='padding-left:3.5em;text-indent:-3.5em;'><em><b>class </b></em><b>A</b>(attr, keep=True)<span style=\"text-align:right; float:right; font-size:0.8em; width: 50%; max-width: 6em; display: inline-block;\">[source]</span></div>\n\n"
+    assert doc == (
+        "  <div class='sig' style='padding-left:3.5em;text-indent:-3.5em;'>"
+        '<em><b>class </b></em><b>A</b>(attr, keep=True)<span style="text-align:right;'
+        ' float:right; font-size:0.8em; width: 50%; max-width: 6em; display: inline-block;">[source]</span></div>\n\n'
     )
 
 
@@ -168,4 +170,34 @@ def test_format_list_on_normal_doc():
         - NotImplementedError: because it doesnt exist
     """
     formatted_doc = format_lists(doc)
-    assert formatted_doc == "\n    Does a thing.\n\n    Args:\n        <ul style='padding-left:3.5em;text-indent:-3.5em;'><li style='padding-left:3.5em;text-indent:-3.5em;'>`x (bool)`: it's x\n        </li><li style='padding-left:3.5em;text-indent:-3.5em;'>`y (bool)`: it's y</li></ul>    Returns:\n        <ul style='padding-left:3.5em;text-indent:-3.5em;'><li style='padding-left:3.5em;text-indent:-3.5em;'>whatever you want</li></ul>\n\n    Raises:\n        <ul style='padding-left:3.5em;text-indent:-3.5em;'><li style='padding-left:3.5em;text-indent:-3.5em;'>`NotImplementedError`: because it doesnt exist\n    </li></ul>"
+    assert formatted_doc == (
+        "\n    Does a thing.\n\n    Args:\n        "
+        "<ul style='padding-left:3.5em;text-indent:-3.5em;'>"
+        "<li style='padding-left:3.5em;text-indent:-3.5em;'>"
+        "`x (bool)`: it's x\n        </li>"
+        "<li style='padding-left:3.5em;text-indent:-3.5em;'>"
+        "`y (bool)`: it's y</li></ul>    "
+        "Returns:\n        <ul style='padding-left:3.5em;text-indent:-3.5em;'>"
+        "<li style='padding-left:3.5em;text-indent:-3.5em;'>whatever you want</li></ul>"
+        "\n\n    Raises:\n        <ul style='padding-left:3.5em;text-indent:-3.5em;'>"
+        "<li style='padding-left:3.5em;text-indent:-3.5em;'>`NotImplementedError`: because it doesnt exist\n    </li></ul>"
+    )
+
+
+def test_format_doc_on_simple_doc():
+    def my_fun():
+        """
+        Indicates that a task should not run and wait for manual execution.
+
+        Args:
+            - message (Any, optional): Defaults to `None`. A message about the signal.
+        """
+        pass
+
+    formatted = format_doc(my_fun)
+    assert formatted == (
+        "Indicates that a task should not run and wait for manual execution.\n\n"
+        "**Args**:\n<ul style='padding-left:3.5em;text-indent:-3.5em;'>"
+        "<li style='padding-left:3.5em;text-indent:-3.5em;'>"
+        "`message (Any, optional)`: Defaults to `None`. A message about the signal.</li></ul>"
+    )

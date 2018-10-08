@@ -297,7 +297,9 @@ def format_lists(doc):
     return doc.replace("\n\nRaises:", "Raises:")
 
 
-def format_doc(doc, in_table=False):
+@preprocess
+def format_doc(obj, in_table=False):
+    doc = inspect.getdoc(obj)
     body = doc or ""
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
@@ -331,7 +333,7 @@ def create_methods_table(members, title):
         table += format_subheader(method, level=2, in_table=True).replace(
             "\n\n", "<br>"
         )
-        table += format_doc(inspect.getdoc(method), in_table=True)
+        table += format_doc(method, in_table=True)
         table += "|\n"
     return table
 
@@ -407,7 +409,7 @@ def get_source(obj):
     return source_tag
 
 
-@preprocess
+@preprocess(remove_partial=False)
 def format_subheader(obj, level=1, in_table=False):
     class_sig = format_signature(obj)
     if inspect.isclass(obj):
@@ -522,7 +524,7 @@ if __name__ == "__main__":
             for obj in classes:
                 f.write(format_subheader(obj))
 
-                f.write(format_doc(inspect.getdoc(obj)) + "\n\n")
+                f.write(format_doc(obj) + "\n\n")
                 if type(obj) == toolz.functoolz.curry:
                     f.write("\n")
                     continue
