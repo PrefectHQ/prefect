@@ -4,6 +4,7 @@ from toolz import curry
 
 from generate_docs import (
     create_absolute_path,
+    format_lists,
     format_signature,
     format_subheader,
     get_source,
@@ -18,15 +19,6 @@ def no_args():
 
 
 def one_arg(x):
-    """
-    Wraps a function, collection, or constant with the appropriate Task type.
-
-    Args:
-        -x (object): any Python object to convert to a prefect Task
-
-    Returns:
-        - a prefect Task representing the passed object
-    """
     pass
 
 
@@ -150,12 +142,30 @@ def test_create_absolute_path_on_nonprefect_object(obj, exp):
 
 @pytest.mark.parametrize("obj", [dumps, loads])
 def test_format_subheader_doesnt_raise_on_json_utils(obj):
-    doc = format_subheader(A)
+    doc = format_subheader(obj)
 
 
-def test_format_subheader():
+def test_format_subheader_on_class():
     doc = format_subheader(A)
     assert (
         doc
         == "  <div class='sig' style='padding-left:3.5em;text-indent:-3.5em;'><em><b>class </b></em><b>A</b>(attr, keep=True)<span style=\"text-align:right; float:right; font-size:0.8em; width: 50%; max-width: 6em; display: inline-block;\">[source]</span></div>\n\n"
     )
+
+
+def test_format_list_on_normal_doc():
+    doc = """
+    Does a thing.
+
+    Args:
+        - x (bool): it's x
+        - y (bool): it's y
+
+    Returns:
+        - whatever you want
+
+    Raises:
+        - NotImplementedError: because it doesnt exist
+    """
+    formatted_doc = format_lists(doc)
+    assert formatted_doc == "\n    Does a thing.\n\n    Args:\n        <ul style='padding-left:3.5em;text-indent:-3.5em;'><li style='padding-left:3.5em;text-indent:-3.5em;'>`x (bool)`: it's x\n        </li><li style='padding-left:3.5em;text-indent:-3.5em;'>`y (bool)`: it's y</li></ul>    Returns:\n        <ul style='padding-left:3.5em;text-indent:-3.5em;'><li style='padding-left:3.5em;text-indent:-3.5em;'>whatever you want</li></ul>\n\n    Raises:\n        <ul style='padding-left:3.5em;text-indent:-3.5em;'><li style='padding-left:3.5em;text-indent:-3.5em;'>`NotImplementedError`: because it doesnt exist\n    </li></ul>"
