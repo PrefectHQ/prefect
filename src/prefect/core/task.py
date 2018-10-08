@@ -176,7 +176,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         """
         return tuple(inspect.signature(self.run).parameters.keys())
 
-    def run(self) -> None:  # type: ignore
+    def run(self) -> None:
         """
         The `run()` method is called (with arguments, if appropriate) to run a task.
 
@@ -226,10 +226,10 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     def __call__(
         self,
-        *args: object,
+        *args: Any,
         mapped: bool = False,
-        upstream_tasks: Iterable[object] = None,
-        **kwargs: object
+        upstream_tasks: Iterable[Any] = None,
+        **kwargs: Any
     ) -> "Task":
         """
         Calling a Task instance will first create a _copy_ of the instance, and then
@@ -256,10 +256,10 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     def bind(
         self,
-        *args: object,
+        *args: Any,
         mapped: bool = False,
-        upstream_tasks: Iterable[object] = None,
-        **kwargs: object
+        upstream_tasks: Iterable[Any] = None,
+        **kwargs: Any
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
@@ -313,7 +313,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         return self
 
     def map(
-        self, *args: object, upstream_tasks: Iterable[object] = None, **kwargs: object
+        self, *args: Any, upstream_tasks: Iterable[Any] = None, **kwargs: Any
     ) -> "Task":
         """
         Map the Task elementwise across one or more Tasks. Arguments which should _not_ be mapped over

@@ -94,8 +94,7 @@ class SynchronousExecutor(Executor):
 
         Args:
             - futures (Iterable): iterable of `dask.delayed` objects to compute
-            - timeout (datetime.timedelta): maximum length of time to allow for
-                execution
+            - timeout (datetime.timedelta): maximum length of time to allow for execution
 
         Returns:
             - Iterable: an iterable of resolved futures

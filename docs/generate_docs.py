@@ -43,7 +43,6 @@ OUTLINE = [
             prefect.triggers.all_finished,
             prefect.triggers.manual_only,
             prefect.triggers.always_run,
-            prefect.triggers.never_run,
             prefect.triggers.all_successful,
             prefect.triggers.all_failed,
             prefect.triggers.any_successful,
@@ -140,6 +139,7 @@ OUTLINE = [
             prefect.engine.signals.RETRY,
             prefect.engine.signals.SKIP,
             prefect.engine.signals.DONTRUN,
+            prefect.engine.signals.PAUSE,
         ],
         "title": "Signals",
         "top-level-doc": prefect.engine.signals,
@@ -184,6 +184,14 @@ OUTLINE = [
         "title": "ShellTask",
     },
     {
+        "page": "tasks/strings.md",
+        "classes": [
+            prefect.tasks.strings.StringFormatterTask,
+            prefect.tasks.strings.JinjaTemplateTask,
+        ],
+        "title": "String Templating Tasks",
+    },
+    {
         "page": "utilities/bokeh.md",
         "classes": [BokehRunner],
         "title": "BokehRunner",
@@ -208,6 +216,14 @@ OUTLINE = [
         ],
         "functions": [prefect.utilities.json.register_json_codec],
         "title": "JSON",
+    },
+    {
+        "page": "utilities/executors.md",
+        "functions": [
+            prefect.utilities.executors.main_thread_timeout,
+            prefect.utilities.executors.multiprocessing_timeout,
+        ],
+        "title": "Executors",
     },
     {
         "page": "utilities/tasks.md",

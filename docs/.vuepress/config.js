@@ -51,12 +51,12 @@ module.exports = {
                 {
                     title: 'prefect.tasks',
                     collapsable: true,
-                    children: ['tasks/control_flow', 'tasks/function', 'tasks/shell']
+                    children: ['tasks/control_flow', 'tasks/function', 'tasks/shell', 'tasks/strings']
                 },
                 {
                     title: 'prefect.utilities',
                     collapsable: true,
-                    children: ['utilities/bokeh', 'utilities/collections', 'utilities/json', 'utilities/tasks', 'utilities/airflow']
+                    children: ['utilities/bokeh', 'utilities/collections', 'utilities/executors', 'utilities/json', 'utilities/tasks', 'utilities/airflow']
                 },
             ],
             '/license': [],

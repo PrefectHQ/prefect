@@ -22,6 +22,7 @@ except ImportError:
 
 from collections import defaultdict
 from contextlib import closing
+from typing import Dict, List, Any
 
 import prefect
 
@@ -39,7 +40,7 @@ trigger_mapping = {
 }
 
 
-def custom_query(db, query):
+def custom_query(db: str, query: str) -> List:
     with closing(sqlite3.connect(db)) as connection:
         with closing(connection.cursor()) as cursor:
             cursor.execute(query)
@@ -47,7 +48,7 @@ def custom_query(db, query):
 
 
 class AirTask(prefect.tasks.shell.ShellTask):
-    def __init__(self, task, **kwargs):
+    def __init__(self, task: "airflow.models.BaseOperator", **kwargs: Any) -> None:
         name = task.task_id
         dag_id = task.dag_id
         trigger = trigger_mapping[task.trigger_rule]
@@ -64,9 +65,9 @@ class AirTask(prefect.tasks.shell.ShellTask):
             **kwargs
         )
 
-    def pre_check(self, execution_date, airflow_env):
+    def pre_check(self, execution_date: str, airflow_env: dict) -> None:
         check_query = "select state from task_instance where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
-        dbfile = airflow_env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")[
+        dbfile = airflow_env["AIRFLOW__CORE__SQL_ALCHEMY_CONN"][
             10:
         ]  # removes sqlite:/// noise
         status = custom_query(
@@ -75,9 +76,9 @@ class AirTask(prefect.tasks.shell.ShellTask):
         if status and status[0][0] == "skipped":
             raise prefect.engine.signals.SKIP("Task marked as 'skipped' in airflow db")
 
-    def post_check(self, execution_date, airflow_env):
+    def post_check(self, execution_date: str, airflow_env: dict) -> None:
         check_query = "select state from task_instance where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
-        dbfile = airflow_env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")[
+        dbfile = airflow_env["AIRFLOW__CORE__SQL_ALCHEMY_CONN"][
             10:
         ]  # removes sqlite:/// noise
         query = custom_query(
@@ -103,9 +104,9 @@ class AirTask(prefect.tasks.shell.ShellTask):
                 "Airflow task state marked as {} in airflow db".format(status.rstrip())
             )
 
-    def pull_xcom(self, execution_date, airflow_env):
+    def pull_xcom(self, execution_date: str, airflow_env: dict) -> Any:
         check_query = "select value from xcom where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
-        dbfile = airflow_env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")[
+        dbfile = airflow_env["AIRFLOW__CORE__SQL_ALCHEMY_CONN"][
             10:
         ]  # removes sqlite:/// noise
         data = custom_query(
@@ -114,11 +115,13 @@ class AirTask(prefect.tasks.shell.ShellTask):
         if data:
             return pickle.loads(data[0][0])
 
-    def run(self):
-        execution_date = prefect.context.get("_execution_date")
-        airflow_env = prefect.context.get("_airflow_env")
+    def run(self) -> Any:  # type: ignore
+        execution_date = prefect.context.get("_execution_date", "")
+        airflow_env = prefect.context.get("_airflow_env", {})
         self.pre_check(execution_date, airflow_env)
-        self.command = self.command.format(self.dag_id, self.name, execution_date)
+        self.command = self.command.format(  # type: ignore
+            self.dag_id, self.name, execution_date
+        )
         res = super().run(env=airflow_env)
         if "Task is not able to be run" in res.decode():
             raise prefect.engine.signals.SKIP("Airflow task was not run.")
@@ -155,13 +158,13 @@ class AirFlow(prefect.core.flow.Flow):
         ```
     """
 
-    def __init__(self, dag_id, *args, **kwargs):
+    def __init__(self, dag_id: str, *args: Any, **kwargs: Any) -> None:
         self.dag = airflow.models.DagBag().dags[dag_id]
         super().__init__(*args, **kwargs)
         self._populate_tasks()
         self.env = self._init_db()
 
-    def _init_db(self):
+    def _init_db(self) -> dict:
         self.td = tempfile.TemporaryDirectory(prefix="prefect-airflow")
         env = os.environ.copy()
         env["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = (
@@ -170,7 +173,9 @@ class AirFlow(prefect.core.flow.Flow):
         status = subprocess.check_output(["bash", "-c", "airflow initdb"], env=env)
         return env
 
-    def run(self, execution_date, *args, **kwargs):
+    def run(  # type: ignore
+        self, execution_date: str, *args: Any, **kwargs: Any
+    ) -> "prefect.engine.state.State":
         """
         The main entrypoint for executing the Flow / DAG.
 
@@ -186,7 +191,7 @@ class AirFlow(prefect.core.flow.Flow):
         with prefect.context(_execution_date=execution_date, _airflow_env=self.env):
             return super().run(*args, **kwargs)
 
-    def _issue_warnings(self, task):
+    def _issue_warnings(self, task: "airflow.models.BaseOperator") -> None:
         parameter_warning = False
         if task.params:
             warnings.warn(
@@ -197,10 +202,10 @@ class AirFlow(prefect.core.flow.Flow):
                 "Use of Airflow pools detected; consider converting these to Prefect tags and using throttling."
             )
 
-    def _populate_tasks(self):
-        task_dict = {}
+    def _populate_tasks(self) -> None:
+        task_dict = {}  # type: Dict[str, Any]
 
-        def to_task(t):
+        def to_task(t: "airflow.models.BaseOperator") -> AirTask:
             if t.task_id not in task_dict:
                 task_dict[t.task_id] = AirTask(t)
             return task_dict[t.task_id]

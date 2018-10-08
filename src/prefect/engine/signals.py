@@ -87,3 +87,12 @@ class DONTRUN(PrefectStateSignal):
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
     """
+
+
+class PAUSE(PrefectStateSignal):
+    """
+    Indicates that a task should not run and wait for manual execution.
+
+    Args:
+        - message (Any, optional): Defaults to `None`. A message about the signal.
+    """
