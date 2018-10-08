@@ -2,7 +2,12 @@ import pytest
 from functools import wraps
 from toolz import curry
 
-from generate_docs import create_absolute_path, format_signature, format_subheader
+from generate_docs import (
+    create_absolute_path,
+    format_signature,
+    format_subheader,
+    get_source,
+)
 from prefect import task
 from prefect.engine.state import State
 
@@ -122,3 +127,11 @@ def test_create_absolute_path_on_prefect_object(obj, exp):
 def test_create_absolute_path_on_nonprefect_object(obj, exp):
     path = create_absolute_path(obj)
     assert path == exp
+
+
+def test_format_subheader():
+    doc = format_subheader(A)
+    assert (
+        doc
+        == "  <div class='sig' style='padding-left:3.5em;text-indent:-3.5em;'><em><b>class </b></em><b>A</b>(attr, keep=True)<span style=\"text-align:right; float:right; font-size:0.8em; width: 50%; max-width: 6em; display: inline-block;\">[source]</span></div>\n\n"
+    )
