@@ -121,7 +121,7 @@ class Flow(Serializable):
         self._cache = {}  # type: dict
 
         self._id = str(uuid.uuid4())
-        self._task_ids = dict()  # type: Dict[Task, str]
+        self.task_info = dict()  # type: Dict[Task, str]
 
         self.name = name or type(self).__name__
         self.version = version or prefect.config.flows.default_version  # type: ignore
@@ -138,11 +138,7 @@ class Flow(Serializable):
 
         self.set_reference_tasks(reference_tasks or [])
         for e in edges or []:
-            self.add_edge(
-                upstream_task=e.upstream_task,
-                downstream_task=e.downstream_task,
-                key=e.key,
-            )
+            self.add_edge(**e.serialize())
 
         self._prefect_version = prefect.__version__
 
@@ -262,7 +258,7 @@ class Flow(Serializable):
 
         # update tasks
         self.tasks.remove(old)
-        self._task_ids.pop(old)
+        self.task_info.pop(old)
         self.add_task(new)
 
         self._cache.clear()
@@ -298,6 +294,14 @@ class Flow(Serializable):
     @property
     def id(self) -> str:
         return self._id
+
+    @property
+    @cache
+    def task_ids(self) -> Dict[str, Task]:
+        """
+        Returns a dictionary of {task_id: Task} pairs.
+        """
+        return {self.task_info[task]["id"]: task for task in self.tasks}
 
     def key(self) -> dict:
         """
@@ -437,10 +441,11 @@ class Flow(Serializable):
                     "flow.".format(task.slug)
                 )
 
-        self.tasks.add(task)
-        self._task_ids[task] = str(uuid.uuid4())
+        if task not in self.tasks:
+            self.tasks.add(task)
+            self.task_info[task] = dict(id=str(uuid.uuid4()), mapped=False)
+            self._cache.clear()
 
-        self._cache.clear()
         return task
 
     def add_edge(
@@ -505,6 +510,9 @@ class Flow(Serializable):
                 e.key: None for e in self.edges_to(downstream_task) if e.key is not None
             }
             inspect.signature(downstream_task.run).bind_partial(**edge_keys)
+
+        if mapped:
+            self.task_info[downstream_task]["mapped"] = True
 
         self._cache.clear()
 
@@ -681,8 +689,8 @@ class Flow(Serializable):
         if any(t not in self.tasks for t in self.reference_tasks()):
             raise ValueError("Some reference tasks are not contained in this flow.")
 
-        if any(t not in self._task_ids for t in self.tasks):
-            raise ValueError("Some tasks do not have IDs assigned.")
+        if self.tasks.difference(self.task_info):
+            raise ValueError("Some tasks are not in the task_info dict.")
 
     def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
         """
@@ -971,11 +979,25 @@ class Flow(Serializable):
             - dict representing the flow
         """
 
-        local_task_ids = self.generate_local_task_ids()
         if self.environment and build:
             environment_key = self.build_environment()
         else:
             environment_key = None
+
+        tasks = []
+        for t in self.tasks:
+            task_info = t.serialize()
+            task_info.update(self.task_info[t])
+            tasks.append(task_info)
+
+        edges = []
+        for e in self.edges:
+            edge_info = e.serialize()
+            upstream_task = edge_info.pop("upstream_task")
+            edge_info["upstream_task_id"] = self.task_info[upstream_task]["id"]
+            downstream_task = edge_info.pop("downstream_task")
+            edge_info["downstream_task_id"] = self.task_info[downstream_task]["id"]
+            edges.append(edge_info)
 
         return dict(
             id=self.id,
@@ -987,21 +1009,9 @@ class Flow(Serializable):
             environment_key=environment_key,
             parameters=self.parameters(),
             schedule=self.schedule,
-            tasks={
-                self._task_ids[t]: dict(
-                    id=self._task_ids[t], local_id=local_task_ids[t], **t.serialize()
-                )
-                for t in self.tasks
-            },
-            reference_tasks=[self._task_ids[t] for t in self.reference_tasks()],
-            edges=[
-                dict(
-                    upstream_task_id=self._task_ids[e.upstream_task],
-                    downstream_task_id=self._task_ids[e.downstream_task],
-                    key=e.key,
-                )
-                for e in self.edges
-            ],
+            tasks=tasks,
+            edges=edges,
+            reference_tasks=[self.task_info[t]["id"] for t in self.reference_tasks()],
             throttle=self.throttle,
         )
 
