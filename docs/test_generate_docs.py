@@ -1,4 +1,6 @@
 import pytest
+from functools import wraps
+from toolz import curry
 
 from generate_docs import format_signature, format_subheader
 
@@ -54,3 +56,41 @@ class A:
 )
 def test_format_signature(obj, exp):
     assert format_signature(obj) == exp
+
+
+@pytest.mark.parametrize(
+    "obj,exp",
+    [
+        (no_args, ""),
+        (one_arg, "x"),
+        (one_string_kwarg, 'k="key"'),
+        (standard_sig, 'x, y, k="key", q=None, b=True'),
+        (varargs_with_default, "*args, iso=None, **kwargs"),
+        (varargs_no_default, "*args, iso, **kwargs"),
+        (A.run, "*args, b=True, **kwargs"),
+        (A.y, "*args, b, **kwargs"),
+    ],
+)
+def test_format_signature_with_curry(obj, exp):
+    assert format_signature(curry(obj)) == exp
+
+
+@pytest.mark.parametrize(
+    "obj,exp",
+    [
+        (no_args, ""),
+        (one_arg, "x"),
+        (one_string_kwarg, 'k="key"'),
+        (standard_sig, 'x, y, k="key", q=None, b=True'),
+        (varargs_with_default, "*args, iso=None, **kwargs"),
+        (varargs_no_default, "*args, iso, **kwargs"),
+        (A.run, "*args, b=True, **kwargs"),
+        (A.y, "*args, b, **kwargs"),
+    ],
+)
+def test_format_signature_with_wraps(obj, exp):
+    @wraps(obj)
+    def new_func(*args, **kwargs):
+        return obj(*args, **kwargs)
+
+    assert format_signature(new_func) == exp
