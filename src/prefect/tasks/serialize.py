@@ -21,6 +21,15 @@ class SerializeTask(Task):
         super().__init__(*args, **kwargs)
 
     def run(self, data: Any) -> str:  # type: ignore
+        """
+        Serializes provided data using `self.serialize`
+
+        Args:
+            - data (Any): data to serialize
+
+        Returns:
+            - str: serialized data
+        """
         serialized = self.serializer.serialize(data)
         if not isinstance(serialized, str):
             raise TypeError(
@@ -48,4 +57,13 @@ class DeserializeTask(Task):
         super().__init__(*args, **kwargs)
 
     def run(self, serialized: str) -> Any:  # type: ignore
+        """
+        Deserializes provided data using `self.serialize`
+
+        Args:
+            - data (str): data to serialize
+
+        Returns:
+            - deserialized data
+        """
         return self.serializer.deserialize(serialized)
