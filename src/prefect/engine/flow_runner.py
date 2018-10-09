@@ -266,7 +266,6 @@ class FlowRunner:
 
         with executor.start():
 
-            mapped_tasks = set()
             queues = {}
             for tag, size in throttle.items():
                 q = executor.queue(size)
@@ -278,12 +277,10 @@ class FlowRunner:
 
                 upstream_states = {}
                 task_inputs = {}  # type: Dict[str, Any]
-                mapped = False
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
                     upstream_states[edge] = task_states[edge.upstream_task]
-                    mapped |= edge.mapped
 
                 # if a task is provided as a start_task and its state is also
                 # provided, we assume that means it requires cached_inputs
@@ -299,8 +296,7 @@ class FlowRunner:
                     queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
                 ]
 
-                if mapped:
-                    mapped_tasks.add(task)
+                if self.flow.task_info[task]["mapped"]:
                     task_states[task] = executor.map(
                         task_runner.run,
                         upstream_states=upstream_states,
@@ -315,7 +311,7 @@ class FlowRunner:
                     upstream_mapped = {
                         e: executor.wait(f)
                         for e, f in upstream_states.items()
-                        if e.upstream_task in mapped_tasks
+                        if self.flow.task_info[e.upstream_task]["mapped"]
                     }
                     upstream_states.update(upstream_mapped)
                     task_states[task] = executor.submit(
