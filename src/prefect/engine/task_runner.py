@@ -202,7 +202,9 @@ class TaskRunner:
                 if hasattr(config, "flow_run_id") and task_run_id:
                     task_runs_gql.set_state(task_run_id, state)
 
-                state = self.get_run_state(state=state, inputs=task_inputs)
+                state = self.get_run_state(
+                    state=state, inputs=task_inputs, timeout_handler=timeout_handler
+                )
 
                 if hasattr(config, "flow_run_id") and task_run_id:
                     task_runs_gql.set_state(task_run_id, state)
