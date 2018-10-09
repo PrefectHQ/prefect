@@ -1,4 +1,5 @@
 import pytest
+import re
 from functools import partial, wraps
 from toolz import curry
 
@@ -8,7 +9,9 @@ from generate_docs import (
     format_lists,
     format_signature,
     format_subheader,
+    get_call_signature,
     get_source,
+    OUTLINE,
 )
 from prefect import task
 from prefect.engine.state import State
@@ -200,4 +203,23 @@ def test_format_doc_on_simple_doc():
         "**Args**:\n<ul style='padding-left:3.5em;text-indent:-3.5em;'>"
         "<li style='padding-left:3.5em;text-indent:-3.5em;'>"
         "`message (Any, optional)`: Defaults to `None`. A message about the signal.</li></ul>"
+    )
+
+
+@pytest.mark.parametrize(
+    "fn", [fn for page in OUTLINE for fn in page.get("functions", [])]
+)
+def test_consistency_of_function(fn):
+    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(fn)
+    doc = format_doc(fn)
+    try:
+        arg_list_index = doc.index("**Args**:")
+        end = doc[arg_list_index:].find("</ul")
+        arg_doc = doc[arg_list_index : (arg_list_index + end)]
+        num_args = arg_doc.count("<li")
+    except ValueError:
+        num_args = 0
+
+    assert num_args == len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(
+        varkwargs
     )
