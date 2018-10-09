@@ -114,10 +114,21 @@ class Edge:
 
     def __eq__(self, other: "Edge") -> bool:  # type: ignore
         if type(self) == type(other):
-            self_cmp = (self.upstream_task, self.downstream_task, self.key)
-            other_cmp = (other.upstream_task, other.downstream_task, other.key)
-            return self_cmp == other_cmp
+            return self.serialize() == other.serialize()
         return False
 
     def __hash__(self) -> int:
         return hash((self.upstream_task, self.downstream_task, self.key))
+
+    def serialize(self) -> dict:
+        """
+        Represents the Edge as a dict.
+
+        Can be reversed by calling Edge(**edge.serialize())
+        """
+        return dict(
+            upstream_task=self.upstream_task,
+            downstream_task=self.downstream_task,
+            key=self.key,
+            mapped=self.mapped,
+        )

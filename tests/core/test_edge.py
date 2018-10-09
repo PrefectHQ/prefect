@@ -59,3 +59,26 @@ def test_edge_has_tasks_property():
     t3 = Task()
     edge = Edge(t1, t2, key="a_key")
     assert edge.tasks == {t1, t2}
+
+
+def test_edge_equality():
+    t1 = Task()
+    t2 = Task()
+
+    assert Edge(t1, t2) == Edge(t1, t2)
+    assert Edge(t1, t2, "key") == Edge(t1, t2, "key")
+    assert Edge(t1, t2, "key", True) == Edge(t1, t2, "key", True)
+
+    assert Edge(t1, t2) != Edge(t1, t1)
+    assert Edge(t1, t2, "key") != Edge(t1, t2, "other_key")
+    assert Edge(t1, t2, "key", True) != Edge(t1, t2, "key", False)
+
+
+def test_serialize_edge():
+    t1 = Task()
+    t2 = Task()
+    edge = Edge(t1, t2, key="key", mapped=True)
+    assert edge.serialize() == dict(
+        upstream_task=t1, downstream_task=t2, key="key", mapped=True
+    )
+    assert Edge(**edge.serialize()) == edge
