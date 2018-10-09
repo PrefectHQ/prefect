@@ -350,8 +350,8 @@ def get_call_signature(obj):
     if args == []:
         standalone, kwargs = [], []
     else:
-        if args[0] == "self":
-            args = args[1:]  # remove self from displayed signature
+        if args[0] in ["cls", "self"]:
+            args = args[1:]  # remove cls or self from displayed signature
 
         standalone = args[: -len(defaults)] if defaults else args  # true args
         kwargs = list(zip(args[-len(defaults) :], defaults))  # true kwargs

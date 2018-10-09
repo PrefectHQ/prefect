@@ -67,6 +67,10 @@ class A:
     def y(self, *args, b, **kwargs):
         pass
 
+    @classmethod
+    def from_nothing(cls, stuff=None):
+        pass
+
 
 @pytest.mark.parametrize(
     "obj,exp",
@@ -80,6 +84,7 @@ class A:
         (A, "attr, keep=True"),
         (A.run, "*args, b=True, **kwargs"),
         (A.y, "*args, b, **kwargs"),
+        (A.from_nothing, "stuff=None"),
     ],
 )
 def test_format_signature(obj, exp):
