@@ -10,6 +10,7 @@ from generate_docs import (
     format_signature,
     format_subheader,
     get_call_signature,
+    get_class_methods,
     get_source,
     OUTLINE,
 )
@@ -209,7 +210,32 @@ def test_format_doc_on_simple_doc():
 @pytest.mark.parametrize(
     "fn", [fn for page in OUTLINE for fn in page.get("functions", [])]
 )
-def test_consistency_of_function(fn):
+def test_consistency_of_function_docs(fn):
+    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(fn)
+    doc = format_doc(fn)
+    try:
+        arg_list_index = doc.index("**Args**:")
+        end = doc[arg_list_index:].find("</ul")
+        arg_doc = doc[arg_list_index : (arg_list_index + end)]
+        num_args = arg_doc.count("<li")
+    except ValueError:
+        num_args = 0
+
+    assert num_args == len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(
+        varkwargs
+    )
+
+
+@pytest.mark.parametrize(
+    "obj,fn",
+    [
+        (obj, fn)
+        for page in OUTLINE
+        for obj in page.get("classes", [])
+        for fn in get_class_methods(obj)
+    ],
+)  # parametrized like this for easy reading of tests
+def test_consistency_of_class_method_docs(obj, fn):
     standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(fn)
     doc = format_doc(fn)
     try:

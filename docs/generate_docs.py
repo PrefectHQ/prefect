@@ -445,6 +445,14 @@ def generate_coverage():
         warnings.warn(f"Coverage report was not generated: {exc.output}")
 
 
+def get_class_methods(obj):
+    members = inspect.getmembers(
+        obj, predicate=lambda x: inspect.isroutine(x) and obj.__name__ in x.__qualname__
+    )
+    public_members = [method for (name, method) in members if not name.startswith("_")]
+    return public_members
+
+
 if __name__ == "__main__":
 
     assert (
@@ -529,14 +537,7 @@ if __name__ == "__main__":
                     f.write("\n")
                     continue
 
-                members = inspect.getmembers(
-                    obj,
-                    predicate=lambda x: inspect.isroutine(x)
-                    and obj.__name__ in x.__qualname__,
-                )
-                public_members = [
-                    method for (name, method) in members if not name.startswith("_")
-                ]
+                public_members = get_class_methods(obj)
                 f.write(create_methods_table(public_members, title="methods:"))
                 f.write("\n---\n<br>\n\n")
 
