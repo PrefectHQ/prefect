@@ -1,5 +1,8 @@
 import pytest
-import re
+import sys
+
+pytest.mark.skipif(sys.version_info < (3, 6))
+
 from functools import partial, wraps
 from toolz import curry
 

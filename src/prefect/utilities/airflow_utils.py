@@ -174,7 +174,7 @@ class AirFlow(prefect.core.flow.Flow):
         return env
 
     def run(  # type: ignore
-        self, execution_date: str, *args: Any, **kwargs: Any
+        self, execution_date: str, **kwargs: Any
     ) -> "prefect.engine.state.State":
         """
         The main entrypoint for executing the Flow / DAG.
@@ -182,14 +182,14 @@ class AirFlow(prefect.core.flow.Flow):
         Args:
             - execution_date (str): an execution date to pass to Airflow for
                 each task run
-            - *args, **kwargs: additional args and kwargs to pass to the
+            - *kwargs: additional kwargs to pass to the
                 standard Flow.run method
 
         Returns:
             - State: the Prefect State corresponding to the run of the Flow
         """
         with prefect.context(_execution_date=execution_date, _airflow_env=self.env):
-            return super().run(*args, **kwargs)
+            return super().run(**kwargs)
 
     def _issue_warnings(self, task: "airflow.models.BaseOperator") -> None:
         parameter_warning = False

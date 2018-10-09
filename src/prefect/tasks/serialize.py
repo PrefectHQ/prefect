@@ -9,6 +9,11 @@ from prefect.serializers import Serializer
 class SerializeTask(Task):
     """
     Serialize a result using a serializer. The serialized result must be less than 1kb.
+
+    Args:
+        - serializer (prefect.serializers.Seralizer): serializer to use
+        - *args: additional args to pass to `Task` initialization
+        - *kwargs: additional kwargs to pass to `Task` initialization
     """
 
     def __init__(self, serializer: Serializer, *args: Any, **kwargs: Any) -> None:
@@ -31,6 +36,11 @@ class SerializeTask(Task):
 class DeserializeTask(Task):
     """
     Deserialize a result from a serialized value.
+
+    Args:
+        - serializer (prefect.serializers.Seralizer): serializer to use
+        - *args: additional args to pass to `Task` initialization
+        - *kwargs: additional kwargs to pass to `Task` initialization
     """
 
     def __init__(self, serializer: Serializer, *args: Any, **kwargs: Any) -> None:
