@@ -70,6 +70,17 @@ class TestCreateTask:
         t2 = Task(trigger=prefect.triggers.all_failed)
         assert t2.trigger == prefect.triggers.all_failed
 
+    def test_create_task_without_state_handler(self):
+        assert Task().state_handlers == []
+
+    @pytest.mark.parametrize("handlers", [[lambda *a: 1], [lambda *a: 1, lambda *a: 2]])
+    def test_create_task_with_state_handler(self, handlers):
+        assert Task(state_handlers=handlers).state_handlers == handlers
+
+    def test_create_task_illegal_handler(self):
+        with pytest.raises(TypeError):
+            Task(state_handlers=lambda *a: 1)
+
     def test_class_instantiation_rejects_varargs(self):
         with pytest.raises(ValueError):
 
