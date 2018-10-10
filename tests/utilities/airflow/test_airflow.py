@@ -23,6 +23,7 @@ def airflow_settings():
         yield dict(db_file=tmp.name, dag_folder=dag_folder)
 
 
+@pytest.mark.airflow()
 def test_trigger_rules_dag(airflow_settings):
     flow = AirFlow(dag_id="trigger_rules", **airflow_settings)
     res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
