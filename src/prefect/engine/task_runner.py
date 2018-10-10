@@ -164,6 +164,9 @@ class TaskRunner:
                     state, inputs=task_inputs, timeout_handler=timeout_handler
                 )
 
+                # cache the output, if appropriate
+                state = self.cache_result_step(state, inputs=task_inputs)
+
                 # check if the task needs to be retried
                 state = self.check_for_retry_step(state, inputs=task_inputs)
 
@@ -388,13 +391,7 @@ class TaskRunner:
             logging.debug("{} signal raised.".format(type(exc).__name__))
             if raise_on_exception:
                 raise exc
-
-            # if the state is not successful or skipped, return it.
-            # We hold on to successful states because they go through the caching process
-            if not exc.state.is_successful() or isinstance(exc.state, Skipped):
-                return exc.state
-            else:
-                result = exc.state.result
+            return exc.state
 
         # Exceptions are trapped and turned into Failed states
         except Exception as exc:
@@ -403,20 +400,43 @@ class TaskRunner:
                 raise exc
             return Failed(message=exc)
 
-        if self.task.cache_for is not None:
+        return Success(result=result, message="Task run succeeded.")
+
+    def cache_result_step(self, state: State, inputs: Dict[str, Any]) -> State:
+        """
+        Caches the result of a successful task, if appropriate.
+
+        Tasks are cached if:
+            - task.cache_for is not None
+            - the task state is Successful
+            - the task state is not Skipped (which is a subclass of Successful)
+
+        Args:
+            - state (State): the current state of this task
+            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+
+        Returns:
+            State: the state of the task after running the check
+
+        """
+        if (
+            state.is_successful()
+            and not isinstance(state, Skipped)
+            and self.task.cache_for is not None
+        ):
             expiration = datetime.datetime.utcnow() + self.task.cache_for
             cached_state = CachedState(
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
                 cached_parameters=prefect.context.get("_parameters"),
-                cached_result=result,
+                cached_result=state.result,
             )
-        else:
-            cached_state = None
+            return Success(
+                result=state.result, message=state.message, cached=cached_state
+            )
 
-        return Success(
-            result=result, message="Task run succeeded.", cached=cached_state
-        )
+        return state
 
     def check_for_retry_step(self, state: State, inputs: Dict[str, Any]) -> State:
         """
@@ -431,7 +451,7 @@ class TaskRunner:
         Returns:
             State: the state of the task after running the check
         """
-        if isinstance(state, Failed) or (
+        if state.is_failed() or (
             isinstance(state, Retrying) and state.scheduled_time is None
         ):
             run_number = prefect.context.get("_task_run_number", 1)

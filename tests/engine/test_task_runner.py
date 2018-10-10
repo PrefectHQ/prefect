@@ -681,19 +681,6 @@ class TestRunTaskStep:
         )
         assert new_state.is_failed()
 
-    def test_caching(self):
-        @prefect.task(cache_for=datetime.timedelta(minutes=1))
-        def fn():
-            return 2
-
-        state = Running()
-        new_state = TaskRunner(task=fn).run_task_step(
-            state=state, inputs={}, timeout_handler=None
-        )
-        assert new_state.is_successful()
-        assert isinstance(new_state.cached, CachedState)
-        assert new_state.cached.cached_result == 2
-
 
 class TestCheckRetryStep:
     @pytest.mark.parametrize("state", [Success(), Pending(), Running(), Skipped()])
@@ -753,3 +740,32 @@ class TestCheckRetryStep:
             state=state, inputs={}
         )
         assert new_state is state
+
+
+class TestCacheResultStep:
+    @pytest.mark.parametrize(
+        "state", [Failed(), Skipped(), Finished(), Pending(), Running()]
+    )
+    def test_non_success_states(self, state):
+        new_state = TaskRunner(task=Task()).cache_result_step(state=state, inputs={})
+        assert new_state is state
+
+    def test_success_state_with_no_cache_for(self):
+        state = Success()
+        new_state = TaskRunner(task=Task()).cache_result_step(state=state, inputs={})
+        assert new_state is state
+
+    def test_success_state(self):
+        @prefect.task(cache_for=datetime.timedelta(minutes=10))
+        def fn(x):
+            return x + 1
+
+        state = Success(result=2, message="hello")
+        new_state = TaskRunner(task=fn).cache_result_step(state=state, inputs={"x": 5})
+        assert new_state is not state
+        assert new_state.is_successful()
+        assert new_state.result == 2
+        assert new_state.message == "hello"
+        assert isinstance(new_state.cached, CachedState)
+        assert new_state.cached.cached_result == 2
+        assert new_state.cached.cached_inputs == {"x": 5}
