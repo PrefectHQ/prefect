@@ -166,7 +166,7 @@ class ContainerEnvironment(Environment):
 
             return container
 
-    def run(self, key: bytes, cli_cmd: str) -> None:
+    def run(self, cli_cmd: str) -> None:
         """Run a command in the Docker container
 
         Args:

@@ -12,6 +12,9 @@ from prefect.engine import signals, state
 def all_finished(upstream_states: Set["state.State"]) -> bool:
     """
     This task will run no matter what the upstream states are, as long as they are finished.
+
+    Args:
+        - upstream_states ([State]): an iterable of upstream states
     """
     if not all(s.is_finished() for s in upstream_states):
         raise signals.TRIGGERFAIL(
@@ -28,6 +31,9 @@ def manual_only(upstream_states: Set["state.State"]) -> bool:
     as a flow run's start task.
 
     Note this doesn't raise a failure, it simply doesn't run the task.
+
+    Args:
+        - upstream_states ([State]): an iterable of upstream states
     """
     raise signals.PAUSE('Trigger function is "manual_only"')
 
@@ -40,6 +46,9 @@ def all_successful(upstream_states: Set["state.State"]) -> bool:
     """
     Runs if all upstream tasks were successful. Note that `SKIPPED` tasks are considered
     successes and `TRIGGER_FAILED` tasks are considered failures.
+
+    Args:
+        - upstream_states ([State]): an iterable of upstream states
     """
 
     if not all(s.is_successful() for s in upstream_states):
@@ -53,6 +62,9 @@ def all_failed(upstream_states: Set["state.State"]) -> bool:
     """
     Runs if all upstream tasks failed. Note that `SKIPPED` tasks are considered successes
     and `TRIGGER_FAILED` tasks are considered failures.
+
+    Args:
+        - upstream_states ([State]): an iterable of upstream states
     """
 
     if not all(s.is_failed() for s in upstream_states):
@@ -66,6 +78,9 @@ def any_successful(upstream_states: Set["state.State"]) -> bool:
     """
     Runs if any tasks were successful. Note that `SKIPPED` tasks are considered successes
     and `TRIGGER_FAILED` tasks are considered failures.
+
+    Args:
+        - upstream_states ([State]): an iterable of upstream states
     """
 
     if not any(s.is_successful() for s in upstream_states):
@@ -79,6 +94,9 @@ def any_failed(upstream_states: Set["state.State"]) -> bool:
     """
     Runs if any tasks failed. Note that `SKIPPED` tasks are considered successes and
     `TRIGGER_FAILED` tasks are considered failures.
+
+    Args:
+        - upstream_states ([State]): an iterable of upstream states
     """
 
     if not any(s.is_failed() for s in upstream_states):
