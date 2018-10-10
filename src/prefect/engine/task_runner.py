@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import collections
 import datetime
 import functools
 import logging
@@ -39,6 +40,23 @@ class ENDRUN(Exception):
         super().__init__()
 
 
+def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
+    """
+    Decorator that calls the TaskRunner's state_handlers method if a run step
+    results in a modified state.
+    """
+
+    @functools.wraps(method)
+    def inner(self: "TaskRunner", state: State, *args: Any, **kwargs: Any) -> State:
+        new_state = method(self, state, *args, **kwargs)
+        if new_state is state:
+            return new_state
+        else:
+            return self.handle_state_change(old_state=state, new_state=new_state)
+
+    return inner
+
+
 class TaskRunner:
     """
     TaskRunners handle the execution of Tasks and determine the State of a Task
@@ -49,13 +67,81 @@ class TaskRunner:
 
     Args:
         - task (Task): the Task to be run / executed
+        - state_handlers (Iterable[Callable], optional): A list of state change handlers
+            that will be called whenever the task changes state, providing an
+            opportunity to inspect or modify the new state. The handler
+            will be passed the task runner instance, the old (prior) state, and the new
+            (current) state, with the following signature:
+
+            ```
+                state_handler(
+                    task_runner: TaskRunner,
+                    old_state: State,
+                    new_state: State) -> State
+            ```
+
+            If multiple functions are passed, then the `new_state` argument will be the
+            result of the previous handler.
         - logger_name (str): Optional. The name of the logger to use when
             logging. Defaults to the name of the class.
     """
 
-    def __init__(self, task: Task, logger_name: str = None) -> None:
+    def __init__(
+        self,
+        task: Task,
+        state_handlers: Iterable[Callable] = None,
+        logger_name: str = None,
+    ) -> None:
         self.task = task
+        if state_handlers and not isinstance(state_handlers, collections.Sequence):
+            raise TypeError("state_handlers should be iterable.")
+        self.state_handlers = state_handlers or []
         self.logger = logging.getLogger(logger_name or type(self).__name__)
+
+    def handle_state_change(self, old_state: State, new_state: State) -> State:
+        """
+        Calls any handlers associated with the TaskRunner for working with new task states.
+
+        This method will only be called when the state changes (`old_state is not new_state`)
+
+        Args:
+            - old_state (State): the old (previous) state of the task
+            - new_state (State): the new (current) state of the task
+
+        Returns:
+            State: the updated state of the task
+
+        Raises:
+            - ENDRUN(Failed()) if any of the handlers fail
+            - ENDRUN(Failed()) if any of the handlers fail
+
+        """
+        raise_on_exception = prefect.context.get("_raise_on_exception", False)
+
+        # run the task's handlers first
+        try:
+            for task_handler in self.task.state_handlers:
+                new_state = task_handler(self.task, old_state, new_state)
+
+            for runner_handler in self.state_handlers:
+                new_state = runner_handler(self, old_state, new_state)
+
+        # raise pauses
+        except prefect.engine.signals.PAUSE:
+            raise
+        # trap signals
+        except signals.PrefectStateSignal as exc:
+            if raise_on_exception:
+                raise
+            return exc.state
+        # abort on errors
+        except Exception:
+            if raise_on_exception:
+                raise
+            raise ENDRUN(
+                Failed("TaskRunner failed while calling state change handlers.")
+            )
+        return new_state
 
     def run(
         self,
@@ -185,6 +271,16 @@ class TaskRunner:
 
         return state
 
+    def state_handlers(self, old_state: State, new_state: State) -> State:
+        # if the states are the same, just return
+        if old_state is new_state:
+            return new_state
+
+        # otherwise, process the new state
+        new_state = self.task.state_handlers(old_state=old_state, new_state=new_state)
+        return new_state
+
+    @call_state_handlers
     def check_upstream_finished_step(
         self, state: State, upstream_states_set: Set[State]
     ) -> State:
@@ -205,6 +301,7 @@ class TaskRunner:
             raise ENDRUN(state)
         return state
 
+    @call_state_handlers
     def check_upstream_skipped_step(
         self, state: State, upstream_states_set: Set[State]
     ) -> State:
@@ -232,6 +329,7 @@ class TaskRunner:
             )
         return state
 
+    @call_state_handlers
     def check_task_trigger_step(
         self,
         state: State,
@@ -279,6 +377,7 @@ class TaskRunner:
 
         return state
 
+    @call_state_handlers
     def check_task_is_pending_step(self, state: State) -> State:
         """
         Checks to make sure the task is in a PENDING state.
@@ -313,6 +412,7 @@ class TaskRunner:
             )
             raise ENDRUN(state)
 
+    @call_state_handlers
     def check_task_is_cached_step(self, state: State, inputs: Dict[str, Any]) -> State:
         """
         Args:
@@ -332,6 +432,7 @@ class TaskRunner:
             raise ENDRUN(Success(result=state.cached_result, cached=state))
         return state
 
+    @call_state_handlers
     def set_task_to_running_step(self, state: State) -> State:
         """
         Sets the task to running
@@ -350,6 +451,7 @@ class TaskRunner:
 
         return Running(message="Starting task run.")
 
+    @call_state_handlers
     def run_task_step(
         self, state: State, inputs: Dict[str, Any], timeout_handler: Optional[Callable]
     ) -> State:
@@ -438,6 +540,7 @@ class TaskRunner:
 
         return state
 
+    @call_state_handlers
     def check_for_retry_step(self, state: State, inputs: Dict[str, Any]) -> State:
         """
         Checks to see if a FAILED task should be retried. Also assigns a retry time to

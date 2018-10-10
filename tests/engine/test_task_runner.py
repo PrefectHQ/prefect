@@ -769,3 +769,110 @@ class TestCacheResultStep:
         assert isinstance(new_state.cached, CachedState)
         assert new_state.cached.cached_result == 2
         assert new_state.cached.cached_inputs == {"x": 5}
+
+
+handler_results = {}
+
+
+@pytest.fixture(autouse=True)
+def clear_task_handler_results():
+    handler_results.clear()
+    handler_results["Task"] = 0
+    handler_results["TaskRunner"] = 0
+
+
+def task_handler(task, old_state, new_state):
+    """state change handler for tasks that increments a value by 1"""
+    assert isinstance(task, Task)
+    assert isinstance(old_state, State)
+    assert isinstance(new_state, State)
+    handler_results["Task"] += 1
+    return new_state
+
+
+def task_runner_handler(task_runner, old_state, new_state):
+    """state change handler for task runners that increments a value by 1"""
+    assert isinstance(task_runner, TaskRunner)
+    assert isinstance(old_state, State)
+    assert isinstance(new_state, State)
+    handler_results["TaskRunner"] += 1
+    return new_state
+
+
+class TestStateHandlers:
+    def test_task_handlers_are_called(self):
+        task = Task(state_handlers=[task_handler])
+        TaskRunner(task=task).run()
+        # the task changed state twice: Pending -> Running -> Success
+        assert handler_results["Task"] == 2
+
+    def test_task_handlers_are_called_on_retry(self):
+        @prefect.task(state_handlers=[task_handler], max_retries=1)
+        def fn():
+            1 / 0
+
+        TaskRunner(task=fn).run()
+        # the task changed state three times: Pending -> Running -> Failed -> Retry
+        assert handler_results["Task"] == 3
+
+    def test_multiple_task_handlers_are_called(self):
+        task = Task(state_handlers=[task_handler, task_handler])
+        TaskRunner(task=task).run()
+        # each task changed state twice: Pending -> Running -> Success
+        assert handler_results["Task"] == 4
+
+    def test_multiple_task_handlers_are_called_in_sequence(self):
+        # the second task handler will assert the result of the first task handler is a state
+        # and raise an error, as long as the task_handlers are called in sequence on the
+        # previous result
+        task = Task(state_handlers=[lambda *a: None, task_handler])
+        with pytest.raises(AssertionError):
+            with prefect.utilities.tests.raise_on_exception():
+                TaskRunner(task=task).run()
+
+    def test_task_handler_that_doesnt_return_state(self):
+        task = Task(state_handlers=[lambda *a: None])
+        # raises an attribute error because it tries to access a property of the state that
+        # doesn't exist on None
+        with pytest.raises(AttributeError):
+            with prefect.utilities.tests.raise_on_exception():
+                TaskRunner(task=task).run()
+
+    ###################################################
+    def test_task_runner_handlers_are_called(self):
+        TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
+        # the task changed state twice: Pending -> Running -> Success
+        assert handler_results["TaskRunner"] == 2
+
+    def test_task_runner_handlers_are_called_on_retry(self):
+        @prefect.task(state_handlers=[task_runner_handler], max_retries=1)
+        def fn():
+            1 / 0
+
+        TaskRunner(task=fn).run()
+        # the task changed state three times: Pending -> Running -> Failed -> Retry
+        assert handler_results["TaskRunner"] == 3
+
+    def test_multiple_task_runner_handlers_are_called(self):
+        TaskRunner(
+            task=Task(), state_handlers=[task_runner_handler, task_runner_handler]
+        ).run()
+        # each task changed state twice: Pending -> Running -> Success
+        assert handler_results["TaskRunner"] == 4
+
+    def test_multiple_task_runner_handlers_are_called_in_sequence(self):
+        # the second task handler will assert the result of the first task handler is a state
+        # and raise an error, as long as the task_handlers are called in sequence on the
+        # previous result
+        with pytest.raises(AssertionError):
+            with prefect.utilities.tests.raise_on_exception():
+                TaskRunner(
+                    task=Task(), state_handlers=[lambda *a: None, task_runner_handler]
+                ).run()
+
+    def test_task_runner_handler_that_doesnt_return_state(self):
+        # raises an attribute error because it tries to access a property of the state that
+        # doesn't exist on None
+        with pytest.raises(AttributeError):
+            with prefect.utilities.tests.raise_on_exception():
+                TaskRunner(task=Task(), state_handlers=[lambda *a: None]).run()
