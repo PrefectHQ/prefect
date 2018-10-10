@@ -838,7 +838,6 @@ class TestStateHandlers:
             with prefect.utilities.tests.raise_on_exception():
                 TaskRunner(task=task).run()
 
-    ###################################################
     def test_task_runner_handlers_are_called(self):
         TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
         # the task changed state twice: Pending -> Running -> Success
@@ -875,4 +874,9 @@ class TestStateHandlers:
         # doesn't exist on None
         with pytest.raises(AttributeError):
             with prefect.utilities.tests.raise_on_exception():
-                TaskRunner(task=Task(), state_handlers=[lambda *a: None]).run()
+                TaskRunner(task=Task(), state_handlers=[lambda *a:None]).run()
+
+    def test_task_handler_that_raises_signal(self):
+        def handler(task, old, new):
+            raise signals.Fail()
+        task = Task(state_handlers=lambda *a: raise signals.Fail())

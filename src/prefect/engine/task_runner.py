@@ -100,7 +100,7 @@ class TaskRunner:
 
     def handle_state_change(self, old_state: State, new_state: State) -> State:
         """
-        Calls any handlers associated with the TaskRunner for working with new task states.
+        Calls any handlers associated with the TaskRunner and Task.
 
         This method will only be called when the state changes (`old_state is not new_state`)
 
@@ -112,7 +112,7 @@ class TaskRunner:
             State: the updated state of the task
 
         Raises:
-            - ENDRUN(Failed()) if any of the handlers fail
+            - PAUSE if raised by a handler
             - ENDRUN(Failed()) if any of the handlers fail
 
         """
