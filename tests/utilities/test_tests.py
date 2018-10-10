@@ -81,7 +81,7 @@ def test_that_bad_code_in_task_runner_is_caught():
     class BadTaskRunner(TaskRunner):
         # this method is bad because it doesn't have a `handle_signals` decorator
         # so it won't trap its own error, but instead surface it up to the flow runner
-        def get_pre_run_state(self, *args, **kwargs):
+        def run_task_step(self, *args, **kwargs):
             raise RuntimeError("I represent bad code in the task runner.")
 
     flow = Flow()

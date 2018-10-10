@@ -8,7 +8,8 @@ from unittest.mock import MagicMock
 import prefect
 from prefect.core.edge import Edge
 from prefect.core.task import Task
-from prefect.engine import TaskRunner, signals
+from prefect.engine import signals, cache_validators
+from prefect.engine.task_runner import TaskRunner, ENDRUN
 from prefect.engine.cache_validators import (
     all_inputs,
     all_parameters,
@@ -206,335 +207,6 @@ def test_tasks_that_raise_DONTRUN_are_treated_as_skipped():
     assert isinstance(TaskRunner(task=RaiseDontRunTask()).run(), Skipped)
 
 
-class TestTaskRunner_get_pre_run_state:
-    """
-    Tests the TaskRunner's get_pre_run_state() method
-    """
-
-    @pytest.mark.parametrize("state", [Pending(), Retrying(), Scheduled()])
-    def test_returns_running_if_successful_with_pending_state(self, state):
-        runner = TaskRunner(SuccessTask())
-        state = runner.get_pre_run_state(
-            state=state, upstream_states=set(), ignore_trigger=False, inputs={}
-        )
-        assert isinstance(state, Running)
-
-    def test_ignores_cached_state_if_task_didnt_ask_for_it(self):
-        runner = TaskRunner(SuccessTask())
-        state = runner.get_pre_run_state(
-            state=CachedState(cached_result=4),
-            upstream_states=set(),
-            ignore_trigger=False,
-            inputs={},
-        )
-        assert isinstance(state, Running)
-
-    def test_returns_running_if_cached_state_with_expired_cache(self):
-        runner = TaskRunner(
-            SuccessTask(
-                cache_validator=duration_only, cache_for=datetime.timedelta(days=1)
-            )
-        )
-        expiration = datetime.datetime.utcnow() - datetime.timedelta(days=1)
-        state = runner.get_pre_run_state(
-            state=CachedState(cached_result=4, cached_result_expiration=expiration),
-            upstream_states=set(),
-            ignore_trigger=False,
-            inputs={},
-        )
-        assert isinstance(state, Running)
-
-    @pytest.mark.parametrize(
-        "validator",
-        [
-            all_inputs,
-            all_parameters,
-            duration_only,
-            partial_inputs_only,
-            partial_parameters_only,
-        ],
-    )
-    def test_returns_successful_if_cached_state_is_validated(self, validator):
-        runner = TaskRunner(
-            SuccessTask(cache_validator=validator, cache_for=datetime.timedelta(days=1))
-        )
-        expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)
-        inputs = dict(x=2, y=1)
-        params = dict(p="p", q=99)
-        with prefect.context(_parameters=params):
-            state = runner.get_pre_run_state(
-                state=CachedState(
-                    cached_parameters=params,
-                    cached_inputs=inputs,
-                    cached_result=4,
-                    cached_result_expiration=expiration,
-                ),
-                inputs=inputs,
-                upstream_states=set(),
-                ignore_trigger=False,
-            )
-        assert isinstance(state, Success)
-        assert state.result == 4
-
-    def test_old_cached_state_is_still_returned_when_cache_is_used(self):
-        runner = TaskRunner(
-            SuccessTask(
-                cache_validator=duration_only, cache_for=datetime.timedelta(days=1)
-            )
-        )
-        expiration = datetime.datetime.utcnow() + datetime.timedelta(days=1)
-        cached_state = CachedState(cached_result=4, cached_result_expiration=expiration)
-        state = runner.get_pre_run_state(
-            state=cached_state, upstream_states=set(), ignore_trigger=False, inputs={}
-        )
-        assert isinstance(state, Success)
-        assert state.result == 4
-        assert state.cached == cached_state
-
-    @pytest.mark.parametrize(
-        "validator",
-        [
-            all_inputs,
-            all_parameters,
-            duration_only,
-            never_use,
-            partial_inputs_only,
-            partial_parameters_only,
-        ],
-    )
-    def test_returns_running_if_cached_state_is_invalidated(self, validator):
-        runner = TaskRunner(
-            SuccessTask(cache_validator=validator, cache_for=datetime.timedelta(days=1))
-        )
-        expiration = datetime.datetime.utcnow() - datetime.timedelta(days=1)
-        state = runner.get_pre_run_state(
-            state=CachedState(
-                cached_inputs=dict(x=2),
-                cached_result=4,
-                cached_result_expiration=expiration,
-            ),
-            inputs=dict(x=1),
-            upstream_states=set(),
-            ignore_trigger=False,
-        )
-        assert isinstance(state, Running)
-
-    def test_returns_failed_with_internal_error(self):
-        runner = TaskRunner(SuccessTask())
-        # pass an invalid state to the function to see if the resulting errors are caught
-        state = runner.get_pre_run_state(
-            state=1, upstream_states=set(), ignore_trigger=False, inputs={}
-        )
-        assert isinstance(state, Failed)
-        assert "object has no attribute" in str(state.message).lower()
-
-    def test_raises_dontrun_if_upstream_arent_finished(self):
-        runner = TaskRunner(SuccessTask())
-        with pytest.raises(signals.DONTRUN) as exc:
-            runner.get_pre_run_state(
-                state=Pending(),
-                upstream_states={Pending(), Success()},
-                ignore_trigger=False,
-                inputs={},
-            )
-        assert "upstream tasks are not finished" in str(exc.value).lower()
-
-    def test_skip_on_upstream_skip_is_false(self):
-        """
-        Tests that tasks do NOT skip if skip_on_upstream_skip is False
-        """
-        task = SuccessTask(skip_on_upstream_skip=False)
-        runner = TaskRunner(task)
-        state = runner.get_pre_run_state(
-            state=Pending(),
-            upstream_states={Skipped()},
-            ignore_trigger=False,
-            inputs={},
-        )
-        assert isinstance(state, Running)
-
-    def test_returns_skipped_if_upstream_skipped(self):
-        task = SuccessTask(True)
-        runner = TaskRunner(task)
-        state = runner.get_pre_run_state(
-            state=Pending(),
-            upstream_states={Skipped()},
-            ignore_trigger=False,
-            inputs={},
-        )
-        assert isinstance(state, Skipped)
-        assert "upstream task was skipped" in state.message.lower()
-
-    def test_raises_triggerfail_if_trigger_returns_false(self):
-        task = SuccessTask(trigger=lambda upstream_states: False)
-        runner = TaskRunner(task)
-        state = runner.get_pre_run_state(
-            state=Pending(), upstream_states=set(), ignore_trigger=False, inputs={}
-        )
-        assert isinstance(state, TriggerFailed)
-
-    def test_ignores_trigger(self):
-        task = SuccessTask(trigger=lambda upstream_states: False)
-        runner = TaskRunner(task)
-        state = runner.get_pre_run_state(
-            state=Pending(), ignore_trigger=True, upstream_states=set(), inputs={}
-        )
-        assert isinstance(state, Running)
-
-    def test_raises_dontrun_if_state_is_running(self):
-        runner = TaskRunner(SuccessTask())
-        with pytest.raises(signals.DONTRUN) as exc:
-            runner.get_pre_run_state(
-                state=Running(), upstream_states=set(), ignore_trigger=False, inputs={}
-            )
-        assert "already running" in str(exc.value).lower()
-
-    @pytest.mark.parametrize(
-        "state", [Finished(), Success(), TriggerFailed(), Failed(), Skipped()]
-    )
-    def test_raises_dontrun_if_state_is_finished(self, state):
-        runner = TaskRunner(SuccessTask())
-        with pytest.raises(signals.DONTRUN) as exc:
-            runner.get_pre_run_state(
-                state=state, upstream_states=set(), ignore_trigger=False, inputs={}
-            )
-        assert "already finished" in str(exc.value).lower()
-
-    def test_raises_dontrun_if_state_is_not_pending(self):
-        """
-        This last trap is almost impossible to hit with current states, but could
-        theoretically be hit by using the base state or a custom state.
-        """
-        runner = TaskRunner(SuccessTask())
-        with pytest.raises(signals.DONTRUN) as exc:
-            runner.get_pre_run_state(
-                state=State(), upstream_states=set(), ignore_trigger=False, inputs={}
-            )
-        assert "not ready to run" in str(exc.value).lower()
-
-        class MyState(State):
-            pass
-
-        with pytest.raises(signals.DONTRUN) as exc:
-            runner.get_pre_run_state(
-                state=MyState(), upstream_states=set(), ignore_trigger=False, inputs={}
-            )
-        assert "unrecognized" in str(exc.value).lower()
-
-
-class TestTaskRunner_get_run_state:
-    """
-    Tests the TaskRunner's get_run_state() method
-    """
-
-    @pytest.mark.parametrize(
-        "state",
-        [
-            Pending(),
-            Retrying(),
-            Scheduled(),
-            Failed(),
-            Success(),
-            Finished(),
-            Skipped(),
-            TriggerFailed(),
-        ],
-    )
-    def test_raises_dontrun_if_state_is_not_running(self, state):
-        runner = TaskRunner(SuccessTask())
-        with pytest.raises(signals.DONTRUN) as exc:
-            runner.get_run_state(state=state, inputs={})
-        assert "not in a running state" in str(exc.value).lower()
-
-    def test_runs_task(self):
-        runner = TaskRunner(SuccessTask())
-        state = runner.get_run_state(state=Running(), inputs={})
-        assert state == Success(result=1)
-        assert "succeeded" in state.message.lower()
-
-    def test_runs_task_with_inputs(self):
-        runner = TaskRunner(AddTask())
-        state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
-        assert state == Success(result=3)
-
-    def test_fails_if_task_with_inputs_doesnt_receive_inputs(self):
-        runner = TaskRunner(AddTask())
-        state = runner.get_run_state(state=Running(), inputs={})
-        assert isinstance(state, Failed)
-        assert isinstance(state.message, TypeError)
-        assert "required positional arguments" in str(state.message).lower()
-
-    def test_raise_dontrun_results_in_skip(self):
-        class DontRunTask(Task):
-            def run(self):
-                raise signals.DONTRUN()
-
-        runner = TaskRunner(DontRunTask())
-        state = runner.get_run_state(state=Running(), inputs={})
-        assert isinstance(state, Skipped)
-        assert "dontrun was raised" in str(state.message).lower()
-
-    def test_ignores_cached_attribute_if_task_doesnt_ask_for_it(self):
-        runner = TaskRunner(AddTask())
-        state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
-        assert state.cached is None
-
-    def test_uses_cache_for_as_trigger_for_initializing_a_cache(self):
-        with pytest.warns(UserWarning):
-            runner = TaskRunner(AddTask(cache_validator=duration_only))
-        state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
-        assert state.cached is None
-
-    def test_sets_cached_attribute_if_task_requests(self):
-        now = datetime.datetime.utcnow()
-        runner = TaskRunner(AddTask(cache_for=datetime.timedelta(days=1)))
-        with prefect.context(_parameters=dict(qq="time")):
-            state = runner.get_run_state(state=Running(), inputs=dict(x=1, y=2))
-        cached = state.cached
-        assert isinstance(cached, CachedState)
-        assert cached.cached_result_expiration >= now + datetime.timedelta(hours=23)
-        assert cached.cached_inputs == dict(x=1, y=2)
-        assert cached.cached_parameters == dict(qq="time")
-        assert cached.cached_result == 3
-
-
-class TestTaskRunner_get_post_run_state:
-    """
-    Tests the TaskRunner's get_post_run_state() method
-    """
-
-    @pytest.mark.parametrize("state", [Pending(), Retrying(), Scheduled(), Running()])
-    def test_raises_dontrun_if_state_is_not_finished(self, state):
-        runner = TaskRunner(SuccessTask())
-        with pytest.raises(signals.DONTRUN) as exc:
-            runner.get_post_run_state(state=state, inputs={})
-        assert "not in a finished state" in str(exc.value).lower()
-
-    @pytest.mark.parametrize(
-        "state", [Finished(), TriggerFailed(), Success(), Skipped(), Failed()]
-    )
-    def test_raises_dontrun_if_state_is_finished_but_not_retry_eligable(self, state):
-        runner = TaskRunner(SuccessTask())
-        with pytest.raises(signals.DONTRUN) as exc:
-            runner.get_post_run_state(state=state, inputs={})
-        assert "requires no further processing" in str(exc.value).lower()
-
-    def test_returns_retry_if_failed_and_retry_eligable(self):
-        runner = TaskRunner(
-            ErrorTask(max_retries=1, retry_delay=datetime.timedelta(minutes=1))
-        )
-        with prefect.context(_task_run_number=1):
-            state = runner.get_post_run_state(state=Failed(), inputs={})
-        assert isinstance(state, Retrying)
-        assert (state.scheduled_time - datetime.datetime.utcnow()) < datetime.timedelta(
-            minutes=1
-        )
-
-        with prefect.context(_task_run_number=2):
-            with pytest.raises(signals.DONTRUN):
-                runner.get_post_run_state(state=Failed(), inputs={})
-
-
 def test_throttled_task_runner_takes_ticket_and_puts_it_back():
     q = MagicMock()
     q.get = lambda *args, **kwargs: "ticket"
@@ -604,3 +276,480 @@ def test_task_runner_can_handle_timeouts_by_default():
     state = TaskRunner(sleeper).run(inputs=dict(secs=2))
     assert state.is_failed()
     assert isinstance(state.message, TimeoutError)
+
+
+class TestCheckUpstreamFinished:
+    def test_with_empty_set(self):
+        state = Pending()
+        new_state = TaskRunner(Task()).check_upstream_finished_step(
+            state=state, upstream_states_set=set()
+        )
+        assert new_state is state
+
+    def test_with_two_finished(self):
+        state = Pending()
+        new_state = TaskRunner(Task()).check_upstream_finished_step(
+            state=state, upstream_states_set={Success(), Failed()}
+        )
+        assert new_state is state
+
+    def test_raises_with_one_unfinished(self):
+        state = Pending()
+        with pytest.raises(ENDRUN):
+            TaskRunner(Task()).check_upstream_finished_step(
+                state=state, upstream_states_set={Success(), Running()}
+            )
+
+
+class TestCheckUpstreamSkipped:
+    def test_empty_set(self):
+        state = Pending()
+        new_state = TaskRunner(Task()).check_upstream_skipped_step(
+            state=state, upstream_states_set=set()
+        )
+        assert new_state is state
+
+    def test_unskipped_states(self):
+        state = Pending()
+        new_state = TaskRunner(Task()).check_upstream_skipped_step(
+            state=state, upstream_states_set={Success(), Failed()}
+        )
+        assert new_state is state
+
+    def test_raises_with_skipped(self):
+        state = Pending()
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(Task()).check_upstream_skipped_step(
+                state=state, upstream_states_set={Skipped()}
+            )
+        assert isinstance(exc.value.state, Skipped)
+
+    def test_doesnt_raise_with_skipped_and_flag_set(self):
+        state = Pending()
+        task = Task(skip_on_upstream_skip=False)
+        new_state = TaskRunner(task).check_upstream_skipped_step(
+            state=state, upstream_states_set={Skipped()}
+        )
+        assert new_state is state
+
+
+class TestCheckTaskTrigger:
+    def test_ignore_trigger(self):
+        task = Task(trigger=prefect.triggers.all_successful)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={Success(), Failed()}, ignore_trigger=True
+        )
+        assert new_state is state
+
+    def test_all_successful_pass(self):
+        task = Task(trigger=prefect.triggers.all_successful)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={Success(), Success()}
+        )
+        assert new_state is state
+
+    def test_all_successful_fail(self):
+        task = Task(trigger=prefect.triggers.all_successful)
+        state = Pending()
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task).check_task_trigger_step(
+                state=state, upstream_states_set={Success(), Failed()}
+            )
+        assert isinstance(exc.value.state, TriggerFailed)
+        assert 'Trigger was "all_successful"' in str(exc.value.state)
+
+    def test_all_successful_empty_set(self):
+        task = Task(trigger=prefect.triggers.all_successful)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={}
+        )
+        assert new_state is state
+
+    def test_all_failed_pass(self):
+        task = Task(trigger=prefect.triggers.all_failed)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={Failed(), Failed()}
+        )
+        assert new_state is state
+
+    def test_all_failed_fail(self):
+        task = Task(trigger=prefect.triggers.all_failed)
+        state = Pending()
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task).check_task_trigger_step(
+                state=state, upstream_states_set={Success(), Failed()}
+            )
+        assert isinstance(exc.value.state, TriggerFailed)
+        assert 'Trigger was "all_failed"' in str(exc.value.state)
+
+    def test_all_failed_empty_set(self):
+        task = Task(trigger=prefect.triggers.all_failed)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={}
+        )
+        assert new_state is state
+
+    def test_any_successful_pass(self):
+        task = Task(trigger=prefect.triggers.any_successful)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={Success(), Failed()}
+        )
+        assert new_state is state
+
+    def test_any_successful_fail(self):
+        task = Task(trigger=prefect.triggers.any_successful)
+        state = Pending()
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task).check_task_trigger_step(
+                state=state, upstream_states_set={Failed(), Failed()}
+            )
+        assert isinstance(exc.value.state, TriggerFailed)
+        assert 'Trigger was "any_successful"' in str(exc.value.state)
+
+    def test_any_successful_empty_set(self):
+        task = Task(trigger=prefect.triggers.any_successful)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={}
+        )
+        assert new_state is state
+
+    def test_any_failed_pass(self):
+        task = Task(trigger=prefect.triggers.any_failed)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={Success(), Failed()}
+        )
+        assert new_state is state
+
+    def test_any_failed_fail(self):
+        task = Task(trigger=prefect.triggers.any_failed)
+        state = Pending()
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task).check_task_trigger_step(
+                state=state, upstream_states_set={Success(), Success()}
+            )
+        assert isinstance(exc.value.state, TriggerFailed)
+        assert 'Trigger was "any_failed"' in str(exc.value.state)
+
+    def test_any_failed_empty_set(self):
+        task = Task(trigger=prefect.triggers.any_failed)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={}
+        )
+        assert new_state is state
+
+    def test_all_finished_pass(self):
+        task = Task(trigger=prefect.triggers.all_finished)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={Success(), Failed()}
+        )
+        assert new_state is state
+
+    def test_all_finished_fail(self):
+        task = Task(trigger=prefect.triggers.all_finished)
+        state = Pending()
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task).check_task_trigger_step(
+                state=state, upstream_states_set={Success(), Pending()}
+            )
+        assert isinstance(exc.value.state, TriggerFailed)
+        assert 'Trigger was "all_finished"' in str(exc.value.state)
+
+    def test_all_finished_empty_set(self):
+        task = Task(trigger=prefect.triggers.all_finished)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={}
+        )
+        assert new_state is state
+
+    def test_manual_only(self):
+        task = Task(trigger=prefect.triggers.manual_only)
+        state = Pending()
+        with pytest.raises(signals.PAUSE) as exc:
+            TaskRunner(task).check_task_trigger_step(
+                state=state, upstream_states_set={Success(), Pending()}
+            )
+
+    def test_manual_only_empty_set(self):
+        task = Task(trigger=prefect.triggers.manual_only)
+        state = Pending()
+        new_state = TaskRunner(task).check_task_trigger_step(
+            state=state, upstream_states_set={}
+        )
+        assert new_state is state
+
+    def test_custom_trigger_function_raise(self):
+        def trigger(states):
+            1 / 0
+
+        task = Task(trigger=trigger)
+        state = Pending()
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task).check_task_trigger_step(
+                state=state, upstream_states_set={Success()}
+            )
+        assert isinstance(exc.value.state, TriggerFailed)
+        assert isinstance(exc.value.state.message, ZeroDivisionError)
+
+
+class TestCheckTaskPending:
+    @pytest.mark.parametrize("state", [Pending(), CachedState()])
+    def test_pending(self, state):
+        new_state = TaskRunner(task=Task()).check_task_is_pending_step(state=state)
+        assert new_state is state
+
+    @pytest.mark.parametrize(
+        "state", [Running(), Finished(), TriggerFailed(), Skipped()]
+    )
+    def test_not_pending(self, state):
+
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task=Task()).check_task_is_pending_step(state=state)
+        assert exc.value.state is state
+
+
+class TestCheckTaskCached:
+    def test_not_cached(self):
+        state = Pending()
+        new_state = TaskRunner(task=Task()).check_task_is_cached_step(
+            state=state, inputs={}
+        )
+        assert new_state is state
+
+    def test_cached_same_inputs(self):
+        task = Task(cache_validator=cache_validators.all_inputs)
+        state = CachedState(cached_inputs={"a": 1}, cached_result=2)
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task).check_task_is_cached_step(state=state, inputs={"a": 1})
+        assert isinstance(exc.value.state, Success)
+        assert exc.value.state.result == 2
+        assert exc.value.state.cached is state
+
+    def test_cached_different_inputs(self):
+        task = Task(cache_validator=cache_validators.all_inputs)
+        state = CachedState(
+            cached_inputs={"a": 1},
+            cached_result=2,
+            # cached_result_expiration=datetime.datetime.utcnow()
+            # + datetime.timedelta(minutes=1),
+        )
+        new_state = TaskRunner(task).check_task_is_cached_step(
+            state=state, inputs={"a": 2}
+        )
+        assert new_state is state
+
+    def test_cached_duration(self):
+        task = Task(cache_validator=cache_validators.duration_only)
+        state = CachedState(
+            cached_result=2,
+            cached_result_expiration=datetime.datetime.utcnow()
+            + datetime.timedelta(minutes=1),
+        )
+
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task).check_task_is_cached_step(state=state, inputs={"a": 1})
+        assert isinstance(exc.value.state, Success)
+        assert exc.value.state.result == 2
+        assert exc.value.state.cached is state
+
+    def test_cached_duration_fail(self):
+        task = Task(cache_validator=cache_validators.duration_only)
+        state = CachedState(
+            cached_result=2,
+            cached_result_expiration=datetime.datetime.utcnow()
+            + datetime.timedelta(minutes=-1),
+        )
+        new_state = TaskRunner(task).check_task_is_cached_step(
+            state=state, inputs={"a": 1}
+        )
+        assert new_state is state
+
+
+class TestSetTaskRunning:
+    @pytest.mark.parametrize("state", [Pending(), CachedState()])
+    def test_pending(self, state):
+        new_state = TaskRunner(task=Task()).set_task_to_running_step(state=state)
+        assert new_state.is_running()
+
+    @pytest.mark.parametrize("state", [Running(), Success(), Skipped()])
+    def test_not_pending(self, state):
+        with pytest.raises(ENDRUN):
+            TaskRunner(task=Task()).set_task_to_running_step(state=state)
+
+
+class TestRunTaskStep:
+    def test_running_state(self):
+        state = Running()
+        new_state = TaskRunner(task=Task()).run_task_step(
+            state=state, inputs={}, timeout_handler=None
+        )
+        assert new_state.is_successful()
+
+    @pytest.mark.parametrize("state", [Pending(), CachedState(), Success(), Skipped()])
+    def test_not_running_state(self, state):
+        with pytest.raises(ENDRUN):
+            TaskRunner(task=Task()).run_task_step(
+                state=state, inputs={}, timeout_handler=None
+            )
+
+    def test_raise_success_signal(self):
+        @prefect.task
+        def fn():
+            raise signals.SUCCESS()
+
+        state = Running()
+        new_state = TaskRunner(task=fn).run_task_step(
+            state=state, inputs={}, timeout_handler=None
+        )
+        assert new_state.is_successful()
+
+    def test_raise_fail_signal(self):
+        @prefect.task
+        def fn():
+            raise signals.FAIL()
+
+        state = Running()
+        new_state = TaskRunner(task=fn).run_task_step(
+            state=state, inputs={}, timeout_handler=None
+        )
+        assert new_state.is_failed()
+
+    def test_raise_skip_signal(self):
+        @prefect.task
+        def fn():
+            raise signals.SKIP()
+
+        state = Running()
+        new_state = TaskRunner(task=fn).run_task_step(
+            state=state, inputs={}, timeout_handler=None
+        )
+        assert isinstance(new_state, Skipped)
+
+    def test_raise_pause_signal(self):
+        @prefect.task
+        def fn():
+            raise signals.PAUSE()
+
+        state = Running()
+        with pytest.raises(signals.PAUSE):
+            TaskRunner(task=fn).run_task_step(
+                state=state, inputs={}, timeout_handler=None
+            )
+
+    def test_run_with_error(self):
+        @prefect.task
+        def fn():
+            1 / 0
+
+        state = Running()
+        new_state = TaskRunner(task=fn).run_task_step(
+            state=state, inputs={}, timeout_handler=None
+        )
+        assert new_state.is_failed()
+        assert isinstance(new_state.message, ZeroDivisionError)
+
+    def test_inputs(self):
+        @prefect.task
+        def fn(x):
+            return x + 1
+
+        state = Running()
+        new_state = TaskRunner(task=fn).run_task_step(
+            state=state, inputs={"x": 1}, timeout_handler=None
+        )
+        assert new_state.is_successful()
+        assert new_state.result == 2
+
+    def test_invalid_inputs(self):
+        @prefect.task
+        def fn(x):
+            return x + 1
+
+        state = Running()
+        new_state = TaskRunner(task=fn).run_task_step(
+            state=state, inputs={"y": 1}, timeout_handler=None
+        )
+        assert new_state.is_failed()
+
+    def test_caching(self):
+        @prefect.task(cache_for=datetime.timedelta(minutes=1))
+        def fn():
+            return 2
+
+        state = Running()
+        new_state = TaskRunner(task=fn).run_task_step(
+            state=state, inputs={}, timeout_handler=None
+        )
+        assert new_state.is_successful()
+        assert isinstance(new_state.cached, CachedState)
+        assert new_state.cached.cached_result == 2
+
+
+class TestCheckRetryStep:
+    @pytest.mark.parametrize("state", [Success(), Pending(), Running(), Skipped()])
+    def test_non_failed_states(self, state):
+        new_state = TaskRunner(task=Task()).check_for_retry_step(state=state, inputs={})
+        assert new_state is state
+
+    def test_failed_no_retry(self):
+        state = Failed()
+        new_state = TaskRunner(task=Task()).check_for_retry_step(state=state, inputs={})
+        assert new_state is state
+
+    def test_failed_one_retry(self):
+        state = Failed()
+        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry_step(
+            state=state, inputs={}
+        )
+        assert isinstance(new_state, Retrying)
+
+    def test_failed_one_retry_second_run(self):
+        state = Failed()
+        with prefect.context(_task_run_number=2):
+            new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry_step(
+                state=state, inputs={}
+            )
+            assert new_state is state
+
+    def test_failed_retry_caches_inputs(self):
+        state = Failed()
+        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry_step(
+            state=state, inputs={"x": 1}
+        )
+        assert isinstance(new_state, Retrying)
+        assert new_state.cached_inputs == {"x": 1}
+
+    def test_retrying_without_scheduled_time(self):
+        state = Retrying()
+        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry_step(
+            state=state, inputs={}
+        )
+        assert new_state is not state
+        assert isinstance(new_state, Retrying)
+        assert new_state.scheduled_time is not None
+
+    def test_retrying_without_scheduled_time_and_no_retries(self):
+        state = Retrying()
+        new_state = TaskRunner(task=Task(max_retries=0)).check_for_retry_step(
+            state=state, inputs={}
+        )
+        assert new_state is not state
+        assert isinstance(new_state, Retrying)
+        assert new_state.scheduled_time is not None
+
+    def test_retrying_with_scheduled_time(self):
+        state = Retrying(scheduled_time=datetime.datetime.utcnow())
+        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry_step(
+            state=state, inputs={}
+        )
+        assert new_state is state
