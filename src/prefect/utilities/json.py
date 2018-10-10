@@ -111,10 +111,13 @@ class JSONCodec(Generic[O, J]):
     JSON Codecs define how to serialize objects and deserialize objects to JSON.
 
     Each codec has a unique key. When an object is wrapped in a codec, it
-    is serialized as {codec.codec_key: codec(obj).serialize()}.
+    is serialized as `{codec.codec_key: codec(obj).serialize()}`.
 
-    When JSON objects are decoded, the key is matched and codec.deserialize() is
+    When JSON objects are decoded, the key is matched and `codec.deserialize()` is
     called on the resulting value.
+
+    Args:
+        - value:  value to serialize
     """
 
     codec_key = ""  # type: str
@@ -134,6 +137,9 @@ class JSONCodec(Generic[O, J]):
     def deserialize(obj: J) -> O:
         """
         Deserialize an object.
+
+        Args:
+            - obj (Any): object to deserialize
         """
         raise NotImplementedError()
 

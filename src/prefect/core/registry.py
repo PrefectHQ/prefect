@@ -78,6 +78,7 @@ def serialize_registry(
     Serialize the registry to bytes.
 
     Args:
+        - registry (dict): the registry to serialize
         - include_ids (iterable): A iterable of flow IDs to include. If None, all IDs are
             included.
         - encryption_key (str): A key to use for encrypting the registry. If None
