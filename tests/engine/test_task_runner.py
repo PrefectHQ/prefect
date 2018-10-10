@@ -281,14 +281,14 @@ def test_task_runner_can_handle_timeouts_by_default():
 class TestCheckUpstreamFinished:
     def test_with_empty_set(self):
         state = Pending()
-        new_state = TaskRunner(Task()).check_upstream_finished_step(
+        new_state = TaskRunner(Task()).check_upstream_finished(
             state=state, upstream_states_set=set()
         )
         assert new_state is state
 
     def test_with_two_finished(self):
         state = Pending()
-        new_state = TaskRunner(Task()).check_upstream_finished_step(
+        new_state = TaskRunner(Task()).check_upstream_finished(
             state=state, upstream_states_set={Success(), Failed()}
         )
         assert new_state is state
@@ -296,7 +296,7 @@ class TestCheckUpstreamFinished:
     def test_raises_with_one_unfinished(self):
         state = Pending()
         with pytest.raises(ENDRUN):
-            TaskRunner(Task()).check_upstream_finished_step(
+            TaskRunner(Task()).check_upstream_finished(
                 state=state, upstream_states_set={Success(), Running()}
             )
 
@@ -304,14 +304,14 @@ class TestCheckUpstreamFinished:
 class TestCheckUpstreamSkipped:
     def test_empty_set(self):
         state = Pending()
-        new_state = TaskRunner(Task()).check_upstream_skipped_step(
+        new_state = TaskRunner(Task()).check_upstream_skipped(
             state=state, upstream_states_set=set()
         )
         assert new_state is state
 
     def test_unskipped_states(self):
         state = Pending()
-        new_state = TaskRunner(Task()).check_upstream_skipped_step(
+        new_state = TaskRunner(Task()).check_upstream_skipped(
             state=state, upstream_states_set={Success(), Failed()}
         )
         assert new_state is state
@@ -319,7 +319,7 @@ class TestCheckUpstreamSkipped:
     def test_raises_with_skipped(self):
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(Task()).check_upstream_skipped_step(
+            TaskRunner(Task()).check_upstream_skipped(
                 state=state, upstream_states_set={Skipped()}
             )
         assert isinstance(exc.value.state, Skipped)
@@ -327,7 +327,7 @@ class TestCheckUpstreamSkipped:
     def test_doesnt_raise_with_skipped_and_flag_set(self):
         state = Pending()
         task = Task(skip_on_upstream_skip=False)
-        new_state = TaskRunner(task).check_upstream_skipped_step(
+        new_state = TaskRunner(task).check_upstream_skipped(
             state=state, upstream_states_set={Skipped()}
         )
         assert new_state is state
@@ -337,7 +337,7 @@ class TestCheckTaskTrigger:
     def test_ignore_trigger(self):
         task = Task(trigger=prefect.triggers.all_successful)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={Success(), Failed()}, ignore_trigger=True
         )
         assert new_state is state
@@ -345,7 +345,7 @@ class TestCheckTaskTrigger:
     def test_all_successful_pass(self):
         task = Task(trigger=prefect.triggers.all_successful)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={Success(), Success()}
         )
         assert new_state is state
@@ -354,7 +354,7 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.all_successful)
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_trigger_step(
+            TaskRunner(task).check_task_trigger(
                 state=state, upstream_states_set={Success(), Failed()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
@@ -363,7 +363,7 @@ class TestCheckTaskTrigger:
     def test_all_successful_empty_set(self):
         task = Task(trigger=prefect.triggers.all_successful)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={}
         )
         assert new_state is state
@@ -371,7 +371,7 @@ class TestCheckTaskTrigger:
     def test_all_failed_pass(self):
         task = Task(trigger=prefect.triggers.all_failed)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={Failed(), Failed()}
         )
         assert new_state is state
@@ -380,7 +380,7 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.all_failed)
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_trigger_step(
+            TaskRunner(task).check_task_trigger(
                 state=state, upstream_states_set={Success(), Failed()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
@@ -389,7 +389,7 @@ class TestCheckTaskTrigger:
     def test_all_failed_empty_set(self):
         task = Task(trigger=prefect.triggers.all_failed)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={}
         )
         assert new_state is state
@@ -397,7 +397,7 @@ class TestCheckTaskTrigger:
     def test_any_successful_pass(self):
         task = Task(trigger=prefect.triggers.any_successful)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={Success(), Failed()}
         )
         assert new_state is state
@@ -406,7 +406,7 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.any_successful)
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_trigger_step(
+            TaskRunner(task).check_task_trigger(
                 state=state, upstream_states_set={Failed(), Failed()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
@@ -415,7 +415,7 @@ class TestCheckTaskTrigger:
     def test_any_successful_empty_set(self):
         task = Task(trigger=prefect.triggers.any_successful)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={}
         )
         assert new_state is state
@@ -423,7 +423,7 @@ class TestCheckTaskTrigger:
     def test_any_failed_pass(self):
         task = Task(trigger=prefect.triggers.any_failed)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={Success(), Failed()}
         )
         assert new_state is state
@@ -432,7 +432,7 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.any_failed)
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_trigger_step(
+            TaskRunner(task).check_task_trigger(
                 state=state, upstream_states_set={Success(), Success()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
@@ -441,7 +441,7 @@ class TestCheckTaskTrigger:
     def test_any_failed_empty_set(self):
         task = Task(trigger=prefect.triggers.any_failed)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={}
         )
         assert new_state is state
@@ -449,7 +449,7 @@ class TestCheckTaskTrigger:
     def test_all_finished_pass(self):
         task = Task(trigger=prefect.triggers.all_finished)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={Success(), Failed()}
         )
         assert new_state is state
@@ -458,7 +458,7 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.all_finished)
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_trigger_step(
+            TaskRunner(task).check_task_trigger(
                 state=state, upstream_states_set={Success(), Pending()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
@@ -467,7 +467,7 @@ class TestCheckTaskTrigger:
     def test_all_finished_empty_set(self):
         task = Task(trigger=prefect.triggers.all_finished)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={}
         )
         assert new_state is state
@@ -476,14 +476,14 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.manual_only)
         state = Pending()
         with pytest.raises(signals.PAUSE) as exc:
-            TaskRunner(task).check_task_trigger_step(
+            TaskRunner(task).check_task_trigger(
                 state=state, upstream_states_set={Success(), Pending()}
             )
 
     def test_manual_only_empty_set(self):
         task = Task(trigger=prefect.triggers.manual_only)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger_step(
+        new_state = TaskRunner(task).check_task_trigger(
             state=state, upstream_states_set={}
         )
         assert new_state is state
@@ -495,7 +495,7 @@ class TestCheckTaskTrigger:
         task = Task(trigger=trigger)
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_trigger_step(
+            TaskRunner(task).check_task_trigger(
                 state=state, upstream_states_set={Success()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
@@ -505,7 +505,7 @@ class TestCheckTaskTrigger:
 class TestCheckTaskPending:
     @pytest.mark.parametrize("state", [Pending(), CachedState()])
     def test_pending(self, state):
-        new_state = TaskRunner(task=Task()).check_task_is_pending_step(state=state)
+        new_state = TaskRunner(task=Task()).check_task_is_pending(state=state)
         assert new_state is state
 
     @pytest.mark.parametrize(
@@ -514,23 +514,21 @@ class TestCheckTaskPending:
     def test_not_pending(self, state):
 
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task=Task()).check_task_is_pending_step(state=state)
+            TaskRunner(task=Task()).check_task_is_pending(state=state)
         assert exc.value.state is state
 
 
 class TestCheckTaskCached:
     def test_not_cached(self):
         state = Pending()
-        new_state = TaskRunner(task=Task()).check_task_is_cached_step(
-            state=state, inputs={}
-        )
+        new_state = TaskRunner(task=Task()).check_task_is_cached(state=state, inputs={})
         assert new_state is state
 
     def test_cached_same_inputs(self):
         task = Task(cache_validator=cache_validators.all_inputs)
         state = CachedState(cached_inputs={"a": 1}, cached_result=2)
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_is_cached_step(state=state, inputs={"a": 1})
+            TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
         assert isinstance(exc.value.state, Success)
         assert exc.value.state.result == 2
         assert exc.value.state.cached is state
@@ -543,9 +541,7 @@ class TestCheckTaskCached:
             # cached_result_expiration=datetime.datetime.utcnow()
             # + datetime.timedelta(minutes=1),
         )
-        new_state = TaskRunner(task).check_task_is_cached_step(
-            state=state, inputs={"a": 2}
-        )
+        new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 2})
         assert new_state is state
 
     def test_cached_duration(self):
@@ -557,7 +553,7 @@ class TestCheckTaskCached:
         )
 
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_is_cached_step(state=state, inputs={"a": 1})
+            TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
         assert isinstance(exc.value.state, Success)
         assert exc.value.state.result == 2
         assert exc.value.state.cached is state
@@ -569,28 +565,26 @@ class TestCheckTaskCached:
             cached_result_expiration=datetime.datetime.utcnow()
             + datetime.timedelta(minutes=-1),
         )
-        new_state = TaskRunner(task).check_task_is_cached_step(
-            state=state, inputs={"a": 1}
-        )
+        new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
         assert new_state is state
 
 
 class TestSetTaskRunning:
     @pytest.mark.parametrize("state", [Pending(), CachedState()])
     def test_pending(self, state):
-        new_state = TaskRunner(task=Task()).set_task_to_running_step(state=state)
+        new_state = TaskRunner(task=Task()).set_task_to_running(state=state)
         assert new_state.is_running()
 
     @pytest.mark.parametrize("state", [Running(), Success(), Skipped()])
     def test_not_pending(self, state):
         with pytest.raises(ENDRUN):
-            TaskRunner(task=Task()).set_task_to_running_step(state=state)
+            TaskRunner(task=Task()).set_task_to_running(state=state)
 
 
 class TestRunTaskStep:
     def test_running_state(self):
         state = Running()
-        new_state = TaskRunner(task=Task()).run_task_step(
+        new_state = TaskRunner(task=Task()).run_task(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_successful()
@@ -598,7 +592,7 @@ class TestRunTaskStep:
     @pytest.mark.parametrize("state", [Pending(), CachedState(), Success(), Skipped()])
     def test_not_running_state(self, state):
         with pytest.raises(ENDRUN):
-            TaskRunner(task=Task()).run_task_step(
+            TaskRunner(task=Task()).run_task(
                 state=state, inputs={}, timeout_handler=None
             )
 
@@ -608,7 +602,7 @@ class TestRunTaskStep:
             raise signals.SUCCESS()
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task_step(
+        new_state = TaskRunner(task=fn).run_task(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_successful()
@@ -619,7 +613,7 @@ class TestRunTaskStep:
             raise signals.FAIL()
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task_step(
+        new_state = TaskRunner(task=fn).run_task(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_failed()
@@ -630,7 +624,7 @@ class TestRunTaskStep:
             raise signals.SKIP()
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task_step(
+        new_state = TaskRunner(task=fn).run_task(
             state=state, inputs={}, timeout_handler=None
         )
         assert isinstance(new_state, Skipped)
@@ -642,9 +636,7 @@ class TestRunTaskStep:
 
         state = Running()
         with pytest.raises(signals.PAUSE):
-            TaskRunner(task=fn).run_task_step(
-                state=state, inputs={}, timeout_handler=None
-            )
+            TaskRunner(task=fn).run_task(state=state, inputs={}, timeout_handler=None)
 
     def test_run_with_error(self):
         @prefect.task
@@ -652,7 +644,7 @@ class TestRunTaskStep:
             1 / 0
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task_step(
+        new_state = TaskRunner(task=fn).run_task(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_failed()
@@ -664,7 +656,7 @@ class TestRunTaskStep:
             return x + 1
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task_step(
+        new_state = TaskRunner(task=fn).run_task(
             state=state, inputs={"x": 1}, timeout_handler=None
         )
         assert new_state.is_successful()
@@ -676,7 +668,7 @@ class TestRunTaskStep:
             return x + 1
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task_step(
+        new_state = TaskRunner(task=fn).run_task(
             state=state, inputs={"y": 1}, timeout_handler=None
         )
         assert new_state.is_failed()
@@ -685,17 +677,17 @@ class TestRunTaskStep:
 class TestCheckRetryStep:
     @pytest.mark.parametrize("state", [Success(), Pending(), Running(), Skipped()])
     def test_non_failed_states(self, state):
-        new_state = TaskRunner(task=Task()).check_for_retry_step(state=state, inputs={})
+        new_state = TaskRunner(task=Task()).check_for_retry(state=state, inputs={})
         assert new_state is state
 
     def test_failed_no_retry(self):
         state = Failed()
-        new_state = TaskRunner(task=Task()).check_for_retry_step(state=state, inputs={})
+        new_state = TaskRunner(task=Task()).check_for_retry(state=state, inputs={})
         assert new_state is state
 
     def test_failed_one_retry(self):
         state = Failed()
-        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry_step(
+        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
             state=state, inputs={}
         )
         assert isinstance(new_state, Retrying)
@@ -703,14 +695,14 @@ class TestCheckRetryStep:
     def test_failed_one_retry_second_run(self):
         state = Failed()
         with prefect.context(_task_run_number=2):
-            new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry_step(
+            new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
                 state=state, inputs={}
             )
             assert new_state is state
 
     def test_failed_retry_caches_inputs(self):
         state = Failed()
-        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry_step(
+        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
             state=state, inputs={"x": 1}
         )
         assert isinstance(new_state, Retrying)
@@ -718,7 +710,7 @@ class TestCheckRetryStep:
 
     def test_retrying_without_scheduled_time(self):
         state = Retrying()
-        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry_step(
+        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
             state=state, inputs={}
         )
         assert new_state is not state
@@ -727,7 +719,7 @@ class TestCheckRetryStep:
 
     def test_retrying_without_scheduled_time_and_no_retries(self):
         state = Retrying()
-        new_state = TaskRunner(task=Task(max_retries=0)).check_for_retry_step(
+        new_state = TaskRunner(task=Task(max_retries=0)).check_for_retry(
             state=state, inputs={}
         )
         assert new_state is not state
@@ -736,7 +728,7 @@ class TestCheckRetryStep:
 
     def test_retrying_with_scheduled_time(self):
         state = Retrying(scheduled_time=datetime.datetime.utcnow())
-        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry_step(
+        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
             state=state, inputs={}
         )
         assert new_state is state
@@ -747,12 +739,12 @@ class TestCacheResultStep:
         "state", [Failed(), Skipped(), Finished(), Pending(), Running()]
     )
     def test_non_success_states(self, state):
-        new_state = TaskRunner(task=Task()).cache_result_step(state=state, inputs={})
+        new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
         assert new_state is state
 
     def test_success_state_with_no_cache_for(self):
         state = Success()
-        new_state = TaskRunner(task=Task()).cache_result_step(state=state, inputs={})
+        new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
         assert new_state is state
 
     def test_success_state(self):
@@ -761,7 +753,7 @@ class TestCacheResultStep:
             return x + 1
 
         state = Success(result=2, message="hello")
-        new_state = TaskRunner(task=fn).cache_result_step(state=state, inputs={"x": 5})
+        new_state = TaskRunner(task=fn).cache_result(state=state, inputs={"x": 5})
         assert new_state is not state
         assert new_state.is_successful()
         assert new_state.result == 2
