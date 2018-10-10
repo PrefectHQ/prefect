@@ -4,6 +4,7 @@
 ### Major Features
 
 - Refactor `TaskRunner` into a moduler pipeline - [#260](https://github.com/PrefectHQ/prefect/pull/260)
+- Add configurable `state_handlers` for `Tasks` and `TaskRunners` - [#TODO add link]
 
 ### Minor Features
 
