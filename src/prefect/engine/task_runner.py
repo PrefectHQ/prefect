@@ -23,57 +23,20 @@ from prefect.engine.state import (
 from prefect.utilities.executors import main_thread_timeout
 
 
-def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
+class ENDRUN(Exception):
     """
-    This handler is used to decorate methods that return States but might raise
-    Prefect signals.
-
-    The handler attempts to run the method, and if a signal is raised, the appropriate
-    state is returned.
-
-    If DONTRUN is raised, the handler does not trap it, but re-raises it.
+    An ENDRUN exception is used by TaskRunner steps to indicate that state processing should
+    stop. The pipeline result should be the state contained in the exception.
     """
 
-    @functools.wraps(method)
-    def inner(self: "TaskRunner", *args: Any, **kwargs: Any) -> State:
-
-        raise_on_exception = prefect.context.get("_raise_on_exception", False)
-
-        try:
-            return method(self, *args, **kwargs)
-
-        # DONTRUN signals get raised for handling
-        except signals.DONTRUN as exc:
-            logging.debug("DONTRUN signal raised: {}".format(exc))
-            raise
-
-        # PAUSE signals get raised for handling
-        except signals.PAUSE as exc:
-            logging.debug("PAUSE signal raised: {}".format(exc))
-            raise
-
-        # RETRY signals are trapped and turned into Retry states
-        except signals.RETRY as exc:
-            logging.debug("RETRY signal raised")
-            if raise_on_exception:
-                raise exc
-            return self.get_retry_state(inputs=kwargs.get("inputs"))
-
-        # PrefectStateSignals are trapped and turned into States
-        except signals.PrefectStateSignal as exc:
-            logging.debug("{} signal raised.".format(type(exc).__name__))
-            if raise_on_exception:
-                raise exc
-            return exc.state
-
-        # Exceptions are trapped and turned into Failed states
-        except Exception as exc:
-            logging.debug("Unexpected error while running task.")
-            if raise_on_exception:
-                raise exc
-            return Failed(message=exc)
-
-    return inner
+    def __init__(self, state: State = None) -> None:
+        """
+        Args
+            - state (State): the state that should be used as the result of the TaskRunner
+                run.
+        """
+        self.state = state
+        super().__init__()
 
 
 class TaskRunner:
@@ -138,6 +101,7 @@ class TaskRunner:
         inputs = inputs or {}
         context = context or {}
 
+        # construct task inputs
         task_inputs = {}
         for edge, v in upstream_states.items():
             if edge.key is None:
@@ -148,158 +112,296 @@ class TaskRunner:
                 task_inputs[edge.key] = v.result
         task_inputs.update(inputs)
 
+        # gather upstream states
         upstream_states_set = set(
             prefect.utilities.collections.flatten_seq(upstream_states.values())
         )
 
+        # apply throttling
+        while True:
+            tickets = []
+            for q in queues:
+                try:
+                    tickets.append(q.get(timeout=2))  # timeout after 2 seconds
+                except Exception:
+                    for ticket, q in zip(tickets, queues):
+                        q.put(ticket)
+            if len(tickets) == len(queues):
+                break
+
+        # run state transformation pipeline
         with prefect.context(context, _task_name=self.task.name):
-            while True:
-                tickets = []
-                for q in queues:
-                    try:
-                        tickets.append(q.get(timeout=2))  # timeout after 2 seconds
-                    except Exception:
-                        for ticket, q in zip(tickets, queues):
-                            q.put(ticket)
-                if len(tickets) == len(queues):
-                    break
 
             try:
-                state = self.get_pre_run_state(
-                    state=state,
-                    upstream_states=upstream_states_set,
-                    ignore_trigger=ignore_trigger,
-                    inputs=inputs,
+                # check if all upstream tasks have finished
+                state = self.check_upstream_finished_step(
+                    state, upstream_states_set=upstream_states_set
                 )
-                state = self.get_run_state(
-                    state=state, inputs=task_inputs, timeout_handler=timeout_handler
-                )
-                state = self.get_post_run_state(state=state, inputs=task_inputs)
 
-            # a DONTRUN signal at any point breaks the chain and we return
+                # check if any upstream tasks skipped (and if we need to skip)
+                state = self.check_upstream_skipped_step(
+                    state, upstream_states_set=upstream_states_set
+                )
+
+                # check if the task's trigger passes
+                state = self.check_task_trigger_step(
+                    state,
+                    upstream_states_set=upstream_states_set,
+                    ignore_trigger=ignore_trigger,
+                )
+
+                # check to make sure the task is in a pending state
+                state = self.check_task_is_pending_step(state)
+
+                # check to see if the task has a cached result
+                state = self.check_task_is_cached_step(state, inputs=task_inputs)
+
+                # set the task state to running
+                state = self.set_task_to_running_step(state)
+
+                # run the task!
+                state = self.run_task_step(
+                    state, inputs=task_inputs, timeout_handler=timeout_handler
+                )
+
+                # check if the task needs to be retried
+                state = self.check_for_retry_step(state, inputs=task_inputs)
+
+            # a ENDRUN signal at any point breaks the chain and we return
             # the most recently computed state
-            except signals.DONTRUN as exc:
-                pass
+            except ENDRUN as exc:
+                state = exc.state
+
             except signals.PAUSE as exc:
                 state.cached_inputs = task_inputs or {}
                 state.message = exc
+
             finally:  # resource is now available
                 for ticket, q in zip(tickets, queues):
                     q.put(ticket)
 
         return state
 
-    @handle_signals
-    def get_pre_run_state(
-        self,
-        state: State,
-        upstream_states: Set[State],
-        ignore_trigger: bool,
-        inputs: Dict[str, Any],
+    def check_upstream_finished_step(
+        self, state: State, upstream_states_set: Set[State]
     ) -> State:
         """
-        Checks if a task is ready to run.
-
-        This method accepts an initial state and returns the next state that the task
-        should take. If it should not change state, it returns None.
+        Checks if the upstream tasks have all finshed.
 
         Args:
-            - state (State): the current task State.
-            - upstream_states (Set[State]): a set of States from upstream tasks.
-            - ignore_trigger (bool): if True, the trigger function is not called.
-            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
-                to the task's `run()` arguments.
+            - state (State): the current state of this task
+            - upstream_states_set: a set containing the states of any upstream tasks.
 
+        Returns:
+            State: the state of the task after running the check
+
+        Raises:
+            - signals.ENDRUN if upstream tasks are not finished.
         """
+        if not all(s.is_finished() for s in upstream_states_set):
+            raise ENDRUN(state)
+        return state
 
-        # ---------------------------------------------------------
-        # check that upstream tasks are finished
-        # ---------------------------------------------------------
+    def check_upstream_skipped_step(
+        self, state: State, upstream_states_set: Set[State]
+    ) -> State:
+        """
+        Checks if any of the upstream tasks have skipped.
 
-        if not all(s.is_finished() for s in upstream_states):
-            raise signals.DONTRUN("Upstream tasks are not finished.")
+        Args:
+            - state (State): the current state of this task
+            - upstream_states_set: a set containing the states of any upstream tasks.
 
-        # ---------------------------------------------------------
-        # check upstream skips and skip this task, if appropriate
-        # ---------------------------------------------------------
-
+        Returns:
+            State: the state of the task after running the check
+        """
         if self.task.skip_on_upstream_skip and any(
-            isinstance(s, Skipped) for s in upstream_states
+            isinstance(s, Skipped) for s in upstream_states_set
         ):
-            return Skipped(
-                message="Upstream task was skipped; if this was not the intended behavior, consider changing `skip_on_upstream_skip=False` for this task."
+            raise ENDRUN(
+                state=Skipped(
+                    message=(
+                        "Upstream task was skipped; if this was not the intended "
+                        "behavior, consider changing `skip_on_upstream_skip=False` "
+                        "for this task."
+                    )
+                )
             )
+        return state
 
-        # ---------------------------------------------------------
-        # check trigger
-        # ---------------------------------------------------------
+    def check_task_trigger_step(
+        self,
+        state: State,
+        upstream_states_set: Set[State],
+        ignore_trigger: bool = False,
+    ) -> State:
+        """
+        Checks if the task's trigger function passes. If the upstream_states_set is empty,
+        then the trigger is not called.
 
+        Args:
+            - state (State): the current state of this task
+            - upstream_states_set: a set containing the states of any upstream tasks.
+
+        Returns:
+            State: the state of the task after running the check
+
+        Raises:
+            - signals.ENDRUN if the trigger raises DONTRUN
+        """
         # the trigger itself could raise a failure, but we raise TriggerFailed just in case
-        if not ignore_trigger and not self.task.trigger(upstream_states):
-            raise signals.TRIGGERFAIL(message="Trigger failed.")
+        raise_on_exception = prefect.context.get("_raise_on_exception", False)
 
-        # ---------------------------------------------------------
-        # check this task's state
-        # ---------------------------------------------------------
+        try:
+            if not upstream_states_set:
+                return state
+            elif not ignore_trigger and not self.task.trigger(upstream_states_set):
+                raise signals.TRIGGERFAIL(message="Trigger failed")
+
+        except signals.PAUSE:
+            raise
+
+        except signals.PrefectStateSignal as exc:
+            logging.debug("{} signal raised.".format(type(exc).__name__))
+            if raise_on_exception:
+                raise exc
+            raise ENDRUN(exc.state)
+
+        # Exceptions are trapped and turned into TriggerFailed states
+        except Exception as exc:
+            logging.debug("Unexpected error while running task.")
+            if raise_on_exception:
+                raise exc
+            raise ENDRUN(TriggerFailed(message=exc))
+
+        return state
+
+    def check_task_is_pending_step(self, state: State) -> State:
+        """
+        Checks to make sure the task is in a PENDING state.
+
+        Args:
+            - state (State): the current state of this task
+
+        Returns:
+            State: the state of the task after running the check
+
+        Raises:
+            - signals.ENDRUN if the task is not ready to run
+        """
+        # the task is ready
+        if state.is_pending():
+            return state
 
         # this task is already running
         elif state.is_running():
-            raise signals.DONTRUN("Task is already running.")
+            self.logger.debug("Task is already running.")
+            raise ENDRUN(state)
 
         # this task is already finished
         elif state.is_finished():
-            raise signals.DONTRUN("Task is already finished.")
+            self.logger.debug("Task is already finished.")
+            raise ENDRUN(state)
 
         # this task is not pending
-        elif not state.is_pending():
-            raise signals.DONTRUN(
+        else:
+            self.logger.debug(
                 "Task is not ready to run or state was unrecognized ({}).".format(state)
             )
+            raise ENDRUN(state)
 
-        # ---------------------------------------------------------
-        # We can start!
-        # ---------------------------------------------------------
+    def check_task_is_cached_step(self, state: State, inputs: Dict[str, Any]) -> State:
+        """
+        Args:
+            - state (State): the current state of this task
+            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+
+        Returns:
+            State: the state of the task after running the check
+
+        Raises:
+            - signals.ENDRUN if the task is not ready to run
+        """
         if isinstance(state, CachedState) and self.task.cache_validator(
             state, inputs, prefect.context.get("_parameters")
         ):
-            return Success(result=state.cached_result, cached=state)
+            raise ENDRUN(Success(result=state.cached_result, cached=state))
+        return state
 
-        return Running(message="Starting task run")
-
-    @handle_signals
-    def get_run_state(
-        self, state: State, inputs: Dict[str, Any], timeout_handler: Callable = None
-    ) -> State:
+    def set_task_to_running_step(self, state: State) -> State:
         """
-        Runs a task.
-
-        This method accepts an initial state and returns the next state that the task
-        should take. If it should not change state, it returns None.
+        Sets the task to running
 
         Args:
-            - state (State): the current task State.
+            - state (State): the current state of this task
+
+        Returns:
+            State: the state of the task after running the check
+
+        Raises:
+            - signals.ENDRUN if the task is not ready to run
+        """
+        if not state.is_pending():
+            raise ENDRUN(state)
+
+        return Running(message="Starting task run.")
+
+    def run_task_step(
+        self, state: State, inputs: Dict[str, Any], timeout_handler: Optional[Callable]
+    ) -> State:
+        """
+        Runs the task and traps any signals or errors it raises.
+
+        Args:
+            - state (State): the current state of this task
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
             - timeout_handler (Callable, optional): function for timing out
                 task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
                 `prefect.utilities.executors.main_thread_timeout`
+
+        Returns:
+            State: the state of the task after running the check
+
+        Raises:
+            - signals.PAUSE if the task raises PAUSE
+            - signals.ENDRUN if the task is not ready to run
         """
-
         if not state.is_running():
-            raise signals.DONTRUN("Task is not in a Running state.")
+            raise ENDRUN(state)
 
-        timeout_handler = timeout_handler or main_thread_timeout
+        raise_on_exception = prefect.context.get("_raise_on_exception", False)
 
         try:
-            self.logger.debug("Starting TaskRun")
-            result = timeout_handler(
-                self.task.run, timeout=self.task.timeout, **inputs
-            )  # type: ignore
-        except signals.DONTRUN as exc:
-            raise signals.SKIP(
-                message="DONTRUN was raised inside a task and interpreted as SKIP. "
-                "Message was: {}".format(str(exc))
-            )
+            timeout_handler = timeout_handler or main_thread_timeout
+            result = timeout_handler(self.task.run, timeout=self.task.timeout, **inputs)
+
+        except signals.DONTRUN:
+            return Skipped()
+
+        except signals.PAUSE:
+            raise
+
+        # PrefectStateSignals are trapped and turned into States
+        except signals.PrefectStateSignal as exc:
+            logging.debug("{} signal raised.".format(type(exc).__name__))
+            if raise_on_exception:
+                raise exc
+
+            # if the state is not successful or skipped, return it.
+            # We hold on to successful states because they go through the caching process
+            if not exc.state.is_successful() or isinstance(exc.state, Skipped):
+                return exc.state
+            else:
+                result = exc.state.result
+
+        # Exceptions are trapped and turned into Failed states
+        except Exception as exc:
+            logging.debug("Unexpected error while running task.")
+            if raise_on_exception:
+                raise exc
+            return Failed(message=exc)
 
         if self.task.cache_for is not None:
             expiration = datetime.datetime.utcnow() + self.task.cache_for
@@ -311,46 +413,35 @@ class TaskRunner:
             )
         else:
             cached_state = None
+
         return Success(
             result=result, message="Task run succeeded.", cached=cached_state
         )
 
-    @handle_signals
-    def get_post_run_state(self, state: State, inputs: Dict[str, Any]) -> State:
+    def check_for_retry_step(self, state: State, inputs: Dict[str, Any]) -> State:
         """
-        If the final state failed, this method checks to see if it should be retried.
+        Checks to see if a FAILED task should be retried. Also assigns a retry time to
+        RETRYING states that don't have one set (for example, if raised from inside a task).
 
         Args:
-            - state (State): the current task State.
+            - state (State): the current state of this task
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
-        """
-        if not state.is_finished():
-            raise signals.DONTRUN("Task is not in a Finished state.")
 
-        # check failed states for retry (except for TriggerFailed, which doesn't retry)
-        if isinstance(state, Failed) and not isinstance(state, TriggerFailed):
+        Returns:
+            State: the state of the task after running the check
+        """
+        if isinstance(state, Failed) or (
+            isinstance(state, Retrying) and state.scheduled_time is None
+        ):
             run_number = prefect.context.get("_task_run_number", 1)
-            if run_number <= self.task.max_retries:
-                return self.get_retry_state(inputs=inputs)
+            if run_number <= self.task.max_retries or isinstance(state, Retrying):
+                scheduled_time = datetime.datetime.utcnow() + self.task.retry_delay
+                msg = "Retrying Task (after attempt {n} of {m})".format(
+                    n=run_number, m=self.task.max_retries + 1
+                )
+                return Retrying(
+                    scheduled_time=scheduled_time, cached_inputs=inputs, message=msg
+                )
 
-        raise signals.DONTRUN("State requires no further processing.")
-
-    def get_retry_state(self, inputs: Dict[str, Any] = None) -> State:
-        """
-        Returns a Retry state with the appropriate scheduled_time and last_run_number set.
-
-        Args:
-            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
-                to the task's `run()` arguments.
-
-        """
-        run_number = prefect.context.get("_task_run_number", 1)
-        scheduled_time = datetime.datetime.utcnow() + self.task.retry_delay
-        msg = "Retrying Task (after attempt {n} of {m})".format(
-            n=run_number, m=self.task.max_retries + 1
-        )
-        self.logger.info(msg)
-        return Retrying(
-            scheduled_time=scheduled_time, cached_inputs=inputs, message=msg
-        )
+        return state
