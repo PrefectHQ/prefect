@@ -1,20 +1,21 @@
 # Prefect Changelog
 
-## 0.4.0 <Badge text="alpha" type="warn">
+## Development <Badge text="alpha" type="warn">
 ### Major Features
 
 - None
 
 ### Minor Features
 
-- Add a new method `flow.get_tasks()` for easily filtering flow tasks by attribute [#242](https://github.com/PrefectHQ/prefect/pull/242)
-- Add new `JinjaTemplateTask` for easily rendering jinja templates [#200](https://github.com/PrefectHQ/prefect/issues/200)
-- Add new `PAUSE` signal for halting task execution [#246](https://github.com/PrefectHQ/prefect/pull/246)
-- Add ability to timeout task execution for all executors except `DaskExecutor(processes=True)` [#240](https://github.com/PrefectHQ/prefect/issues/240)
+- Add a new method `flow.get_tasks()` for easily filtering flow tasks by attribute - [#242](https://github.com/PrefectHQ/prefect/pull/242)
+- Add new `JinjaTemplateTask` for easily rendering jinja templates - [#200](https://github.com/PrefectHQ/prefect/issues/200)
+- Add new `PAUSE` signal for halting task execution - [#246](https://github.com/PrefectHQ/prefect/pull/246)
+- Add ability to timeout task execution for all executors except `DaskExecutor(processes=True)` - [#240](https://github.com/PrefectHQ/prefect/issues/240)
+- Add explicit unit test to check Black formatting (Python 3.6+) - [#261](https://github.com/PrefectHQ/prefect/pull/261)
 
 ### Fixes
 
-- Flow consistently raises if passed a parameter that doesn't exist [#149](https://github.com/PrefectHQ/prefect/issues/149)
+- Flow consistently raises if passed a parameter that doesn't exist - [#149](https://github.com/PrefectHQ/prefect/issues/149)
 
 ### Breaking Changes
 
@@ -24,10 +25,10 @@
 
 ### Major Features
 
-- Local parallelism with `DaskExecutor` [#151](https://github.com/PrefectHQ/prefect/issues/151), [#186](https://github.com/PrefectHQ/prefect/issues/186)
-- Resource throttling based on `tags` [#158](https://github.com/PrefectHQ/prefect/issues/158), [#186](https://github.com/PrefectHQ/prefect/issues/186)
-- `Task.map` for mapping tasks [#186](https://github.com/PrefectHQ/prefect/issues/186)
-- Added `AirFlow` utility for importing Airflow DAGs as Prefect Flows [#232](https://github.com/PrefectHQ/prefect/pull/232)
+- Local parallelism with `DaskExecutor` - [#151](https://github.com/PrefectHQ/prefect/issues/151), [#186](https://github.com/PrefectHQ/prefect/issues/186)
+- Resource throttling based on `tags` - [#158](https://github.com/PrefectHQ/prefect/issues/158), [#186](https://github.com/PrefectHQ/prefect/issues/186)
+- `Task.map` for mapping tasks - [#186](https://github.com/PrefectHQ/prefect/issues/186)
+- Added `AirFlow` utility for importing Airflow DAGs as Prefect Flows - [#232](https://github.com/PrefectHQ/prefect/pull/232)
 
 ### Minor Features
 
