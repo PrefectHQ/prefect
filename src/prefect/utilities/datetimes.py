@@ -1,17 +1,17 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import datetime
-
 import dateutil
+from typing import Any, Callable, Union
 
 
 def retry_delay(
-    interval=None,
-    *,
-    exponential_backoff=False,
-    max_delay=datetime.timedelta(hours=2),
-    **kwargs
-):
+    interval: datetime.timedelta = None,
+    *args: Any,
+    exponential_backoff: bool = False,
+    max_delay: datetime.timedelta = datetime.timedelta(hours=2),
+    **kwargs: Any
+) -> Callable:
     """
     A helper function for generating task retry delays.
 
@@ -45,7 +45,7 @@ def retry_delay(
     elif kwargs:
         interval = datetime.timedelta(**kwargs)
 
-    def retry_delay(run_number):
+    def retry_delay(run_number: int) -> datetime.timedelta:
         if exponential_backoff:
             scale = 2 ** (max(0, run_number - 2))
         else:
@@ -58,13 +58,15 @@ def retry_delay(
     return retry_delay
 
 
-def parse_datetime(dt):
+def parse_datetime(
+    dt: Union[str, bytes, float, datetime.datetime]
+) -> datetime.datetime:
     """
     Parses a string, bytes, float, or datetime object and returns a
     corresponding datetime
     """
     if isinstance(dt, (str, bytes)):
-        return dateutil.parser.parse(dt)
+        return dateutil.parser.parse(dt)  # type: ignore
     elif isinstance(dt, float):
         return datetime.datetime.fromtimestamp(dt)
     elif isinstance(dt, (datetime.datetime)):
