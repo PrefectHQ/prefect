@@ -1,3 +1,4 @@
+import collections
 import datetime
 import queue
 import random
@@ -769,3 +770,107 @@ def test_flow_runner_handles_mapped_timeouts(executor):
     for fstate in mapped_states[1:]:
         assert fstate.is_failed()
         assert isinstance(fstate.message, TimeoutError)
+
+
+handler_results = collections.defaultdict(lambda: 0)
+
+
+@pytest.fixture(autouse=True)
+def clear_handler_results():
+    handler_results.clear()
+
+
+def flow_handler(flow, old_state, new_state):
+    """state change handler for flows that increments a value by 1"""
+    assert isinstance(flow, Flow)
+    assert isinstance(old_state, State)
+    assert isinstance(new_state, State)
+    handler_results["Flow"] += 1
+    return new_state
+
+
+def flow_runner_handler(flow_runner, old_state, new_state):
+    """state change handler for flow runners that increments a value by 1"""
+    assert isinstance(flow_runner, FlowRunner)
+    assert isinstance(old_state, State)
+    assert isinstance(new_state, State)
+    handler_results["FlowRunner"] += 1
+    return new_state
+
+
+class TestFlowStateHandlers:
+    def test_flow_handlers_are_called(self):
+        flow = Flow(state_handlers=[flow_handler])
+        FlowRunner(flow=flow).run()
+        # the flow changed state twice: Pending -> Running -> Success
+        assert handler_results["Flow"] == 2
+
+    def test_multiple_flow_handlers_are_called(self):
+        flow = Flow(state_handlers=[flow_handler, flow_handler])
+        FlowRunner(flow=flow).run()
+        # each flow changed state twice: Pending -> Running -> Success
+        assert handler_results["Flow"] == 4
+
+    def test_multiple_flow_handlers_are_called_in_sequence(self):
+        # the second flow handler will assert the result of the first flow handler is a state
+        # and raise an error, as long as the flow_handlers are called in sequence on the
+        # previous result
+        flow = Flow(state_handlers=[lambda *a: None, flow_handler])
+        with pytest.raises(AssertionError):
+            with prefect.utilities.tests.raise_on_exception():
+                FlowRunner(flow=flow).run()
+
+    def test_task_handler_that_doesnt_return_state(self):
+        flow = Flow(state_handlers=[lambda *a: None])
+        # raises an attribute error because it tries to access a property of the state that
+        # doesn't exist on None
+        with pytest.raises(AttributeError):
+            with prefect.utilities.tests.raise_on_exception():
+                FlowRunner(flow=flow).run()
+
+
+class TestFlowRunnerStateHandlers:
+    def test_task_runner_handlers_are_called(self):
+        FlowRunner(flow=Flow(), state_handlers=[flow_runner_handler]).run()
+        # the flow changed state twice: Pending -> Running -> Success
+        assert handler_results["FlowRunner"] == 2
+
+    def test_multiple_task_runner_handlers_are_called(self):
+        FlowRunner(
+            flow=Flow(), state_handlers=[flow_runner_handler, flow_runner_handler]
+        ).run()
+        # each flow changed state twice: Pending -> Running -> Success
+        assert handler_results["FlowRunner"] == 4
+
+    def test_multiple_task_runner_handlers_are_called_in_sequence(self):
+        # the second flow handler will assert the result of the first flow handler is a state
+        # and raise an error, as long as the flow_handlers are called in sequence on the
+        # previous result
+        with pytest.raises(AssertionError):
+            with prefect.utilities.tests.raise_on_exception():
+                FlowRunner(
+                    flow=Flow(), state_handlers=[lambda *a: None, flow_runner_handler]
+                ).run()
+
+    def test_task_runner_handler_that_doesnt_return_state(self):
+        # raises an attribute error because it tries to access a property of the state that
+        # doesn't exist on None
+        with pytest.raises(AttributeError):
+            with prefect.utilities.tests.raise_on_exception():
+                FlowRunner(flow=Flow(), state_handlers=[lambda *a: None]).run()
+
+    def test_task_handler_that_raises_signal_is_trapped(self):
+        def handler(flow, old, new):
+            raise signals.FAIL()
+
+        flow = Flow(state_handlers=[handler])
+        state = FlowRunner(flow=flow).run()
+        assert state.is_failed()
+
+    def test_task_handler_that_has_error_is_trapped(self):
+        def handler(flow, old, new):
+            1 / 0
+
+        flow = Flow(state_handlers=[handler])
+        state = FlowRunner(flow=flow).run()
+        assert state.is_failed()
