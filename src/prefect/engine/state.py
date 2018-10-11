@@ -102,6 +102,14 @@ class State(Serializable):
         """
         return isinstance(self, Finished)
 
+    def is_skipped(self) -> bool:
+        """Checks if the object is currently in a skipped state
+
+        Returns:
+            - bool: `True` if the state is skipped, `False` otherwise
+        """
+        return isinstance(self, Skipped)
+
     def is_successful(self) -> bool:
         """Checks if the object is currently in a successful state
 
