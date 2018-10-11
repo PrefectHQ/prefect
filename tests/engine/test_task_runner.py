@@ -833,11 +833,11 @@ class TestTaskRunnerStateHandlers:
         assert handler_results["TaskRunner"] == 2
 
     def test_task_runner_handlers_are_called_on_retry(self):
-        @prefect.task(state_handlers=[task_runner_handler], max_retries=1)
+        @prefect.task(max_retries=1)
         def fn():
             1 / 0
 
-        TaskRunner(task=fn).run()
+        TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
         # the task changed state three times: Pending -> Running -> Failed -> Retry
         assert handler_results["TaskRunner"] == 3
 
