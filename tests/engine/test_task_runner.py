@@ -619,7 +619,9 @@ class TestRunTaskStep:
 
         state = Running()
         with pytest.raises(signals.PAUSE):
-            TaskRunner(task=fn).get_task_run_state(state=state, inputs={}, timeout_handler=None)
+            TaskRunner(task=fn).get_task_run_state(
+                state=state, inputs={}, timeout_handler=None
+            )
 
     def test_run_with_error(self):
         @prefect.task

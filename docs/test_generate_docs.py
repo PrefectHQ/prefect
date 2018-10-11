@@ -259,4 +259,3 @@ def test_consistency_of_class_method_docs(obj, fn):
     ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has undocumented arguments.".format(
         obj=obj, fn=fn
     )
-
