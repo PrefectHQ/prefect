@@ -15,6 +15,17 @@ from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
 
 
+def call_flow_state_handlers(
+    flow_runner: "FlowRunner", old_state: State, new_state: State
+) -> State:
+    """
+    A special state handler that the FlowRunner uses to call its flow's state handlers.
+    """
+    for handler in flow_runner.flow.state_handlers:
+        new_state = handler(flow_runner.flow, old_state, new_state)
+    return new_state
+
+
 class FlowRunner(Runner):
     """
     FlowRunners handle the execution of Flows and determine the State of a Flow
@@ -57,7 +68,13 @@ class FlowRunner(Runner):
     ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
-        super().__init__(state_handlers=state_handlers, logger_name=logger_name)
+
+        # we always call the flow's state handlers first, to give it an opportunity to
+        # modify the state before the runner's handlers receive it.
+        handlers = [call_flow_state_handlers]
+        if state_handlers is not None:
+            handlers.extend(state_handlers)
+        super().__init__(state_handlers=handlers, logger_name=logger_name)
 
     def run(
         self,

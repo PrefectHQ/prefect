@@ -752,7 +752,7 @@ handler_results = collections.defaultdict(lambda: 0)
 
 
 @pytest.fixture(autouse=True)
-def clear_task_handler_results():
+def clear_handler_results():
     handler_results.clear()
 
 
@@ -855,7 +855,15 @@ class TestTaskRunnerStateHandlers:
 
     def test_task_handler_that_raises_signal_is_trapped(self):
         def handler(task, old, new):
-            raise signals.Fail()
+            raise signals.FAIL()
+
+        task = Task(state_handlers=[handler])
+        state = TaskRunner(task=task).run()
+        assert state.is_failed()
+
+    def test_task_handler_that_has_error_is_trapped(self):
+        def handler(task, old, new):
+            1 / 0
 
         task = Task(state_handlers=[handler])
         state = TaskRunner(task=task).run()
