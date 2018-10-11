@@ -16,7 +16,7 @@ StateList = Union["prefect.engine.state.State", List["prefect.engine.state.State
 
 def multiprocessing_timeout(
     fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any
-):
+) -> Any:
     """
     Helper function for implementing timeouts on function executions.
     Implemented by spawning a new multiprocess.Process() and joining with timeout.
@@ -39,20 +39,22 @@ def multiprocessing_timeout(
     if timeout is None:
         return fn(*args, **kwargs)
     else:
-        timeout = timeout.total_seconds()
+        timeout_length = timeout.total_seconds()
 
-    def retrieve_value(*args, _container, **kwargs):
+    def retrieve_value(
+        *args: Any, _container: multiprocessing.Queue, **kwargs: Any
+    ) -> None:
         """Puts the return value in a multiprocessing-safe container"""
         try:
             _container.put(fn(*args, **kwargs))
         except Exception as exc:
             _container.put(exc)
 
-    q = multiprocessing.Queue()
+    q = multiprocessing.Queue()  # type: multiprocessing.Queue
     kwargs["_container"] = q
     p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
     p.start()
-    p.join(timeout)
+    p.join(timeout_length)
     p.terminate()
     if not q.empty():
         res = q.get()
@@ -65,7 +67,7 @@ def multiprocessing_timeout(
 
 def main_thread_timeout(
     fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any
-):
+) -> Any:
     """
     Helper function for implementing timeouts on function executions.
     Implemented by setting a `signal` alarm on a timer. Must be run in the main thread.
@@ -88,14 +90,14 @@ def main_thread_timeout(
     if timeout is None:
         return fn(*args, **kwargs)
     else:
-        timeout = round(timeout.total_seconds())
+        timeout_length = round(timeout.total_seconds())
 
-    def error_handler(signum, frame):
+    def error_handler(signum, frame):  # type: ignore
         raise TimeoutError("Execution timed out.")
 
     try:
         signal.signal(signal.SIGALRM, error_handler)
-        signal.alarm(timeout)
+        signal.alarm(timeout_length)
         return fn(*args, **kwargs)
     finally:
         signal.alarm(0)
@@ -126,6 +128,7 @@ def state_to_list(s: StateList) -> List["prefect.engine.state.State"]:
     """
     if isinstance(s, list):
         return s
+    assert s.result is not None, "State's result must be iterable"
     return [type(s)(result=elem) for elem in s.result]
 
 

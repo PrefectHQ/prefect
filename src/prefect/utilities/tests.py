@@ -2,7 +2,7 @@
 
 import copy
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, Iterator
 
 import prefect
 from prefect.configuration import Config
@@ -10,7 +10,7 @@ from prefect.engine.state import State
 
 
 @contextmanager
-def set_temporary_config(key: str, value: Any):
+def set_temporary_config(key: str, value: Any) -> Iterator:
     """
     Temporarily sets a configuration value for the duration of the context manager.
 
@@ -39,6 +39,6 @@ def set_temporary_config(key: str, value: Any):
 
 
 @contextmanager
-def raise_on_exception():
+def raise_on_exception() -> Iterator:
     with prefect.context(_raise_on_exception=True):
         yield

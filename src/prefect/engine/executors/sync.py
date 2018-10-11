@@ -2,7 +2,7 @@
 
 import datetime
 from contextlib import contextmanager
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Iterator
 
 import dask
 import dask.bag
@@ -19,7 +19,7 @@ class SynchronousExecutor(Executor):
     """
 
     @contextmanager
-    def start(self) -> Iterable[None]:
+    def start(self) -> Iterator:
         """
         Context manager for initializing execution.
 
@@ -28,12 +28,12 @@ class SynchronousExecutor(Executor):
         with dask.config.set(scheduler="synchronous") as cfg:
             yield cfg
 
-    def queue(self, maxsize=0):
-        q = queue.Queue(maxsize=maxsize)
+    def queue(self, maxsize: int = 0):
+        q = queue.Queue(maxsize=maxsize)  # type: queue.Queue
         return q
 
     def map(
-        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states: dict = None, **kwargs: Any
     ) -> dask.bag:
         """
         Submit a function to be mapped over.
@@ -52,6 +52,7 @@ class SynchronousExecutor(Executor):
             - dask.bag: an `dask.bag` collection representing the computation of
                 ecah `fn(*args, **kwargs)` call
         """
+        assert upstream_states is not None
         # every task which is being mapped over needs its state represented as a
         # dask.bag; there are two situations: 1.) the task being mapped over is
         # itself a result of a mapped task, in which case it will already be a

@@ -18,14 +18,18 @@ class EmailTask(prefect.Task):
     This task sends an email.
     """
 
-    def __init__(self, username=None, password=None, **kwargs):
+    def __init__(
+        self, username: str = None, password: str = None, **kwargs: Any
+    ) -> None:
 
         self.username = username
         self.password = password
 
         super().__init__(**kwargs)
 
-    def run(self, subject=None, msg=None, email_from=None, email_to=None):
+    def run(
+        self, subject=None, msg=None, email_from=None, email_to=None
+    ):  # type: ignore
 
         message = EMAIL_TEMPLATE.format(
             email_from=email_from, email_to=email_to, subject=subject, msg=msg
