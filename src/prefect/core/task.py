@@ -118,7 +118,8 @@ class Task(Serializable, metaclass=SignatureValidator):
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
 
-    Raises: - TypeError: if `tags` is of type `str`
+    Raises:
+        - TypeError: if `tags` is of type `str`
     """
 
     # Tasks are not iterable, though they do have a __getitem__ method
