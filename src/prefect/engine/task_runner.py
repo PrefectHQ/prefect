@@ -307,7 +307,7 @@ class TaskRunner:
             State: the state of the task after running the check
         """
         if self.task.skip_on_upstream_skip and any(
-            isinstance(s, Skipped) for s in upstream_states_set
+            s.is_skipped() for s in upstream_states_set
         ):
             raise ENDRUN(
                 state=Skipped(
@@ -333,7 +333,9 @@ class TaskRunner:
 
         Args:
             - state (State): the current state of this task
-            - upstream_states_set: a set containing the states of any upstream tasks.
+            - upstream_states_set (Set[State]): a set containing the states of any upstream tasks.
+            - ignore_trigger (bool): a boolean indicating whether to ignore the
+                tasks's trigger
 
         Returns:
             State: the state of the task after running the check
@@ -515,7 +517,7 @@ class TaskRunner:
         """
         if (
             state.is_successful()
-            and not isinstance(state, Skipped)
+            and not state.is_skipped()
             and self.task.cache_for is not None
         ):
             expiration = datetime.datetime.utcnow() + self.task.cache_for
