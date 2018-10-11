@@ -179,6 +179,7 @@ class TestStateMethods:
         assert state.is_pending()
         assert not state.is_running()
         assert not state.is_finished()
+        assert not state.is_skipped()
         assert not state.is_successful()
         assert not state.is_failed()
 
@@ -187,6 +188,7 @@ class TestStateMethods:
         assert state.is_pending()
         assert not state.is_running()
         assert not state.is_finished()
+        assert not state.is_skipped()
         assert not state.is_successful()
         assert not state.is_failed()
 
@@ -195,6 +197,7 @@ class TestStateMethods:
         assert not state.is_pending()
         assert state.is_running()
         assert not state.is_finished()
+        assert not state.is_skipped()
         assert not state.is_successful()
         assert not state.is_failed()
 
@@ -203,6 +206,7 @@ class TestStateMethods:
         assert state.is_pending()
         assert not state.is_running()
         assert not state.is_finished()
+        assert not state.is_skipped()
         assert not state.is_successful()
         assert not state.is_failed()
 
@@ -211,6 +215,7 @@ class TestStateMethods:
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
+        assert not state.is_skipped()
         assert state.is_successful()
         assert not state.is_failed()
 
@@ -219,6 +224,7 @@ class TestStateMethods:
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
+        assert not state.is_skipped()
         assert not state.is_successful()
         assert state.is_failed()
 
@@ -227,6 +233,7 @@ class TestStateMethods:
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
+        assert not state.is_skipped()
         assert not state.is_successful()
         assert state.is_failed()
 
@@ -235,5 +242,6 @@ class TestStateMethods:
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
+        assert state.is_skipped()
         assert state.is_successful()
         assert not state.is_failed()
