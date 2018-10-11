@@ -80,15 +80,6 @@ class SKIP(PrefectStateSignal):
     _state_cls = state.Skipped
 
 
-class DONTRUN(PrefectStateSignal):
-    """
-    Indicates that a task should not run and its state should not be modified.
-
-    Args:
-        - message (Any, optional): Defaults to `None`. A message about the signal.
-    """
-
-
 class PAUSE(PrefectStateSignal):
     """
     Indicates that a task should not run and wait for manual execution.
