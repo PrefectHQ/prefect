@@ -295,7 +295,7 @@ class TaskRunner:
             State: the state of the task after running the check
 
         Raises:
-            - signals.ENDRUN if upstream tasks are not finished.
+            - signals.ENDRUN: if upstream tasks are not finished.
         """
         if not all(s.is_finished() for s in upstream_states_set):
             raise ENDRUN(state)
@@ -348,7 +348,7 @@ class TaskRunner:
             State: the state of the task after running the check
 
         Raises:
-            - signals.ENDRUN if the trigger raises DONTRUN
+            - signals.ENDRUN: if the trigger raises DONTRUN
         """
         # the trigger itself could raise a failure, but we raise TriggerFailed just in case
         raise_on_exception = prefect.context.get("_raise_on_exception", False)
@@ -389,7 +389,7 @@ class TaskRunner:
             State: the state of the task after running the check
 
         Raises:
-            - signals.ENDRUN if the task is not ready to run
+            - signals.ENDRUN: if the task is not ready to run
         """
         # the task is ready
         if state.is_pending():
@@ -424,7 +424,7 @@ class TaskRunner:
             State: the state of the task after running the check
 
         Raises:
-            - signals.ENDRUN if the task is not ready to run
+            - signals.ENDRUN: if the task is not ready to run
         """
         if isinstance(state, CachedState) and self.task.cache_validator(
             state, inputs, prefect.context.get("_parameters")
@@ -444,7 +444,7 @@ class TaskRunner:
             State: the state of the task after running the check
 
         Raises:
-            - signals.ENDRUN if the task is not ready to run
+            - signals.ENDRUN: if the task is not ready to run
         """
         if not state.is_pending():
             raise ENDRUN(state)
@@ -470,8 +470,8 @@ class TaskRunner:
             State: the state of the task after running the check
 
         Raises:
-            - signals.PAUSE if the task raises PAUSE
-            - signals.ENDRUN if the task is not ready to run
+            - signals.PAUSE: if the task raises PAUSE
+            - signals.ENDRUN: if the task is not ready to run
         """
         if not state.is_running():
             raise ENDRUN(state)
