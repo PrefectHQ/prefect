@@ -138,7 +138,7 @@ class FlowRunner(Runner):
             try:
                 state = self.check_flow_is_pending_or_running(state)
                 state = self.set_flow_to_running(state)
-                state = self.run_flow(
+                state = self.get_flow_run_state(
                     state,
                     task_states=task_states,
                     start_tasks=start_tasks,
@@ -211,7 +211,7 @@ class FlowRunner(Runner):
             raise ENDRUN(state)
 
     @call_state_handlers
-    def run_flow(
+    def get_flow_run_state(
         self,
         state: State,
         task_states: Dict[Task, State],
@@ -225,14 +225,35 @@ class FlowRunner(Runner):
         """
         Runs the flow.
 
-        Args:
-            - state (State): the current state of this flow
+        Args
+            - state (State, optional): starting state for the Flow. Defaults to
+                `Pending`
+            - task_states (dict, optional): dictionary of task states to begin
+                computation with, with keys being Tasks and values their corresponding state
+            - start_tasks ([Task], optional): list of Tasks to begin computation
+                from; if any `start_tasks` have upstream dependencies, their states may need to be provided as well.
+                Defaults to `self.flow.root_tasks()`
+            - return_tasks ([Task], optional): list of Tasks to include in the
+                final returned Flow state. Defaults to `None`
+            - return_failed (bool, optional): whether to return all tasks
+                which fail, regardless of whether they are terminal tasks or in `return_tasks`.
+                Defaults to `False`
+            - parameters (dict, optional): dictionary of any needed Parameter
+                values, with keys being strings representing Parameter names and values being their corresponding values
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor provided in your prefect configuration
+            - context (dict, optional): prefect.Context to use for execution
+            - task_contexts (dict, optional): dictionary of individual contexts
+                to use for each Task run
+            - throttle (dict, optional): dictionary of tags -> int specifying
+                how many tasks with a given tag should be allowed to run simultaneously. Used
+                for throttling resource usage.
 
         Returns:
-            State: the state of the flow after running the check
+            - State: `State` representing the final post-run state of the `Flow`.
 
         Raises:
-            - ENDRUN: if the flow is not pending or running
+            - ValueError: if any throttle values are `<= 0`
         """
 
         if not state.is_running():

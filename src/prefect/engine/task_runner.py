@@ -182,7 +182,7 @@ class TaskRunner(Runner):
                 state = self.set_task_to_running(state)
 
                 # run the task!
-                state = self.run_task(
+                state = self.get_task_run_state(
                     state, inputs=task_inputs, timeout_handler=timeout_handler
                 )
 
@@ -381,7 +381,7 @@ class TaskRunner(Runner):
         return Running(message="Starting task run.")
 
     @call_state_handlers
-    def run_task(
+    def get_task_run_state(
         self, state: State, inputs: Dict[str, Any], timeout_handler: Optional[Callable]
     ) -> State:
         """
