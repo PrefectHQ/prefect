@@ -535,12 +535,7 @@ class TestCheckTaskCached:
 
     def test_cached_different_inputs(self):
         task = Task(cache_validator=cache_validators.all_inputs)
-        state = CachedState(
-            cached_inputs={"a": 1},
-            cached_result=2,
-            # cached_result_expiration=datetime.datetime.utcnow()
-            # + datetime.timedelta(minutes=1),
-        )
+        state = CachedState(cached_inputs={"a": 1}, cached_result=2)
         new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 2})
         assert new_state is state
 
