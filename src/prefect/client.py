@@ -393,7 +393,7 @@ class FlowRuns(ClientModule):
 
         Args:
             - flow_id (str): A unique flow identifier
-            - parameters (dict): Paramaters set on a flow
+            - parameters (str): Paramaters set on a flow
 
         Returns:
             - dict: Data returned from the GraphQL mutation
@@ -406,7 +406,7 @@ class FlowRuns(ClientModule):
                 }
             }
             """,
-            input=dict(flowId=flow_id, parameters=json.dumps(parameters)),
+            input=dict(flowId=flow_id, parameters=parameters),
         )
 
     def set_state(self, flow_run_id, state) -> dict:
@@ -430,6 +430,30 @@ class FlowRuns(ClientModule):
             }
             """,
             input=dict(flowRunId=flow_run_id, state=json.dumps(state)),
+        )
+
+    def query(self, flow_run_id) -> dict:
+        """
+        Retrieve a flow's environment metadata
+
+        Args:
+            - flow_run_id (str): Unique identifier of a flow run this task run belongs to
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            query($flow_run_id: ID!) {
+                flowRuns(where: {
+                    id: $flow_run_id
+                }) {
+                    id,
+                    parameters
+                }
+            }
+            """,
+            flow_run_id=flow_run_id,
         )
 
 

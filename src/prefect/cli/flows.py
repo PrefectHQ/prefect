@@ -15,7 +15,7 @@ from prefect.utilities import json as prefect_json
 from prefect.engine.state import Failed, Pending, Retrying, Running, State, Success
 
 
-def load_prefect_config(path):
+def load_prefect_config(path=None):
     if not path:
         path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
 
@@ -82,7 +82,24 @@ def run(id):
     """
     flow = prefect.core.registry.load_flow(id)
     flow_runner = prefect.engine.FlowRunner(flow=flow)
-    return flow_runner.run()
+
+    # Load optional parameters
+    parameters = None
+    config_data = load_prefect_config()
+    flow_run_id = config_data.get("flow_run_id", None)
+    if flow_run_id:
+        client = Client(
+            config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
+        )
+
+        client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+
+        flow_runs_gql = FlowRuns(client=client)
+        parameters = flow_runs_gql.query(flow_run_id=flow_run_id)
+
+        parameters = prefect_json.loads(parameters.flowRuns[0].parameters)
+
+    return flow_runner.run(parameters=parameters)
 
 
 @flows.command()
@@ -176,8 +193,9 @@ def push(project, name, version, file, path):
     help="Path to a file which contains the flow.",
     type=click.Path(exists=True),
 )
+@click.argument("parameters", required=False)
 @click.argument("path", required=False)
-def deploy(project, name, version, file, path):
+def deploy(project, name, version, file, parameters, path):
     """
     Deploy a running flow.
     """
@@ -203,9 +221,7 @@ def deploy(project, name, version, file, path):
 
     # Create Flow Run
     flow_runs_gql = FlowRuns(client=client)
-    flow_run_output = flow_runs_gql.create(
-        flow_id=flow_db_id, parameters=flow.parameters()
-    )
+    flow_run_output = flow_runs_gql.create(flow_id=flow_db_id, parameters=parameters)
     flow_run_id = flow_run_output.createFlowRun.flow_run.id
 
     # Run Flow
