@@ -365,7 +365,7 @@ class TestSetFlowToRunning:
 class TestRunFlowStep:
     def test_running_state_finishes(self):
         flow = prefect.Flow(tasks=[prefect.Task()])
-        new_state = FlowRunner(flow=flow).run_flow(
+        new_state = FlowRunner(flow=flow).get_flow_run_state(
             state=Running(),
             task_states={},
             start_tasks=[],
@@ -381,7 +381,7 @@ class TestRunFlowStep:
     def test_other_states_raise_endrun(self, state):
         flow = prefect.Flow(tasks=[prefect.Task()])
         with pytest.raises(ENDRUN):
-            FlowRunner(flow=flow).run_flow(
+            FlowRunner(flow=flow).get_flow_run_state(
                 state=state,
                 task_states={},
                 start_tasks=[],

@@ -567,7 +567,7 @@ class TestSetTaskRunning:
 class TestRunTaskStep:
     def test_running_state(self):
         state = Running()
-        new_state = TaskRunner(task=Task()).run_task(
+        new_state = TaskRunner(task=Task()).get_task_run_state(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_successful()
@@ -575,7 +575,7 @@ class TestRunTaskStep:
     @pytest.mark.parametrize("state", [Pending(), CachedState(), Success(), Skipped()])
     def test_not_running_state(self, state):
         with pytest.raises(ENDRUN):
-            TaskRunner(task=Task()).run_task(
+            TaskRunner(task=Task()).get_task_run_state(
                 state=state, inputs={}, timeout_handler=None
             )
 
@@ -585,7 +585,7 @@ class TestRunTaskStep:
             raise signals.SUCCESS()
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_successful()
@@ -596,7 +596,7 @@ class TestRunTaskStep:
             raise signals.FAIL()
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_failed()
@@ -607,7 +607,7 @@ class TestRunTaskStep:
             raise signals.SKIP()
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={}, timeout_handler=None
         )
         assert isinstance(new_state, Skipped)
@@ -619,7 +619,7 @@ class TestRunTaskStep:
 
         state = Running()
         with pytest.raises(signals.PAUSE):
-            TaskRunner(task=fn).run_task(state=state, inputs={}, timeout_handler=None)
+            TaskRunner(task=fn).get_task_run_state(state=state, inputs={}, timeout_handler=None)
 
     def test_run_with_error(self):
         @prefect.task
@@ -627,7 +627,7 @@ class TestRunTaskStep:
             1 / 0
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_failed()
@@ -639,7 +639,7 @@ class TestRunTaskStep:
             return x + 1
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={"x": 1}, timeout_handler=None
         )
         assert new_state.is_successful()
@@ -651,7 +651,7 @@ class TestRunTaskStep:
             return x + 1
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={"y": 1}, timeout_handler=None
         )
         assert new_state.is_failed()
