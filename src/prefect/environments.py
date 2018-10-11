@@ -71,12 +71,7 @@ class ContainerEnvironment(Environment):
         that will be installed on build of the Docker container
     """
 
-    def __init__(
-        self,
-        image: str,
-        tag: str,
-        python_dependencies: list = None,
-    ) -> None:
+    def __init__(self, image: str, tag: str, python_dependencies: list = None) -> None:
         if tag is None:
             tag = image
 

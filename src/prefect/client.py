@@ -438,28 +438,20 @@ class RunFlow(ClientModule):
 
 class Secret(json.Serializable):
     """
-    A Secret is a serializable object used to represent a secret key & value that is
-    to live inside of an environment.
+    A Secret is a serializable object used to represent a secret key & value.
 
     Args:
-        - name (str): The name of the secret to be put into the environment
+        - name (str): The name of the secret
 
-    The value of the Secret is not set upon initialization and instead functions as a
-    property of the Secret. e.g. `my_secret.value = "1234"`
+    The value of the Secret is not set upon initialization and instead is set
+    either in `prefect.context` or on the server.
     """
 
     _json_codec = json.ObjectAttributesCodec
 
     def __init__(self, name: str) -> None:
         self.name = name
-        self._value = None
 
-    @property
-    def value(self) -> Any:
-        """Get the secret's value"""
-        return self._value
-
-    @value.setter
-    def value(self, value: Any) -> None:
-        """Set the secret's value"""
-        self._value = value
+    def get(self):
+        secrets = prefect.context.get("_secrets", {})
+        return secrets.get(self.name)
