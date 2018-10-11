@@ -448,10 +448,14 @@ class Secret(json.Serializable):
     """
 
     _json_codec = json.ObjectAttributesCodec
+    _use_local_secrets = prefect.config.server.use_local_secrets
 
     def __init__(self, name: str) -> None:
         self.name = name
 
     def get(self):
-        secrets = prefect.context.get("_secrets", {})
-        return secrets.get(self.name)
+        if self._use_local_secrets is True:
+            secrets = prefect.context.get("_secrets", {})
+            return secrets.get(self.name)
+        else:
+            return None
