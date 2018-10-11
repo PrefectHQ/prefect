@@ -3,7 +3,7 @@
 ## 0.4.0 <Badge text="alpha" type="warn">
 ### Major Features
 
-- Refactor `TaskRunner` into a moduler pipeline - [#260](https://github.com/PrefectHQ/prefect/pull/260)
+- Refactor `TaskRunner` into a modular pipeline - [#260](https://github.com/PrefectHQ/prefect/pull/260)
 
 ### Minor Features
 
