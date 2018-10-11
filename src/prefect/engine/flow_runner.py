@@ -225,7 +225,7 @@ class FlowRunner(Runner):
         """
         Runs the flow.
 
-        Args
+        Args:
             - state (State, optional): starting state for the Flow. Defaults to
                 `Pending`
             - task_states (dict, optional): dictionary of task states to begin
@@ -235,16 +235,13 @@ class FlowRunner(Runner):
                 Defaults to `self.flow.root_tasks()`
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
+            - task_contexts (dict, optional): dictionary of individual contexts
+                to use for each Task run
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor provided in your prefect configuration
             - return_failed (bool, optional): whether to return all tasks
                 which fail, regardless of whether they are terminal tasks or in `return_tasks`.
                 Defaults to `False`
-            - parameters (dict, optional): dictionary of any needed Parameter
-                values, with keys being strings representing Parameter names and values being their corresponding values
-            - executor (Executor, optional): executor to use when performing
-                computation; defaults to the executor provided in your prefect configuration
-            - context (dict, optional): prefect.Context to use for execution
-            - task_contexts (dict, optional): dictionary of individual contexts
-                to use for each Task run
             - throttle (dict, optional): dictionary of tags -> int specifying
                 how many tasks with a given tag should be allowed to run simultaneously. Used
                 for throttling resource usage.
