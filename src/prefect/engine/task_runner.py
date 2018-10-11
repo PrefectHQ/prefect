@@ -271,15 +271,6 @@ class TaskRunner:
 
         return state
 
-    def state_handlers(self, old_state: State, new_state: State) -> State:
-        # if the states are the same, just return
-        if old_state is new_state:
-            return new_state
-
-        # otherwise, process the new state
-        new_state = self.task.state_handlers(old_state=old_state, new_state=new_state)
-        return new_state
-
     @call_state_handlers
     def check_upstream_finished(
         self, state: State, upstream_states_set: Set[State]
