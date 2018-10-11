@@ -170,3 +170,23 @@ flow.run() # this run fails
 with prefect.context(key='abc'):
     flow.run() # this run is successful
 ```
+
+## State Handlers & Callbacks
+
+It is often desireable to take action when a certain event happens, for example when a task fails. Prefect provides `state_handlers` for this purpose. Tasks may have one or more state handler functions that are called whenever the task's state changes. The signature of a state handler is:
+```python
+    def state_handler(task: Task, old_state: State, new_state: State) -> State:
+        return new_state
+```
+Whenever the task's state changes, the handler will be called with the task itself, the old (previous) state, and then new (current) state. The handler must return a `State` object, which is used as the task's new state. This provides an opportunity to either react to certain states or even modify them. If multiple handlers are provided, then they are called in sequence with the state returned by one becoming the `new_state` value of the next.
+
+For example, to send a notification whenever a task is retried:
+
+```python
+def notify_on_retry(task, old_state, new_state):
+    if isinstance(new_state, state.Retrying):
+        send_notification() # function that sends a notification
+    return new_state
+
+task_that_notifies = Task(state_handlers=[notify_on_retry])
+```
