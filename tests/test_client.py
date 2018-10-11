@@ -1,3 +1,4 @@
+import prefect
 from prefect.client import Secret
 
 
@@ -11,12 +12,13 @@ def test_create_secret():
     assert secret
 
 
-def test_secret_value_none():
+def test_secret_get_none():
     secret = Secret(name="test")
-    assert not secret.value
+    assert secret.get() is None
 
 
-def test_secret_value_set():
+def test_secret_value_pulled_from_context():
     secret = Secret(name="test")
-    secret.value = "test_value"
-    assert secret.value
+    with prefect.context(_secrets=dict(test=42)):
+        assert secret.get() == 42
+    assert secret.get() is None

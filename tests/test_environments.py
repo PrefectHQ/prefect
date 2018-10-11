@@ -5,11 +5,7 @@ import pytest
 
 import prefect
 from prefect import Flow
-from prefect.environments import (
-    ContainerEnvironment,
-    Environment,
-    LocalEnvironment,
-)
+from prefect.environments import ContainerEnvironment, Environment, LocalEnvironment
 
 #################################
 ##### Environment Tests
@@ -68,9 +64,7 @@ def test_container_client():
 @pytest.mark.skip("Circle will need to handle container building")
 def test_build_image_process():
 
-    container = ContainerEnvironment(
-        image="python:3.6", tag="tag",
-    )
+    container = ContainerEnvironment(image="python:3.6", tag="tag")
     image = container.build(Flow())
     assert image
 
