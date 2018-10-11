@@ -9,6 +9,7 @@ import toml
 
 import prefect
 from prefect.client import Client, RunFlow, Projects, Flows, FlowRuns, TaskRuns
+from prefect import config
 from prefect.core import registry
 from prefect.environments import ContainerEnvironment
 from prefect.utilities import json as prefect_json
@@ -83,16 +84,15 @@ def run(id, path):
     flow = prefect.core.registry.load_flow(id)
     flow_runner = prefect.engine.FlowRunner(flow=flow)
 
-    # Load optional parameters
+    # Load optional parameters, this is bad and needs to change once working
     parameters = None
-    config_data = load_prefect_config()
-    flow_run_id = config_data.get("flow_run_id", None)
-    if flow_run_id:
-        client = Client(
-            config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
-        )
+    flow_run_id = None
+    if hasattr(config, "flow_run_id"):
+        flow_run_id = config.flow_run_id
 
-        client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+    if flow_run_id:
+        client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))
+        client.login(email=config.EMAIL, password=config.PASSWORD)
 
         flow_runs_gql = FlowRuns(client=client)
         parameters = flow_runs_gql.query(flow_run_id=flow_run_id)
