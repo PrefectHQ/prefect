@@ -454,6 +454,11 @@ class Secret(json.Serializable):
         self.name = name
 
     def get(self):
+        """
+        Retrieve the secret value.
+
+        If not found, returns `None`.
+        """
         if self._use_local_secrets is True:
             secrets = prefect.context.get("_secrets", {})
             return secrets.get(self.name)
