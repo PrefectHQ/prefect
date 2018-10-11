@@ -23,7 +23,7 @@ install_requires = [
 ]
 
 viz = ["bokeh == 0.13.0", "graphviz >= 0.8.3"]
-dev = ["pre-commit", "pytest", "pytest-cov", "pytest-env", "pytest-xdist"]
+dev = ["pre-commit", "pytest >= 3.8, < 4.0", "pytest-cov", "pytest-env", "pytest-xdist"]
 if sys.version_info >= (3, 6):
     dev += ["black"]
 extras = {"dev": dev + viz, "viz": viz}
