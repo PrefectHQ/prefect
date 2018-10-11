@@ -79,15 +79,6 @@ class SlowTask(Task):
         sleep(secs)
 
 
-class RaiseDontRunTask(Task):
-    """
-    This task is just for testing -- raising DONTRUN inside a task is considered bad
-    """
-
-    def run(self):
-        raise prefect.engine.signals.DONTRUN()
-
-
 def test_task_that_succeeds_is_marked_success():
     """
     Test running a task that finishes successfully and returns a result
@@ -202,10 +193,6 @@ def test_task_runner_raise_on_exception_when_task_signals():
     with raise_on_exception():
         with pytest.raises(prefect.engine.signals.FAIL):
             TaskRunner(RaiseFailTask()).run()
-
-
-def test_tasks_that_raise_DONTRUN_are_treated_as_skipped():
-    assert isinstance(TaskRunner(task=RaiseDontRunTask()).run(), Skipped)
 
 
 def test_throttled_task_runner_takes_ticket_and_puts_it_back():
