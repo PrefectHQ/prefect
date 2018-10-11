@@ -15,6 +15,16 @@ class Schedule(Serializable):
     """
 
     def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+        """
+        Retrieve next scheduled dates.
+
+        Args:
+            - n (int): the number of future scheduled dates to return
+            - on_or_after (datetime, optional): date to begin returning from
+
+        Returns:
+            - list[datetime]: a list of datetimes
+        """
         raise NotImplementedError("Must be implemented on Schedule subclasses")
 
 
@@ -24,6 +34,16 @@ class NoSchedule(Schedule):
     """
 
     def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+        """
+        Retrieve next scheduled dates.
+
+        Args:
+            - n (int): the number of future scheduled dates to return
+            - on_or_after (datetime, optional): date to begin returning from
+
+        Returns:
+            - list: list of next scheduled dates; in this case, always the empty list
+        """
         return []
 
 
@@ -39,6 +59,16 @@ class IntervalSchedule(Schedule):
         self.interval = interval
 
     def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+        """
+        Retrieve next scheduled dates.
+
+        Args:
+            - n (int): the number of future scheduled dates to return
+            - on_or_after (datetime, optional): date to begin returning from
+
+        Returns:
+            - list: list of next scheduled dates
+        """
         if on_or_after is None:
             on_or_after = datetime.utcnow()
 
@@ -60,6 +90,16 @@ class CronSchedule(Schedule):
         self.cron = cron
 
     def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+        """
+        Retrieve next scheduled dates.
+
+        Args:
+            - n (int): the number of future scheduled dates to return
+            - on_or_after (datetime, optional): date to begin returning from
+
+        Returns:
+            - list: list of next scheduled dates
+        """
         if on_or_after is None:
             on_or_after = datetime.utcnow()
 
@@ -75,6 +115,16 @@ class DateSchedule(Schedule):
         self.dates = dates
 
     def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+        """
+        Retrieve next scheduled dates.
+
+        Args:
+            - n (int): the number of future scheduled dates to return
+            - on_or_after (datetime, optional): date to begin returning from
+
+        Returns:
+            - list: list of next scheduled dates
+        """
         if on_or_after is None:
             on_or_after = datetime.utcnow()
         dates = sorted([d for d in self.dates if d >= on_or_after])

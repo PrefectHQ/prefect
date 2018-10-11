@@ -188,6 +188,18 @@ class FlowRunner:
 
     @handle_signals
     def get_pre_run_state(self, state: State) -> State:
+        """
+        Method for determining whether the flow is ready to run.
+
+        Args:
+            - state (State): initial state of the flow
+
+        Returns:
+            - State: `Running` state if flow is ready to begin execution
+
+        Raises:
+            - signals.DONTRUN: if flow is not ready to begin execution
+        """
 
         # ---------------------------------------------
         # Check if the flow run is ready to run
@@ -217,6 +229,27 @@ class FlowRunner:
         return_failed: bool = False,
         throttle: Dict[str, int] = None,
     ) -> State:
+        """
+        Get running state of the flow.
+
+        Args:
+            - state (State): initial flow state
+            - task_states (Dict[Task, State]): dictionary of initial task states
+            - start_tasks ([Task]): list of tasks to begin execution with; if
+                provided, triggers are ignored
+            - return_tasks ([Task]): list of tasks whose states to return
+            - task_contexts (dict): dictionary associating individual tasks with
+                contexts to use during their execution
+            - executor (prefect.engine.executors.base.Executor): executor to
+                use for managing execution
+            - return_failed (bool, optional): flag for whether to include failed
+                task states in the set of returned states
+            - throttle (Dict[str, int], optional): dictionary associating tags
+                to the maximum number of tasks allowed to run simultaneously for each tag
+
+        Returns:
+            - State: flow state immediately after execution
+        """
 
         task_states = defaultdict(
             lambda: Failed(message="Task state not available."), task_states or {}
