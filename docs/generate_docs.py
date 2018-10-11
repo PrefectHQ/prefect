@@ -30,7 +30,6 @@ OUTLINE = [
     {
         "page": "environments.md",
         "classes": [
-            prefect.environments.Secret,
             prefect.environments.Environment,
             prefect.environments.ContainerEnvironment,
             prefect.environments.LocalEnvironment,

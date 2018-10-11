@@ -9,29 +9,7 @@ from prefect.environments import (
     ContainerEnvironment,
     Environment,
     LocalEnvironment,
-    Secret,
 )
-
-#################################
-##### Secret Tests
-#################################
-
-
-def test_create_secret():
-    secret = Secret(name="test")
-    assert secret
-
-
-def test_secret_value_none():
-    secret = Secret(name="test")
-    assert not secret.value
-
-
-def test_secret_value_set():
-    secret = Secret(name="test")
-    secret.value = "test_value"
-    assert secret.value
-
 
 #################################
 ##### Environment Tests
@@ -41,17 +19,6 @@ def test_secret_value_set():
 def test_create_environment():
     environment = Environment()
     assert environment
-
-
-def test_environment_secrets():
-    secrets = [Secret(name="test")]
-    environment = Environment(secrets=secrets)
-    assert environment.secrets
-
-
-def test_environment_secrets_none():
-    environment = Environment()
-    assert not environment.secrets
 
 
 def test_environment_build_error():
@@ -101,11 +68,8 @@ def test_container_client():
 @pytest.mark.skip("Circle will need to handle container building")
 def test_build_image_process():
 
-    personal_access_token = Secret(name="PERSONAL_ACCESS_TOKEN")
-    personal_access_token.value = os.getenv("PERSONAL_ACCESS_TOKEN", None)
-
     container = ContainerEnvironment(
-        image="python:3.6", tag="tag", secrets=[personal_access_token]
+        image="python:3.6", tag="tag",
     )
     image = container.build(Flow())
     assert image
