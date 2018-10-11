@@ -1,3 +1,4 @@
+import collections
 import datetime
 from time import sleep
 
@@ -758,14 +759,12 @@ class TestCacheResultStep:
         assert new_state.cached.cached_inputs == {"x": 5}
 
 
-handler_results = {}
+handler_results = collections.defaultdict(lambda: 0)
 
 
 @pytest.fixture(autouse=True)
 def clear_task_handler_results():
     handler_results.clear()
-    handler_results["Task"] = 0
-    handler_results["TaskRunner"] = 0
 
 
 def task_handler(task, old_state, new_state):

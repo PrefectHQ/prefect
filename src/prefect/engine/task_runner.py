@@ -112,8 +112,8 @@ class TaskRunner:
             State: the updated state of the task
 
         Raises:
-            - PAUSE if raised by a handler
-            - ENDRUN(Failed()) if any of the handlers fail
+            - PAUSE: if raised by a handler
+            - ENDRUN(Failed()): if any of the handlers fail
 
         """
         raise_on_exception = prefect.context.get("_raise_on_exception", False)
@@ -135,11 +135,11 @@ class TaskRunner:
                 raise
             return exc.state
         # abort on errors
-        except Exception:
+        except Exception as exc:
             if raise_on_exception:
                 raise
             raise ENDRUN(
-                Failed("TaskRunner failed while calling state change handlers.")
+                Failed("Exception raised while calling state handlers.", message=exc)
             )
         return new_state
 
