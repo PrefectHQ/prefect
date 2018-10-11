@@ -333,7 +333,9 @@ class TaskRunner:
 
         Args:
             - state (State): the current state of this task
-            - upstream_states_set: a set containing the states of any upstream tasks.
+            - upstream_states_set (Set[State]): a set containing the states of any upstream tasks.
+            - ignore_trigger (bool): a boolean indicating whether to ignore the
+                tasks's trigger
 
         Returns:
             State: the state of the task after running the check
