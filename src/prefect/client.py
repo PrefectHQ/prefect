@@ -443,8 +443,9 @@ class Secret(json.Serializable):
     Args:
         - name (str): The name of the secret
 
-    The value of the Secret is not set upon initialization and instead is set
-    either in `prefect.context` or on the server.
+    The value of the `Secret` is not set upon initialization and instead is set
+    either in `prefect.context` or on the server, with behavior dependent on the value
+    of the `use_local_secrets` flag in your Prefect configuration file.
     """
 
     _json_codec = json.ObjectAttributesCodec
