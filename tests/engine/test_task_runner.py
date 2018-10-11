@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
+from prefect.client import Secret
 from prefect.core.edge import Edge
 from prefect.core.task import Task
 from prefect.engine import TaskRunner, signals
@@ -75,6 +76,12 @@ class AddTask(Task):
 class SlowTask(Task):
     def run(self, secs):
         sleep(secs)
+
+
+class SecretTask(Task):
+    def run(self):
+        s = Secret("testing")
+        return s.get()
 
 
 class RaiseDontRunTask(Task):
@@ -604,3 +611,10 @@ def test_task_runner_can_handle_timeouts_by_default():
     state = TaskRunner(sleeper).run(inputs=dict(secs=2))
     assert state.is_failed()
     assert isinstance(state.message, TimeoutError)
+
+
+def test_task_runner_handles_secrets():
+    t = SecretTask()
+    state = TaskRunner(t).run(context=dict(_secrets=dict(testing="my_private_str")))
+    assert state.is_successful()
+    assert state.result is "my_private_str"
