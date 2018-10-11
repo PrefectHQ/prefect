@@ -3,8 +3,8 @@
 ## Development <Badge text="alpha" type="warn">
 ### Major Features
 
-- Refactor `TaskRunner` into a modular pipeline - [#260](https://github.com/PrefectHQ/prefect/pull/260)
-- Add configurable `state_handlers` for `Tasks` and `TaskRunners` - [#264](https://github.com/PrefectHQ/prefect/pull/264)
+- Refactor `FlowRunner` and `TaskRunner` into a modular `Runner` pipelines - [#260](https://github.com/PrefectHQ/prefect/pull/260), [#267](https://github.com/PrefectHQ/prefect/pull/267)
+- Add configurable `state_handlers` for `FlowRunners`, `Flows`, `TaskRunners`, and `Tasks`  - [#264](https://github.com/PrefectHQ/prefect/pull/264), [#267](https://github.com/PrefectHQ/prefect/pull/267)
 
 ### Minor Features
 
