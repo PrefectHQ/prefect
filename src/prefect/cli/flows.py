@@ -15,9 +15,8 @@ from prefect.utilities import json as prefect_json
 from prefect.engine.state import Failed, Pending, Retrying, Running, State, Success
 
 
-def load_prefect_config(path=None):
-    if not path:
-        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+def load_prefect_config():
+    path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
 
     if Path(path).is_file():
         config_data = toml.load(path)
@@ -76,7 +75,8 @@ def ids():
 
 @flows.command()
 @click.argument("id")
-def run(id):
+@click.argument("path", required=False)
+def run(id, path):
     """
     Runs a registered flow.
     """
@@ -117,7 +117,7 @@ def build(project, name, version, file, path):
     """
     Build a flow's environment and push it to a registry.
     """
-    config_data = load_prefect_config(path)
+    config_data = load_prefect_config()
     flow = load_flow(project, name, version, file)
 
     client = Client(
@@ -159,7 +159,7 @@ def push(project, name, version, file, path):
     """
     Push a flow's container environment to a registry.
     """
-    config_data = load_prefect_config(path)
+    config_data = load_prefect_config()
     flow = load_flow(project, name, version, file)
 
     if not isinstance(flow.environment, ContainerEnvironment):
@@ -199,7 +199,7 @@ def deploy(project, name, version, file, parameters, path):
     """
     Deploy a running flow.
     """
-    config_data = load_prefect_config(path)
+    config_data = load_prefect_config()
     flow = load_flow(project, name, version, file)
 
     client = Client(
