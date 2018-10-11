@@ -791,7 +791,7 @@ def task_runner_handler(task_runner, old_state, new_state):
     return new_state
 
 
-class TestStateHandlers:
+class TestTaskStateHandlers:
     def test_task_handlers_are_called(self):
         task = Task(state_handlers=[task_handler])
         TaskRunner(task=task).run()
@@ -829,6 +829,8 @@ class TestStateHandlers:
         with pytest.raises(AttributeError):
             with prefect.utilities.tests.raise_on_exception():
                 TaskRunner(task=task).run()
+
+class TestTaskRunnerStateHandlers:
 
     def test_task_runner_handlers_are_called(self):
         TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
@@ -868,7 +870,9 @@ class TestStateHandlers:
             with prefect.utilities.tests.raise_on_exception():
                 TaskRunner(task=Task(), state_handlers=[lambda *a:None]).run()
 
-    def test_task_handler_that_raises_signal(self):
+    def test_task_handler_that_raises_signal_is_trapped(self):
         def handler(task, old, new):
             raise signals.Fail()
-        task = Task(state_handlers=lambda *a: raise signals.Fail())
+        task = Task(state_handlers=[handler])
+        state = TaskRunner(task=task).run()
+        assert state.is_failed()
