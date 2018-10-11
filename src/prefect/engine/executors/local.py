@@ -26,7 +26,7 @@ class LocalExecutor(Executor):
 
         return results
 
-    def submit(self, fn, *args, **kwargs):
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any):
         """
         Submit a function to the executor for execution. Returns the result of the computation.
 
@@ -40,8 +40,13 @@ class LocalExecutor(Executor):
         """
         return fn(*args, **kwargs)
 
-    def wait(self, futures, timeout=None):
+    def wait(self, futures: Any, timeout: datetime.timedelta = None):
         """
+        Args:
+            - futures (Any): objects to wait on
+            - timeout (datetime.timedelta): timeout to allow for execution; in
+            this case, this kwarg is ignored
+
         Returns:
             - Any: whatever `futures` were provided
         """

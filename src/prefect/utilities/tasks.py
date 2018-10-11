@@ -44,7 +44,7 @@ def as_task(x: Any) -> "prefect.core.Task":
     Wraps a function, collection, or constant with the appropriate Task type.
 
     Args:
-        -x (object): any Python object to convert to a prefect Task
+        - x (object): any Python object to convert to a prefect Task
 
     Returns:
         - a prefect Task representing the passed object

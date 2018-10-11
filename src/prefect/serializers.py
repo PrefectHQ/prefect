@@ -17,10 +17,34 @@ class Serializer:
 
     @classmethod
     def serialize(cls, object: Any) -> str:
+        """
+        Serialize provided object.
+
+        Args:
+            - object (Any): object to serialize
+
+        Returns:
+            - str: serialized object
+
+        Raises:
+            - NotImplementedError: if this method hasn't been implemented in the child class
+        """
         raise NotImplementedError()
 
     @classmethod
     def deserialize(cls, key: str) -> Any:
+        """
+        Deserialize provided key.
+
+        Args:
+            - key (str): serialized key to deserialize
+
+        Returns:
+            - Any: deserialized object
+
+        Raises:
+            - NotImplementedError: if this method hasn't been implemented in the child class
+        """
         raise NotImplementedError()
 
 

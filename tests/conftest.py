@@ -119,6 +119,6 @@ def pytest_runtest_setup(item):
     mark = item.get_marker("airflow")
     if mark is not None:
         if item.config.getoption("--airflow") is False:
-            pytest.mark.skip(
+            pytest.skip(
                 "Airflow tests skipped by default unless --airflow flag provided to pytest."
             )
