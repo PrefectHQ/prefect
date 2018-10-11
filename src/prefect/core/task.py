@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import collections
 import copy
 import inspect
 import warnings
@@ -106,6 +107,16 @@ class Task(Serializable, metaclass=SignatureValidator):
         - cache_validator (Callable, optional): Validator which will determine
             whether the cache for this task is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
+        - state_handlers (Iterable[Callable], optional): A list of state change handlers
+            that will be called whenever the task changes state, providing an
+            opportunity to inspect or modify the new state. The handler
+            will be passed the task instance, the old (prior) state, and the new
+            (current) state, with the following signature:
+
+                `state_handler(task: Task, old_state: State, new_state: State) -> State`
+
+            If multiple functions are passed, then the `new_state` argument will be the
+            result of the previous handler.
 
     Raises:
         - TypeError: if `tags` is of type `str`
@@ -127,6 +138,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
+        state_handlers: Iterable[Callable] = None,
     ) -> None:
         self.name = name or type(self).__name__
         self.slug = slug
@@ -158,6 +170,10 @@ class Task(Serializable, metaclass=SignatureValidator):
         )
         self.cache_validator = cache_validator or default_validator
 
+        if state_handlers and not isinstance(state_handlers, collections.Sequence):
+            raise TypeError("state_handlers should be iterable.")
+        self.state_handlers = state_handlers or []
+
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
 
@@ -166,15 +182,6 @@ class Task(Serializable, metaclass=SignatureValidator):
         return id(self)
 
     # Run  --------------------------------------------------------------------
-
-    def inputs(self) -> Tuple[str, ...]:
-        """
-        Get the inputs for this task
-
-        Returns:
-            - tuple of strings representing the inputs for this task
-        """
-        return tuple(inspect.signature(self.run).parameters.keys())
 
     def run(self) -> None:
         """
@@ -403,6 +410,15 @@ class Task(Serializable, metaclass=SignatureValidator):
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
         self.set_dependencies(downstream_tasks=[task])
+
+    def inputs(self) -> Tuple[str, ...]:
+        """
+        Get the inputs for this task
+
+        Returns:
+            - tuple of strings representing the inputs for this task
+        """
+        return tuple(inspect.signature(self.run).parameters.keys())
 
     # Serialization ------------------------------------------------------------
 
