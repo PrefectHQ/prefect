@@ -3,7 +3,7 @@
 import functools
 import logging
 from collections import defaultdict
-from typing import Any, Callable, Dict, Iterable
+from typing import Any, Callable, Dict, Iterable, Set
 
 import prefect
 from prefect import config
@@ -11,6 +11,7 @@ from prefect.client import Client, FlowRuns
 from prefect.core import Flow, Task
 from prefect.engine import signals
 from prefect.engine.executors import DEFAULT_EXECUTOR
+from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import Failed, Pending, Retrying, Running, State, Success
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
@@ -21,58 +22,7 @@ from pathlib import Path
 import toml
 
 
-def handle_signals(method: Callable[..., State]) -> Callable[..., State]:
-    """
-    This handler is used to decorate methods that return States but might raise
-    Prefect signals.
-
-    The handler attempts to run the method, and if a signal is raised, the appropriate
-    state is returned.
-
-    If `DONTRUN` is raised, the handler does not trap it, but re-raises it.
-    """
-
-    @functools.wraps(method)
-    def inner(*args: Any, **kwargs: Any) -> State:
-
-        raise_on_exception = prefect.context.get("_raise_on_exception", False)
-
-        try:
-            return method(*args, **kwargs)
-
-        # DONTRUN signals get raised for handling
-        except signals.DONTRUN as exc:
-            logging.debug("DONTRUN signal raised: {}".format(exc))
-            raise
-
-        # FAIL signals are trapped and turned into Failed states
-        except signals.FAIL as exc:
-            logging.debug("{} signal raised.".format(type(exc).__name__))
-            if raise_on_exception:
-                raise exc
-            return exc.state
-
-        # All other exceptions (including other signals) are trapped
-        # and turned into Failed states
-        except Exception as exc:
-            logging.debug("Unexpected error while running task.")
-            if raise_on_exception:
-                raise exc
-            return Failed(message=exc)
-
-    return inner
-
-
-# TODO: Move elsewhere
-def initialize_client() -> "prefect.client.Client":
-    client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))
-
-    client.login(email=config.EMAIL, password=config.PASSWORD)
-
-    return client
-
-
-class FlowRunner:
+class FlowRunner(Runner):
     """
     FlowRunners handle the execution of Flows and determine the State of a Flow
     before, during and after the Flow is run.
@@ -106,11 +56,31 @@ class FlowRunner:
     """
 
     def __init__(
-        self, flow: Flow, task_runner_cls: type = None, logger_name: str = None
+        self,
+        flow: Flow,
+        task_runner_cls: type = None,
+        state_handlers: Iterable[Callable] = None,
+        logger_name: str = None,
     ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
-        self.logger = logging.getLogger(logger_name or type(self).__name__)
+        super().__init__(state_handlers=state_handlers, logger_name=logger_name)
+
+    def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
+        """
+        A special state handler that the FlowRunner uses to call its flow's state handlers.
+        This method is called as part of the base Runner's `handle_state_change()` method.
+
+        Args:
+            - old_state (State): the old (previous) state
+            - new_state (State): the new (current) state
+
+        Returns:
+            State: the new state
+        """
+        for handler in self.flow.state_handlers:
+            new_state = handler(self.flow, old_state, new_state)
+        return new_state
 
     def run(
         self,
@@ -161,7 +131,7 @@ class FlowRunner:
         """
         state = state or Pending()
         context = context or {}
-        return_tasks = return_tasks or []
+        return_tasks = set(return_tasks or [])
         executor = executor or DEFAULT_EXECUTOR
         throttle = throttle or self.flow.throttle
         if min(throttle.values(), default=1) <= 0:
@@ -174,7 +144,7 @@ class FlowRunner:
                 )
             )
 
-        if set(return_tasks).difference(self.flow.tasks):
+        if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
 
         context.update(
@@ -184,6 +154,7 @@ class FlowRunner:
             _executor_id=executor.executor_id,
         )
 
+<<<<<<< HEAD
         if hasattr(config, "flow_run_id"):
             client = initialize_client()
             flow_runs_gql = FlowRuns(client=client)
@@ -197,6 +168,17 @@ class FlowRunner:
 
                 state = self.get_run_state(
                     state=state,
+=======
+        with prefect.context(context):
+
+            raise_on_exception = prefect.context.get("_raise_on_exception", False)
+
+            try:
+                state = self.check_flow_is_pending_or_running(state)
+                state = self.set_flow_to_running(state)
+                state = self.get_flow_run_state(
+                    state,
+>>>>>>> master
                     task_states=task_states,
                     start_tasks=start_tasks,
                     return_tasks=return_tasks,
@@ -206,77 +188,123 @@ class FlowRunner:
                     throttle=throttle,
                 )
 
+<<<<<<< HEAD
                 if hasattr(config, "flow_run_id"):
                     flow_runs_gql.set_state(config.flow_run_id, state)
 
         except signals.DONTRUN:
             pass
         return state
+=======
+            except ENDRUN as exc:
+                state = exc.state
+>>>>>>> master
 
-    @handle_signals
-    def get_pre_run_state(self, state: State) -> State:
+            # All other exceptions are trapped and turned into Failed states
+            except Exception as exc:
+                logging.debug("Unexpected error while running task.")
+                if raise_on_exception:
+                    raise exc
+                return Failed(message=exc)
+
+            return state
+
+    @call_state_handlers
+    def check_flow_is_pending_or_running(self, state: State) -> State:
         """
-        Method for determining whether the flow is ready to run.
+        Checks if the flow is in either a Pending state or Running state. Either are valid
+        starting points (because we allow simultaneous runs of the same flow run).
 
         Args:
-            - state (State): initial state of the flow
+            - state (State): the current state of this flow
 
         Returns:
-            - State: `Running` state if flow is ready to begin execution
+            State: the state of the flow after running the check
 
         Raises:
-            - signals.DONTRUN: if flow is not ready to begin execution
+            - ENDRUN: if the flow is not pending or running
         """
 
-        # ---------------------------------------------
-        # Check if the flow run is ready to run
-        # ---------------------------------------------
         # the flow run is already finished
         if state.is_finished():
-            raise signals.DONTRUN("Flow run has already finished.")
+            self.logger.debug("Flow run has already finished.")
+            raise ENDRUN(state)
 
         # the flow run must be either pending or running (possibly redundant with above)
         elif not (state.is_pending() or state.is_running()):
-            raise signals.DONTRUN("Flow is not ready to run.")
+            self.logger.debug("Flow is not ready to run.")
+            raise ENDRUN(state)
 
-        # ---------------------------------------------
-        # Start!
-        # ---------------------------------------------
-        return Running()
+        return state
 
-    @handle_signals
-    def get_run_state(
+    @call_state_handlers
+    def set_flow_to_running(self, state: State) -> State:
+        """
+        Puts Pending flows in a Running state; leaves Running flows Running.
+
+        Args:
+            - state (State): the current state of this flow
+
+        Returns:
+            State: the state of the flow after running the check
+
+        Raises:
+            - ENDRUN: if the flow is not pending or running
+        """
+        if state.is_pending():
+            self.logger.debug("Starting flow run.")
+            return Running(message="Running flow.")
+        elif state.is_running():
+            return state
+        else:
+            raise ENDRUN(state)
+
+    @call_state_handlers
+    def get_flow_run_state(
         self,
         state: State,
         task_states: Dict[Task, State],
         start_tasks: Iterable[Task],
-        return_tasks: Iterable[Task],
+        return_tasks: Set[Task],
         task_contexts: Dict[Task, Dict[str, Any]],
         executor: "prefect.engine.executors.base.Executor",
         return_failed: bool = False,
         throttle: Dict[str, int] = None,
     ) -> State:
         """
-        Get running state of the flow.
+        Runs the flow.
 
         Args:
-            - state (State): initial flow state
-            - task_states (Dict[Task, State]): dictionary of initial task states
-            - start_tasks ([Task]): list of tasks to begin execution with; if
-                provided, triggers are ignored
-            - return_tasks ([Task]): list of tasks whose states to return
-            - task_contexts (dict): dictionary associating individual tasks with
-                contexts to use during their execution
-            - executor (prefect.engine.executors.base.Executor): executor to
-                use for managing execution
-            - return_failed (bool, optional): flag for whether to include failed
-                task states in the set of returned states
-            - throttle (Dict[str, int], optional): dictionary associating tags
-                to the maximum number of tasks allowed to run simultaneously for each tag
+            - state (State, optional): starting state for the Flow. Defaults to
+                `Pending`
+            - task_states (dict, optional): dictionary of task states to begin
+                computation with, with keys being Tasks and values their corresponding state
+            - start_tasks ([Task], optional): list of Tasks to begin computation
+                from; if any `start_tasks` have upstream dependencies, their states may need to be provided as well.
+                Defaults to `self.flow.root_tasks()`
+            - return_tasks ([Task], optional): list of Tasks to include in the
+                final returned Flow state. Defaults to `None`
+            - task_contexts (dict, optional): dictionary of individual contexts
+                to use for each Task run
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor provided in your prefect configuration
+            - return_failed (bool, optional): whether to return all tasks
+                which fail, regardless of whether they are terminal tasks or in `return_tasks`.
+                Defaults to `False`
+            - throttle (dict, optional): dictionary of tags -> int specifying
+                how many tasks with a given tag should be allowed to run simultaneously. Used
+                for throttling resource usage.
 
         Returns:
-            - State: flow state immediately after execution
+            - State: `State` representing the final post-run state of the `Flow`.
+
+        Raises:
+            - ValueError: if any throttle values are `<= 0`
         """
+
+        if not state.is_running():
+            self.logger.debug("Flow is not in a Running state.")
+            raise ENDRUN(state)
 
         task_states = defaultdict(
             lambda: Failed(message="Task state not available."), task_states or {}
@@ -285,9 +313,6 @@ class FlowRunner:
         return_tasks = set(return_tasks or [])
         task_contexts = task_contexts or {}
         throttle = throttle or {}
-
-        if not state.is_running():
-            raise signals.DONTRUN("Flow is not in a Running state.")
 
         # -- process each task in order
 
