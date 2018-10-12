@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterable
+from typing import Any, Callable, Dict, Iterable, Iterator
 
 import prefect
 from prefect.utilities.executors import multiprocessing_timeout
@@ -15,11 +15,11 @@ class Executor(Serializable):
 
     timeout_handler = staticmethod(multiprocessing_timeout)
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
 
     @contextmanager
-    def start(self) -> Iterable[None]:
+    def start(self) -> Iterator[None]:
         """
         Context manager for initializing execution.
 
@@ -28,7 +28,9 @@ class Executor(Serializable):
         """
         yield
 
-    def map(self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any) -> Any:
+    def map(
+        self, fn: Callable, *args: Any, upstream_states: dict = None, **kwargs: Any
+    ) -> Any:
         """
         Submit a function to be mapped over.
 
@@ -74,7 +76,7 @@ class Executor(Serializable):
         """
         raise NotImplementedError()
 
-    def queue(self, maxsize=0):
+    def queue(self, maxsize: int = 0) -> Any:
         """
         Creates an executor-compatible Queue object which can share state across tasks.
 
@@ -102,7 +104,7 @@ class Executor(Serializable):
             - Any: a future-like object
         """
 
-        def run_fn_in_context(*args, context, **kwargs):
+        def run_fn_in_context(*args: Any, context: dict, **kwargs: Any) -> Any:
             with prefect.context(context):
                 return fn(*args, **kwargs)
 
