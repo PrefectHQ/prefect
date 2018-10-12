@@ -1,3 +1,4 @@
+import collections
 import datetime
 import queue
 import random
@@ -10,9 +11,10 @@ from distutils.version import LooseVersion
 
 import prefect
 from prefect.core import Flow, Parameter, Task
-from prefect.engine import FlowRunner, signals
+from prefect.engine import signals
+from prefect.engine.flow_runner import ENDRUN, FlowRunner
 from prefect.engine.cache_validators import duration_only
-from prefect.engine.executors import Executor
+from prefect.engine.executors import Executor, LocalExecutor
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -327,59 +329,67 @@ def test_flow_run_state_not_determined_by_reference_tasks_if_terminal_tasks_are_
     assert isinstance(flow_state.result[t2], Retrying)
 
 
-class TestFlowRunner_get_pre_run_state:
-    def test_runs_as_expected(self):
-        flow = prefect.Flow()
-        task1 = SuccessTask()
-        task2 = SuccessTask()
-        flow.add_edge(task1, task2)
+class TestCheckFlowPendingOrRunning:
+    @pytest.mark.parametrize("state", [Pending(), Running(), Retrying(), Scheduled()])
+    def test_pending_or_running_are_ok(self, state):
+        flow = prefect.Flow(tasks=[prefect.Task()])
+        new_state = FlowRunner(flow=flow).check_flow_is_pending_or_running(state=state)
+        assert new_state is state
 
-        state = FlowRunner(flow=flow).get_pre_run_state(state=Pending())
-        assert isinstance(state, Running)
-
-    @pytest.mark.parametrize("state", [Success(), Failed()])
-    def test_raise_dontrun_if_state_is_finished(self, state):
-        flow = prefect.Flow()
-        task1 = SuccessTask()
-        task2 = SuccessTask()
-        flow.add_edge(task1, task2)
-
-        with pytest.raises(signals.DONTRUN) as exc:
-            FlowRunner(flow=flow).get_pre_run_state(state=state)
-        assert "already finished" in str(exc.value).lower()
-
-    def test_raise_dontrun_for_unknown_state(self):
-        class MyState(State):
-            pass
-
-        flow = prefect.Flow()
-        task1 = SuccessTask()
-        task2 = SuccessTask()
-        flow.add_edge(task1, task2)
-
-        with pytest.raises(signals.DONTRUN) as exc:
-            FlowRunner(flow=flow).get_pre_run_state(state=MyState())
-        assert "not ready to run" in str(exc.value).lower()
+    @pytest.mark.parametrize("state", [Finished(), Success(), Failed(), Skipped()])
+    def test_not_pending_or_running_raise_endrun(self, state):
+        flow = prefect.Flow(tasks=[prefect.Task()])
+        with pytest.raises(ENDRUN):
+            FlowRunner(flow=flow).check_flow_is_pending_or_running(state=state)
 
 
-class TestFlowRunner_get_run_state:
-    @pytest.mark.parametrize("state", [Pending(), Failed(), Success()])
-    def test_raises_dontrun_if_not_running(self, state):
-        flow = prefect.Flow()
-        task1 = SuccessTask()
-        task2 = SuccessTask()
-        flow.add_edge(task1, task2)
+class TestSetFlowToRunning:
+    @pytest.mark.parametrize("state", [Pending(), Retrying()])
+    def test_pending_becomes_running(self, state):
+        flow = prefect.Flow(tasks=[prefect.Task()])
+        new_state = FlowRunner(flow=flow).set_flow_to_running(state=state)
+        assert new_state.is_running()
 
-        with pytest.raises(signals.DONTRUN) as exc:
-            FlowRunner(flow=flow).get_run_state(
+    def test_running_stays_running(self):
+        state = Running()
+        flow = prefect.Flow(tasks=[prefect.Task()])
+        new_state = FlowRunner(flow=flow).set_flow_to_running(state=state)
+        assert new_state.is_running()
+
+    @pytest.mark.parametrize("state", [Finished(), Success(), Failed(), Skipped()])
+    def test_other_states_raise_endrun(self, state):
+        flow = prefect.Flow(tasks=[prefect.Task()])
+        with pytest.raises(ENDRUN):
+            FlowRunner(flow=flow).set_flow_to_running(state=state)
+
+
+class TestRunFlowStep:
+    def test_running_state_finishes(self):
+        flow = prefect.Flow(tasks=[prefect.Task()])
+        new_state = FlowRunner(flow=flow).get_flow_run_state(
+            state=Running(),
+            task_states={},
+            start_tasks=[],
+            return_tasks=set(),
+            task_contexts={},
+            executor=LocalExecutor(),
+        )
+        assert new_state.is_successful()
+
+    @pytest.mark.parametrize(
+        "state", [Pending(), Retrying(), Finished(), Success(), Failed(), Skipped()]
+    )
+    def test_other_states_raise_endrun(self, state):
+        flow = prefect.Flow(tasks=[prefect.Task()])
+        with pytest.raises(ENDRUN):
+            FlowRunner(flow=flow).get_flow_run_state(
                 state=state,
                 task_states={},
                 start_tasks=[],
-                return_tasks=[],
+                return_tasks=set(),
                 task_contexts={},
-                executor=None,
+                executor=Executor(),
             )
-        assert "not in a running state" in str(exc.value).lower()
 
 
 class TestStartTasks:
@@ -760,3 +770,107 @@ def test_flow_runner_handles_mapped_timeouts(executor):
     for fstate in mapped_states[1:]:
         assert fstate.is_failed()
         assert isinstance(fstate.message, TimeoutError)
+
+
+handler_results = collections.defaultdict(lambda: 0)
+
+
+@pytest.fixture(autouse=True)
+def clear_handler_results():
+    handler_results.clear()
+
+
+def flow_handler(flow, old_state, new_state):
+    """state change handler for flows that increments a value by 1"""
+    assert isinstance(flow, Flow)
+    assert isinstance(old_state, State)
+    assert isinstance(new_state, State)
+    handler_results["Flow"] += 1
+    return new_state
+
+
+def flow_runner_handler(flow_runner, old_state, new_state):
+    """state change handler for flow runners that increments a value by 1"""
+    assert isinstance(flow_runner, FlowRunner)
+    assert isinstance(old_state, State)
+    assert isinstance(new_state, State)
+    handler_results["FlowRunner"] += 1
+    return new_state
+
+
+class TestFlowStateHandlers:
+    def test_flow_handlers_are_called(self):
+        flow = Flow(state_handlers=[flow_handler])
+        FlowRunner(flow=flow).run()
+        # the flow changed state twice: Pending -> Running -> Success
+        assert handler_results["Flow"] == 2
+
+    def test_multiple_flow_handlers_are_called(self):
+        flow = Flow(state_handlers=[flow_handler, flow_handler])
+        FlowRunner(flow=flow).run()
+        # each flow changed state twice: Pending -> Running -> Success
+        assert handler_results["Flow"] == 4
+
+    def test_multiple_flow_handlers_are_called_in_sequence(self):
+        # the second flow handler will assert the result of the first flow handler is a state
+        # and raise an error, as long as the flow_handlers are called in sequence on the
+        # previous result
+        flow = Flow(state_handlers=[lambda *a: None, flow_handler])
+        with pytest.raises(AssertionError):
+            with prefect.utilities.tests.raise_on_exception():
+                FlowRunner(flow=flow).run()
+
+    def test_task_handler_that_doesnt_return_state(self):
+        flow = Flow(state_handlers=[lambda *a: None])
+        # raises an attribute error because it tries to access a property of the state that
+        # doesn't exist on None
+        with pytest.raises(AttributeError):
+            with prefect.utilities.tests.raise_on_exception():
+                FlowRunner(flow=flow).run()
+
+
+class TestFlowRunnerStateHandlers:
+    def test_task_runner_handlers_are_called(self):
+        FlowRunner(flow=Flow(), state_handlers=[flow_runner_handler]).run()
+        # the flow changed state twice: Pending -> Running -> Success
+        assert handler_results["FlowRunner"] == 2
+
+    def test_multiple_task_runner_handlers_are_called(self):
+        FlowRunner(
+            flow=Flow(), state_handlers=[flow_runner_handler, flow_runner_handler]
+        ).run()
+        # each flow changed state twice: Pending -> Running -> Success
+        assert handler_results["FlowRunner"] == 4
+
+    def test_multiple_task_runner_handlers_are_called_in_sequence(self):
+        # the second flow handler will assert the result of the first flow handler is a state
+        # and raise an error, as long as the flow_handlers are called in sequence on the
+        # previous result
+        with pytest.raises(AssertionError):
+            with prefect.utilities.tests.raise_on_exception():
+                FlowRunner(
+                    flow=Flow(), state_handlers=[lambda *a: None, flow_runner_handler]
+                ).run()
+
+    def test_task_runner_handler_that_doesnt_return_state(self):
+        # raises an attribute error because it tries to access a property of the state that
+        # doesn't exist on None
+        with pytest.raises(AttributeError):
+            with prefect.utilities.tests.raise_on_exception():
+                FlowRunner(flow=Flow(), state_handlers=[lambda *a: None]).run()
+
+    def test_task_handler_that_raises_signal_is_trapped(self):
+        def handler(flow, old, new):
+            raise signals.FAIL()
+
+        flow = Flow(state_handlers=[handler])
+        state = FlowRunner(flow=flow).run()
+        assert state.is_failed()
+
+    def test_task_handler_that_has_error_is_trapped(self):
+        def handler(flow, old, new):
+            1 / 0
+
+        flow = Flow(state_handlers=[handler])
+        state = FlowRunner(flow=flow).run()
+        assert state.is_failed()

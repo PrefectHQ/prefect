@@ -94,6 +94,17 @@ class TestCreateFlow:
             base_msg.format("y", "x"),
         ]  # for py34
 
+    def test_create_flow_without_state_handler(self):
+        assert Flow().state_handlers == []
+
+    @pytest.mark.parametrize("handlers", [[lambda *a: 1], [lambda *a: 1, lambda *a: 2]])
+    def test_create_flow_with_state_handler(self, handlers):
+        assert Flow(state_handlers=handlers).state_handlers == handlers
+
+    def test_create_flow_illegal_handler(self):
+        with pytest.raises(TypeError):
+            Flow(state_handlers=lambda *a: 1)
+
 
 def test_add_task_to_flow():
     f = Flow()

@@ -60,8 +60,7 @@ def test_that_bad_code_in_flow_runner_is_caught():
     """
 
     class BadFlowRunner(FlowRunner):
-        @prefect.engine.flow_runner.handle_signals
-        def get_pre_run_state(self, *args, **kwargs):
+        def get_flow_run_state(self, *args, **kwargs):
             raise RuntimeError("I represent bad code in the flow runner.")
 
     flow = Flow()
@@ -79,9 +78,7 @@ def test_that_bad_code_in_task_runner_is_caught():
     """
 
     class BadTaskRunner(TaskRunner):
-        # this method is bad because it doesn't have a `handle_signals` decorator
-        # so it won't trap its own error, but instead surface it up to the flow runner
-        def run_task(self, *args, **kwargs):
+        def get_task_run_state(self, *args, **kwargs):
             raise RuntimeError("I represent bad code in the task runner.")
 
     flow = Flow()
