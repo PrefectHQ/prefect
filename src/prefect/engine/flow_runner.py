@@ -154,21 +154,6 @@ class FlowRunner(Runner):
             _executor_id=executor.executor_id,
         )
 
-<<<<<<< HEAD
-        if hasattr(config, "flow_run_id"):
-            client = initialize_client()
-            flow_runs_gql = FlowRuns(client=client)
-
-        try:
-            with prefect.context(context):
-                state = self.get_pre_run_state(state=state)
-
-                if hasattr(config, "flow_run_id"):
-                    flow_runs_gql.set_state(config.flow_run_id, state)
-
-                state = self.get_run_state(
-                    state=state,
-=======
         with prefect.context(context):
 
             raise_on_exception = prefect.context.get("_raise_on_exception", False)
@@ -178,7 +163,6 @@ class FlowRunner(Runner):
                 state = self.set_flow_to_running(state)
                 state = self.get_flow_run_state(
                     state,
->>>>>>> master
                     task_states=task_states,
                     start_tasks=start_tasks,
                     return_tasks=return_tasks,
@@ -188,17 +172,8 @@ class FlowRunner(Runner):
                     throttle=throttle,
                 )
 
-<<<<<<< HEAD
-                if hasattr(config, "flow_run_id"):
-                    flow_runs_gql.set_state(config.flow_run_id, state)
-
-        except signals.DONTRUN:
-            pass
-        return state
-=======
             except ENDRUN as exc:
                 state = exc.state
->>>>>>> master
 
             # All other exceptions are trapped and turned into Failed states
             except Exception as exc:
