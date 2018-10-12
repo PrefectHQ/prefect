@@ -16,7 +16,7 @@ class LocalExecutor(Executor):
     timeout_handler = staticmethod(main_thread_timeout)
 
     def map(
-        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states: dict = None, **kwargs: Any
     ) -> Iterable[Any]:
 
         states = dict_to_list(upstream_states)
@@ -26,7 +26,7 @@ class LocalExecutor(Executor):
 
         return results
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any):
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         """
         Submit a function to the executor for execution. Returns the result of the computation.
 
@@ -40,7 +40,7 @@ class LocalExecutor(Executor):
         """
         return fn(*args, **kwargs)
 
-    def wait(self, futures: Any, timeout: datetime.timedelta = None):
+    def wait(self, futures: Any, timeout: datetime.timedelta = None) -> Any:
         """
         Args:
             - futures (Any): objects to wait on
