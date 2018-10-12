@@ -6,7 +6,7 @@ sidebarDepth: 0
 
 ## Welcome to the Prefect Preview!
 
-Thank you for being one of our early partners. Your feedback is critical to making sure Prefect does everything it's supposed to do. You can always reach us at [help@prefect.io]().
+Thank you for being one of our early partners. Your feedback is critical to making sure Prefect does everything it's supposed to do. You can always reach us at [help@prefect.io](mailto:help@prefect.io).
 
 We're very excited to share what we've been working on. After our first preview release `0.3.0`, we received enough interest in the new features we were developing that we decided to cut a new release!  Where version `0.3.0` included all the tools for building, testing, and executing workflows locally, version `0.3.2` augments that with new bells and whistles, more powerful execution options, and a richer vocabulary for easily creating custom workflow logic.  
 
