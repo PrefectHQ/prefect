@@ -85,6 +85,8 @@ def run(id, path):
     flow_runner = prefect.engine.FlowRunner(flow=flow)
 
     # Load optional parameters, this is bad and needs to change once working
+    # This is different from how config is loaded elsewhere in this file because
+    # it is used on the execution cluster where config is loaded differently
     parameters = None
     flow_run_id = None
     if hasattr(config, "flow_run_id"):
