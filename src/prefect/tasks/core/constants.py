@@ -1,10 +1,12 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+from typing import Any
+
 import prefect
 
 
 class Constant(prefect.Task):
-    def __init__(self, value, name=None, **kwargs):
+    def __init__(self, value: Any, name: str = None, **kwargs: Any) -> None:
 
         self.value = value
 
@@ -16,5 +18,5 @@ class Constant(prefect.Task):
 
         super().__init__(name=name, **kwargs)
 
-    def run(self):
+    def run(self):  # type: ignore
         return self.value

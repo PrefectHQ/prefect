@@ -121,7 +121,7 @@ class Flow(Serializable):
         self._cache = {}  # type: dict
 
         self._id = str(uuid.uuid4())
-        self.task_info = dict()  # type: Dict[Task, str]
+        self.task_info = dict()  # type: Dict[Task, dict]
 
         self.name = name or type(self).__name__
         self.version = version or prefect.config.flows.default_version  # type: ignore
@@ -295,7 +295,7 @@ class Flow(Serializable):
     def id(self) -> str:
         return self._id
 
-    @property
+    @property  # type: ignore
     @cache
     def task_ids(self) -> Dict[str, Task]:
         """
@@ -954,6 +954,8 @@ class Flow(Serializable):
             )
 
         try:
+            from IPython import get_ipython
+
             if get_ipython().config.get("IPKernelApp") is not None:
                 return graph
         except NameError:

@@ -13,7 +13,7 @@ import types
 import uuid
 import warnings
 from functools import partial, singledispatch
-from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar, Union
+from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 import dateutil.parser
 from cryptography.fernet import Fernet
@@ -59,7 +59,7 @@ def to_qualified_name(obj: Any) -> str:
     return obj.__module__ + "." + obj.__qualname__
 
 
-def register_json_codec(register_type: Type = None) -> "JSONCodec":
+def register_json_codec(register_type: Type = None) -> Callable:
     """
     Decorator that registers a JSON Codec to a corresponding codec_key.
 
@@ -80,7 +80,9 @@ def register_json_codec(register_type: Type = None) -> "JSONCodec":
         - JSONCodec: the registered JSONCodec
     """
 
-    def _register(register_type, codec_class: "JSONCodec") -> "JSONCodec":
+    def _register(
+        register_type: Union[type, List[type]], codec_class: "JSONCodec"
+    ) -> "JSONCodec":
 
         if CODEC_PREFIX + codec_class.codec_key in JSON_CODECS_KEYS:
             warnings.warn(
@@ -392,7 +394,7 @@ class Serializable:
 
 
 class PrefectJSONEncoder(json.JSONEncoder):
-    def default(self, obj: Any):
+    def default(self, obj: Any) -> JSONCodec:
         """
         Recursive method called when encoding JSON objects
 
@@ -417,10 +419,10 @@ class PrefectJSONEncoder(json.JSONEncoder):
 
 
 class PrefectJSONDecoder(json.JSONDecoder):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, object_hook=self.object_hook, **kwargs)
 
-    def object_hook(self, dct):
+    def object_hook(self, dct: dict) -> dict:
         # iterate over the dictionary looking for a key that matches a codec.
         # it would be extremely unusual to have more than one such key.
         for key, value in dct.items():
