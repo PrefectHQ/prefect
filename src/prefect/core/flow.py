@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import collections
 import copy
 import functools
 import inspect
@@ -117,6 +118,7 @@ class Flow(Serializable):
         reference_tasks: Iterable[Task] = None,
         register: bool = False,
         throttle: Dict[str, int] = None,
+        state_handlers: Iterable[Callable] = None,
     ) -> None:
         self._cache = {}  # type: dict
 
@@ -155,6 +157,11 @@ class Flow(Serializable):
                     bad_tags
                 )
             )
+
+        if state_handlers and not isinstance(state_handlers, collections.Sequence):
+            raise TypeError("state_handlers should be iterable.")
+        self.state_handlers = state_handlers or []
+
         super().__init__()
 
     def __eq__(self, other: Any) -> bool:
