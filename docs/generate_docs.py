@@ -139,7 +139,6 @@ OUTLINE = [
             prefect.engine.signals.SUCCESS,
             prefect.engine.signals.RETRY,
             prefect.engine.signals.SKIP,
-            prefect.engine.signals.DONTRUN,
             prefect.engine.signals.PAUSE,
         ],
         "title": "Signals",
