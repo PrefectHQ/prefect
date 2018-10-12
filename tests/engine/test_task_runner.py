@@ -79,15 +79,6 @@ class SlowTask(Task):
         sleep(secs)
 
 
-class RaiseDontRunTask(Task):
-    """
-    This task is just for testing -- raising DONTRUN inside a task is considered bad
-    """
-
-    def run(self):
-        raise prefect.engine.signals.DONTRUN()
-
-
 def test_task_that_succeeds_is_marked_success():
     """
     Test running a task that finishes successfully and returns a result
@@ -202,10 +193,6 @@ def test_task_runner_raise_on_exception_when_task_signals():
     with raise_on_exception():
         with pytest.raises(prefect.engine.signals.FAIL):
             TaskRunner(RaiseFailTask()).run()
-
-
-def test_tasks_that_raise_DONTRUN_are_treated_as_skipped():
-    assert isinstance(TaskRunner(task=RaiseDontRunTask()).run(), Skipped)
 
 
 def test_throttled_task_runner_takes_ticket_and_puts_it_back():
@@ -580,7 +567,7 @@ class TestSetTaskRunning:
 class TestRunTaskStep:
     def test_running_state(self):
         state = Running()
-        new_state = TaskRunner(task=Task()).run_task(
+        new_state = TaskRunner(task=Task()).get_task_run_state(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_successful()
@@ -588,7 +575,7 @@ class TestRunTaskStep:
     @pytest.mark.parametrize("state", [Pending(), CachedState(), Success(), Skipped()])
     def test_not_running_state(self, state):
         with pytest.raises(ENDRUN):
-            TaskRunner(task=Task()).run_task(
+            TaskRunner(task=Task()).get_task_run_state(
                 state=state, inputs={}, timeout_handler=None
             )
 
@@ -598,7 +585,7 @@ class TestRunTaskStep:
             raise signals.SUCCESS()
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_successful()
@@ -609,7 +596,7 @@ class TestRunTaskStep:
             raise signals.FAIL()
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_failed()
@@ -620,7 +607,7 @@ class TestRunTaskStep:
             raise signals.SKIP()
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={}, timeout_handler=None
         )
         assert isinstance(new_state, Skipped)
@@ -632,7 +619,9 @@ class TestRunTaskStep:
 
         state = Running()
         with pytest.raises(signals.PAUSE):
-            TaskRunner(task=fn).run_task(state=state, inputs={}, timeout_handler=None)
+            TaskRunner(task=fn).get_task_run_state(
+                state=state, inputs={}, timeout_handler=None
+            )
 
     def test_run_with_error(self):
         @prefect.task
@@ -640,7 +629,7 @@ class TestRunTaskStep:
             1 / 0
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_failed()
@@ -652,7 +641,7 @@ class TestRunTaskStep:
             return x + 1
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={"x": 1}, timeout_handler=None
         )
         assert new_state.is_successful()
@@ -664,7 +653,7 @@ class TestRunTaskStep:
             return x + 1
 
         state = Running()
-        new_state = TaskRunner(task=fn).run_task(
+        new_state = TaskRunner(task=fn).get_task_run_state(
             state=state, inputs={"y": 1}, timeout_handler=None
         )
         assert new_state.is_failed()
@@ -763,7 +752,7 @@ handler_results = collections.defaultdict(lambda: 0)
 
 
 @pytest.fixture(autouse=True)
-def clear_task_handler_results():
+def clear_handler_results():
     handler_results.clear()
 
 
@@ -866,7 +855,15 @@ class TestTaskRunnerStateHandlers:
 
     def test_task_handler_that_raises_signal_is_trapped(self):
         def handler(task, old, new):
-            raise signals.Fail()
+            raise signals.FAIL()
+
+        task = Task(state_handlers=[handler])
+        state = TaskRunner(task=task).run()
+        assert state.is_failed()
+
+    def test_task_handler_that_has_error_is_trapped(self):
+        def handler(task, old, new):
+            1 / 0
 
         task = Task(state_handlers=[handler])
         state = TaskRunner(task=task).run()

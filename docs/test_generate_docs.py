@@ -231,7 +231,7 @@ def test_consistency_of_function_docs(fn):
 
     assert num_args == len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(
         varkwargs
-    )
+    ), "{fn.__name__} has undocumented arguments.".format(fn=fn)
 
 
 @pytest.mark.parametrize(
@@ -256,4 +256,6 @@ def test_consistency_of_class_method_docs(obj, fn):
 
     assert num_args == len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(
         varkwargs
+    ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has undocumented arguments.".format(
+        obj=obj, fn=fn
     )
