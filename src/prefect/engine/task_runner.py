@@ -21,43 +21,11 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
+from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.utilities.executors import main_thread_timeout
 
 
-class ENDRUN(Exception):
-    """
-    An ENDRUN exception is used by TaskRunner steps to indicate that state processing should
-    stop. The pipeline result should be the state contained in the exception.
-    """
-
-    def __init__(self, state: State = None) -> None:
-        """
-        Args
-            - state (State): the state that should be used as the result of the TaskRunner
-                run.
-        """
-        self.state = state
-        super().__init__()
-
-
-def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
-    """
-    Decorator that calls the TaskRunner's state_handlers method if a run step
-    results in a modified state.
-    """
-
-    @functools.wraps(method)
-    def inner(self: "TaskRunner", state: State, *args: Any, **kwargs: Any) -> State:
-        new_state = method(self, state, *args, **kwargs)
-        if new_state is state:
-            return new_state
-        else:
-            return self.handle_state_change(old_state=state, new_state=new_state)
-
-    return inner
-
-
-class TaskRunner:
+class TaskRunner(Runner):
     """
     TaskRunners handle the execution of Tasks and determine the State of a Task
     before, during and after the Task is run.
@@ -93,54 +61,22 @@ class TaskRunner:
         logger_name: str = None,
     ) -> None:
         self.task = task
-        if state_handlers and not isinstance(state_handlers, collections.Sequence):
-            raise TypeError("state_handlers should be iterable.")
-        self.state_handlers = state_handlers or []
-        self.logger = logging.getLogger(logger_name or type(self).__name__)
+        super().__init__(state_handlers=state_handlers, logger_name=logger_name)
 
-    def handle_state_change(self, old_state: State, new_state: State) -> State:
+    def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
-        Calls any handlers associated with the TaskRunner and Task.
-
-        This method will only be called when the state changes (`old_state is not new_state`)
+        A special state handler that the TaskRunner uses to call its task's state handlers.
+        This method is called as part of the base Runner's `handle_state_change()` method.
 
         Args:
-            - old_state (State): the old (previous) state of the task
-            - new_state (State): the new (current) state of the task
+            - old_state (State): the old (previous) state
+            - new_state (State): the new (current) state
 
         Returns:
-            State: the updated state of the task
-
-        Raises:
-            - PAUSE: if raised by a handler
-            - ENDRUN(Failed()): if any of the handlers fail
-
+            State: the new state
         """
-        raise_on_exception = prefect.context.get("_raise_on_exception", False)
-
-        # run the task's handlers first
-        try:
-            for task_handler in self.task.state_handlers:
-                new_state = task_handler(self.task, old_state, new_state)
-
-            for runner_handler in self.state_handlers:
-                new_state = runner_handler(self, old_state, new_state)
-
-        # raise pauses
-        except prefect.engine.signals.PAUSE:
-            raise
-        # trap signals
-        except signals.PrefectStateSignal as exc:
-            if raise_on_exception:
-                raise
-            return exc.state
-        # abort on errors
-        except Exception as exc:
-            if raise_on_exception:
-                raise
-            raise ENDRUN(
-                Failed("Exception raised while calling state handlers.", message=exc)
-            )
+        for handler in self.task.state_handlers:
+            new_state = handler(self.task, old_state, new_state)
         return new_state
 
     def run(
@@ -246,7 +182,7 @@ class TaskRunner:
                 state = self.set_task_to_running(state)
 
                 # run the task!
-                state = self.run_task(
+                state = self.get_task_run_state(
                     state, inputs=task_inputs, timeout_handler=timeout_handler
                 )
 
@@ -286,7 +222,7 @@ class TaskRunner:
             State: the state of the task after running the check
 
         Raises:
-            - signals.ENDRUN: if upstream tasks are not finished.
+            - ENDRUN: if upstream tasks are not finished.
         """
         if not all(s.is_finished() for s in upstream_states_set):
             raise ENDRUN(state)
@@ -341,7 +277,7 @@ class TaskRunner:
             State: the state of the task after running the check
 
         Raises:
-            - signals.ENDRUN: if the trigger raises DONTRUN
+            - ENDRUN: if the trigger raises an error
         """
         # the trigger itself could raise a failure, but we raise TriggerFailed just in case
         raise_on_exception = prefect.context.get("_raise_on_exception", False)
@@ -382,7 +318,7 @@ class TaskRunner:
             State: the state of the task after running the check
 
         Raises:
-            - signals.ENDRUN: if the task is not ready to run
+            - ENDRUN: if the task is not ready to run
         """
         # the task is ready
         if state.is_pending():
@@ -417,7 +353,7 @@ class TaskRunner:
             State: the state of the task after running the check
 
         Raises:
-            - signals.ENDRUN: if the task is not ready to run
+            - ENDRUN: if the task is not ready to run
         """
         if isinstance(state, CachedState) and self.task.cache_validator(
             state, inputs, prefect.context.get("_parameters")
@@ -437,7 +373,7 @@ class TaskRunner:
             State: the state of the task after running the check
 
         Raises:
-            - signals.ENDRUN: if the task is not ready to run
+            - ENDRUN: if the task is not ready to run
         """
         if not state.is_pending():
             raise ENDRUN(state)
@@ -445,7 +381,7 @@ class TaskRunner:
         return Running(message="Starting task run.")
 
     @call_state_handlers
-    def run_task(
+    def get_task_run_state(
         self, state: State, inputs: Dict[str, Any], timeout_handler: Optional[Callable]
     ) -> State:
         """
@@ -464,7 +400,7 @@ class TaskRunner:
 
         Raises:
             - signals.PAUSE: if the task raises PAUSE
-            - signals.ENDRUN: if the task is not ready to run
+            - ENDRUN: if the task is not ready to run
         """
         if not state.is_running():
             raise ENDRUN(state)
@@ -474,9 +410,6 @@ class TaskRunner:
         try:
             timeout_handler = timeout_handler or main_thread_timeout
             result = timeout_handler(self.task.run, timeout=self.task.timeout, **inputs)
-
-        except signals.DONTRUN:
-            return Skipped()
 
         except signals.PAUSE:
             raise

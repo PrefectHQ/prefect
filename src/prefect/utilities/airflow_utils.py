@@ -91,10 +91,6 @@ class AirTask(prefect.tasks.shell.ShellTask):
             raise prefect.engine.signals.SKIP(
                 "Airflow task state not present in airflow db, was skipped."
             )
-        if status == "None":
-            raise prefect.engine.signals.DONTRUN(
-                "Airflow task state marked as 'None' in airflow db"
-            )
         if status == "skipped":
             raise prefect.engine.signals.SKIP(
                 "Airflow task state marked as 'skipped' in airflow db"
