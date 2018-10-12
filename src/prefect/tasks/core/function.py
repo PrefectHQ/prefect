@@ -1,7 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import inspect
-from typing import Callable
+from typing import Any, Callable
 
 import prefect
 
@@ -29,7 +29,7 @@ class FunctionTask(prefect.Task):
     ```
     """
 
-    def __init__(self, fn: Callable, name: str = None, **kwargs) -> None:
+    def __init__(self, fn: Callable, name: str = None, **kwargs: Any) -> None:
         if not callable(fn):
             raise TypeError("fn must be callable.")
 
