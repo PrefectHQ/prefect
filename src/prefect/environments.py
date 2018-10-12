@@ -198,7 +198,7 @@ class ContainerEnvironment(Environment):
 
             return {"image_name": self.name, "image_tag": self.tag, "flow_id": flow.id}
 
-    def run(self, key: bytes, cli_cmd: str) -> None:
+    def run(self, cli_cmd: str) -> None:
         """Run a command in the Docker container
 
         Args:

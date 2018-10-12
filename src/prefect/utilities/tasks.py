@@ -39,12 +39,12 @@ def tags(*tags: str) -> Iterator[None]:
         yield
 
 
-def as_task(x: Any) -> "prefect.core.Task":
+def as_task(x: Any) -> "prefect.Task":
     """
     Wraps a function, collection, or constant with the appropriate Task type.
 
     Args:
-        -x (object): any Python object to convert to a prefect Task
+        - x (object): any Python object to convert to a prefect Task
 
     Returns:
         - a prefect Task representing the passed object
@@ -76,7 +76,7 @@ def as_task(x: Any) -> "prefect.core.Task":
 
 @curry
 def task(
-    fn: Callable, **task_init_kwargs
+    fn: Callable, **task_init_kwargs: Any
 ) -> "prefect.tasks.core.function.FunctionTask":
     """
     A decorator for creating Tasks from functions.
@@ -155,5 +155,5 @@ class unmapped:
         ```
     """
 
-    def __init__(self, task):
+    def __init__(self, task: "prefect.Task") -> None:
         self.task = as_task(task)

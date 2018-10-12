@@ -20,6 +20,7 @@ import textwrap
 import warnings
 
 import toolz
+from functools import partial
 
 import prefect
 from prefect.utilities.airflow_utils import AirFlow
@@ -244,9 +245,17 @@ OUTLINE = [
 ]
 
 
-def preprocess(f):
+@toolz.curry
+def preprocess(f, remove_partial=True):
     def wrapped(*args, **kwargs):
-        new_obj = getattr(args[0], "__wrapped__", getattr(args[0], "func", args[0]))
+        new_obj = getattr(args[0], "__wrapped__", args[0])
+        if not isinstance(new_obj, partial):
+            new_obj = getattr(new_obj, "func", new_obj)
+        elif isinstance(new_obj, partial) and remove_partial:
+            # because partial sets kwargs in the signature, we dont always
+            # want that stripped for call signature inspection but we _do_
+            # for doc inspection
+            new_obj = getattr(new_obj, "func", new_obj)
         new_args = list(args)
         new_args[0] = new_obj
         return f(*new_args, **kwargs)
@@ -288,7 +297,9 @@ def format_lists(doc):
     return doc.replace("\n\nRaises:", "Raises:")
 
 
-def format_doc(doc, in_table=False):
+@preprocess
+def format_doc(obj, in_table=False):
+    doc = inspect.getdoc(obj)
     body = doc or ""
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
@@ -322,46 +333,46 @@ def create_methods_table(members, title):
         table += format_subheader(method, level=2, in_table=True).replace(
             "\n\n", "<br>"
         )
-        table += format_doc(inspect.getdoc(method), in_table=True)
+        table += format_doc(method, in_table=True)
         table += "|\n"
     return table
 
 
-@preprocess
+@preprocess(remove_partial=False)
 def get_call_signature(obj):
     assert callable(obj), f"{obj} is not callable, cannot format signature."
     # collect data
     sig = inspect.getfullargspec(obj)
     args, defaults = sig.args, sig.defaults or []
-    kwonly, kwonlydefaults = sig.kwonlyargs, sig.kwonlydefaults
+    kwonly, kwonlydefaults = sig.kwonlyargs or [], sig.kwonlydefaults or {}
     varargs, varkwargs = sig.varargs, sig.varkw
 
     if args == []:
-        standalone, kwargs = [], dict()
+        standalone, kwargs = [], []
     else:
-        if args[0] == "self":
-            args = args[1:]  # remove self from displayed signature
+        if args[0] in ["cls", "self"]:
+            args = args[1:]  # remove cls or self from displayed signature
 
         standalone = args[: -len(defaults)] if defaults else args  # true args
         kwargs = list(zip(args[-len(defaults) :], defaults))  # true kwargs
 
     varargs = [f"*{varargs}"] if varargs else []
     varkwargs = [f"**{varkwargs}"] if varkwargs else []
-    if kwonlydefaults:
+    if kwonly:
         kwargs.extend([(kw, default) for kw, default in kwonlydefaults.items()])
+        kwonly = [k for k in kwonly if k not in kwonlydefaults]
 
-    return standalone, varargs, kwargs, varkwargs
+    return standalone, varargs, kwonly, kwargs, varkwargs
 
 
-@preprocess
+@preprocess(remove_partial=False)
 def format_signature(obj):
-    standalone, varargs, kwargs, varkwargs = get_call_signature(obj)
-    # NOTE: I assume the call signature is f(x, y, ..., *args, z=1, ...,
-    # **kwargs) and NOT f(*args, x, y, ...)
+    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
     add_quotes = lambda s: f'"{s}"' if isinstance(s, str) else s
     psig = ", ".join(
         standalone
         + varargs
+        + kwonly
         + [f"{name}={add_quotes(val)}" for name, val in kwargs]
         + varkwargs
     )
@@ -371,10 +382,14 @@ def format_signature(obj):
 @preprocess
 def create_absolute_path(obj):
     dir_struct = inspect.getfile(obj).split("/")
-    begins_at = dir_struct.index("src") + 1
+    if ("prefect" not in dir_struct) or ("test_generate_docs.py" in dir_struct):
+        return obj.__qualname__
+    first_dir, offset = ("src", 1) if "src" in dir_struct else ("prefect", 0)
+    begins_at = dir_struct.index(first_dir) + offset
     filename = dir_struct.pop(-1)
     dir_struct.append(filename[:-3] if filename.endswith(".py") else filename)
-    return ".".join([d for d in dir_struct[begins_at:]])
+    path = ".".join([d for d in dir_struct[begins_at:]])
+    return f"{path}.{obj.__qualname__}"
 
 
 @preprocess
@@ -384,15 +399,18 @@ def get_source(obj):
         commit
     )
     dir_struct = inspect.getfile(obj).split("/")
-    begins_at = dir_struct.index("src") + 2
-    line_no = inspect.getsourcelines(obj)[1]
-    url_ending = "/".join(dir_struct[begins_at:]) + f"#L{line_no}"
-    link = f'<a href="{base_url}{url_ending}">[source]</a>'
+    if "src" not in dir_struct:
+        link = "[source]"  # dead-link
+    else:
+        begins_at = dir_struct.index("src") + 2
+        line_no = inspect.getsourcelines(obj)[1]
+        url_ending = "/".join(dir_struct[begins_at:]) + f"#L{line_no}"
+        link = f'<a href="{base_url}{url_ending}">[source]</a>'
     source_tag = f'<span style="text-align:right; float:right; font-size:0.8em; width: 50%; max-width: 6em; display: inline-block;">{link}</span>'
     return source_tag
 
 
-@preprocess
+@preprocess(remove_partial=False)
 def format_subheader(obj, level=1, in_table=False):
     class_sig = format_signature(obj)
     if inspect.isclass(obj):
@@ -402,7 +420,7 @@ def format_subheader(obj, level=1, in_table=False):
     else:
         header = "|"
     is_class = "<em><b>class </b></em>" if inspect.isclass(obj) else ""
-    class_name = f"<b>{create_absolute_path(obj)}.{obj.__qualname__}</b>"
+    class_name = f"<b>{create_absolute_path(obj)}</b>"
     div_tag = f"<div class='sig' style='padding-left:3.5em;text-indent:-3.5em;'>"
 
     call_sig = f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>\n\n"
@@ -426,6 +444,14 @@ def generate_coverage():
             warnings.warn("Some tests failed.")
     except subprocess.CalledProcessError as exc:
         warnings.warn(f"Coverage report was not generated: {exc.output}")
+
+
+def get_class_methods(obj):
+    members = inspect.getmembers(
+        obj, predicate=lambda x: inspect.isroutine(x) and obj.__name__ in x.__qualname__
+    )
+    public_members = [method for (name, method) in members if not name.startswith("_")]
+    return public_members
 
 
 if __name__ == "__main__":
@@ -507,19 +533,12 @@ if __name__ == "__main__":
             for obj in classes:
                 f.write(format_subheader(obj))
 
-                f.write(format_doc(inspect.getdoc(obj)) + "\n\n")
+                f.write(format_doc(obj) + "\n\n")
                 if type(obj) == toolz.functoolz.curry:
                     f.write("\n")
                     continue
 
-                members = inspect.getmembers(
-                    obj,
-                    predicate=lambda x: inspect.isroutine(x)
-                    and obj.__name__ in x.__qualname__,
-                )
-                public_members = [
-                    method for (name, method) in members if not name.startswith("_")
-                ]
+                public_members = get_class_methods(obj)
                 f.write(create_methods_table(public_members, title="methods:"))
                 f.write("\n---\n<br>\n\n")
 

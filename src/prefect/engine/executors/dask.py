@@ -11,7 +11,7 @@ if sys.version_info < (3, 5):
 import datetime
 from contextlib import contextmanager
 from distributed import Client, fire_and_forget, Future, Queue, worker_client
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Iterator, List
 
 import queue
 import warnings
@@ -41,7 +41,13 @@ class DaskExecutor(Executor):
             `dask.distributed.Client` upon initialization (e.g., `n_workers`)
     """
 
-    def __init__(self, address=None, processes=False, debug=config.debug, **kwargs):
+    def __init__(
+        self,
+        address: str = None,
+        processes: bool = False,
+        debug: bool = config.debug,
+        **kwargs: Any
+    ) -> None:
         self.address = address
         self.processes = processes
         self.debug = debug
@@ -49,7 +55,7 @@ class DaskExecutor(Executor):
         super().__init__()
 
     @contextmanager
-    def start(self) -> Iterable[None]:
+    def start(self) -> Iterator[None]:
         """
         Context manager for initializing execution.
 
@@ -67,7 +73,7 @@ class DaskExecutor(Executor):
         finally:
             self.client = None
 
-    def queue(self, maxsize=0, client=None) -> Queue:
+    def queue(self, maxsize: int = 0, client: Client = None) -> Queue:
         """
         Creates an executor-compatible Queue object which can share state
         across tasks.
@@ -82,9 +88,11 @@ class DaskExecutor(Executor):
         return q
 
     def map(
-        self, fn: Callable, *args: Any, upstream_states=None, **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states: dict = None, **kwargs: Any
     ) -> Future:
-        def mapper(fn, *args, upstream_states, **kwargs):
+        def mapper(
+            fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
+        ) -> List[Future]:
             states = dict_to_list(upstream_states)
 
             with worker_client() as client:
