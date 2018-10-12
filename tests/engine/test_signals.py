@@ -1,7 +1,6 @@
 import pytest
 
 from prefect.engine.signals import (
-    DONTRUN,
     FAIL,
     RETRY,
     SKIP,
@@ -42,7 +41,6 @@ def test_signals_create_states():
         (SUCCESS, Success),
         (RETRY, Retrying),
         (SKIP, Skipped),
-        (DONTRUN, State),
     ],
 )
 def test_signals_creates_correct_states(signal, state):
