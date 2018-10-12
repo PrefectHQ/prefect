@@ -15,26 +15,6 @@ from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
 
 
-def call_flow_state_handlers(
-    flow_runner: "FlowRunner", old_state: State, new_state: State
-) -> State:
-    """
-    A special state handler that the FlowRunner uses to call its flow's state handlers.
-    It becomes the first entry of FlowRunner.state_handlers.
-
-    Args:
-        - flow_runner (FlowRunner): the FlowRunner in question
-        - old_state (State): the old (previous) state
-        - new_state (State): the new (current) state
-
-    Returns:
-        State: the new state
-    """
-    for handler in flow_runner.flow.state_handlers:
-        new_state = handler(flow_runner.flow, old_state, new_state)
-    return new_state
-
-
 class FlowRunner(Runner):
     """
     FlowRunners handle the execution of Flows and determine the State of a Flow
@@ -77,13 +57,23 @@ class FlowRunner(Runner):
     ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
+        super().__init__(state_handlers=state_handlers, logger_name=logger_name)
 
-        # we always call the flow's state handlers first, to give it an opportunity to
-        # modify the state before the runner's handlers receive it.
-        handlers = [call_flow_state_handlers]
-        if state_handlers is not None:
-            handlers.extend(state_handlers)
-        super().__init__(state_handlers=handlers, logger_name=logger_name)
+    def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
+        """
+        A special state handler that the FlowRunner uses to call its flow's state handlers.
+        This method is called as part of the base Runner's `handle_state_change()` method.
+
+        Args:
+            - old_state (State): the old (previous) state
+            - new_state (State): the new (current) state
+
+        Returns:
+            State: the new state
+        """
+        for handler in self.flow.state_handlers:
+            new_state = handler(self.flow, old_state, new_state)
+        return new_state
 
     def run(
         self,

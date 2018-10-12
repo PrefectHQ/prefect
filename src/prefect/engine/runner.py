@@ -66,10 +66,28 @@ class Runner:
     def __init__(
         self, state_handlers: Iterable[Callable] = None, logger_name: str = None
     ) -> None:
-        if state_handlers and not isinstance(state_handlers, collections.Sequence):
+        if state_handlers is not None and not isinstance(
+            state_handlers, collections.Sequence
+        ):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
         self.logger = logging.getLogger(logger_name or type(self).__name__)
+
+    def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
+        """
+        Runners are used to execute a target object, usually a `Task` or a `Flow`, and those
+        objects may have state handlers of their own. This method will always be called as
+        the Runner's first state handler, and provides an entrypoint that can be overriden
+        to target either a Task or Flow's own handlers.
+
+        Args:
+            - old_state (State): the old (previous) state
+            - new_state (State): the new (current) state
+
+        Returns:
+            State: the new state
+        """
+        return new_state
 
     def handle_state_change(self, old_state: State, new_state: State) -> State:
         """
@@ -92,6 +110,10 @@ class Runner:
         raise_on_exception = prefect.context.get("_raise_on_exception", False)
 
         try:
+            # call runner's target handlers
+            new_state = self.call_runner_target_handlers(old_state, new_state)
+
+            # call runner's own handlers
             for handler in self.state_handlers:
                 new_state = handler(self, old_state, new_state)
 
