@@ -25,26 +25,6 @@ from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.utilities.executors import main_thread_timeout
 
 
-def call_task_state_handlers(
-    task_runner: "TaskRunner", old_state: State, new_state: State
-) -> State:
-    """
-    A special state handler that the TaskRunner uses to call its task's state handlers.
-    It becomes the first entry of TaskRunner.state_handlers.
-
-    Args:
-        - flow_runner (TaskRunner): the TaskRunner in question
-        - old_state (State): the old (previous) state
-        - new_state (State): the new (current) state
-
-    Returns:
-        State: the new state
-    """
-    for handler in task_runner.task.state_handlers:
-        new_state = handler(task_runner.task, old_state, new_state)
-    return new_state
-
-
 class TaskRunner(Runner):
     """
     TaskRunners handle the execution of Tasks and determine the State of a Task
@@ -81,12 +61,23 @@ class TaskRunner(Runner):
         logger_name: str = None,
     ) -> None:
         self.task = task
-        # we always call the task's state handlers first, to give it an opportunity to
-        # modify the state before the runner's handlers receive it.
-        handlers = [call_task_state_handlers]
-        if state_handlers is not None:
-            handlers.extend(state_handlers)
-        super().__init__(state_handlers=handlers, logger_name=logger_name)
+        super().__init__(state_handlers=state_handlers, logger_name=logger_name)
+
+    def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
+        """
+        A special state handler that the TaskRunner uses to call its task's state handlers.
+        This method is called as part of the base Runner's `handle_state_change()` method.
+
+        Args:
+            - old_state (State): the old (previous) state
+            - new_state (State): the new (current) state
+
+        Returns:
+            State: the new state
+        """
+        for handler in self.task.state_handlers:
+            new_state = handler(self.task, old_state, new_state)
+        return new_state
 
     def run(
         self,
