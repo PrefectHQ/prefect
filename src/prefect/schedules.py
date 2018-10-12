@@ -78,7 +78,7 @@ class IntervalSchedule(Schedule):
             for i in itertools.count(start=0, step=1)
         )
         # filter generator for only dates on or after the requested date
-        upcoming_dates = filter(lambda d: d >= on_or_after, all_dates)
+        upcoming_dates = filter(lambda d: d >= on_or_after, all_dates)  # type: ignore
         # get the next n items from the generator
         return list(itertools.islice(upcoming_dates, n))
 
