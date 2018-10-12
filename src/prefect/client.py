@@ -442,6 +442,9 @@ class Secret(json.Serializable):
 
     Args:
         - name (str): The name of the secret
+        - use_local_secrets (bool): whether to pull secrets from context or from
+            the Prefect server; defaults to the value of the `use_local_secrets`
+            flag in your Prefect configuration file
 
     The value of the `Secret` is not set upon initialization and instead is set
     either in `prefect.context` or on the server, with behavior dependent on the value
@@ -449,10 +452,14 @@ class Secret(json.Serializable):
     """
 
     _json_codec = json.ObjectAttributesCodec
-    _use_local_secrets = prefect.config.server.use_local_secrets
 
-    def __init__(self, name: str) -> None:
+    def __init__(
+        self,
+        name: str,
+        use_local_secrets: bool = prefect.config.server.use_local_secrets,
+    ) -> None:
         self.name = name
+        self.use_local_secrets = use_local_secrets
 
     def get(self):
         """
@@ -460,7 +467,7 @@ class Secret(json.Serializable):
 
         If not found, returns `None`.
         """
-        if self._use_local_secrets is True:
+        if self.use_local_secrets is True:
             secrets = prefect.context.get("_secrets", {})
             return secrets.get(self.name)
         else:
