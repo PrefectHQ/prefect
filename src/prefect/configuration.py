@@ -5,7 +5,7 @@ import os
 import re
 
 import toml
-from typing import Union
+from typing import Any, Optional, Union
 from prefect.utilities import collections
 
 DEFAULT_CONFIG = os.path.join(os.path.dirname(__file__), "config.toml")
@@ -14,7 +14,8 @@ INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 
 
 class Config(collections.DotDict):
-    pass
+    def __getattr__(self, attr: str) -> Any:
+        return super().__getattr__(attr)
 
 
 def string_to_type(val: str) -> Union[bool, int, float, str]:
@@ -60,7 +61,7 @@ def string_to_type(val: str) -> Union[bool, int, float, str]:
     return val
 
 
-def interpolate_env_var(env_var: str) -> str:
+def interpolate_env_var(env_var: str) -> Optional[str]:
     """
     Expands (potentially nested) env vars by repeatedly applying
     `expandvars` and `expanduser` until interpolation stops having
@@ -78,11 +79,13 @@ def interpolate_env_var(env_var: str) -> str:
             # this is because we don't want to override TOML type-casting if this function
             # is applied to a non-interpolated value
             if counter > 1:
-                interpolated = string_to_type(interpolated)
+                interpolated = string_to_type(interpolated)  # type: ignore
             return interpolated
         else:
             env_var = interpolated
         counter += 1
+
+    return None
 
 
 def create_user_config(dest_path: str, source_path: str = DEFAULT_CONFIG) -> None:
