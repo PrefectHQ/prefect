@@ -52,7 +52,7 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
     """
 
     @functools.wraps(method)
-    def inner(self: "TaskRunner", state: State, *args: Any, **kwargs: Any) -> State:
+    def inner(self: "Runner", state: State, *args: Any, **kwargs: Any) -> State:
         new_state = method(self, state, *args, **kwargs)
         if new_state is state:
             return new_state

@@ -20,6 +20,15 @@ def call_flow_state_handlers(
 ) -> State:
     """
     A special state handler that the FlowRunner uses to call its flow's state handlers.
+    It becomes the first entry of FlowRunner.state_handlers.
+
+    Args:
+        - flow_runner (FlowRunner): the FlowRunner in question
+        - old_state (State): the old (previous) state
+        - new_state (State): the new (current) state
+
+    Returns:
+        State: the new state
     """
     for handler in flow_runner.flow.state_handlers:
         new_state = handler(flow_runner.flow, old_state, new_state)
@@ -221,7 +230,8 @@ class FlowRunner(Runner):
             - ENDRUN: if the flow is not pending or running
         """
         if state.is_pending():
-            return Running("Starting flow run.")
+            self.logger.debug("Starting flow run.")
+            return Running(message="Running flow.")
         elif state.is_running():
             return state
         else:

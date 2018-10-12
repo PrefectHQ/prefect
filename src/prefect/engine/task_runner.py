@@ -30,6 +30,15 @@ def call_task_state_handlers(
 ) -> State:
     """
     A special state handler that the TaskRunner uses to call its task's state handlers.
+    It becomes the first entry of TaskRunner.state_handlers.
+
+    Args:
+        - flow_runner (TaskRunner): the TaskRunner in question
+        - old_state (State): the old (previous) state
+        - new_state (State): the new (current) state
+
+    Returns:
+        State: the new state
     """
     for handler in task_runner.task.state_handlers:
         new_state = handler(task_runner.task, old_state, new_state)
