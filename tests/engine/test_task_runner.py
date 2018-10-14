@@ -79,6 +79,11 @@ class SlowTask(Task):
         sleep(secs)
 
 
+def test_task_runner_has_logger():
+    r = TaskRunner(Task())
+    assert r.logger.name == "prefect.TaskRunner"
+
+
 def test_task_that_succeeds_is_marked_success():
     """
     Test running a task that finishes successfully and returns a result

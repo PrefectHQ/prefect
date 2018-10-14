@@ -1,11 +1,11 @@
 import collections
 import functools
-import logging
 from typing import Any, Callable, Iterable
 
 import prefect
 from prefect.engine import signals
 from prefect.engine.state import State, Failed
+from prefect.utilities import logging
 
 
 class ENDRUN(Exception):
@@ -71,7 +71,7 @@ class Runner:
         ):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
-        self.logger = logging.getLogger(logger_name or type(self).__name__)
+        self.logger = logging.get_logger(logger_name or type(self).__name__)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """

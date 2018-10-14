@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import timedelta
 
 import pytest
@@ -125,6 +126,12 @@ class TestCreateTask:
     def test_bad_cache_kwarg_combo(self):
         with pytest.warns(UserWarning, match=".*Task will not be cached.*"):
             Task(cache_validator=all_inputs)
+
+
+def test_task_has_logger():
+    t = Task()
+    assert isinstance(t.logger, logging.Logger)
+    assert t.logger.name == "prefect.Task"
 
 
 def test_task_produces_no_result():

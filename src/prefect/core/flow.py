@@ -19,6 +19,7 @@ from prefect.core.task import Parameter, Task
 from prefect.environments import Environment
 from prefect.utilities.json import Serializable, dumps
 from prefect.utilities.tasks import as_task, unmapped
+from prefect.utilities import logging
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
@@ -123,6 +124,8 @@ class Flow(Serializable):
         self._cache = {}  # type: dict
 
         self._id = str(uuid.uuid4())
+        self.logger = logging.get_logger("flow:{}".format(self.id))
+
         self.task_info = dict()  # type: Dict[Task, dict]
 
         self.name = name or type(self).__name__
