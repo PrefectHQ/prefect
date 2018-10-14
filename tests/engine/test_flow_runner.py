@@ -91,7 +91,7 @@ class SlowTask(Task):
 
 
 def test_flow_runner_has_logger():
-    r = FlowRunner(Task())
+    r = FlowRunner(Flow())
     assert r.logger.name == "prefect.FlowRunner"
 
 
