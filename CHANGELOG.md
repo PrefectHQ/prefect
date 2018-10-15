@@ -13,6 +13,7 @@
 - Add new `PAUSE` signal for halting task execution - [#246](https://github.com/PrefectHQ/prefect/pull/246)
 - Add ability to timeout task execution for all executors except `DaskExecutor(processes=True)` - [#240](https://github.com/PrefectHQ/prefect/issues/240)
 - Add explicit unit test to check Black formatting (Python 3.6+) - [#261](https://github.com/PrefectHQ/prefect/pull/261)
+- Add ability to use local secrets - [#231](https://github.com/PrefectHQ/prefect/issues/231)
 - Add `is_skipped()` method for `State` objects - [#266](https://github.com/PrefectHQ/prefect/pull/266)
 
 ### Fixes
