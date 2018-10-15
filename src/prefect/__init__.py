@@ -1,8 +1,8 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import prefect.utilities
 from prefect.configuration import config
 
-import prefect.utilities
 from prefect.utilities.context import context
 
 from prefect.client import Client
