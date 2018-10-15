@@ -517,15 +517,12 @@ class TaskRuns(ClientModule):
 
 
 class RunFlow(ClientModule):
-    def run_flow(self, image_name, image_tag, flow_id, flow_run_id=None) -> dict:
+    def run_flow(self, flow_run_id) -> dict:
         """
         Run a flow
 
         Args:
-            - image_name (str): The image container name the flow is in
-            - image_tag (str): The tag of the flow's image
-            - flow_id (str): The ID of the flow to be run
-            - flow_run_id (str, optional): The flow run to communicate to
+            - flow_run_id (str): The flow run to communicate to
 
         Returns:
             - dict: Data returned from the GraphQL query
@@ -538,10 +535,6 @@ class RunFlow(ClientModule):
                 }
             }
             """,
-            input=dict(
-                imageName=image_name,
-                imageTag=image_tag,
-                flowId=flow_id,
-                flowRunId=flow_run_id,
-            ),
+            input=dict(flowRunId=flow_run_id),
         )
+

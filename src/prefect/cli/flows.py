@@ -129,7 +129,9 @@ def build(project, name, version, file, path):
     client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
 
     # Environment is built and pushed to the registry
-    environment_metadata = flow.environment.build(flow=flow)
+    environment_metadata = {
+        type(flow.environment).__name__: flow.environment.build(flow=flow)
+    }
 
     # Create the flow in the database
     flows_gql = Flows(client=client)
@@ -218,8 +220,6 @@ def deploy(project, name, version, file, parameters, path):
 
     # Load flow id and environment metadata
     flow_db_id = environment.flows[0].id
-    environment = prefect_json.loads(environment.flows[0].environment)
-    image_name = os.path.join(config_data["REGISTRY_URL"], environment["image_name"])
 
     # Create Flow Run
     flow_runs_gql = FlowRuns(client=client)
@@ -229,10 +229,7 @@ def deploy(project, name, version, file, parameters, path):
     # Run Flow
     run_flow_gql = RunFlow(client=client)
     run_flow_gql.run_flow(
-        image_name=image_name,
-        image_tag=environment["image_tag"],
-        flow_id=environment["flow_id"],
-        flow_run_id=flow_run_id,
+        flow_run_id=flow_run_id
     )
 
     click.echo("{} deployed.".format(name))

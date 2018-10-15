@@ -344,7 +344,7 @@ class LocalEnvironment(Environment):
     """
 
     def __init__(self, encryption_key: str = None) -> None:
-        self.encryption_key = encryption_key or Fernet.generate_key().decode()
+        self.encryption_key = encryption_key
 
     def build(self, flow: "prefect.Flow") -> bytes:
         """
@@ -379,9 +379,11 @@ class LocalEnvironment(Environment):
             with open(tmp.name, "wb") as f:
                 f.write(key)
 
-            env = [
-                'PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="{}"'.format(tmp.name),
-                'PREFECT__REGISTRY__ENCRYPTION_KEY="{}"'.format(self.encryption_key),
-            ]
+            env = ['PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="{}"'.format(tmp.name)]
+
+            if self.encryption_key:
+                env.append(
+                    'PREFECT__REGISTRY__ENCRYPTION_KEY="{}"'.format(self.encryption_key)
+                )
 
             return subprocess.check_output(" ".join(env + [cli_cmd]), shell=True)
