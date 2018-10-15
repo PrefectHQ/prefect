@@ -228,8 +228,6 @@ def deploy(project, name, version, file, parameters, path):
 
     # Run Flow
     run_flow_gql = RunFlow(client=client)
-    run_flow_gql.run_flow(
-        flow_run_id=flow_run_id
-    )
+    run_flow_gql.run_flow(flow_run_id=flow_run_id)
 
     click.echo("{} deployed.".format(name))
