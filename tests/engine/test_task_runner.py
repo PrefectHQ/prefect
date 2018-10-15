@@ -84,7 +84,7 @@ class SecretTask(Task):
     def run(self):
         s = Secret("testing")
         return s.get()
-      
+
 
 def test_task_runner_has_logger():
     r = TaskRunner(Task())
