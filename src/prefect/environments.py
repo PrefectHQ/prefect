@@ -23,35 +23,6 @@ import prefect
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 
-class Secret(Serializable):
-    """
-    A Secret is a serializable object used to represent a secret key & value that is
-    to live inside of an environment.
-
-    Args:
-        - name (str): The name of the secret to be put into the environment
-
-    The value of the Secret is not set upon initialization and instead functions as a
-    property of the Secret. e.g. `my_secret.value = "1234"`
-    """
-
-    _json_codec = ObjectAttributesCodec
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self._value = None
-
-    @property
-    def value(self) -> Any:
-        """Get the secret's value"""
-        return self._value
-
-    @value.setter
-    def value(self, value: Any) -> None:
-        """Set the secret's value"""
-        self._value = value
-
-
 class Environment(Serializable):
     """
     Base class for Environments
@@ -59,8 +30,8 @@ class Environment(Serializable):
 
     _json_codec = ObjectAttributesCodec
 
-    def __init__(self, secrets: Iterable[Secret] = None) -> None:
-        self.secrets = secrets or []
+    def __init__(self) -> None:
+        pass
 
     def build(self, flow: "prefect.Flow") -> bytes:
         """
@@ -98,17 +69,9 @@ class ContainerEnvironment(Environment):
         - tag (str): The tag for this container
         - python_dependencies (list, optional): The list of pip installable python packages
         that will be installed on build of the Docker container
-        - secrets ([Secret], optional): Iterable list of Secrets that will be used as
-        environment variables in the Docker container
     """
 
-    def __init__(
-        self,
-        image: str,
-        tag: str,
-        python_dependencies: list = None,
-        secrets: Iterable[Secret] = None,
-    ) -> None:
+    def __init__(self, image: str, tag: str, python_dependencies: list = None) -> None:
         if tag is None:
             tag = image
 
@@ -118,7 +81,7 @@ class ContainerEnvironment(Environment):
         self._client = docker.from_env()
         self.last_container_id = None
 
-        super().__init__(secrets=secrets)
+        super().__init__()
 
     @property
     def python_dependencies(self) -> list:
@@ -215,12 +178,6 @@ class ContainerEnvironment(Environment):
                 pip_installs = r"RUN pip install " + " \\\n".join(
                     self.python_dependencies
                 )
-
-            # Generate the creation of environment variables from Secrets
-            env_vars = ""
-            if self.secrets:
-                for secret in self.secrets:
-                    env_vars += "ENV {}={}\n".format(secret.name, secret.value)
 
             # Due to prefect being a private repo it currently will require a
             # personal access token. Once pip installable this will change and there won't
