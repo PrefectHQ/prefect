@@ -9,8 +9,10 @@ def get_color(state) -> str:
         "Retrying": "#FFFF00",
         "CachedState": "#ffa500",
         "Pending": "#d3d3d3",
+        "Scheduled": "#b0c4de",
         "Skipped": "#f0fff0",
         "Success": "#008000",
+        "Finished": "#ba55d3",
         "Failed": "#FF0000",
         "TriggerFailed": "#F08080",
         "Unknown": "#000000",
@@ -19,13 +21,14 @@ def get_color(state) -> str:
 
 
 def slack_message_formatter(tracked_obj, state):
+    # see https://api.slack.com/docs/message-attachments
     fields = []
     if state.message is not None:
         if isinstance(state.message, Exception):
             value = "```{}```".format(repr(state.message))
         else:
             value = state.message
-        fields.append({"title": "Message", "value": state.message, "short": False})
+        fields.append({"title": "Message", "value": value, "short": False})
 
     data = {
         "attachments": [
@@ -34,9 +37,10 @@ def slack_message_formatter(tracked_obj, state):
                 "color": get_color(state),
                 "author_name": "Prefect",
                 "author_link": "https://www.prefect.io/",
+                "author_icon": "https://emoji.slack-edge.com/TAN3D79AL/prefect/2497370f58500a5a.png",
                 "title": type(state).__name__,
                 "fields": fields,
-                "title_link": "https://www.prefect.io/",
+                #                "title_link": "https://www.prefect.io/",
                 "text": "{0} is now in a {1} state".format(
                     tracked_obj.name, type(state).__name__
                 ),
@@ -48,8 +52,15 @@ def slack_message_formatter(tracked_obj, state):
 
 
 @curry
-def slack_notifier(tracked_obj, old_state, new_state, ignore_states: list = None, webhook_url: str = None):
+def slack_notifier(
+    tracked_obj,
+    old_state,
+    new_state,
+    ignore_states: list = None,
+    webhook_url: str = None,
+):
     webhook_url = webhook_url or Secret("SLACK_WEBHOOK_URL").get()
+    ignore_states = ignore_states or []
 
     if any([isinstance(new_state, ignored) for ignored in ignore_states]):
         return new_state
