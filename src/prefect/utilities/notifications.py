@@ -1,4 +1,5 @@
 import requests
+from toolz import curry
 
 from prefect.client import Secret
 
@@ -14,7 +15,7 @@ def get_color(state) -> str:
         "TriggerFailed": "#F08080",
         "Unknown": "#000000",
     }
-    return colors.get(type(state).__name__, "#00000080")
+    return colors.get(type(state).__name__, "#000000")
 
 
 def slack_message_formatter(tracked_obj, state):
@@ -46,9 +47,15 @@ def slack_message_formatter(tracked_obj, state):
     return data
 
 
-def slack_notifier(tracked_obj, state, webhook_url: str = None):
+@curry
+def slack_notifier(tracked_obj, old_state, new_state, ignore_states: list = None, webhook_url: str = None):
     webhook_url = webhook_url or Secret("SLACK_WEBHOOK_URL").get()
-    form_data = slack_message_formatter(tracked_obj, state)
+
+    if any([isinstance(new_state, ignored) for ignored in ignore_states]):
+        return new_state
+
+    form_data = slack_message_formatter(tracked_obj, new_state)
     r = requests.post(webhook_url, json=form_data)
     if not r.ok:
         raise ValueError("Slack notification for {} failed".format(tracked_obj))
+    return new_state
