@@ -145,7 +145,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.slug = slug
         self.description = description
 
-        self.logger = logging.get_logger(self.slug or self.name)
+        self.logger = logging.get_logger("Task")
 
         # avoid silently iterating over a string
         if isinstance(tags, str):
