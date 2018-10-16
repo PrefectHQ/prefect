@@ -226,6 +226,12 @@ OUTLINE = [
         "title": "Executors",
     },
     {
+        "page": "utilities/notifications.md",
+        "functions": [prefect.utilities.notifications.slack_notifier],
+        "title": "Notifications and Callback Tools",
+        "top-level-doc": prefect.utilities.notifications,
+    },
+    {
         "page": "utilities/tasks.md",
         "functions": [
             prefect.utilities.tasks.tags,

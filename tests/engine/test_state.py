@@ -87,6 +87,11 @@ def test_timestamp_is_serialized():
     assert state.timestamp == deserialized_state.timestamp
 
 
+@pytest.mark.parametrize("cls", all_states)
+def test_states_have_color(cls):
+    assert cls.color.startswith("#")
+
+
 def test_serialize():
     now = datetime.datetime.utcnow()
     cached = CachedState(
@@ -98,6 +103,7 @@ def test_serialize():
     j = json.dumps(state)
     new_state = json.loads(j)
     assert isinstance(new_state, Success)
+    assert new_state.color == state.color
     assert new_state.result == state.result
     assert new_state.timestamp == state.timestamp
     assert isinstance(new_state.cached, CachedState)
