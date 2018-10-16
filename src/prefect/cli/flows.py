@@ -100,7 +100,7 @@ def run(id, path):
         parameters = flow_runs_gql.query(flow_run_id=flow_run_id)
 
         # TODO: This will change after updated flowruns create function
-        if parameters.flowRuns[0].parameters != '<DotDict>':
+        if parameters.flowRuns[0].parameters != "<DotDict>":
             parameters = prefect_json.loads(parameters.flowRuns[0].parameters)
 
     return flow_runner.run(parameters=parameters)
