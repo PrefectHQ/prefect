@@ -242,6 +242,11 @@ OUTLINE = [
         "title": "Tasks",
     },
     {
+        "page": "utilities/tests.md",
+        "functions": [prefect.utilities.tests.raise_on_exception],
+        "title": "Tests",
+    },
+    {
         "page": "utilities/airflow.md",
         "classes": [AirFlow],
         "title": "Airflow Conversion Tools",
