@@ -9,22 +9,6 @@ from toolz import curry
 from prefect.client import Secret
 
 
-def get_color(state) -> str:
-    colors = {
-        "Retrying": "#FFFF00",
-        "CachedState": "#ffa500",
-        "Pending": "#d3d3d3",
-        "Scheduled": "#b0c4de",
-        "Skipped": "#f0fff0",
-        "Success": "#008000",
-        "Finished": "#ba55d3",
-        "Failed": "#FF0000",
-        "TriggerFailed": "#F08080",
-        "Unknown": "#000000",
-    }
-    return colors.get(type(state).__name__, "#000000")
-
-
 def slack_message_formatter(tracked_obj, state):
     # see https://api.slack.com/docs/message-attachments
     fields = []
@@ -39,7 +23,7 @@ def slack_message_formatter(tracked_obj, state):
         "attachments": [
             {
                 "fallback": "State change notification",
-                "color": get_color(state),
+                "color": state.color,
                 "author_name": "Prefect",
                 "author_link": "https://www.prefect.io/",
                 "author_icon": "https://emoji.slack-edge.com/TAN3D79AL/prefect/2497370f58500a5a.png",
