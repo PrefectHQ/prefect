@@ -2,7 +2,10 @@ from typing import Any
 
 import pytest
 
+import prefect
 from prefect import context
+from prefect.utilities.collections import DotDict
+from prefect.utilities.context import Context
 
 
 def test_context_sets_variables_inside_context_manager():
@@ -85,3 +88,13 @@ def test_modify_context_by_calling_update_inside_contextmanager():
         assert context.a == 2
 
     assert "a" not in context
+
+
+def test_context_loads_secrets_from_config(monkeypatch):
+    secrets_dict = DotDict(password="1234")
+    monkeypatch.setattr(
+        prefect.utilities.context, "config", DotDict(secrets=secrets_dict)
+    )
+    fresh_context = Context()
+    assert "_secrets" in fresh_context
+    assert fresh_context._secrets == secrets_dict
