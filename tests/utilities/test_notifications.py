@@ -1,5 +1,6 @@
 import json
 import pytest
+import sys
 from unittest.mock import MagicMock
 
 import prefect
@@ -78,10 +79,9 @@ def test_formatter_formats_states_with_string_message(state):
 )
 def test_formatter_formats_states_with_exception_message(state):
     orig = slack_message_formatter(Task(), state(message=ZeroDivisionError("Nope")))
-    assert (
-        orig["attachments"][0]["fields"][0]["value"]
-        == "```ZeroDivisionError('Nope',)```"
-    )
+    expected = "```ZeroDivisionError('Nope'"
+    expected += ")```" if sys.version_info >= (3, 7) else ",)```"
+    assert orig["attachments"][0]["fields"][0]["value"] == expected
     assert json.loads(json.dumps(orig)) == orig
 
 
