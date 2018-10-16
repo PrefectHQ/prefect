@@ -1,6 +1,7 @@
 import datetime
 import pytest
 
+import prefect
 from prefect.engine.signals import (
     FAIL,
     RETRY,
@@ -52,6 +53,26 @@ def test_retry_signals_can_set_retry_time():
     with pytest.raises(PrefectStateSignal) as exc:
         raise RETRY(start_time=date)
     assert exc.value.state.start_time == date
+
+
+def test_retry_signals_accept_run_count():
+    with pytest.raises(PrefectStateSignal) as exc:
+        raise RETRY(run_count=5)
+    assert exc.value.state.run_count == 5
+
+
+def test_retry_signals_take_run_count_from_context():
+    with prefect.context(_task_run_count=5):
+        with pytest.raises(PrefectStateSignal) as exc:
+            raise RETRY()
+    assert exc.value.state.run_count == 5
+
+
+def test_retry_signals_prefer_supplied_run_count_to_context():
+    with prefect.context(_task_run_count=5):
+        with pytest.raises(PrefectStateSignal) as exc:
+            raise RETRY(run_count=6)
+    assert exc.value.state.run_count == 6
 
 
 @pytest.mark.parametrize(

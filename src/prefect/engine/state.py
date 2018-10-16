@@ -21,6 +21,7 @@ The four types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, an
 import datetime
 from typing import Any, Dict, Union
 
+import prefect
 from prefect.utilities.json import Serializable
 
 MessageType = Union[str, Exception]
@@ -237,9 +238,30 @@ class Retrying(Scheduled):
         - start_time (datetime): time at which the task is scheduled to be retried
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to values.  Used / set if the Task requires Retries.
+        - run_count (int): The number of runs that had been attempted at the time of this
+            Retry. Defaults to the value stored in context under "_task_run_count" or 1,
+            if that value isn't found.
     """
 
     color = "#FFFF00"
+
+    def __init__(
+        self,
+        result: Any = None,
+        message: MessageType = None,
+        start_time: datetime.datetime = None,
+        cached_inputs: Dict[str, Any] = None,
+        run_count: int = None,
+    ) -> None:
+        super().__init__(
+            result=result,
+            message=message,
+            start_time=start_time,
+            cached_inputs=cached_inputs,
+        )
+        if run_count is None:
+            run_count = prefect.context.get("_task_run_count", 1)
+        self.run_count = run_count
 
 
 # -------------------------------------------------------------------
