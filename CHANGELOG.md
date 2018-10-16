@@ -5,7 +5,7 @@
 ### Major Features
 
 - Refactor `FlowRunner` and `TaskRunner` into a modular `Runner` pipelines - [#260](https://github.com/PrefectHQ/prefect/pull/260), [#267](https://github.com/PrefectHQ/prefect/pull/267)
-- Add configurable `state_handlers` for `FlowRunners`, `Flows`, `TaskRunners`, and `Tasks`  - [#264](https://github.com/PrefectHQ/prefect/pull/264), [#267](https://github.com/PrefectHQ/prefect/pull/267)
+- Add configurable `state_handlers` for `Flows` and `Tasks` - [#264](https://github.com/PrefectHQ/prefect/pull/264), [#267](https://github.com/PrefectHQ/prefect/pull/267), [#277](https://github.com/PrefectHQ/prefect/pull/277)
 - Add slack notification state handler w/ tutorial - [#274](https://github.com/PrefectHQ/prefect/pull/274)
 
 ### Minor Features
