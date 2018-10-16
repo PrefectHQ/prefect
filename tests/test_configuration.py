@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 
+import prefect
 from prefect import configuration
 
 template = b"""
@@ -32,6 +33,8 @@ template = b"""
     [logging]
     format = "log-format"
 
+    [secrets]
+    password = "1234"
     """
 
 
@@ -76,7 +79,7 @@ def test_keys(config):
 def test_repr(config):
     assert (
         repr(config)
-        == "<Config: 'debug', 'env_vars', 'general', 'interpolation', 'logging'>"
+        == "<Config: 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets'>"
     )
     assert repr(config.general) == "<Config: 'nested', 'x', 'y'>"
 
