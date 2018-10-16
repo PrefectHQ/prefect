@@ -134,6 +134,26 @@ def test_task_that_fails_gets_retried_up_to_1_time():
     assert isinstance(state, Failed)
 
 
+def test_task_that_raises_retry_has_start_time_recognized():
+    now = datetime.datetime.utcnow()
+
+    class RetryNow(Task):
+        def run(self):
+            raise signals.RETRY()
+
+    class Retry5Min(Task):
+        def run(self):
+            raise signals.RETRY(start_time=now + datetime.timedelta(minutes=5))
+
+    state = TaskRunner(task=RetryNow()).run()
+    assert isinstance(state, Retrying)
+    assert now - state.start_time < datetime.timedelta(seconds=0.1)
+
+    state = TaskRunner(task=Retry5Min()).run()
+    assert isinstance(state, Retrying)
+    assert state.start_time == now + datetime.timedelta(minutes=5)
+
+
 def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     """
     Test that tasks that raise a retry signal get retried even if they exceed max_retries
