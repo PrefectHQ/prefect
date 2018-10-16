@@ -146,17 +146,6 @@ class TaskRunner(Runner):
             prefect.utilities.collections.flatten_seq(upstream_states.values())
         )
 
-        if hasattr(config, "flow_run_id"):
-            client = initialize_client()
-            task_runs_gql = TaskRuns(client=client)
-
-            # TODO: Tasks need some type of standard ID, obj_id instead of task.id
-            task_run_id = None
-            if hasattr(self.task, "id"):
-                task_run_id = task_runs_gql.query(
-                    flow_run_id=config.flow_run_id, task_id=self.task.id
-                )
-
         # apply throttling
         while True:
             tickets = []
