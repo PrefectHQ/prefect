@@ -709,6 +709,7 @@ class TestCheckRetryStep:
 
     def test_retrying_without_scheduled_time(self):
         state = Retrying()
+        state.scheduled_time = None
         new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
             state=state, inputs={}
         )
@@ -718,6 +719,7 @@ class TestCheckRetryStep:
 
     def test_retrying_without_scheduled_time_and_no_retries(self):
         state = Retrying()
+        state.scheduled_time = None
         new_state = TaskRunner(task=Task(max_retries=0)).check_for_retry(
             state=state, inputs={}
         )
