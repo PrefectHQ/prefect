@@ -102,18 +102,6 @@ def create_user_config(dest_path: str, source_path: str = DEFAULT_CONFIG) -> Non
             dest.write(source.read())
 
 
-# Logging ---------------------------------------------------------------------
-
-
-def configure_logging(logger_name: str) -> None:
-    logger = logging.getLogger(logger_name)
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(config.logging.format)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(getattr(logging, config.logging.level))
-
-
 # Validation ------------------------------------------------------------------
 
 
@@ -246,5 +234,3 @@ if os.path.isfile(config.get("general", {}).get("user_config_path", "")):
         env_var_prefix=ENV_VAR_PREFIX,
         merge_into_config=config,
     )
-
-configure_logging(logger_name="Prefect")
