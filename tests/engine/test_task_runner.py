@@ -1,5 +1,5 @@
 import collections
-import datetime
+from datetime import datetime, timedelta
 from time import sleep
 
 import pytest
@@ -114,14 +114,14 @@ def test_task_that_fails_gets_retried_up_to_1_time():
     """
     Test that failed tasks are marked for retry if run_number is available
     """
-    err_task = ErrorTask(max_retries=1)
+    err_task = ErrorTask(max_retries=1, retry_delay=timedelta(seconds=0))
     task_runner = TaskRunner(task=err_task)
 
     # first run should be retrying
     with prefect.context(_task_run_number=1):
         state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.scheduled_time, datetime.datetime)
+    assert isinstance(state.scheduled_time, datetime)
 
     # second run should
     with prefect.context(_task_run_number=2):
@@ -140,7 +140,7 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     with prefect.context(_task_run_number=1):
         state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.scheduled_time, datetime.datetime)
+    assert isinstance(state.scheduled_time, datetime)
 
     # second run should also be retry because the task raises it explicitly
 
@@ -267,7 +267,7 @@ def test_task_runner_prioritizes_inputs():
 
 
 def test_task_runner_can_handle_timeouts_by_default():
-    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    sleeper = SlowTask(timeout=timedelta(seconds=1))
     state = TaskRunner(sleeper).run(inputs=dict(secs=2))
     assert state.is_failed()
     assert isinstance(state.message, TimeoutError)
@@ -336,11 +336,11 @@ class TestCheckUpstreamSkipped:
 
 
 class TestCheckTaskTrigger:
-    def test_ignore_trigger(self):
+    def test_is_start_task(self):
         task = Task(trigger=prefect.triggers.all_successful)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={Success(), Failed()}, ignore_trigger=True
+            state=state, upstream_states_set={Success(), Failed()}, is_start_task=True
         )
         assert new_state is state
 
@@ -545,8 +545,7 @@ class TestCheckTaskCached:
         task = Task(cache_validator=cache_validators.duration_only)
         state = CachedState(
             cached_result=2,
-            cached_result_expiration=datetime.datetime.utcnow()
-            + datetime.timedelta(minutes=1),
+            cached_result_expiration=datetime.utcnow() + timedelta(minutes=1),
         )
 
         with pytest.raises(ENDRUN) as exc:
@@ -559,8 +558,7 @@ class TestCheckTaskCached:
         task = Task(cache_validator=cache_validators.duration_only)
         state = CachedState(
             cached_result=2,
-            cached_result_expiration=datetime.datetime.utcnow()
-            + datetime.timedelta(minutes=-1),
+            cached_result_expiration=datetime.utcnow() + timedelta(minutes=-1),
         )
         new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
         assert new_state is state
@@ -726,7 +724,7 @@ class TestCheckRetryStep:
         assert new_state.scheduled_time is not None
 
     def test_retrying_with_scheduled_time(self):
-        state = Retrying(scheduled_time=datetime.datetime.utcnow())
+        state = Retrying(scheduled_time=datetime.utcnow())
         new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
             state=state, inputs={}
         )
@@ -747,7 +745,7 @@ class TestCacheResultStep:
         assert new_state is state
 
     def test_success_state(self):
-        @prefect.task(cache_for=datetime.timedelta(minutes=10))
+        @prefect.task(cache_for=timedelta(minutes=10))
         def fn(x):
             return x + 1
 
@@ -760,6 +758,55 @@ class TestCacheResultStep:
         assert isinstance(new_state.cached, CachedState)
         assert new_state.cached.cached_result == 2
         assert new_state.cached.cached_inputs == {"x": 5}
+
+
+class TestCheckScheduledStep:
+    @pytest.mark.parametrize(
+        "state", [Failed(), Pending(), Skipped(), Running(), Success()]
+    )
+    def test_non_scheduled_states(self, state):
+        assert TaskRunner(task=Task()).check_task_is_scheduled(state=state) is state
+
+    @pytest.mark.parametrize(
+        "state", [Scheduled(scheduled_time=None), Retrying(scheduled_time=None)]
+    )
+    def test_scheduled_states_without_scheduled_time(self, state):
+        assert TaskRunner(task=Task()).check_task_is_scheduled(state=state) is state
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            Scheduled(scheduled_time=datetime.utcnow() + timedelta(minutes=1)),
+            Retrying(scheduled_time=datetime.utcnow() + timedelta(minutes=1)),
+        ],
+    )
+    def test_scheduled_states_with_future_scheduled_time(self, state):
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task=Task()).check_task_is_scheduled(state=state)
+        assert exc.value.state is state
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            Scheduled(scheduled_time=datetime.utcnow() - timedelta(minutes=1)),
+            Retrying(scheduled_time=datetime.utcnow() - timedelta(minutes=1)),
+        ],
+    )
+    def test_scheduled_states_with_past_scheduled_time(self, state):
+        assert TaskRunner(task=Task()).check_task_is_scheduled(state=state) is state
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            Scheduled(scheduled_time=datetime.utcnow() + timedelta(minutes=1)),
+            Retrying(scheduled_time=datetime.utcnow() + timedelta(minutes=1)),
+        ],
+    )
+    def test_scheduled_states_start_task_with_future_scheduled_time(self, state):
+        result = TaskRunner(task=Task()).check_task_is_scheduled(
+            state=state, is_start_task=True
+        )
+        assert result is state
 
 
 handler_results = collections.defaultdict(lambda: 0)
