@@ -102,6 +102,14 @@ class State(Serializable):
         """
         return isinstance(self, Finished)
 
+    def is_scheduled(self) -> bool:
+        """Checks if the object is currently in a scheduled state, which includes retrying.
+
+        Returns:
+            - bool: `True` if the state is skipped, `False` otherwise
+        """
+        return isinstance(self, Scheduled)
+
     def is_skipped(self) -> bool:
         """Checks if the object is currently in a skipped state
 
@@ -207,7 +215,7 @@ class Scheduled(Pending):
         cached_inputs: Dict[str, Any] = None,
     ) -> None:
         super().__init__(result=result, message=message, cached_inputs=cached_inputs)
-        self.scheduled_time = scheduled_time
+        self.scheduled_time = scheduled_time or datetime.datetime.utcnow()
 
 
 class Retrying(Scheduled):
