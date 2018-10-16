@@ -21,3 +21,8 @@ def test_call_runner_target_handlers_gets_called_in_handle_state_change():
 
     with pytest.raises(ENDRUN):
         TestRunner().handle_state_change(Pending(), Running())
+
+
+def test_runner_has_logger():
+    r = Runner()
+    assert r.logger.name == "prefect.Runner"

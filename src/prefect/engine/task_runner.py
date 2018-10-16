@@ -50,18 +50,11 @@ class TaskRunner(Runner):
 
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - logger_name (str): Optional. The name of the logger to use when
-            logging. Defaults to the name of the class.
     """
 
-    def __init__(
-        self,
-        task: Task,
-        state_handlers: Iterable[Callable] = None,
-        logger_name: str = None,
-    ) -> None:
+    def __init__(self, task: Task, state_handlers: Iterable[Callable] = None) -> None:
         self.task = task
-        super().__init__(state_handlers=state_handlers, logger_name=logger_name)
+        super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
