@@ -1,3 +1,6 @@
+"""
+Tools and utilities for notifications and callbacks.
+"""
 import requests
 from toolz import curry
 
@@ -59,6 +62,37 @@ def slack_notifier(
     ignore_states: list = None,
     webhook_url: str = None,
 ):
+    """
+    Slack state change handler; requires having the Prefect slack app installed.
+    Works as a standalone state handler, or can be called from within a custom
+    state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
+
+    Args:
+        - tracked_obj (Task or Flow): Task or Flow object the handler is
+            registered with
+        - old_state (State): previous state of tracked object
+        - new_state (State): new state of tracked object
+        - ignore_states ([State], optional): list of `State` classes to ignore,
+            e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
+        - webhook_url (str, optional): the Prefet slack app webhook URL; if not
+            provided, will attempt to use your `"SLACK_WEBHOOK_URL"` Prefect Secret
+
+    Returns:
+        - State: the `new_state` object which was provided
+
+    Raises:
+        - ValueError: if the slack notification fails for any reason
+
+    Example:
+        ```python
+        from prefect import task
+        from prefect.utilities.notifications import slack_notifier
+
+        @task(state_handlers=[slack_notifier(ignore_states=[Running])]) # uses currying
+        def add(x, y):
+            return x + y
+        ```
+    """
     webhook_url = webhook_url or Secret("SLACK_WEBHOOK_URL").get()
     ignore_states = ignore_states or []
 
