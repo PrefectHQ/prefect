@@ -97,10 +97,10 @@ def run(id, path):
         client.login(email=config.EMAIL, password=config.PASSWORD)
 
         flow_runs_gql = FlowRuns(client=client)
-        parameters = flow_runs_gql.query(flow_run_id=flow_run_id)
+        stored_parameters = flow_runs_gql.query(flow_run_id=flow_run_id)
 
         # TODO: This will change after updated flowruns create function
-        if parameters.flowRuns[0].parameters != "<DotDict>":
+        if stored_parameters.flowRuns[0].parameters != "<DotDict>":
             parameters = prefect_json.loads(parameters.flowRuns[0].parameters)
 
     return flow_runner.run(parameters=parameters)
@@ -230,6 +230,6 @@ def deploy(project, name, version, file, parameters, path):
 
     # Run Flow
     run_flow_gql = RunFlow(client=client)
-    run_flow_gql.run_flow(flow_run_id=flow_run_id)
+    output = run_flow_gql.run_flow(flow_run_id=flow_run_id)
 
     click.echo("{} deployed.".format(name))
