@@ -43,7 +43,7 @@ Before you can begin experimenting though, you need to install the Prefect Slack
 
 ## Installation Instructions
 
-Currently, the Prefect slack app can only be installed with a "secret" installation URL. Eventually it will be installable by simply searching for it in the Slack App Directory, but not today.  Given this, please be mindful of sharing this URL: [installation URL](https://slack.com/oauth/authorize?client_id=362115247360.455389746338&scope=incoming-webhook).
+Currently, the Prefect slack app can only be installed with a "secret" installation URL. Eventually it will be installable by simply searching for it in the Slack App Directory, but not today.  Given this, please be mindful of sharing this URL: [installation URL](https://prefect-slack.appspot.com).
 
 After navigating to the installation URL, you can select the workspace and specific channel you want Prefect to post to (creating a designated #prefect channel could come in handy here).  For example, if I want notifications to come directly to me in a private message:
 <center>
