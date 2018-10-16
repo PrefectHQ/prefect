@@ -124,7 +124,7 @@ class Flow(Serializable):
         self._cache = {}  # type: dict
 
         self._id = str(uuid.uuid4())
-        self.logger = logging.get_logger("flow:{}".format(self.id))
+        self.logger = logging.get_logger("Flow")
 
         self.task_info = dict()  # type: Dict[Task, dict]
 

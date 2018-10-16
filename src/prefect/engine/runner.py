@@ -63,15 +63,13 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
 
 
 class Runner:
-    def __init__(
-        self, state_handlers: Iterable[Callable] = None, logger_name: str = None
-    ) -> None:
+    def __init__(self, state_handlers: Iterable[Callable] = None) -> None:
         if state_handlers is not None and not isinstance(
             state_handlers, collections.Sequence
         ):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
-        self.logger = logging.get_logger(logger_name or type(self).__name__)
+        self.logger = logging.get_logger(type(self).__name__)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
