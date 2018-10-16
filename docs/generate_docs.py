@@ -25,6 +25,7 @@ from functools import partial
 import prefect
 from prefect.utilities.airflow_utils import AirFlow
 from prefect.utilities.bokeh_runner import BokehRunner
+from prefect.utilities.tests import raise_on_exception
 
 OUTLINE = [
     {
@@ -241,11 +242,7 @@ OUTLINE = [
         ],
         "title": "Tasks",
     },
-    {
-        "page": "utilities/tests.md",
-        "functions": [prefect.utilities.tests.raise_on_exception],
-        "title": "Tests",
-    },
+    {"page": "utilities/tests.md", "functions": [raise_on_exception], "title": "Tests"},
     {
         "page": "utilities/airflow.md",
         "classes": [AirFlow],
