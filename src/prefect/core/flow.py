@@ -923,21 +923,11 @@ class Flow(Serializable):
             raise ImportError(msg)
 
         def get_color(task: Task) -> str:
-            colors = {
-                "Retrying": "#FFFF0080",
-                "CachedState": "orange",
-                "Pending": "lightgrey",
-                "Skipped": "honeydew",
-                "Success": "#00800080",
-                "Failed": "#FF0000BF",
-                "TriggerFailed": "#F0808080",
-                "Unknown": "#00000080",
-            }
             try:
                 assert flow_state  # mypy assert
                 assert isinstance(flow_state.result, dict)  # mypy assert
                 state = flow_state.result.get(task)
-                return colors.get(type(state).__name__, "#00000080")
+                return state.color + "80"
             except:
                 return "#00000080"
 
