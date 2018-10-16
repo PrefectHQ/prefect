@@ -77,8 +77,8 @@ def test_timestamp_protected():
 
 def test_scheduled_states_have_default_times():
     now = datetime.datetime.utcnow()
-    assert now - Scheduled().scheduled_time < datetime.timedelta(seconds=0.1)
-    assert now - Retrying().scheduled_time < datetime.timedelta(seconds=0.1)
+    assert now - Scheduled().start_time < datetime.timedelta(seconds=0.1)
+    assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
 
 
 def test_timestamp_is_serialized():

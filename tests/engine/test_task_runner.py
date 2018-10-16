@@ -121,7 +121,7 @@ def test_task_that_fails_gets_retried_up_to_1_time():
     with prefect.context(_task_run_number=1):
         state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.scheduled_time, datetime.datetime)
+    assert isinstance(state.start_time, datetime.datetime)
 
     # second run should
     with prefect.context(_task_run_number=2):
@@ -140,7 +140,7 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     with prefect.context(_task_run_number=1):
         state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.scheduled_time, datetime.datetime)
+    assert isinstance(state.start_time, datetime.datetime)
 
     # second run should also be retry because the task raises it explicitly
 
@@ -707,8 +707,8 @@ class TestCheckRetryStep:
         assert isinstance(new_state, Retrying)
         assert new_state.cached_inputs == {"x": 1}
 
-    def test_retrying_with_scheduled_time(self):
-        state = Retrying(scheduled_time=datetime.datetime.utcnow())
+    def test_retrying_with_start_time(self):
+        state = Retrying(start_time=datetime.datetime.utcnow())
         new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
             state=state, inputs={}
         )
