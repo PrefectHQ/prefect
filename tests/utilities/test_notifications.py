@@ -157,3 +157,28 @@ def test_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state):
     returned = handler(Task(), "", state)
     assert returned is state
     assert ok.called is not state.is_finished()
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        Running,
+        Pending,
+        Finished,
+        Failed,
+        TriggerFailed,
+        CachedState,
+        Scheduled,
+        Retrying,
+        Success,
+        Skipped,
+    ],
+)
+def test_notifier_is_curried_and_uses_only_states(monkeypatch, state):
+    state = state()
+    ok = MagicMock(ok=True)
+    monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
+    handler = slack_notifier(only_states=[TriggerFailed])
+    returned = handler(Task(), "", state)
+    assert returned is state
+    assert ok.called is isinstance(state, TriggerFailed)

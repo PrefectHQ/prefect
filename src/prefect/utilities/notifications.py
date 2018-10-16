@@ -60,6 +60,7 @@ def slack_notifier(
     old_state,
     new_state,
     ignore_states: list = None,
+    only_states: list = None,
     webhook_url: str = None,
 ):
     """
@@ -74,6 +75,8 @@ def slack_notifier(
         - new_state (State): new state of tracked object
         - ignore_states ([State], optional): list of `State` classes to ignore,
             e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
+        - only_states ([State], optional): similar to `ignore_states`, but
+            instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
         - webhook_url (str, optional): the Prefet slack app webhook URL; if not
             provided, will attempt to use your `"SLACK_WEBHOOK_URL"` Prefect Secret
 
@@ -95,8 +98,12 @@ def slack_notifier(
     """
     webhook_url = webhook_url or Secret("SLACK_WEBHOOK_URL").get()
     ignore_states = ignore_states or []
+    only_states = only_states or []
 
     if any([isinstance(new_state, ignored) for ignored in ignore_states]):
+        return new_state
+
+    if only_states and not any([isinstance(new_state, included) for included in only_states]):
         return new_state
 
     form_data = slack_message_formatter(tracked_obj, new_state)
