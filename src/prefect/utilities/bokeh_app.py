@@ -25,16 +25,18 @@ from bokeh.plotting import ColumnDataSource, figure
 
 from prefect.engine import state
 
-colors = [
-    ("Not Run", "black"),
-    ("Retrying", "yellow"),
-    ("CachedState", "orange"),
-    ("Pending", "lightgrey"),
-    ("Skipped", "honeydew"),
-    ("Success", "green"),
-    ("Failed", "red"),
-    ("TriggerFailed", "lightcoral"),
-]
+colors = set(("Not Run", "black"))
+
+
+def enumerate_colors(start):
+    colors.add((start.__name__, start.color))
+    for substate in start.__subclasses__():
+        colors.add((substate.__name__, substate.color))
+        enumerate_colors(substate)
+
+
+enumerate_colors(state.State)
+
 color_map = CategoricalColorMapper(
     factors=[x for x, y in colors], palette=[y for x, y in colors]
 )
