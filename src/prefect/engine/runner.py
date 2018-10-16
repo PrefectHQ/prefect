@@ -1,11 +1,11 @@
 import collections
 import functools
-import logging
 from typing import Any, Callable, Iterable
 
 import prefect
 from prefect.engine import signals
 from prefect.engine.state import State, Failed
+from prefect.utilities import logging
 
 
 class ENDRUN(Exception):
@@ -63,8 +63,8 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
 
 
 class Runner:
-    def __init__(self, logger_name: str = None) -> None:
-        self.logger = logging.getLogger(logger_name or type(self).__name__)
+    def __init__(self) -> None:
+        self.logger = logging.get_logger(type(self).__name__)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """

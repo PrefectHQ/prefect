@@ -10,7 +10,7 @@ states propagate throughout the Flow.
 **Example:**
 
 ```python
-from prefect import Flow, task
+from prefect import Flow, Parameter, task
 from prefect.utilities.bokeh_runner import BokehRunner
 
 @task

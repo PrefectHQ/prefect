@@ -75,10 +75,21 @@ def test_timestamp_protected():
         state.timestamp = 1
 
 
+def test_scheduled_states_have_default_times():
+    now = datetime.datetime.utcnow()
+    assert now - Scheduled().start_time < datetime.timedelta(seconds=0.1)
+    assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
+
+
 def test_timestamp_is_serialized():
     state = Success()
     deserialized_state = json.loads(json.dumps(state))
     assert state.timestamp == deserialized_state.timestamp
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_states_have_color(cls):
+    assert cls.color.startswith("#")
 
 
 def test_serialize():
@@ -92,6 +103,7 @@ def test_serialize():
     j = json.dumps(state)
     new_state = json.loads(j)
     assert isinstance(new_state, Success)
+    assert new_state.color == state.color
     assert new_state.result == state.result
     assert new_state.timestamp == state.timestamp
     assert isinstance(new_state.cached, CachedState)
@@ -180,6 +192,7 @@ class TestStateMethods:
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
 
@@ -189,6 +202,17 @@ class TestStateMethods:
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
+        assert state.is_scheduled()
+        assert not state.is_successful()
+        assert not state.is_failed()
+
+    def test_state_type_methods_with_retry_state(self):
+        state = Retrying()
+        assert state.is_pending()
+        assert not state.is_running()
+        assert not state.is_finished()
+        assert not state.is_skipped()
+        assert state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
 
@@ -198,6 +222,7 @@ class TestStateMethods:
         assert state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
 
@@ -207,6 +232,7 @@ class TestStateMethods:
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
 
@@ -216,6 +242,7 @@ class TestStateMethods:
         assert not state.is_running()
         assert state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert state.is_successful()
         assert not state.is_failed()
 
@@ -225,6 +252,7 @@ class TestStateMethods:
         assert not state.is_running()
         assert state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert not state.is_successful()
         assert state.is_failed()
 
@@ -234,6 +262,7 @@ class TestStateMethods:
         assert not state.is_running()
         assert state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert not state.is_successful()
         assert state.is_failed()
 
@@ -243,5 +272,6 @@ class TestStateMethods:
         assert not state.is_running()
         assert state.is_finished()
         assert state.is_skipped()
+        assert not state.is_scheduled()
         assert state.is_successful()
         assert not state.is_failed()

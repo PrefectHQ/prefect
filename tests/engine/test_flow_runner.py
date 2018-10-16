@@ -90,6 +90,11 @@ class SlowTask(Task):
         time.sleep(secs)
 
 
+def test_flow_runner_has_logger():
+    r = FlowRunner(Flow())
+    assert r.logger.name == "prefect.FlowRunner"
+
+
 def test_flow_runner_runs_basic_flow_with_1_task():
     flow = prefect.Flow()
     task = SuccessTask()

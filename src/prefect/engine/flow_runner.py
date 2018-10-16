@@ -28,8 +28,6 @@ class FlowRunner(Runner):
         - flow (Flow): the `Flow` to be run
         - task_runner_cls (TaskRunner, optional): The class used for running
             individual Tasks. Defaults to [TaskRunner](task_runner.html)
-        - logger_name (str): Optional. The name of the logger to use when
-            logging. Defaults to the name of the class.
 
     Note: new FlowRunners are initialized within the call to `Flow.run()` and in general,
     this is the endpoint through which FlowRunners will be interacted with most frequently.
@@ -48,12 +46,10 @@ class FlowRunner(Runner):
     ```
     """
 
-    def __init__(
-        self, flow: Flow, task_runner_cls: type = None, logger_name: str = None
-    ) -> None:
+    def __init__(self, flow: Flow, task_runner_cls: type = None) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
-        super().__init__(logger_name=logger_name)
+        super().__init__()
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
