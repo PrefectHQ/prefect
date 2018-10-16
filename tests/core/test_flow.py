@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 import cloudpickle
 import pytest
@@ -104,6 +105,10 @@ class TestCreateFlow:
     def test_create_flow_illegal_handler(self):
         with pytest.raises(TypeError):
             Flow(state_handlers=lambda *a: 1)
+
+    def test_flow_has_logger(self):
+        f = Flow()
+        assert isinstance(f.logger, logging.Logger)
 
 
 def test_add_task_to_flow():
