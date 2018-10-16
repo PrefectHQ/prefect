@@ -707,26 +707,6 @@ class TestCheckRetryStep:
         assert isinstance(new_state, Retrying)
         assert new_state.cached_inputs == {"x": 1}
 
-    def test_retrying_without_scheduled_time(self):
-        state = Retrying()
-        state.scheduled_time = None
-        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
-            state=state, inputs={}
-        )
-        assert new_state is not state
-        assert isinstance(new_state, Retrying)
-        assert new_state.scheduled_time is not None
-
-    def test_retrying_without_scheduled_time_and_no_retries(self):
-        state = Retrying()
-        state.scheduled_time = None
-        new_state = TaskRunner(task=Task(max_retries=0)).check_for_retry(
-            state=state, inputs={}
-        )
-        assert new_state is not state
-        assert isinstance(new_state, Retrying)
-        assert new_state.scheduled_time is not None
-
     def test_retrying_with_scheduled_time(self):
         state = Retrying(scheduled_time=datetime.datetime.utcnow())
         new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(

@@ -469,8 +469,7 @@ class TaskRunner(Runner):
     @call_state_handlers
     def check_for_retry(self, state: State, inputs: Dict[str, Any]) -> State:
         """
-        Checks to see if a FAILED task should be retried. Also assigns a retry time to
-        RETRYING states that don't have one set (for example, if raised from inside a task).
+        Checks to see if a FAILED task should be retried.
 
         Args:
             - state (State): the current state of this task
@@ -480,9 +479,7 @@ class TaskRunner(Runner):
         Returns:
             State: the state of the task after running the check
         """
-        if state.is_failed() or (
-            isinstance(state, Retrying) and state.scheduled_time is None
-        ):
+        if state.is_failed():
             run_number = prefect.context.get("_task_run_number", 1)
             if run_number <= self.task.max_retries or isinstance(state, Retrying):
                 scheduled_time = datetime.datetime.utcnow() + self.task.retry_delay
