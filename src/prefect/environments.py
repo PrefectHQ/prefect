@@ -196,7 +196,7 @@ class ContainerEnvironment(Environment):
             # Remove the image locally after being pushed
             client.images.remove("{}:{}".format(image_name, self.tag))
 
-            return {"image_name": self.name, "image_tag": self.tag, "flow_id": flow.id}
+            return {"image_name": image_name, "image_tag": self.tag, "flow_id": flow.id}
 
     def run(self, cli_cmd: str) -> None:
         """Run a command in the Docker container

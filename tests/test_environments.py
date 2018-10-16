@@ -123,7 +123,7 @@ class TestLocalEnvironment:
     def test_create_local_environment(self):
         env = LocalEnvironment()
         assert env
-        assert env.encryption_key
+        assert env.encryption_key is None
 
     def test_build_local_environment(self):
         key = LocalEnvironment().build(Flow())
@@ -133,6 +133,7 @@ class TestLocalEnvironment:
         f = prefect.Flow(environment=LocalEnvironment())
 
         key = f.environment.build(f)
+        print(key)
         output = f.environment.run(key, "prefect flows ids")
         assert json.loads(output.decode()) == {
             f.id: dict(project=f.project, name=f.name, version=f.version)
