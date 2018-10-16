@@ -1,6 +1,7 @@
 # Prefect Changelog
 
 ## Development <Badge text="alpha" type="warn">
+
 ### Major Features
 
 - Refactor `FlowRunner` and `TaskRunner` into a modular `Runner` pipelines - [#260](https://github.com/PrefectHQ/prefect/pull/260), [#267](https://github.com/PrefectHQ/prefect/pull/267)
@@ -14,9 +15,9 @@
 - Add new `PAUSE` signal for halting task execution - [#246](https://github.com/PrefectHQ/prefect/pull/246)
 - Add ability to timeout task execution for all executors except `DaskExecutor(processes=True)` - [#240](https://github.com/PrefectHQ/prefect/issues/240)
 - Add explicit unit test to check Black formatting (Python 3.6+) - [#261](https://github.com/PrefectHQ/prefect/pull/261)
-- Add ability to use local secrets - [#231](https://github.com/PrefectHQ/prefect/issues/231)
-- Add `is_skipped()` method for `State` objects - [#266](https://github.com/PrefectHQ/prefect/pull/266)
-- Add ability to set local secrets in user config file - [#274](https://github.com/PrefectHQ/prefect/pull/274)
+- Add ability to set local secrets in user config file - [#231](https://github.com/PrefectHQ/prefect/issues/231), [#274](https://github.com/PrefectHQ/prefect/pull/274)
+- Add `is_skipped()` and `is_scheduled()` methods for `State` objects - [#266](https://github.com/PrefectHQ/prefect/pull/266), [#278](https://github.com/PrefectHQ/prefect/pull/278)
+- Adds `now()` as a default `start_time` for `Scheduled` states - [#278](https://github.com/PrefectHQ/prefect/pull/278)
 
 ### Fixes
 
@@ -24,7 +25,8 @@
 
 ### Breaking Changes
 
-- None
+- Renamed `scheduled_time` -> `start_time` in `Scheduled` state objects - [#278](https://github.com/PrefectHQ/prefect/pull/278)
+- `TaskRunner.check_for_retry` no longer checks for `Retry` states without `start_time` set - [#278](https://github.com/PrefectHQ/prefect/pull/278)
 
 ## 0.3.2 <Badge text="alpha" type="warn">
 
