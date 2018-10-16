@@ -103,7 +103,9 @@ def slack_notifier(
     if any([isinstance(new_state, ignored) for ignored in ignore_states]):
         return new_state
 
-    if only_states and not any([isinstance(new_state, included) for included in only_states]):
+    if only_states and not any(
+        [isinstance(new_state, included) for included in only_states]
+    ):
         return new_state
 
     form_data = slack_message_formatter(tracked_obj, new_state)
