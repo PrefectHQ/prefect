@@ -1,6 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import os
+from typing import Any
 
 import prefect
 from prefect.utilities import json
@@ -537,3 +538,33 @@ class RunFlow(ClientModule):
             """,
             input=dict(flowRunId=flow_run_id),
         )
+
+
+class Secret(json.Serializable):
+    """
+    A Secret is a serializable object used to represent a secret key & value.
+
+    Args:
+        - name (str): The name of the secret
+
+    The value of the `Secret` is not set upon initialization and instead is set
+    either in `prefect.context` or on the server, with behavior dependent on the value
+    of the `use_local_secrets` flag in your Prefect configuration file.
+    """
+
+    _json_codec = json.ObjectAttributesCodec
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def get(self):
+        """
+        Retrieve the secret value.
+
+        If not found, returns `None`.
+        """
+        if prefect.config.server.use_local_secrets is True:
+            secrets = prefect.context.get("_secrets", {})
+            return secrets.get(self.name)
+        else:
+            return None

@@ -57,18 +57,11 @@ class TaskRunner(Runner):
 
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - logger_name (str): Optional. The name of the logger to use when
-            logging. Defaults to the name of the class.
     """
 
-    def __init__(
-        self,
-        task: Task,
-        state_handlers: Iterable[Callable] = None,
-        logger_name: str = None,
-    ) -> None:
+    def __init__(self, task: Task, state_handlers: Iterable[Callable] = None) -> None:
         self.task = task
-        super().__init__(state_handlers=state_handlers, logger_name=logger_name)
+        super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -476,8 +469,7 @@ class TaskRunner(Runner):
     @call_state_handlers
     def check_for_retry(self, state: State, inputs: Dict[str, Any]) -> State:
         """
-        Checks to see if a FAILED task should be retried. Also assigns a retry time to
-        RETRYING states that don't have one set (for example, if raised from inside a task).
+        Checks to see if a FAILED task should be retried.
 
         Args:
             - state (State): the current state of this task
@@ -487,17 +479,15 @@ class TaskRunner(Runner):
         Returns:
             State: the state of the task after running the check
         """
-        if state.is_failed() or (
-            isinstance(state, Retrying) and state.scheduled_time is None
-        ):
+        if state.is_failed():
             run_number = prefect.context.get("_task_run_number", 1)
             if run_number <= self.task.max_retries or isinstance(state, Retrying):
-                scheduled_time = datetime.datetime.utcnow() + self.task.retry_delay
+                start_time = datetime.datetime.utcnow() + self.task.retry_delay
                 msg = "Retrying Task (after attempt {n} of {m})".format(
                     n=run_number, m=self.task.max_retries + 1
                 )
                 return Retrying(
-                    scheduled_time=scheduled_time, cached_inputs=inputs, message=msg
+                    start_time=start_time, cached_inputs=inputs, message=msg
                 )
 
         return state

@@ -19,6 +19,7 @@ from prefect.core.task import Parameter, Task
 from prefect.environments import Environment
 from prefect.utilities.json import Serializable, dumps
 from prefect.utilities.tasks import as_task, unmapped
+from prefect.utilities import logging
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
@@ -123,6 +124,8 @@ class Flow(Serializable):
         self._cache = {}  # type: dict
 
         self._id = str(uuid.uuid4())
+        self.logger = logging.get_logger("Flow")
+
         self.task_info = dict()  # type: Dict[Task, dict]
 
         self.name = name or type(self).__name__
@@ -923,21 +926,11 @@ class Flow(Serializable):
             raise ImportError(msg)
 
         def get_color(task: Task) -> str:
-            colors = {
-                "Retrying": "#FFFF0080",
-                "CachedState": "orange",
-                "Pending": "lightgrey",
-                "Skipped": "honeydew",
-                "Success": "#00800080",
-                "Failed": "#FF0000BF",
-                "TriggerFailed": "#F0808080",
-                "Unknown": "#00000080",
-            }
             try:
                 assert flow_state  # mypy assert
                 assert isinstance(flow_state.result, dict)  # mypy assert
                 state = flow_state.result.get(task)
-                return colors.get(type(state).__name__, "#00000080")
+                return state.color + "80"
             except:
                 return "#00000080"
 

@@ -7,6 +7,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
+from prefect.client import Secret
 from prefect.core.edge import Edge
 from prefect.core.task import Task
 from prefect.engine import signals, cache_validators
@@ -79,6 +80,17 @@ class SlowTask(Task):
         sleep(secs)
 
 
+class SecretTask(Task):
+    def run(self):
+        s = Secret("testing")
+        return s.get()
+
+
+def test_task_runner_has_logger():
+    r = TaskRunner(Task())
+    assert r.logger.name == "prefect.TaskRunner"
+
+
 def test_task_that_succeeds_is_marked_success():
     """
     Test running a task that finishes successfully and returns a result
@@ -114,12 +126,32 @@ def test_task_that_fails_gets_retried_up_to_1_time():
     with prefect.context(_task_run_number=1):
         state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.scheduled_time, datetime.datetime)
+    assert isinstance(state.start_time, datetime.datetime)
 
     # second run should
     with prefect.context(_task_run_number=2):
         state = task_runner.run(state=state)
     assert isinstance(state, Failed)
+
+
+def test_task_that_raises_retry_has_start_time_recognized():
+    now = datetime.datetime.utcnow()
+
+    class RetryNow(Task):
+        def run(self):
+            raise signals.RETRY()
+
+    class Retry5Min(Task):
+        def run(self):
+            raise signals.RETRY(start_time=now + datetime.timedelta(minutes=5))
+
+    state = TaskRunner(task=RetryNow()).run()
+    assert isinstance(state, Retrying)
+    assert now - state.start_time < datetime.timedelta(seconds=0.1)
+
+    state = TaskRunner(task=Retry5Min()).run()
+    assert isinstance(state, Retrying)
+    assert state.start_time == now + datetime.timedelta(minutes=5)
 
 
 def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
@@ -133,7 +165,7 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     with prefect.context(_task_run_number=1):
         state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.scheduled_time, datetime.datetime)
+    assert isinstance(state.start_time, datetime.datetime)
 
     # second run should also be retry because the task raises it explicitly
 
@@ -264,6 +296,13 @@ def test_task_runner_can_handle_timeouts_by_default():
     state = TaskRunner(sleeper).run(inputs=dict(secs=2))
     assert state.is_failed()
     assert isinstance(state.message, TimeoutError)
+
+
+def test_task_runner_handles_secrets():
+    t = SecretTask()
+    state = TaskRunner(t).run(context=dict(_secrets=dict(testing="my_private_str")))
+    assert state.is_successful()
+    assert state.result is "my_private_str"
 
 
 class TestCheckUpstreamFinished:
@@ -693,26 +732,8 @@ class TestCheckRetryStep:
         assert isinstance(new_state, Retrying)
         assert new_state.cached_inputs == {"x": 1}
 
-    def test_retrying_without_scheduled_time(self):
-        state = Retrying()
-        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
-            state=state, inputs={}
-        )
-        assert new_state is not state
-        assert isinstance(new_state, Retrying)
-        assert new_state.scheduled_time is not None
-
-    def test_retrying_without_scheduled_time_and_no_retries(self):
-        state = Retrying()
-        new_state = TaskRunner(task=Task(max_retries=0)).check_for_retry(
-            state=state, inputs={}
-        )
-        assert new_state is not state
-        assert isinstance(new_state, Retrying)
-        assert new_state.scheduled_time is not None
-
-    def test_retrying_with_scheduled_time(self):
-        state = Retrying(scheduled_time=datetime.datetime.utcnow())
+    def test_retrying_with_start_time(self):
+        state = Retrying(start_time=datetime.datetime.utcnow())
         new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
             state=state, inputs={}
         )
@@ -789,6 +810,15 @@ class TestTaskStateHandlers:
         TaskRunner(task=fn).run()
         # the task changed state three times: Pending -> Running -> Failed -> Retry
         assert handler_results["Task"] == 3
+
+    def test_task_handlers_are_called_on_failure(self):
+        @prefect.task(state_handlers=[task_handler])
+        def fn():
+            1 / 0
+
+        TaskRunner(task=fn).run()
+        # the task changed state two times: Pending -> Running -> Failed
+        assert handler_results["Task"] == 2
 
     def test_multiple_task_handlers_are_called(self):
         task = Task(state_handlers=[task_handler, task_handler])
