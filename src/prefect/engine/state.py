@@ -104,6 +104,14 @@ class State(Serializable):
         """
         return isinstance(self, Finished)
 
+    def is_scheduled(self) -> bool:
+        """Checks if the object is currently in a scheduled state, which includes retrying.
+
+        Returns:
+            - bool: `True` if the state is skipped, `False` otherwise
+        """
+        return isinstance(self, Scheduled)
+
     def is_skipped(self) -> bool:
         """Checks if the object is currently in a skipped state
 
@@ -200,7 +208,7 @@ class Scheduled(Pending):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - scheduled_time (datetime): time at which the task is scheduled to run
+        - start_time (datetime): time at which the task is scheduled to run
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to values.  Used / set if the Task requires Retries.
     """
@@ -211,11 +219,11 @@ class Scheduled(Pending):
         self,
         result: Any = None,
         message: MessageType = None,
-        scheduled_time: datetime.datetime = None,
+        start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Any] = None,
     ) -> None:
         super().__init__(result=result, message=message, cached_inputs=cached_inputs)
-        self.scheduled_time = scheduled_time
+        self.start_time = start_time or datetime.datetime.utcnow()
 
 
 class Retrying(Scheduled):
@@ -226,7 +234,7 @@ class Retrying(Scheduled):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - scheduled_time (datetime): time at which the task is scheduled to be retried
+        - start_time (datetime): time at which the task is scheduled to be retried
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to values.  Used / set if the Task requires Retries.
     """
@@ -265,7 +273,8 @@ class Success(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - cached (CachedState): a `CachedState` which can be used for future
-            runs of this task (if the cache is still valid); this attribute should only be set by the task runner.
+            runs of this task (if the cache is still valid); this attribute should only be set
+            by the task runner.
     """
 
     color = "#008000"
