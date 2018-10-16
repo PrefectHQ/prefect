@@ -92,10 +92,9 @@ flow_state = f.run(return_tasks=f.tasks) # ask for all tasks to be returned
 f.visualize(flow_state=flow_state)
 ```
 
-We can see that the `6` task was still executed (as we suspected), and both branches of the `switch` were skipped.
-
 ![](/flow_visualize_colors.svg) {style="text-align: center;"}
 
+We can see that the `6` task was still executed (as we suspected), and both branches of the `switch` were skipped.
 
 ## Dynamic Flow visualization with `BokehRunner`
 
