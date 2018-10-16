@@ -31,3 +31,6 @@ Dynamically create large numbers of tasks using `task.map()`! Using a real-world
 
 ## [Migrating from Airflow](airflow_migration.md)<Badge text="advanced" type="warn"/><Badge text="0.3.2+"/>
 Learn how to use Prefect to import, execute, extend and _improve_ your current Airflow DAGs!
+
+## [Prefect Slack Integration](slack-notifications.md)<Badge text="0.3.2+"/>
+Install the Prefect Slack integration and get real time notifications on the state of your tasks and flows -- all within the convenience of Slack!
