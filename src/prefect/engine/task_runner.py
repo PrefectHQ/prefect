@@ -482,12 +482,12 @@ class TaskRunner(Runner):
         if state.is_failed():
             run_number = prefect.context.get("_task_run_number", 1)
             if run_number <= self.task.max_retries or isinstance(state, Retrying):
-                scheduled_time = datetime.datetime.utcnow() + self.task.retry_delay
+                start_time = datetime.datetime.utcnow() + self.task.retry_delay
                 msg = "Retrying Task (after attempt {n} of {m})".format(
                     n=run_number, m=self.task.max_retries + 1
                 )
                 return Retrying(
-                    scheduled_time=scheduled_time, cached_inputs=inputs, message=msg
+                    start_time=start_time, cached_inputs=inputs, message=msg
                 )
 
         return state
