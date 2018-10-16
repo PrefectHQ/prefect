@@ -791,6 +791,15 @@ class TestTaskStateHandlers:
         # the task changed state three times: Pending -> Running -> Failed -> Retry
         assert handler_results["Task"] == 3
 
+    def test_task_handlers_are_called_on_failure(self):
+        @prefect.task(state_handlers=[task_handler])
+        def fn():
+            1 / 0
+
+        TaskRunner(task=fn).run()
+        # the task changed state two times: Pending -> Running -> Failed
+        assert handler_results["Task"] == 2
+
     def test_multiple_task_handlers_are_called(self):
         task = Task(state_handlers=[task_handler, task_handler])
         TaskRunner(task=task).run()

@@ -46,6 +46,8 @@ class State(Serializable):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
     """
 
+    color = "#000000"
+
     def __init__(self, result: Any = None, message: MessageType = None) -> None:
         self.result = result
         self.message = message
@@ -152,6 +154,8 @@ class Pending(State):
         keys to values.  Used / set if the Task requires Retries.
     """
 
+    color = "#d3d3d3"
+
     def __init__(
         self,
         result: Any = None,
@@ -178,6 +182,8 @@ class CachedState(Pending):
         - cached_result_expiration (datetime): The time at which this cache
             expires and can no longer be used. Defaults to `None`
     """
+
+    color = "#ffa500"
 
     def __init__(
         self,
@@ -207,6 +213,8 @@ class Scheduled(Pending):
             keys to values.  Used / set if the Task requires Retries.
     """
 
+    color = "#b0c4de"
+
     def __init__(
         self,
         result: Any = None,
@@ -231,6 +239,8 @@ class Retrying(Scheduled):
             keys to values.  Used / set if the Task requires Retries.
     """
 
+    color = "#FFFF00"
+
 
 # -------------------------------------------------------------------
 # Running States
@@ -240,6 +250,8 @@ class Retrying(Scheduled):
 class Running(State):
     """Base running state. Indicates that a task is currently running."""
 
+    color = "#00FF00"
+
 
 # -------------------------------------------------------------------
 # Finished States
@@ -248,6 +260,8 @@ class Running(State):
 
 class Finished(State):
     """Base finished state. Indicates when a class has reached some form of completion."""
+
+    color = "#BA55D3"
 
 
 class Success(Finished):
@@ -263,6 +277,8 @@ class Success(Finished):
             by the task runner.
     """
 
+    color = "#008000"
+
     def __init__(
         self,
         result: Any = None,
@@ -276,13 +292,19 @@ class Success(Finished):
 class Failed(Finished):
     """Finished state indicating failure"""
 
+    color = "#FF0000"
+
 
 class TriggerFailed(Failed):
     """Finished state indicating failure due to trigger"""
 
+    color = "#F08080"
+
 
 class Skipped(Success):
     """Finished state indicating success on account of being skipped"""
+
+    color = "#F0FFF0"
 
     def __init__(self, result: Any = None, message: MessageType = None) -> None:
         super().__init__(result=result, message=message)
