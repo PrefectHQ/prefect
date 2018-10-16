@@ -63,14 +63,7 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
 
 
 class Runner:
-    def __init__(
-        self, state_handlers: Iterable[Callable] = None, logger_name: str = None
-    ) -> None:
-        if state_handlers is not None and not isinstance(
-            state_handlers, collections.Sequence
-        ):
-            raise TypeError("state_handlers should be iterable.")
-        self.state_handlers = state_handlers or []
+    def __init__(self, logger_name: str = None) -> None:
         self.logger = logging.getLogger(logger_name or type(self).__name__)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -112,10 +105,6 @@ class Runner:
         try:
             # call runner's target handlers
             new_state = self.call_runner_target_handlers(old_state, new_state)
-
-            # call runner's own handlers
-            for handler in self.state_handlers:
-                new_state = handler(self, old_state, new_state)
 
         # raise pauses
         except signals.PAUSE:

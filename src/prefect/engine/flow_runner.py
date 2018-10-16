@@ -49,15 +49,11 @@ class FlowRunner(Runner):
     """
 
     def __init__(
-        self,
-        flow: Flow,
-        task_runner_cls: type = None,
-        state_handlers: Iterable[Callable] = None,
-        logger_name: str = None,
+        self, flow: Flow, task_runner_cls: type = None, logger_name: str = None
     ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
-        super().__init__(state_handlers=state_handlers, logger_name=logger_name)
+        super().__init__(logger_name=logger_name)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """

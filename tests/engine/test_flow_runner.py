@@ -828,37 +828,6 @@ class TestFlowStateHandlers:
             with prefect.utilities.tests.raise_on_exception():
                 FlowRunner(flow=flow).run()
 
-
-class TestFlowRunnerStateHandlers:
-    def test_task_runner_handlers_are_called(self):
-        FlowRunner(flow=Flow(), state_handlers=[flow_runner_handler]).run()
-        # the flow changed state twice: Pending -> Running -> Success
-        assert handler_results["FlowRunner"] == 2
-
-    def test_multiple_task_runner_handlers_are_called(self):
-        FlowRunner(
-            flow=Flow(), state_handlers=[flow_runner_handler, flow_runner_handler]
-        ).run()
-        # each flow changed state twice: Pending -> Running -> Success
-        assert handler_results["FlowRunner"] == 4
-
-    def test_multiple_task_runner_handlers_are_called_in_sequence(self):
-        # the second flow handler will assert the result of the first flow handler is a state
-        # and raise an error, as long as the flow_handlers are called in sequence on the
-        # previous result
-        with pytest.raises(AssertionError):
-            with prefect.utilities.tests.raise_on_exception():
-                FlowRunner(
-                    flow=Flow(), state_handlers=[lambda *a: None, flow_runner_handler]
-                ).run()
-
-    def test_task_runner_handler_that_doesnt_return_state(self):
-        # raises an attribute error because it tries to access a property of the state that
-        # doesn't exist on None
-        with pytest.raises(AttributeError):
-            with prefect.utilities.tests.raise_on_exception():
-                FlowRunner(flow=Flow(), state_handlers=[lambda *a: None]).run()
-
     def test_task_handler_that_raises_signal_is_trapped(self):
         def handler(flow, old, new):
             raise signals.FAIL()

@@ -827,46 +827,6 @@ class TestTaskStateHandlers:
             with prefect.utilities.tests.raise_on_exception():
                 TaskRunner(task=task).run()
 
-
-class TestTaskRunnerStateHandlers:
-    def test_task_runner_handlers_are_called(self):
-        TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
-        # the task changed state twice: Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 2
-
-    def test_task_runner_handlers_are_called_on_retry(self):
-        @prefect.task(max_retries=1)
-        def fn():
-            1 / 0
-
-        TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
-        # the task changed state three times: Pending -> Running -> Failed -> Retry
-        assert handler_results["TaskRunner"] == 3
-
-    def test_multiple_task_runner_handlers_are_called(self):
-        TaskRunner(
-            task=Task(), state_handlers=[task_runner_handler, task_runner_handler]
-        ).run()
-        # each task changed state twice: Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 4
-
-    def test_multiple_task_runner_handlers_are_called_in_sequence(self):
-        # the second task handler will assert the result of the first task handler is a state
-        # and raise an error, as long as the task_handlers are called in sequence on the
-        # previous result
-        with pytest.raises(AssertionError):
-            with prefect.utilities.tests.raise_on_exception():
-                TaskRunner(
-                    task=Task(), state_handlers=[lambda *a: None, task_runner_handler]
-                ).run()
-
-    def test_task_runner_handler_that_doesnt_return_state(self):
-        # raises an attribute error because it tries to access a property of the state that
-        # doesn't exist on None
-        with pytest.raises(AttributeError):
-            with prefect.utilities.tests.raise_on_exception():
-                TaskRunner(task=Task(), state_handlers=[lambda *a: None]).run()
-
     def test_task_handler_that_raises_signal_is_trapped(self):
         def handler(task, old, new):
             raise signals.FAIL()

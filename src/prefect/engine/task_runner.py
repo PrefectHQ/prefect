@@ -35,33 +35,13 @@ class TaskRunner(Runner):
 
     Args:
         - task (Task): the Task to be run / executed
-        - state_handlers (Iterable[Callable], optional): A list of state change handlers
-            that will be called whenever the task changes state, providing an
-            opportunity to inspect or modify the new state. The handler
-            will be passed the task runner instance, the old (prior) state, and the new
-            (current) state, with the following signature:
-
-            ```
-                state_handler(
-                    task_runner: TaskRunner,
-                    old_state: State,
-                    new_state: State) -> State
-            ```
-
-            If multiple functions are passed, then the `new_state` argument will be the
-            result of the previous handler.
         - logger_name (str): Optional. The name of the logger to use when
             logging. Defaults to the name of the class.
     """
 
-    def __init__(
-        self,
-        task: Task,
-        state_handlers: Iterable[Callable] = None,
-        logger_name: str = None,
-    ) -> None:
+    def __init__(self, task: Task, logger_name: str = None) -> None:
         self.task = task
-        super().__init__(state_handlers=state_handlers, logger_name=logger_name)
+        super().__init__(logger_name=logger_name)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
