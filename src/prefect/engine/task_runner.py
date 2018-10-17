@@ -155,6 +155,9 @@ class TaskRunner(Runner):
         with prefect.context(context, _task_name=self.task.name):
 
             try:
+                # retrieve the run number and place in context
+                state = self.get_run_count(state=state)
+
                 # check if all upstream tasks have finished
                 state = self.check_upstream_finished(
                     state, upstream_states_set=upstream_states_set
@@ -205,6 +208,26 @@ class TaskRunner(Runner):
                 for ticket, q in zip(tickets, queues):
                     q.put(ticket)
 
+        return state
+
+    @call_state_handlers
+    def get_run_count(self, state: State) -> State:
+        """
+        If the task is being retried, then we retrieve the run count from the initial Retry
+        state. Otherwise, we assume the run count is 1. The run count is stored in context as
+        _task_run_count.
+
+        Args:
+            - state (State): the current state of the task
+
+        Returns:
+            State: the state of the task after running the check
+        """
+        if isinstance(state, Retrying):
+            run_count = state.run_count + 1
+        else:
+            run_count = 1
+        prefect.context.update(_task_run_count=run_count)
         return state
 
     @call_state_handlers
@@ -480,14 +503,17 @@ class TaskRunner(Runner):
             State: the state of the task after running the check
         """
         if state.is_failed():
-            run_number = prefect.context.get("_task_run_number", 1)
-            if run_number <= self.task.max_retries or isinstance(state, Retrying):
+            run_count = prefect.context.get("_task_run_count", 1)
+            if run_count <= self.task.max_retries:
                 start_time = datetime.datetime.utcnow() + self.task.retry_delay
                 msg = "Retrying Task (after attempt {n} of {m})".format(
-                    n=run_number, m=self.task.max_retries + 1
+                    n=run_count, m=self.task.max_retries + 1
                 )
                 return Retrying(
-                    start_time=start_time, cached_inputs=inputs, message=msg
+                    start_time=start_time,
+                    cached_inputs=inputs,
+                    message=msg,
+                    run_count=run_count,
                 )
 
         return state
