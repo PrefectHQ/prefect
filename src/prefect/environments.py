@@ -16,14 +16,14 @@ from pathlib import Path
 import subprocess
 import tempfile
 import textwrap
-from typing import Any, Iterable, Optional
+from typing import Optional
 import uuid
 
 import docker
-from cryptography.fernet import Fernet
 import toml
 
 import prefect
+from prefect.client import Secret
 from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 
@@ -74,6 +74,7 @@ class ContainerEnvironment(Environment):
         - tag (str, optional): The tag for this container
         - python_dependencies (list, optional): The list of pip installable python packages
         that will be installed on build of the Docker container
+        - secrets (list, optional): A list of secret value names to be loaded into the environment
     """
 
     def __init__(
@@ -82,11 +83,13 @@ class ContainerEnvironment(Environment):
         name: str = None,
         tag: str = None,
         python_dependencies: list = None,
+        secrets: list = None,
     ) -> None:
         self._image = image
         self._name = name or str(uuid.uuid4())
         self._tag = tag or str(uuid.uuid4())
         self._python_dependencies = python_dependencies or []
+        self._secrets = secrets or []
         self.last_container_id = None
 
         super().__init__()
@@ -95,6 +98,11 @@ class ContainerEnvironment(Environment):
     def python_dependencies(self) -> list:
         """Get the specified Python dependencies"""
         return self._python_dependencies
+
+    @property
+    def secrets(self) -> list:
+        """Get the names of the secrets, no values"""
+        return self._secrets
 
     @property
     def image(self) -> str:
@@ -237,6 +245,12 @@ class ContainerEnvironment(Environment):
                     self.python_dependencies
                 )
 
+            # Generate the creation of environment variables from Secrets
+            env_vars = ""
+            if self.secrets:
+                for name in self.secrets:
+                    env_vars += "ENV {}={}\n".format(name, Secret(name).get())
+
             # Due to prefect being a private repo it currently will require a
             # personal access token. Once pip installable this will change and there won't
             # be a need for the personal access token or git anymore.
@@ -250,8 +264,8 @@ class ContainerEnvironment(Environment):
 
                 RUN pip install pip --upgrade
                 RUN pip install wheel
-                {env_vars}
                 {pip_installs}
+                {env_vars}
 
                 RUN mkdir $HOME/.prefect/
                 COPY registry $HOME/.prefect/registry
@@ -264,7 +278,7 @@ class ContainerEnvironment(Environment):
                 RUN git clone -b josh/ie https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
             """.format(
-                    image=self.image, env_vars=env_vars, pip_installs=pip_installs
+                    image=self.image, pip_installs=pip_installs, env_vars=env_vars
                 )
             )
 
