@@ -578,6 +578,40 @@ class TestReturnFailed:
         assert isinstance(state.result[e], Retrying)
 
 
+class TestRunCount:
+    def test_run_count_tracked_via_retry_states(self):
+        flow = Flow()
+        t1 = ErrorTask(max_retries=1)
+        t2 = ErrorTask(max_retries=2)
+        flow.add_task(t1)
+        flow.add_task(t2)
+
+        # first run
+        state = FlowRunner(flow=flow).run(return_tasks=[t1, t2])
+        assert state.is_pending()
+        assert isinstance(state.result[t1], Retrying)
+        assert state.result[t1].run_count == 1
+        assert isinstance(state.result[t2], Retrying)
+        assert state.result[t2].run_count == 1
+
+        # second run
+        state = FlowRunner(flow=flow).run(
+            task_states=state.result, return_tasks=[t1, t2]
+        )
+        assert state.is_pending()
+        assert isinstance(state.result[t1], Failed)
+        assert isinstance(state.result[t2], Retrying)
+        assert state.result[t2].run_count == 2
+
+        # third run
+        state = FlowRunner(flow=flow).run(
+            task_states=state.result, return_tasks=[t1, t2]
+        )
+        assert state.is_failed()
+        assert isinstance(state.result[t1], Failed)
+        assert isinstance(state.result[t2], Failed)
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
 )
