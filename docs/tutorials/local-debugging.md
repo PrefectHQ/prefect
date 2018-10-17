@@ -36,7 +36,7 @@ Lastly, if your issue is actually related to parallelism, you'll _need_ to use t
 
 ### Raising Exceptions in realtime
 
-Sometimes Prefect's robust error-handling mechanism can cause friction during development - no worries!  Use the `raise_on_exception` context manager to raise errors the _moment_ they happen:
+Sometimes, you don't want Prefect's robust error-handling mechanisms to trap exceptions -- you'd rather they were raised so you could immediately debug them yourself! Use the `raise_on_exception` context manager to raise errors the _moment_ they happen:
 
 
 ```python
