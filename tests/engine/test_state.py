@@ -1,7 +1,7 @@
 import datetime
 
 import pytest
-
+import prefect
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -85,6 +85,22 @@ def test_timestamp_is_serialized():
     state = Success()
     deserialized_state = json.loads(json.dumps(state))
     assert state.timestamp == deserialized_state.timestamp
+
+
+def test_retry_stores_run_count():
+    state = Retrying(run_count=2)
+    assert state.run_count == 2
+
+
+def test_retry_stores_default_run_count():
+    state = Retrying()
+    assert state.run_count == 1
+
+
+def test_retry_stores_default_run_count_in_context():
+    with prefect.context(_task_run_count=5):
+        state = Retrying()
+    assert state.run_count == 5
 
 
 @pytest.mark.parametrize("cls", all_states)
