@@ -403,7 +403,7 @@ class FlowRuns(ClientModule):
             """
             mutation($input: CreateFlowRunInput!) {
                 createFlowRun(input: $input) {
-                    flow_run {id}
+                    flowRun {id}
                 }
             }
             """,
