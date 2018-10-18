@@ -11,6 +11,7 @@ through the Prefect Server.
 **Note:** Due to ongoing development this file is subject to large changes.
 """
 
+import logging
 import os
 from pathlib import Path
 import subprocess
@@ -141,7 +142,7 @@ class ContainerEnvironment(Environment):
 
             self.pull_image()
 
-            path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+            path = os.path.join(os.getenv("HOME"), '.prefect/config.toml')
 
             if Path(path).is_file():
                 config_data = toml.load(path)
@@ -161,7 +162,7 @@ class ContainerEnvironment(Environment):
 
             image_name = os.path.join(config_data["REGISTRY_URL"], self.name)
 
-            print("Building the flow's container environment...")
+            logging.info("Building the flow's container environment...")
             client.images.build(
                 path=tempdir, tag="{}:{}".format(image_name, self.tag), forcerm=True
             )
@@ -205,10 +206,7 @@ class ContainerEnvironment(Environment):
         """
         client = docker.from_env()
 
-        # Another possibility would be to name/tag each push with the flow's ID
-        # This would ensure the uniqueness each time a flow is built and allow for
-        # only the need of specifying the flow ID when talking to the registry
-        print("Pushing image to the registry...")
+        logging.info("Pushing image to the registry...")
         client.images.push(image_name, tag=image_tag)
 
     def pull_image(self) -> None:

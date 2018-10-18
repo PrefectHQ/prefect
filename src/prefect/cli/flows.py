@@ -15,7 +15,7 @@ from prefect.utilities import json as prefect_json
 
 
 def load_prefect_config():
-    path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+    path = os.path.join(os.getenv("HOME"), '.prefect/config.toml')
 
     if Path(path).is_file():
         config_data = toml.load(path)
@@ -84,7 +84,7 @@ def run(id):
     # Load optional parameters
     parameters = None
     flow_run_id = None
-    if hasattr(config, "flow_run_id"):
+    if config.get("flow_run_id", None):
         flow_run_id = config.flow_run_id
 
     if flow_run_id:
