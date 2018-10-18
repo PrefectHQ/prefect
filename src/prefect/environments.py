@@ -142,7 +142,7 @@ class ContainerEnvironment(Environment):
 
             self.pull_image()
 
-            path = os.path.join(os.getenv("HOME"), '.prefect/config.toml')
+            path = os.path.join(os.getenv("HOME"), ".prefect/config.toml")
 
             if Path(path).is_file():
                 config_data = toml.load(path)

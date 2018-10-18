@@ -15,7 +15,7 @@ from prefect.utilities import json as prefect_json
 
 
 def load_prefect_config():
-    path = os.path.join(os.getenv("HOME"), '.prefect/config.toml')
+    path = os.path.join(os.getenv("HOME"), ".prefect/config.toml")
 
     if Path(path).is_file():
         config_data = toml.load(path)

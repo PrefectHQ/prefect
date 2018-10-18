@@ -8,7 +8,7 @@ import toml
 
 from prefect.client import Client
 
-PATH = os.path.join(os.getenv("HOME"), '.prefect/config.toml')
+PATH = os.path.join(os.getenv("HOME"), ".prefect/config.toml")
 
 
 def load_prefect_config():
