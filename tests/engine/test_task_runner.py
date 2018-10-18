@@ -24,6 +24,7 @@ from prefect.engine.state import (
     CachedState,
     Failed,
     Finished,
+    Mapped,
     Pending,
     Retrying,
     Running,
@@ -73,6 +74,11 @@ class RaiseRetryTask(Task):
 class AddTask(Task):
     def run(self, x, y):
         return x + y
+
+
+class ListTask(Task):
+    def run(self):
+        return [1, 2, 3]
 
 
 class SlowTask(Task):
@@ -943,3 +949,64 @@ class TestTaskRunnerStateHandlers:
         task = Task(state_handlers=[handler])
         state = TaskRunner(task=task).run()
         assert state.is_failed()
+
+
+def test_task_runner_returns_mapped_state():
+    add = AddTask()
+    ex = Edge(SuccessTask(), add, key="x")
+    ey = Edge(ListTask(), add, key="y", mapped=True)
+    runner = TaskRunner(add)
+    state = runner.run(
+        upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
+        mapped=True,
+    )
+    assert isinstance(state, Mapped)
+    assert state.result is None
+
+
+def test_task_runner_skips_if_empty_iterable_for_mapped_task():
+    add = AddTask()
+    ex = Edge(SuccessTask(), add, key="x")
+    ey = Edge(ListTask(), add, key="y", mapped=True)
+    runner = TaskRunner(add)
+    state = runner.run(
+        upstream_states={ex: Success(result=1), ey: Success(result=[])}, mapped=True
+    )
+    assert state.is_skipped()
+
+
+def test_task_runner_skips_if_no_mapped_inputs_provided_for_mapped_task():
+    add = AddTask()
+    ex = Edge(SuccessTask(), add, key="x")
+    ey = Edge(ListTask(), add, key="y")
+    runner = TaskRunner(add)
+    state = runner.run(
+        upstream_states={ex: Success(result=1), ey: Success(result=[])}, mapped=True
+    )
+    assert state.is_skipped()
+    assert "No inputs" in state.message
+
+
+def test_task_runner_fails_if_non_iterable_for_mapped_task():
+    add = AddTask()
+    ex = Edge(SuccessTask(), add, key="x")
+    ey = Edge(SuccessTask(), add, key="y", mapped=True)
+    runner = TaskRunner(add)
+    state = runner.run(
+        upstream_states={ex: Success(result=1), ey: Success(result=1)}, mapped=True
+    )
+    assert state.is_failed()
+    assert "cannot be mapped" in state.message
+
+
+def test_task_runner_ignores_trigger_for_mapped_task():
+    add = AddTask(trigger=prefect.triggers.all_failed)
+    ex = Edge(SuccessTask(), add, key="x")
+    ey = Edge(ListTask(), add, key="y", mapped=True)
+    runner = TaskRunner(add)
+    state = runner.run(
+        upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
+        mapped=True,
+    )
+    assert isinstance(state, Mapped)
+    assert state.result is None

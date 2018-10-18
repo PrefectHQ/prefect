@@ -340,6 +340,7 @@ class FlowRunner(Runner):
                         context=dict(prefect.context, **task_contexts.get(task, {})),
                         queues=task_queues,
                         timeout_handler=executor.timeout_handler,
+                        mapped=self.flow.task_info[task]["mapped"],
                     )
             # ---------------------------------------------
             # Collect results
