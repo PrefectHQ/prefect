@@ -6,6 +6,7 @@ from prefect.engine.state import (
     CachedState,
     Failed,
     Finished,
+    Mapped,
     Pending,
     Retrying,
     Running,
@@ -20,6 +21,7 @@ from prefect.utilities import json
 all_states = [
     CachedState,
     State,
+    Mapped,
     Pending,
     Running,
     Finished,
@@ -173,6 +175,9 @@ class TestStateHierarchy:
     def test_scheduled_is_pending(self):
         assert issubclass(Scheduled, Pending)
 
+    def test_mapped_is_success(self):
+        assert issubclass(Mapped, Success)
+
     def test_cached_is_pending(self):
         assert issubclass(CachedState, Pending)
 
@@ -250,6 +255,16 @@ class TestStateMethods:
         assert not state.is_skipped()
         assert not state.is_scheduled()
         assert not state.is_successful()
+        assert not state.is_failed()
+
+    def test_state_type_methods_with_mapped_state(self):
+        state = Mapped()
+        assert not state.is_pending()
+        assert not state.is_running()
+        assert state.is_finished()
+        assert not state.is_skipped()
+        assert not state.is_scheduled()
+        assert state.is_successful()
         assert not state.is_failed()
 
     def test_state_type_methods_with_success_state(self):
