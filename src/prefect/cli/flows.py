@@ -207,11 +207,6 @@ def deploy(project, name, version, file, parameters):
 
     # Create Flow Run
     flow_runs_gql = FlowRuns(client=client)
-    flow_run_output = flow_runs_gql.create(flow_id=flow_db_id, parameters=parameters)
-    flow_run_id = flow_run_output.createFlowRun.flowRun.id
-
-    # Run Flow
-    run_flow_gql = RunFlow(client=client)
-    run_flow_gql.run_flow(flow_run_id=flow_run_id)
+    flow_runs_gql.create(flow_id=flow_db_id, parameters=parameters)
 
     click.echo("{} deployed.".format(name))
