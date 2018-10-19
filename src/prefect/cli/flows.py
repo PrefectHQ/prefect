@@ -205,8 +205,12 @@ def deploy(project, name, version, file, parameters):
 
     flow_db_id = flow_create_output.createFlow.flow.id
 
+    next_scheduled_run = None
+    if flow.schedule.next(1):
+        next_scheduled_run = flow.schedule.next(1)[0]
+
     # Create Flow Run
     flow_runs_gql = FlowRuns(client=client)
-    flow_runs_gql.create(flow_id=flow_db_id, parameters=parameters)
+    flow_runs_gql.create(flow_id=flow_db_id, parameters=parameters, start_time=next_scheduled_run.isoformat())
 
     click.echo("{} deployed.".format(name))

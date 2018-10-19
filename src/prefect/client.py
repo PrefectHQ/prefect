@@ -388,13 +388,14 @@ class Flows(ClientModule):
 
 
 class FlowRuns(ClientModule):
-    def create(self, flow_id, parameters) -> dict:
+    def create(self, flow_id, parameters, start_time: None) -> dict:
         """
         Create a flow run
 
         Args:
             - flow_id (str): A unique flow identifier
             - parameters (str): Paramaters set on a flow
+            - start_time (datetime, optional): An optional start time for the flow run
 
         Returns:
             - dict: Data returned from the GraphQL mutation
@@ -407,7 +408,7 @@ class FlowRuns(ClientModule):
                 }
             }
             """,
-            input=dict(flowId=flow_id, parameters=parameters),
+            input=dict(flowId=flow_id, parameters=parameters, startTime=start_time),
         )
 
     def set_state(self, flow_run_id, state) -> dict:
