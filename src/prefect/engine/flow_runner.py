@@ -10,7 +10,15 @@ from prefect.core import Flow, Task
 from prefect.engine import signals
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
-from prefect.engine.state import Failed, Pending, Retrying, Running, State, Success
+from prefect.engine.state import (
+    Failed,
+    Mapped,
+    Pending,
+    Retrying,
+    Running,
+    State,
+    Success,
+)
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
 
@@ -313,35 +321,27 @@ class FlowRunner(Runner):
                     queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
                 ]
 
-                if self.flow.task_info[task]["mapped"]:
-                    task_states[task] = executor.map(
-                        task_runner.run,
-                        upstream_states=upstream_states,
-                        state=task_states.get(task),
-                        inputs=task_inputs,
-                        ignore_trigger=(task in start_tasks),
-                        context=dict(prefect.context, **task_contexts.get(task, {})),
-                        queues=task_queues,
-                        timeout_handler=executor.timeout_handler,
-                    )
-                else:
+                if not self.flow.task_info[task]["mapped"]:
                     upstream_mapped = {
                         e: executor.wait(f)
                         for e, f in upstream_states.items()
                         if self.flow.task_info[e.upstream_task]["mapped"]
                     }
                     upstream_states.update(upstream_mapped)
-                    task_states[task] = executor.submit(
-                        task_runner.run,
-                        state=task_states.get(task),
-                        upstream_states=upstream_states,
-                        inputs=task_inputs,
-                        ignore_trigger=(task in start_tasks),
-                        context=dict(prefect.context, **task_contexts.get(task, {})),
-                        queues=task_queues,
-                        timeout_handler=executor.timeout_handler,
-                        mapped=self.flow.task_info[task]["mapped"],
-                    )
+
+                task_states[task] = executor.submit(
+                    task_runner.run,
+                    state=task_states.get(task),
+                    upstream_states=upstream_states,
+                    inputs=task_inputs,
+                    ignore_trigger=(task in start_tasks),
+                    context=dict(prefect.context, **task_contexts.get(task, {})),
+                    queues=task_queues,
+                    timeout_handler=executor.timeout_handler,
+                    mapped=self.flow.task_info[task]["mapped"],
+                    executor=executor,
+                )
+
             # ---------------------------------------------
             # Collect results
             # ---------------------------------------------
@@ -369,6 +369,10 @@ class FlowRunner(Runner):
                         )
                     }
                 )
+
+            # compute mapped results
+            #            mapped_results = executor.wait({t: m.result for t, m in final_states.items() if self.flow.task_info[t]["mapped"]})
+            #            final_states.update({t: Mapped(result=r) for t, r in mapped_results})
 
             terminal_states = set(
                 flatten_seq([final_states[t] for t in terminal_tasks])
