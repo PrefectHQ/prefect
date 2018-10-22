@@ -261,7 +261,7 @@ class Client:
         # lazy import for performance
         import requests
 
-        url = os.path.join(self._api_server, "auth/refresh")
+        url = os.path.join(self._api_server, "refresh_token")
         response = requests.post(
             url, headers={"Authorization": "Bearer " + self._token}
         )
