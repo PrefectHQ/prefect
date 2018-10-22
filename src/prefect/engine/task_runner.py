@@ -83,6 +83,7 @@ class TaskRunner(Runner):
         queues: Iterable = None,
         timeout_handler: Callable = None,
         mapped: bool = False,
+        executor=None,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -135,6 +136,10 @@ class TaskRunner(Runner):
         # gather upstream states
         upstream_states_set = set(
             prefect.utilities.collections.flatten_seq(upstream_states.values())
+        )
+
+        upstream_states_set.difference_update(
+            [s for s in upstream_states_set if not isinstance(s, State)]
         )
 
         # apply throttling
@@ -192,13 +197,20 @@ class TaskRunner(Runner):
                     # cache the output, if appropriate
                     state = self.cache_result(state, inputs=task_inputs)
 
-                # check if the task needs to be retried
-                state = self.check_for_retry(state, inputs=task_inputs)
+                    # check if the task needs to be retried
+                    state = self.check_for_retry(state, inputs=task_inputs)
 
-                # check if the task is ready to be mapped
-                state = self.check_for_mapped(
-                    state, upstream_states=upstream_states, mapped=mapped
-                )
+                else:
+                    state = self.get_task_mapped_state(
+                        state=state,
+                        upstream_states=upstream_states,
+                        inputs=inputs,
+                        ignore_trigger=ignore_trigger,
+                        context=context,
+                        queues=queues,
+                        timeout_handler=executor.timeout_handler,
+                        executor=executor,
+                    )
 
             # a ENDRUN signal at any point breaks the chain and we return
             # the most recently computed state
@@ -390,14 +402,19 @@ class TaskRunner(Runner):
         return state
 
     @call_state_handlers
-    def check_for_mapped(
+    def get_task_mapped_state(
         self,
         state: State,
         upstream_states: Dict[Edge, Union[State, List[State]]],
-        mapped: bool,
+        inputs,
+        ignore_trigger,
+        context,
+        queues,
+        timeout_handler,
+        executor,
     ) -> State:
         """
-        If the task is being mapepd, sets the task to `Mapped`
+        If the task is being mapped, sets the task to `Mapped`
 
         Args:
             - state (State): the current state of this task
@@ -415,9 +432,6 @@ class TaskRunner(Runner):
         if not state.is_running():
             raise ENDRUN(state)
 
-        if not mapped:
-            return state
-
         mapped_upstreams = [val for e, val in upstream_states.items() if e.mapped]
 
         ## no inputs provided
@@ -427,7 +441,6 @@ class TaskRunner(Runner):
         iterable_values = []
         for value in mapped_upstreams:
             underlying = value if not isinstance(value, State) else value.result
-            iterable_values.append(underlying)
 
         ## check that all upstream values are iterable
         if any([not isinstance(v, collections.abc.Iterable) for v in iterable_values]):
@@ -440,7 +453,19 @@ class TaskRunner(Runner):
         ## check that no upstream values are empty
         if any([len(v) == 0 for v in iterable_values]):
             raise ENDRUN(state=Skipped(message="Empty inputs provided to map over."))
-        return Mapped(message="Task ready to be mapped.")
+
+        result = executor.map(
+            self.run,
+            upstream_states=upstream_states,
+            state=None,  # will need to revisit this
+            inputs=inputs,
+            ignore_trigger=ignore_trigger,
+            context=context,
+            queues=queues,
+            timeout_handler=timeout_handler,
+        )
+
+        return result
 
     @call_state_handlers
     def set_task_to_running(self, state: State) -> State:
