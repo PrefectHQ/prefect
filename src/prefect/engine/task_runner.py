@@ -435,23 +435,14 @@ class TaskRunner(Runner):
         if not mapped_upstreams:
             raise ENDRUN(state=Skipped(message="No inputs provided to map over."))
 
-        if any([not isinstance(val, State) for val in mapped_upstreams]):
-            return (
-                state
-            )  # means upstreams were mapped and we are at a second iteration of mapping, so these checks are unnecessary
-
         iterable_values = []
         for value in mapped_upstreams:
             underlying = value if not isinstance(value, State) else value.result
-            iterable_values.append(underlying)
-
-        ## check that all upstream values are iterable
-        if any([not isinstance(v, collections.abc.Iterable) for v in iterable_values]):
-            raise ENDRUN(
-                state=Failed(
-                    message="Non-iterable upstream values cannot be mapped over."
-                )
-            )
+            # if we are on the second stage of mapping, the upstream "states"
+            # are going to be non-iterable futures representing lists of states;
+            # this allows us to skip if any upstreams are known to be empty
+            if isinstance(underlying, collections.abc.Sized):
+                iterable_values.append(underlying)
 
         ## check that no upstream values are empty
         if any([len(v) == 0 for v in iterable_values]):
@@ -489,9 +480,6 @@ class TaskRunner(Runner):
 
         Returns:
             State: the state of the task after running the check
-
-        Raises:
-            - ENDRUN: if the task is not ready to be mapped
         """
         result = executor.map(
             self.run,

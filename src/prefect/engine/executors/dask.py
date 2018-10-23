@@ -162,7 +162,6 @@ class DaskExecutor(Executor):
         Returns:
             - Iterable: an iterable of resolved futures
         """
-        num_futures = len(self.client.futures)
         res = self.client.gather(
             self.client.gather(self.client.gather(self.client.gather(futures)))
         )
