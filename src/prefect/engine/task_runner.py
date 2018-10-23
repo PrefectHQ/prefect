@@ -10,9 +10,11 @@ from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
 import prefect
 from prefect.core import Edge, Task
 from prefect.engine import signals
+from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.state import (
     CachedState,
     Failed,
+    Mapped,
     Pending,
     Retrying,
     Running,
@@ -80,7 +82,8 @@ class TaskRunner(Runner):
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
         queues: Iterable = None,
-        timeout_handler: Callable = None,
+        mapped: bool = False,
+        executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -102,9 +105,11 @@ class TaskRunner(Runner):
             - queues ([queue], optional): list of queues of tickets to use when deciding
                 whether it's safe for the Task to run based on resource limitations. The
                 Task will only begin running when a ticket from each queue is available.
-            - timeout_handler (Callable, optional): function for timing out
-                task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
-                `prefect.utilities.executors.main_thread_timeout`
+            - mapped (bool, optional): whether this task is mapped; if `True`,
+                the task will _not_ be run, but a `Mapped` state will be returned indicating
+                it is ready to. Defaults to `False`
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor specified in your prefect configuration
 
         Returns:
             - `State` object representing the final post-run state of the Task
@@ -115,21 +120,27 @@ class TaskRunner(Runner):
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
+        executor = executor or DEFAULT_EXECUTOR
 
         # construct task inputs
         task_inputs = {}
-        for edge, v in upstream_states.items():
-            if edge.key is None:
-                continue
-            if isinstance(v, list):
-                task_inputs[edge.key] = [s.result for s in v]
-            else:
-                task_inputs[edge.key] = v.result
-        task_inputs.update(inputs)
+        if not mapped:
+            for edge, v in upstream_states.items():
+                if edge.key is None:
+                    continue
+                if isinstance(v, list):
+                    task_inputs[edge.key] = [s.result for s in v]
+                else:
+                    task_inputs[edge.key] = v.result
+            task_inputs.update(inputs)
 
         # gather upstream states
         upstream_states_set = set(
             prefect.utilities.collections.flatten_seq(upstream_states.values())
+        )
+
+        upstream_states_set.difference_update(
+            [s for s in upstream_states_set if not isinstance(s, State)]
         )
 
         # apply throttling
@@ -165,7 +176,8 @@ class TaskRunner(Runner):
                 state = self.check_task_trigger(
                     state,
                     upstream_states_set=upstream_states_set,
-                    ignore_trigger=ignore_trigger,
+                    ignore_trigger=ignore_trigger
+                    | mapped,  # the children of a mapped task are responsible for checking their triggers
                 )
 
                 # check to make sure the task is in a pending state
@@ -178,15 +190,32 @@ class TaskRunner(Runner):
                 state = self.set_task_to_running(state)
 
                 # run the task!
-                state = self.get_task_run_state(
-                    state, inputs=task_inputs, timeout_handler=timeout_handler
-                )
+                if not mapped:
+                    state = self.get_task_run_state(
+                        state,
+                        inputs=task_inputs,
+                        timeout_handler=executor.timeout_handler,
+                    )
 
-                # cache the output, if appropriate
-                state = self.cache_result(state, inputs=task_inputs)
+                    # cache the output, if appropriate
+                    state = self.cache_result(state, inputs=task_inputs)
 
-                # check if the task needs to be retried
-                state = self.check_for_retry(state, inputs=task_inputs)
+                    # check if the task needs to be retried
+                    state = self.check_for_retry(state, inputs=task_inputs)
+
+                else:
+                    state = self.check_upstreams_for_mapping(
+                        state=state, upstream_states=upstream_states
+                    )
+                    state = self.get_task_mapped_state(
+                        state=state,
+                        upstream_states=upstream_states,
+                        inputs=inputs,
+                        ignore_trigger=ignore_trigger,
+                        context=context,
+                        queues=queues,
+                        executor=executor,
+                    )
 
             # a ENDRUN signal at any point breaks the chain and we return
             # the most recently computed state
@@ -362,7 +391,7 @@ class TaskRunner(Runner):
         """
         Args:
             - state (State): the current state of this task
-            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+            - inputs (Dict[str, Any]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
 
         Returns:
@@ -376,6 +405,94 @@ class TaskRunner(Runner):
         ):
             raise ENDRUN(Success(result=state.cached_result, cached=state))
         return state
+
+    @call_state_handlers
+    def check_upstreams_for_mapping(
+        self, state: State, upstream_states: Dict[Edge, Union[State, List[State]]]
+    ):
+        """
+        If the task is being mapped, checks if the upstream states are in a state
+        to be mapped over.
+
+        Args:
+            - state (State): the current state of this task
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the edges leading to the task.
+
+        Returns:
+            State: the state of the task after running the check
+
+        Raises:
+            - ENDRUN: if the task is not ready to be mapped
+        """
+        if not state.is_running():
+            raise ENDRUN(state)
+
+        mapped_upstreams = [val for e, val in upstream_states.items() if e.mapped]
+
+        ## no inputs provided
+        if not mapped_upstreams:
+            raise ENDRUN(state=Skipped(message="No inputs provided to map over."))
+
+        iterable_values = []
+        for value in mapped_upstreams:
+            underlying = value if not isinstance(value, State) else value.result
+            # if we are on the second stage of mapping, the upstream "states"
+            # are going to be non-iterable futures representing lists of states;
+            # this allows us to skip if any upstreams are known to be empty
+            if isinstance(underlying, collections.abc.Sized):
+                iterable_values.append(underlying)
+
+        ## check that no upstream values are empty
+        if any([len(v) == 0 for v in iterable_values]):
+            raise ENDRUN(state=Skipped(message="Empty inputs provided to map over."))
+
+        return state
+
+    def get_task_mapped_state(
+        self,
+        state: State,
+        upstream_states: Dict[Edge, Union[State, List[State]]],
+        inputs,
+        ignore_trigger,
+        context,
+        queues,
+        executor,
+    ) -> State:
+        """
+        If the task is being mapped, sets the task to `Mapped`
+
+        Args:
+            - state (State): the current state of this task
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the edges leading to the task.
+            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+            - ignore_trigger (bool): boolean specifying whether to ignore the
+                Task trigger; defaults to `False`
+            - context (dict, optional): prefect Context to use for execution
+            - queues ([queue], optional): list of queues of tickets to use when deciding
+                whether it's safe for the Task to run based on resource limitations. The
+                Task will only begin running when a ticket from each queue is available.
+            - executor (Executor): executor to use when performing computation
+
+        Returns:
+            State: the state of the task after running the check
+        """
+        result = executor.map(
+            self.run,
+            upstream_states=upstream_states,
+            state=None,  # will need to revisit this
+            inputs=inputs,
+            ignore_trigger=ignore_trigger,
+            context=context,
+            queues=queues,
+            executor=executor,
+        )
+
+        return result
 
     @call_state_handlers
     def set_task_to_running(self, state: State) -> State:

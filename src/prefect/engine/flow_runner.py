@@ -10,7 +10,15 @@ from prefect.core import Flow, Task
 from prefect.engine import signals
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
-from prefect.engine.state import Failed, Pending, Retrying, Running, State, Success
+from prefect.engine.state import (
+    Failed,
+    Mapped,
+    Pending,
+    Retrying,
+    Running,
+    State,
+    Success,
+)
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
 
@@ -105,7 +113,7 @@ class FlowRunner(Runner):
             - parameters (dict, optional): dictionary of any needed Parameter
                 values, with keys being strings representing Parameter names and values being their corresponding values
             - executor (Executor, optional): executor to use when performing
-                computation; defaults to the executor provided in your prefect configuration
+                computation; defaults to the executor specified in your prefect configuration
             - context (dict, optional): prefect.Context to use for execution
             - task_contexts (dict, optional): dictionary of individual contexts
                 to use for each Task run
@@ -313,34 +321,26 @@ class FlowRunner(Runner):
                     queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
                 ]
 
-                if self.flow.task_info[task]["mapped"]:
-                    task_states[task] = executor.map(
-                        task_runner.run,
-                        upstream_states=upstream_states,
-                        state=task_states.get(task),
-                        inputs=task_inputs,
-                        ignore_trigger=(task in start_tasks),
-                        context=dict(prefect.context, **task_contexts.get(task, {})),
-                        queues=task_queues,
-                        timeout_handler=executor.timeout_handler,
-                    )
-                else:
+                if not self.flow.task_info[task]["mapped"]:
                     upstream_mapped = {
                         e: executor.wait(f)
                         for e, f in upstream_states.items()
                         if self.flow.task_info[e.upstream_task]["mapped"]
                     }
                     upstream_states.update(upstream_mapped)
-                    task_states[task] = executor.submit(
-                        task_runner.run,
-                        state=task_states.get(task),
-                        upstream_states=upstream_states,
-                        inputs=task_inputs,
-                        ignore_trigger=(task in start_tasks),
-                        context=dict(prefect.context, **task_contexts.get(task, {})),
-                        queues=task_queues,
-                        timeout_handler=executor.timeout_handler,
-                    )
+
+                task_states[task] = executor.submit(
+                    task_runner.run,
+                    state=task_states.get(task),
+                    upstream_states=upstream_states,
+                    inputs=task_inputs,
+                    ignore_trigger=(task in start_tasks),
+                    context=dict(prefect.context, **task_contexts.get(task, {})),
+                    queues=task_queues,
+                    mapped=self.flow.task_info[task]["mapped"],
+                    executor=executor,
+                )
+
             # ---------------------------------------------
             # Collect results
             # ---------------------------------------------
@@ -356,7 +356,11 @@ class FlowRunner(Runner):
                 failed_tasks = [
                     t
                     for t, state in final_states.items()
-                    if isinstance(state, (Failed, Retrying))
+                    if (isinstance(state, (Failed, Retrying)))
+                    or (
+                        isinstance(state, list)
+                        and any([isinstance(s, (Failed, Retrying)) for s in state])
+                    )
                 ]
                 return_tasks.update(failed_tasks)
             else:
