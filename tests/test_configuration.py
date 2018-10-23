@@ -84,6 +84,12 @@ def test_repr(config):
     assert repr(config.general) == "<Config: 'nested', 'x', 'y'>"
 
 
+def test_getattr_missing(config):
+    with pytest.raises(AttributeError) as exc:
+        config.hello
+    assert "Config has no key 'hello'" in str(exc)
+
+
 def test_debug(config):
     assert config.debug is False
 
