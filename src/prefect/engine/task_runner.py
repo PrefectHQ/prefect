@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
 import prefect
 from prefect.core import Edge, Task
 from prefect.engine import signals
+from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -81,9 +82,8 @@ class TaskRunner(Runner):
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
         queues: Iterable = None,
-        timeout_handler: Callable = None,
         mapped: bool = False,
-        executor=None,
+        executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -105,13 +105,11 @@ class TaskRunner(Runner):
             - queues ([queue], optional): list of queues of tickets to use when deciding
                 whether it's safe for the Task to run based on resource limitations. The
                 Task will only begin running when a ticket from each queue is available.
-            - timeout_handler (Callable, optional): function for timing out
-                task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
-                `prefect.utilities.executors.main_thread_timeout`
             - mapped (bool, optional): whether this task is mapped; if `True`,
                 the task will _not_ be run, but a `Mapped` state will be returned indicating
                 it is ready to. Defaults to `False`
-            - executor: the Prefect executor to use for execution
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor specified in your prefect configuration
 
         Returns:
             - `State` object representing the final post-run state of the Task
@@ -122,6 +120,7 @@ class TaskRunner(Runner):
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
+        executor = executor or DEFAULT_EXECUTOR
 
         # construct task inputs
         task_inputs = {}
@@ -193,7 +192,9 @@ class TaskRunner(Runner):
                 # run the task!
                 if not mapped:
                     state = self.get_task_run_state(
-                        state, inputs=task_inputs, timeout_handler=timeout_handler
+                        state,
+                        inputs=task_inputs,
+                        timeout_handler=executor.timeout_handler,
                     )
 
                     # cache the output, if appropriate
@@ -213,7 +214,6 @@ class TaskRunner(Runner):
                         ignore_trigger=ignore_trigger,
                         context=context,
                         queues=queues,
-                        timeout_handler=executor.timeout_handler,
                         executor=executor,
                     )
 
@@ -467,7 +467,6 @@ class TaskRunner(Runner):
         ignore_trigger,
         context,
         queues,
-        timeout_handler,
         executor,
     ) -> State:
         """
@@ -486,10 +485,7 @@ class TaskRunner(Runner):
             - queues ([queue], optional): list of queues of tickets to use when deciding
                 whether it's safe for the Task to run based on resource limitations. The
                 Task will only begin running when a ticket from each queue is available.
-            - timeout_handler (Callable, optional): function for timing out
-                task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
-                `prefect.utilities.executors.main_thread_timeout`
-            - executor: the Prefect executor to use for execution
+            - executor (Executor): executor to use when performing computation
 
         Returns:
             State: the state of the task after running the check
@@ -505,7 +501,7 @@ class TaskRunner(Runner):
             ignore_trigger=ignore_trigger,
             context=context,
             queues=queues,
-            timeout_handler=timeout_handler,
+            executor=executor,
         )
 
         return result
