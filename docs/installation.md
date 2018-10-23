@@ -26,6 +26,7 @@ pip install "prefect[extra1, extra2]"
 
 The extra packages include:
 
+- `all_extras`: includes all of the optional dependencies
 - `dev`: tools for developing Prefect itself
 - `tempaltes`: tools for working with string templates
 - `viz`: tools for visualizing Prefect flows

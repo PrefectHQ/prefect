@@ -25,9 +25,16 @@ install_requires = [
 templates = ["jinja2 >= 2.0, < 3.0"]
 viz = ["bokeh == 0.13.0", "graphviz >= 0.8.3"]
 dev = ["pre-commit", "pytest >= 3.8, < 4.0", "pytest-cov", "pytest-env", "pytest-xdist"]
+
 if sys.version_info >= (3, 6):
     dev += ["black"]
-extras = {"dev": dev + viz, "viz": viz, "templates": templates}
+
+extras = {
+    "dev": dev + viz,
+    "viz": viz,
+    "templates": templates,
+    "all_extras": dev + templates + viz,
+}
 
 setup(
     name="prefect",
