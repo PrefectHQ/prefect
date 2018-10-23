@@ -484,6 +484,34 @@ def test_task_map_doesnt_bottleneck(executor):
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
+def test_task_map_downstreams_handle_single_failures(executor):
+    @prefect.task
+    def ll():
+        return [1, 0, 3]
+
+    @prefect.task
+    def div(x):
+        return 1 / x
+
+    @prefect.task
+    def append_four(l):
+        return l + [4]
+
+    with Flow() as f:
+        dived = div.map(ll)  # middle task fails
+        big_list = append_four(dived)  # this task should fail
+        again = div.map(dived)
+
+    state = f.run(executor=executor, return_tasks=f.tasks)
+    assert state.is_failed()
+    assert len(state.result[dived]) == 3
+    assert isinstance(state.result[big_list], prefect.engine.state.TriggerFailed)
+    assert [s.result for s in state.result[again]] == [1, None, 3]
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_task_map_can_be_passed_to_upstream_with_and_without_map(executor):
     @prefect.task
     def ll():
