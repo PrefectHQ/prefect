@@ -16,9 +16,12 @@ INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 class Config(collections.DotDict):
     def __getattr__(self, attr: str) -> Any:
         """
-        This method helps mypy discover attribute types
+        This method helps mypy discover attribute types without annotations
         """
-        return super().__getattr__(attr)
+        if attr in self:
+            return super().__getattr__(attr)
+        else:
+            raise AttributeError("Config has no key '{}'".format(attr))
 
 
 def string_to_type(val: str) -> Union[bool, int, float, str]:
