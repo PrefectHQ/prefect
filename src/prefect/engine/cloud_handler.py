@@ -17,7 +17,7 @@ class CloudHandler:
         client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))
         client.login(email=config.EMAIL, password=config.PASSWORD)
 
-        self.states_gql = States(client=self.client)
+        self.states_gql = States(client=client)
 
         self.flow_run_id = config.get("flow_run_id", None)
 
