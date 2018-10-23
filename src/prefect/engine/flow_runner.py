@@ -357,7 +357,11 @@ class FlowRunner(Runner):
                 failed_tasks = [
                     t
                     for t, state in final_states.items()
-                    if isinstance(state, (Failed, Retrying))
+                    if (isinstance(state, (Failed, Retrying)))
+                    or (
+                        isinstance(state, list)
+                        and any([isinstance(s, (Failed, Retrying)) for s in state])
+                    )
                 ]
                 return_tasks.update(failed_tasks)
             else:
@@ -369,10 +373,6 @@ class FlowRunner(Runner):
                         )
                     }
                 )
-
-            # compute mapped results
-            #            mapped_results = executor.wait({t: m.result for t, m in final_states.items() if self.flow.task_info[t]["mapped"]})
-            #            final_states.update({t: Mapped(result=r) for t, r in mapped_results})
 
             terminal_states = set(
                 flatten_seq([final_states[t] for t in terminal_tasks])
