@@ -125,10 +125,6 @@ class TaskRunner(Runner):
             - `State` object representing the final post-run state of the Task
         """
 
-        # Post to get task run w/ flow
-        # Needs to call getTaskRun endpoint to get task run id w/ version
-        # Can be set in context and then used from there
-
         queues = queues or []
         state = state or Pending()
         upstream_states = upstream_states or {}
