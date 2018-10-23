@@ -98,7 +98,7 @@ class DaskExecutor(Executor):
         ) -> List[Future]:
             states = dict_to_list(upstream_states)
 
-            with worker_client() as client:
+            with worker_client(separate_thread=False) as client:
                 futures = []
                 for elem in states:
                     futures.append(
@@ -114,7 +114,7 @@ class DaskExecutor(Executor):
                 mapper, fn, *args, upstream_states=upstream_states, **kwargs
             )
         elif self.is_started:
-            with worker_client() as client:
+            with worker_client(separate_thread=False) as client:
                 future_list = client.submit(
                     mapper, fn, *args, upstream_states=upstream_states, **kwargs
                 )
@@ -147,7 +147,7 @@ class DaskExecutor(Executor):
         if self.is_started and hasattr(self, "client"):
             return self.client.submit(fn, *args, pure=False, **kwargs)
         elif self.is_started:
-            with worker_client() as client:
+            with worker_client(separate_thread=False) as client:
                 return client.submit(fn, *args, pure=False, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
