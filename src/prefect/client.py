@@ -1,7 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import os
-from typing import Any
 
 import prefect
 from prefect.utilities import json
@@ -569,3 +568,115 @@ class Secret(json.Serializable):
             return secrets.get(self.name)
         else:
             return None
+
+
+# -------------------------------------------------------------------------
+# States
+
+
+class States(ClientModule):
+    def set_flow_run_from_serialized_state(self, flow_run_id, version, state) -> dict:
+        """
+        Set a flow run state
+
+        Args:
+            - flow_run_id (str): A unique flow_run identifier
+            - version (int): Previous flow run version
+            - state (State): A serialized prefect state object
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        state.result = None  # Temporary until we have cloud pickling
+        return self._graphql(
+            """
+            mutation($input: SetFlowRunFromSerializedStateInput!) {
+                setFlowRunStateFromSerialized(input: $input) {
+                    state {state}
+                }
+            }
+            """,
+            input=dict(
+                flowRunId=flow_run_id,
+                version=version,
+                serializedState=json.dumps(state),
+            ),
+        )
+
+    def query_flow_run_version(self, flow_run_id) -> dict:
+        """
+        Retrieve a flow run's version
+
+        Args:
+            - flow_run_id (str): Unique identifier of a flow run
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            query($flow_run_id: ID!) {
+                flowRuns(where: {
+                    id: $flow_run_id
+                }) {
+                    version
+                }
+            }
+            """,
+            flow_run_id=flow_run_id,
+        )
+
+    def set_task_run_from_serialized_state(self, task_run_id, version, state) -> dict:
+        """
+        Set a task run state
+
+        Args:
+            - task_run_id (str): A unique task_run identifier
+            - version (int): Previous flow run version
+            - state (State): A serialized prefect state object
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        state.result = None  # Temporary until we have cloud pickling
+        return self._graphql(
+            """
+            mutation($input: SetTaskRunFromSerializedStateInput!) {
+                setTaskRunStateFromSerialized(input: $input) {
+                    state {state}
+                }
+            }
+            """,
+            input=dict(
+                taskRunId=task_run_id,
+                version=version,
+                serializedState=json.dumps(state),
+            ),
+        )
+
+    def query_task_run_id_and_version(self, flow_run_id, task_id) -> dict:
+        """
+        Retrieve a task run's id and version
+
+        Args:
+            - flow_run_id (str): Unique identifier of a flow run
+            - task_id (str): ID of the task
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            query($flow_run_id: ID!, $task_id: ID!) {
+                taskRuns(where: {
+                    flow_run_id: $flow_run_id,
+                    task_id: $task_id
+                }) {
+                    id,
+                    version
+                }
+            }
+            """,
+            flow_run_id=flow_run_id,
+            task_id=task_id,
+        )

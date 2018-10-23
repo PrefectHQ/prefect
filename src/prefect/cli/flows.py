@@ -7,7 +7,7 @@ import click
 import toml
 
 import prefect
-from prefect.client import Client, RunFlow, Flows, FlowRuns
+from prefect.client import Client, Flows, FlowRuns
 from prefect import config
 from prefect.core import registry
 from prefect.environments import ContainerEnvironment
@@ -213,9 +213,7 @@ def deploy(project, name, version, file, parameters):
     # Create Flow Run
     flow_runs_gql = FlowRuns(client=client)
     flow_runs_gql.create(
-        flow_id=flow_db_id,
-        parameters=parameters,
-        start_time=next_scheduled_run,
+        flow_id=flow_db_id, parameters=parameters, start_time=next_scheduled_run
     )
 
     click.echo("{} deployed.".format(name))

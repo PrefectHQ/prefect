@@ -12,6 +12,7 @@ from prefect import config
 from prefect.client import Client, TaskRuns
 from prefect.core import Edge, Task
 from prefect.engine import signals
+from prefect.engine.cloud_handler import CloudHandler
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -25,11 +26,6 @@ from prefect.engine.state import (
 )
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.utilities.executors import main_thread_timeout
-
-# TODO: Move elsewhere
-import os
-from pathlib import Path
-import toml
 
 
 class TaskRunner(Runner):
@@ -61,6 +57,7 @@ class TaskRunner(Runner):
 
     def __init__(self, task: Task, state_handlers: Iterable[Callable] = None) -> None:
         self.task = task
+        self.cloud_handler = CloudHandler()
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -77,6 +74,17 @@ class TaskRunner(Runner):
         """
         for handler in self.task.state_handlers:
             new_state = handler(self.task, old_state, new_state)
+
+        # Set state if in prefect cloud
+        if config.get("prefect_cloud", None):
+            task_run_id = prefect.context.get("_task_run_id")
+            version = prefect.context.get("_task_run_version")
+
+            self.cloud_handler.setTaskRunState(
+                task_run_id=task_run_id, version=version, state=new_state
+            )
+            prefect.context.update(_task_run_version=version + 1)
+
         return new_state
 
     def run(
@@ -117,11 +125,25 @@ class TaskRunner(Runner):
             - `State` object representing the final post-run state of the Task
         """
 
+        # Post to get task run w/ flow
+        # Needs to call getTaskRun endpoint to get task run id w/ version
+        # Can be set in context and then used from there
+
         queues = queues or []
         state = state or Pending()
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
+
+        # Initialize CloudHandler and get task run version
+        if config.get("prefect_cloud", None):
+            self.cloud_handler.load_prefect_config()
+            task_run_info = self.cloud_handler.getTaskRunIdAndVersion(
+                context.get("task_id")
+            )
+            context.update(
+                _task_run_version=task_run_info.version, _task_run_id=task_run_info.id
+            )
 
         # construct task inputs
         task_inputs = {}
