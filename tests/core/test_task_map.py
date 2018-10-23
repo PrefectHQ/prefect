@@ -173,6 +173,50 @@ def test_map_failures_dont_leak_out(executor):
     assert isinstance(slist, list)
     assert len(slist) == 3
     assert [r.result for r in slist] == [None, 1, 0.5]
+    assert isinstance(slist[0], prefect.engine.state.TriggerFailed)
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_map_skips_if_upstream_empty(executor):
+    @task
+    def make_list():
+        return []
+
+    a = AddTask()
+
+    with Flow() as f:
+        res = a.map(make_list)
+        terminal = a.map(res)
+
+    s = f.run(return_tasks=f.tasks, executor=executor)
+    res_state = s.result[res]
+    terminal_state = s.result[terminal]
+    assert s.is_successful()
+    assert res_state.is_skipped()
+    assert terminal_state.is_skipped()
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_map_skips_if_non_keyed_upstream_empty(executor):
+    @task
+    def make_list():
+        return []
+
+    @task
+    def return_1():
+        return 1
+
+    with Flow() as f:
+        res = return_1.map(upstream_tasks=[make_list])
+
+    s = f.run(return_tasks=f.tasks, executor=executor)
+    res_state = s.result[res]
+    assert s.is_successful()
+    assert res_state.is_skipped()
 
 
 @pytest.mark.parametrize(
