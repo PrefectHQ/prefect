@@ -1,95 +1,89 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import json
 import os
-from pathlib import Path
-import sys
 
 import click
 import toml
+
+from prefect.client import Client
+from prefect.utilities.cli import load_prefect_config
 
 
 @click.group()
 def configure():
     """
-    Configure communication with Prefect Cloud
+    Configure communication with Prefect Cloud.
     """
     pass
 
 
 @configure.command()
-@click.argument("path", required=False)
-def init(path):
+def init():
     """
-    Initialize cloud communication config options
+    Initialize cloud communication config options.
     """
+    config_data = load_prefect_config()
 
-    if not path:
-        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
-
-    if Path(path).is_file():
-        config_data = toml.load(path)
-    else:
-        config_data = {}
-
-    # Do under .server block
     config_data["REGISTRY_URL"] = click.prompt(
         "Registry URL", default=config_data.get("REGISTRY_URL")
     )
     config_data["API_URL"] = click.prompt("API URL", default=config_data.get("API_URL"))
-    config_data["API_ACCESS_KEY"] = click.prompt(
-        "API Access Key", default=config_data.get("API_ACCESS_KEY")
-    )
 
-    toml.dump(config_data, path)
+    with open(PATH, "w") as config_file:
+        toml.dump(config_data, config_file)
 
 
 @configure.command()
 @click.argument("variable")
-@click.argument("path", required=False)
-def set_variable(variable, path):
+def set_variable(variable):
     """
-    Sets a specific configuration variable
+    Sets a specific configuration variable.
     """
-    if not path:
-        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
-
-    if Path(path).is_file():
-        config_data = toml.load(path)
-    else:
-        config_data = {}
+    config_data = load_prefect_config()
 
     config_data[variable] = click.prompt(
         "{}".format(variable), default=config_data.get(variable)
     )
 
-    toml.dump(config_data, path)
+    with open(PATH, "w") as config_file:
+        toml.dump(config_data, config_file)
 
 
 @configure.command()
-@click.argument("path", required=False)
-def list_config(path):
+def list_config():
     """
-    List all configuration variables
+    List all configuration variables.
     """
-    if not path:
-        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
-
-    if Path(path).is_file():
-        config_data = toml.load(path)
-    else:
-        config_data = {}
+    config_data = load_prefect_config()
 
     click.echo(config_data)
 
 
 @configure.command()
-@click.argument("path", required=False)
-def open_config(path):
+def open_config():
     """
-    Opens the configuration file
+    Opens the configuration file.
     """
-    if not path:
-        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+    click.launch(PATH)
 
-    click.launch(path)
+
+@configure.command()
+def login():
+    """
+    Login to Prefect Cloud.
+    """
+    config_data = load_prefect_config()
+
+    config_data["EMAIL"] = click.prompt("email", default=config_data.get("EMAIL"))
+    config_data["PASSWORD"] = click.prompt(
+        "password", hide_input=True, confirmation_prompt=True
+    )
+
+    client = Client(
+        config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
+    )
+
+    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+
+    with open(PATH, "w") as config_file:
+        toml.dump(config_data, config_file)

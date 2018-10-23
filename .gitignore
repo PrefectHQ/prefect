@@ -59,6 +59,8 @@ local_settings.py
 
 # Dask stuff:
 *dask-worker-space/*
+*.dirlock
+*.lock
 
 # Flask stuff:
 instance/

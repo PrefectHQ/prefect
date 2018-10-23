@@ -6,8 +6,11 @@ from collections import defaultdict
 from typing import Any, Callable, Dict, Iterable, Set
 
 import prefect
+from prefect import config
+from prefect.client import Client, FlowRuns
 from prefect.core import Flow, Task
 from prefect.engine import signals
+from prefect.engine.cloud_handler import CloudHandler
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import Failed, Pending, Retrying, Running, State, Success
@@ -54,6 +57,7 @@ class FlowRunner(Runner):
     ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
+        self.cloud_handler = CloudHandler()
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -70,6 +74,14 @@ class FlowRunner(Runner):
         """
         for handler in self.flow.state_handlers:
             new_state = handler(self.flow, old_state, new_state)
+
+        # Set state if in prefect cloud
+        if config.get("prefect_cloud", None):
+            version = prefect.context.get("_flow_run_version")
+
+            self.cloud_handler.setFlowRunState(version=version, state=new_state)
+            prefect.context.update(_flow_run_version=version + 1)
+
         return new_state
 
     def run(
@@ -119,6 +131,7 @@ class FlowRunner(Runner):
         Raises:
             - ValueError: if any throttle values are `<= 0`
         """
+
         state = state or Pending()
         context = context or {}
         return_tasks = set(return_tasks or [])
@@ -133,6 +146,11 @@ class FlowRunner(Runner):
                     bad_tags
                 )
             )
+
+        # Initialize CloudHandler and get flow run version
+        if config.get("prefect_cloud", None):
+            self.cloud_handler.load_prefect_config()
+            context.update(_flow_run_version=self.cloud_handler.getFlowRunVersion())
 
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
@@ -320,7 +338,11 @@ class FlowRunner(Runner):
                         state=task_states.get(task),
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),
-                        context=dict(prefect.context, **task_contexts.get(task, {})),
+                        context=dict(
+                            prefect.context,
+                            task_id=self.flow.task_info[task]["id"],
+                            **task_contexts.get(task, {})
+                        ),
                         queues=task_queues,
                         timeout_handler=executor.timeout_handler,
                     )
@@ -337,7 +359,11 @@ class FlowRunner(Runner):
                         upstream_states=upstream_states,
                         inputs=task_inputs,
                         ignore_trigger=(task in start_tasks),
-                        context=dict(prefect.context, **task_contexts.get(task, {})),
+                        context=dict(
+                            prefect.context,
+                            task_id=self.flow.task_info[task]["id"],
+                            **task_contexts.get(task, {})
+                        ),
                         queues=task_queues,
                         timeout_handler=executor.timeout_handler,
                     )
