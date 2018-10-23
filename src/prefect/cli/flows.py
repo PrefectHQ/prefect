@@ -1,10 +1,8 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import os
-from pathlib import Path
 
 import click
-import toml
 
 import prefect
 from prefect.client import Client, Flows, FlowRuns
@@ -12,18 +10,7 @@ from prefect import config
 from prefect.core import registry
 from prefect.environments import ContainerEnvironment
 from prefect.utilities import json as prefect_json
-
-
-def load_prefect_config():
-    path = os.path.join(os.getenv("HOME"), ".prefect/config.toml")
-
-    if Path(path).is_file():
-        config_data = toml.load(path)
-
-    if not config_data:
-        raise click.ClickException("CLI not configured. Run 'prefect configure init'")
-
-    return config_data
+from prefect.utilities.cli import load_prefect_config
 
 
 def load_flow(project, name, version, file):
@@ -83,9 +70,7 @@ def run(id):
 
     # Load optional parameters
     parameters = None
-    flow_run_id = None
-    if config.get("flow_run_id", None):
-        flow_run_id = config.flow_run_id
+    flow_run_id = config.get("flow_run_id", None)
 
     if flow_run_id:
         client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))

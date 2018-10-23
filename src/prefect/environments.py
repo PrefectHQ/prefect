@@ -158,7 +158,7 @@ class ContainerEnvironment(Environment):
             client = docker.from_env()
 
             if not config_data["REGISTRY_URL"]:
-                raise Exception("Registry not specified.")
+                raise ValueError("Registry not specified.")
 
             image_name = os.path.join(config_data["REGISTRY_URL"], self.name)
 

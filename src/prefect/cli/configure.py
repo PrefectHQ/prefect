@@ -1,24 +1,12 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import os
-from pathlib import Path
 
 import click
 import toml
 
 from prefect.client import Client
-
-PATH = os.path.join(os.getenv("HOME"), ".prefect/config.toml")
-
-
-def load_prefect_config():
-    if Path(PATH).is_file():
-        config_data = toml.load(PATH)
-
-    if not config_data:
-        raise click.ClickException("CLI not configured. Run 'prefect configure init'")
-
-    return config_data
+from prefect.utilities.cli import load_prefect_config
 
 
 @click.group()
