@@ -113,7 +113,7 @@ class FlowRunner(Runner):
             - parameters (dict, optional): dictionary of any needed Parameter
                 values, with keys being strings representing Parameter names and values being their corresponding values
             - executor (Executor, optional): executor to use when performing
-                computation; defaults to the executor provided in your prefect configuration
+                computation; defaults to the executor specified in your prefect configuration
             - context (dict, optional): prefect.Context to use for execution
             - task_contexts (dict, optional): dictionary of individual contexts
                 to use for each Task run
@@ -337,7 +337,6 @@ class FlowRunner(Runner):
                     ignore_trigger=(task in start_tasks),
                     context=dict(prefect.context, **task_contexts.get(task, {})),
                     queues=task_queues,
-                    timeout_handler=executor.timeout_handler,
                     mapped=self.flow.task_info[task]["mapped"],
                     executor=executor,
                 )
