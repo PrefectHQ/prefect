@@ -120,6 +120,26 @@ def test_map_composition(executor):
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
+def test_deep_map_composition(executor):
+    ll = ListTask()
+    a = AddTask()
+
+    with Flow() as f:
+        res = a.map(ll)  # [2, 3, 4]
+        for _ in range(10):
+            res = a.map(res)  # [2 + 10, 3 + 10, 4 + 10]
+
+    s = f.run(return_tasks=f.tasks, executor=executor)
+    slist = s.result[res]
+    assert s.is_successful()
+    assert isinstance(slist, list)
+    assert len(slist) == 3
+    assert [r.result for r in slist] == [12, 13, 14]
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_multiple_map_arguments(executor):
     ll = ListTask()
     a = AddTask()
