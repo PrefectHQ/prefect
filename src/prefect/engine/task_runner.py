@@ -459,7 +459,6 @@ class TaskRunner(Runner):
 
         return state
 
-    @call_state_handlers
     def get_task_mapped_state(
         self,
         state: State,
