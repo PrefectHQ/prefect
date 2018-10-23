@@ -60,7 +60,7 @@ module.exports = {
                 },
             ],
             '/license': [],
-            '/': ['introduction', 'changelog', 'getting_started',
+            '/': ['introduction', 'changelog', 'installation', 'getting_started',
                 {
                     title: 'Concepts',
                     collapsable: true,
@@ -70,7 +70,8 @@ module.exports = {
                     title: 'Tutorials',
                     collapsable: true,
                     children: ['tutorials/', 'tutorials/etl', 'tutorials/calculator', 'tutorials/local-debugging', 'tutorials/task-retries', 'tutorials/triggers-and-references',
-                        'tutorials/visualization', 'tutorials/throttling', 'tutorials/advanced-mapping', 'tutorials/airflow_migration', 'tutorials/slack-notifications']
+                        'tutorials/visualization', 'tutorials/throttling', 'tutorials/advanced-mapping', 'tutorials/airflow_migration', 'tutorials/slack-notifications'
+                    ]
                 },
                 {
                     title: 'Comparisons',
