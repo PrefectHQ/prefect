@@ -15,7 +15,7 @@ execution. The other types of `Pending` states are `CachedState`, `Scheduled`, a
 When a task is running it will enter a `Running` state which means that the task is
 currently being executed.
 
-The four types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, and
+The four types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, `Mapped` and
 `Skipped`.
 """
 import datetime
@@ -309,6 +309,16 @@ class Success(Finished):
     ) -> None:
         super().__init__(result=result, message=message)
         self.cached = cached
+
+
+class Mapped(Success):
+    """
+    State indicated this task was mapped over, and all mapped tasks were _submitted_ successfully.
+    Note that this does _not_ imply the individual mapped tasks were successful, just that they
+    have been submitted.
+    """
+
+    color = "#97FFFF"
 
 
 class Failed(Finished):

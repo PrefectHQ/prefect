@@ -24,6 +24,7 @@ from prefect.engine.state import (
     CachedState,
     Failed,
     Finished,
+    Mapped,
     Pending,
     Retrying,
     Running,
@@ -73,6 +74,11 @@ class RaiseRetryTask(Task):
 class AddTask(Task):
     def run(self, x, y):
         return x + y
+
+
+class ListTask(Task):
+    def run(self):
+        return [1, 2, 3]
 
 
 class SlowTask(Task):
@@ -943,3 +949,114 @@ class TestTaskRunnerStateHandlers:
         task = Task(state_handlers=[handler])
         state = TaskRunner(task=task).run()
         assert state.is_failed()
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_task_runner_performs_mapping(executor):
+    add = AddTask()
+    ex = Edge(SuccessTask(), add, key="x")
+    ey = Edge(ListTask(), add, key="y", mapped=True)
+    runner = TaskRunner(add)
+    with executor.start():
+        lazy_list = runner.run(
+            upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
+            executor=executor,
+            mapped=True,
+        )
+        res = executor.wait(lazy_list)
+    assert isinstance(res, list)
+    assert [s.result for s in res] == [2, 3, 4]
+
+
+class TestCheckUpstreamsforMapping:
+    def test_ends_if_non_running_state_passed(self):
+        add = AddTask()
+        ex = Edge(SuccessTask(), add, key="x")
+        ey = Edge(ListTask(), add, key="y", mapped=True)
+        runner = TaskRunner(add)
+        with pytest.raises(ENDRUN) as exc:
+            state = runner.check_upstreams_for_mapping(
+                state=Pending(),
+                upstream_states={ex: Success(result=1), ey: Success(result=[])},
+            )
+        assert exc.value.state.is_pending()
+
+    def test_no_checks_if_nonstate_futurelike_obj_passed_for_only_upstream_state(self):
+        add = AddTask()
+        ex = Edge(SuccessTask(), add, key="x")
+        ey = Edge(ListTask(), add, key="y", mapped=True)
+        runner = TaskRunner(add)
+        future = collections.namedtuple("futurestate", ["result", "message"])
+        prestate = Running()
+        state = runner.check_upstreams_for_mapping(
+            state=prestate,
+            upstream_states={
+                ex: Success(result=1),
+                ey: future(result=[], message=None),
+            },
+        )
+        assert state is prestate
+
+    def test_partial_checks_if_nonstate_futurelike_obj_passed_for_upstream_states(self):
+        add = AddTask()
+        ex = Edge(SuccessTask(), add, key="x", mapped=True)
+        ey = Edge(ListTask(), add, key="y", mapped=True)
+        runner = TaskRunner(add)
+        future = collections.namedtuple("futurestate", ["result", "message"])
+        with pytest.raises(ENDRUN) as exc:
+            runner.check_upstreams_for_mapping(
+                state=Running(),
+                upstream_states={
+                    ex: Success(result=[]),
+                    ey: future(result=[], message=None),
+                },
+            )
+        assert exc.value.state.is_skipped()
+
+    def test_skips_if_empty_iterable_for_mapped_task(self):
+        add = AddTask()
+        ex = Edge(SuccessTask(), add, key="x")
+        ey = Edge(ListTask(), add, key="y", mapped=True)
+        runner = TaskRunner(add)
+        with pytest.raises(ENDRUN) as exc:
+            state = runner.check_upstreams_for_mapping(
+                state=Running(),
+                upstream_states={ex: Success(result=1), ey: Success(result=[])},
+            )
+        assert exc.value.state.is_skipped()
+
+    def test_skips_if_no_mapped_inputs_provided_for_mapped_task(self):
+        add = AddTask()
+        ex = Edge(SuccessTask(), add, key="x")
+        ey = Edge(ListTask(), add, key="y")
+        runner = TaskRunner(add)
+        with pytest.raises(ENDRUN) as exc:
+            runner.check_upstreams_for_mapping(
+                state=Running(),
+                upstream_states={ex: Success(result=1), ey: Success(result=[])},
+            )
+        state = exc.value.state
+        assert state.is_skipped()
+        assert "No inputs" in state.message
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_task_runner_ignores_trigger_for_parent_mapped_task_but_not_children(executor):
+    add = AddTask(trigger=prefect.triggers.all_failed)
+    ex = Edge(SuccessTask(), add, key="x")
+    ey = Edge(ListTask(), add, key="y", mapped=True)
+    runner = TaskRunner(add)
+    with executor.start():
+        res = executor.wait(
+            runner.run(
+                upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
+                executor=executor,
+                mapped=True,
+            )
+        )
+    assert isinstance(res, list)
+    assert all([isinstance(s, TriggerFailed) for s in res])

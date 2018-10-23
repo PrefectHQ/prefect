@@ -120,6 +120,26 @@ def test_map_composition(executor):
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
+def test_deep_map_composition(executor):
+    ll = ListTask()
+    a = AddTask()
+
+    with Flow() as f:
+        res = a.map(ll)  # [2, 3, 4]
+        for _ in range(10):
+            res = a.map(res)  # [2 + 10, 3 + 10, 4 + 10]
+
+    s = f.run(return_tasks=f.tasks, executor=executor)
+    slist = s.result[res]
+    assert s.is_successful()
+    assert isinstance(slist, list)
+    assert len(slist) == 3
+    assert [r.result for r in slist] == [12, 13, 14]
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_multiple_map_arguments(executor):
     ll = ListTask()
     a = AddTask()
@@ -153,6 +173,50 @@ def test_map_failures_dont_leak_out(executor):
     assert isinstance(slist, list)
     assert len(slist) == 3
     assert [r.result for r in slist] == [None, 1, 0.5]
+    assert isinstance(slist[0], prefect.engine.state.TriggerFailed)
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_map_skips_if_upstream_empty(executor):
+    @task
+    def make_list():
+        return []
+
+    a = AddTask()
+
+    with Flow() as f:
+        res = a.map(make_list)
+        terminal = a.map(res)
+
+    s = f.run(return_tasks=f.tasks, executor=executor)
+    res_state = s.result[res]
+    terminal_state = s.result[terminal]
+    assert s.is_successful()
+    assert res_state.is_skipped()
+    assert terminal_state.is_skipped()
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_map_skips_if_non_keyed_upstream_empty(executor):
+    @task
+    def make_list():
+        return []
+
+    @task
+    def return_1():
+        return 1
+
+    with Flow() as f:
+        res = return_1.map(upstream_tasks=[make_list])
+
+    s = f.run(return_tasks=f.tasks, executor=executor)
+    res_state = s.result[res]
+    assert s.is_successful()
+    assert res_state.is_skipped()
 
 
 @pytest.mark.parametrize(
@@ -415,6 +479,34 @@ def test_task_map_doesnt_bottleneck(executor):
     with pytest.raises(SyntaxError) as exc:
         with raise_on_exception():
             state = f.run(executor=executor)
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_task_map_downstreams_handle_single_failures(executor):
+    @prefect.task
+    def ll():
+        return [1, 0, 3]
+
+    @prefect.task
+    def div(x):
+        return 1 / x
+
+    @prefect.task
+    def append_four(l):
+        return l + [4]
+
+    with Flow() as f:
+        dived = div.map(ll)  # middle task fails
+        big_list = append_four(dived)  # this task should fail
+        again = div.map(dived)
+
+    state = f.run(executor=executor, return_tasks=f.tasks)
+    assert state.is_failed()
+    assert len(state.result[dived]) == 3
+    assert isinstance(state.result[big_list], prefect.engine.state.TriggerFailed)
+    assert [s.result for s in state.result[again]] == [1, None, 3]
 
 
 @pytest.mark.parametrize(
