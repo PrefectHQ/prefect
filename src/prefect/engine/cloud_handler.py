@@ -14,20 +14,8 @@ class CloudHandler:
         self.flow_run_id = None
 
     def load_prefect_config(self):
-        path = os.path.join(os.getenv("HOME"), ".prefect/config.toml")
-
-        if Path(path).is_file():
-            config_data = toml.load(path)
-
-        if not config_data:
-            raise Exception(
-                "Prefect Cloud not configured. Run 'prefect configure init'"
-            )
-
-        self.client = Client(
-            config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
-        )
-        self.client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+        client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))
+        client.login(email=config.EMAIL, password=config.PASSWORD)
 
         self.states_gql = States(client=self.client)
 
