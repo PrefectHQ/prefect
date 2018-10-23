@@ -19,13 +19,15 @@ from prefect.engine.executors import LocalExecutor
 
 state = flow.run(executor=LocalExecutor()) # <-- the executor needs to be initialized
 ```
-and you're set!  
+and you're set! 
 
 #### `SynchronousExecutor`
 If you want to upgrade to a more powerful executor but still maintain an easily debuggable environment, we recommend the `SynchronousExecutor`.  This executor _does_ defer computation using `dask`, but avoids any parallelism, making for an execution pipeline which is easier to reason about.
 
-::: tip Synchronous is the local default
-The `SynchronousExecutor` is the default executor on your local machine; in production, the `DaskExecutor` will be the default.
+::: tip Prefect defaults
+The `SynchronousExecutor` is the default executor on your local machine; in production, the `DaskExecutor` will be the default. To change your Prefect settings (including the default executor), you can either:
+- modify your `~/.prefect/config.toml` file
+- update your OS environment variables; every value in the config file can be overriden by setting `PREFECT__SECTION__SUBSECTION__KEY`.  For example, to change the default executor, you can set `PREFECT__ENGINE__EXECUTOR="prefect.engine.executors.LocalExecutor"`
 :::
 #### `DaskExecutor`
 
@@ -77,11 +79,19 @@ ZeroDivisionError                         Traceback (most recent call last)
 ZeroDivisionError: division by zero
 ```
 
-You can now use your favorite debugger to drop into the traceback and proceed as you normally would.
+You can now use your favorite debugger to drop into the traceback and proceed as you normally would. 
+::: tip
+Note that this utility doesn't require you know anything about where the error occured.
+:::
 
 ### Re-raising Execeptions post-hoc
 
-Suppose you _are_ in production and don't want to raise the trapped error at runtime.  Assuming your error was trapped and placed in a `Failed` state, the full exception is stored in the `message` attribute of the task state.  Knowing this, you can re-raise it locally and debug from there!  To demonstrate:
+Suppose you want to let the full pipeline run and don't want to raise the trapped error at runtime.  Assuming your error was trapped and placed in a `Failed` state, the full exception is stored in the `message` attribute of the task state.  Knowing this, you can re-raise it locally and debug from there!  
+::: tip Knowing what failed
+Sometimes, you aren't immediately sure which task(s) failed.  Because `flow.run()` doesn't return any task states by default, you might wonder how to get the correct task state to inspect the error message.  Prefect provides a convenient `return_failed` keyword argument in `Flow.run` that will return any tasks which failed during execution so you don't have to know which to request beforehand!
+:::
+
+To demonstrate:
 
 
 ```python
@@ -98,8 +108,8 @@ def gotcha():
         
 
 flow = Flow(tasks=[gotcha])
-state = flow.run(return_tasks=[gotcha])
-state.result # {<Task: gotcha>: Failed("")}, not very informative
+state = flow.run(return_failed=True)
+state.result # {<Task: gotcha>: Failed("")}
 
 failed_state = state.result[gotcha]
 raise failed_state.message
