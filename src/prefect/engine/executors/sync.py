@@ -100,5 +100,7 @@ class SynchronousExecutor(Executor):
         Returns:
             - Iterable: an iterable of resolved futures
         """
-        computed = dask.compute(futures)
+        computed = dask.compute(
+            dask.compute(dask.compute(dask.compute(futures)[0])[0])[0]
+        )
         return computed[0]

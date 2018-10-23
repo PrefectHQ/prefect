@@ -111,6 +111,7 @@ class TaskRunner(Runner):
             - mapped (bool, optional): whether this task is mapped; if `True`,
                 the task will _not_ be run, but a `Mapped` state will be returned indicating
                 it is ready to. Defaults to `False`
+            - executor: the Prefect executor to use for execution
 
         Returns:
             - `State` object representing the final post-run state of the Task
@@ -124,14 +125,15 @@ class TaskRunner(Runner):
 
         # construct task inputs
         task_inputs = {}
-        for edge, v in upstream_states.items():
-            if edge.key is None:
-                continue
-            if isinstance(v, list):
-                task_inputs[edge.key] = [s.result for s in v]
-            else:
-                task_inputs[edge.key] = v.result
-        task_inputs.update(inputs)
+        if not mapped:
+            for edge, v in upstream_states.items():
+                if edge.key is None:
+                    continue
+                if isinstance(v, list):
+                    task_inputs[edge.key] = [s.result for s in v]
+                else:
+                    task_inputs[edge.key] = v.result
+            task_inputs.update(inputs)
 
         # gather upstream states
         upstream_states_set = set(
@@ -201,6 +203,9 @@ class TaskRunner(Runner):
                     state = self.check_for_retry(state, inputs=task_inputs)
 
                 else:
+                    state = self.check_upstreams_for_mapping(
+                        state=state, upstream_states=upstream_states
+                    )
                     state = self.get_task_mapped_state(
                         state=state,
                         upstream_states=upstream_states,
@@ -402,6 +407,59 @@ class TaskRunner(Runner):
         return state
 
     @call_state_handlers
+    def check_upstreams_for_mapping(
+        self, state: State, upstream_states: Dict[Edge, Union[State, List[State]]]
+    ):
+        """
+        If the task is being mapped, checks if the upstream states are in a state
+        to be mapped over.
+
+        Args:
+            - state (State): the current state of this task
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the edges leading to the task.
+
+        Returns:
+            State: the state of the task after running the check
+
+        Raises:
+            - ENDRUN: if the task is not ready to be mapped
+        """
+        if not state.is_running():
+            raise ENDRUN(state)
+
+        mapped_upstreams = [val for e, val in upstream_states.items() if e.mapped]
+
+        ## no inputs provided
+        if not mapped_upstreams:
+            raise ENDRUN(state=Skipped(message="No inputs provided to map over."))
+
+        if any([not isinstance(val, State) for val in mapped_upstreams]):
+            return (
+                state
+            )  # means upstreams were mapped and we are at a second iteration of mapping, so these checks are unnecessary
+
+        iterable_values = []
+        for value in mapped_upstreams:
+            underlying = value if not isinstance(value, State) else value.result
+            iterable_values.append(underlying)
+
+        ## check that all upstream values are iterable
+        if any([not isinstance(v, collections.abc.Iterable) for v in iterable_values]):
+            raise ENDRUN(
+                state=Failed(
+                    message="Non-iterable upstream values cannot be mapped over."
+                )
+            )
+
+        ## check that no upstream values are empty
+        if any([len(v) == 0 for v in iterable_values]):
+            raise ENDRUN(state=Skipped(message="Empty inputs provided to map over."))
+
+        return state
+
+    @call_state_handlers
     def get_task_mapped_state(
         self,
         state: State,
@@ -421,7 +479,18 @@ class TaskRunner(Runner):
             - upstream_states (Dict[Edge, Union[State, List[State]]]): a dictionary
                 representing the states of any tasks upstream of this one. The keys of the
                 dictionary should correspond to the edges leading to the task.
-            - mapped (bool): whether this task is to be mapped
+            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+            - ignore_trigger (bool): boolean specifying whether to ignore the
+                Task trigger; defaults to `False`
+            - context (dict, optional): prefect Context to use for execution
+            - queues ([queue], optional): list of queues of tickets to use when deciding
+                whether it's safe for the Task to run based on resource limitations. The
+                Task will only begin running when a ticket from each queue is available.
+            - timeout_handler (Callable, optional): function for timing out
+                task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
+                `prefect.utilities.executors.main_thread_timeout`
+            - executor: the Prefect executor to use for execution
 
         Returns:
             State: the state of the task after running the check
@@ -429,31 +498,6 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the task is not ready to be mapped
         """
-        if not state.is_running():
-            raise ENDRUN(state)
-
-        mapped_upstreams = [val for e, val in upstream_states.items() if e.mapped]
-
-        ## no inputs provided
-        if not mapped_upstreams:
-            raise ENDRUN(state=Skipped(message="No inputs provided to map over."))
-
-        iterable_values = []
-        for value in mapped_upstreams:
-            underlying = value if not isinstance(value, State) else value.result
-
-        ## check that all upstream values are iterable
-        if any([not isinstance(v, collections.abc.Iterable) for v in iterable_values]):
-            raise ENDRUN(
-                state=Failed(
-                    message="Non-iterable upstream values cannot be mapped over."
-                )
-            )
-
-        ## check that no upstream values are empty
-        if any([len(v) == 0 for v in iterable_values]):
-            raise ENDRUN(state=Skipped(message="Empty inputs provided to map over."))
-
         result = executor.map(
             self.run,
             upstream_states=upstream_states,
