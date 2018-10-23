@@ -1,3 +1,4 @@
+import cloudpickle
 import datetime
 import logging
 import pytest
@@ -9,7 +10,7 @@ import time
 from unittest.mock import MagicMock
 
 import prefect
-from prefect.engine.executors import Executor, Executor, LocalExecutor
+from prefect.engine.executors import Executor, LocalExecutor, SynchronousExecutor
 
 if sys.version_info >= (3, 5):
     from prefect.engine.executors import DaskExecutor
@@ -45,6 +46,64 @@ class TestBaseExecutor:
         with Executor().start():
             assert True
 
+    def test_is_pickleable(self):
+        e = Executor()
+        post = cloudpickle.loads(cloudpickle.dumps(e))
+        assert isinstance(post, Executor)
+
+    def test_is_pickleable_after_start(self):
+        e = Executor()
+        with e.start():
+            post = cloudpickle.loads(cloudpickle.dumps(e))
+            assert isinstance(post, Executor)
+
+
+class TestSyncExecutor:
+    def test_submit(self):
+        assert SynchronousExecutor().submit(lambda: 1).compute() == 1
+        assert SynchronousExecutor().submit(lambda x: x, 1).compute() == 1
+        assert SynchronousExecutor().submit(lambda x: x, x=1).compute() == 1
+        assert SynchronousExecutor().submit(lambda: prefect).compute() is prefect
+
+    def test_submit_with_context(self):
+        context_fn = lambda: prefect.context.get("abc")
+        context = dict(abc="abc")
+
+        assert SynchronousExecutor().submit(context_fn).compute() is None
+        with prefect.context(context):
+            assert SynchronousExecutor().submit(context_fn).compute() is None
+        assert (
+            SynchronousExecutor()
+            .submit_with_context(context_fn, context=context)
+            .compute()
+            == "abc"
+        )
+
+    def test_submit_with_context_requires_context_kwarg(self):
+        with pytest.raises(TypeError) as exc:
+            SynchronousExecutor().submit_with_context(lambda: 1)
+        assert "missing 1 required keyword-only argument: 'context'" in str(exc.value)
+
+    def test_wait(self):
+        e = SynchronousExecutor()
+        assert e.wait(1) == 1
+        assert e.wait(prefect) is prefect
+        assert e.wait(e.submit(lambda: 1)) == 1
+        assert e.wait(e.submit(lambda x: x, 1)) == 1
+        assert e.wait(e.submit(lambda x: x, x=1)) == 1
+        assert e.wait(e.submit(lambda: prefect)) is prefect
+
+    def test_is_pickleable(self):
+        e = SynchronousExecutor()
+        post = cloudpickle.loads(cloudpickle.dumps(e))
+        assert isinstance(post, SynchronousExecutor)
+
+    def test_is_pickleable_after_start(self):
+        e = SynchronousExecutor()
+        with e.start():
+            post = cloudpickle.loads(cloudpickle.dumps(e))
+            assert isinstance(post, SynchronousExecutor)
+
 
 class TestLocalExecutor:
     def test_submit(self):
@@ -72,6 +131,17 @@ class TestLocalExecutor:
         """LocalExecutor's wait() method just returns its input"""
         assert LocalExecutor().wait(1) == 1
         assert LocalExecutor().wait(prefect) is prefect
+
+    def test_is_pickleable(self):
+        e = LocalExecutor()
+        post = cloudpickle.loads(cloudpickle.dumps(e))
+        assert isinstance(post, LocalExecutor)
+
+    def test_is_pickleable_after_start(self):
+        e = LocalExecutor()
+        with e.start():
+            post = cloudpickle.loads(cloudpickle.dumps(e))
+            assert isinstance(post, LocalExecutor)
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 5), reason="Only raised in Python 3.4")
@@ -219,3 +289,16 @@ class TestDaskExecutor:
             pass
         assert client.called
         assert client.call_args[-1]["silence_logs"] == logging.WARNING
+
+    @pytest.mark.parametrize("processes", [True, False])
+    def test_is_pickleable(self, processes):
+        e = DaskExecutor(processes=processes)
+        post = cloudpickle.loads(cloudpickle.dumps(e))
+        assert isinstance(post, DaskExecutor)
+
+    @pytest.mark.parametrize("processes", [True, False])
+    def test_is_pickleable_after_start(self, processes):
+        e = DaskExecutor(processes=processes)
+        with e.start():
+            post = cloudpickle.loads(cloudpickle.dumps(e))
+            assert isinstance(post, DaskExecutor)
