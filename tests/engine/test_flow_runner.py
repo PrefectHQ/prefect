@@ -558,6 +558,23 @@ class TestReturnFailed:
         assert e in state.result
         assert s not in state.result
 
+    def test_return_failed_works_with_mapping(self):
+        @prefect.task
+        def div(x):
+            return 1 / x
+
+        @prefect.task
+        def gimme(x):
+            return x
+
+        with Flow() as f:
+            res = gimme.map(div.map(x=[1, 0, 42]))
+
+        state = FlowRunner(flow=f).run(return_failed=True)
+        assert state.is_failed()
+        assert len(state.result) == 2
+        assert all([len(v) == 3 for v in state.result.values()])
+
     def test_return_failed_doesnt_duplicate(self):
         with Flow() as f:
             s = SuccessTask()
