@@ -5,7 +5,7 @@ import tempfile
 
 from prefect import Flow
 from prefect.engine import signals
-from prefect.tasks.strings import StringFormatterTask, JinjaTemplateTask
+from prefect.tasks.templates import StringFormatterTask, JinjaTemplateTask
 from prefect.utilities.tests import raise_on_exception
 
 

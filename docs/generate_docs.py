@@ -187,8 +187,8 @@ OUTLINE = [
     {
         "page": "tasks/strings.md",
         "classes": [
-            prefect.tasks.strings.StringFormatterTask,
-            prefect.tasks.strings.JinjaTemplateTask,
+            prefect.tasks.templates.StringFormatterTask,
+            prefect.tasks.templates.JinjaTemplateTask,
         ],
         "title": "String Templating Tasks",
     },
