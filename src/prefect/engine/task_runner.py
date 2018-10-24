@@ -347,7 +347,11 @@ class TaskRunner(Runner):
             logging.debug("Unexpected error while running task.")
             if raise_on_exception:
                 raise exc
-            raise ENDRUN(TriggerFailed(message=exc))
+            raise ENDRUN(
+                TriggerFailed(
+                    "Unexpected error while checking task trigger.", result=exc
+                )
+            )
 
         return state
 
@@ -559,7 +563,7 @@ class TaskRunner(Runner):
             logging.debug("Unexpected error while running task.")
             if raise_on_exception:
                 raise exc
-            return Failed(message=exc)
+            return Failed("Unexpected error while running task.", result=exc)
 
         return Success(result=result, message="Task run succeeded.")
 
