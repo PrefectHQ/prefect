@@ -607,7 +607,7 @@ class States(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        state.result = None  # Temporary until we have cloud pickling
+        # state.result = None  # Temporary until we have cloud pickling
         return self._graphql(
             """
             mutation($input: SetFlowRunFromSerializedStateInput!) {
@@ -658,7 +658,7 @@ class States(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        state.result = None  # Temporary until we have cloud pickling
+        # state.result = None  # Temporary until we have cloud pickling
         return self._graphql(
             """
             mutation($input: SetTaskRunFromSerializedStateInput!) {
