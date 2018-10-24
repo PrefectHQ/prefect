@@ -794,7 +794,7 @@ def test_flow_runner_handles_timeouts(executor):
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
     assert state.is_failed()
-    assert isinstance(state.result[res].message, TimeoutError)
+    assert isinstance(state.result[res].result, TimeoutError)
 
 
 @pytest.mark.skipif(
@@ -808,7 +808,7 @@ def test_flow_runner_handles_timeout_error_with_mproc(mproc):
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=mproc)
     assert state.is_failed()
-    assert isinstance(state.result[res].message, AssertionError)
+    assert isinstance(state.result[res].result, AssertionError)
 
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
@@ -825,7 +825,7 @@ def test_flow_runner_handles_mapped_timeouts(executor):
     assert mapped_states[0].is_successful()
     for fstate in mapped_states[1:]:
         assert fstate.is_failed()
-        assert isinstance(fstate.message, TimeoutError)
+        assert isinstance(fstate.result, TimeoutError)
 
 
 handler_results = collections.defaultdict(lambda: 0)
