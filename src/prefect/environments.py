@@ -207,6 +207,7 @@ class ContainerEnvironment(Environment):
         client = docker.from_env()
 
         logging.info("Pushing image to the registry...")
+
         client.images.push(image_name, tag=image_tag)
 
     def pull_image(self) -> None:
