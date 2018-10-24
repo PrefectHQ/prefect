@@ -157,8 +157,11 @@ def push(project, name, version, file):
     help="Path to a file which contains the flow.",
     type=click.Path(exists=True),
 )
+@click.option(
+    "--testing", required=False, is_flag=True, help="Deploy flow in testing mode."
+)
 @click.argument("parameters", required=False)
-def deploy(project, name, version, file, parameters):
+def deploy(project, name, version, file, testing, parameters):
     """
     Deploy a flow to Prefect Cloud.
     """
@@ -178,9 +181,21 @@ def deploy(project, name, version, file, parameters):
     serialized_flow = flow.serialize()
     serialized_flow["environment"] = prefect_json.dumps(environment_metadata)
 
+    flows_gql = Flows(client=client)
+
+    if testing:
+        click.echo(
+            "Warning: Testing mode overwrites flows with similar project/name/version."
+        )
+        flow_id = flows_gql.query(
+            project_name=project, flow_name=name, flow_version=version
+        )
+
+        if flow_id.flows:
+            flows_gql.delete(flow_id=flow_id.flows[0].id)
+
     # Create the flow in the database
     try:
-        flows_gql = Flows(client=client)
         flow_create_output = flows_gql.create(serialized_flow=serialized_flow)
     except ValueError as value_error:
         if "No project found for" in str(value_error):
