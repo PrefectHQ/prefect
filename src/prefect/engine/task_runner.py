@@ -558,6 +558,12 @@ class TaskRunner(Runner):
                 raise exc
             return exc.state
 
+        # inform user of timeout
+        except TimeoutError as exc:
+            if raise_on_exception:
+                raise exc
+            return Failed("Task timed out during execution.", result=exc)
+
         # Exceptions are trapped and turned into Failed states
         except Exception as exc:
             logging.debug("Unexpected error while running task.")

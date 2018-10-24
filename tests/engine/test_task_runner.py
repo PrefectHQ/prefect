@@ -306,6 +306,7 @@ def test_task_runner_can_handle_timeouts_by_default():
     sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
     state = TaskRunner(sleeper).run(inputs=dict(secs=2))
     assert state.is_failed()
+    assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
 
 
