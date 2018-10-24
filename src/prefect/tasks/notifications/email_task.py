@@ -1,6 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import smtplib
+from typing import Any
 
 import prefect
 
@@ -27,9 +28,9 @@ class EmailTask(prefect.Task):
 
         super().__init__(**kwargs)
 
-    def run(
+    def run(  # type: ignore
         self, subject=None, msg=None, email_from=None, email_to=None
-    ):  # type: ignore
+    ):
 
         message = EMAIL_TEMPLATE.format(
             email_from=email_from, email_to=email_to, subject=subject, msg=msg

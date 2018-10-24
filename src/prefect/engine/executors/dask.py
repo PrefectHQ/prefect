@@ -122,13 +122,13 @@ class DaskExecutor(Executor):
             raise ValueError("Executor must be started")
         return future_list
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict:
         state = self.__dict__.copy()
         if "client" in state:
             del state["client"]
         return state
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:
