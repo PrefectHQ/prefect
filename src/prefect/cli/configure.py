@@ -6,7 +6,7 @@ import click
 import toml
 
 from prefect.client import Client
-from prefect.utilities.cli import load_prefect_config
+from prefect.utilities.cli import load_prefect_config, PATH
 
 
 @click.group()

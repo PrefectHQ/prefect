@@ -157,8 +157,11 @@ def push(project, name, version, file):
     help="Path to a file which contains the flow.",
     type=click.Path(exists=True),
 )
+@click.option(
+    "--testing", required=False, is_flag=True, help="Deploy flow in testing mode."
+)
 @click.argument("parameters", required=False)
-def deploy(project, name, version, file, parameters):
+def deploy(project, name, version, file, testing, parameters):
     """
     Deploy a flow to Prefect Cloud.
     """
@@ -177,6 +180,11 @@ def deploy(project, name, version, file, parameters):
     }
     serialized_flow = flow.serialize()
     serialized_flow["environment"] = prefect_json.dumps(environment_metadata)
+
+    if testing:
+        click.echo(
+            "Warning: Testing mode overwrites flows with similar project/name/version."
+        )
 
     # Create the flow in the database
     try:
