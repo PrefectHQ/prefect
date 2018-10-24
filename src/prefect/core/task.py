@@ -5,7 +5,7 @@ import copy
 import inspect
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Set, Tuple
 
 import prefect
 import prefect.engine.cache_validators
@@ -135,7 +135,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         max_retries: int = 0,
         retry_delay: timedelta = timedelta(minutes=1),
         timeout: timedelta = None,
-        trigger: Callable[[Dict["Task", "State"]], bool] = None,
+        trigger: Callable[[Set["State"]], bool] = None,
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
