@@ -926,13 +926,13 @@ class Flow(Serializable):
             raise ImportError(msg)
 
         def get_color(task: Task) -> str:
-            try:
-                assert flow_state  # mypy assert
-                assert isinstance(flow_state.result, dict)  # mypy assert
-                state = flow_state.result.get(task)
+            assert flow_state  # mypy assert
+            assert isinstance(flow_state.result, dict)  # mypy assert
+            state = flow_state.result.get(task)
+            if state is not None:
+                assert state is not None  # mypy assert
                 return state.color + "80"
-            except:
-                return "#00000080"
+            return "#00000080"
 
         graph = graphviz.Digraph()
 

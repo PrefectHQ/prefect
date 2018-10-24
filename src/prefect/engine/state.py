@@ -261,7 +261,7 @@ class Retrying(Scheduled):
         )
         if run_count is None:
             run_count = prefect.context.get("_task_run_count", 1)
-        assert run_count is not None # mypy assert
+        assert run_count is not None  # mypy assert
         self.run_count = run_count  # type: int
 
 
