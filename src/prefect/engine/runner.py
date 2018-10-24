@@ -130,6 +130,6 @@ class Runner:
             if raise_on_exception:
                 raise
             raise ENDRUN(
-                Failed("Exception raised while calling state handlers.", message=exc)
+                Failed("Exception raised while calling state handlers.", result=exc)
             )
         return new_state
