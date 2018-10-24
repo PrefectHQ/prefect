@@ -42,10 +42,17 @@ def test_create_state_with_no_args(cls):
 
 
 @pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_positional_data_arg(cls):
-    state = cls(1)
+def test_create_state_with_kwarg_data_arg(cls):
+    state = cls(result=1)
     assert state.result == 1
     assert state.message is None
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_positional_message_arg(cls):
+    state = cls("i am a string")
+    assert state.message == "i am a string"
+    assert state.result is None
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -156,9 +163,9 @@ def test_state_equality_ignores_message():
 
 
 def test_state_equality_with_nested_states():
-    s1 = State(result=Success(1))
-    s2 = State(result=Success(2))
-    s3 = State(result=Success(1))
+    s1 = State(result=Success(result=1))
+    s2 = State(result=Success(result=2))
+    s3 = State(result=Success(result=1))
     assert s1 != s2
     assert s1 == s3
 
