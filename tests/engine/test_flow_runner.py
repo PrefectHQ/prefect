@@ -794,6 +794,7 @@ def test_flow_runner_handles_timeouts(executor):
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
     assert state.is_failed()
+    assert "timed out" in state.result[res].message
     assert isinstance(state.result[res].result, TimeoutError)
 
 
