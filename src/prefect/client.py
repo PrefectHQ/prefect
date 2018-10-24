@@ -381,7 +381,26 @@ class Flows(ClientModule):
             project_name=project_name,
         )
 
+    def delete(self, serialized_flow) -> dict:
+        """
+        Delete a flow on the server
 
+        Args:
+            - serialized_flow (dict): A json serialized version of a flow
+
+        Returns:
+            - dict: Data returned from the GraphQL mutation
+        """
+        return self._graphql(
+            """
+            mutation($input: DeleteFlowFromSerializedInput!) {
+                deleteFlowFromSerialized(input: $input) {
+                    deleted
+                }
+            }
+            """,
+            input=dict(serializedFlow=json.dumps(serialized_flow)),
+        )
 
 
 # -------------------------------------------------------------------------

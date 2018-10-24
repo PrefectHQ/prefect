@@ -181,14 +181,16 @@ def deploy(project, name, version, file, testing, parameters):
     serialized_flow = flow.serialize()
     serialized_flow["environment"] = prefect_json.dumps(environment_metadata)
 
+    flows_gql = Flows(client=client)
+
     if testing:
         click.echo(
             "Warning: Testing mode overwrites flows with similar project/name/version."
         )
+        flows_gql.delete(serialized_flow=serialized_flow)
 
     # Create the flow in the database
     try:
-        flows_gql = Flows(client=client)
         flow_create_output = flows_gql.create(serialized_flow=serialized_flow)
     except ValueError as value_error:
         if "No project found for" in str(value_error):
