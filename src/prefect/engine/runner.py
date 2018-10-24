@@ -14,7 +14,7 @@ class ENDRUN(Exception):
     stop. The pipeline result should be the state contained in the exception.
     """
 
-    def __init__(self, state: State = None) -> None:
+    def __init__(self, state: State) -> None:
         """
         Args
             - state (State): the state that should be used as the result of the Runner's run
