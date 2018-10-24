@@ -187,7 +187,12 @@ def deploy(project, name, version, file, testing, parameters):
         click.echo(
             "Warning: Testing mode overwrites flows with similar project/name/version."
         )
-        flows_gql.delete(serialized_flow=serialized_flow)
+        flow_id = flows_gql.query(
+            project_name=project, flow_name=name, flow_version=version
+        )
+
+        if flow_id.flows:
+            flows_gql.delete(flow_id=flow_id.flows[0].id)
 
     # Create the flow in the database
     try:

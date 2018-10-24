@@ -349,7 +349,7 @@ class Flows(ClientModule):
             input=dict(serializedFlow=json.dumps(serialized_flow)),
         )
 
-    def query_environment_metadata(self, project_name, flow_name, flow_version) -> dict:
+    def query(self, project_name, flow_name, flow_version) -> dict:
         """
         Retrieve a flow's environment metadata
 
@@ -371,8 +371,7 @@ class Flows(ClientModule):
                         name: $project_name
                     }
                 }) {
-                    id,
-                    environment
+                    id
                 }
             }
             """,
@@ -381,25 +380,25 @@ class Flows(ClientModule):
             project_name=project_name,
         )
 
-    def delete(self, serialized_flow) -> dict:
+    def delete(self, flow_id) -> dict:
         """
         Delete a flow on the server
 
         Args:
-            - serialized_flow (dict): A json serialized version of a flow
+            - flow_id (str): The ID of a flow in the server
 
         Returns:
             - dict: Data returned from the GraphQL mutation
         """
         return self._graphql(
             """
-            mutation($input: DeleteFlowFromSerializedInput!) {
-                deleteFlowFromSerialized(input: $input) {
-                    deleted
+            mutation($input: DeleteFlowInput!) {
+                deleteFlow(input: $input) {
+                    flow_id
                 }
             }
             """,
-            input=dict(serializedFlow=json.dumps(serialized_flow)),
+            input=dict(flowId=flow_id),
         )
 
 
