@@ -239,9 +239,8 @@ class ContainerEnvironment(Environment):
             # Generate RUN pip install commands for python dependencies
             pip_installs = ""
             if self.python_dependencies:
-                pip_installs = r"RUN pip install " + " \\\n".join(
-                    self.python_dependencies
-                )
+                for dependency in self.python_dependencies:
+                    pip_installs += "RUN pip install {}\n".format(dependency)
 
             # Generate the creation of environment variables from Secrets
             env_vars = ""
@@ -258,12 +257,12 @@ class ContainerEnvironment(Environment):
                 """\
                 FROM {image}
 
-                RUN apt-get -qq -y update && apt-get -qq -y install --no-install-recommends --no-install-suggests git
+                RUN apt-get -qq -y update && apt-get -qq -y install --no-install-recommends --no-install-suggests git zsh
 
                 RUN pip install pip --upgrade
                 RUN pip install wheel
-                {pip_installs}
                 {env_vars}
+                {pip_installs}
 
                 RUN mkdir $HOME/.prefect/
                 COPY registry $HOME/.prefect/registry
@@ -273,7 +272,7 @@ class ContainerEnvironment(Environment):
                 ENV PREFECT__GENERAL__USER_CONFIG_PATH="$HOME/.prefect/config.toml"
 
                 RUN pip install jinja2
-                RUN git clone -b josh/ie https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
+                RUN git clone -b josh/testing https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
             """.format(
                     image=self.image, pip_installs=pip_installs, env_vars=env_vars
