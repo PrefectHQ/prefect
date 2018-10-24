@@ -3,10 +3,10 @@
 import functools
 import logging
 from collections import defaultdict
-from typing import Any, Callable, Dict, Iterable, Set
+from typing import Any, Callable, Dict, Iterable, Set, Union
 
 import prefect
-from prefect.core import Flow, Task
+from prefect.core import Edge, Flow, Task
 from prefect.engine import signals
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
@@ -300,7 +300,7 @@ class FlowRunner(Runner):
 
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
-                upstream_states = {}
+                upstream_states = {}  # type: Dict[Edge, Union[State, Iterable]]
                 task_inputs = {}  # type: Dict[str, Any]
 
                 # -- process each edge to the task
@@ -313,6 +313,9 @@ class FlowRunner(Runner):
                     passed_state = task_states[task]
                     if not isinstance(passed_state, list):
                         assert isinstance(passed_state, Pending)  # mypy assertion
+                        assert isinstance(
+                            passed_state.cached_inputs, dict
+                        )  # mypy assertion
                         task_inputs.update(passed_state.cached_inputs)
 
                 # -- run the task
@@ -323,7 +326,7 @@ class FlowRunner(Runner):
 
                 if not self.flow.task_info[task]["mapped"]:
                     upstream_mapped = {
-                        e: executor.wait(f)
+                        e: executor.wait(f)  # type: ignore
                         for e, f in upstream_states.items()
                         if self.flow.task_info[e.upstream_task]["mapped"]
                     }
@@ -352,7 +355,8 @@ class FlowRunner(Runner):
             reference_tasks = self.flow.reference_tasks()
 
             if return_failed:
-                final_states = executor.wait(dict(task_states))
+                final_states = executor.wait(dict(task_states))  # type: ignore
+                assert isinstance(final_states, dict)
                 failed_tasks = [
                     t
                     for t, state in final_states.items()
@@ -364,7 +368,7 @@ class FlowRunner(Runner):
                 ]
                 return_tasks.update(failed_tasks)
             else:
-                final_states = executor.wait(
+                final_states = executor.wait(  # type: ignore
                     {
                         t: task_states[t]
                         for t in terminal_tasks.union(reference_tasks).union(
@@ -372,6 +376,7 @@ class FlowRunner(Runner):
                         )
                     }
                 )
+                assert isinstance(final_states, dict)
 
             terminal_states = set(
                 flatten_seq([final_states[t] for t in terminal_tasks])

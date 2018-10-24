@@ -5,7 +5,7 @@ import datetime
 import functools
 import logging
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
+from typing import Any, Callable, Dict, Iterable, List, Union, Set, Sized, Optional
 
 import prefect
 from prefect.core import Edge, Task
@@ -81,7 +81,7 @@ class TaskRunner(Runner):
         inputs: Dict[str, Any] = None,
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
-        queues: Iterable = None,
+        queues: List = None,
         mapped: bool = False,
         executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
@@ -123,7 +123,7 @@ class TaskRunner(Runner):
         executor = executor or DEFAULT_EXECUTOR
 
         # construct task inputs
-        task_inputs = {}
+        task_inputs = {}  # type: Dict[str, Any]
         if not mapped:
             for edge, v in upstream_states.items():
                 if edge.key is None:
@@ -223,7 +223,7 @@ class TaskRunner(Runner):
                 state = exc.state
 
             except signals.PAUSE as exc:
-                state.cached_inputs = task_inputs or {}
+                state.cached_inputs = task_inputs or {}  # type: ignore
                 state.message = exc
 
             finally:  # resource is now available
@@ -413,7 +413,7 @@ class TaskRunner(Runner):
     @call_state_handlers
     def check_upstreams_for_mapping(
         self, state: State, upstream_states: Dict[Edge, Union[State, List[State]]]
-    ):
+    ) -> State:
         """
         If the task is being mapped, checks if the upstream states are in a state
         to be mapped over.
@@ -458,11 +458,11 @@ class TaskRunner(Runner):
         self,
         state: State,
         upstream_states: Dict[Edge, Union[State, List[State]]],
-        inputs,
-        ignore_trigger,
-        context,
-        queues,
-        executor,
+        inputs: Dict[str, Any],
+        ignore_trigger: bool,
+        context: Dict[str, Any],
+        queues: Iterable,
+        executor: "prefect.engine.executors.Executor",
     ) -> State:
         """
         If the task is being mapped, sets the task to `Mapped`
