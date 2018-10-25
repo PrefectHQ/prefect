@@ -259,3 +259,58 @@ def test_consistency_of_class_method_docs(obj, fn):
     ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has undocumented arguments.".format(
         obj=obj, fn=fn
     )
+
+
+def test_format_doc_removes_unnecessary_newlines_when_appropriate_in_tables():
+    def doc_fun():
+        """
+        I am a
+        poorly formatte
+        d doc string.
+
+        Args:
+            - x (optional): actually not
+                really here
+
+        Example:
+            ```python
+            ## TODO:
+            ## put some
+            ## code here
+            ```
+        """
+        pass
+
+    res = format_doc(doc_fun, in_table=True)
+    sub_string = "<sub>I am a poorly formatte d doc string.<br><br>**Args**:"
+    assert sub_string in res
+
+
+def test_format_doc_correctly_handles_code_blocks_outside_of_tables():
+    def doc_fun():
+        """
+        A `dict` that also supports attribute ("dot") access. Think of this as an extension
+        to the standard python `dict` object.
+
+        Args:
+            - init_dict (dict, optional): dictionary to initialize the `DotDict`
+            with
+            - **kwargs (optional): key, value pairs with which to initialize the
+            `DotDict`
+
+        **Example**:
+            ```python
+            dotdict = DotDict({'a': 34}, b=56, c=set())
+            dotdict.a # 34
+            dotdict['b'] # 56
+            dotdict.c # set()
+            ```
+        """
+        pass
+
+    res = format_doc(doc_fun)
+    sub_string = (
+        "**Example**:     \n```python\n    dotdict = DotDict({'a': 34},"
+        " b=56, c=set())\n    dotdict.a # 34\n    dotdict['b'] # 56\n    dotdict.c # set()\n\n```"
+    )
+    assert sub_string in res
