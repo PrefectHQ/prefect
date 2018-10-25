@@ -317,6 +317,10 @@ def test_task_runner_handles_secrets():
     assert state.result is "my_private_str"
 
 
+def test_task_that_starts_failed_doesnt_get_retried():
+    state = TaskRunner(Task()).run(state=Failed())
+    assert state.is_failed()
+
 class TestGetRunCount:
     @pytest.mark.parametrize(
         "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), CachedState()]
