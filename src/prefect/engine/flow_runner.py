@@ -74,7 +74,7 @@ class FlowRunner(Runner):
             - new_state (State): the new (current) state
 
         Returns:
-            State: the new state
+            - State: the new state
         """
         for handler in self.flow.state_handlers:
             new_state = handler(self.flow, old_state, new_state)
@@ -192,7 +192,7 @@ class FlowRunner(Runner):
             - state (State): the current state of this flow
 
         Returns:
-            State: the state of the flow after running the check
+            - State: the state of the flow after running the check
 
         Raises:
             - ENDRUN: if the flow is not pending or running
@@ -219,7 +219,7 @@ class FlowRunner(Runner):
             - state (State): the current state of this flow
 
         Returns:
-            State: the state of the flow after running the check
+            - State: the state of the flow after running the check
 
         Raises:
             - ENDRUN: if the flow is not pending or running

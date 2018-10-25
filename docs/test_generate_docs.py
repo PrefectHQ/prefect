@@ -272,6 +272,11 @@ def test_format_doc_removes_unnecessary_newlines_when_appropriate_in_tables():
             - x (optional): actually not
                 really here
 
+        I talk too much.
+
+        Raises:
+            - TypeError: why not
+
         Example:
             ```python
             ## TODO:
@@ -284,6 +289,7 @@ def test_format_doc_removes_unnecessary_newlines_when_appropriate_in_tables():
     res = format_doc(doc_fun, in_table=True)
     sub_string = "<sub>I am a poorly formatte d doc string.<br><br>**Args**:"
     assert sub_string in res
+    assert "<br>**Raises**:" in res
 
 
 def test_format_doc_correctly_handles_code_blocks_outside_of_tables():
@@ -314,3 +320,39 @@ def test_format_doc_correctly_handles_code_blocks_outside_of_tables():
         " b=56, c=set())\n    dotdict.a # 34\n    dotdict['b'] # 56\n    dotdict.c # set()\n\n```"
     )
     assert sub_string in res
+
+
+@pytest.mark.parametrize(
+    "fn", [fn for page in OUTLINE for fn in page.get("functions", [])]
+)
+def test_sections_have_formatted_headers_for_function_docs(fn):
+    doc = format_doc(fn)
+    for section in ["Args", "Returns", "Raises", "Example"]:
+        option1 = ">**{}**:".format(section)
+        option2 = "\n**{}**:".format(section)
+        assert (section in doc) is any(
+            [(o in doc) for o in (option1, option2)]
+        ), "{fn.__name__} has a poorly formatted {sec} header.".format(
+            fn=fn, sec=section
+        )
+
+
+@pytest.mark.parametrize(
+    "obj,fn",
+    [
+        (obj, fn)
+        for page in OUTLINE
+        for obj in page.get("classes", [])
+        for fn in get_class_methods(obj)
+    ],
+)  # parametrized like this for easy reading of tests
+def test_consistency_of_class_method_docs(obj, fn):
+    doc = format_doc(fn)
+    for section in ["Args", "Returns", "Raises", "Example"]:
+        option1 = ">**{}**:".format(section)
+        option2 = "\n**{}**:".format(section)
+        assert (section in doc) is any(
+            [(o in doc) for o in (option1, option2)]
+        ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has a poorly formatted {sec} header.".format(
+            obj=obj, fn=fn, sec=section
+        )

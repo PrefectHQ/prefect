@@ -199,7 +199,7 @@ class Flow(Serializable):
 
     def copy(self) -> "Flow":
         """
-        Returns a copy of the current Flow.
+        Create and returns a copy of the current Flow.
         """
         new = copy.copy(self)
         new._cache = dict()

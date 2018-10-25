@@ -278,6 +278,8 @@ def clean_line(line):
         line.replace("Args:", "**Args**:")
         .replace("Returns:", "**Returns**:")
         .replace("Raises:", "**Raises**:")
+        .replace("Example:", "**Example**:")
+        .replace(".**", ".\n\n**")
     )
     return line.lstrip()
 
