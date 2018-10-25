@@ -19,7 +19,7 @@ from prefect.engine.state import (
     Skipped,
 )
 from prefect.utilities.notifications import (
-    email_notifier,
+    gmail_notifier,
     slack_message_formatter,
     slack_notifier,
 )
@@ -188,13 +188,13 @@ def test_slack_notifier_is_curried_and_uses_only_states(monkeypatch, state):
     assert ok.called is isinstance(state, TriggerFailed)
 
 
-def test_email_notifier_sends_simple_email(monkeypatch):
+def test_gmail_notifier_sends_simple_email(monkeypatch):
     smtp = MagicMock()
     sendmail = MagicMock()
     smtp.SMTP_SSL.return_value.sendmail = sendmail
     monkeypatch.setattr(prefect.utilities.notifications, "smtplib", smtp)
     s = Failed("optional message...")
-    returned = email_notifier(
+    returned = gmail_notifier(
         Task(name="dud"), "", s, username="alice", password="1234"
     )
     assert returned is s
@@ -221,19 +221,19 @@ def test_email_notifier_sends_simple_email(monkeypatch):
         Skipped,
     ],
 )
-def test_email_notifier_is_curried_and_uses_only_states(monkeypatch, state):
+def test_gmail_notifier_is_curried_and_uses_only_states(monkeypatch, state):
     state = state()
     smtp = MagicMock()
     sendmail = MagicMock()
     smtp.SMTP_SSL.return_value.sendmail = sendmail
     monkeypatch.setattr(prefect.utilities.notifications, "smtplib", smtp)
-    handler = email_notifier(only_states=[TriggerFailed])
+    handler = gmail_notifier(only_states=[TriggerFailed])
     returned = handler(Task(), "", state)
     assert returned is state
     assert sendmail.called is isinstance(state, TriggerFailed)
 
 
-def test_email_notifier_ignores_ignore_states(monkeypatch):
+def test_gmail_notifier_ignores_ignore_states(monkeypatch):
     all_states = [
         Running,
         Pending,
@@ -252,6 +252,6 @@ def test_email_notifier_ignores_ignore_states(monkeypatch):
     monkeypatch.setattr(prefect.utilities.notifications, "smtplib", smtp)
     for state in all_states:
         s = state()
-        returned = email_notifier(Task(), "", s, ignore_states=[State])
+        returned = gmail_notifier(Task(), "", s, ignore_states=[State])
         assert returned is s
         assert sendmail.called is False
