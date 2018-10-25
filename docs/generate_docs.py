@@ -230,7 +230,7 @@ OUTLINE = [
         "page": "utilities/notifications.md",
         "functions": [
             prefect.utilities.notifications.slack_notifier,
-            prefect.utilities.notifications.email_notifier,
+            prefect.utilities.notifications.gmail_notifier,
         ],
         "title": "Notifications and Callback Tools",
         "top-level-doc": prefect.utilities.notifications,

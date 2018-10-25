@@ -13,7 +13,7 @@ from toolz import curry
 from prefect.client import Secret
 
 
-__all__ = ["email_notifier", "slack_notifier"]
+__all__ = ["gmail_notifier", "slack_notifier"]
 
 
 def email_message_formatter(tracked_obj, state, email_to):
@@ -90,7 +90,7 @@ def slack_message_formatter(tracked_obj, state):
 
 
 @curry
-def email_notifier(
+def gmail_notifier(
     tracked_obj,
     old_state,
     new_state,
@@ -125,9 +125,9 @@ def email_notifier(
     Example:
         ```python
         from prefect import task
-        from prefect.utilities.notifications import email_notifier
+        from prefect.utilities.notifications import gmail_notifier
 
-        @task(state_handlers=[email_notifier(ignore_states=[Running])]) # uses currying
+        @task(state_handlers=[gmail_notifier(ignore_states=[Running])]) # uses currying
         def add(x, y):
             return x + y
         ```
