@@ -269,7 +269,7 @@ def test_flow_runner_remains_pending_if_tasks_are_retrying():
     # https://github.com/PrefectHQ/prefect/issues/19
     flow = prefect.Flow()
     task1 = SuccessTask()
-    task2 = ErrorTask(max_retries=1)
+    task2 = ErrorTask(max_retries=1, retry_delay=datetime.timedelta(0))
 
     flow.add_edge(task1, task2)
 
@@ -451,7 +451,7 @@ class TestInputCaching:
     def test_retries_use_cached_inputs(self, executor):
         with Flow() as f:
             a = CountTask()
-            b = ReturnTask(max_retries=1)
+            b = ReturnTask(max_retries=1, retry_delay=datetime.timedelta(0))
             res = b(a())
 
         first_state = FlowRunner(flow=f).run(executor=executor, return_tasks=[res])
@@ -492,7 +492,7 @@ class TestInputCaching:
     def test_retries_caches_parameters_as_well(self, executor):
         with Flow() as f:
             x = Parameter("x")
-            a = ReturnTask(max_retries=1)
+            a = ReturnTask(max_retries=1, retry_delay=datetime.timedelta(0))
             res = a(x)
 
         first_state = FlowRunner(flow=f).run(
@@ -624,7 +624,7 @@ class TestReturnFailed:
     def test_return_failed_includes_retries(self):
         with Flow() as f:
             s = SuccessTask()
-            e = ErrorTask(max_retries=1)
+            e = ErrorTask(max_retries=1, retry_delay=datetime.timedelta(0))
             s.set_upstream(e)
         state = FlowRunner(flow=f).run(return_failed=True)
         assert state.is_pending()
@@ -648,35 +648,35 @@ class TestRunCount:
 
     def test_run_count_tracked_via_retry_states(self):
         flow = Flow()
-        t1 = ErrorTask(max_retries=1)
-        t2 = ErrorTask(max_retries=2)
+        t1 = ErrorTask(max_retries=1, retry_delay=datetime.timedelta(0))
+        t2 = ErrorTask(max_retries=2, retry_delay=datetime.timedelta(0))
         flow.add_task(t1)
         flow.add_task(t2)
 
         # first run
-        state = FlowRunner(flow=flow).run(return_tasks=[t1, t2])
-        assert state.is_pending()
-        assert isinstance(state.result[t1], Retrying)
-        assert state.result[t1].run_count == 1
-        assert isinstance(state.result[t2], Retrying)
-        assert state.result[t2].run_count == 1
+        state1 = FlowRunner(flow=flow).run(return_tasks=[t1, t2])
+        assert state1.is_pending()
+        assert isinstance(state1.result[t1], Retrying)
+        assert state1.result[t1].run_count == 1
+        assert isinstance(state1.result[t2], Retrying)
+        assert state1.result[t2].run_count == 1
 
         # second run
-        state = FlowRunner(flow=flow).run(
-            task_states=state.result, return_tasks=[t1, t2]
+        state2 = FlowRunner(flow=flow).run(
+            task_states=state1.result, return_tasks=[t1, t2]
         )
-        assert state.is_pending()
-        assert isinstance(state.result[t1], Failed)
-        assert isinstance(state.result[t2], Retrying)
-        assert state.result[t2].run_count == 2
+        assert state2.is_pending()
+        assert isinstance(state2.result[t1], Failed)
+        assert isinstance(state2.result[t2], Retrying)
+        assert state2.result[t2].run_count == 2
 
         # third run
-        state = FlowRunner(flow=flow).run(
-            task_states=state.result, return_tasks=[t1, t2]
+        state3 = FlowRunner(flow=flow).run(
+            task_states=state2.result, return_tasks=[t1, t2]
         )
-        assert state.is_failed()
-        assert isinstance(state.result[t1], Failed)
-        assert isinstance(state.result[t2], Failed)
+        assert state3.is_failed()
+        assert isinstance(state3.result[t1], Failed)
+        assert isinstance(state3.result[t2], Failed)
 
 
 @pytest.mark.skipif(

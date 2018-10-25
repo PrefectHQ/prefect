@@ -132,9 +132,9 @@ class Task(Serializable, metaclass=SignatureValidator):
         slug: str = None,
         description: str = None,
         tags: Iterable[str] = None,
-        max_retries: int = 0,
-        retry_delay: timedelta = timedelta(minutes=1),
-        timeout: timedelta = None,
+        max_retries: int = prefect.config.tasks.defaults.max_retries,
+        retry_delay: timedelta = prefect.config.tasks.defaults.retry_delay,
+        timeout: timedelta = prefect.config.tasks.defaults.timeout,
         trigger: Callable[[Set["State"]], bool] = None,
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
@@ -153,6 +153,10 @@ class Task(Serializable, metaclass=SignatureValidator):
         current_tags = set(prefect.context.get("_tags", set()))
         self.tags = (set(tags) if tags is not None else set()) | current_tags
 
+        if max_retries > 0 and retry_delay is None:
+            raise ValueError(
+                "A datetime.timedelta `retry_delay` must be provided if max_retries > 0"
+            )
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
