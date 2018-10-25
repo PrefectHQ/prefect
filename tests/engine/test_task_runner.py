@@ -125,7 +125,7 @@ def test_task_that_fails_gets_retried_up_to_max_retry_time():
     """
     Test that failed tasks are marked for retry if run_count is available
     """
-    err_task = ErrorTask(max_retries=1, retry_delay=timedelta(seconds=0))
+    err_task = ErrorTask(max_retries=2, retry_delay=timedelta(0))
     task_runner = TaskRunner(task=err_task)
 
     # first run should be retry
@@ -169,7 +169,7 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     """
     Test that tasks that raise a retry signal get retried even if they exceed max_retries
     """
-    retry_task = RaiseRetryTask(max_retries=1)
+    retry_task = RaiseRetryTask(max_retries=1, retry_delay=timedelta(0))
     task_runner = TaskRunner(task=retry_task)
 
     # first run should be retrying
@@ -320,6 +320,7 @@ def test_task_runner_handles_secrets():
 def test_task_that_starts_failed_doesnt_get_retried():
     state = TaskRunner(Task()).run(state=Failed())
     assert state.is_failed()
+
 
 class TestGetRunCount:
     @pytest.mark.parametrize(
@@ -755,49 +756,49 @@ class TestCheckRetryStep:
 
     def test_failed_one_max_retry(self):
         state = Failed()
-        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
-            state=state, inputs={}
-        )
+        new_state = TaskRunner(
+            task=Task(max_retries=1, retry_delay=timedelta(0))
+        ).check_for_retry(state=state, inputs={})
         assert isinstance(new_state, Retrying)
         assert new_state.run_count == 1
 
     def test_failed_one_max_retry_second_run(self):
         state = Failed()
         with prefect.context(_task_run_count=2):
-            new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
-                state=state, inputs={}
-            )
+            new_state = TaskRunner(
+                task=Task(max_retries=1, retry_delay=timedelta(0))
+            ).check_for_retry(state=state, inputs={})
             assert new_state is state
 
     def test_failed_retry_caches_inputs(self):
         state = Failed()
-        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
-            state=state, inputs={"x": 1}
-        )
+        new_state = TaskRunner(
+            task=Task(max_retries=1, retry_delay=timedelta(0))
+        ).check_for_retry(state=state, inputs={"x": 1})
         assert isinstance(new_state, Retrying)
         assert new_state.cached_inputs == {"x": 1}
 
     def test_retrying_when_run_count_greater_than_max_retries(self):
         with prefect.context(_task_run_count=10):
             state = Retrying()
-            new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
-                state=state, inputs={}
-            )
+            new_state = TaskRunner(
+                task=Task(max_retries=1, retry_delay=timedelta(0))
+            ).check_for_retry(state=state, inputs={})
             assert new_state is state
 
     def test_retrying_with_start_time(self):
         state = Retrying(start_time=datetime.utcnow())
-        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
-            state=state, inputs={}
-        )
+        new_state = TaskRunner(
+            task=Task(max_retries=1, retry_delay=timedelta(0))
+        ).check_for_retry(state=state, inputs={})
         assert new_state is state
 
     def test_retrying_when_state_has_explicit_run_count_set(self):
         with prefect.context(_task_run_count=10):
             state = Retrying(run_count=5)
-            new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
-                state=state, inputs={}
-            )
+            new_state = TaskRunner(
+                task=Task(max_retries=1, retry_delay=timedelta(0))
+            ).check_for_retry(state=state, inputs={})
             assert new_state is state
 
 
@@ -919,7 +920,9 @@ class TestTaskStateHandlers:
         assert handler_results["Task"] == 2
 
     def test_task_handlers_are_called_on_retry(self):
-        @prefect.task(state_handlers=[task_handler], max_retries=1)
+        @prefect.task(
+            state_handlers=[task_handler], max_retries=1, retry_delay=timedelta(0)
+        )
         def fn():
             1 / 0
 
@@ -967,7 +970,7 @@ class TestTaskRunnerStateHandlers:
         assert handler_results["TaskRunner"] == 2
 
     def test_task_runner_handlers_are_called_on_retry(self):
-        @prefect.task(max_retries=1)
+        @prefect.task(max_retries=1, retry_delay=timedelta(0))
         def fn():
             1 / 0
 
