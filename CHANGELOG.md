@@ -6,7 +6,7 @@
 
 - Refactor `FlowRunner` and `TaskRunner` into a modular `Runner` pipelines - [#260](https://github.com/PrefectHQ/prefect/pull/260), [#267](https://github.com/PrefectHQ/prefect/pull/267)
 - Add configurable `state_handlers` for `FlowRunners`, `Flows`, `TaskRunners`, and `Tasks`  - [#264](https://github.com/PrefectHQ/prefect/pull/264), [#267](https://github.com/PrefectHQ/prefect/pull/267)
-- Add slack notification state handler w/ tutorial - [#274](https://github.com/PrefectHQ/prefect/pull/274)
+- Add gmail and slack notification state handlers w/ tutorial - [#274](https://github.com/PrefectHQ/prefect/pull/274), [#294](https://github.com/PrefectHQ/prefect/pull/294)
 
 ### Minor Features
 
@@ -29,6 +29,7 @@
 
 - Renamed `scheduled_time` -> `start_time` in `Scheduled` state objects - [#278](https://github.com/PrefectHQ/prefect/pull/278)
 - `TaskRunner.check_for_retry` no longer checks for `Retry` states without `start_time` set - [#278](https://github.com/PrefectHQ/prefect/pull/278)
+- Swapped the position of `result` and `message` attributes in State initializations, and started storing caught exceptions as results - [#283](https://github.com/PrefectHQ/prefect/issues/283)
 
 ## 0.3.2 <Badge text="alpha" type="warn">
 
