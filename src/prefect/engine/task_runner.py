@@ -415,8 +415,8 @@ class TaskRunner(Runner):
         if isinstance(state, Scheduled):
             if (
                 not is_start_task
-                and state.scheduled_time
-                and state.scheduled_time > datetime.datetime.utcnow()
+                and state.start_time
+                and state.start_time > datetime.datetime.utcnow()
             ):
                 raise ENDRUN(state)
         return state
