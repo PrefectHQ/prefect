@@ -82,7 +82,7 @@ def test_formatter_formats_states_with_string_message(state):
     ],
 )
 def test_formatter_formats_states_with_exception_message(state):
-    orig = slack_message_formatter(Task(), state(message=ZeroDivisionError("Nope")))
+    orig = slack_message_formatter(Task(), state(result=ZeroDivisionError("Nope")))
     expected = "```ZeroDivisionError('Nope'"
     expected += ")```" if sys.version_info >= (3, 7) else ",)```"
     assert orig["attachments"][0]["fields"][0]["value"] == expected
@@ -201,10 +201,9 @@ def test_email_notifier_sends_simple_email(monkeypatch):
     email_from, to, body = sendmail.call_args[0]
     assert email_from == "notifications@prefect.io"
     assert to == "alice"
-    assert (
-        body
-        == "Subject: Prefect State Change notification for dud\n\ndud is now in a Failed state"
-    )
+    assert "Failed" in body
+    assert "optional message" in body
+    assert s.color in body
 
 
 @pytest.mark.parametrize(

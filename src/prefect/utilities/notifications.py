@@ -5,19 +5,67 @@ For an in-depth guide to setting up your system for using Slack notifications, [
 """
 import requests
 import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.header import Header
 from toolz import curry
 
 from prefect.client import Secret
 
 
+__all__ = ["email_notifier", "slack_notifier"]
+
+
+def email_message_formatter(tracked_obj, state, email_to):
+    if isinstance(state.result, Exception):
+        msg = "<pre>{}</pre>".format(repr(state.result))
+    else:
+        msg = '"{}"'.format(state.message)
+
+    html = """
+    <html><head></head><body>
+    <table align="left" border="0" cellpadding="2px" cellspacing="2px">
+    <tr>
+    <td style="border-left: 2px solid {color};">
+    <img src="https://emoji.slack-edge.com/TAN3D79AL/prefect/2497370f58500a5a.png">
+    </td>
+    <td style="border-left: 2px solid {color}; padding-left: 6px;">
+    {text}
+    </td>
+    </tr>
+    </table>
+    </body></html>
+    """
+    color = state.color
+    text = """
+    <pre>{name}</pre> is now in a <font color="{color}"><b>{state}</b></font> state
+    <br><br>
+    Message: {msg}
+    """.format(
+        name=tracked_obj.name, color=state.color, state=type(state).__name__, msg=msg
+    )
+
+    contents = MIMEMultipart("alternative")
+    contents.attach(MIMEText(text, "plain"))
+    contents.attach(MIMEText(html.format(color=color, text=text), "html"))
+
+    contents["Subject"] = Header(
+        "Prefect state change notification for {}".format(tracked_obj.name), "UTF-8"
+    )
+    contents["From"] = "notifications@prefect.io"
+    contents["To"] = email_to
+
+    return contents.as_string()
+
+
 def slack_message_formatter(tracked_obj, state):
     # see https://api.slack.com/docs/message-attachments
     fields = []
-    if state.message is not None:
-        if isinstance(state.message, Exception):
-            value = "```{}```".format(repr(state.message))
-        else:
-            value = state.message
+    if isinstance(state.result, Exception):
+        value = "```{}```".format(repr(state.result))
+    else:
+        value = state.message
+    if value is not None:
         fields.append({"title": "Message", "value": value, "short": False})
 
     data = {
@@ -97,9 +145,7 @@ def email_notifier(
     ):
         return new_state
 
-    body = """Subject: Prefect State Change notification for {name}\n\n{name} is now in a {state} state""".format(
-        name=tracked_obj.name, state=type(new_state).__name__
-    )
+    body = email_message_formatter(tracked_obj, new_state, username)
 
     server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
     server.login(username, password)
