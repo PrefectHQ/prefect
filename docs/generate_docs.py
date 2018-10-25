@@ -314,7 +314,10 @@ def format_doc(obj, in_table=False):
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
         body = body.replace(block, f"$CODEBLOCK{num}", 1)
-    body = format_lists(body)
+    body = re.sub(
+        "(?<!\n)\n{1}(?!\n)", " ", format_lists(body)
+    )  # removes poorly placed newlines
+    body = body.replace("```", "\n```")
     lines = body.split("\n")
     cleaned = "\n".join([clean_line(line) for line in lines])
     if in_table:
