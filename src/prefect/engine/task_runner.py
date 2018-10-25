@@ -80,7 +80,7 @@ class TaskRunner(Runner):
         state: State = None,
         upstream_states: Dict[Edge, Union[State, List[State]]] = None,
         inputs: Dict[str, Any] = None,
-        is_start_task: bool = False,
+        ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
         queues: List = None,
         mapped: bool = False,
@@ -100,9 +100,8 @@ class TaskRunner(Runner):
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments. Any keys that are provided will override the
                 `State`-based inputs provided in upstream_states.
-            - is_start_task (bool): boolean specifying whether to run this task as a "start
-                task". Start tasks do not check triggers and don't wait for Pending states
-                to reach their scheduled starts.
+            - ignore_trigger (bool): boolean specifying whether to ignore the
+                Task trigger and certain other dependency checks; defaults to `False`
             - context (dict, optional): prefect Context to use for execution
             - queues ([queue], optional): list of queues of tickets to use when deciding
                 whether it's safe for the Task to run based on resource limitations. The
@@ -185,11 +184,13 @@ class TaskRunner(Runner):
                 # check to make sure the task is in a pending state
                 state = self.check_task_is_pending(state)
 
+                # check if the task has reached its scheduled time
+                state = self.check_task_reached_start_time(
+                    state, ignore_trigger=ignore_trigger
+                )
+
                 # check to see if the task has a cached result
                 state = self.check_task_is_cached(state, inputs=task_inputs)
-
-                # check if the task's trigger passes
-                state = self.check_task_is_scheduled(state, is_start_task=is_start_task)
 
                 # set the task state to running
                 state = self.set_task_to_running(state)
@@ -308,7 +309,10 @@ class TaskRunner(Runner):
 
     @call_state_handlers
     def check_task_trigger(
-        self, state: State, upstream_states_set: Set[State], is_start_task: bool = False
+        self,
+        state: State,
+        upstream_states_set: Set[State],
+        ignore_trigger: bool = False,
     ) -> State:
         """
         Checks if the task's trigger function passes. If the upstream_states_set is empty,
@@ -317,7 +321,7 @@ class TaskRunner(Runner):
         Args:
             - state (State): the current state of this task
             - upstream_states_set (Set[State]): a set containing the states of any upstream tasks.
-            - is_start_task (bool): if True, skips the trigger check because the task is a
+            - ignore_trigger (bool): if True, skips the trigger check because the task is a
                 start task.
 
         Returns:
@@ -332,7 +336,7 @@ class TaskRunner(Runner):
         try:
             if not upstream_states_set:
                 return state
-            elif not is_start_task and not self.task.trigger(upstream_states_set):
+            elif not ignore_trigger and not self.task.trigger(upstream_states_set):
                 raise signals.TRIGGERFAIL(message="Trigger failed")
 
         except signals.PAUSE:
@@ -393,8 +397,8 @@ class TaskRunner(Runner):
             raise ENDRUN(state)
 
     @call_state_handlers
-    def check_task_is_scheduled(
-        self, state: State, is_start_task: bool = False
+    def check_task_reached_start_time(
+        self, state: State, ignore_trigger: bool = False
     ) -> State:
         """
         Checks if a task is in a Scheduled state and, if it is, ensures that the scheduled
@@ -402,7 +406,7 @@ class TaskRunner(Runner):
 
         Args:
             - state (State): the current state of this task
-            - is_start_task (bool): if True, the task is treated as a start task and the
+            - ignore_trigger (bool): if True, the task is treated as a start task and the
                 scheduled check is not run
 
         Returns:
@@ -414,7 +418,7 @@ class TaskRunner(Runner):
         """
         if isinstance(state, Scheduled):
             if (
-                not is_start_task
+                not ignore_trigger
                 and state.start_time
                 and state.start_time > datetime.datetime.utcnow()
             ):
@@ -506,7 +510,7 @@ class TaskRunner(Runner):
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
             - ignore_trigger (bool): boolean specifying whether to ignore the
-                Task trigger; defaults to `False`
+                Task trigger and certain other dependency checks; defaults to `False`
             - context (dict, optional): prefect Context to use for execution
             - queues ([queue], optional): list of queues of tickets to use when deciding
                 whether it's safe for the Task to run based on resource limitations. The

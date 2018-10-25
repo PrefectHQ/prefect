@@ -401,11 +401,11 @@ class TestCheckUpstreamSkipped:
 
 
 class TestCheckTaskTrigger:
-    def test_is_start_task(self):
+    def test_ignore_trigger(self):
         task = Task(trigger=prefect.triggers.all_successful)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={Success(), Failed()}, is_start_task=True
+            state=state, upstream_states_set={Success(), Failed()}, ignore_trigger=True
         )
         assert new_state is state
 
@@ -831,13 +831,17 @@ class TestCheckScheduledStep:
         "state", [Failed(), Pending(), Skipped(), Running(), Success()]
     )
     def test_non_scheduled_states(self, state):
-        assert TaskRunner(task=Task()).check_task_is_scheduled(state=state) is state
+        assert (
+            TaskRunner(task=Task()).check_task_reached_start_time(state=state) is state
+        )
 
     @pytest.mark.parametrize(
         "state", [Scheduled(start_time=None), Retrying(start_time=None)]
     )
     def test_scheduled_states_without_start_time(self, state):
-        assert TaskRunner(task=Task()).check_task_is_scheduled(state=state) is state
+        assert (
+            TaskRunner(task=Task()).check_task_reached_start_time(state=state) is state
+        )
 
     @pytest.mark.parametrize(
         "state",
@@ -848,7 +852,7 @@ class TestCheckScheduledStep:
     )
     def test_scheduled_states_with_future_start_time(self, state):
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task=Task()).check_task_is_scheduled(state=state)
+            TaskRunner(task=Task()).check_task_reached_start_time(state=state)
         assert exc.value.state is state
 
     @pytest.mark.parametrize(
@@ -859,7 +863,9 @@ class TestCheckScheduledStep:
         ],
     )
     def test_scheduled_states_with_past_start_time(self, state):
-        assert TaskRunner(task=Task()).check_task_is_scheduled(state=state) is state
+        assert (
+            TaskRunner(task=Task()).check_task_reached_start_time(state=state) is state
+        )
 
     @pytest.mark.parametrize(
         "state",
@@ -868,9 +874,9 @@ class TestCheckScheduledStep:
             Retrying(start_time=datetime.utcnow() + timedelta(minutes=1)),
         ],
     )
-    def test_scheduled_states_start_task_with_future_start_time(self, state):
-        result = TaskRunner(task=Task()).check_task_is_scheduled(
-            state=state, is_start_task=True
+    def test_scheduled_stategnore_trigger_with_future_start_time(self, state):
+        result = TaskRunner(task=Task()).check_task_reached_start_time(
+            state=state, ignore_trigger=True
         )
         assert result is state
 
