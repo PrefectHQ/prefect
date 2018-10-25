@@ -50,10 +50,9 @@ def email_notifier(
     only_states: list = None,
     username: str = None,
     password: str = None,
-    email_to: str = None,
 ):
     """
-    Email state change handler; works as a standalone state handler, or can be called from within a custom
+    Email state change handler - configured to work solely with Gmail; works as a standalone state handler, or can be called from within a custom
     state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
 
     Args:
@@ -65,6 +64,9 @@ def email_notifier(
             e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
         - only_states ([State], optional): similar to `ignore_states`, but
             instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
+        - username (str, optional): the Gmail username to use - will also serve as the notification email destination; if not
+            provided, will attempt to use your `"EMAIL_USERNAME"` Prefect Secret
+        - password (str, optional): the gmail password to use; if not provided, will attempt to use your `"EMAIL_PASSWORD"` Prefect Secret
 
     Returns:
         - State: the `new_state` object which was provided
@@ -102,9 +104,7 @@ def email_notifier(
     server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
     server.login(username, password)
     try:
-        server.sendmail(
-            "notifications@prefect.io", email_to, body  # this appears to not matter
-        )
+        server.sendmail("notifications@prefect.io", username, body)
     except:
         raise ValueError("Email notification for {} failed".format(tracked_obj))
     finally:
@@ -136,7 +136,7 @@ def slack_notifier(
             e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
         - only_states ([State], optional): similar to `ignore_states`, but
             instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
-        - webhook_url (str, optional): the Prefet slack app webhook URL; if not
+        - webhook_url (str, optional): the Prefect slack app webhook URL; if not
             provided, will attempt to use your `"SLACK_WEBHOOK_URL"` Prefect Secret
 
     Returns:
