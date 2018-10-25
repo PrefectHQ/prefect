@@ -24,8 +24,6 @@ from typing import Any, Dict, Union
 import prefect
 from prefect.utilities.json import Serializable
 
-MessageType = Union[str, Exception]
-
 
 class State(Serializable):
     """
@@ -42,14 +40,14 @@ class State(Serializable):
     ```
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
     color = "#000000"
 
-    def __init__(self, result: Any = None, message: MessageType = None) -> None:
+    def __init__(self, message: str = None, result: Any = None) -> None:
         self.result = result
         self.message = message
         self._timestamp = datetime.datetime.utcnow()
@@ -148,9 +146,9 @@ class Pending(State):
     Base Pending state; default state for new tasks.
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
         keys to values.  Used / set if the Task requires Retries.
     """
@@ -159,8 +157,8 @@ class Pending(State):
 
     def __init__(
         self,
+        message: str = None,
         result: Any = None,
-        message: MessageType = None,
         cached_inputs: Dict[str, Any] = None,
     ) -> None:
         super().__init__(result=result, message=message)
@@ -172,9 +170,9 @@ class CachedState(Pending):
     CachedState, which represents a Task whose outputs have been cached.
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
         keys to values.  Used / set if the Task requires Retries.
         - cached_result (Any): Defaults to `None`. Cached result from a
@@ -188,8 +186,8 @@ class CachedState(Pending):
 
     def __init__(
         self,
+        message: str = None,
         result: Any = None,
-        message: MessageType = None,
         cached_inputs: Dict[str, Any] = None,
         cached_result: Any = None,
         cached_parameters: Dict[str, Any] = None,
@@ -206,9 +204,9 @@ class Scheduled(Pending):
     Pending state indicating the object has been scheduled to run.
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to run
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to values.  Used / set if the Task requires Retries.
@@ -218,8 +216,8 @@ class Scheduled(Pending):
 
     def __init__(
         self,
+        message: str = None,
         result: Any = None,
-        message: MessageType = None,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Any] = None,
     ) -> None:
@@ -232,9 +230,9 @@ class Retrying(Scheduled):
     Pending state indicating the object has been scheduled to be retried.
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to be retried
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to values.  Used / set if the Task requires Retries.
@@ -247,8 +245,8 @@ class Retrying(Scheduled):
 
     def __init__(
         self,
+        message: str = None,
         result: Any = None,
-        message: MessageType = None,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Any] = None,
         run_count: int = None,
@@ -292,9 +290,9 @@ class Success(Finished):
     Finished state indicating success.
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached (CachedState): a `CachedState` which can be used for future
             runs of this task (if the cache is still valid); this attribute should only be set
             by the task runner.
@@ -303,10 +301,7 @@ class Success(Finished):
     color = "#008000"
 
     def __init__(
-        self,
-        result: Any = None,
-        message: MessageType = None,
-        cached: CachedState = None,
+        self, message: str = None, result: Any = None, cached: CachedState = None
     ) -> None:
         super().__init__(result=result, message=message)
         self.cached = cached
@@ -339,5 +334,5 @@ class Skipped(Success):
 
     color = "#F0FFF0"
 
-    def __init__(self, result: Any = None, message: MessageType = None) -> None:
+    def __init__(self, message: str = None, result: Any = None) -> None:
         super().__init__(result=result, message=message)
