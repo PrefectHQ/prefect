@@ -781,7 +781,7 @@ class TestCheckRetryStep:
             )
             assert new_state is state
 
-    def test_retrying_with_scheduled_time(self):
+    def test_retrying_with_start_time(self):
         state = Retrying(start_time=datetime.utcnow())
         new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
             state=state, inputs={}
@@ -834,19 +834,19 @@ class TestCheckScheduledStep:
         assert TaskRunner(task=Task()).check_task_is_scheduled(state=state) is state
 
     @pytest.mark.parametrize(
-        "state", [Scheduled(scheduled_time=None), Retrying(scheduled_time=None)]
+        "state", [Scheduled(start_time=None), Retrying(start_time=None)]
     )
-    def test_scheduled_states_without_scheduled_time(self, state):
+    def test_scheduled_states_without_start_time(self, state):
         assert TaskRunner(task=Task()).check_task_is_scheduled(state=state) is state
 
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled(scheduled_time=datetime.utcnow() + timedelta(minutes=1)),
-            Retrying(scheduled_time=datetime.utcnow() + timedelta(minutes=1)),
+            Scheduled(start_time=datetime.utcnow() + timedelta(minutes=1)),
+            Retrying(start_time=datetime.utcnow() + timedelta(minutes=1)),
         ],
     )
-    def test_scheduled_states_with_future_scheduled_time(self, state):
+    def test_scheduled_states_with_future_start_time(self, state):
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task=Task()).check_task_is_scheduled(state=state)
         assert exc.value.state is state
@@ -854,21 +854,21 @@ class TestCheckScheduledStep:
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled(scheduled_time=datetime.utcnow() - timedelta(minutes=1)),
-            Retrying(scheduled_time=datetime.utcnow() - timedelta(minutes=1)),
+            Scheduled(start_time=datetime.utcnow() - timedelta(minutes=1)),
+            Retrying(start_time=datetime.utcnow() - timedelta(minutes=1)),
         ],
     )
-    def test_scheduled_states_with_past_scheduled_time(self, state):
+    def test_scheduled_states_with_past_start_time(self, state):
         assert TaskRunner(task=Task()).check_task_is_scheduled(state=state) is state
 
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled(scheduled_time=datetime.utcnow() + timedelta(minutes=1)),
-            Retrying(scheduled_time=datetime.utcnow() + timedelta(minutes=1)),
+            Scheduled(start_time=datetime.utcnow() + timedelta(minutes=1)),
+            Retrying(start_time=datetime.utcnow() + timedelta(minutes=1)),
         ],
     )
-    def test_scheduled_states_start_task_with_future_scheduled_time(self, state):
+    def test_scheduled_states_start_task_with_future_start_time(self, state):
         result = TaskRunner(task=Task()).check_task_is_scheduled(
             state=state, is_start_task=True
         )
