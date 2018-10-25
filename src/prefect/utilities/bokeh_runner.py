@@ -10,7 +10,7 @@ states propagate throughout the Flow.
 **Example:**
 
 ```python
-from prefect import Flow, task
+from prefect import Flow, Parameter, task
 from prefect.utilities.bokeh_runner import BokehRunner
 
 @task
@@ -166,6 +166,7 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
         map_counts = defaultdict(lambda: 0)  # type: dict
         mapped_tasks = {}  # type: Dict["prefect.Task", List["prefect.Task"]]
         edges = []
+        assert isinstance(state.result, dict)
 
         for task in self.flow.sorted_tasks():
             old_edges = self.flow.edges_to(task)

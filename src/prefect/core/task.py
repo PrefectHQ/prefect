@@ -5,13 +5,14 @@ import copy
 import inspect
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Set, Tuple
 
 import prefect
 import prefect.engine.cache_validators
 import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities.json import Serializable, to_qualified_name
+from prefect.utilities import logging
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
@@ -134,7 +135,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         max_retries: int = 0,
         retry_delay: timedelta = timedelta(minutes=1),
         timeout: timedelta = None,
-        trigger: Callable[[Dict["Task", "State"]], bool] = None,
+        trigger: Callable[[Set["State"]], bool] = None,
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
@@ -143,6 +144,8 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.name = name or type(self).__name__
         self.slug = slug
         self.description = description
+
+        self.logger = logging.get_logger("Task")
 
         # avoid silently iterating over a string
         if isinstance(tags, str):

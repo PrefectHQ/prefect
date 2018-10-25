@@ -15,15 +15,14 @@ execution. The other types of `Pending` states are `CachedState`, `Scheduled`, a
 When a task is running it will enter a `Running` state which means that the task is
 currently being executed.
 
-The four types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, and
+The four types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, `Mapped` and
 `Skipped`.
 """
 import datetime
 from typing import Any, Dict, Union
 
+import prefect
 from prefect.utilities.json import Serializable
-
-MessageType = Union[str, Exception]
 
 
 class State(Serializable):
@@ -41,12 +40,14 @@ class State(Serializable):
     ```
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    def __init__(self, result: Any = None, message: MessageType = None) -> None:
+    color = "#000000"
+
+    def __init__(self, message: str = None, result: Any = None) -> None:
         self.result = result
         self.message = message
         self._timestamp = datetime.datetime.utcnow()
@@ -102,6 +103,14 @@ class State(Serializable):
         """
         return isinstance(self, Finished)
 
+    def is_scheduled(self) -> bool:
+        """Checks if the object is currently in a scheduled state, which includes retrying.
+
+        Returns:
+            - bool: `True` if the state is skipped, `False` otherwise
+        """
+        return isinstance(self, Scheduled)
+
     def is_skipped(self) -> bool:
         """Checks if the object is currently in a skipped state
 
@@ -137,17 +146,19 @@ class Pending(State):
     Base Pending state; default state for new tasks.
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
         keys to values.  Used / set if the Task requires Retries.
     """
 
+    color = "#d3d3d3"
+
     def __init__(
         self,
+        message: str = None,
         result: Any = None,
-        message: MessageType = None,
         cached_inputs: Dict[str, Any] = None,
     ) -> None:
         super().__init__(result=result, message=message)
@@ -159,9 +170,9 @@ class CachedState(Pending):
     CachedState, which represents a Task whose outputs have been cached.
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
         keys to values.  Used / set if the Task requires Retries.
         - cached_result (Any): Defaults to `None`. Cached result from a
@@ -171,10 +182,12 @@ class CachedState(Pending):
             expires and can no longer be used. Defaults to `None`
     """
 
+    color = "#ffa500"
+
     def __init__(
         self,
+        message: str = None,
         result: Any = None,
-        message: MessageType = None,
         cached_inputs: Dict[str, Any] = None,
         cached_result: Any = None,
         cached_parameters: Dict[str, Any] = None,
@@ -191,23 +204,25 @@ class Scheduled(Pending):
     Pending state indicating the object has been scheduled to run.
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - scheduled_time (datetime): time at which the task is scheduled to run
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - start_time (datetime): time at which the task is scheduled to run
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to values.  Used / set if the Task requires Retries.
     """
 
+    color = "#b0c4de"
+
     def __init__(
         self,
+        message: str = None,
         result: Any = None,
-        message: MessageType = None,
-        scheduled_time: datetime.datetime = None,
+        start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Any] = None,
     ) -> None:
         super().__init__(result=result, message=message, cached_inputs=cached_inputs)
-        self.scheduled_time = scheduled_time
+        self.start_time = start_time or datetime.datetime.utcnow()
 
 
 class Retrying(Scheduled):
@@ -215,13 +230,37 @@ class Retrying(Scheduled):
     Pending state indicating the object has been scheduled to be retried.
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - scheduled_time (datetime): time at which the task is scheduled to be retried
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - start_time (datetime): time at which the task is scheduled to be retried
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to values.  Used / set if the Task requires Retries.
+        - run_count (int): The number of runs that had been attempted at the time of this
+            Retry. Defaults to the value stored in context under "_task_run_count" or 1,
+            if that value isn't found.
     """
+
+    color = "#FFFF00"
+
+    def __init__(
+        self,
+        message: str = None,
+        result: Any = None,
+        start_time: datetime.datetime = None,
+        cached_inputs: Dict[str, Any] = None,
+        run_count: int = None,
+    ) -> None:
+        super().__init__(
+            result=result,
+            message=message,
+            start_time=start_time,
+            cached_inputs=cached_inputs,
+        )
+        if run_count is None:
+            run_count = prefect.context.get("_task_run_count", 1)
+        assert run_count is not None  # mypy assert
+        self.run_count = run_count  # type: int
 
 
 # -------------------------------------------------------------------
@@ -232,6 +271,8 @@ class Retrying(Scheduled):
 class Running(State):
     """Base running state. Indicates that a task is currently running."""
 
+    color = "#00FF00"
+
 
 # -------------------------------------------------------------------
 # Finished States
@@ -241,39 +282,57 @@ class Running(State):
 class Finished(State):
     """Base finished state. Indicates when a class has reached some form of completion."""
 
+    color = "#BA55D3"
+
 
 class Success(Finished):
     """
     Finished state indicating success.
 
     Args:
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached (CachedState): a `CachedState` which can be used for future
-            runs of this task (if the cache is still valid); this attribute should only be set by the task runner.
+            runs of this task (if the cache is still valid); this attribute should only be set
+            by the task runner.
     """
 
+    color = "#008000"
+
     def __init__(
-        self,
-        result: Any = None,
-        message: MessageType = None,
-        cached: CachedState = None,
+        self, message: str = None, result: Any = None, cached: CachedState = None
     ) -> None:
         super().__init__(result=result, message=message)
         self.cached = cached
 
 
+class Mapped(Success):
+    """
+    State indicated this task was mapped over, and all mapped tasks were _submitted_ successfully.
+    Note that this does _not_ imply the individual mapped tasks were successful, just that they
+    have been submitted.
+    """
+
+    color = "#97FFFF"
+
+
 class Failed(Finished):
     """Finished state indicating failure"""
+
+    color = "#FF0000"
 
 
 class TriggerFailed(Failed):
     """Finished state indicating failure due to trigger"""
 
+    color = "#F08080"
+
 
 class Skipped(Success):
     """Finished state indicating success on account of being skipped"""
 
-    def __init__(self, result: Any = None, message: MessageType = None) -> None:
+    color = "#F0FFF0"
+
+    def __init__(self, message: str = None, result: Any = None) -> None:
         super().__init__(result=result, message=message)
