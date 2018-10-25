@@ -131,13 +131,13 @@ def test_task_that_fails_gets_retried_up_to_max_retry_time():
     # first run should be retry
     state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.start_time, datetime.datetime)
+    assert isinstance(state.start_time, datetime)
     assert state.run_count == 1
 
     # second run should retry
     state = task_runner.run(state=state)
     assert isinstance(state, Retrying)
-    assert isinstance(state.start_time, datetime.datetime)
+    assert isinstance(state.start_time, datetime)
     assert state.run_count == 2
 
     # second run should fail
@@ -146,7 +146,7 @@ def test_task_that_fails_gets_retried_up_to_max_retry_time():
 
 
 def test_task_that_raises_retry_has_start_time_recognized():
-    now = datetime.datetime.utcnow()
+    now = datetime.utcnow()
 
     class RetryNow(Task):
         def run(self):
@@ -154,15 +154,15 @@ def test_task_that_raises_retry_has_start_time_recognized():
 
     class Retry5Min(Task):
         def run(self):
-            raise signals.RETRY(start_time=now + datetime.timedelta(minutes=5))
+            raise signals.RETRY(start_time=now + timedelta(minutes=5))
 
     state = TaskRunner(task=RetryNow()).run()
     assert isinstance(state, Retrying)
-    assert now - state.start_time < datetime.timedelta(seconds=0.1)
+    assert now - state.start_time < timedelta(seconds=0.1)
 
     state = TaskRunner(task=Retry5Min()).run()
     assert isinstance(state, Retrying)
-    assert state.start_time == now + datetime.timedelta(minutes=5)
+    assert state.start_time == now + timedelta(minutes=5)
 
 
 def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
@@ -176,7 +176,7 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     with prefect.context(_task_run_count=1):
         state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.start_time, datetime.datetime)
+    assert isinstance(state.start_time, datetime)
 
     # second run should also be retry because the task raises it explicitly
 

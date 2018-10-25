@@ -334,6 +334,43 @@ def test_flow_run_state_not_determined_by_reference_tasks_if_terminal_tasks_are_
     assert isinstance(flow_state.result[t2], Retrying)
 
 
+def test_flow_with_multiple_retry_tasks_doesnt_run_them_early():
+    """
+    t1 -> t2
+    t1 -> t3
+
+    Both t2 and t3 fail on initial run and request a retry. Starting the flow at t1 should
+    only run t3, which requests an immediate retry, and not t2, which requests a retry in
+    10 minutes.
+
+    Starting the flow from t2 SHOULD start running it since it is a start task.
+
+    This tests a check on the TaskRunner, but which matters in Flows like this.
+    """
+    flow = prefect.Flow()
+    t1 = Task()
+    t2 = ErrorTask(retry_delay=datetime.timedelta(minutes=10), max_retries=1)
+    t3 = ErrorTask(retry_delay=datetime.timedelta(minutes=0), max_retries=1)
+    flow.add_edge(t1, t2)
+    flow.add_edge(t1, t3)
+
+    state1 = flow.run(return_tasks=flow.tasks)
+
+    assert isinstance(state1.result[t2], Retrying)
+    assert isinstance(state1.result[t3], Retrying)
+
+    state2 = flow.run(return_tasks=flow.tasks, task_states=state1.result)
+
+    assert isinstance(state2.result[t2], Retrying)
+    assert state2.result[t2] is state1.result[t2]  # state is not modified at all
+    assert isinstance(state2.result[t3], Failed)  # this task ran
+
+    state3 = flow.run(
+        return_tasks=flow.tasks, task_states=state2.result, start_tasks=[t2]
+    )
+    assert isinstance(state3.result[t2], Failed)
+
+
 class TestCheckFlowPendingOrRunning:
     @pytest.mark.parametrize("state", [Pending(), Running(), Retrying(), Scheduled()])
     def test_pending_or_running_are_ok(self, state):
