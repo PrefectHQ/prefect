@@ -116,7 +116,6 @@ class TaskRunner(Runner):
         """
 
         queues = queues or []
-        state = state or Pending()
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
@@ -159,6 +158,12 @@ class TaskRunner(Runner):
         with prefect.context(context, _task_name=self.task.name):
 
             try:
+                # determine starting state
+                first_state = None
+                for handler in self.state_handlers:
+                    first_state = handler(self, None, None)
+                state = first_state or state or Pending()
+
                 # retrieve the run number and place in context
                 state = self.get_run_count(state=state)
 

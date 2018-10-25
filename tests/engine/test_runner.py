@@ -1,4 +1,6 @@
 import pytest
+from unittest.mock import MagicMock
+
 from prefect.engine.runner import Runner, ENDRUN
 from prefect.engine.state import Pending, Running
 
@@ -21,6 +23,16 @@ def test_call_runner_target_handlers_gets_called_in_handle_state_change():
 
     with pytest.raises(ENDRUN):
         TestRunner().handle_state_change(Pending(), Running())
+
+
+def test_call_runner_target_handlers_calls_handlers_appropriately():
+    class TestRunner(Runner):
+        def call_runner_target_handlers(self, old_state, new_state):
+            return new_state
+
+    my_handler = MagicMock(return_value=Running())
+    TestRunner(state_handlers=[my_handler]).handle_state_change(Pending(), Running())
+    assert my_handler.call_args[0][1:] == (Pending(), Running())
 
 
 def test_runner_has_logger():

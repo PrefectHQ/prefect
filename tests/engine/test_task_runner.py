@@ -841,10 +841,10 @@ def task_handler(task, old_state, new_state):
 def task_runner_handler(task_runner, old_state, new_state):
     """state change handler for task runners that increments a value by 1"""
     assert isinstance(task_runner, TaskRunner)
-    assert isinstance(old_state, State)
-    assert isinstance(new_state, State)
+    assert isinstance(old_state, (type(None), State))
+    assert isinstance(new_state, (type(None), State))
     handler_results["TaskRunner"] += 1
-    return new_state
+    return new_state or Pending()
 
 
 class TestTaskStateHandlers:
@@ -899,8 +899,8 @@ class TestTaskStateHandlers:
 class TestTaskRunnerStateHandlers:
     def test_task_runner_handlers_are_called(self):
         TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
-        # the task changed state twice: Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 2
+        # the task changed state twice: Initialization -> Pending -> Running -> Success
+        assert handler_results["TaskRunner"] == 3
 
     def test_task_runner_handlers_are_called_on_retry(self):
         @prefect.task(max_retries=1)
@@ -908,15 +908,15 @@ class TestTaskRunnerStateHandlers:
             1 / 0
 
         TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
-        # the task changed state three times: Pending -> Running -> Failed -> Retry
-        assert handler_results["TaskRunner"] == 3
+        # the task changed state three times: Initialization -> Pending -> Running -> Failed -> Retry
+        assert handler_results["TaskRunner"] == 4
 
     def test_multiple_task_runner_handlers_are_called(self):
         TaskRunner(
             task=Task(), state_handlers=[task_runner_handler, task_runner_handler]
         ).run()
-        # each task changed state twice: Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 4
+        # each task changed state twice: Initialization -> Pending -> Running -> Success
+        assert handler_results["TaskRunner"] == 6
 
     def test_multiple_task_runner_handlers_are_called_in_sequence(self):
         # the second task handler will assert the result of the first task handler is a state
@@ -925,7 +925,8 @@ class TestTaskRunnerStateHandlers:
         with pytest.raises(AssertionError):
             with prefect.utilities.tests.raise_on_exception():
                 TaskRunner(
-                    task=Task(), state_handlers=[lambda *a: None, task_runner_handler]
+                    task=Task(),
+                    state_handlers=[lambda *a: Ellipsis, task_runner_handler],
                 ).run()
 
     def test_task_runner_handler_that_doesnt_return_state(self):
