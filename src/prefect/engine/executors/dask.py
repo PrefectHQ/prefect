@@ -51,6 +51,7 @@ class DaskExecutor(Executor):
         self.address = address
         self.processes = processes
         self.debug = debug
+        self.is_started = False
         self.kwargs = kwargs
         super().__init__()
 
@@ -69,9 +70,11 @@ class DaskExecutor(Executor):
                 self.address, processes=self.processes, **self.kwargs
             ) as client:
                 self.client = client
+                self.is_started = True
                 yield self.client
         finally:
             self.client = None
+            self.is_started = False
 
     def queue(self, maxsize: int = 0, client: Client = None) -> Queue:
         """
@@ -95,7 +98,7 @@ class DaskExecutor(Executor):
         ) -> List[Future]:
             states = dict_to_list(upstream_states)
 
-            with worker_client() as client:
+            with worker_client(separate_thread=False) as client:
                 futures = []
                 for elem in states:
                     futures.append(
@@ -106,10 +109,27 @@ class DaskExecutor(Executor):
                 )  # tells dask we dont expect worker_client to track these
             return futures
 
-        future_list = self.client.submit(
-            mapper, fn, *args, upstream_states=upstream_states, **kwargs
-        )
+        if self.is_started and hasattr(self, "client"):
+            future_list = self.client.submit(
+                mapper, fn, *args, upstream_states=upstream_states, **kwargs
+            )
+        elif self.is_started:
+            with worker_client(separate_thread=False) as client:
+                future_list = client.submit(
+                    mapper, fn, *args, upstream_states=upstream_states, **kwargs
+                )
+        else:
+            raise ValueError("Executor must be started")
         return future_list
+
+    def __getstate__(self) -> dict:
+        state = self.__dict__.copy()
+        if "client" in state:
+            del state["client"]
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:
         """
@@ -124,7 +144,11 @@ class DaskExecutor(Executor):
             - Future: a Future-like object which represents the computation of `fn(*args, **kwargs)`
         """
 
-        return self.client.submit(fn, *args, pure=False, **kwargs)
+        if self.is_started and hasattr(self, "client"):
+            return self.client.submit(fn, *args, pure=False, **kwargs)
+        elif self.is_started:
+            with worker_client(separate_thread=False) as client:
+                return client.submit(fn, *args, pure=False, **kwargs)
 
     def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
         """
@@ -138,6 +162,7 @@ class DaskExecutor(Executor):
         Returns:
             - Iterable: an iterable of resolved futures
         """
-        return self.client.gather(
-            self.client.gather(futures)
-        )  # we expect worker_client submitted futures
+        res = self.client.gather(
+            self.client.gather(self.client.gather(self.client.gather(futures)))
+        )
+        return res

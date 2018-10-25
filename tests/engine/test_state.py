@@ -1,11 +1,12 @@
 import datetime
 
 import pytest
-
+import prefect
 from prefect.engine.state import (
     CachedState,
     Failed,
     Finished,
+    Mapped,
     Pending,
     Retrying,
     Running,
@@ -20,6 +21,7 @@ from prefect.utilities import json
 all_states = [
     CachedState,
     State,
+    Mapped,
     Pending,
     Running,
     Finished,
@@ -40,10 +42,17 @@ def test_create_state_with_no_args(cls):
 
 
 @pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_positional_data_arg(cls):
-    state = cls(1)
+def test_create_state_with_kwarg_data_arg(cls):
+    state = cls(result=1)
     assert state.result == 1
     assert state.message is None
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_positional_message_arg(cls):
+    state = cls("i am a string")
+    assert state.message == "i am a string"
+    assert state.result is None
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -75,10 +84,37 @@ def test_timestamp_protected():
         state.timestamp = 1
 
 
+def test_scheduled_states_have_default_times():
+    now = datetime.datetime.utcnow()
+    assert now - Scheduled().start_time < datetime.timedelta(seconds=0.1)
+    assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
+
+
 def test_timestamp_is_serialized():
     state = Success()
     deserialized_state = json.loads(json.dumps(state))
     assert state.timestamp == deserialized_state.timestamp
+
+
+def test_retry_stores_run_count():
+    state = Retrying(run_count=2)
+    assert state.run_count == 2
+
+
+def test_retry_stores_default_run_count():
+    state = Retrying()
+    assert state.run_count == 1
+
+
+def test_retry_stores_default_run_count_in_context():
+    with prefect.context(_task_run_count=5):
+        state = Retrying()
+    assert state.run_count == 5
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_states_have_color(cls):
+    assert cls.color.startswith("#")
 
 
 def test_serialize():
@@ -92,6 +128,7 @@ def test_serialize():
     j = json.dumps(state)
     new_state = json.loads(j)
     assert isinstance(new_state, Success)
+    assert new_state.color == state.color
     assert new_state.result == state.result
     assert new_state.timestamp == state.timestamp
     assert isinstance(new_state.cached, CachedState)
@@ -126,9 +163,9 @@ def test_state_equality_ignores_message():
 
 
 def test_state_equality_with_nested_states():
-    s1 = State(result=Success(1))
-    s2 = State(result=Success(2))
-    s3 = State(result=Success(1))
+    s1 = State(result=Success(result=1))
+    s2 = State(result=Success(result=2))
+    s3 = State(result=Success(result=1))
     assert s1 != s2
     assert s1 == s3
 
@@ -144,6 +181,9 @@ def test_states_with_mutable_attrs_are_hashable():
 class TestStateHierarchy:
     def test_scheduled_is_pending(self):
         assert issubclass(Scheduled, Pending)
+
+    def test_mapped_is_success(self):
+        assert issubclass(Mapped, Success)
 
     def test_cached_is_pending(self):
         assert issubclass(CachedState, Pending)
@@ -180,6 +220,7 @@ class TestStateMethods:
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
 
@@ -189,6 +230,17 @@ class TestStateMethods:
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
+        assert state.is_scheduled()
+        assert not state.is_successful()
+        assert not state.is_failed()
+
+    def test_state_type_methods_with_retry_state(self):
+        state = Retrying()
+        assert state.is_pending()
+        assert not state.is_running()
+        assert not state.is_finished()
+        assert not state.is_skipped()
+        assert state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
 
@@ -198,6 +250,7 @@ class TestStateMethods:
         assert state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
 
@@ -207,7 +260,18 @@ class TestStateMethods:
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert not state.is_successful()
+        assert not state.is_failed()
+
+    def test_state_type_methods_with_mapped_state(self):
+        state = Mapped()
+        assert not state.is_pending()
+        assert not state.is_running()
+        assert state.is_finished()
+        assert not state.is_skipped()
+        assert not state.is_scheduled()
+        assert state.is_successful()
         assert not state.is_failed()
 
     def test_state_type_methods_with_success_state(self):
@@ -216,6 +280,7 @@ class TestStateMethods:
         assert not state.is_running()
         assert state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert state.is_successful()
         assert not state.is_failed()
 
@@ -225,6 +290,7 @@ class TestStateMethods:
         assert not state.is_running()
         assert state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert not state.is_successful()
         assert state.is_failed()
 
@@ -234,6 +300,7 @@ class TestStateMethods:
         assert not state.is_running()
         assert state.is_finished()
         assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert not state.is_successful()
         assert state.is_failed()
 
@@ -243,5 +310,6 @@ class TestStateMethods:
         assert not state.is_running()
         assert state.is_finished()
         assert state.is_skipped()
+        assert not state.is_scheduled()
         assert state.is_successful()
         assert not state.is_failed()

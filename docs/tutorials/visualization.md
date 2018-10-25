@@ -84,6 +84,18 @@ These are the tasks the flow will execute first (by default); consequently, the 
 Notice that we have identified this situation and possibly remediated it _all without executing our code_!
 :::
 
+### Static Flow Visualization - Post Run
+
+In addition to viewing the structure of our DAG, Prefect allows you to easily visualize the post-run states of your tasks as well. Using our flow from above, suppose we were curious about how states would propagate if we set `x=1` and `y=1` (a condition not handled by the `switch`).  In this case, we can first execute the flow, and then provide all the task states to the `flow.visualize` method to see how the states propagated!
+```python
+flow_state = f.run(return_tasks=f.tasks) # ask for all tasks to be returned
+f.visualize(flow_state=flow_state)
+```
+
+![](/flow_visualize_colors.svg) {style="text-align: center;"}
+
+We can see that the `6` task was still executed (as we suspected), and both branches of the `switch` were skipped.
+
 ## Dynamic Flow visualization with `BokehRunner`
 
 `Flow.visualize()` is great for static analysis, but for understanding the underlying _execution_ model, Prefect's `BokehRunner` is a more powerful tool.  

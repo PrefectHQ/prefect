@@ -24,6 +24,7 @@ from prefect.engine.state import (
     CachedState,
     Failed,
     Finished,
+    Mapped,
     Pending,
     Retrying,
     Running,
@@ -75,6 +76,11 @@ class AddTask(Task):
         return x + y
 
 
+class ListTask(Task):
+    def run(self):
+        return [1, 2, 3]
+
+
 class SlowTask(Task):
     def run(self, secs):
         sleep(secs)
@@ -84,6 +90,11 @@ class SecretTask(Task):
     def run(self):
         s = Secret("testing")
         return s.get()
+
+
+def test_task_runner_has_logger():
+    r = TaskRunner(Task())
+    assert r.logger.name == "prefect.TaskRunner"
 
 
 def test_task_that_succeeds_is_marked_success():
@@ -110,23 +121,48 @@ def test_task_that_raises_fail_is_marked_fail():
     assert not isinstance(task_runner.run(), TriggerFailed)
 
 
-def test_task_that_fails_gets_retried_up_to_1_time():
+def test_task_that_fails_gets_retried_up_to_max_retry_time():
     """
-    Test that failed tasks are marked for retry if run_number is available
+    Test that failed tasks are marked for retry if run_count is available
     """
     err_task = ErrorTask(max_retries=1, retry_delay=timedelta(seconds=0))
     task_runner = TaskRunner(task=err_task)
 
-    # first run should be retrying
-    with prefect.context(_task_run_number=1):
-        state = task_runner.run()
+    # first run should be retry
+    state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.scheduled_time, datetime)
+    assert isinstance(state.start_time, datetime.datetime)
+    assert state.run_count == 1
 
-    # second run should
-    with prefect.context(_task_run_number=2):
-        state = task_runner.run(state=state)
+    # second run should retry
+    state = task_runner.run(state=state)
+    assert isinstance(state, Retrying)
+    assert isinstance(state.start_time, datetime.datetime)
+    assert state.run_count == 2
+
+    # second run should fail
+    state = task_runner.run(state=state)
     assert isinstance(state, Failed)
+
+
+def test_task_that_raises_retry_has_start_time_recognized():
+    now = datetime.datetime.utcnow()
+
+    class RetryNow(Task):
+        def run(self):
+            raise signals.RETRY()
+
+    class Retry5Min(Task):
+        def run(self):
+            raise signals.RETRY(start_time=now + datetime.timedelta(minutes=5))
+
+    state = TaskRunner(task=RetryNow()).run()
+    assert isinstance(state, Retrying)
+    assert now - state.start_time < datetime.timedelta(seconds=0.1)
+
+    state = TaskRunner(task=Retry5Min()).run()
+    assert isinstance(state, Retrying)
+    assert state.start_time == now + datetime.timedelta(minutes=5)
 
 
 def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
@@ -137,14 +173,14 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     task_runner = TaskRunner(task=retry_task)
 
     # first run should be retrying
-    with prefect.context(_task_run_number=1):
+    with prefect.context(_task_run_count=1):
         state = task_runner.run()
     assert isinstance(state, Retrying)
-    assert isinstance(state.scheduled_time, datetime)
+    assert isinstance(state.start_time, datetime.datetime)
 
     # second run should also be retry because the task raises it explicitly
 
-    with prefect.context(_task_run_number=2):
+    with prefect.context(_task_run_count=2):
         state = task_runner.run(state=state)
     assert isinstance(state, Retrying)
 
@@ -183,11 +219,11 @@ def test_running_task_that_already_has_finished_state_doesnt_run():
 def test_task_runner_preserves_error_type():
     task_runner = TaskRunner(ErrorTask())
     state = task_runner.run()
-    msg = state.message
-    if isinstance(msg, Exception):
-        assert type(msg).__name__ == "ValueError"
+    exc = state.result
+    if isinstance(exc, Exception):
+        assert type(exc).__name__ == "ValueError"
     else:
-        assert "ValueError" in msg
+        assert "ValueError" in exc
 
 
 def test_task_runner_raise_on_exception_when_task_errors():
@@ -270,7 +306,8 @@ def test_task_runner_can_handle_timeouts_by_default():
     sleeper = SlowTask(timeout=timedelta(seconds=1))
     state = TaskRunner(sleeper).run(inputs=dict(secs=2))
     assert state.is_failed()
-    assert isinstance(state.message, TimeoutError)
+    assert "timed out" in state.message
+    assert isinstance(state.result, TimeoutError)
 
 
 def test_task_runner_handles_secrets():
@@ -278,6 +315,34 @@ def test_task_runner_handles_secrets():
     state = TaskRunner(t).run(context=dict(_secrets=dict(testing="my_private_str")))
     assert state.is_successful()
     assert state.result is "my_private_str"
+
+
+class TestGetRunCount:
+    @pytest.mark.parametrize(
+        "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), CachedState()]
+    )
+    def test_states_without_run_count(self, state):
+        with prefect.context() as ctx:
+            assert "_task_run_count" not in ctx
+            new_state = TaskRunner(Task()).get_run_count(state)
+            assert ctx._task_run_count == 1
+            assert new_state is state
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            Retrying(),
+            Retrying(run_count=1),
+            Retrying(run_count=2),
+            Retrying(run_count=10),
+        ],
+    )
+    def test_states_with_run_count(self, state):
+        with prefect.context() as ctx:
+            assert "_task_run_count" not in ctx
+            new_state = TaskRunner(Task()).get_run_count(state)
+            assert ctx._task_run_count == state.run_count + 1
+            assert new_state is state
 
 
 class TestCheckUpstreamFinished:
@@ -501,7 +566,7 @@ class TestCheckTaskTrigger:
                 state=state, upstream_states_set={Success()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
-        assert isinstance(exc.value.state.message, ZeroDivisionError)
+        assert isinstance(exc.value.state.result, ZeroDivisionError)
 
 
 class TestCheckTaskPending:
@@ -645,7 +710,7 @@ class TestRunTaskStep:
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_failed()
-        assert isinstance(new_state.message, ZeroDivisionError)
+        assert isinstance(new_state.result, ZeroDivisionError)
 
     def test_inputs(self):
         @prefect.task
@@ -672,26 +737,29 @@ class TestRunTaskStep:
 
 
 class TestCheckRetryStep:
-    @pytest.mark.parametrize("state", [Success(), Pending(), Running(), Skipped()])
+    @pytest.mark.parametrize(
+        "state", [Success(), Pending(), Running(), Retrying(), Skipped()]
+    )
     def test_non_failed_states(self, state):
         new_state = TaskRunner(task=Task()).check_for_retry(state=state, inputs={})
         assert new_state is state
 
-    def test_failed_no_retry(self):
+    def test_failed_zero_max_retry(self):
         state = Failed()
         new_state = TaskRunner(task=Task()).check_for_retry(state=state, inputs={})
         assert new_state is state
 
-    def test_failed_one_retry(self):
+    def test_failed_one_max_retry(self):
         state = Failed()
         new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
             state=state, inputs={}
         )
         assert isinstance(new_state, Retrying)
+        assert new_state.run_count == 1
 
-    def test_failed_one_retry_second_run(self):
+    def test_failed_one_max_retry_second_run(self):
         state = Failed()
-        with prefect.context(_task_run_number=2):
+        with prefect.context(_task_run_count=2):
             new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
                 state=state, inputs={}
             )
@@ -705,30 +773,28 @@ class TestCheckRetryStep:
         assert isinstance(new_state, Retrying)
         assert new_state.cached_inputs == {"x": 1}
 
-    def test_retrying_without_scheduled_time(self):
-        state = Retrying()
-        new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
-            state=state, inputs={}
-        )
-        assert new_state is not state
-        assert isinstance(new_state, Retrying)
-        assert new_state.scheduled_time is not None
-
-    def test_retrying_without_scheduled_time_and_no_retries(self):
-        state = Retrying()
-        new_state = TaskRunner(task=Task(max_retries=0)).check_for_retry(
-            state=state, inputs={}
-        )
-        assert new_state is not state
-        assert isinstance(new_state, Retrying)
-        assert new_state.scheduled_time is not None
+    def test_retrying_when_run_count_greater_than_max_retries(self):
+        with prefect.context(_task_run_count=10):
+            state = Retrying()
+            new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
+                state=state, inputs={}
+            )
+            assert new_state is state
 
     def test_retrying_with_scheduled_time(self):
-        state = Retrying(scheduled_time=datetime.utcnow())
+        state = Retrying(start_time=datetime.utcnow())
         new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
             state=state, inputs={}
         )
         assert new_state is state
+
+    def test_retrying_when_state_has_explicit_run_count_set(self):
+        with prefect.context(_task_run_count=10):
+            state = Retrying(run_count=5)
+            new_state = TaskRunner(task=Task(max_retries=1)).check_for_retry(
+                state=state, inputs={}
+            )
+            assert new_state is state
 
 
 class TestCacheResultStep:
@@ -851,6 +917,15 @@ class TestTaskStateHandlers:
         # the task changed state three times: Pending -> Running -> Failed -> Retry
         assert handler_results["Task"] == 3
 
+    def test_task_handlers_are_called_on_failure(self):
+        @prefect.task(state_handlers=[task_handler])
+        def fn():
+            1 / 0
+
+        TaskRunner(task=fn).run()
+        # the task changed state two times: Pending -> Running -> Failed
+        assert handler_results["Task"] == 2
+
     def test_multiple_task_handlers_are_called(self):
         task = Task(state_handlers=[task_handler, task_handler])
         TaskRunner(task=task).run()
@@ -929,3 +1004,114 @@ class TestTaskRunnerStateHandlers:
         task = Task(state_handlers=[handler])
         state = TaskRunner(task=task).run()
         assert state.is_failed()
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_task_runner_performs_mapping(executor):
+    add = AddTask()
+    ex = Edge(SuccessTask(), add, key="x")
+    ey = Edge(ListTask(), add, key="y", mapped=True)
+    runner = TaskRunner(add)
+    with executor.start():
+        lazy_list = runner.run(
+            upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
+            executor=executor,
+            mapped=True,
+        )
+        res = executor.wait(lazy_list)
+    assert isinstance(res, list)
+    assert [s.result for s in res] == [2, 3, 4]
+
+
+class TestCheckUpstreamsforMapping:
+    def test_ends_if_non_running_state_passed(self):
+        add = AddTask()
+        ex = Edge(SuccessTask(), add, key="x")
+        ey = Edge(ListTask(), add, key="y", mapped=True)
+        runner = TaskRunner(add)
+        with pytest.raises(ENDRUN) as exc:
+            state = runner.check_upstreams_for_mapping(
+                state=Pending(),
+                upstream_states={ex: Success(result=1), ey: Success(result=[])},
+            )
+        assert exc.value.state.is_pending()
+
+    def test_no_checks_if_nonstate_futurelike_obj_passed_for_only_upstream_state(self):
+        add = AddTask()
+        ex = Edge(SuccessTask(), add, key="x")
+        ey = Edge(ListTask(), add, key="y", mapped=True)
+        runner = TaskRunner(add)
+        future = collections.namedtuple("futurestate", ["result", "message"])
+        prestate = Running()
+        state = runner.check_upstreams_for_mapping(
+            state=prestate,
+            upstream_states={
+                ex: Success(result=1),
+                ey: future(result=[], message=None),
+            },
+        )
+        assert state is prestate
+
+    def test_partial_checks_if_nonstate_futurelike_obj_passed_for_upstream_states(self):
+        add = AddTask()
+        ex = Edge(SuccessTask(), add, key="x", mapped=True)
+        ey = Edge(ListTask(), add, key="y", mapped=True)
+        runner = TaskRunner(add)
+        future = collections.namedtuple("futurestate", ["result", "message"])
+        with pytest.raises(ENDRUN) as exc:
+            runner.check_upstreams_for_mapping(
+                state=Running(),
+                upstream_states={
+                    ex: Success(result=[]),
+                    ey: future(result=[], message=None),
+                },
+            )
+        assert exc.value.state.is_skipped()
+
+    def test_skips_if_empty_iterable_for_mapped_task(self):
+        add = AddTask()
+        ex = Edge(SuccessTask(), add, key="x")
+        ey = Edge(ListTask(), add, key="y", mapped=True)
+        runner = TaskRunner(add)
+        with pytest.raises(ENDRUN) as exc:
+            state = runner.check_upstreams_for_mapping(
+                state=Running(),
+                upstream_states={ex: Success(result=1), ey: Success(result=[])},
+            )
+        assert exc.value.state.is_skipped()
+
+    def test_skips_if_no_mapped_inputs_provided_for_mapped_task(self):
+        add = AddTask()
+        ex = Edge(SuccessTask(), add, key="x")
+        ey = Edge(ListTask(), add, key="y")
+        runner = TaskRunner(add)
+        with pytest.raises(ENDRUN) as exc:
+            runner.check_upstreams_for_mapping(
+                state=Running(),
+                upstream_states={ex: Success(result=1), ey: Success(result=[])},
+            )
+        state = exc.value.state
+        assert state.is_skipped()
+        assert "No inputs" in state.message
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_task_runner_ignores_trigger_for_parent_mapped_task_but_not_children(executor):
+    add = AddTask(trigger=prefect.triggers.all_failed)
+    ex = Edge(SuccessTask(), add, key="x")
+    ey = Edge(ListTask(), add, key="y", mapped=True)
+    runner = TaskRunner(add)
+    with executor.start():
+        res = executor.wait(
+            runner.run(
+                upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
+                executor=executor,
+                mapped=True,
+            )
+        )
+    assert isinstance(res, list)
+    assert all([isinstance(s, TriggerFailed) for s in res])

@@ -1,8 +1,8 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import prefect.utilities
 from prefect.configuration import config
 
-import prefect.utilities
 from prefect.utilities.context import context
 
 from prefect.client import Client
@@ -20,7 +20,7 @@ from prefect.utilities.tasks import task, tags, unmapped
 
 from ._version import get_versions
 
-__version__ = get_versions()["version"]
+__version__ = get_versions()["version"]  # type: ignore
 del get_versions
 
 if prefect.config.registry.startup_registry_path:

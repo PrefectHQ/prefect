@@ -56,11 +56,11 @@ module.exports = {
                 {
                     title: 'prefect.utilities',
                     collapsable: true,
-                    children: ['utilities/bokeh', 'utilities/collections', 'utilities/executors', 'utilities/json', 'utilities/tasks', 'utilities/airflow']
+                    children: ['utilities/bokeh', 'utilities/collections', 'utilities/executors', 'utilities/json', 'utilities/tasks', 'utilities/tests', 'utilities/notifications', 'utilities/airflow']
                 },
             ],
             '/license': [],
-            '/': ['introduction', 'changelog', 'getting_started',
+            '/': ['introduction', 'changelog', 'installation', 'getting_started',
                 {
                     title: 'Concepts',
                     collapsable: true,
@@ -69,8 +69,9 @@ module.exports = {
                 {
                     title: 'Tutorials',
                     collapsable: true,
-                    children: ['tutorials/', 'tutorials/etl', 'tutorials/calculator', 'tutorials/task-retries', 'tutorials/triggers-and-references',
-                        'tutorials/visualization', 'tutorials/throttling', 'tutorials/advanced-mapping', 'tutorials/airflow_migration']
+                    children: ['tutorials/', 'tutorials/etl', 'tutorials/calculator', 'tutorials/local-debugging', 'tutorials/task-retries', 'tutorials/triggers-and-references',
+                        'tutorials/visualization', 'tutorials/throttling', 'tutorials/advanced-mapping', 'tutorials/airflow_migration', 'tutorials/slack-notifications'
+                    ]
                 },
                 {
                     title: 'Comparisons',

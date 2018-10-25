@@ -5,7 +5,7 @@ import tempfile
 
 from prefect import Flow
 from prefect.engine import signals
-from prefect.tasks.strings import StringFormatterTask, JinjaTemplateTask
+from prefect.tasks.templates import StringFormatterTask, JinjaTemplateTask
 from prefect.utilities.tests import raise_on_exception
 
 
@@ -42,8 +42,8 @@ def test_string_formatter_fails_in_expected_ways():
     res = f.run(return_tasks=[t1, t2])
 
     assert res.is_failed()
-    assert isinstance(res.result[t1].message, KeyError)
-    assert isinstance(res.result[t2].message, IndexError)
+    assert isinstance(res.result[t1].result, KeyError)
+    assert isinstance(res.result[t2].result, IndexError)
 
 
 def test_jinja_template_simply_formats():

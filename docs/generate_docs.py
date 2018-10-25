@@ -25,6 +25,7 @@ from functools import partial
 import prefect
 from prefect.utilities.airflow_utils import AirFlow
 from prefect.utilities.bokeh_runner import BokehRunner
+from prefect.utilities.tests import raise_on_exception
 
 OUTLINE = [
     {
@@ -186,8 +187,8 @@ OUTLINE = [
     {
         "page": "tasks/strings.md",
         "classes": [
-            prefect.tasks.strings.StringFormatterTask,
-            prefect.tasks.strings.JinjaTemplateTask,
+            prefect.tasks.templates.StringFormatterTask,
+            prefect.tasks.templates.JinjaTemplateTask,
         ],
         "title": "String Templating Tasks",
     },
@@ -226,6 +227,12 @@ OUTLINE = [
         "title": "Executors",
     },
     {
+        "page": "utilities/notifications.md",
+        "functions": [prefect.utilities.notifications.slack_notifier],
+        "title": "Notifications and Callback Tools",
+        "top-level-doc": prefect.utilities.notifications,
+    },
+    {
         "page": "utilities/tasks.md",
         "functions": [
             prefect.utilities.tasks.tags,
@@ -235,6 +242,7 @@ OUTLINE = [
         ],
         "title": "Tasks",
     },
+    {"page": "utilities/tests.md", "functions": [raise_on_exception], "title": "Tests"},
     {
         "page": "utilities/airflow.md",
         "classes": [AirFlow],

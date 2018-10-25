@@ -15,7 +15,13 @@ INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 
 class Config(collections.DotDict):
     def __getattr__(self, attr: str) -> Any:
-        return super().__getattr__(attr)
+        """
+        This method helps mypy discover attribute types without annotations
+        """
+        if attr in self:
+            return super().__getattr__(attr)
+        else:
+            raise AttributeError("Config has no key '{}'".format(attr))
 
 
 def string_to_type(val: str) -> Union[bool, int, float, str]:
@@ -100,18 +106,6 @@ def create_user_config(dest_path: str, source_path: str = DEFAULT_CONFIG) -> Non
     with open(dest_path, "w") as dest:
         with open(source_path, "r") as source:
             dest.write(source.read())
-
-
-# Logging ---------------------------------------------------------------------
-
-
-def configure_logging(logger_name: str) -> None:
-    logger = logging.getLogger(logger_name)
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(config.logging.format)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(getattr(logging, config.logging.level))
 
 
 # Validation ------------------------------------------------------------------
@@ -246,5 +240,3 @@ if os.path.isfile(config.get("general", {}).get("user_config_path", "")):
         env_var_prefix=ENV_VAR_PREFIX,
         merge_into_config=config,
     )
-
-configure_logging(logger_name="Prefect")

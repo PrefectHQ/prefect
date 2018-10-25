@@ -90,6 +90,11 @@ class SlowTask(Task):
         time.sleep(secs)
 
 
+def test_flow_runner_has_logger():
+    r = FlowRunner(Flow())
+    assert r.logger.name == "prefect.FlowRunner"
+
+
 def test_flow_runner_runs_basic_flow_with_1_task():
     flow = prefect.Flow()
     task = SuccessTask()
@@ -553,6 +558,23 @@ class TestReturnFailed:
         assert e in state.result
         assert s not in state.result
 
+    def test_return_failed_works_with_mapping(self):
+        @prefect.task
+        def div(x):
+            return 1 / x
+
+        @prefect.task
+        def gimme(x):
+            return x
+
+        with Flow() as f:
+            res = gimme.map(div.map(x=[1, 0, 42]))
+
+        state = FlowRunner(flow=f).run(return_failed=True)
+        assert state.is_failed()
+        assert len(state.result) == 2
+        assert all([len(v) == 3 for v in state.result.values()])
+
     def test_return_failed_doesnt_duplicate(self):
         with Flow() as f:
             s = SuccessTask()
@@ -571,6 +593,40 @@ class TestReturnFailed:
         assert state.is_pending()
         assert e in state.result
         assert isinstance(state.result[e], Retrying)
+
+
+class TestRunCount:
+    def test_run_count_tracked_via_retry_states(self):
+        flow = Flow()
+        t1 = ErrorTask(max_retries=1)
+        t2 = ErrorTask(max_retries=2)
+        flow.add_task(t1)
+        flow.add_task(t2)
+
+        # first run
+        state = FlowRunner(flow=flow).run(return_tasks=[t1, t2])
+        assert state.is_pending()
+        assert isinstance(state.result[t1], Retrying)
+        assert state.result[t1].run_count == 1
+        assert isinstance(state.result[t2], Retrying)
+        assert state.result[t2].run_count == 1
+
+        # second run
+        state = FlowRunner(flow=flow).run(
+            task_states=state.result, return_tasks=[t1, t2]
+        )
+        assert state.is_pending()
+        assert isinstance(state.result[t1], Failed)
+        assert isinstance(state.result[t2], Retrying)
+        assert state.result[t2].run_count == 2
+
+        # third run
+        state = FlowRunner(flow=flow).run(
+            task_states=state.result, return_tasks=[t1, t2]
+        )
+        assert state.is_failed()
+        assert isinstance(state.result[t1], Failed)
+        assert isinstance(state.result[t2], Failed)
 
 
 @pytest.mark.skipif(
@@ -738,7 +794,8 @@ def test_flow_runner_handles_timeouts(executor):
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
     assert state.is_failed()
-    assert isinstance(state.result[res].message, TimeoutError)
+    assert "timed out" in state.result[res].message
+    assert isinstance(state.result[res].result, TimeoutError)
 
 
 @pytest.mark.skipif(
@@ -752,7 +809,7 @@ def test_flow_runner_handles_timeout_error_with_mproc(mproc):
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=mproc)
     assert state.is_failed()
-    assert isinstance(state.result[res].message, AssertionError)
+    assert isinstance(state.result[res].result, AssertionError)
 
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
@@ -769,7 +826,7 @@ def test_flow_runner_handles_mapped_timeouts(executor):
     assert mapped_states[0].is_successful()
     for fstate in mapped_states[1:]:
         assert fstate.is_failed()
-        assert isinstance(fstate.message, TimeoutError)
+        assert isinstance(fstate.result, TimeoutError)
 
 
 handler_results = collections.defaultdict(lambda: 0)
