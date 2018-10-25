@@ -96,12 +96,13 @@ def gmail_notifier(
     new_state,
     ignore_states: list = None,
     only_states: list = None,
-    username: str = None,
-    password: str = None,
 ):
     """
     Email state change handler - configured to work solely with Gmail; works as a standalone state handler, or can be called from within a custom
     state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
+
+    The username and password Gmail credentials will be taken from your `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` secrets, respectively; note the username
+    will also serve as the destination email address for the notification.
 
     Args:
         - tracked_obj (Task or Flow): Task or Flow object the handler is
@@ -112,9 +113,6 @@ def gmail_notifier(
             e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
         - only_states ([State], optional): similar to `ignore_states`, but
             instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
-        - username (str, optional): the Gmail username to use - will also serve as the notification email destination; if not
-            provided, will attempt to use your `"EMAIL_USERNAME"` Prefect Secret
-        - password (str, optional): the gmail password to use; if not provided, will attempt to use your `"EMAIL_PASSWORD"` Prefect Secret
 
     Returns:
         - State: the `new_state` object which was provided
@@ -132,8 +130,8 @@ def gmail_notifier(
             return x + y
         ```
     """
-    username = username or Secret("EMAIL_USERNAME").get()
-    password = password or Secret("EMAIL_PASSWORD").get()
+    username = Secret("EMAIL_USERNAME").get()
+    password = Secret("EMAIL_PASSWORD").get()
     ignore_states = ignore_states or []
     only_states = only_states or []
 
