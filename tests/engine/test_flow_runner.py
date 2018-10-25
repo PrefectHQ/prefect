@@ -633,6 +633,19 @@ class TestReturnFailed:
 
 
 class TestRunCount:
+    def test_run_count_updates_after_each_retry(self):
+        flow = Flow()
+        t1 = ErrorTask(max_retries=2, retry_delay=datetime.timedelta(0))
+        flow.add_task(t1)
+
+        state1 = FlowRunner(flow=flow).run(return_tasks=[t1])
+        assert isinstance(state1.result[t1], Retrying)
+        assert state1.result[t1].run_count == 1
+
+        state2 = FlowRunner(flow=flow).run(return_tasks=[t1], task_states=state1.result)
+        assert isinstance(state2.result[t1], Retrying)
+        assert state2.result[t1].run_count == 2
+
     def test_run_count_tracked_via_retry_states(self):
         flow = Flow()
         t1 = ErrorTask(max_retries=1)
