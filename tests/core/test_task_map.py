@@ -332,7 +332,8 @@ def test_map_allows_for_retries(executor):
     assert states.is_failed()  # division by zero
 
     old = states.result[divved]
-    assert [s.result for s in old] == [None, 1.0, 0.5]
+    assert [s.result for s in old][1:] == [1.0, 0.5]
+    assert isinstance(old[0].result, ZeroDivisionError)
 
     old[0] = prefect.engine.state.Success(result=100)
     states = f.run(

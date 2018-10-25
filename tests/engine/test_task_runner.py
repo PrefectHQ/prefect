@@ -219,11 +219,11 @@ def test_running_task_that_already_has_finished_state_doesnt_run():
 def test_task_runner_preserves_error_type():
     task_runner = TaskRunner(ErrorTask())
     state = task_runner.run()
-    msg = state.message
-    if isinstance(msg, Exception):
-        assert type(msg).__name__ == "ValueError"
+    exc = state.result
+    if isinstance(exc, Exception):
+        assert type(exc).__name__ == "ValueError"
     else:
-        assert "ValueError" in msg
+        assert "ValueError" in exc
 
 
 def test_task_runner_raise_on_exception_when_task_errors():
@@ -306,7 +306,8 @@ def test_task_runner_can_handle_timeouts_by_default():
     sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
     state = TaskRunner(sleeper).run(inputs=dict(secs=2))
     assert state.is_failed()
-    assert isinstance(state.message, TimeoutError)
+    assert "timed out" in state.message
+    assert isinstance(state.result, TimeoutError)
 
 
 def test_task_runner_handles_secrets():
@@ -565,7 +566,7 @@ class TestCheckTaskTrigger:
                 state=state, upstream_states_set={Success()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
-        assert isinstance(exc.value.state.message, ZeroDivisionError)
+        assert isinstance(exc.value.state.result, ZeroDivisionError)
 
 
 class TestCheckTaskPending:
@@ -711,7 +712,7 @@ class TestRunTaskStep:
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_failed()
-        assert isinstance(new_state.message, ZeroDivisionError)
+        assert isinstance(new_state.result, ZeroDivisionError)
 
     def test_inputs(self):
         @prefect.task
