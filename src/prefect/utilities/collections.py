@@ -108,7 +108,7 @@ def merge_dicts(d1: DictLike, d2: DictLike) -> DictLike:
         - d2 (MutableMapping): A dictionary used for replacement
 
     Returns:
-        A `MutableMapping` with the two dictionary contents merged
+        - A `MutableMapping` with the two dictionary contents merged
     """
 
     new_dict = d1.copy()
@@ -137,7 +137,7 @@ def to_dotdict(
         - obj (Any): An object that is formatted as a standard `dict`
 
     Returns:
-        A DotDict representation of the object passed in
+        - A DotDict representation of the object passed in
     ```
     """
     if isinstance(obj, (list, tuple, set)):
@@ -163,7 +163,7 @@ def dict_to_flatdict(dct: dict, parent: CompoundKey = None) -> dict:
         (you shouldn't need to set this)
 
     Returns:
-        A flattened dict
+        - dict: A flattened dict
     """
 
     items = []  # type: list
@@ -186,7 +186,7 @@ def flatdict_to_dict(dct: dict, dct_class: type = None) -> MutableMapping:
         - dct_class (type, optional): the type of the result; defaults to `dict`
 
     Returns:
-        A `MutableMapping` used to represent a nested dictionary
+        - MutableMapping: A `MutableMapping` used to represent a nested dictionary
     """
 
     result = (dct_class or dict)()

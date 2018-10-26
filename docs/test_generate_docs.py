@@ -335,6 +335,12 @@ def test_sections_have_formatted_headers_for_function_docs(fn):
         ), "{fn.__name__} has a poorly formatted {sec} header.".format(
             fn=fn, sec=section
         )
+        if (section != "Example") and section in doc:
+            assert "{}**:<".format(section) in doc.replace(
+                " ", ""
+            ), "{fn.__name__} has a poorly formatted {sec} listing.".format(
+                fn=fn, sec=section
+            )
 
 
 @pytest.mark.parametrize(
@@ -346,7 +352,7 @@ def test_sections_have_formatted_headers_for_function_docs(fn):
         for fn in get_class_methods(obj)
     ],
 )  # parametrized like this for easy reading of tests
-def test_consistency_of_class_method_docs(obj, fn):
+def test_sections_have_formatted_headers_for_class_method_docs(obj, fn):
     doc = format_doc(fn)
     for section in ["Args", "Returns", "Raises", "Example"]:
         option1 = ">**{}**:".format(section)
@@ -356,3 +362,9 @@ def test_consistency_of_class_method_docs(obj, fn):
         ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has a poorly formatted {sec} header.".format(
             obj=obj, fn=fn, sec=section
         )
+        if (section != "Example") and section in doc:
+            assert "{}**:<".format(section) in doc.replace(
+                " ", ""
+            ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has a poorly formatted {sec} listing.".format(
+                obj=obj, fn=fn, sec=section
+            )

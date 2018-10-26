@@ -567,7 +567,7 @@ class Flow(Serializable):
             - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
-            None
+            - None
         """
         for task in flow.tasks:
             if task not in self.tasks:
