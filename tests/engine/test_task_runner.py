@@ -1084,3 +1084,15 @@ def test_task_runner_converts_pause_signal_to_paused_state_for_internally_raised
     runner = TaskRunner(t2)
     out = runner.run(upstream_states={e: Success(result=1)})
     assert isinstance(out, Paused)
+
+
+def test_task_runner_bypasses_pause_when_requested():
+    class WaitTask(Task):
+        def run(self):
+            pause_task()
+
+    t1, t2 = SuccessTask(), WaitTask()
+    e = Edge(t1, t2)
+    runner = TaskRunner(t2)
+    out = runner.run(upstream_states={e: Success(result=1)}, context=dict(resume=True))
+    assert out.is_successful()
