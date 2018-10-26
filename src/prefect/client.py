@@ -394,7 +394,7 @@ class Flows(ClientModule):
             """
             mutation($input: DeleteFlowInput!) {
                 deleteFlow(input: $input) {
-                    flow_id
+                    flowId
                 }
             }
             """,
