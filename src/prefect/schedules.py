@@ -50,6 +50,13 @@ class NoSchedule(Schedule):
 class IntervalSchedule(Schedule):
     """
     A schedule formed by adding `timedelta` increments to a start_date.
+
+    Args:
+        - start_date (datetime): first date of schedule
+        - interval (timedelta): interval on which this schedule occurs
+
+    Raises:
+        - ValueError: if provided interval is negative
     """
 
     def __init__(self, start_date: datetime, interval: timedelta) -> None:
@@ -84,6 +91,13 @@ class IntervalSchedule(Schedule):
 
 
 class CronSchedule(Schedule):
+    """
+    Cron scheduler.
+
+    Args:
+        - cron (str): a valid cron string
+    """
+
     def __init__(self, cron: str) -> None:
         # build cron object to check the cron string - will raise an error if it's invalid
         croniter.croniter(cron)
@@ -111,6 +125,13 @@ class CronSchedule(Schedule):
 
 
 class DateSchedule(Schedule):
+    """
+    Schedule for running on a manually created list of dates.
+
+    Args:
+        - dates ([datetime]): a list of datetimes to run on
+    """
+
     def __init__(self, dates: Iterable[datetime]) -> None:
         self.dates = dates
 

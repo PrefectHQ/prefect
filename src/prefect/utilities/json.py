@@ -119,7 +119,8 @@ class JSONCodec(Generic[O, J]):
     called on the resulting value.
 
     Args:
-        - value:  value to serialize
+        - value: the value to serialize
+        - **kwds: additional kwargs
     """
 
     codec_key = ""  # type: str
@@ -161,6 +162,9 @@ class JSONCodec(Generic[O, J]):
 class SetCodec(JSONCodec[set, list]):
     """
     Serialize/deserialize sets
+
+    Args:
+        - value: the value to serialize
     """
 
     codec_key = "set"
@@ -177,6 +181,9 @@ class SetCodec(JSONCodec[set, list]):
 class BytesCodec(JSONCodec[bytes, str]):
     """
     Serialize/deserialize bytes
+
+    Args:
+        - value: the value to serialize
     """
 
     codec_key = "b"
@@ -193,6 +200,9 @@ class BytesCodec(JSONCodec[bytes, str]):
 class UUIDCodec(JSONCodec[uuid.UUID, str]):
     """
     Serialize/deserialize UUIDs
+
+    Args:
+        - value: the value to serialize
     """
 
     codec_key = "uuid"
@@ -209,6 +219,9 @@ class UUIDCodec(JSONCodec[uuid.UUID, str]):
 class DateTimeCodec(JSONCodec[datetime.datetime, str]):
     """
     Serialize/deserialize DateTimes
+
+    Args:
+        - value: the value to serialize
     """
 
     codec_key = "datetime"
@@ -225,6 +238,9 @@ class DateTimeCodec(JSONCodec[datetime.datetime, str]):
 class DateCodec(JSONCodec[datetime.date, str]):
     """
     Serialize/deserialize Dates
+
+    Args:
+        - value: the value to serialize
     """
 
     codec_key = "date"
@@ -241,6 +257,9 @@ class DateCodec(JSONCodec[datetime.date, str]):
 class TimeDeltaCodec(JSONCodec[datetime.timedelta, float]):
     """
     Serialize/deserialize TimeDeltas
+
+    Args:
+        - value: the value to serialize
     """
 
     codec_key = "timedelta"
@@ -262,6 +281,9 @@ class LoadObjectCodec(
     actually "serialize" them; it just serializes a reference to the already-existing object.
 
     Objects must already be imported at the same module path or deserialization will fail.
+
+    Args:
+        - value: the value to serialize
     """
 
     codec_key = "load_obj"
@@ -292,6 +314,9 @@ class ObjectInitArgsCodec(JSONCodec[object, dict]):
                 self._b = b
                 self._kwargs = kwargs
                 self._init_args = dict(c=c)
+
+    Args:
+        - value: the value to serialize
     """
 
     codec_key = "obj_init"

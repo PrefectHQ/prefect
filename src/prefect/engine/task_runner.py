@@ -69,7 +69,7 @@ class TaskRunner(Runner):
             - new_state (State): the new (current) state
 
         Returns:
-            State: the new state
+            - State: the new state
         """
         for handler in self.task.state_handlers:
             new_state = handler(self.task, old_state, new_state)
@@ -249,7 +249,7 @@ class TaskRunner(Runner):
             - state (State): the current state of the task
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
         """
         if isinstance(state, Retrying):
             run_count = state.run_count + 1
@@ -270,7 +270,7 @@ class TaskRunner(Runner):
             - upstream_states_set: a set containing the states of any upstream tasks.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if upstream tasks are not finished.
@@ -291,7 +291,7 @@ class TaskRunner(Runner):
             - upstream_states_set: a set containing the states of any upstream tasks.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
         """
         if self.task.skip_on_upstream_skip and any(
             s.is_skipped() for s in upstream_states_set
@@ -325,7 +325,7 @@ class TaskRunner(Runner):
                 start task.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if the trigger raises an error
@@ -370,7 +370,7 @@ class TaskRunner(Runner):
             - state (State): the current state of this task
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if the task is not ready to run
@@ -428,13 +428,15 @@ class TaskRunner(Runner):
     @call_state_handlers
     def check_task_is_cached(self, state: State, inputs: Dict[str, Any]) -> State:
         """
+        Checks if task is cached and whether the cache is still valid.
+
         Args:
             - state (State): the current state of this task
             - inputs (Dict[str, Any]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if the task is not ready to run
@@ -460,7 +462,7 @@ class TaskRunner(Runner):
                 dictionary should correspond to the edges leading to the task.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if the task is not ready to be mapped
@@ -518,7 +520,7 @@ class TaskRunner(Runner):
             - executor (Executor): executor to use when performing computation
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
         """
         result = executor.map(
             self.run,
@@ -542,7 +544,7 @@ class TaskRunner(Runner):
             - state (State): the current state of this task
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if the task is not ready to run
@@ -568,7 +570,7 @@ class TaskRunner(Runner):
                 `prefect.utilities.executors.main_thread_timeout`
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - signals.PAUSE: if the task raises PAUSE
@@ -623,7 +625,7 @@ class TaskRunner(Runner):
                 to the task's `run()` arguments.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         """
         if (
@@ -655,7 +657,7 @@ class TaskRunner(Runner):
                 to the task's `run()` arguments.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
         """
         if state.is_failed():
             run_count = prefect.context.get("_task_run_count", 1)

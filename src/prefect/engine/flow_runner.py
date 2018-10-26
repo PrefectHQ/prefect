@@ -36,6 +36,21 @@ class FlowRunner(Runner):
         - flow (Flow): the `Flow` to be run
         - task_runner_cls (TaskRunner, optional): The class used for running
             individual Tasks. Defaults to [TaskRunner](task_runner.html)
+        - state_handlers (Iterable[Callable], optional): A list of state change handlers
+            that will be called whenever the flow changes state, providing an
+            opportunity to inspect or modify the new state. The handler
+            will be passed the flow runner instance, the old (prior) state, and the new
+            (current) state, with the following signature:
+
+            ```
+                state_handler(
+                    flow_runner: FlowRunner,
+                    old_state: State,
+                    new_state: State) -> State
+            ```
+
+            If multiple functions are passed, then the `new_state` argument will be the
+            result of the previous handler.
 
     Note: new FlowRunners are initialized within the call to `Flow.run()` and in general,
     this is the endpoint through which FlowRunners will be interacted with most frequently.
@@ -74,7 +89,7 @@ class FlowRunner(Runner):
             - new_state (State): the new (current) state
 
         Returns:
-            State: the new state
+            - State: the new state
         """
         for handler in self.flow.state_handlers:
             new_state = handler(self.flow, old_state, new_state)
@@ -192,7 +207,7 @@ class FlowRunner(Runner):
             - state (State): the current state of this flow
 
         Returns:
-            State: the state of the flow after running the check
+            - State: the state of the flow after running the check
 
         Raises:
             - ENDRUN: if the flow is not pending or running
@@ -219,7 +234,7 @@ class FlowRunner(Runner):
             - state (State): the current state of this flow
 
         Returns:
-            State: the state of the flow after running the check
+            - State: the state of the flow after running the check
 
         Raises:
             - ENDRUN: if the flow is not pending or running
