@@ -172,3 +172,23 @@ class TestPauseTask:
             t1 = AddTask()(1, 1)
         res = f.run(return_tasks=f.tasks)
         assert isinstance(res.result[t1], Paused)
+
+    def test_pause_task_doesnt_pause_sometimes(self):
+        class OneTask(Task):
+            def run(self):
+                tasks.pause_task()
+                return 1
+
+        class AddTask(Task):
+            def run(self, x, y):
+                if x == y:
+                    tasks.pause_task()
+                return x + y
+
+        with Flow() as f:
+            t1 = AddTask()(1, 1)
+            t2 = OneTask()(upstream_tasks=[t1])
+
+        res = f.run(return_tasks=f.tasks, task_contexts={t1: dict(resume=True)})
+        assert res.result[t1].is_successful()
+        assert isinstance(res.result[t2], Paused)
