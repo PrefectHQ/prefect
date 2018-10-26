@@ -209,7 +209,7 @@ def test_format_doc_on_simple_doc():
     formatted = format_doc(my_fun)
     assert formatted == (
         "Indicates that a task should not run and wait for manual execution.\n\n"
-        "**Args**:\n<ul style='padding-left:3.5em;text-indent:-3.5em;'>"
+        "**Args**:     <ul style='padding-left:3.5em;text-indent:-3.5em;'>"
         "<li style='padding-left:3.5em;text-indent:-3.5em;'>"
         "`message (Any, optional)`: Defaults to `None`. A message about the signal.</li></ul>"
     )
@@ -232,6 +232,25 @@ def test_consistency_of_function_docs(fn):
     assert num_args == len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(
         varkwargs
     ), "{fn.__name__} has undocumented arguments.".format(fn=fn)
+
+
+@pytest.mark.parametrize(
+    "obj", [obj for page in OUTLINE for obj in page.get("classes", [])]
+)
+def test_consistency_of_class_docs(obj):
+    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
+    doc = format_doc(obj)
+    try:
+        arg_list_index = doc.index("**Args**:")
+        end = doc[arg_list_index:].find("</ul")
+        arg_doc = doc[arg_list_index : (arg_list_index + end)]
+        num_args = arg_doc.count("<li")
+    except ValueError:
+        num_args = 0
+
+    assert num_args == len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(
+        varkwargs
+    ), "{obj.__module__}.{obj.__name__} has undocumented arguments.".format(obj=obj)
 
 
 @pytest.mark.parametrize(
@@ -326,7 +345,7 @@ def test_format_doc_correctly_handles_code_blocks_outside_of_tables():
     "fn", [fn for page in OUTLINE for fn in page.get("functions", [])]
 )
 def test_sections_have_formatted_headers_for_function_docs(fn):
-    doc = format_doc(fn)
+    doc = format_doc(fn, in_table=True)
     for section in ["Args", "Returns", "Raises", "Example"]:
         option1 = ">**{}**:".format(section)
         option2 = "\n**{}**:".format(section)
@@ -353,7 +372,7 @@ def test_sections_have_formatted_headers_for_function_docs(fn):
     ],
 )  # parametrized like this for easy reading of tests
 def test_sections_have_formatted_headers_for_class_method_docs(obj, fn):
-    doc = format_doc(fn)
+    doc = format_doc(fn, in_table=True)
     for section in ["Args", "Returns", "Raises", "Example"]:
         option1 = ">**{}**:".format(section)
         option2 = "\n**{}**:".format(section)
