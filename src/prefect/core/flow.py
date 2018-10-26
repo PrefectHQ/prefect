@@ -101,6 +101,16 @@ class Flow(Serializable):
         - throttle (dict, optional): dictionary of tags -> int specifying
             how many tasks with a given tag should be allowed to run simultaneously. Used
             for throttling resource usage.
+        - state_handlers (Iterable[Callable], optional): A list of state change handlers
+            that will be called whenever the flow changes state, providing an
+            opportunity to inspect or modify the new state. The handler
+            will be passed the flow instance, the old (prior) state, and the new
+            (current) state, with the following signature:
+
+                `state_handler(flow: Flow, old_state: State, new_state: State) -> State`
+
+            If multiple functions are passed, then the `new_state` argument will be the
+            result of the previous handler.
 
     Raises:
         - ValueError: if any throttle values are `<= 0`
