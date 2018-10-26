@@ -53,6 +53,8 @@ class Edge:
         - key (str, optional): Passing a key indicates
             that the upstream result should be passed to the downstream
             task as a keyword argument given by `key`.
+        - mapped (bool, optional): boolean indicating whether this edge
+            represents a mapped task; defaults to `False`
 
     The key indicates that the result of the upstream task should be passed
     to the downstream task under the key.
