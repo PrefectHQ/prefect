@@ -79,9 +79,11 @@ def pause_task():
     Utility function for pausing a task during execution to wait for manual intervention.
     Note that the _entire task_ will be rerun if the user decides to run this task again!
     The only difference is that this utility will simply _not_ raise a `PAUSE` signal.
+    To bypass a `PAUSE` signal being raised, simply set `resume=True` in this Tasks's context.
 
     Example:
         ```python
+        from prefect import Flow
         from prefect.utilities.tasks import task, pause_task
 
         @task
@@ -90,6 +92,15 @@ def pause_task():
             if z == 0: ## this code will be rerun after resuming from the pause!
                 pause_task()
             return x + y
+
+        with Flow() as f:
+            res = add(4, 4)
+
+        state = f.run(return_tasks=[res])
+        state.result[res] # a Paused state
+
+        state = f.run(return_tasks=[res], task_contexts={res: dict(resume=True)})
+        state.result[res] # a Success state
         ```
     """
     if prefect.context.get("resume", False) is False:
