@@ -25,7 +25,9 @@ class PrefectStateSignal(PrefectError):
 
     def __init__(self, message=None, *args, **kwargs) -> None:  # type: ignore
         super().__init__(message)  # type: ignore
-        self.state = self._state_cls(message=self, *args, **kwargs)  # type: ignore
+        self.state = self._state_cls(
+            result=self, message=message, *args, **kwargs
+        )  # type: ignore
 
 
 class FAIL(PrefectStateSignal):

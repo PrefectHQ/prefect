@@ -25,6 +25,7 @@ from prefect.engine.state import (
     Failed,
     Finished,
     Mapped,
+    Paused,
     Pending,
     Retrying,
     Running,
@@ -34,6 +35,7 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
+from prefect.utilities.tasks import pause_task
 from prefect.utilities.tests import raise_on_exception
 
 
@@ -1061,3 +1063,24 @@ def test_task_runner_ignores_trigger_for_parent_mapped_task_but_not_children(exe
         )
     assert isinstance(res, list)
     assert all([isinstance(s, TriggerFailed) for s in res])
+
+
+def test_task_runner_converts_pause_signal_to_paused_state_for_manual_only_triggers():
+    t1, t2 = SuccessTask(), SuccessTask(trigger=prefect.triggers.manual_only)
+    e = Edge(t1, t2)
+    runner = TaskRunner(t2)
+    out = runner.run(upstream_states={e: Success(result=1)})
+    assert isinstance(out, Paused)
+    assert "manual_only" in out.message
+
+
+def test_task_runner_converts_pause_signal_to_paused_state_for_internally_raised_pauses():
+    class WaitTask(Task):
+        def run(self):
+            pause_task()
+
+    t1, t2 = SuccessTask(), WaitTask()
+    e = Edge(t1, t2)
+    runner = TaskRunner(t2)
+    out = runner.run(upstream_states={e: Success(result=1)})
+    assert isinstance(out, Paused)
