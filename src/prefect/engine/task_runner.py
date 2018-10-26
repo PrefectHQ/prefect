@@ -410,7 +410,7 @@ class TaskRunner(Runner):
                 scheduled check is not run
 
         Returns:
-            State: the state of the task after running the task
+            - State: the state of the task after running the task
 
         Raises:
             - ENDRUN: if the task is not a start task and Scheduled with a future
