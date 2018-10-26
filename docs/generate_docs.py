@@ -107,6 +107,7 @@ OUTLINE = [
         "classes": [
             prefect.engine.state.State,
             prefect.engine.state.Pending,
+            prefect.engine.state.Paused,
             prefect.engine.state.CachedState,
             prefect.engine.state.Scheduled,
             prefect.engine.state.Retrying,
