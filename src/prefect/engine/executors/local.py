@@ -42,6 +42,8 @@ class LocalExecutor(Executor):
 
     def wait(self, futures: Any, timeout: datetime.timedelta = None) -> Any:
         """
+        Returns the results of the provided futures.
+
         Args:
             - futures (Any): objects to wait on
             - timeout (datetime.timedelta): timeout to allow for execution; in

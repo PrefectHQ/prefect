@@ -269,7 +269,14 @@ class Retrying(Scheduled):
 
 
 class Running(State):
-    """Base running state. Indicates that a task is currently running."""
+    """
+    Base running state. Indicates that a task is currently running.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+    """
 
     color = "#00FF00"
 
@@ -280,7 +287,14 @@ class Running(State):
 
 
 class Finished(State):
-    """Base finished state. Indicates when a class has reached some form of completion."""
+    """
+    Base finished state. Indicates when a class has reached some form of completion.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+    """
 
     color = "#BA55D3"
 
@@ -312,25 +326,54 @@ class Mapped(Success):
     State indicated this task was mapped over, and all mapped tasks were _submitted_ successfully.
     Note that this does _not_ imply the individual mapped tasks were successful, just that they
     have been submitted.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached (CachedState): a `CachedState` which can be used for future
+            runs of this task (if the cache is still valid); this attribute should only be set
+            by the task runner.
     """
 
     color = "#97FFFF"
 
 
 class Failed(Finished):
-    """Finished state indicating failure"""
+    """
+    Finished state indicating failure.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+    """
 
     color = "#FF0000"
 
 
 class TriggerFailed(Failed):
-    """Finished state indicating failure due to trigger"""
+    """
+    Finished state indicating failure due to trigger.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+    """
 
     color = "#F08080"
 
 
 class Skipped(Success):
-    """Finished state indicating success on account of being skipped"""
+    """
+    Finished state indicating success on account of being skipped.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+    """
 
     color = "#F0FFF0"
 

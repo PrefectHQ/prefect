@@ -27,6 +27,8 @@ class JinjaTemplateTask(Task):
 
     def run(self, template: str = None, **format_kwargs: Any) -> str:  # type: ignore
         """
+        Formats the Jinja Template with the provided kwargs.
+
         Args:
             - template (str, optional): the template string to render; if not
                 provided, `self.template` will be used
