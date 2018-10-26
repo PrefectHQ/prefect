@@ -851,8 +851,8 @@ class TestCheckScheduledStep:
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled(start_time=datetime.utcnow() + timedelta(minutes=1)),
-            Retrying(start_time=datetime.utcnow() + timedelta(minutes=1)),
+            Scheduled(start_time=datetime.utcnow() + timedelta(minutes=10)),
+            Retrying(start_time=datetime.utcnow() + timedelta(minutes=10)),
         ],
     )
     def test_scheduled_states_with_future_start_time(self, state):
@@ -875,8 +875,8 @@ class TestCheckScheduledStep:
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled(start_time=datetime.utcnow() + timedelta(minutes=1)),
-            Retrying(start_time=datetime.utcnow() + timedelta(minutes=1)),
+            Scheduled(start_time=datetime.utcnow() + timedelta(minutes=10)),
+            Retrying(start_time=datetime.utcnow() + timedelta(minutes=10)),
         ],
     )
     def test_scheduled_stategnore_trigger_with_future_start_time(self, state):
