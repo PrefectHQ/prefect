@@ -115,3 +115,5 @@ class PAUSE(PrefectStateSignal):
         - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
             associated state constructor
     """
+
+    _state_cls = state.Paused
