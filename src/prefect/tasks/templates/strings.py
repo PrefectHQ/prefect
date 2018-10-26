@@ -26,6 +26,8 @@ class StringFormatterTask(Task):
 
     def run(self, template: str = None, **format_kwargs: Any) -> str:  # type: ignore
         """
+        Formats the template with the provided kwargs.
+
         Args:
             - template (str, optional): the template string to format; if not
                 provided, `self.template` will be used
