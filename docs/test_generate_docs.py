@@ -363,6 +363,27 @@ def test_sections_have_formatted_headers_for_function_docs(fn):
 
 
 @pytest.mark.parametrize(
+    "obj", [obj for page in OUTLINE for obj in page.get("classes", [])]
+)
+def test_sections_have_formatted_headers_for_class_docs(obj):
+    doc = format_doc(obj)
+    for section in ["Args", "Returns", "Raises", "Example"]:
+        option1 = ">**{}**:".format(section)
+        option2 = "\n**{}**:".format(section)
+        assert (section in doc) is any(
+            [(o in doc) for o in (option1, option2)]
+        ), "{obj.__module__}.{obj.__name__} has a poorly formatted {sec} header.".format(
+            obj=obj, sec=section
+        )
+        if (section != "Example") and section in doc:
+            assert "{}**:<".format(section) in doc.replace(
+                " ", ""
+            ), "{obj.__module__}.{obj.__name__} has a poorly formatted {sec} listing.".format(
+                obj=obj, sec=section
+            )
+
+
+@pytest.mark.parametrize(
     "obj,fn",
     [
         (obj, fn)
