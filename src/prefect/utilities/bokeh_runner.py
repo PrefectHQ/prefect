@@ -80,7 +80,7 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
 
-    **Example:**
+    Example:
         ```python
         from prefect.utilities.bokeh_runner import BokehRunner
         from prefect import task, Flow
