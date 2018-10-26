@@ -63,7 +63,7 @@ class JSONSerializer:
             - object (Any): an object to be dumped to a json string
 
         Returns:
-            An encoded json string
+            - str: An encoded json string
         """
         return json.dumps(object)
 
@@ -76,6 +76,6 @@ class JSONSerializer:
             - key (str): a json string to be loaded
 
         Returns:
-            An dencoded json string in the form of the original object before serialization
+            - A decoded json string in the form of the original object before serialization
         """
         return json.loads(key)

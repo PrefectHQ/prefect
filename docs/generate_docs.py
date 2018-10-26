@@ -228,7 +228,10 @@ OUTLINE = [
     },
     {
         "page": "utilities/notifications.md",
-        "functions": [prefect.utilities.notifications.slack_notifier],
+        "functions": [
+            prefect.utilities.notifications.slack_notifier,
+            prefect.utilities.notifications.gmail_notifier,
+        ],
         "title": "Notifications and Callback Tools",
         "top-level-doc": prefect.utilities.notifications,
     },
@@ -275,6 +278,8 @@ def clean_line(line):
         line.replace("Args:", "**Args**:")
         .replace("Returns:", "**Returns**:")
         .replace("Raises:", "**Raises**:")
+        .replace("Example:", "**Example**:")
+        .replace(".**", ".\n\n**")
     )
     return line.lstrip()
 
@@ -311,7 +316,10 @@ def format_doc(obj, in_table=False):
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
         body = body.replace(block, f"$CODEBLOCK{num}", 1)
-    body = format_lists(body)
+    body = re.sub(
+        "(?<!\n)\n{1}(?!\n)", " ", format_lists(body)
+    )  # removes poorly placed newlines
+    body = body.replace("```", "\n```")
     lines = body.split("\n")
     cleaned = "\n".join([clean_line(line) for line in lines])
     if in_table:
