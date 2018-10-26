@@ -8,7 +8,7 @@ from toolz import curry
 
 import prefect
 
-__all__ = ["tags", "as_task", "task", "unmapped"]
+__all__ = ["tags", "as_task", "pause_task", "task", "unmapped"]
 
 
 @contextmanager
@@ -72,6 +72,28 @@ def as_task(x: Any) -> "prefect.Task":
     # constants
     else:
         return prefect.tasks.core.constants.Constant(value=x)
+
+
+def pause_task():
+    """
+    Utility function for pausing a task during execution to wait for manual intervention.
+    Note that the _entire task_ will be rerun if the user decides to run this task again!
+    The only difference is that this utility will simply _not_ raise a `PAUSE` signal.
+
+    Example:
+        ```python
+        from prefect.utilities.tasks import task, pause_task
+
+        @task
+        def add(x, y):
+            z = y - x  ## this code will be rerun after resuming from the pause!
+            if z == 0: ## this code will be rerun after resuming from the pause!
+                pause_task()
+            return x + y
+        ```
+    """
+    if prefect.context.get("resume", False) is False:
+        raise prefect.engine.signals.PAUSE("Pause signal raised during task execution.")
 
 
 @curry
