@@ -27,6 +27,9 @@ from prefect.utilities.airflow_utils import AirFlow
 from prefect.utilities.bokeh_runner import BokehRunner
 from prefect.utilities.tests import raise_on_exception
 
+from tokenizer import format_code
+
+
 OUTLINE = [
     {
         "page": "environments.md",
@@ -329,7 +332,7 @@ def format_doc(obj, in_table=False):
             block = block[block.startswith("python") and 6 :].lstrip("\n")
             block = (
                 '<pre class="language-python"><code class="language-python">'
-                + block.rstrip("  ").replace("\n", "<br>")
+                + format_code(block).replace("\n", "<br>")
                 + "</code></pre>"
             )
         cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(" "))
