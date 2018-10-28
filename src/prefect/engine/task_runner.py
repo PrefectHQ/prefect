@@ -16,6 +16,7 @@ from prefect.engine.state import (
     Failed,
     Mapped,
     Pending,
+    Scheduled,
     Retrying,
     Running,
     Skipped,
@@ -100,7 +101,7 @@ class TaskRunner(Runner):
                 to the task's `run()` arguments. Any keys that are provided will override the
                 `State`-based inputs provided in upstream_states.
             - ignore_trigger (bool): boolean specifying whether to ignore the
-                Task trigger; defaults to `False`
+                Task trigger and certain other dependency checks; defaults to `False`
             - context (dict, optional): prefect Context to use for execution
             - queues ([queue], optional): list of queues of tickets to use when deciding
                 whether it's safe for the Task to run based on resource limitations. The
@@ -182,6 +183,11 @@ class TaskRunner(Runner):
 
                 # check to make sure the task is in a pending state
                 state = self.check_task_is_pending(state)
+
+                # check if the task has reached its scheduled time
+                state = self.check_task_reached_start_time(
+                    state, ignore_trigger=ignore_trigger
+                )
 
                 # check to see if the task has a cached result
                 state = self.check_task_is_cached(state, inputs=task_inputs)
@@ -315,8 +321,8 @@ class TaskRunner(Runner):
         Args:
             - state (State): the current state of this task
             - upstream_states_set (Set[State]): a set containing the states of any upstream tasks.
-            - ignore_trigger (bool): a boolean indicating whether to ignore the
-                tasks's trigger
+            - ignore_trigger (bool): if True, skips the trigger check because the task is a
+                start task.
 
         Returns:
             - State: the state of the task after running the check
@@ -389,6 +395,35 @@ class TaskRunner(Runner):
                 "Task is not ready to run or state was unrecognized ({}).".format(state)
             )
             raise ENDRUN(state)
+
+    @call_state_handlers
+    def check_task_reached_start_time(
+        self, state: State, ignore_trigger: bool = False
+    ) -> State:
+        """
+        Checks if a task is in a Scheduled state and, if it is, ensures that the scheduled
+        time has been reached. Note: Scheduled states include Retry states.
+
+        Args:
+            - state (State): the current state of this task
+            - ignore_trigger (bool): if True, the task is treated as a start task and the
+                scheduled check is not run
+
+        Returns:
+            - State: the state of the task after running the task
+
+        Raises:
+            - ENDRUN: if the task is not a start task and Scheduled with a future
+                scheduled time
+        """
+        if isinstance(state, Scheduled):
+            if (
+                not ignore_trigger
+                and state.start_time
+                and state.start_time > datetime.datetime.utcnow()
+            ):
+                raise ENDRUN(state)
+        return state
 
     @call_state_handlers
     def check_task_is_cached(self, state: State, inputs: Dict[str, Any]) -> State:
@@ -477,7 +512,7 @@ class TaskRunner(Runner):
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
             - ignore_trigger (bool): boolean specifying whether to ignore the
-                Task trigger; defaults to `False`
+                Task trigger and certain other dependency checks; defaults to `False`
             - context (dict, optional): prefect Context to use for execution
             - queues ([queue], optional): list of queues of tickets to use when deciding
                 whether it's safe for the Task to run based on resource limitations. The
