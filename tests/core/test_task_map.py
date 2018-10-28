@@ -1,3 +1,4 @@
+import datetime
 import pytest
 import random
 import time
@@ -424,7 +425,7 @@ def test_map_works_with_retries_and_cached_states(executor):
     def ll():
         return [0, 1, 2]
 
-    div = DivTask(max_retries=1)
+    div = DivTask(max_retries=1, retry_delay=datetime.timedelta(0))
 
     with Flow() as f:
         res = div.map(x=ll)

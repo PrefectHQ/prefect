@@ -63,7 +63,7 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
     Args:
         - flow (Flow): the `Flow` to be run
         - task_runner_cls (TaskRunner, optional): The class used for running
-            individual Tasks. Defaults to [TaskRunner](task_runner.html)
+            individual Tasks. Defaults to [TaskRunner](../engine/task_runner.html)
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the flow changes state, providing an
             opportunity to inspect or modify the new state. The handler

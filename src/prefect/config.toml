@@ -37,6 +37,22 @@ default_project = "Flows"
 eager_edge_validation = false
 
 
+[tasks]
+
+[tasks.defaults]
+
+# the number of times tasks retry before they fail.
+# false indicates that tasks should never retry (equivalent to max_retries = 0)
+max_retries = false
+
+# the amount of time tasks should wait before retrying, in seconds.
+# false indicates that tasks have no default value (users must specify one to set it)
+retry_delay = false
+
+# the amount of time tasks should wait before retrying, in seconds.
+# false indicates that tasks have no default value (users must specify one to set it)
+timeout = false
+
 
 [registry]
 
@@ -45,7 +61,7 @@ eager_edge_validation = false
 warn_on_duplicate_registration = true
 
 # The encryption key used to encrypt Flows
-encryption_key = ''
+encryption_key = ""
 
 
 # a path containing a serialized registry object
