@@ -42,7 +42,7 @@ sidebarDepth: 1
 - Cleaned up signatures of `TaskRunner` methods
 - Locally, Python 3.4 users can not run the more advanced parallel executors (`DaskExecutor`)
 
-## 0.3.1 <Badge text="alpha" type="warn">
+## 0.3.1 <Badge text="alpha" type="warn"/>
 
 ### Major Features
 

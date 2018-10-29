@@ -1,6 +1,6 @@
 # Prefect Changelog
 
-## Development <Badge text="alpha" type="warn">
+## Development <Badge text="alpha" type="warn/>
 
 ### Major Features
 
@@ -32,7 +32,7 @@
 - `TaskRunner.check_for_retry` no longer checks for `Retry` states without `start_time` set - [#278](https://github.com/PrefectHQ/prefect/pull/278)
 - Swapped the position of `result` and `message` attributes in State initializations, and started storing caught exceptions as results - [#283](https://github.com/PrefectHQ/prefect/issues/283)
 
-## 0.3.2 <Badge text="alpha" type="warn">
+## 0.3.2 <Badge text="alpha" type="warn"/>
 
 ### Major Features
 
@@ -69,7 +69,7 @@
 - Cleaned up signatures of `TaskRunner` methods - [#171](https://github.com/prefecthq/prefect/issues/171)
 - Locally, Python 3.4 users can not run the more advanced parallel executors (`DaskExecutor`) [#186](https://github.com/PrefectHQ/prefect/issues/186)
 
-## 0.3.1 <Badge text="alpha" type="warn">
+## 0.3.1 <Badge text="alpha" type="warn"/>
 
 ### Major Features
 
@@ -87,7 +87,7 @@
 
 - None
 
-## 0.3.0 <Badge text="alpha" type="warn">
+## 0.3.0 <Badge text="alpha" type="warn"/>
 
 ### Major Features
 
