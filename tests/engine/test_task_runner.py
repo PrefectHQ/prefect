@@ -975,7 +975,7 @@ class TestTaskRunnerStateHandlers:
             1 / 0
 
         TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
-        # the task changed state three times: Initialization -> Pending -> Running -> Failed -> Retry
+        # the task changed state four times: Initialization -> Pending -> Running -> Failed -> Retry
         assert handler_results["TaskRunner"] == 4
 
     def test_multiple_task_runner_handlers_are_called(self):
