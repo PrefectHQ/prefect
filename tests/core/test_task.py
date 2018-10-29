@@ -47,15 +47,16 @@ class TestCreateTask:
         t1 = Task()
         assert t1.max_retries == 0
 
-        t2 = Task(max_retries=5)
+        t2 = Task(max_retries=5, retry_delay=timedelta(0))
         assert t2.max_retries == 5
 
     def test_create_task_with_retry_delay(self):
-        t1 = Task()
-        assert t1.retry_delay == timedelta(minutes=1)
-
         t2 = Task(retry_delay=timedelta(seconds=30))
         assert t2.retry_delay == timedelta(seconds=30)
+
+    def test_create_task_with_max_retries_and_no_retry_delay(self):
+        with pytest.raises(ValueError):
+            Task(max_retries=1, retry_delay=None)
 
     def test_create_task_with_timeout(self):
         t1 = Task()

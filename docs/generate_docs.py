@@ -27,6 +27,9 @@ from prefect.utilities.airflow_utils import AirFlow
 from prefect.utilities.bokeh_runner import BokehRunner
 from prefect.utilities.tests import raise_on_exception
 
+from tokenizer import format_code
+
+
 OUTLINE = [
     {
         "page": "environments.md",
@@ -52,19 +55,7 @@ OUTLINE = [
         "title": "Triggers",
         "top-level-doc": prefect.triggers,
     },
-    {
-        "page": "client.md",
-        "classes": [
-            prefect.client.Secret,
-            #         prefect.client.Client,
-            #         prefect.client.ClientModule,
-            #         prefect.client.Projects,
-            #         prefect.client.Flows,
-            #         prefect.client.FlowRuns,
-            #         prefect.client.TaskRuns,
-        ],
-        "title": "Client",
-    },
+    {"page": "client.md", "classes": [prefect.client.Secret], "title": "Client"},
     {
         "page": "schedules.md",
         "classes": [
@@ -119,6 +110,7 @@ OUTLINE = [
         "classes": [
             prefect.engine.state.State,
             prefect.engine.state.Pending,
+            prefect.engine.state.Paused,
             prefect.engine.state.CachedState,
             prefect.engine.state.Scheduled,
             prefect.engine.state.Retrying,
@@ -240,6 +232,7 @@ OUTLINE = [
         "functions": [
             prefect.utilities.tasks.tags,
             prefect.utilities.tasks.as_task,
+            prefect.utilities.tasks.pause_task,
             prefect.utilities.tasks.task,
             prefect.utilities.tasks.unmapped,
         ],
@@ -329,7 +322,7 @@ def format_doc(obj, in_table=False):
             block = block[block.startswith("python") and 6 :].lstrip("\n")
             block = (
                 '<pre class="language-python"><code class="language-python">'
-                + block.rstrip("  ").replace("\n", "<br>")
+                + format_code(block).replace("\n", "<br>")
                 + "</code></pre>"
             )
         cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(" "))
