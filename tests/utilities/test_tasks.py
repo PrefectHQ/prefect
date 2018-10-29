@@ -1,6 +1,8 @@
 import pytest
 
 from prefect.core import Flow, Task
+from prefect.engine.signals import PAUSE
+from prefect.engine.state import Paused
 from prefect.utilities import tasks
 
 
@@ -142,18 +144,51 @@ def test_context_manager_for_setting_tags():
             assert t3.tags == set(["1", "2", "3", "4", "5"])
 
 
-def test_unmapped_initializes_with_task():
-    t1 = Task()
-    unmapped_t1 = tasks.unmapped(t1)
-    assert unmapped_t1.task is t1
+class TestUnmappedContainer:
+    def test_unmapped_initializes_with_task(self):
+        t1 = Task()
+        unmapped_t1 = tasks.unmapped(t1)
+        assert unmapped_t1.task is t1
+
+    def test_unmapped_converts_its_argument_to_task(self):
+        unmapped_t1 = tasks.unmapped(5)
+        assert isinstance(unmapped_t1.task, Task)
+
+    def test_as_task_unpacks_unmapped_objects(self):
+        t1 = Task()
+        unmapped_t1 = tasks.unmapped(t1)
+        assert tasks.as_task(t1) is t1
 
 
-def test_unmapped_converts_its_argument_to_task():
-    unmapped_t1 = tasks.unmapped(5)
-    assert isinstance(unmapped_t1.task, Task)
+class TestPauseTask:
+    def test_pause_task_pauses(self):
+        class AddTask(Task):
+            def run(self, x, y):
+                if x == y:
+                    tasks.pause_task()
+                return x + y
 
+        with Flow() as f:
+            t1 = AddTask()(1, 1)
+        res = f.run(return_tasks=f.tasks)
+        assert isinstance(res.result[t1], Paused)
 
-def test_as_task_unpacks_unmapped_objects():
-    t1 = Task()
-    unmapped_t1 = tasks.unmapped(t1)
-    assert tasks.as_task(t1) is t1
+    def test_pause_task_doesnt_pause_sometimes(self):
+        class OneTask(Task):
+            def run(self):
+                tasks.pause_task()
+                return 1
+
+        class AddTask(Task):
+            def run(self, x, y):
+                if x == y:
+                    tasks.pause_task()
+                return x + y
+
+        with Flow() as f:
+            t1 = AddTask()(1, 1)
+            t2 = OneTask()(upstream_tasks=[t1])
+
+        res = f.run(return_tasks=f.tasks, task_contexts={t1: dict(resume=True)})
+        assert res.result[t1].is_successful()
+        assert isinstance(res.result[t2], Paused)

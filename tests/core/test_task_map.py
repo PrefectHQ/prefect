@@ -173,7 +173,7 @@ def test_map_failures_dont_leak_out(executor):
     assert s.is_failed()
     assert isinstance(slist, list)
     assert len(slist) == 3
-    assert [r.result for r in slist] == [None, 1, 0.5]
+    assert [r.result for r in slist][1:] == [1, 0.5]
     assert isinstance(slist[0], prefect.engine.state.TriggerFailed)
 
 
@@ -508,7 +508,10 @@ def test_task_map_downstreams_handle_single_failures(executor):
     assert state.is_failed()
     assert len(state.result[dived]) == 3
     assert isinstance(state.result[big_list], prefect.engine.state.TriggerFailed)
-    assert [s.result for s in state.result[again]] == [1, None, 3]
+    assert [s.result for s in state.result[again]][0::2] == [1, 3]
+    assert isinstance(
+        [s for s in state.result[again]][1], prefect.engine.state.TriggerFailed
+    )
 
 
 @pytest.mark.parametrize(
