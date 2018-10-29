@@ -982,7 +982,7 @@ class TestTaskRunnerStateHandlers:
         TaskRunner(
             task=Task(), state_handlers=[task_runner_handler, task_runner_handler]
         ).run()
-        # each task changed state twice: Initialization -> Pending -> Running -> Success
+        # each task changed state three times: Initialization -> Pending -> Running -> Success
         assert handler_results["TaskRunner"] == 6
 
     def test_multiple_task_runner_handlers_are_called_in_sequence(self):
