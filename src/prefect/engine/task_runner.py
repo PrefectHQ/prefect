@@ -234,8 +234,8 @@ class TaskRunner(Runner):
                 state = exc.state
 
             except signals.PAUSE as exc:
+                state = exc.state
                 state.cached_inputs = task_inputs or {}  # type: ignore
-                state.message = exc
 
             finally:  # resource is now available
                 for ticket, q in zip(tickets, queues):
