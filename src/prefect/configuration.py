@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import datetime
 import logging
 import os
 import re
@@ -22,6 +23,79 @@ class Config(collections.DotDict):
             return super().__getattr__(attr)
         else:
             raise AttributeError("Config has no key '{}'".format(attr))
+
+    def get_nested(self, key: str, default=None) -> Any:
+        """
+        Retrieves a (possibly nested) config key's value, creating intermediate keys if
+        necessary
+
+        For example:
+        >>> config = Config(a=Config(b=Config(c=5)))
+        >>> assert config.get_nested('a.b.c') == 5
+
+        >>> config = Config()
+        >>> assert config.get_nested('a.b.c') is None
+
+        Args:
+            - key (str): a key, indicated nested keys by separating them with '.'
+            - default (Any): a value to return if the key is not found
+        """
+        tmp_val = self
+        for k in key.split("."):
+            if isinstance(tmp_val, Config) and k in tmp_val:
+                tmp_val = tmp_val[k]
+            else:
+                return default
+        return tmp_val
+
+    def set_nested(self, key: str, value: Any) -> None:
+        """
+        Sets a (possibly nested) config key to have some value. Creates intermediate keys
+        if necessary.
+
+        For example:
+        >>> config = Config()
+        >>> config.set_nested('a.b.c', 5)
+        >>> assert config.a.b.c == 5
+
+        Args:
+            - key (str): a key, indicated nested keys by separating them with '.'
+            - value (Any): a value to set
+
+        """
+        config = self
+        keys = key.split(".")
+        for k in keys[:-1]:
+            config = config.setdefault(k, Config())
+        config[keys[-1]] = value
+
+    def setdefault_nested(self, key: str, value: Any) -> Any:
+        """
+        Sets a (possibly nested) config key to have some value, if it doesn't already exist.
+        Creates intermediate keys if necessary.
+
+        For example:
+        >>> config = Config()
+        >>> config.setdefault_nested('a.b.c', 5)
+        >>> assert config.a.b.c == 5
+        >>> config.setdefault_nested('a.b.c', 10)
+        >>> assert config.a.b.c == 5
+
+        Args:
+            - key (str): a key, indicated nested keys by separating them with '.'
+            - value (Any): a value to set
+
+        Returns:
+            Any: the value at the provided key
+
+        """
+        config = self
+        keys = key.split(".")
+        for k in keys[:-1]:
+            config = config.setdefault(k, Config())
+        if keys[-1] not in config:
+            config[keys[-1]] = value
+        return config[keys[-1]]
 
 
 def string_to_type(val: str) -> Union[bool, int, float, str]:
@@ -106,6 +180,39 @@ def create_user_config(dest_path: str, source_path: str = DEFAULT_CONFIG) -> Non
     with open(dest_path, "w") as dest:
         with open(source_path, "r") as source:
             dest.write(source.read())
+
+
+# Process Config -------------------------------------------------------------
+
+
+def process_task_defaults(config: Config) -> Config:
+    """
+    Converts task defaults from basic types to Python objects like timedeltas
+
+    Args:
+        - config (Config): the configuration to modify
+    """
+    # make sure defaults exists
+    defaults = config.setdefault_nested("tasks.defaults", Config())
+
+    # max_retries defaults to 0 if not set, False, or None
+    if not defaults.setdefault("max_retries", 0):
+        defaults.max_retries = 0
+    defaults.max_retries = defaults.get("max_retries", 0) or 0
+
+    # retry_delay defaults to None if not set - also check for False because TOML has no NULL
+    if defaults.setdefault("retry_delay", False) is False:
+        defaults.retry_delay = None
+    elif isinstance(defaults.retry_delay, int):
+        defaults.retry_delay = datetime.timedelta(seconds=defaults.retry_delay)
+
+    # timeout defaults to None if not set - also check for False because TOML has no NULL
+    if defaults.setdefault("timeout", False) is False:
+        defaults.timeout = None
+    elif isinstance(defaults.timeout, int):
+        defaults.timeout = datetime.timedelta(seconds=defaults.timeout)
+
+    return config
 
 
 # Validation ------------------------------------------------------------------
@@ -240,3 +347,5 @@ if os.path.isfile(config.get("general", {}).get("user_config_path", "")):
         env_var_prefix=ENV_VAR_PREFIX,
         merge_into_config=config,
     )
+
+config = process_task_defaults(config)
