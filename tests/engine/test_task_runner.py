@@ -966,7 +966,7 @@ class TestTaskStateHandlers:
 class TestTaskRunnerStateHandlers:
     def test_task_runner_handlers_are_called(self):
         TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
-        # the task changed state twice: Initialization -> Pending -> Running -> Success
+        # the task changed state three times: Initialization -> Pending -> Running -> Success
         assert handler_results["TaskRunner"] == 3
 
     def test_task_runner_handlers_are_called_on_retry(self):
