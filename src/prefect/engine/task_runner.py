@@ -160,10 +160,10 @@ class TaskRunner(Runner):
 
             try:
                 # determine starting state
-                first_state = None
+                new_state = None
                 for handler in self.state_handlers:
-                    first_state = handler(self, None, None)
-                state = first_state or state or Pending()
+                    new_state = handler(self, old_state=None, new_state=new_state)
+                state = new_state or state or Pending()
 
                 # retrieve the run number and place in context
                 state = self.get_run_count(state=state)
