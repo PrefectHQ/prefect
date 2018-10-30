@@ -1,11 +1,29 @@
 # Prefect Changelog
 
+## Development <Badge text="alpha" type="warn"/>
+
+### Major Features
+
+- None
+
+### Minor Features
+
+- None
+
+### Fixes
+
+- None
+
+### Breaking Changes
+
+- Remove `timestamp` property from `State` classes - [#305](https://github.com/PrefectHQ/prefect/pull/305)
+
 ## 0.3.3 <Badge text="alpha" type="warn"/>
 
 ### Major Features
 
 - Refactor `FlowRunner` and `TaskRunner` into a modular `Runner` pipelines - [#260](https://github.com/PrefectHQ/prefect/pull/260), [#267](https://github.com/PrefectHQ/prefect/pull/267)
-- Add configurable `state_handlers` for `FlowRunners`, `Flows`, `TaskRunners`, and `Tasks`  - [#264](https://github.com/PrefectHQ/prefect/pull/264), [#267](https://github.com/PrefectHQ/prefect/pull/267)
+- Add configurable `state_handlers` for `FlowRunners`, `Flows`, `TaskRunners`, and `Tasks` - [#264](https://github.com/PrefectHQ/prefect/pull/264), [#267](https://github.com/PrefectHQ/prefect/pull/267)
 - Add gmail and slack notification state handlers w/ tutorial - [#274](https://github.com/PrefectHQ/prefect/pull/274), [#294](https://github.com/PrefectHQ/prefect/pull/294)
 
 ### Minor Features
