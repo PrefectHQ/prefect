@@ -1,6 +1,6 @@
 # Prefect Changelog
 
-## Development <Badge text="alpha" type="warn/>
+## 0.3.3 <Badge text="alpha" type="warn"/>
 
 ### Major Features
 
