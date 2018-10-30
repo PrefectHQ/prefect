@@ -25,6 +25,7 @@ from prefect.engine.state import (
     Failed,
     Finished,
     Mapped,
+    Paused,
     Pending,
     Retrying,
     Running,
@@ -34,6 +35,7 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
+from prefect.utilities.tasks import pause_task
 from prefect.utilities.tests import raise_on_exception
 
 
@@ -906,10 +908,10 @@ def task_handler(task, old_state, new_state):
 def task_runner_handler(task_runner, old_state, new_state):
     """state change handler for task runners that increments a value by 1"""
     assert isinstance(task_runner, TaskRunner)
-    assert isinstance(old_state, State)
-    assert isinstance(new_state, State)
+    assert isinstance(old_state, (type(None), State))
+    assert isinstance(new_state, (type(None), State))
     handler_results["TaskRunner"] += 1
-    return new_state
+    return new_state or Pending()
 
 
 class TestTaskStateHandlers:
@@ -966,8 +968,8 @@ class TestTaskStateHandlers:
 class TestTaskRunnerStateHandlers:
     def test_task_runner_handlers_are_called(self):
         TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
-        # the task changed state twice: Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 2
+        # the task changed state three times: Initialization -> Pending -> Running -> Success
+        assert handler_results["TaskRunner"] == 3
 
     def test_task_runner_handlers_are_called_on_retry(self):
         @prefect.task(max_retries=1, retry_delay=timedelta(0))
@@ -975,15 +977,15 @@ class TestTaskRunnerStateHandlers:
             1 / 0
 
         TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
-        # the task changed state three times: Pending -> Running -> Failed -> Retry
-        assert handler_results["TaskRunner"] == 3
+        # the task changed state four times: Initialization -> Pending -> Running -> Failed -> Retry
+        assert handler_results["TaskRunner"] == 4
 
     def test_multiple_task_runner_handlers_are_called(self):
         TaskRunner(
             task=Task(), state_handlers=[task_runner_handler, task_runner_handler]
         ).run()
-        # each task changed state twice: Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 4
+        # each task changed state three times: Initialization -> Pending -> Running -> Success
+        assert handler_results["TaskRunner"] == 6
 
     def test_multiple_task_runner_handlers_are_called_in_sequence(self):
         # the second task handler will assert the result of the first task handler is a state
@@ -992,7 +994,8 @@ class TestTaskRunnerStateHandlers:
         with pytest.raises(AssertionError):
             with prefect.utilities.tests.raise_on_exception():
                 TaskRunner(
-                    task=Task(), state_handlers=[lambda *a: None, task_runner_handler]
+                    task=Task(),
+                    state_handlers=[lambda *a: Ellipsis, task_runner_handler],
                 ).run()
 
     def test_task_runner_handler_that_doesnt_return_state(self):
@@ -1128,3 +1131,36 @@ def test_task_runner_ignores_trigger_for_parent_mapped_task_but_not_children(exe
         )
     assert isinstance(res, list)
     assert all([isinstance(s, TriggerFailed) for s in res])
+
+
+def test_task_runner_converts_pause_signal_to_paused_state_for_manual_only_triggers():
+    t1, t2 = SuccessTask(), SuccessTask(trigger=prefect.triggers.manual_only)
+    e = Edge(t1, t2)
+    runner = TaskRunner(t2)
+    out = runner.run(upstream_states={e: Success(result=1)})
+    assert isinstance(out, Paused)
+    assert "manual_only" in out.message
+
+
+def test_task_runner_converts_pause_signal_to_paused_state_for_internally_raised_pauses():
+    class WaitTask(Task):
+        def run(self):
+            pause_task()
+
+    t1, t2 = SuccessTask(), WaitTask()
+    e = Edge(t1, t2)
+    runner = TaskRunner(t2)
+    out = runner.run(upstream_states={e: Success(result=1)})
+    assert isinstance(out, Paused)
+
+
+def test_task_runner_bypasses_pause_when_requested():
+    class WaitTask(Task):
+        def run(self):
+            pause_task()
+
+    t1, t2 = SuccessTask(), WaitTask()
+    e = Edge(t1, t2)
+    runner = TaskRunner(t2)
+    out = runner.run(upstream_states={e: Success(result=1)}, context=dict(resume=True))
+    assert out.is_successful()

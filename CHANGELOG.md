@@ -1,6 +1,6 @@
 # Prefect Changelog
 
-## Development <Badge text="alpha" type="warn">
+## Development <Badge text="alpha" type="warn/>
 
 ### Major Features
 
@@ -13,6 +13,7 @@
 - Add a new method `flow.get_tasks()` for easily filtering flow tasks by attribute - [#242](https://github.com/PrefectHQ/prefect/pull/242)
 - Add new `JinjaTemplateTask` for easily rendering jinja templates - [#200](https://github.com/PrefectHQ/prefect/issues/200)
 - Add new `PAUSE` signal for halting task execution - [#246](https://github.com/PrefectHQ/prefect/pull/246)
+- Add new `Paused` state corresponding to `PAUSE` signal, and new `pause_task` utility - [#251](https://github.com/PrefectHQ/prefect/issues/251)
 - Add ability to timeout task execution for all executors except `DaskExecutor(processes=True)` - [#240](https://github.com/PrefectHQ/prefect/issues/240)
 - Add explicit unit test to check Black formatting (Python 3.6+) - [#261](https://github.com/PrefectHQ/prefect/pull/261)
 - Add ability to set local secrets in user config file - [#231](https://github.com/PrefectHQ/prefect/issues/231), [#274](https://github.com/PrefectHQ/prefect/pull/274)
@@ -31,7 +32,7 @@
 - `TaskRunner.check_for_retry` no longer checks for `Retry` states without `start_time` set - [#278](https://github.com/PrefectHQ/prefect/pull/278)
 - Swapped the position of `result` and `message` attributes in State initializations, and started storing caught exceptions as results - [#283](https://github.com/PrefectHQ/prefect/issues/283)
 
-## 0.3.2 <Badge text="alpha" type="warn">
+## 0.3.2 <Badge text="alpha" type="warn"/>
 
 ### Major Features
 
@@ -68,7 +69,7 @@
 - Cleaned up signatures of `TaskRunner` methods - [#171](https://github.com/prefecthq/prefect/issues/171)
 - Locally, Python 3.4 users can not run the more advanced parallel executors (`DaskExecutor`) [#186](https://github.com/PrefectHQ/prefect/issues/186)
 
-## 0.3.1 <Badge text="alpha" type="warn">
+## 0.3.1 <Badge text="alpha" type="warn"/>
 
 ### Major Features
 
@@ -86,7 +87,7 @@
 
 - None
 
-## 0.3.0 <Badge text="alpha" type="warn">
+## 0.3.0 <Badge text="alpha" type="warn"/>
 
 ### Major Features
 

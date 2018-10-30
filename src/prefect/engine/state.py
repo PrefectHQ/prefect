@@ -9,7 +9,7 @@ This module contains all Prefect state classes, all ultimately inheriting from t
 ![](/state_inheritance_diagram.svg) {style="text-align: center;"}
 
 Every task is initialized with the `Pending` state, meaning that it is waiting for
-execution. The other types of `Pending` states are `CachedState`, `Scheduled`, and
+execution. The other types of `Pending` states are `CachedState`, `Paused`, `Scheduled`, and
 `Retrying`.
 
 When a task is running it will enter a `Running` state which means that the task is
@@ -158,6 +158,21 @@ class Pending(State):
     ) -> None:
         super().__init__(message=message, result=result)
         self.cached_inputs = cached_inputs
+
+
+class Paused(Pending):
+    """
+    Paused state for tasks which require manual execution.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+        keys to values.  Used / set if the Task requires Retries.
+    """
+
+    color = "#800000"
 
 
 class CachedState(Pending):

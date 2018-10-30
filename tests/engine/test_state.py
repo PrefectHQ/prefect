@@ -7,6 +7,7 @@ from prefect.engine.state import (
     Failed,
     Finished,
     Mapped,
+    Paused,
     Pending,
     Retrying,
     Running,
@@ -188,6 +189,16 @@ class TestStateHierarchy:
 class TestStateMethods:
     def test_state_type_methods_with_pending_state(self):
         state = Pending()
+        assert state.is_pending()
+        assert not state.is_running()
+        assert not state.is_finished()
+        assert not state.is_skipped()
+        assert not state.is_scheduled()
+        assert not state.is_successful()
+        assert not state.is_failed()
+
+    def test_state_type_methods_with_paused_state(self):
+        state = Paused()
         assert state.is_pending()
         assert not state.is_running()
         assert not state.is_finished()

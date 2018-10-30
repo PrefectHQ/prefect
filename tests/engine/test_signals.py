@@ -4,6 +4,7 @@ import pytest
 import prefect
 from prefect.engine.signals import (
     FAIL,
+    PAUSE,
     RETRY,
     SKIP,
     SUCCESS,
@@ -12,6 +13,7 @@ from prefect.engine.signals import (
 )
 from prefect.engine.state import (
     Failed,
+    Paused,
     Retrying,
     Skipped,
     State,
@@ -30,17 +32,8 @@ def test_signals_create_states():
     with pytest.raises(Exception) as exc:
         raise PrefectStateSignal("message")
     assert isinstance(exc.value.state, State)
-    assert exc.value.state.message is exc.value
-    assert str(exc.value.state.message) == "message"
-    assert exc.value.state.result is None
-
-
-def test_signals_pass_arguments_to_states():
-    with pytest.raises(PrefectStateSignal) as exc:
-        raise SUCCESS("you did it!", result=100)
-    assert exc.value.state.message is exc.value
-    assert exc.value.state.result == 100
-    assert str(exc.value.state.message) == "you did it!"
+    assert exc.value.state.result is exc.value
+    assert exc.value.state.message == "message"
 
 
 def test_signals_dont_pass_invalid_arguments_to_states():
@@ -81,6 +74,7 @@ def test_retry_signals_prefer_supplied_run_count_to_context():
         (FAIL, Failed),
         (TRIGGERFAIL, TriggerFailed),
         (SUCCESS, Success),
+        (PAUSE, Paused),
         (RETRY, Retrying),
         (SKIP, Skipped),
     ],
@@ -90,8 +84,8 @@ def test_signals_creates_correct_states(signal, state):
         raise signal(state.__name__)
     assert isinstance(exc.value, signal)
     assert type(exc.value.state) is state
-    assert exc.value.state.message is exc.value
-    assert str(exc.value.state.message) == state.__name__
+    assert exc.value.state.result is exc.value
+    assert exc.value.state.message == state.__name__
 
 
 def test_retry_signals_carry_default_retry_time_on_state():

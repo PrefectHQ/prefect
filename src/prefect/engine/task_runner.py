@@ -117,7 +117,6 @@ class TaskRunner(Runner):
         """
 
         queues = queues or []
-        state = state or Pending()
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
@@ -160,6 +159,12 @@ class TaskRunner(Runner):
         with prefect.context(context, _task_name=self.task.name):
 
             try:
+                # determine starting state
+                new_state = None
+                for handler in self.state_handlers:
+                    new_state = handler(self, None, new_state)
+                state = new_state or state or Pending()
+
                 # retrieve the run number and place in context
                 state = self.get_run_count(state=state)
 
@@ -229,8 +234,8 @@ class TaskRunner(Runner):
                 state = exc.state
 
             except signals.PAUSE as exc:
+                state = exc.state
                 state.cached_inputs = task_inputs or {}  # type: ignore
-                state.message = exc
 
             finally:  # resource is now available
                 for ticket, q in zip(tickets, queues):
