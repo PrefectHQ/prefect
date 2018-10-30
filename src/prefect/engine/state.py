@@ -48,9 +48,8 @@ class State(Serializable):
     color = "#000000"
 
     def __init__(self, message: str = None, result: Any = None) -> None:
-        self.result = result
         self.message = message
-        self._timestamp = datetime.datetime.utcnow()
+        self.result = result
 
     def __repr__(self) -> str:
         if self.message:
@@ -60,7 +59,7 @@ class State(Serializable):
 
     def __eq__(self, other: object) -> bool:
         """
-        Equality depends on state type and data, not message or timestamp
+        Equality depends on state type and data, but not message
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
@@ -74,10 +73,6 @@ class State(Serializable):
 
     def __hash__(self) -> int:
         return id(self)
-
-    @property
-    def timestamp(self) -> datetime.datetime:
-        return self._timestamp
 
     def is_pending(self) -> bool:
         """Checks if the object is currently in a pending state
@@ -161,7 +156,7 @@ class Pending(State):
         result: Any = None,
         cached_inputs: Dict[str, Any] = None,
     ) -> None:
-        super().__init__(result=result, message=message)
+        super().__init__(message=message, result=result)
         self.cached_inputs = cached_inputs
 
 
@@ -193,7 +188,7 @@ class CachedState(Pending):
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
     ) -> None:
-        super().__init__(result=result, message=message, cached_inputs=cached_inputs)
+        super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.cached_result = cached_result
         self.cached_parameters = cached_parameters
         self.cached_result_expiration = cached_result_expiration
@@ -221,7 +216,7 @@ class Scheduled(Pending):
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Any] = None,
     ) -> None:
-        super().__init__(result=result, message=message, cached_inputs=cached_inputs)
+        super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.start_time = start_time or datetime.datetime.utcnow()
 
 
@@ -317,7 +312,7 @@ class Success(Finished):
     def __init__(
         self, message: str = None, result: Any = None, cached: CachedState = None
     ) -> None:
-        super().__init__(result=result, message=message)
+        super().__init__(message=message, result=result)
         self.cached = cached
 
 
@@ -377,5 +372,6 @@ class Skipped(Success):
 
     color = "#F0FFF0"
 
+    # note: this does not allow setting "cached" as Success states do
     def __init__(self, message: str = None, result: Any = None) -> None:
-        super().__init__(result=result, message=message)
+        super().__init__(message=message, result=result)

@@ -18,20 +18,11 @@ from prefect.engine.state import (
 )
 from prefect.utilities import json
 
-all_states = [
-    CachedState,
-    State,
-    Mapped,
-    Pending,
-    Running,
-    Finished,
-    Success,
-    Skipped,
-    Failed,
-    TriggerFailed,
-    Scheduled,
-    Retrying,
-]
+all_states = set(
+    cls
+    for cls in prefect.engine.state.__dict__.values()
+    if isinstance(cls, type) and issubclass(cls, prefect.engine.state.State)
+)
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -73,27 +64,10 @@ def test_create_state_with_data_and_error(cls):
     assert "division by zero" in str(state.message)
 
 
-def test_timestamp_is_created_at_creation():
-    state = Success()
-    assert (datetime.datetime.utcnow() - state.timestamp).total_seconds() < 0.001
-
-
-def test_timestamp_protected():
-    state = Success()
-    with pytest.raises(AttributeError):
-        state.timestamp = 1
-
-
 def test_scheduled_states_have_default_times():
     now = datetime.datetime.utcnow()
     assert now - Scheduled().start_time < datetime.timedelta(seconds=0.1)
     assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
-
-
-def test_timestamp_is_serialized():
-    state = Success()
-    deserialized_state = json.loads(json.dumps(state))
-    assert state.timestamp == deserialized_state.timestamp
 
 
 def test_retry_stores_run_count():
@@ -130,7 +104,6 @@ def test_serialize():
     assert isinstance(new_state, Success)
     assert new_state.color == state.color
     assert new_state.result == state.result
-    assert new_state.timestamp == state.timestamp
     assert isinstance(new_state.cached, CachedState)
     assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
     assert new_state.cached.cached_inputs == cached.cached_inputs
@@ -143,7 +116,6 @@ def test_serialization_of_cached_inputs():
     new_state = json.loads(j)
     assert isinstance(new_state, Pending)
     assert new_state.cached_inputs == state.cached_inputs
-    assert new_state.timestamp == state.timestamp
 
 
 def test_state_equality():
