@@ -4,7 +4,7 @@
 
 ### Major Features
 
-- None
+- Add versioned serialization schemas for `Flow`, `Task`, `Edge`, `State`, and `Schedule` objects - [#310](https://github.com/PrefectHQ/prefect/pull/310)
 
 ### Minor Features
 
