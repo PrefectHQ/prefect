@@ -212,8 +212,8 @@ def test_schema_does_not_create_object():
 
 def test_nested_schema_creates_object():
     class TestObject:
-        def __init__(self, y, nested=None):
-            self.y = y
+        def __init__(self, x, nested=None):
+            self.x = x
             self.nested = nested
 
     @version("0")
@@ -222,7 +222,7 @@ def test_nested_schema_creates_object():
             object_class = TestObject
 
         x = marshmallow.fields.Int()
-        y = marshmallow.fields.Nested("self", allow_none=True)
+        nested = marshmallow.fields.Nested("self", allow_none=True)
 
     deserialized = Schema().load({"x": "1", "nested": {"x": "2"}})
     assert isinstance(deserialized, TestObject)
@@ -233,7 +233,7 @@ def test_nested_schema_creates_object():
 def test_nested_schema_does_not_create_object():
     class TestObject:
         def __init__(self, y, nested=None):
-            self.y = y
+            self.x = x
             self.nested = nested
 
     @version("0")
@@ -242,7 +242,7 @@ def test_nested_schema_does_not_create_object():
             object_class = TestObject
 
         x = marshmallow.fields.Int()
-        y = marshmallow.fields.Nested("self", allow_none=True)
+        nested = marshmallow.fields.Nested("self", allow_none=True)
 
     deserialized = Schema().load({"x": "1", "nested": {"x": "2"}}, create_object=False)
     assert deserialized == {"x": 1, "nested": {"x": 2}}
