@@ -8,7 +8,7 @@
 
 ### Minor Features
 
-- None
+- Add new `TimedOut` state for task execution timeouts - [#255](https://github.com/PrefectHQ/prefect/issues/255)
 
 ### Fixes
 
