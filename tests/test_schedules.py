@@ -2,7 +2,7 @@ from datetime import datetime, time, timedelta
 
 import pytest
 
-from prefect import schedules
+from prefect import schedules, __version__
 
 START_DATE = datetime(2018, 1, 1)
 NOW = datetime.utcnow()
@@ -98,3 +98,39 @@ def test_date_schedule_next_n_with_on_or_after_argument():
 def test_date_schedule_after_last_date_returns_empty_list():
     s = schedules.DateSchedule(DATES)
     assert s.next(3, on_or_after=TODAY + timedelta(days=100)) == []
+
+
+class TestSerialization:
+    def test_serialize_no_schedule(self):
+        schedule = schedules.NoSchedule()
+        assert schedule.serialize() == {
+            "type": "NoSchedule",
+            "__version__": __version__,
+        }
+
+    def test_serialize_cron_schedule(self):
+        schedule = schedules.CronSchedule("0 0 * * *")
+        assert schedule.serialize() == {
+            "type": "CronSchedule",
+            "cron": "0 0 * * *",
+            "__version__": __version__,
+        }
+
+    def test_serialize_interval_schedule(self):
+        schedule = schedules.IntervalSchedule(
+            interval=timedelta(hours=1), start_date=START_DATE
+        )
+        assert schedule.serialize() == {
+            "type": "IntervalSchedule",
+            "start_date": "2018-01-01T00:00:00+00:00",
+            "interval": 3600,
+            "__version__": __version__,
+        }
+
+    def test_serialize_date_schedule(self):
+        schedule = schedules.DateSchedule(dates=DATES)
+        assert schedule.serialize() == {
+            "type": "DateSchedule",
+            "dates": [d.isoformat() for d in DATES],
+            "__version__": __version__,
+        }
