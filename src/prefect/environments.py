@@ -258,7 +258,7 @@ class ContainerEnvironment(Environment):
                 """\
                 FROM {image}
 
-                RUN apt-get -qq -y update && apt-get -qq -y install --no-install-recommends --no-install-suggests git zsh
+                RUN apt-get -qq -y update && apt-get -qq -y install --no-install-recommends --no-install-suggests git
 
                 RUN pip install pip --upgrade
                 RUN pip install wheel
@@ -273,7 +273,7 @@ class ContainerEnvironment(Environment):
                 ENV PREFECT__GENERAL__USER_CONFIG_PATH="$HOME/.prefect/config.toml"
 
                 RUN pip install jinja2
-                RUN git clone -b josh/testing https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
+                RUN git clone -b server https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
             """.format(
                     image=self.image, pip_installs=pip_installs, env_vars=env_vars
