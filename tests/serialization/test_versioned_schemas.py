@@ -297,4 +297,3 @@ def test_schemas_dump_datetime_to_UTC():
     assert serialized_dt["dt"] == "2020-01-01T00:00:00+00:00"
     assert dt.isoformat() == "2020-01-01T00:00:00"
     assert Schema().load(serialized_dt)["dt"] == dt_utc
-
