@@ -137,6 +137,14 @@ class State(Serializable):
         """
         return isinstance(self, Failed)
 
+    def serialize(self) -> dict:
+        """
+        Serializes the state to a dict.
+        """
+        from prefect.serialization.schemas.state import StateSchema
+
+        return StateSchema().dump(self)
+
 
 # -------------------------------------------------------------------
 # Pending States

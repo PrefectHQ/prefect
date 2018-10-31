@@ -151,6 +151,15 @@ def test_states_with_mutable_attrs_are_hashable():
     assert {State(result=[1]), Pending(cached_inputs=dict(a=1))}
 
 
+@pytest.mark.parametrize("cls", all_states)
+def test_serialize_method(cls):
+    serialized = cls().serialize()
+    assert isinstance(serialized, dict)
+    assert isinstance(
+        prefect.serialization.schemas.states.StateSchema().load(serialized), cls
+    )
+
+
 class TestStateHierarchy:
     def test_scheduled_is_pending(self):
         assert issubclass(Scheduled, Pending)
