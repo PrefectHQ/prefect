@@ -119,12 +119,42 @@ class TestEdge:
         assert deserialized.mapped is True
 
     def test_deserialize_edge_has_no_task_info(self):
+        """
+        Edges only serialize task IDs (if available), so the task names will revert to default.
+        """
         t1, t2 = Task("t1"), Task("t2")
         serialized = core.EdgeSchema().dump(Edge(t1, t2, key="x", mapped=True))
         deserialized = core.EdgeSchema().load(serialized)
 
-        assert deserialized.upstream_task.name is None
-        assert deserialized.downstream_task.name is None
+        assert deserialized.upstream_task.name is "Task"
+        assert deserialized.downstream_task.name is "Task"
+
+    def test_deserialize_edge_uses_task_ids(self):
+        """
+        If a Task ID context is available, the task attributes will use it
+        """
+        t1, t2 = Task("t1"), Task("t2")
+        context = dict(task_ids={t1: "t1", t2: "t2"})
+
+        serialized = core.EdgeSchema(context=context).dump(
+            Edge(t1, t2, key="x", mapped=True)
+        )
+        assert serialized["upstream_task"]["id"] == "t1"
+        assert serialized["downstream_task"]["id"] == "t2"
+
+    def test_deserialize_edge_uses_task_cache(self):
+        """
+        If a Task Cache is available, the task attributes will use it
+        """
+        t1, t2 = Task("t1"), Task("t2")
+        context = dict(task_ids={t1: "t1", t2: "t2"}, task_cache={"t1": t1, "t2": t2})
+        serialized = core.EdgeSchema(context=context).dump(
+            Edge(t1, t2, key="x", mapped=True)
+        )
+        deserialized = core.EdgeSchema(context=context).load(serialized)
+
+        assert deserialized.upstream_task is t1
+        assert deserialized.downstream_task is t2
 
 
 class TestFlow:

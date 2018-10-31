@@ -151,12 +151,12 @@ def test_states_with_mutable_attrs_are_hashable():
     assert {State(result=[1]), Pending(cached_inputs=dict(a=1))}
 
 
-@pytest.mark.parametrize("cls", all_states)
+@pytest.mark.parametrize("cls", [s for s in all_states if s is not State])
 def test_serialize_method(cls):
     serialized = cls().serialize()
     assert isinstance(serialized, dict)
     assert isinstance(
-        prefect.serialization.schemas.states.StateSchema().load(serialized), cls
+        prefect.serialization.schemas.state.StateSchema().load(serialized), cls
     )
 
 
