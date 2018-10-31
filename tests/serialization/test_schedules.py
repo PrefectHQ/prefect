@@ -103,7 +103,6 @@ def test_serialize_interval_schedule(interval_schedule):
 
 
 def test_serialize_date_schedule(date_schedule):
-    dts = [datetime.datetime(2020, 1, 1), datetime.datetime(2021, 1, 1)]
     schema = schemas.DateScheduleSchema()
     assert schema.dump(date_schedule) == {
         "dates": [d.isoformat() + "+00:00" for d in date_schedule.dates],

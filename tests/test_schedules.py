@@ -131,6 +131,6 @@ class TestSerialization:
         schedule = schedules.DateSchedule(dates=DATES)
         assert schedule.serialize() == {
             "type": "DateSchedule",
-            "dates": [d.isoformat() for d in DATES],
+            "dates": [d.isoformat() + "+00:00" for d in DATES],
             "__version__": __version__,
         }
