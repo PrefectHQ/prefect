@@ -2,11 +2,11 @@
 
 import datetime
 from contextlib import contextmanager
+from queue import Queue
 from typing import Any, Callable, Iterable, Iterator
 
 import dask
 import dask.bag
-import queue
 import warnings
 
 from prefect.engine.executors.base import Executor
@@ -28,8 +28,8 @@ class SynchronousExecutor(Executor):
         with dask.config.set(scheduler="synchronous") as cfg:
             yield cfg
 
-    def queue(self, maxsize: int = 0):
-        q = queue.Queue(maxsize=maxsize)  # type: queue.Queue
+    def queue(self, maxsize: int = 0) -> Queue:
+        q = Queue(maxsize=maxsize)  # type: Queue
         return q
 
     def map(
@@ -100,5 +100,7 @@ class SynchronousExecutor(Executor):
         Returns:
             - Iterable: an iterable of resolved futures
         """
-        computed = dask.compute(futures)
+        computed = dask.compute(
+            dask.compute(dask.compute(dask.compute(futures)[0])[0])[0]
+        )
         return computed[0]

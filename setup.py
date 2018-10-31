@@ -15,18 +15,33 @@ install_requires = [
     "docker >= 3.4.1, < 3.5",
     "mypy_extensions >= 0.3.0, < 0.4",
     "python-dateutil >= 2.7.3, < 3.0",
-    "requests >= 2.19.1, < 3.0",
+    "requests >= 2.20, < 3.0",
     "toml >= 0.9.4, < 1.0",
     "typing >= 3.6.4, < 4.0",
     "typing_extensions >= 3.6.4, < 4.0",
     "xxhash >= 1.2.0, < 2.0",
 ]
 
+templates = ["jinja2 >= 2.0, < 3.0"]
 viz = ["bokeh == 0.13.0", "graphviz >= 0.8.3"]
-dev = ["pre-commit", "pytest >= 3.8, < 4.0", "pytest-cov", "pytest-env", "pytest-xdist"]
+dev = [
+    "pre-commit",
+    "pytest >= 3.8, < 4.0",
+    "pytest-cov",
+    "pytest-env",
+    "pytest-xdist",
+    "Pygments == 2.2.0",
+]
+
 if sys.version_info >= (3, 6):
     dev += ["black"]
-extras = {"dev": dev + viz, "viz": viz}
+
+extras = {
+    "dev": dev + viz,
+    "viz": viz,
+    "templates": templates,
+    "all_extras": dev + templates + viz,
+}
 
 setup(
     name="prefect",

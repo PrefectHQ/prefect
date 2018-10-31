@@ -209,7 +209,7 @@ def test_format_doc_on_simple_doc():
     formatted = format_doc(my_fun)
     assert formatted == (
         "Indicates that a task should not run and wait for manual execution.\n\n"
-        "**Args**:\n<ul style='padding-left:3.5em;text-indent:-3.5em;'>"
+        "**Args**:     <ul style='padding-left:3.5em;text-indent:-3.5em;'>"
         "<li style='padding-left:3.5em;text-indent:-3.5em;'>"
         "`message (Any, optional)`: Defaults to `None`. A message about the signal.</li></ul>"
     )
@@ -232,6 +232,25 @@ def test_consistency_of_function_docs(fn):
     assert num_args == len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(
         varkwargs
     ), "{fn.__name__} has undocumented arguments.".format(fn=fn)
+
+
+@pytest.mark.parametrize(
+    "obj", [obj for page in OUTLINE for obj in page.get("classes", [])]
+)
+def test_consistency_of_class_docs(obj):
+    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
+    doc = format_doc(obj)
+    try:
+        arg_list_index = doc.index("**Args**:")
+        end = doc[arg_list_index:].find("</ul")
+        arg_doc = doc[arg_list_index : (arg_list_index + end)]
+        num_args = arg_doc.count("<li")
+    except ValueError:
+        num_args = 0
+
+    assert num_args == len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(
+        varkwargs
+    ), "{obj.__module__}.{obj.__name__} has undocumented arguments.".format(obj=obj)
 
 
 @pytest.mark.parametrize(
@@ -259,3 +278,133 @@ def test_consistency_of_class_method_docs(obj, fn):
     ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has undocumented arguments.".format(
         obj=obj, fn=fn
     )
+
+
+def test_format_doc_removes_unnecessary_newlines_when_appropriate_in_tables():
+    def doc_fun():
+        """
+        I am a
+        poorly formatte
+        d doc string.
+
+        Args:
+            - x (optional): actually not
+                really here
+
+        I talk too much.
+
+        Raises:
+            - TypeError: why not
+
+        Example:
+            ```python
+            ## TODO:
+            ## put some
+            ## code here
+            ```
+        """
+        pass
+
+    res = format_doc(doc_fun, in_table=True)
+    sub_string = "<sub>I am a poorly formatte d doc string.<br><br>**Args**:"
+    assert sub_string in res
+    assert "<br>**Raises**:" in res
+
+
+def test_format_doc_correctly_handles_code_blocks_outside_of_tables():
+    def doc_fun():
+        """
+        A `dict` that also supports attribute ("dot") access. Think of this as an extension
+        to the standard python `dict` object.
+
+        Args:
+            - init_dict (dict, optional): dictionary to initialize the `DotDict`
+            with
+            - **kwargs (optional): key, value pairs with which to initialize the
+            `DotDict`
+
+        **Example**:
+            ```python
+            dotdict = DotDict({'a': 34}, b=56, c=set())
+            dotdict.a # 34
+            dotdict['b'] # 56
+            dotdict.c # set()
+            ```
+        """
+        pass
+
+    res = format_doc(doc_fun)
+    sub_string = (
+        "**Example**:     \n```python\n    dotdict = DotDict({'a': 34},"
+        " b=56, c=set())\n    dotdict.a # 34\n    dotdict['b'] # 56\n    dotdict.c # set()\n\n```"
+    )
+    assert sub_string in res
+
+
+@pytest.mark.parametrize(
+    "fn", [fn for page in OUTLINE for fn in page.get("functions", [])]
+)
+def test_sections_have_formatted_headers_for_function_docs(fn):
+    doc = format_doc(fn, in_table=True)
+    for section in ["Args", "Returns", "Raises", "Example"]:
+        option1 = ">**{}**:".format(section)
+        option2 = "\n**{}**:".format(section)
+        assert (section in doc) is any(
+            [(o in doc) for o in (option1, option2)]
+        ), "{fn.__name__} has a poorly formatted {sec} header.".format(
+            fn=fn, sec=section
+        )
+        if (section != "Example") and section in doc:
+            assert "{}**:<".format(section) in doc.replace(
+                " ", ""
+            ), "{fn.__name__} has a poorly formatted {sec} listing.".format(
+                fn=fn, sec=section
+            )
+
+
+@pytest.mark.parametrize(
+    "obj", [obj for page in OUTLINE for obj in page.get("classes", [])]
+)
+def test_sections_have_formatted_headers_for_class_docs(obj):
+    doc = format_doc(obj)
+    for section in ["Args", "Returns", "Raises", "Example"]:
+        option1 = ">**{}**:".format(section)
+        option2 = "\n**{}**:".format(section)
+        assert (section in doc) is any(
+            [(o in doc) for o in (option1, option2)]
+        ), "{obj.__module__}.{obj.__name__} has a poorly formatted {sec} header.".format(
+            obj=obj, sec=section
+        )
+        if (section != "Example") and section in doc:
+            assert "{}**:<".format(section) in doc.replace(
+                " ", ""
+            ), "{obj.__module__}.{obj.__name__} has a poorly formatted {sec} listing.".format(
+                obj=obj, sec=section
+            )
+
+
+@pytest.mark.parametrize(
+    "obj,fn",
+    [
+        (obj, fn)
+        for page in OUTLINE
+        for obj in page.get("classes", [])
+        for fn in get_class_methods(obj)
+    ],
+)  # parametrized like this for easy reading of tests
+def test_sections_have_formatted_headers_for_class_method_docs(obj, fn):
+    doc = format_doc(fn, in_table=True)
+    for section in ["Args", "Returns", "Raises", "Example"]:
+        option1 = ">**{}**:".format(section)
+        option2 = "\n**{}**:".format(section)
+        assert (section in doc) is any(
+            [(o in doc) for o in (option1, option2)]
+        ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has a poorly formatted {sec} header.".format(
+            obj=obj, fn=fn, sec=section
+        )
+        if (section != "Example") and section in doc:
+            assert "{}**:<".format(section) in doc.replace(
+                " ", ""
+            ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has a poorly formatted {sec} listing.".format(
+                obj=obj, fn=fn, sec=section
+            )

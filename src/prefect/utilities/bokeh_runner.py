@@ -60,7 +60,27 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
 
     Initialized and handled exactly like the standard FlowRunner class.
 
-    **Example:**
+    Args:
+        - flow (Flow): the `Flow` to be run
+        - task_runner_cls (TaskRunner, optional): The class used for running
+            individual Tasks. Defaults to [TaskRunner](../engine/task_runner.html)
+        - state_handlers (Iterable[Callable], optional): A list of state change handlers
+            that will be called whenever the flow changes state, providing an
+            opportunity to inspect or modify the new state. The handler
+            will be passed the flow runner instance, the old (prior) state, and the new
+            (current) state, with the following signature:
+
+            ```
+                state_handler(
+                    flow_runner: FlowRunner,
+                    old_state: State,
+                    new_state: State) -> State
+            ```
+
+            If multiple functions are passed, then the `new_state` argument will be the
+            result of the previous handler.
+
+    Example:
         ```python
         from prefect.utilities.bokeh_runner import BokehRunner
         from prefect import task, Flow
@@ -166,6 +186,7 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
         map_counts = defaultdict(lambda: 0)  # type: dict
         mapped_tasks = {}  # type: Dict["prefect.Task", List["prefect.Task"]]
         edges = []
+        assert isinstance(state.result, dict)
 
         for task in self.flow.sorted_tasks():
             old_edges = self.flow.edges_to(task)

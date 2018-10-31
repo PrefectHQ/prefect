@@ -1,6 +1,5 @@
 version: 2
 jobs:
-
   # ----------------------------------
   # Check formatting
   # ----------------------------------
@@ -36,7 +35,7 @@ jobs:
 
       - run:
           name: Install prefect
-          command: pip install ".[dev]"
+          command: pip install ".[all_extras]"
 
       - run:
           name: Run tests
@@ -60,7 +59,7 @@ jobs:
   test-airflow:
     docker:
       - image: python:3.6
-    steps: 
+    steps:
       - checkout
       - setup_remote_docker
       - run:
@@ -69,12 +68,11 @@ jobs:
 
       - run:
           name: Install prefect and airflow
-          command: pip install ".[dev]" && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow
+          command: pip install ".[all_extras]" && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow
 
       - run:
           name: Run tests w/ airflow
           command: pytest -vv --airflow
-
 
 workflows:
   version: 2

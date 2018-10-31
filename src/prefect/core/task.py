@@ -5,7 +5,7 @@ import copy
 import inspect
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Set, Tuple
 
 import prefect
 import prefect.engine.cache_validators
@@ -113,9 +113,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             opportunity to inspect or modify the new state. The handler
             will be passed the task instance, the old (prior) state, and the new
             (current) state, with the following signature:
-
                 `state_handler(task: Task, old_state: State, new_state: State) -> State`
-
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
 
@@ -132,10 +130,10 @@ class Task(Serializable, metaclass=SignatureValidator):
         slug: str = None,
         description: str = None,
         tags: Iterable[str] = None,
-        max_retries: int = 0,
-        retry_delay: timedelta = timedelta(minutes=1),
-        timeout: timedelta = None,
-        trigger: Callable[[Dict["Task", "State"]], bool] = None,
+        max_retries: int = prefect.config.tasks.defaults.max_retries,
+        retry_delay: timedelta = prefect.config.tasks.defaults.retry_delay,
+        timeout: timedelta = prefect.config.tasks.defaults.timeout,
+        trigger: Callable[[Set["State"]], bool] = None,
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
@@ -153,6 +151,10 @@ class Task(Serializable, metaclass=SignatureValidator):
         current_tags = set(prefect.context.get("_tags", set()))
         self.tags = (set(tags) if tags is not None else set()) | current_tags
 
+        if max_retries > 0 and retry_delay is None:
+            raise ValueError(
+                "A datetime.timedelta `retry_delay` must be provided if max_retries > 0"
+            )
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
@@ -212,7 +214,7 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     def copy(self) -> "Task":
         """
-        Returns a copy of the current Task.
+        Creates and returns a copy of the current Task.
         """
 
         flow = prefect.context.get("_flow", None)

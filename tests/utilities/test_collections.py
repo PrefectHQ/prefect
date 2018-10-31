@@ -168,6 +168,20 @@ class TestDotDict:
         d["b"] = 1
         assert repr(d) == "<DotDict: 'a', 'b', 1>"
 
+    def test_eq_empty(self):
+        assert DotDict() == DotDict()
+
+    def test_eq_empty_dict(self):
+        assert DotDict() == {}
+
+    def test_eq_complex(self):
+        x = dict(x=1, y=dict(z=[3, 4, dict(a=5)]))
+        assert to_dotdict(x) == to_dotdict(x)
+
+    def test_eq_complex_dict(self):
+        x = dict(x=1, y=dict(z=[3, 4, dict(a=5)]))
+        assert to_dotdict(x) == x
+
     def test_keyerror_is_thrown_when_accessing_nonexistent_key(self):
         d = DotDict(data=5)
         with pytest.raises(KeyError):

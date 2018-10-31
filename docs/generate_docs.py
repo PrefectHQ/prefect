@@ -25,6 +25,10 @@ from functools import partial
 import prefect
 from prefect.utilities.airflow_utils import AirFlow
 from prefect.utilities.bokeh_runner import BokehRunner
+from prefect.utilities.tests import raise_on_exception
+
+from tokenizer import format_code
+
 
 OUTLINE = [
     {
@@ -51,19 +55,7 @@ OUTLINE = [
         "title": "Triggers",
         "top-level-doc": prefect.triggers,
     },
-    {
-        "page": "client.md",
-        "classes": [
-            prefect.client.Secret,
-            #         prefect.client.Client,
-            #         prefect.client.ClientModule,
-            #         prefect.client.Projects,
-            #         prefect.client.Flows,
-            #         prefect.client.FlowRuns,
-            #         prefect.client.TaskRuns,
-        ],
-        "title": "Client",
-    },
+    {"page": "client.md", "classes": [prefect.client.Secret], "title": "Client"},
     {
         "page": "schedules.md",
         "classes": [
@@ -118,6 +110,7 @@ OUTLINE = [
         "classes": [
             prefect.engine.state.State,
             prefect.engine.state.Pending,
+            prefect.engine.state.Paused,
             prefect.engine.state.CachedState,
             prefect.engine.state.Scheduled,
             prefect.engine.state.Retrying,
@@ -186,8 +179,8 @@ OUTLINE = [
     {
         "page": "tasks/strings.md",
         "classes": [
-            prefect.tasks.strings.StringFormatterTask,
-            prefect.tasks.strings.JinjaTemplateTask,
+            prefect.tasks.templates.StringFormatterTask,
+            prefect.tasks.templates.JinjaTemplateTask,
         ],
         "title": "String Templating Tasks",
     },
@@ -227,7 +220,10 @@ OUTLINE = [
     },
     {
         "page": "utilities/notifications.md",
-        "functions": [prefect.utilities.notifications.slack_notifier],
+        "functions": [
+            prefect.utilities.notifications.slack_notifier,
+            prefect.utilities.notifications.gmail_notifier,
+        ],
         "title": "Notifications and Callback Tools",
         "top-level-doc": prefect.utilities.notifications,
     },
@@ -236,11 +232,13 @@ OUTLINE = [
         "functions": [
             prefect.utilities.tasks.tags,
             prefect.utilities.tasks.as_task,
+            prefect.utilities.tasks.pause_task,
             prefect.utilities.tasks.task,
             prefect.utilities.tasks.unmapped,
         ],
         "title": "Tasks",
     },
+    {"page": "utilities/tests.md", "functions": [raise_on_exception], "title": "Tests"},
     {
         "page": "utilities/airflow.md",
         "classes": [AirFlow],
@@ -273,6 +271,8 @@ def clean_line(line):
         line.replace("Args:", "**Args**:")
         .replace("Returns:", "**Returns**:")
         .replace("Raises:", "**Raises**:")
+        .replace("Example:", "**Example**:")
+        .replace(".**", ".\n\n**")
     )
     return line.lstrip()
 
@@ -309,7 +309,10 @@ def format_doc(obj, in_table=False):
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
         body = body.replace(block, f"$CODEBLOCK{num}", 1)
-    body = format_lists(body)
+    body = re.sub(
+        "(?<!\n)\n{1}(?!\n)", " ", format_lists(body)
+    )  # removes poorly placed newlines
+    body = body.replace("```", "\n```")
     lines = body.split("\n")
     cleaned = "\n".join([clean_line(line) for line in lines])
     if in_table:
@@ -319,7 +322,7 @@ def format_doc(obj, in_table=False):
             block = block[block.startswith("python") and 6 :].lstrip("\n")
             block = (
                 '<pre class="language-python"><code class="language-python">'
-                + block.rstrip("  ").replace("\n", "<br>")
+                + format_code(block).replace("\n", "<br>")
                 + "</code></pre>"
             )
         cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(" "))
