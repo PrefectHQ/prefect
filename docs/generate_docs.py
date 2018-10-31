@@ -488,6 +488,8 @@ if __name__ == "__main__":
     shutil.rmtree("api", ignore_errors=True)
     os.makedirs("api", exist_ok=True)
     generate_coverage()
+
+    ## UPDATE README
     with open("api/README.md", "w+") as f:
         f.write(
             textwrap.dedent(
@@ -514,6 +516,23 @@ if __name__ == "__main__":
         with open("../README.md", "r") as g:
             readme = g.read()
             f.write("\n" + readme[readme.index("# Prefect") :])
+            f.write(auto_generated_footer)
+
+    ## UPDATE CHANGELOG
+    with open("changelog.md", "w+") as f:
+        f.write(
+            textwrap.dedent(
+                """
+            ---
+            sidebarDepth: 1
+            editLink: false
+            ---
+            """
+            ).lstrip()
+        )
+        with open("../CHANGELOG.md", "r") as g:
+            changelog = g.read()
+            f.write(changelog)
             f.write(auto_generated_footer)
 
     for page in OUTLINE:
