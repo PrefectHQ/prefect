@@ -75,7 +75,8 @@ class State(Serializable):
         return id(self)
 
     def is_pending(self) -> bool:
-        """Checks if the object is currently in a pending state
+        """
+        Checks if the object is currently in a pending state
 
         Returns:
             - bool: `True` if the state is pending, `False` otherwise
@@ -83,7 +84,8 @@ class State(Serializable):
         return isinstance(self, Pending)
 
     def is_running(self) -> bool:
-        """Checks if the object is currently in a running state
+        """
+        Checks if the object is currently in a running state
 
         Returns:
             - bool: `True` if the state is running, `False` otherwise
@@ -91,7 +93,8 @@ class State(Serializable):
         return isinstance(self, Running)
 
     def is_finished(self) -> bool:
-        """Checks if the object is currently in a finished state
+        """
+        Checks if the object is currently in a finished state
 
         Returns:
             - bool: `True` if the state is finished, `False` otherwise
@@ -99,7 +102,8 @@ class State(Serializable):
         return isinstance(self, Finished)
 
     def is_scheduled(self) -> bool:
-        """Checks if the object is currently in a scheduled state, which includes retrying.
+        """
+        Checks if the object is currently in a scheduled state, which includes retrying.
 
         Returns:
             - bool: `True` if the state is skipped, `False` otherwise
@@ -107,7 +111,8 @@ class State(Serializable):
         return isinstance(self, Scheduled)
 
     def is_skipped(self) -> bool:
-        """Checks if the object is currently in a skipped state
+        """
+        Checks if the object is currently in a skipped state
 
         Returns:
             - bool: `True` if the state is skipped, `False` otherwise
@@ -115,7 +120,8 @@ class State(Serializable):
         return isinstance(self, Skipped)
 
     def is_successful(self) -> bool:
-        """Checks if the object is currently in a successful state
+        """
+        Checks if the object is currently in a successful state
 
         Returns:
             - bool: `True` if the state is successful, `False` otherwise
@@ -123,7 +129,8 @@ class State(Serializable):
         return isinstance(self, Success)
 
     def is_failed(self) -> bool:
-        """Checks if the object is currently in a failed state
+        """
+        Checks if the object is currently in a failed state
 
         Returns:
             - bool: `True` if the state is failed, `False` otherwise
