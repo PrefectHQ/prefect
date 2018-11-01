@@ -31,6 +31,7 @@ def complex_states():
         state.Scheduled(start_time=dt),
         cached_state,
         state.Success(result=complex_result, cached=cached_state),
+        state.TimedOut(cached_inputs=complex_result),
     ]
     return test_states
 
