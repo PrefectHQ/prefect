@@ -88,6 +88,14 @@ class FailedSchema(FinishedSchema):
 
 
 @version("0.3.3")
+class TimedOutSchema(FinishedSchema):
+    class Meta:
+        object_class = state.TimedOut
+
+    cached_inputs = JSONField(max_size=16000, allow_none=True)
+
+
+@version("0.3.3")
 class TriggerFailedSchema(FailedSchema):
     class Meta:
         object_class = state.TriggerFailed
@@ -122,6 +130,7 @@ class StateSchema(OneOfSchema):
         "Success": SuccessSchema,
         "Mapped": MappedSchema,
         "Failed": FailedSchema,
+        "TimedOut": TimedOutSchema,
         "TriggerFailed": TriggerFailedSchema,
         "Skipped": SkippedSchema,
         "Paused": PausedSchema,
