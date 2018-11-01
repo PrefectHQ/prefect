@@ -22,6 +22,7 @@ from prefect.engine.state import (
     Skipped,
     State,
     Success,
+    TimedOut,
     TriggerFailed,
 )
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
@@ -604,7 +605,9 @@ class TaskRunner(Runner):
         except TimeoutError as exc:
             if raise_on_exception:
                 raise exc
-            return Failed("Task timed out during execution.", result=exc)
+            return TimedOut(
+                "Task timed out during execution.", result=exc, cached_inputs=inputs
+            )
 
         # Exceptions are trapped and turned into Failed states
         except Exception as exc:
