@@ -11,6 +11,7 @@ from prefect.core import registry
 from prefect.environments import ContainerEnvironment
 from prefect.utilities import json as prefect_json
 from prefect.utilities.cli import load_prefect_config
+from prefect.utilities.tests import raise_on_exception
 
 
 def load_flow(project, name, version, file):
@@ -81,7 +82,8 @@ def run(id):
 
         parameters = stored_parameters.flowRuns[0].parameters
 
-    return flow_runner.run(parameters=parameters)
+    with raise_on_exception():
+        return flow_runner.run(parameters=parameters)
 
 
 @flows.command()
