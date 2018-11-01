@@ -122,5 +122,6 @@ node_modules
 
 # docs
 docs/api
+docs/changelog.md
 docs/deploy/dist
 docs/.vuepress/public/prefect-coverage
