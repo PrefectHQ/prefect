@@ -10,13 +10,13 @@ from prefect.serialization.versioned_schema import (
 )
 
 
-@version("0.3.2")
+@version("0.3.3")
 class NoScheduleSchema(VersionedSchema):
     class Meta:
         object_class = prefect.schedules.NoSchedule
 
 
-@version("0.3.2")
+@version("0.3.3")
 class IntervalScheduleSchema(VersionedSchema):
     class Meta:
         object_class = prefect.schedules.IntervalSchedule
@@ -25,7 +25,7 @@ class IntervalScheduleSchema(VersionedSchema):
     interval = fields.TimeDelta(required=True)
 
 
-@version("0.3.2")
+@version("0.3.3")
 class CronScheduleSchema(VersionedSchema):
     class Meta:
         object_class = prefect.schedules.CronSchedule
@@ -33,7 +33,7 @@ class CronScheduleSchema(VersionedSchema):
     cron = fields.String(required=True)
 
 
-@version("0.3.2")
+@version("0.3.3")
 class DateScheduleSchema(VersionedSchema):
     class Meta:
         object_class = prefect.schedules.DateSchedule
