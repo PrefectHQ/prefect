@@ -11,7 +11,7 @@ from prefect.engine import state
 from prefect.utilities.serialization import JSONField
 
 
-@version("0.3.2")
+@version("0.3.3")
 class BaseStateSchema(VersionedSchema):
     class Meta:
         object_class = state.State
@@ -21,7 +21,7 @@ class BaseStateSchema(VersionedSchema):
     timestamp = fields.DateTime(allow_none=True)
 
 
-@version("0.3.2")
+@version("0.3.3")
 class PendingSchema(BaseStateSchema):
     class Meta:
         object_class = state.Pending
@@ -29,7 +29,7 @@ class PendingSchema(BaseStateSchema):
     cached_inputs = JSONField(max_size=16000, allow_none=True)
 
 
-@version("0.3.2")
+@version("0.3.3")
 class CachedStateSchema(PendingSchema):
     class Meta:
         object_class = state.CachedState
@@ -39,7 +39,7 @@ class CachedStateSchema(PendingSchema):
     cached_result_expiration = fields.DateTime(allow_none=True)
 
 
-@version("0.3.2")
+@version("0.3.3")
 class ScheduledSchema(PendingSchema):
     class Meta:
         object_class = state.Scheduled
@@ -47,7 +47,7 @@ class ScheduledSchema(PendingSchema):
     start_time = fields.DateTime(allow_none=True)
 
 
-@version("0.3.2")
+@version("0.3.3")
 class RetryingSchema(ScheduledSchema):
     class Meta:
         object_class = state.Retrying
@@ -55,19 +55,19 @@ class RetryingSchema(ScheduledSchema):
     run_count = fields.Int(allow_none=True)
 
 
-@version("0.3.2")
+@version("0.3.3")
 class RunningSchema(BaseStateSchema):
     class Meta:
         object_class = state.Running
 
 
-@version("0.3.2")
+@version("0.3.3")
 class FinishedSchema(BaseStateSchema):
     class Meta:
         object_class = state.Finished
 
 
-@version("0.3.2")
+@version("0.3.3")
 class SuccessSchema(FinishedSchema):
     class Meta:
         object_class = state.Success
@@ -75,32 +75,32 @@ class SuccessSchema(FinishedSchema):
     cached = fields.Nested(CachedStateSchema, allow_none=True)
 
 
-@version("0.3.2")
+@version("0.3.3")
 class MappedSchema(SuccessSchema):
     class Meta:
         object_class = state.Mapped
 
 
-@version("0.3.2")
+@version("0.3.3")
 class FailedSchema(FinishedSchema):
     class Meta:
         object_class = state.Failed
 
 
-@version("0.3.2")
+@version("0.3.3")
 class TriggerFailedSchema(FailedSchema):
     class Meta:
         object_class = state.TriggerFailed
 
 
-@version("0.3.2")
+@version("0.3.3")
 class SkippedSchema(SuccessSchema):
     class Meta:
         object_class = state.Skipped
         object_class_exclude = ["cached"]
 
 
-@version("0.3.2")
+@version("0.3.3")
 class PausedSchema(PendingSchema):
     class Meta:
         object_class = state.Paused

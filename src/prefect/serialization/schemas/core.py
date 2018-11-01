@@ -25,7 +25,7 @@ class FunctionReference(fields.Field):
         return from_qualified_name(value)
 
 
-@version("0.3.2")
+@version("0.3.3")
 class TaskSchema(VersionedSchema):
     class Meta:
         object_class = lambda: prefect.core.Task
@@ -96,7 +96,7 @@ class TaskSchema(VersionedSchema):
         return self.context["task_cache"][task_id]
 
 
-@version("0.3.2")
+@version("0.3.3")
 class EdgeSchema(VersionedSchema):
     class Meta:
         object_class = lambda: prefect.core.Edge
@@ -107,7 +107,7 @@ class EdgeSchema(VersionedSchema):
     mapped = fields.Boolean(allow_none=True)
 
 
-@version("0.3.2")
+@version("0.3.3")
 class FlowSchema(VersionedSchema):
     class Meta:
         object_class = lambda: prefect.core.Flow
