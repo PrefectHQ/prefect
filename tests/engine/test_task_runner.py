@@ -33,6 +33,7 @@ from prefect.engine.state import (
     Skipped,
     State,
     Success,
+    TimedOut,
     TriggerFailed,
 )
 from prefect.utilities.tasks import pause_task
@@ -307,9 +308,10 @@ def test_task_runner_prioritizes_inputs():
 def test_task_runner_can_handle_timeouts_by_default():
     sleeper = SlowTask(timeout=timedelta(seconds=1))
     state = TaskRunner(sleeper).run(inputs=dict(secs=2))
-    assert state.is_failed()
+    assert isinstance(state, TimedOut)
     assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
+    assert state.cached_inputs == dict(secs=2)
 
 
 def test_task_runner_handles_secrets():
