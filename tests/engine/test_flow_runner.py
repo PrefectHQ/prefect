@@ -26,6 +26,7 @@ from prefect.engine.state import (
     Skipped,
     State,
     Success,
+    TimedOut,
     TriggerFailed,
 )
 from prefect.triggers import manual_only, any_failed
@@ -362,7 +363,7 @@ def test_flow_with_multiple_retry_tasks_doesnt_run_them_early():
     state2 = flow.run(return_tasks=flow.tasks, task_states=state1.result)
 
     assert isinstance(state2.result[t2], Retrying)
-    assert state2.result[t2] is state1.result[t2]  # state is not modified at all
+    assert state2.result[t2] == state1.result[t2]  # state is not modified at all
     assert isinstance(state2.result[t3], Failed)  # this task ran
 
     state3 = flow.run(
@@ -844,6 +845,7 @@ def test_flow_runner_handles_timeouts(executor):
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
     assert state.is_failed()
+    assert isinstance(state.result[res], TimedOut)
     assert "timed out" in state.result[res].message
     assert isinstance(state.result[res].result, TimeoutError)
 
