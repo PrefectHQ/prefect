@@ -15,7 +15,7 @@ execution. The other types of `Pending` states are `CachedState`, `Paused`, `Sch
 When a task is running it will enter a `Running` state which means that the task is
 currently being executed.
 
-The four types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, `Mapped` and
+The six types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, `TimedOut`, `Mapped` and
 `Skipped`.
 """
 import datetime
@@ -375,6 +375,30 @@ class Failed(Finished):
     """
 
     color = "#FF0000"
+
+
+class TimedOut(Failed):
+    """
+    Finished state indicating failure due to execution timeout.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+        keys to values.  Used / set if the Task requires Retries.
+    """
+
+    color = "#CDC9A5"
+
+    def __init__(
+        self,
+        message: str = None,
+        result: Any = None,
+        cached_inputs: Dict[str, Any] = None,
+    ) -> None:
+        super().__init__(message=message, result=result)
+        self.cached_inputs = cached_inputs
 
 
 class TriggerFailed(Failed):

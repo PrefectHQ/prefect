@@ -15,6 +15,7 @@ from prefect.engine.state import (
     Skipped,
     State,
     Success,
+    TimedOut,
     TriggerFailed,
 )
 from prefect.utilities import json
@@ -185,11 +186,17 @@ class TestStateHierarchy:
     def test_trigger_failed_is_finished(self):
         assert issubclass(TriggerFailed, Finished)
 
+    def test_timedout_is_finished(self):
+        assert issubclass(TimedOut, Finished)
+
     def test_skipped_is_finished(self):
         assert issubclass(Skipped, Finished)
 
     def test_skipped_is_success(self):
         assert issubclass(Skipped, Success)
+
+    def test_timedout_is_failed(self):
+        assert issubclass(TimedOut, Failed)
 
     def test_trigger_failed_is_failed(self):
         assert issubclass(TriggerFailed, Failed)
@@ -278,6 +285,16 @@ class TestStateMethods:
 
     def test_state_type_methods_with_failed_state(self):
         state = Failed(message="")
+        assert not state.is_pending()
+        assert not state.is_running()
+        assert state.is_finished()
+        assert not state.is_skipped()
+        assert not state.is_scheduled()
+        assert not state.is_successful()
+        assert state.is_failed()
+
+    def test_state_type_methods_with_timedout_state(self):
+        state = TimedOut(message="")
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()

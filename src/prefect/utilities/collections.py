@@ -36,7 +36,9 @@ def flatten_seq(seq: Iterable) -> Generator:
 class DotDict(MutableMapping):
     """
     A `dict` that also supports attribute ("dot") access. Think of this as an extension
-    to the standard python `dict` object.
+    to the standard python `dict` object.  **Note**: while any hashable object can be added to
+    a `DotDict`, _only_ valid Python identifiers can be accessed with the dot syntax; this excludes
+    strings which begin in numbers, special characters, or double underscores.
 
     Args:
         - init_dict (dict, optional): dictionary to initialize the `DotDict`
