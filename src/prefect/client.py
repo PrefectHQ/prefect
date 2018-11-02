@@ -1,7 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import os
-from typing import Any
 
 import prefect
 from prefect.utilities import json
@@ -246,12 +245,13 @@ class Client:
             raise ValueError("Could not log in.")
         self._token = response.json().get("token")
 
+        # Functionality not yet ready
         # User must specify a single account to access
-        if not (account_id or account_slug):
-            print("No account provided; returning available accounts.")
-            # Will need to be a graphql query
-            accounts = self._get("auth/accounts")
-            return accounts
+        # if not (account_id or account_slug):
+        #     print("No account provided; returning available accounts.")
+        #     # Will need to be a graphql query
+        #     accounts = self._get("auth/accounts")
+        #     return accounts
 
     def refresh_token(self) -> None:
         """
@@ -260,7 +260,7 @@ class Client:
         # lazy import for performance
         import requests
 
-        url = os.path.join(self._api_server, "auth/refresh")
+        url = os.path.join(self._api_server, "refresh_token")
         response = requests.post(
             url, headers={"Authorization": "Bearer " + self._token}
         )
@@ -313,7 +313,7 @@ class Projects(ClientModule):
         """
         return self._graphql(
             """
-            mutation(input: CreateProjectInput!) {
+            mutation($input: CreateProjectInput!) {
                 createProject(input: $input) {
                     project {id}
                 }
@@ -328,26 +328,77 @@ class Projects(ClientModule):
 
 
 class Flows(ClientModule):
-    def create(self, project_id, serialized_flow) -> dict:
+    def create(self, serialized_flow) -> dict:
         """
         Create a new flow on the server
 
         Args:
-            - project_id (str): A unique project identifier
             - serialized_flow (dict): A json serialized version of a flow
+
+        Returns:
+            - dict: Data returned from the GraphQL mutation
+        """
+        return self._graphql(
+            """
+            mutation($input: CreateFlowInput!) {
+                createFlow(input: $input) {
+                    flow {id}
+                }
+            }
+            """,
+            input=dict(serializedFlow=json.dumps(serialized_flow)),
+        )
+
+    def query(self, project_name, flow_name, flow_version) -> dict:
+        """
+        Retrieve a flow's environment metadata
+
+        Args:
+            - project_name (str): Name of the project that the flow belongs to
+            - flow_name (str): Name of the flow
+            - flow_version (str): Version of the flow
 
         Returns:
             - dict: Data returned from the GraphQL query
         """
         return self._graphql(
             """
-            mutation(input: CreateFlowInput!) {
-                createFlow(input: $input) {
-                    flow {id}
+            query($name: String!, $project_name: String!, $version: String!) {
+                flows(where: {
+                    name: $name,
+                    version: $version,
+                    project: {
+                        name: $project_name
+                    }
+                }) {
+                    id
                 }
             }
             """,
-            input=dict(projectId=project_id, serializedFlow=serialized_flow),
+            name=flow_name,
+            version=flow_version,
+            project_name=project_name,
+        )
+
+    def delete(self, flow_id) -> dict:
+        """
+        Delete a flow on the server
+
+        Args:
+            - flow_id (str): The ID of a flow in the server
+
+        Returns:
+            - dict: Data returned from the GraphQL mutation
+        """
+        return self._graphql(
+            """
+            mutation($input: DeleteFlowInput!) {
+                deleteFlow(input: $input) {
+                    flowId
+                }
+            }
+            """,
+            input=dict(flowId=flow_id),
         )
 
 
@@ -356,6 +407,29 @@ class Flows(ClientModule):
 
 
 class FlowRuns(ClientModule):
+    def create(self, flow_id, parameters, start_time: None) -> dict:
+        """
+        Create a flow run
+
+        Args:
+            - flow_id (str): A unique flow identifier
+            - parameters (str): Paramaters set on a flow
+            - start_time (datetime, optional): An optional start time for the flow run
+
+        Returns:
+            - dict: Data returned from the GraphQL mutation
+        """
+        return self._graphql(
+            """
+            mutation($input: CreateFlowRunInput!) {
+                createFlowRun(input: $input) {
+                    flowRun {id}
+                }
+            }
+            """,
+            input=dict(flowId=flow_id, parameters=parameters, startTime=start_time),
+        )
+
     def set_state(self, flow_run_id, state) -> dict:
         """
         Set a flow run state
@@ -367,15 +441,40 @@ class FlowRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
+        state.result = None  # Temporary until we have cloud pickling
         return self._graphql(
             """
-            mutation(input: SetFlowRunStateInput!) {
+            mutation($input: SetFlowRunStateInput!) {
                 setFlowRunState(input: $input) {
-                    flowState {timestamp}
+                    flow_state {state}
                 }
             }
             """,
             input=dict(flowRunId=flow_run_id, state=json.dumps(state)),
+        )
+
+    def query(self, flow_run_id) -> dict:
+        """
+        Retrieve a flow's environment metadata
+
+        Args:
+            - flow_run_id (str): Unique identifier of a flow run this task run belongs to
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            query($flow_run_id: ID!) {
+                flowRuns(where: {
+                    id: $flow_run_id
+                }) {
+                    id,
+                    parameters
+                }
+            }
+            """,
+            flow_run_id=flow_run_id,
         )
 
 
@@ -395,15 +494,42 @@ class TaskRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
+        state.result = None  # Temporary until we have cloud pickling
         return self._graphql(
             """
-            mutation(input: SetTaskRunStateInput!) {
+            mutation($input: SetTaskRunStateInput!) {
                 setTaskRunState(input: $input) {
-                    taskState {timestamp}
+                    task_state {state}
                 }
             }
             """,
             input=dict(taskRunId=task_run_id, state=json.dumps(state)),
+        )
+
+    def query(self, flow_run_id, task_id) -> dict:
+        """
+        Retrieve a flow's environment metadata
+
+        Args:
+            - flow_run_id (str): Unique identifier of a flow run this task run belongs to
+            - task_id (str): Unique identifier of this task
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            query($flow_run_id: ID!, $task_id: ID!) {
+                taskRuns(where: {
+                    flow_run_id: $flow_run_id,
+                    task_id: $task_id,
+                }) {
+                    id
+                }
+            }
+            """,
+            flow_run_id=flow_run_id,
+            task_id=task_id,
         )
 
 
@@ -412,27 +538,25 @@ class TaskRuns(ClientModule):
 
 
 class RunFlow(ClientModule):
-    def run_flow(self, image_name, image_tag, flow_id) -> dict:
+    def run_flow(self, flow_run_id) -> dict:
         """
         Run a flow
 
         Args:
-            - image_name (str): The image container name the flow is in
-            - image_tag (str): The tag of the flow's image
-            - flow_id (str): The ID of the flow to be ran
+            - flow_run_id (str): The flow run to communicate to
 
         Returns:
             - dict: Data returned from the GraphQL query
         """
         return self._graphql(
             """
-            mutation(input: RunFlowInput!) {
+            mutation($input: RunFlowInput!) {
                 runFlow(input: $input) {
                     status
                 }
             }
             """,
-            input=dict(imageName=image_name, imageTag=image_tag, flowId=flow_id),
+            input=dict(flowRunId=flow_run_id),
         )
 
 
@@ -464,3 +588,113 @@ class Secret(json.Serializable):
             return secrets.get(self.name)
         else:
             return None
+
+
+# -------------------------------------------------------------------------
+# States
+
+
+class States(ClientModule):
+    def set_flow_run_from_serialized_state(self, flow_run_id, version, state) -> dict:
+        """
+        Set a flow run state
+
+        Args:
+            - flow_run_id (str): A unique flow_run identifier
+            - version (int): Previous flow run version
+            - state (State): A serialized prefect state object
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            mutation($input: SetFlowRunFromSerializedStateInput!) {
+                setFlowRunStateFromSerialized(input: $input) {
+                    state {state}
+                }
+            }
+            """,
+            input=dict(
+                flowRunId=flow_run_id,
+                version=version,
+                serializedState=json.dumps(state),
+            ),
+        )
+
+    def query_flow_run_version(self, flow_run_id) -> dict:
+        """
+        Retrieve a flow run's version
+
+        Args:
+            - flow_run_id (str): Unique identifier of a flow run
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            query($flow_run_id: ID!) {
+                flowRuns(where: {
+                    id: $flow_run_id
+                }) {
+                    version
+                }
+            }
+            """,
+            flow_run_id=flow_run_id,
+        )
+
+    def set_task_run_from_serialized_state(self, task_run_id, version, state) -> dict:
+        """
+        Set a task run state
+
+        Args:
+            - task_run_id (str): A unique task_run identifier
+            - version (int): Previous flow run version
+            - state (State): A serialized prefect state object
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            mutation($input: SetTaskRunFromSerializedStateInput!) {
+                setTaskRunStateFromSerialized(input: $input) {
+                    state {state}
+                }
+            }
+            """,
+            input=dict(
+                taskRunId=task_run_id,
+                version=version,
+                serializedState=json.dumps(state),
+            ),
+        )
+
+    def query_task_run_id_and_version(self, flow_run_id, task_id) -> dict:
+        """
+        Retrieve a task run's id and version
+
+        Args:
+            - flow_run_id (str): Unique identifier of a flow run
+            - task_id (str): ID of the task
+
+        Returns:
+            - dict: Data returned from the GraphQL query
+        """
+        return self._graphql(
+            """
+            query($flow_run_id: ID!, $task_id: ID!) {
+                taskRuns(where: {
+                    flow_run_id: $flow_run_id,
+                    task_id: $task_id
+                }) {
+                    id,
+                    version
+                }
+            }
+            """,
+            flow_run_id=flow_run_id,
+            task_id=task_id,
+        )
