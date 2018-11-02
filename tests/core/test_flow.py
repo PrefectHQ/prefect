@@ -755,6 +755,13 @@ def test_validate_missing_task_info():
     assert "tasks are not in the task_info" in str(exc.value).lower()
 
 
+def test_validate_edges():
+    f = Flow()
+    t1, t2 = Task(), Task()  # these tasks don't support keyed edges
+    with pytest.raises(TypeError):
+        f.add_edge(t1, t2, key="x")
+
+
 def test_task_ids_are_cached():
     f = Flow()
     t1 = Task()

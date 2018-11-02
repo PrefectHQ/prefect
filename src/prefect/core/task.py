@@ -139,6 +139,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         cache_validator: Callable = None,
         state_handlers: Iterable[Callable] = None,
     ) -> None:
+
         self.name = name or type(self).__name__
         self.slug = slug
         self.description = description
@@ -162,7 +163,10 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.trigger = trigger or prefect.triggers.all_successful
         self.skip_on_upstream_skip = skip_on_upstream_skip
 
-        if cache_for is None and cache_validator is not None:
+        if cache_for is None and (
+            cache_validator is not None
+            and cache_validator is not prefect.engine.cache_validators.never_use
+        ):
             warnings.warn(
                 "cache_validator provided without specifying cache expiration (cache_for); this Task will not be cached."
             )
