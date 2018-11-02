@@ -33,7 +33,7 @@ class SynchronousExecutor(Executor):
         return q
 
     def map(
-        self, fn: Callable, *args: Any, upstream_states: dict = None, **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
     ) -> dask.bag:
         """
         Submit a function to be mapped over.

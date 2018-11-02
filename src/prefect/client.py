@@ -595,7 +595,9 @@ class Secret(json.Serializable):
 
 
 class States(ClientModule):
-    def set_flow_run_from_serialized_state(self, flow_run_id: str, version: int, state: State) -> dict:
+    def set_flow_run_from_serialized_state(
+        self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
+    ) -> dict:
         """
         Set a flow run state
 
@@ -645,7 +647,9 @@ class States(ClientModule):
             flow_run_id=flow_run_id,
         )
 
-    def set_task_run_from_serialized_state(self, task_run_id: str, version: int, state: State) -> dict:
+    def set_task_run_from_serialized_state(
+        self, task_run_id: str, version: int, state: "prefect.engine.state.State"
+    ) -> dict:
         """
         Set a task run state
 
