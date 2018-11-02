@@ -72,8 +72,8 @@ def run(id):
     flow_run_id = config.get("flow_run_id", None)
 
     if flow_run_id:
-        client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))
-        client.login(email=config.EMAIL, password=config.PASSWORD)
+        client = Client(config.api_url, os.path.join(config.api_url, "graphql/"))
+        client.login(email=config.email, password=config.password)
 
         flow_runs_gql = FlowRuns(client=client)
         stored_parameters = flow_runs_gql.query(flow_run_id=flow_run_id)
@@ -130,14 +130,14 @@ def push(project, name, version, file):
         )
 
     # Check if login access was provided for registry
-    if config.get("REGISTRY_USERNAME", None) and config.get("REGISTRY_PASSWORD", None):
+    if config.get("registry_username", None) and config.get("registry_password", None):
         flow.environment.client.login(
-            username=config["REGISTRY_USERNAME"], password=config["REGISTRY_PASSWORD"]
+            username=config["registry_username"], password=config["registry_password"]
         )
 
     # Push to registry
     return flow.environment.client.images.push(
-        "{}/{}".format(config["REGISTRY_URL"], flow.environment.image),
+        "{}/{}".format(config["registry_url"], flow.environment.image),
         tag=flow.environment.tag,
     )
 
@@ -162,8 +162,8 @@ def deploy(project, name, version, file, testing, parameters):
     """
     flow = load_flow(project, name, version, file)
 
-    client = Client(config["API_URL"], os.path.join(config["API_URL"], "graphql/"))
-    client.login(email=config["EMAIL"], password=config["PASSWORD"])
+    client = Client(config["api_url"], os.path.join(config["api_url"], "graphql/"))
+    client.login(email=config["email"], password=config["password"])
 
     # Store output from building environment
     # Use metadata instead of environment object to avoid storing client secrets

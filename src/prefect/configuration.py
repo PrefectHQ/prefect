@@ -235,7 +235,7 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
     """
 
     # load the configuration file
-    config = toml.load(interpolate_env_var(path))
+    config = {key.lower(): value for key, value in toml.load(interpolate_env_var(path)).items()}
 
     # toml supports nested dicts, so we work with a flattened representation to do any
     # requested interpolation

@@ -25,10 +25,10 @@ def init():
     """
     Initialize cloud communication config options.
     """
-    config["REGISTRY_URL"] = click.prompt(
-        "Registry URL", default=config.get("REGISTRY_URL")
+    config["registry_url"] = click.prompt(
+        "Registry URL", default=config.get("registry_url")
     )
-    config["API_URL"] = click.prompt("API URL", default=config.get("API_URL"))
+    config["api_url"] = click.prompt("API URL", default=config.get("api_url"))
 
     with open(PATH, "w") as config_file:
         toml.dump(config, config_file)
@@ -67,14 +67,14 @@ def login():
     """
     Login to Prefect Cloud.
     """
-    config["EMAIL"] = click.prompt("email", default=config.get("EMAIL"))
-    config["PASSWORD"] = click.prompt(
+    config["email"] = click.prompt("email", default=config.get("email"))
+    config["password"] = click.prompt(
         "password", hide_input=True, confirmation_prompt=True
     )
 
-    client = Client(config["API_URL"], os.path.join(config["API_URL"], "graphql/"))
+    client = Client(config["api_url"], os.path.join(config["api_url"], "graphql/"))
 
-    client.login(email=config["EMAIL"], password=config["PASSWORD"])
+    client.login(email=config["email"], password=config["password"])
 
     with open(PATH, "w") as config_file:
         toml.dump(config, config_file)

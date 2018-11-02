@@ -14,8 +14,8 @@ class CloudHandler:
         self.flow_run_id = None
 
     def load_prefect_client(self):
-        client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))
-        client.login(email=config.EMAIL, password=config.PASSWORD)
+        client = Client(config.api_url, os.path.join(config.api_url, "graphql/"))
+        client.login(email=config.email, password=config.password)
 
         self.states_gql = States(client=client)
 
