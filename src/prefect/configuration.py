@@ -228,7 +228,7 @@ def validate_config(config: Config) -> None:
 # Load configuration ----------------------------------------------------------
 
 
-def load_config_file(path: str, env_var_prefix: str = None) -> Config:
+def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) -> Config:
     """
     Loads a configuration file from a path, optionally merging it into an existing
     configuration.
@@ -245,8 +245,9 @@ def load_config_file(path: str, env_var_prefix: str = None) -> Config:
     # check if any env var sets a configuration value with the format:
     #     [ENV_VAR_PREFIX]__[Section]__[Optional Sub-Sections...]__[Key] = Value
     # and if it does, add it to the config file.
+    env = env or os.environ
     if env_var_prefix:
-        for env_var in os.environ:
+        for env_var in env:
             if env_var.startswith(env_var_prefix + "__"):
 
                 # strip the prefix off the env var
@@ -261,7 +262,7 @@ def load_config_file(path: str, env_var_prefix: str = None) -> Config:
                     env_var_option.lower().split("__")
                 )
                 flat_config[config_option] = string_to_type(
-                    interpolate_env_var(os.getenv(env_var))
+                    interpolate_env_var(env.get(env_var))
                 )
 
     # interpolate any env vars referenced
@@ -313,7 +314,10 @@ def load_config_file(path: str, env_var_prefix: str = None) -> Config:
 
 
 def load_configuration(
-    config_path: str, env_var_prefix: str = None, merge_into_config: Config = None
+    config_path: str,
+    env_var_prefix: str = None,
+    merge_into_config: Config = None,
+    env: dict = None,
 ) -> Config:
     """
     Given a `config_path` with a toml configuration file, returns a Config object.
@@ -328,7 +332,7 @@ def load_configuration(
     """
 
     # load default config
-    config = load_config_file(config_path, env_var_prefix=env_var_prefix or "")
+    config = load_config_file(config_path, env_var_prefix=env_var_prefix or "", env=env)
 
     if merge_into_config is not None:
         config = collections.merge_dicts(merge_into_config, config)
