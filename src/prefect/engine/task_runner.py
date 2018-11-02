@@ -140,7 +140,7 @@ class TaskRunner(Runner):
 
         # Initialize CloudHandler and get task run version
         if config.get("prefect_cloud", None):
-            self.cloud_handler.load_prefect_config()
+            self.cloud_handler.load_prefect_client()
             task_run_info = self.cloud_handler.getTaskRunIdAndVersion(
                 context.get("task_id")
             )

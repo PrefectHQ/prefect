@@ -10,7 +10,6 @@ from prefect import config
 from prefect.core import registry
 from prefect.environments import ContainerEnvironment
 from prefect.utilities import json as prefect_json
-from prefect.utilities.cli import load_prefect_config
 
 
 def load_flow(project, name, version, file):
@@ -123,7 +122,6 @@ def push(project, name, version, file):
     """
     Push a flow's container environment to a registry.
     """
-    config_data = load_prefect_config()
     flow = load_flow(project, name, version, file)
 
     if not isinstance(flow.environment, ContainerEnvironment):
@@ -132,17 +130,14 @@ def push(project, name, version, file):
         )
 
     # Check if login access was provided for registry
-    if config_data.get("REGISTRY_USERNAME", None) and config_data.get(
-        "REGISTRY_PASSWORD", None
-    ):
+    if config.get("REGISTRY_USERNAME", None) and config.get("REGISTRY_PASSWORD", None):
         flow.environment.client.login(
-            username=config_data["REGISTRY_USERNAME"],
-            password=config_data["REGISTRY_PASSWORD"],
+            username=config["REGISTRY_USERNAME"], password=config["REGISTRY_PASSWORD"]
         )
 
     # Push to registry
     return flow.environment.client.images.push(
-        "{}/{}".format(config_data["REGISTRY_URL"], flow.environment.image),
+        "{}/{}".format(config["REGISTRY_URL"], flow.environment.image),
         tag=flow.environment.tag,
     )
 
@@ -165,13 +160,10 @@ def deploy(project, name, version, file, testing, parameters):
     """
     Deploy a flow to Prefect Cloud.
     """
-    config_data = load_prefect_config()
     flow = load_flow(project, name, version, file)
 
-    client = Client(
-        config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
-    )
-    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+    client = Client(config["API_URL"], os.path.join(config["API_URL"], "graphql/"))
+    client.login(email=config["EMAIL"], password=config["PASSWORD"])
 
     # Store output from building environment
     # Use metadata instead of environment object to avoid storing client secrets
