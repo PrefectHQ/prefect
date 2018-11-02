@@ -10,7 +10,8 @@ from prefect.engine.state import State
 
 class CloudHandler:
     def __init__(self) -> None:
-        self.load_prefect_config()
+        if config.get("prefect_cloud", None):
+            self.load_prefect_config()
 
     def load_prefect_config(self) -> None:
         client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))
