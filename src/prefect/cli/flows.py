@@ -1,25 +1,43 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import json
 import os
-from pathlib import Path
-import sys
 
 import click
-import docker
-import requests
-import toml
 
 import prefect
-from prefect.client import RunFlow
+from prefect.client import Client, Flows, FlowRuns
+from prefect import config
 from prefect.core import registry
+from prefect.environments import ContainerEnvironment
 from prefect.utilities import json as prefect_json
+from prefect.utilities.cli import load_prefect_config
+
+
+def load_flow(project, name, version, file):
+    if file:
+        # Load the registry from the file into the current process's environment
+        exec(open(file).read(), locals())
+
+    # Load the user specified flow
+    flow = None
+    for flow_id, registry_flow in registry.REGISTRY.items():
+        if (
+            registry_flow.project == project
+            and registry_flow.name == name
+            and registry_flow.version == version
+        ):
+            flow = prefect.core.registry.load_flow(flow_id)
+
+    if not flow:
+        raise click.ClickException("{} not found in {}".format(name, file))
+
+    return flow
 
 
 @click.group()
 def flows():
     """
-    Interact with Prefect flows
+    Interact with Prefect flows.
     """
     pass
 
@@ -29,7 +47,7 @@ def info():
     """
     Prints a JSON string of information about all registered flows.
     """
-    print(prefect_json.dumps([f.serialize() for f in registry.REGISTRY.values()]))
+    click.echo(prefect_json.dumps([f.serialize() for f in registry.REGISTRY.values()]))
 
 
 @flows.command()
@@ -38,7 +56,7 @@ def ids():
     Prints all the flows in the registry.
     """
     output = {id: f.key() for id, f in registry.REGISTRY.items()}
-    print(prefect_json.dumps(output, sort_keys=True))
+    click.echo(prefect_json.dumps(output, sort_keys=True))
 
 
 @flows.command()
@@ -49,37 +67,69 @@ def run(id):
     """
     flow = prefect.core.registry.load_flow(id)
     flow_runner = prefect.engine.FlowRunner(flow=flow)
-    return flow_runner.run()
+
+    # Load optional parameters
+    parameters = None
+    flow_run_id = config.get("flow_run_id", None)
+
+    if flow_run_id:
+        client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))
+        client.login(email=config.EMAIL, password=config.PASSWORD)
+
+        flow_runs_gql = FlowRuns(client=client)
+        stored_parameters = flow_runs_gql.query(flow_run_id=flow_run_id)
+
+        parameters = stored_parameters.flowRuns[0].parameters
+
+    return flow_runner.run(parameters=parameters)
 
 
 @flows.command()
-@click.argument("id")
-def build(id):
+@click.argument("project")
+@click.argument("name")
+@click.argument("version")
+@click.option(
+    "--file",
+    required=False,
+    help="Path to a file which contains the flow.",
+    type=click.Path(exists=True),
+)
+def build(project, name, version, file):
     """
-    Build a flow's environment
+    Build a flow's environment.
     """
-    flow = prefect.core.registry.load_flow(id)
-    return flow.environment.build(flow=flow)
+    flow = load_flow(project, name, version, file)
+
+    # Store output from building environment
+    # Use metadata instead of environment object to avoid storing client secrets
+    environment_metadata = {
+        type(flow.environment).__name__: flow.environment.build(flow=flow)
+    }
+
+    return environment_metadata
 
 
 @flows.command()
-@click.argument("id")
-@click.argument("path", required=False)
-def push(id, path):
+@click.argument("project")
+@click.argument("name")
+@click.argument("version")
+@click.option(
+    "--file",
+    required=False,
+    help="Path to a file which contains the flow.",
+    type=click.Path(exists=True),
+)
+def push(project, name, version, file):
     """
-    Push a flow's container environment to a registry
+    Push a flow's container environment to a registry.
     """
-    if not path:
-        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+    config_data = load_prefect_config()
+    flow = load_flow(project, name, version, file)
 
-    if Path(path).is_file():
-        config_data = toml.load(path)
-
-    if not config_data:
-        click.echo("CLI not configured. Run 'prefect configure init'")
-        return
-
-    flow = prefect.core.registry.load_flow(id)
+    if not isinstance(flow.environment, ContainerEnvironment):
+        raise click.ClickException(
+            "{} does not have a ContainerEnvironment".format(name)
+        )
 
     # Check if login access was provided for registry
     if config_data.get("REGISTRY_USERNAME", None) and config_data.get(
@@ -98,30 +148,72 @@ def push(id, path):
 
 
 @flows.command()
-@click.argument("id")
-@click.argument("path", required=False)
-@click.option("--run", "-r", multiple=True)
-def exec_command(id, path, run):
+@click.argument("project")
+@click.argument("name")
+@click.argument("version")
+@click.option(
+    "--file",
+    required=False,
+    help="Path to a file which contains the flow.",
+    type=click.Path(exists=True),
+)
+@click.option(
+    "--testing", required=False, is_flag=True, help="Deploy flow in testing mode."
+)
+@click.argument("parameters", required=False)
+def deploy(project, name, version, file, testing, parameters):
     """
-    Send flow command
+    Deploy a flow to Prefect Cloud.
     """
-    if not path:
-        path = "{}/.prefect/config.toml".format(os.getenv("HOME"))
+    config_data = load_prefect_config()
+    flow = load_flow(project, name, version, file)
 
-    if Path(path).is_file():
-        config_data = toml.load(path)
+    client = Client(
+        config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
+    )
+    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
 
-    if not config_data:
-        click.echo("CLI not configured. Run 'prefect configure init'")
-        return
+    # Store output from building environment
+    # Use metadata instead of environment object to avoid storing client secrets
+    environment_metadata = {
+        type(flow.environment).__name__: flow.environment.build(flow=flow)
+    }
+    serialized_flow = flow.serialize()
+    serialized_flow["environment"] = prefect_json.dumps(environment_metadata)
 
-    flow = prefect.core.registry.load_flow(id)
+    flows_gql = Flows(client=client)
 
-    if run:
-        RunFlow().run_flow(
-            image_name=flow.environment.image,
-            image_tag=flow.environment.tag,
-            flow_id=id,
+    if testing:
+        click.echo(
+            "Warning: Testing mode overwrites flows with similar project/name/version."
         )
-    else:
-        click.echo("No command specified")
+        flow_id = flows_gql.query(
+            project_name=project, flow_name=name, flow_version=version
+        )
+
+        if flow_id.flows:
+            flows_gql.delete(flow_id=flow_id.flows[0].id)
+
+    # Create the flow in the database
+    try:
+        flow_create_output = flows_gql.create(serialized_flow=serialized_flow)
+    except ValueError as value_error:
+        if "No project found for" in str(value_error):
+            raise click.ClickException("No project found for {}".format(project))
+        else:
+            raise click.ClickException(str(value_error))
+
+    flow_db_id = flow_create_output.createFlow.flow.id
+
+    next_scheduled_run = None
+    if flow.schedule.next(1):
+        next_scheduled_run = flow.schedule.next(1)[0]
+        next_scheduled_run = next_scheduled_run.isoformat()
+
+    # Create Flow Run
+    flow_runs_gql = FlowRuns(client=client)
+    flow_runs_gql.create(
+        flow_id=flow_db_id, parameters=parameters, start_time=next_scheduled_run
+    )
+
+    click.echo("{} deployed.".format(name))
