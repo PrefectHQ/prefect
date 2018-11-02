@@ -37,6 +37,10 @@ template = b"""
 
     [secrets]
     password = "1234"
+    VERY_PRIVATE = "000"
+
+    [ALL_CAPS]
+    KEY = "value"
     """
 
 
@@ -120,9 +124,14 @@ def test_keys(config):
 def test_repr(config):
     assert (
         repr(config)
-        == "<Config: 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets'>"
+        == "<Config: 'all_caps', 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets'>"
     )
     assert repr(config.general) == "<Config: 'nested', 'x', 'y'>"
+
+
+def test_only_section_titles_get_lowercased(config):
+    assert 'KEY' in config.all_caps
+    assert config.all_caps.KEY == 'value'
 
 
 def test_getattr_missing(config):
