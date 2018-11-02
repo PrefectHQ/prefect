@@ -172,7 +172,7 @@ class FlowRunner(Runner):
 
         # Initialize CloudHandler and get flow run version
         if config.get("prefect_cloud", None):
-            self.cloud_handler.load_prefect_config()
+            self.cloud_handler.load_prefect_client()
             context.update(_flow_run_version=self.cloud_handler.getFlowRunVersion())
 
         if return_tasks.difference(self.flow.tasks):
