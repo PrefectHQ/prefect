@@ -130,8 +130,8 @@ def test_repr(config):
 
 
 def test_only_section_titles_get_lowercased(config):
-    assert 'KEY' in config.all_caps
-    assert config.all_caps.KEY == 'value'
+    assert "KEY" in config.all_caps
+    assert config.all_caps.KEY == "value"
 
 
 def test_getattr_missing(config):
