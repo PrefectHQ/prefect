@@ -5,6 +5,7 @@ import os
 import click
 import toml
 
+from prefect import config
 from prefect.client import Client
 
 
