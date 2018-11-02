@@ -265,15 +265,15 @@ class ContainerEnvironment(Environment):
                 {env_vars}
                 {pip_installs}
 
-                RUN mkdir $HOME/.prefect/
-                COPY registry $HOME/.prefect/registry
-                COPY config.toml $HOME/.prefect/config.toml
+                RUN mkdir /root/.prefect/
+                COPY registry /root/.prefect/registry
+                COPY config.toml /root/.prefect/config.toml
 
-                ENV PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="$HOME/.prefect/registry"
-                ENV PREFECT__GENERAL__USER_CONFIG_PATH="$HOME/.prefect/config.toml"
+                ENV PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="/root/.prefect/registry"
+                ENV PREFECT__GENERAL__USER_CONFIG_PATH="/root/.prefect/config.toml"
 
                 RUN pip install jinja2
-                RUN git clone -b server https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
+                RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
             """.format(
                     image=self.image, pip_installs=pip_installs, env_vars=env_vars
@@ -360,4 +360,6 @@ class LocalEnvironment(Environment):
                     'PREFECT__REGISTRY__ENCRYPTION_KEY="{}"'.format(self.encryption_key)
                 )
 
-            return subprocess.check_output(" ".join(env + [cli_cmd]), shell=True)
+            return subprocess.check_output(
+                " ".join(env + [cli_cmd]), shell=True, stderr=subprocess.STDOUT
+            )
