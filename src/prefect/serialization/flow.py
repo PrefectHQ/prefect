@@ -1,9 +1,9 @@
 from marshmallow import fields, post_load, pre_dump
 
 import prefect
-from prefect.serialization.schemas.edge import EdgeSchema
-from prefect.serialization.schemas.schedule import ScheduleSchema
-from prefect.serialization.schemas.task import ParameterSchema, TaskSchema
+from prefect.serialization.edge import EdgeSchema
+from prefect.serialization.schedule import ScheduleSchema
+from prefect.serialization.task import ParameterSchema, TaskSchema
 from prefect.serialization.versioned_schema import (
     VersionedSchema,
     version,

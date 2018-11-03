@@ -4,7 +4,7 @@ import datetime
 import prefect
 import pytest
 import marshmallow
-from prefect.serialization.schemas.state import StateSchema
+from prefect.serialization.state import StateSchema
 from prefect.engine import state
 
 
@@ -39,7 +39,7 @@ def complex_states():
 def test_all_states_have_serialization_schemas_in_stateschema():
     """
     Tests that all State subclasses in prefect.engine.states have corresponding schemas
-    in prefect.serialization.schemas.state
+    in prefect.serialization.state
     """
     assert set(s.__name__ for s in all_states) == set(StateSchema.type_schemas.keys())
 
@@ -47,7 +47,7 @@ def test_all_states_have_serialization_schemas_in_stateschema():
 def test_all_states_have_deserialization_schemas_in_stateschema():
     """
     Tests that all State subclasses in prefect.engine.states have corresponding schemas
-    in prefect.serialization.schemas.state with that state assigned as the object class
+    in prefect.serialization.state with that state assigned as the object class
     so it will be recreated at deserialization
     """
     assert all_states == set(

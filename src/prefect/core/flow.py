@@ -999,7 +999,7 @@ class Flow(Serializable):
         else:
             environment_key = None
 
-        serialized = prefect.serialization.schemas.flow.FlowSchema().dump(self)
+        serialized = prefect.serialization.flow.FlowSchema().dump(self)
 
         serialized.update(
             environment=dumps(self.environment), environment_key=environment_key
