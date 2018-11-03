@@ -1180,7 +1180,7 @@ class TestSerialize:
         assert len(f2.tasks) == 3
         assert len(f2.edges) == 2
         assert len(f2.reference_tasks()) == 2
-        assert list(f2.reference_tasks())[0].name == "3"
+        assert {t.name for t in f2.reference_tasks()} == {"2", "3"}
         assert f2.name == f.name
         assert f2.version == f.version
         assert isinstance(f2.schedule, prefect.schedules.NoSchedule)
