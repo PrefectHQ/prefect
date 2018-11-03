@@ -79,7 +79,6 @@ class FlowSchema(VersionedSchema):
             - Flow
 
         """
-        data["reference_tasks"] = data.pop("_reference_tasks", None)
         edges = set(data.pop("edges", []))
         flow = super().create_object(data)
         flow.edges = edges
