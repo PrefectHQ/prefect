@@ -106,9 +106,10 @@ class TaskSchema(TaskMethodsMixin, VersionedSchema):
 class ParameterSchema(TaskMethodsMixin, VersionedSchema):
     class Meta:
         object_class = lambda: prefect.core.task.Parameter
-        object_class_exclude = ["id"]
+        object_class_exclude = ["id", "type"]
 
     id = fields.Method("dump_task_id", "load_task_id", allow_none=True)
+    type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
     name = fields.String(allow_none=True)
     default = JSONField(allow_none=True)
     required = fields.Boolean(allow_none=True)
