@@ -259,7 +259,7 @@ class TestSerialization:
     def test_deserialization(self):
         t = Task(name="test")
         s = t.serialize()
-        t2 = prefect.serialization.schemas.task.TaskSchema().load(s)
+        t2 = prefect.serialization.task.TaskSchema().load(s)
         assert isinstance(t2, Task)
         assert t2.name == t.name
 
@@ -269,7 +269,7 @@ class TestSerialization:
 
         t = NewTask(name="test")
         s = t.serialize()
-        t2 = prefect.serialization.schemas.task.TaskSchema().load(s)
+        t2 = prefect.serialization.task.TaskSchema().load(s)
         assert type(t2) is Task
         assert not isinstance(t2, NewTask)
         assert t2.name == t.name
@@ -284,7 +284,7 @@ class TestSerialization:
     def test_parameter_deserialization(self):
         p = Parameter(name="p")
         serialized = p.serialize()
-        p2 = prefect.serialization.schemas.task.ParameterSchema().load(serialized)
+        p2 = prefect.serialization.task.ParameterSchema().load(serialized)
         assert isinstance(p2, Parameter)
         assert p2.name == p.name
         assert p2.required == p.required

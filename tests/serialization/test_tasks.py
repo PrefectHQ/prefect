@@ -5,7 +5,7 @@ import pytest
 
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
-from prefect.serialization.schemas.task import TaskSchema, ParameterSchema
+from prefect.serialization.task import TaskSchema, ParameterSchema
 
 
 def test_serialize_empty_dict():

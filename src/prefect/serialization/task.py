@@ -9,7 +9,7 @@ from prefect.serialization.versioned_schema import (
     to_qualified_name,
     from_qualified_name,
 )
-from prefect.serialization.schemas.schedule import ScheduleSchema
+from prefect.serialization.schedule import ScheduleSchema
 from prefect.utilities.serialization import JSONField
 
 

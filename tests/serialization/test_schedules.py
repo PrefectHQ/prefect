@@ -4,7 +4,7 @@ import prefect
 import pytest
 import marshmallow
 from prefect import schedules, __version__
-from prefect.serialization.schemas import schedule as schemas
+from prefect.serialization import schedule as schemas
 
 
 all_schedule_classes = set(
@@ -38,7 +38,7 @@ def date_schedule():
 def test_all_schedules_have_serialization_schemas():
     """
     Tests that all Schedule subclasses in prefect.schedules have corresponding schemas
-    in prefect.serialization.schemas.schedule
+    in prefect.serialization.schedule
     """
 
     assert set(s.__name__ for s in all_schedule_classes) == set(
@@ -49,7 +49,7 @@ def test_all_schedules_have_serialization_schemas():
 def test_all_schedules_have_deserialization_schemas():
     """
     Tests that all Schedule subclasses in prefect.schedules have corresponding schemas
-    in prefect.serialization.schemas.schedule with the correct deserialization class
+    in prefect.serialization.schedule with the correct deserialization class
     """
 
     assert all_schedule_classes == set(

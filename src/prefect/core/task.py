@@ -13,7 +13,7 @@ import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities.json import Serializable, to_qualified_name
 from prefect.utilities import logging
-from prefect.serialization.schemas.task import TaskSchema, ParameterSchema
+from prefect.serialization.task import TaskSchema, ParameterSchema
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611

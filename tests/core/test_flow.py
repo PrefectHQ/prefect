@@ -1175,7 +1175,7 @@ class TestSerialize:
         f.add_edge(p1, t3)
 
         serialized = f.serialize()
-        f2 = prefect.serialization.schemas.flow.FlowSchema().load(serialized)
+        f2 = prefect.serialization.flow.FlowSchema().load(serialized)
 
         assert len(f2.tasks) == 3
         assert len(f2.edges) == 2
