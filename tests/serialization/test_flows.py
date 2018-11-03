@@ -120,3 +120,15 @@ def test_deserialize_with_parameters_key():
 
     f2 = FlowSchema().load(FlowSchema().dump(f))
     assert f2.parameters() == f.parameters()
+
+
+def test_reference_tasks():
+    x = Task("x")
+    y = Task("y")
+    z = Task("z")
+    f = Flow(tasks=[x, y, z])
+
+    f.set_reference_tasks([y])
+    assert f.reference_tasks() == {y}
+    f2 = FlowSchema().load(FlowSchema().dump(f))
+    assert f2.reference_tasks() == {t for t in f2.tasks if t.name == "y"}

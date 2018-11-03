@@ -1153,3 +1153,34 @@ class TestGetTasks:
         t1, t2 = Task(name="t1", tags=["a", "b"]), Specific(name="t1", tags=["a"])
         f = Flow(tasks=[t1, t2])
         assert f.get_tasks(task_type=Specific) == [t2]
+
+
+class TestSerialize:
+    def test_serialization(self):
+        p1, t2, t3, = Parameter("1"), Task("2"), Task("3")
+
+        f = Flow(tasks=[p1, t2, t3])
+        f.add_edge(p1, t2)
+        f.add_edge(p1, t3)
+
+        serialized = f.serialize()
+        assert isinstance(serialized, dict)
+        assert len(serialized["tasks"]) == len(f.tasks)
+
+    def test_deserialization(self):
+        p1, t2, t3, = Parameter("1"), Task("2"), Task("3")
+
+        f = Flow(name="hi", version="2", tasks=[p1, t2, t3])
+        f.add_edge(p1, t2)
+        f.add_edge(p1, t3)
+
+        serialized = f.serialize()
+        f2 = prefect.serialization.schemas.flow.FlowSchema().load(serialized)
+
+        assert len(f2.tasks) == 3
+        assert len(f2.edges) == 2
+        assert len(f2.reference_tasks()) == 2
+        assert list(f2.reference_tasks())[0].name == "3"
+        assert f2.name == f.name
+        assert f2.version == f.version
+        assert isinstance(f2.schedule, prefect.schedules.NoSchedule)
