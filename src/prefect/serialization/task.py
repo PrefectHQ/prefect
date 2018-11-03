@@ -3,7 +3,7 @@ import marshmallow
 import prefect
 from marshmallow_oneofschema import OneOfSchema
 from marshmallow import fields, pre_dump, post_load, pre_load, post_dump
-from prefect.serialization.versioned_schema import (
+from prefect.utilities.serialization import (
     VersionedSchema,
     version,
     to_qualified_name,

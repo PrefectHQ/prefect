@@ -1,6 +1,6 @@
 from marshmallow import fields
 import prefect
-from prefect.serialization.versioned_schema import VersionedSchema, version
+from prefect.utilities.serialization import VersionedSchema, version
 from prefect.serialization.task import TaskSchema
 
 
