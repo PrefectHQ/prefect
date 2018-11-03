@@ -13,6 +13,7 @@ import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities.json import Serializable, to_qualified_name
 from prefect.utilities import logging
+from prefect.serialization.schemas.core import TaskSchema
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
@@ -438,20 +439,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         Returns:
             - dict representing this task
         """
-        return dict(
-            name=self.name,
-            slug=self.slug,
-            description=self.description,
-            tags=self.tags,
-            type=to_qualified_name(type(self)),
-            max_retries=self.max_retries,
-            retry_delay=self.retry_delay,
-            timeout=self.timeout,
-            trigger=self.trigger,
-            skip_on_upstream_skip=self.skip_on_upstream_skip,
-            cache_for=self.cache_for,
-            cache_validator=self.cache_validator,
-        )
+        return TaskSchema().dump(self)
 
     # Operators  ----------------------------------------------------------------
 
