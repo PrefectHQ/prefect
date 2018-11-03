@@ -3,6 +3,7 @@ import json
 
 import pytest
 
+import marshmallow
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.serialization.task import TaskSchema, ParameterSchema
@@ -103,3 +104,8 @@ def test_deserialize_parameter():
     p = Parameter(name="p")
     p2 = ParameterSchema().load(ParameterSchema().dump(p))
     assert isinstance(p2, Parameter)
+
+
+def test_serialize_parameter_requires_name():
+    with pytest.raises(marshmallow.ValidationError):
+        ParameterSchema().dump({})

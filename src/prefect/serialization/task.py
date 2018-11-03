@@ -2,7 +2,14 @@ from collections import OrderedDict
 import marshmallow
 import prefect
 from marshmallow_oneofschema import OneOfSchema
-from marshmallow import fields, pre_dump, post_load, pre_load, post_dump
+from marshmallow import (
+    fields,
+    pre_dump,
+    post_load,
+    pre_load,
+    post_dump,
+    ValidationError,
+)
 from prefect.utilities.serialization import (
     VersionedSchema,
     version,
@@ -110,8 +117,14 @@ class ParameterSchema(TaskMethodsMixin, VersionedSchema):
 
     id = fields.Method("dump_task_id", "load_task_id", allow_none=True)
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
-    name = fields.String(allow_none=True)
+    name = fields.String()
     default = JSONField(allow_none=True)
     required = fields.Boolean(allow_none=True)
     description = fields.String(allow_none=True)
     tags = fields.List(fields.String())
+
+    @pre_dump
+    def validate_name(self, data):
+        if self.get_attribute(data, "name", None) is None:
+            raise ValidationError("name is required.")
+        return data
