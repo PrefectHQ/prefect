@@ -75,6 +75,7 @@ class TaskMethodsMixin:
         if task_id not in self.context.setdefault("task_cache", {}) or task_id is None:
             task = super().create_object(data)
             task._id = task_id
+            task._type = data.get("type", None)
             self.context["task_cache"][task_id] = task
 
         return self.context["task_cache"][task_id]

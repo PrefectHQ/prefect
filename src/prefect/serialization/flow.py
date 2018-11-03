@@ -75,8 +75,11 @@ class FlowSchema(VersionedSchema):
             - Flow
 
         """
-        edges = set(data.pop("edges", []))
+        data["validate"] = False
         flow = super().create_object(data)
-        flow.edges = edges
         flow._id = data.get("id", None)
+
+        for t in flow.tasks:
+            flow.task_info[t].update({"id": t._id, "type": t._type})
+
         return flow
