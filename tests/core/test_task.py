@@ -235,3 +235,41 @@ class TestDependencies:
             t2 = Task()
             t2.set_upstream(t1)
             assert Edge(t1, t2) in f.edges
+
+
+class TestSerialization:
+    def test_serialization(self):
+        t = Task(name="test")
+        s = t.serialize()
+
+        assert isinstance(s, dict)
+        assert s["id"] is None
+        assert s["type"] == "prefect.core.task.Task"
+        assert s["name"] == t.name
+
+    def test_subclass_serialization(self):
+        class NewTask(Task):
+            pass
+
+        s = NewTask().serialize()
+
+        assert isinstance(s, dict)
+        assert s["type"].endswith(".NewTask")
+
+    def test_deserialization(self):
+        t = Task(name="test")
+        s = t.serialize()
+        t2 = prefect.serialization.schemas.core.TaskSchema().load(s)
+        assert isinstance(t2, Task)
+        assert t2.name == t.name
+
+    def test_subclass_deserialization(self):
+        class NewTask(Task):
+            pass
+
+        t = NewTask(name="test")
+        s = t.serialize()
+        t2 = prefect.serialization.schemas.core.TaskSchema().load(s)
+        assert type(t2) is Task
+        assert not isinstance(t2, NewTask)
+        assert t2.name == t.name
