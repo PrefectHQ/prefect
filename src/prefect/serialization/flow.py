@@ -4,11 +4,7 @@ import prefect
 from prefect.serialization.edge import EdgeSchema
 from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
-from prefect.serialization.versioned_schema import (
-    VersionedSchema,
-    version,
-    to_qualified_name,
-)
+from prefect.utilities.serialization import VersionedSchema, version, to_qualified_name
 from prefect.utilities.serialization import JSONField, NestedField
 
 
