@@ -1,5 +1,5 @@
 import pytest
-
+import prefect
 from prefect.core import Edge, Flow, Task
 
 
@@ -78,7 +78,11 @@ def test_serialize_edge():
     t1 = Task()
     t2 = Task()
     edge = Edge(t1, t2, key="key", mapped=True)
+    version = dict(__version__=prefect.__version__)
     assert edge.serialize() == dict(
-        upstream_task=t1, downstream_task=t2, key="key", mapped=True
+        upstream_task=dict(id=None, **version),
+        downstream_task=dict(id=None, **version),
+        key="key",
+        mapped=True,
+        **version
     )
-    assert Edge(**edge.serialize()) == edge

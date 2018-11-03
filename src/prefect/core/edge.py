@@ -4,6 +4,7 @@ import keyword
 from typing import Set
 
 from prefect.core.task import Task
+from prefect.serialization.schemas.core import EdgeSchema
 
 
 def is_valid_identifier(string: str) -> bool:
@@ -116,7 +117,8 @@ class Edge:
 
     def __eq__(self, other: "Edge") -> bool:  # type: ignore
         if type(self) == type(other):
-            return self.serialize() == other.serialize()
+            attrs = ["upstream_task", "downstream_task", "key", "mapped"]
+            return all(getattr(self, a) == getattr(other, a) for a in attrs)
         return False
 
     def __hash__(self) -> int:
@@ -125,12 +127,6 @@ class Edge:
     def serialize(self) -> dict:
         """
         Represents the Edge as a dict.
-
-        Can be reversed by calling Edge(**edge.serialize())
         """
-        return dict(
-            upstream_task=self.upstream_task,
-            downstream_task=self.downstream_task,
-            key=self.key,
-            mapped=self.mapped,
-        )
+        return EdgeSchema().dump(self)
+
