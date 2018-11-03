@@ -4,7 +4,7 @@ import keyword
 from typing import Set
 
 from prefect.core.task import Task
-from prefect.serialization.schemas.core import EdgeSchema
+from prefect.serialization.schemas.edge import EdgeSchema
 
 
 def is_valid_identifier(string: str) -> bool:
@@ -129,4 +129,3 @@ class Edge:
         Represents the Edge as a dict.
         """
         return EdgeSchema().dump(self)
-

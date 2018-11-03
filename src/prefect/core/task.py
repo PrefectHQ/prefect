@@ -13,7 +13,7 @@ import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities.json import Serializable, to_qualified_name
 from prefect.utilities import logging
-from prefect.serialization.schemas.core import TaskSchema
+from prefect.serialization.schemas.task import TaskSchema, ParameterSchema
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
@@ -806,16 +806,26 @@ class Parameter(Task):
             value is ignored.
         - default (any, optional): A default value for the parameter. If the default
             is not None, the Parameter will not be required.
+        - description (str, optional): Descriptive information about this parameter
+        - tags ([str], optional): A list of tags for this parameter
+
     """
 
-    def __init__(self, name: str, default: Any = None, required: bool = True) -> None:
+    def __init__(
+        self,
+        name: str,
+        default: Any = None,
+        required: bool = True,
+        description: str = None,
+        tags: Iterable[str] = None,
+    ) -> None:
         if default is not None:
             required = False
 
         self.required = required
         self.default = default
 
-        super().__init__(name=name, slug=name)
+        super().__init__(name=name, slug=name, description=description, tags=tags)
 
     def __repr__(self) -> str:
         return "<Parameter: {self.name}>".format(self=self)
@@ -857,3 +867,14 @@ class Parameter(Task):
         info = super().info()  # type: ignore
         info.update(required=self.required, default=self.default)
         return info
+
+    # Serialization ------------------------------------------------------------
+
+    def serialize(self) -> Dict[str, Any]:
+        """
+        Creates a serialized representation of this parameter
+
+        Returns:
+            - dict representing this parameter
+        """
+        return ParameterSchema().dump(self)

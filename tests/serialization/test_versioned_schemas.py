@@ -297,3 +297,20 @@ def test_schemas_dump_datetime_to_UTC():
     assert serialized_dt["dt"] == "2020-01-01T00:00:00+00:00"
     assert dt.isoformat() == "2020-01-01T00:00:00"
     assert Schema().load(serialized_dt)["dt"] == dt_utc
+
+
+def test_nested_schemas_pass_context_on_load():
+    @version("0")
+    class Child(VersionedSchema):
+        x = marshmallow.fields.Function(None, lambda x, context: context["x"])
+
+    @version("0")
+    class Parent(VersionedSchema):
+        child = marshmallow.fields.Nested(Child)
+
+        @marshmallow.pre_load
+        def set_context(self, obj):
+            self.context.update(x=5)
+            return obj
+
+    assert Parent().load({"child": {"x": 1}})["child"]["x"] == 5

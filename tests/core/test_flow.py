@@ -845,60 +845,6 @@ def test_build_environment():
     assert isinstance(key, bytes)
 
 
-def test_serialize_default_keys():
-    serialized = Flow().serialize()
-    assert set(serialized.keys()) == set(
-        [
-            "id",
-            "name",
-            "version",
-            "project",
-            "description",
-            "environment",
-            "environment_key",
-            "parameters",
-            "schedule",
-            "tasks",
-            "reference_tasks",
-            "edges",
-            "throttle",
-        ]
-    )
-
-
-def test_serialize_tasks():
-    flow = Flow()
-    t1 = Task()
-    t2 = Task()
-    t3 = Task()
-    flow.add_edge(t1, t2)
-    flow.add_task(t3)
-
-    serialized = flow.serialize()
-    assert len(serialized["tasks"]) == 3
-    for t in serialized["tasks"]:
-        assert "id" in t
-        assert "mapped" in t
-        assert "name" in t
-        assert "max_retries" in t
-    assert len(serialized["edges"]) == 1
-    for e in serialized["edges"]:
-        assert e.keys() == set(
-            ["upstream_task_id", "downstream_task_id", "key", "mapped"]
-        )
-        assert e["upstream_task_id"] in flow.task_ids
-        assert e["downstream_task_id"] in flow.task_ids
-    assert set([flow.task_ids[i] for i in serialized["reference_tasks"]]) == set(
-        [t2, t3]
-    )
-
-
-def test_serialize_build():
-    flow = Flow(environment=prefect.environments.LocalEnvironment())
-    assert flow.serialize()["environment_key"] is None
-    assert isinstance(flow.serialize(build=True)["environment_key"], bytes)
-
-
 def test_visualize_raises_informative_importerror_without_graphviz(monkeypatch):
     f = Flow()
     f.add_task(Task())
