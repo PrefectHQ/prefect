@@ -5,8 +5,11 @@ import os
 import click
 import toml
 
+from prefect import config
 from prefect.client import Client
-from prefect.utilities.cli import load_prefect_config, PATH
+
+
+PATH = os.path.join(os.getenv("HOME"), ".prefect/config.toml")
 
 
 @click.group()
@@ -22,15 +25,13 @@ def init():
     """
     Initialize cloud communication config options.
     """
-    config_data = load_prefect_config()
-
-    config_data["REGISTRY_URL"] = click.prompt(
-        "Registry URL", default=config_data.get("REGISTRY_URL")
+    config["registry_url"] = click.prompt(
+        "Registry URL", default=config.get("registry_url")
     )
-    config_data["API_URL"] = click.prompt("API URL", default=config_data.get("API_URL"))
+    config["api_url"] = click.prompt("API URL", default=config.get("api_url"))
 
     with open(PATH, "w") as config_file:
-        toml.dump(config_data, config_file)
+        toml.dump(config, config_file)
 
 
 @configure.command()
@@ -39,14 +40,10 @@ def set_variable(variable):
     """
     Sets a specific configuration variable.
     """
-    config_data = load_prefect_config()
-
-    config_data[variable] = click.prompt(
-        "{}".format(variable), default=config_data.get(variable)
-    )
+    config[variable] = click.prompt("{}".format(variable), default=config.get(variable))
 
     with open(PATH, "w") as config_file:
-        toml.dump(config_data, config_file)
+        toml.dump(config, config_file)
 
 
 @configure.command()
@@ -54,9 +51,7 @@ def list_config():
     """
     List all configuration variables.
     """
-    config_data = load_prefect_config()
-
-    click.echo(config_data)
+    click.echo(config)
 
 
 @configure.command()
@@ -72,18 +67,14 @@ def login():
     """
     Login to Prefect Cloud.
     """
-    config_data = load_prefect_config()
-
-    config_data["EMAIL"] = click.prompt("email", default=config_data.get("EMAIL"))
-    config_data["PASSWORD"] = click.prompt(
+    config["email"] = click.prompt("email", default=config.get("email"))
+    config["password"] = click.prompt(
         "password", hide_input=True, confirmation_prompt=True
     )
 
-    client = Client(
-        config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
-    )
+    client = Client(config["api_url"], os.path.join(config["api_url"], "graphql/"))
 
-    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+    client.login(email=config["email"], password=config["password"])
 
     with open(PATH, "w") as config_file:
-        toml.dump(config_data, config_file)
+        toml.dump(config, config_file)
