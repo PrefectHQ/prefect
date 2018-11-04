@@ -37,6 +37,10 @@ template = b"""
 
     [secrets]
     password = "1234"
+    VERY_PRIVATE = "000"
+
+    [ALL_CAPS]
+    KEY = "value"
     """
 
 
@@ -96,26 +100,18 @@ def test_config_file_path():
 
 @pytest.fixture
 def config(test_config_file_path):
-    try:
-        os.environ["PREFECT__ENV_VARS__NEW_KEY"] = "TEST"
-        os.environ["PREFECT__ENV_VARS__TWICE__NESTED__NEW_KEY"] = "TEST"
-        os.environ["PREFECT__ENV_VARS__TRUE"] = "true"
-        os.environ["PREFECT__ENV_VARS__FALSE"] = "false"
-        os.environ["PREFECT__ENV_VARS__INT"] = "10"
-        os.environ["PREFECT__ENV_VARS__NEGATIVE_INT"] = "-10"
-        os.environ["PREFECT__ENV_VARS__FLOAT"] = "7.5"
-        os.environ["PREFECT__ENV_VARS__NEGATIVE_FLOAT"] = "-7.5"
-        yield configuration.load_config_file(
-            path=test_config_file_path, env_var_prefix="PREFECT"
-        )
-    finally:
-        del os.environ["PREFECT__ENV_VARS__NEW_KEY"]
-        del os.environ["PREFECT__ENV_VARS__TRUE"]
-        del os.environ["PREFECT__ENV_VARS__FALSE"]
-        del os.environ["PREFECT__ENV_VARS__INT"]
-        del os.environ["PREFECT__ENV_VARS__NEGATIVE_INT"]
-        del os.environ["PREFECT__ENV_VARS__FLOAT"]
-        del os.environ["PREFECT__ENV_VARS__NEGATIVE_FLOAT"]
+    environ = {}
+    environ["PREFECT__ENV_VARS__NEW_KEY"] = "TEST"
+    environ["PREFECT__ENV_VARS__TWICE__NESTED__NEW_KEY"] = "TEST"
+    environ["PREFECT__ENV_VARS__TRUE"] = "true"
+    environ["PREFECT__ENV_VARS__FALSE"] = "false"
+    environ["PREFECT__ENV_VARS__INT"] = "10"
+    environ["PREFECT__ENV_VARS__NEGATIVE_INT"] = "-10"
+    environ["PREFECT__ENV_VARS__FLOAT"] = "7.5"
+    environ["PREFECT__ENV_VARS__NEGATIVE_FLOAT"] = "-7.5"
+    yield configuration.load_config_file(
+        path=test_config_file_path, env_var_prefix="PREFECT", env=environ
+    )
 
 
 def test_keys(config):
@@ -128,9 +124,14 @@ def test_keys(config):
 def test_repr(config):
     assert (
         repr(config)
-        == "<Config: 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets'>"
+        == "<Config: 'all_caps', 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets'>"
     )
     assert repr(config.general) == "<Config: 'nested', 'x', 'y'>"
+
+
+def test_only_section_titles_get_lowercased(config):
+    assert "KEY" in config.all_caps
+    assert config.all_caps.KEY == "value"
 
 
 def test_getattr_missing(config):
