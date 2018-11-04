@@ -676,7 +676,9 @@ class States(ClientModule):
             ),
         )
 
-    def query_task_run_id_and_version(self, flow_run_id: str, task_id: str) -> dict:
+    def query_task_run_id_and_version(
+        self, flow_run_id: str, task_id: Optional[str]
+    ) -> dict:
         """
         Retrieve a task run's id and version
 
