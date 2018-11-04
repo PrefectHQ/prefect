@@ -10,7 +10,6 @@ from prefect import config
 from prefect.core import registry
 from prefect.environments import ContainerEnvironment
 from prefect.utilities import json as prefect_json
-from prefect.utilities.cli import load_prefect_config
 
 
 def load_flow(project, name, version, file):
@@ -73,8 +72,8 @@ def run(id):
     flow_run_id = config.get("flow_run_id", None)
 
     if flow_run_id:
-        client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))
-        client.login(email=config.EMAIL, password=config.PASSWORD)
+        client = Client(config.api_url, os.path.join(config.api_url, "graphql/"))
+        client.login(email=config.email, password=config.password)
 
         flow_runs_gql = FlowRuns(client=client)
         stored_parameters = flow_runs_gql.query(flow_run_id=flow_run_id)
@@ -123,7 +122,6 @@ def push(project, name, version, file):
     """
     Push a flow's container environment to a registry.
     """
-    config_data = load_prefect_config()
     flow = load_flow(project, name, version, file)
 
     if not isinstance(flow.environment, ContainerEnvironment):
@@ -132,17 +130,14 @@ def push(project, name, version, file):
         )
 
     # Check if login access was provided for registry
-    if config_data.get("REGISTRY_USERNAME", None) and config_data.get(
-        "REGISTRY_PASSWORD", None
-    ):
+    if config.get("registry_username", None) and config.get("registry_password", None):
         flow.environment.client.login(
-            username=config_data["REGISTRY_USERNAME"],
-            password=config_data["REGISTRY_PASSWORD"],
+            username=config["registry_username"], password=config["registry_password"]
         )
 
     # Push to registry
     return flow.environment.client.images.push(
-        "{}/{}".format(config_data["REGISTRY_URL"], flow.environment.image),
+        "{}/{}".format(config["registry_url"], flow.environment.image),
         tag=flow.environment.tag,
     )
 
@@ -165,13 +160,10 @@ def deploy(project, name, version, file, testing, parameters):
     """
     Deploy a flow to Prefect Cloud.
     """
-    config_data = load_prefect_config()
     flow = load_flow(project, name, version, file)
 
-    client = Client(
-        config_data["API_URL"], os.path.join(config_data["API_URL"], "graphql/")
-    )
-    client.login(email=config_data["EMAIL"], password=config_data["PASSWORD"])
+    client = Client(config["api_url"], os.path.join(config["api_url"], "graphql/"))
+    client.login(email=config["email"], password=config["password"])
 
     # Store output from building environment
     # Use metadata instead of environment object to avoid storing client secrets
