@@ -1032,7 +1032,9 @@ class Flow(Serializable):
         Args:
             - registry (dict): a registry (defaults to the global registry)
         """
-        return prefect.core.registry.register_flow(self, registry=registry)
+        return prefect.core.registry.register_flow(  # type: ignore
+            self, registry=registry
+        )
 
     @cache
     def build_environment(self) -> bytes:
@@ -1051,7 +1053,7 @@ class Flow(Serializable):
 
     def generate_local_task_ids(
         self, *, _debug_steps: bool = False
-    ) -> Dict[str, "Task"]:
+    ) -> Dict["Task", bytes]:
         """
         Generates stable IDs for each task that track across flow versions
 
@@ -1210,7 +1212,7 @@ class Flow(Serializable):
                     continue
 
                 # create a new id by hashing the task ID with upstream dn downstream IDs
-                edges = [
+                edges = [  # type: ignore
                     sorted((e.key, ids[e.upstream_task]) for e in edges_to[task]),
                     sorted((e.key, ids[e.downstream_task]) for e in edges_from[task]),
                 ]
@@ -1255,7 +1257,7 @@ class Flow(Serializable):
 
         if _debug_steps:
             debug_steps[5] = ids.copy()
-            return debug_steps
+            return debug_steps  # type: ignore
 
         return ids
 
