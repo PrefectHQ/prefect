@@ -32,7 +32,7 @@ class FlowSchema(VersionedSchema):
     version = fields.String(allow_none=True)
     description = fields.String(allow_none=True)
     type = fields.Function(lambda flow: to_qualified_name(type(flow)), lambda x: x)
-    schedule = fields.Nested(ScheduleSchema)
+    schedule = fields.Nested(ScheduleSchema, allow_none=True)
     environment = JSONField(allow_none=True)
     environment_key = fields.String(allow_none=True)
     parameters = NestedField(
