@@ -13,9 +13,9 @@ class CloudHandler:
         if config.get("prefect_cloud", None):
             self.load_prefect_config()
 
-    def load_prefect_config(self) -> None:
-        client = Client(config.API_URL, os.path.join(config.API_URL, "graphql/"))
-        client.login(email=config.EMAIL, password=config.PASSWORD)
+    def load_prefect_client(self):
+        client = Client(config.api_url, os.path.join(config.api_url, "graphql/"))
+        client.login(email=config.email, password=config.password)
 
         self.states_gql = States(client=client)
 

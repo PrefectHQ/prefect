@@ -6,10 +6,8 @@ from typing import Iterable, List
 
 import croniter
 
-from prefect.utilities.json import Serializable
 
-
-class Schedule(Serializable):
+class Schedule:
     """
     Base class for Schedules
     """
@@ -26,6 +24,11 @@ class Schedule(Serializable):
             - list[datetime]: a list of datetimes
         """
         raise NotImplementedError("Must be implemented on Schedule subclasses")
+
+    def serialize(self):
+        from prefect.serialization.schemas.schedule import ScheduleSchema
+
+        return ScheduleSchema().dump(self)
 
 
 class NoSchedule(Schedule):
