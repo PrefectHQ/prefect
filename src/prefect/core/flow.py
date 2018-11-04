@@ -151,7 +151,12 @@ class Flow(Serializable):
 
         self.set_reference_tasks(reference_tasks or [])
         for e in edges or []:
-            self.add_edge(**e.serialize())
+            self.add_edge(
+                upstream_task=e.upstream_task,
+                downstream_task=e.downstream_task,
+                key=e.key,
+                mapped=e.mapped,
+            )
 
         self._prefect_version = prefect.__version__
 
@@ -994,36 +999,13 @@ class Flow(Serializable):
         else:
             environment_key = None
 
-        tasks = []
-        for t in self.tasks:
-            task_info = t.serialize()
-            task_info.update(self.task_info[t])
-            tasks.append(task_info)
+        serialized = prefect.serialization.flow.FlowSchema().dump(self)
 
-        edges = []
-        for e in self.edges:
-            edge_info = e.serialize()
-            upstream_task = edge_info.pop("upstream_task")
-            edge_info["upstream_task_id"] = self.task_info[upstream_task]["id"]
-            downstream_task = edge_info.pop("downstream_task")
-            edge_info["downstream_task_id"] = self.task_info[downstream_task]["id"]
-            edges.append(edge_info)
-
-        return dict(
-            id=self.id,
-            name=self.name,
-            version=self.version,
-            project=self.project,
-            description=self.description,
-            environment=self.environment,
-            environment_key=environment_key,
-            parameters=self.parameters(),
-            schedule=self.schedule,
-            tasks=tasks,
-            edges=edges,
-            reference_tasks=[self.task_info[t]["id"] for t in self.reference_tasks()],
-            throttle=self.throttle,
+        serialized.update(
+            environment=dumps(self.environment), environment_key=environment_key
         )
+
+        return serialized
 
     def register(self, registry: dict = None) -> None:
         """
