@@ -13,7 +13,7 @@ install_requires = [
     "dask >= 0.18, < 0.19",
     "distributed >= 1.21.8, < 2.0",
     "docker >= 3.4.1, < 3.5",
-    "marshmallow >= 3.0.0b19, < 4.0",
+    "marshmallow == 3.0.0b19",
     "marshmallow-oneofschema >= 2.0.0b2, < 3.0",
     "mypy >= 0.600, < 0.700",
     "mypy_extensions >= 0.4.0, < 0.5",
