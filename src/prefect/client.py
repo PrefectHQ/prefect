@@ -1,6 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import os
+from typing import Optional
 
 import prefect
 from prefect.utilities import json
