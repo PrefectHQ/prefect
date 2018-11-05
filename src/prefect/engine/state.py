@@ -141,7 +141,7 @@ class State(Serializable):
         """
         Serializes the state to a dict.
         """
-        from prefect.serialization.schemas.state import StateSchema
+        from prefect.serialization.state import StateSchema
 
         return StateSchema().dump(self)
 
