@@ -65,6 +65,12 @@ def test_interval_schedule_next_n_with_on_or_after_argument():
     ]
 
 
+def test_interval_schedule_daylight_savings_time():
+    dt = pendulum.datetime(2018, 11, 4, tz="America/New_York")
+    s = schedules.IntervalSchedule(dt, timedelta(hours=1))
+    next_4 = s.next(4, on_or_after=dt)
+    assert [t.hour for t in next_4] == [0, 1, 1, 2]
+
 
 def test_create_cron_schedule():
     assert schedules.CronSchedule("* * * * *")
@@ -100,6 +106,19 @@ def test_cron_schedule_next_n_with_on_or_after_argument():
         start_date.add(days=2),
     ]
 
+
+@pytest.mark.xfail("Cron seems to have issues with DST")
+def test_cron_schedule_daylight_savings_time():
+    """
+    Cron's behavior is to skip the 2am hour altogether, which seems wrong??
+
+    See also https://github.com/taichino/croniter/issues/116
+    """
+    dt = pendulum.datetime(2018, 11, 4, tz="America/New_York")
+    every_day = "0 * * * *"
+    s = schedules.CronSchedule(every_day)
+    next_4 = s.next(4, on_or_after=dt)
+    assert [t.hour for t in next_4] == [0, 1, 1, 2]
 
 
 def test_create_date_schedule():
