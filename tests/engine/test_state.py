@@ -156,9 +156,7 @@ def test_states_with_mutable_attrs_are_hashable():
 def test_serialize_method(cls):
     serialized = cls().serialize()
     assert isinstance(serialized, dict)
-    assert isinstance(
-        prefect.serialization.schemas.state.StateSchema().load(serialized), cls
-    )
+    assert isinstance(prefect.serialization.state.StateSchema().load(serialized), cls)
 
 
 class TestStateHierarchy:

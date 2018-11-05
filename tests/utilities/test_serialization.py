@@ -11,6 +11,9 @@ class TestJSONField:
         json = JSONField()
         json_limited = JSONField(max_size=10)
 
+    class SchemaWithDumpFn(marshmallow.Schema):
+        json_a = JSONField(dump_fn=lambda obj, context: {"value": obj["a"]})
+
     @pytest.mark.parametrize("value", json_test_values)
     def test_json_serialization(self, value):
         serialized = self.Schema().dump({"json": value})
@@ -30,3 +33,7 @@ class TestJSONField:
         with pytest.raises(ValueError) as exc:
             self.Schema().load({"json_limited": "x" * 100})
         assert "payload exceeds max size" in str(exc).lower()
+
+    def test_dump_fn(self):
+        serialized = self.SchemaWithDumpFn().dump({"a": 5})
+        assert serialized["json_a"] == json.dumps({"value": 5})
