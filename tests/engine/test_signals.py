@@ -1,4 +1,5 @@
 import datetime
+import pendulum
 import pytest
 
 import prefect
@@ -42,7 +43,7 @@ def test_signals_dont_pass_invalid_arguments_to_states():
 
 
 def test_retry_signals_can_set_retry_time():
-    date = datetime.datetime(2019, 1, 1)
+    date = pendulum.datetime(2019, 1, 1)
     with pytest.raises(PrefectStateSignal) as exc:
         raise RETRY(start_time=date)
     assert exc.value.state.start_time == date
@@ -92,5 +93,5 @@ def test_retry_signals_carry_default_retry_time_on_state():
     with pytest.raises(Exception) as exc:
         raise RETRY()
     assert exc.value.state.start_time is not None
-    now = datetime.datetime.utcnow()
+    now = pendulum.now("utc")
     assert now - exc.value.state.start_time < datetime.timedelta(seconds=0.1)

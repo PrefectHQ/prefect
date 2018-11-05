@@ -19,7 +19,6 @@ install_requires = [
     "mypy_extensions >= 0.4.0, < 0.5",
     "pendulum >= 2.0.4, < 3.0",
     "python-dateutil >= 2.7.3, < 3.0",
-    "pytz >= 2018.4",
     "requests >= 2.20, < 3.0",
     "toml >= 0.9.4, < 1.0",
     "typing >= 3.6.4, < 4.0",

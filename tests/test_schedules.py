@@ -1,19 +1,18 @@
-from datetime import datetime, time, timedelta
+import pendulum
+from datetime import time, timedelta
 
 import pytest
 
 from prefect import schedules, __version__
 
-START_DATE = datetime(2018, 1, 1)
-NOW = datetime.utcnow()
-TODAY = datetime.combine(NOW.date(), time())
+START_DATE = pendulum.datetime(2018, 1, 1)
 DATES = [
-    TODAY + timedelta(days=1),
-    TODAY + timedelta(days=2),
-    TODAY + timedelta(days=3),
-    TODAY + timedelta(days=4),
-    TODAY + timedelta(days=5),
-    TODAY + timedelta(days=6),
+    START_DATE,
+    START_DATE + timedelta(days=1),
+    START_DATE + timedelta(days=2),
+    START_DATE + timedelta(days=3),
+    START_DATE + timedelta(days=4),
+    START_DATE + timedelta(days=5),
 ]
 
 
@@ -37,22 +36,34 @@ def test_no_schedule_returns_no_dates():
 
 
 def test_create_interval_schedule():
-    assert schedules.IntervalSchedule(start_date=START_DATE, interval=timedelta(days=1))
+    assert schedules.IntervalSchedule(
+        start_date=pendulum.now("utc"), interval=timedelta(days=1)
+    )
 
 
 def test_interval_schedule_interval_must_be_positive():
     with pytest.raises(ValueError):
-        schedules.IntervalSchedule(START_DATE, interval=timedelta(hours=-1))
+        schedules.IntervalSchedule(pendulum.now("utc"), interval=timedelta(hours=-1))
 
 
 def test_interval_schedule_next_n():
-    s = schedules.IntervalSchedule(START_DATE, timedelta(days=1))
-    assert s.next(3) == DATES[:3]
+
+    start_date = pendulum.datetime(2018, 1, 1)
+    today = pendulum.today("utc")
+    s = schedules.IntervalSchedule(start_date, timedelta(days=1))
+    assert s.next(3) == [today.add(days=1), today.add(days=2), today.add(days=3)]
 
 
 def test_interval_schedule_next_n_with_on_or_after_argument():
-    s = schedules.IntervalSchedule(START_DATE, timedelta(days=1))
-    assert s.next(3, on_or_after=TODAY + timedelta(days=4)) == DATES[3:]
+    start_date = pendulum.datetime(2018, 1, 1)
+    today = pendulum.today("utc")
+    s = schedules.IntervalSchedule(start_date, timedelta(days=1))
+    assert s.next(3, on_or_after=start_date) == [
+        start_date,
+        start_date.add(days=1),
+        start_date.add(days=2),
+    ]
+
 
 
 def test_create_cron_schedule():
@@ -71,13 +82,24 @@ def test_create_cron_schedule_with_invalid_cron_string_raises_error():
 def test_cron_schedule_next_n():
     every_day = "0 0 * * *"
     s = schedules.CronSchedule(every_day)
-    assert s.next(3) == DATES[:3]
+    assert s.next(3) == [
+        pendulum.today("utc").add(days=1),
+        pendulum.today("utc").add(days=2),
+        pendulum.today("utc").add(days=3),
+    ]
 
 
 def test_cron_schedule_next_n_with_on_or_after_argument():
     every_day = "0 0 * * *"
     s = schedules.CronSchedule(every_day)
-    assert s.next(3, on_or_after=TODAY + timedelta(days=4)) == DATES[3:]
+    start_date = pendulum.datetime(2018, 1, 1)
+
+    assert s.next(3, on_or_after=start_date) == [
+        start_date,
+        start_date.add(days=1),
+        start_date.add(days=2),
+    ]
+
 
 
 def test_create_date_schedule():
@@ -92,12 +114,12 @@ def test_date_schedule_next_n():
 
 def test_date_schedule_next_n_with_on_or_after_argument():
     s = schedules.DateSchedule(DATES)
-    assert s.next(3, on_or_after=TODAY + timedelta(days=4)) == DATES[3:]
+    assert s.next(3, on_or_after=START_DATE + timedelta(days=4)) == DATES[3:]
 
 
 def test_date_schedule_after_last_date_returns_empty_list():
     s = schedules.DateSchedule(DATES)
-    assert s.next(3, on_or_after=TODAY + timedelta(days=100)) == []
+    assert s.next(3, on_or_after=START_DATE + timedelta(days=100)) == []
 
 
 class TestSerialization:
@@ -131,6 +153,6 @@ class TestSerialization:
         schedule = schedules.DateSchedule(dates=DATES)
         assert schedule.serialize() == {
             "type": "DateSchedule",
-            "dates": [d.isoformat() + "+00:00" for d in DATES],
+            "dates": [d.isoformat() for d in DATES],
             "__version__": __version__,
         }
