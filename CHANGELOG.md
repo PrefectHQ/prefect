@@ -9,6 +9,7 @@
 ### Minor Features
 
 - Add new `TimedOut` state for task execution timeouts - [#255](https://github.com/PrefectHQ/prefect/issues/255)
+- Use timezone-aware dates throughout Prefect - [#325](https://github.com/PrefectHQ/prefect/pull/325)
 
 ### Fixes
 
