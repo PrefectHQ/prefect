@@ -17,6 +17,7 @@
 ### Breaking Changes
 
 - Remove `timestamp` property from `State` classes - [#305](https://github.com/PrefectHQ/prefect/pull/305)
+- Remove `NoSchedule` and `DateSchedule` schedule classes - [#324](https://github.com/PrefectHQ/prefect/pull/324)
 
 ## 0.3.3 <Badge text="alpha" type="warn"/>
 
