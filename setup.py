@@ -17,6 +17,7 @@ install_requires = [
     "marshmallow-oneofschema >= 2.0.0b2, < 3.0",
     "mypy >= 0.600, < 0.700",
     "mypy_extensions >= 0.4.0, < 0.5",
+    "pendulum >= 2.0.4, < 3.0",
     "python-dateutil >= 2.7.3, < 3.0",
     "pytz >= 2018.4",
     "requests >= 2.20, < 3.0",

@@ -1,8 +1,8 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import pendulum
 import datetime
-import dateutil
-from typing import Any, Callable, Union
+from typing import Any, Callable
 
 
 def retry_delay(
@@ -58,18 +58,17 @@ def retry_delay(
     return retry_delay
 
 
-def parse_datetime(
-    dt: Union[str, bytes, float, datetime.datetime]
-) -> datetime.datetime:
+def ensure_tz_aware(dt: datetime.datetime) -> datetime.datetime:
     """
-    Parses a string, bytes, float, or datetime object and returns a
-    corresponding datetime
+    Ensures that a datetime has a timezone. If it does not (it is timezone-naive), converts
+    it to UTC.
+
+    Args
+        - dt (datetime): the datetime which should be timezone-aware
+
+    Returns
+        - datetime: a timezone-aware datetime
     """
-    if isinstance(dt, (str, bytes)):
-        return dateutil.parser.parse(dt)  # type: ignore
-    elif isinstance(dt, float):
-        return datetime.datetime.fromtimestamp(dt)
-    elif isinstance(dt, (datetime.datetime)):
-        return dt
-    else:
-        raise TypeError("Unrecognized datetime input: {}".format(type(dt).__name__))
+    if isinstance(dt, datetime.datetime) and dt.tzinfo is None:
+        return pendulum.timezone("utc").convert(dt)
+    return dt
