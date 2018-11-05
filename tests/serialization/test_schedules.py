@@ -96,7 +96,7 @@ def test_serialize_cron_schedule(cron_schedule):
 def test_serialize_interval_schedule(interval_schedule):
     schema = schemas.IntervalScheduleSchema()
     assert schema.dump(interval_schedule) == {
-        "start_date": interval_schedule.start_date.isoformat() + "+00:00",
+        "start_date": interval_schedule.start_date.isoformat(),
         "interval": interval_schedule.interval.total_seconds(),
         "__version__": __version__,
     }
@@ -105,6 +105,6 @@ def test_serialize_interval_schedule(interval_schedule):
 def test_serialize_date_schedule(date_schedule):
     schema = schemas.DateScheduleSchema()
     assert schema.dump(date_schedule) == {
-        "dates": [d.isoformat() + "+00:00" for d in date_schedule.dates],
+        "dates": [d.isoformat() for d in date_schedule.dates],
         "__version__": __version__,
     }

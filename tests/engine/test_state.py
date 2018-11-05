@@ -1,4 +1,5 @@
 import datetime
+import pendulum
 
 import pytest
 import prefect
@@ -67,7 +68,7 @@ def test_create_state_with_data_and_error(cls):
 
 
 def test_scheduled_states_have_default_times():
-    now = datetime.datetime.utcnow()
+    now = pendulum.now("utc")
     assert now - Scheduled().start_time < datetime.timedelta(seconds=0.1)
     assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
 
@@ -94,7 +95,7 @@ def test_states_have_color(cls):
 
 
 def test_serialize():
-    now = datetime.datetime.utcnow()
+    now = pendulum.now("utc")
     cached = CachedState(
         cached_inputs=dict(x=99, p="p"),
         cached_result=dict(hi=5, bye=6),
