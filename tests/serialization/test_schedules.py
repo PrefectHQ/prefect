@@ -28,13 +28,6 @@ def cron_schedule():
     return schedules.CronSchedule(cron="0 0 * * *")
 
 
-@pytest.fixture()
-def date_schedule():
-    return schedules.DateSchedule(
-        dates=[datetime.datetime(2020, 1, 1), datetime.datetime(2021, 1, 1)]
-    )
-
-
 def test_all_schedules_have_serialization_schemas():
     """
     Tests that all Schedule subclasses in prefect.schedules have corresponding schemas
@@ -67,24 +60,6 @@ def test_deserialize_bad_type_fails():
         schemas.ScheduleSchema().load({"type": "BadSchedule"})
 
 
-def test_no_schedule_serialization():
-    schedule = schedules.NoSchedule()
-    serialized = schemas.ScheduleSchema().dump(schedule)
-    assert serialized == {"type": "NoSchedule", "__version__": __version__}
-
-
-def test_no_schedule_deserialization():
-    schedule = schedules.NoSchedule()
-    serialized = schemas.ScheduleSchema().dump(schedule)
-    deserialized = schemas.ScheduleSchema().load(serialized)
-    assert isinstance(deserialized, schedules.NoSchedule)
-
-
-def test_serialize_no_schedule():
-    schema = schemas.NoScheduleSchema()
-    assert schema.dump(schedules.NoSchedule()) == {"__version__": __version__}
-
-
 def test_serialize_cron_schedule(cron_schedule):
     schema = schemas.CronScheduleSchema()
     assert schema.dump(cron_schedule) == {
@@ -98,13 +73,5 @@ def test_serialize_interval_schedule(interval_schedule):
     assert schema.dump(interval_schedule) == {
         "start_date": interval_schedule.start_date.isoformat() + "+00:00",
         "interval": interval_schedule.interval.total_seconds(),
-        "__version__": __version__,
-    }
-
-
-def test_serialize_date_schedule(date_schedule):
-    schema = schemas.DateScheduleSchema()
-    assert schema.dump(date_schedule) == {
-        "dates": [d.isoformat() + "+00:00" for d in date_schedule.dates],
         "__version__": __version__,
     }
