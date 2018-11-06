@@ -60,10 +60,8 @@ OUTLINE = [
         "page": "schedules.md",
         "classes": [
             prefect.schedules.Schedule,
-            prefect.schedules.NoSchedule,
             prefect.schedules.IntervalSchedule,
             prefect.schedules.CronSchedule,
-            prefect.schedules.DateSchedule,
         ],
         "title": "Schedules",
     },

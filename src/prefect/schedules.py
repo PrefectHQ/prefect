@@ -26,29 +26,10 @@ class Schedule:
         """
         raise NotImplementedError("Must be implemented on Schedule subclasses")
 
-    def serialize(self):
+    def serialize(self) -> tuple:
         from prefect.serialization.schedule import ScheduleSchema
 
         return ScheduleSchema().dump(self)
-
-
-class NoSchedule(Schedule):
-    """
-    No schedule; this Flow will only run on demand.
-    """
-
-    def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
-        """
-        Retrieve next scheduled dates.
-
-        Args:
-            - n (int): the number of future scheduled dates to return
-            - on_or_after (datetime, optional): date to begin returning from
-
-        Returns:
-            - list: list of next scheduled dates; in this case, always the empty list
-        """
-        return []
 
 
 class IntervalSchedule(Schedule):
@@ -128,31 +109,3 @@ class CronSchedule(Schedule):
 
         cron = croniter.croniter(self.cron, on_or_after)
         return list(itertools.islice(cron.all_next(datetime), n))
-
-
-class DateSchedule(Schedule):
-    """
-    Schedule for running on a manually created list of dates.
-
-    Args:
-        - dates ([datetime]): a list of datetimes to run on
-    """
-
-    def __init__(self, dates: Iterable[datetime]) -> None:
-        self.dates = dates
-
-    def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
-        """
-        Retrieve next scheduled dates.
-
-        Args:
-            - n (int): the number of future scheduled dates to return
-            - on_or_after (datetime, optional): date to begin returning from
-
-        Returns:
-            - list: list of next scheduled dates
-        """
-        if on_or_after is None:
-            on_or_after = pendulum.now("utc")
-        dates = sorted([d for d in self.dates if d >= on_or_after])
-        return dates[:n]

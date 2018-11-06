@@ -3,7 +3,7 @@ import pytz
 import prefect
 import pytest
 import marshmallow
-from prefect.serialization.versioned_schema import (
+from prefect.utilities.serialization import (
     VersionedSchema,
     version,
     VERSIONS,
