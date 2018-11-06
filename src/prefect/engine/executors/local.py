@@ -16,7 +16,7 @@ class LocalExecutor(Executor):
     timeout_handler = staticmethod(main_thread_timeout)
 
     def map(
-        self, fn: Callable, *args: Any, upstream_states: dict = None, **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
     ) -> Iterable[Any]:
 
         states = dict_to_list(upstream_states)

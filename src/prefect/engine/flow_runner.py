@@ -211,7 +211,9 @@ class FlowRunner(Runner):
                 logging.debug("Unexpected error while running task.")
                 if raise_on_exception:
                     raise exc
-                return Failed(message=exc)
+                return Failed(
+                    message="Unexpected error while running task.", result=exc
+                )
 
             return state
 
