@@ -20,6 +20,7 @@ from prefect.environments import Environment
 from prefect.utilities.json import Serializable, dumps
 from prefect.utilities.tasks import as_task, unmapped
 from prefect.utilities import logging
+from prefect.utilities.serialization import to_qualified_name
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
@@ -109,6 +110,10 @@ class Flow(Serializable):
                 `state_handler(flow: Flow, old_state: State, new_state: State) -> State`
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
+        - validate (bool, optional): Whether or not to check the validity of
+            the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
+            in the `edges` argument. Defaults to the value of `eager_edge_validation` in
+            your prefect configuration file.
 
     Raises:
         - ValueError: if any throttle values are `<= 0`
@@ -128,6 +133,7 @@ class Flow(Serializable):
         register: bool = False,
         throttle: Dict[str, int] = None,
         state_handlers: Iterable[Callable] = None,
+        validate: bool = None,
     ) -> None:
         self._cache = {}  # type: dict
 
@@ -156,6 +162,7 @@ class Flow(Serializable):
                 downstream_task=e.downstream_task,
                 key=e.key,
                 mapped=e.mapped,
+                validate=validate,
             )
 
         self._prefect_version = prefect.__version__
@@ -466,7 +473,11 @@ class Flow(Serializable):
 
         if task not in self.tasks:
             self.tasks.add(task)
-            self.task_info[task] = dict(id=str(uuid.uuid4()), mapped=False)
+            self.task_info[task] = {
+                "id": str(uuid.uuid4()),
+                "type": to_qualified_name(type(task)),
+                "mapped": False,
+            }
             self._cache.clear()
 
         return task
@@ -491,8 +502,8 @@ class Flow(Serializable):
                 `run()` method of the downstream task
             - mapped (bool, optional): Whether this edge represents a call to `Task.map()`; defaults to `False`
             - validate (bool, optional): Whether or not to check the validity of
-                the flow (e.g., presence of cycles).  Defaults to the value of `eager_edge_validation`
-                in your prefect configuration file.
+                the flow (e.g., presence of cycles and illegal keys). Defaults to the value
+                of `eager_edge_validation` in your prefect configuration file.
 
         Returns:
             - prefect.core.edge.Edge: The `Edge` object that was successfully added to the flow
@@ -501,6 +512,8 @@ class Flow(Serializable):
             - ValueError: if the `downstream_task` is of type `Parameter`
             - ValueError: if the edge exists with this `key` and `downstream_task`
         """
+        if validate is None:
+            validate = prefect.config.flows.eager_edge_validation  # type: ignore
         if isinstance(downstream_task, Parameter):
             raise ValueError(
                 "Parameters must be root tasks and can not have upstream dependencies."
@@ -511,7 +524,7 @@ class Flow(Serializable):
 
         # we can only check the downstream task's edges once it has been added to the
         # flow, so we need to perform this check here and not earlier.
-        if key and key in {e.key for e in self.edges_to(downstream_task)}:
+        if validate and key and key in {e.key for e in self.edges_to(downstream_task)}:
             raise ValueError(
                 'Argument "{a}" for task {t} has already been assigned in '
                 "this flow. If you are trying to call the task again with "
@@ -528,7 +541,7 @@ class Flow(Serializable):
         self.edges.add(edge)
 
         # check that the edges are valid keywords by binding them
-        if key is not None:
+        if validate and key is not None:
             edge_keys = {
                 e.key: None for e in self.edges_to(downstream_task) if e.key is not None
             }
@@ -540,9 +553,6 @@ class Flow(Serializable):
         self._cache.clear()
 
         # check for cycles
-        if validate is None:
-            validate = prefect.config.flows.eager_edge_validation  # type: ignore
-
         if validate:
             self.validate()
 
@@ -993,6 +1003,8 @@ class Flow(Serializable):
         Returns:
             - dict representing the flow
         """
+
+        self.validate()
 
         if self.environment and build:
             environment_key = self.build_environment()

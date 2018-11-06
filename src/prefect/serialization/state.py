@@ -2,11 +2,7 @@ from typing import Any, Dict
 import json
 from marshmallow_oneofschema import OneOfSchema
 from marshmallow import fields, post_load
-from prefect.serialization.versioned_schema import (
-    VersionedSchema,
-    version,
-    to_qualified_name,
-)
+from prefect.utilities.serialization import VersionedSchema, version, to_qualified_name
 from prefect.engine import state
 from prefect.utilities.serialization import JSONField
 
