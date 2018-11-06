@@ -741,8 +741,8 @@ def test_flow_runner_captures_and_exposes_dask_errors(executor):
     state = f.run(executor=executor)
 
     assert state.is_failed()
-    assert isinstance(state.message, TypeError)
-    assert str(state.message) == "can't pickle _thread.lock objects"
+    assert isinstance(state.result, TypeError)
+    assert str(state.result) == "can't pickle _thread.lock objects"
 
 
 @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)

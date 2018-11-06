@@ -4,11 +4,7 @@ import prefect
 from prefect.serialization.edge import EdgeSchema
 from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
-from prefect.serialization.versioned_schema import (
-    VersionedSchema,
-    version,
-    to_qualified_name,
-)
+from prefect.utilities.serialization import VersionedSchema, version, to_qualified_name
 from prefect.utilities.serialization import JSONField, NestedField
 
 
@@ -32,7 +28,7 @@ class FlowSchema(VersionedSchema):
     version = fields.String(allow_none=True)
     description = fields.String(allow_none=True)
     type = fields.Function(lambda flow: to_qualified_name(type(flow)), lambda x: x)
-    schedule = fields.Nested(ScheduleSchema)
+    schedule = fields.Nested(ScheduleSchema, allow_none=True)
     environment = JSONField(allow_none=True)
     environment_key = fields.String(allow_none=True)
     parameters = NestedField(
@@ -79,8 +75,11 @@ class FlowSchema(VersionedSchema):
             - Flow
 
         """
-        edges = set(data.pop("edges", []))
+        data["validate"] = False
         flow = super().create_object(data)
-        flow.edges = edges
         flow._id = data.get("id", None)
+
+        for t in flow.tasks:
+            flow.task_info[t].update({"id": t._id, "type": t._type})
+
         return flow

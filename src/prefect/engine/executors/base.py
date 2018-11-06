@@ -29,7 +29,7 @@ class Executor(Serializable):
         yield
 
     def map(
-        self, fn: Callable, *args: Any, upstream_states: dict = None, **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
     ) -> Any:
         """
         Submit a function to be mapped over.
