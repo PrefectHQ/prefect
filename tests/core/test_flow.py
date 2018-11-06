@@ -73,7 +73,7 @@ class TestCreateFlow:
 
     def test_create_flow_with_schedule(self):
         f1 = Flow()
-        assert isinstance(f1.schedule, prefect.schedules.NoSchedule)
+        assert f1.schedule is None
 
         cron = prefect.schedules.CronSchedule("* * * * *")
         f2 = Flow(schedule=cron)
@@ -1194,7 +1194,12 @@ class TestSerialize:
     def test_deserialization(self):
         p1, t2, t3, = Parameter("1"), Task("2"), Task("3")
 
-        f = Flow(name="hi", version="2", tasks=[p1, t2, t3])
+        f = Flow(
+            name="hi",
+            version="2",
+            tasks=[p1, t2, t3],
+            schedule=prefect.schedules.CronSchedule("* * 0 0 0"),
+        )
         f.add_edge(p1, t2)
         f.add_edge(p1, t3)
 
@@ -1207,7 +1212,7 @@ class TestSerialize:
         assert {t.name for t in f2.reference_tasks()} == {"2", "3"}
         assert f2.name == f.name
         assert f2.version == f.version
-        assert isinstance(f2.schedule, prefect.schedules.NoSchedule)
+        assert isinstance(f2.schedule, prefect.schedules.CronSchedule)
 
     def test_serialize_validates_invalid_flows(self):
         t1, t2 = Task(), Task()
