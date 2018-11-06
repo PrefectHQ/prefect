@@ -105,7 +105,7 @@ def test_client_posts_retries_if_token_needs_refreshing(monkeypatch):
     monkeypatch.setattr("requests.post", post)
     client = Client(api_server="http://my-server.foo", token="secret_token")
     with pytest.raises(requests.HTTPError) as exc:
-        result = client.post("/foo/bar", json=False)
+        result = client.post("/foo/bar")
     assert exc.value is error
     assert post.call_count == 3  # first call -> refresh token -> last call
     assert post.call_args[0][0] == "http://my-server.foo/foo/bar"
