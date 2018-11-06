@@ -4,11 +4,7 @@ import prefect
 from prefect.serialization.edge import EdgeSchema
 from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
-from prefect.serialization.versioned_schema import (
-    VersionedSchema,
-    version,
-    to_qualified_name,
-)
+from prefect.utilities.serialization import VersionedSchema, version, to_qualified_name
 from prefect.utilities.serialization import JSONField, NestedField
 
 
@@ -79,8 +75,11 @@ class FlowSchema(VersionedSchema):
             - Flow
 
         """
-        edges = set(data.pop("edges", []))
+        data["validate"] = False
         flow = super().create_object(data)
-        flow.edges = edges
         flow._id = data.get("id", None)
+
+        for t in flow.tasks:
+            flow.task_info[t].update({"id": t._id, "type": t._type})
+
         return flow
