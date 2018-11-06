@@ -223,7 +223,9 @@ class CachedState(Pending):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.cached_result = cached_result
         self.cached_parameters = cached_parameters
-        self.cached_result_expiration = ensure_tz_aware(cached_result_expiration)
+        if cached_result_expiration is not None:
+            cached_result_expiration = ensure_tz_aware(cached_result_expiration)
+        self.cached_result_expiration = cached_result_expiration
 
 
 class Scheduled(Pending):
