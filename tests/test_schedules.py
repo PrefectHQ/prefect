@@ -27,15 +27,6 @@ def test_base_schedule_next_no_implemented():
         s.next(1)
 
 
-def test_create_no_schedule():
-    assert schedules.NoSchedule()
-
-
-def test_no_schedule_returns_no_dates():
-    s = schedules.NoSchedule()
-    assert s.next(1) == []
-
-
 def test_create_interval_schedule():
     assert schedules.IntervalSchedule(start_date=START_DATE, interval=timedelta(days=1))
 
@@ -80,34 +71,7 @@ def test_cron_schedule_next_n_with_on_or_after_argument():
     assert s.next(3, on_or_after=TODAY + timedelta(days=4)) == DATES[3:]
 
 
-def test_create_date_schedule():
-    s = schedules.DateSchedule(DATES)
-    assert s.dates == DATES
-
-
-def test_date_schedule_next_n():
-    s = schedules.DateSchedule(DATES)
-    assert s.next(3) == DATES[:3]
-
-
-def test_date_schedule_next_n_with_on_or_after_argument():
-    s = schedules.DateSchedule(DATES)
-    assert s.next(3, on_or_after=TODAY + timedelta(days=4)) == DATES[3:]
-
-
-def test_date_schedule_after_last_date_returns_empty_list():
-    s = schedules.DateSchedule(DATES)
-    assert s.next(3, on_or_after=TODAY + timedelta(days=100)) == []
-
-
 class TestSerialization:
-    def test_serialize_no_schedule(self):
-        schedule = schedules.NoSchedule()
-        assert schedule.serialize() == {
-            "type": "NoSchedule",
-            "__version__": __version__,
-        }
-
     def test_serialize_cron_schedule(self):
         schedule = schedules.CronSchedule("0 0 * * *")
         assert schedule.serialize() == {
@@ -124,13 +88,5 @@ class TestSerialization:
             "type": "IntervalSchedule",
             "start_date": "2018-01-01T00:00:00+00:00",
             "interval": 3600,
-            "__version__": __version__,
-        }
-
-    def test_serialize_date_schedule(self):
-        schedule = schedules.DateSchedule(dates=DATES)
-        assert schedule.serialize() == {
-            "type": "DateSchedule",
-            "dates": [d.isoformat() + "+00:00" for d in DATES],
             "__version__": __version__,
         }

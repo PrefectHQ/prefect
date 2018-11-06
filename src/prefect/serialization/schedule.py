@@ -7,12 +7,6 @@ from prefect.utilities.serialization import VersionedSchema, version, to_qualifi
 
 
 @version("0.3.3")
-class NoScheduleSchema(VersionedSchema):
-    class Meta:
-        object_class = prefect.schedules.NoSchedule
-
-
-@version("0.3.3")
 class IntervalScheduleSchema(VersionedSchema):
     class Meta:
         object_class = prefect.schedules.IntervalSchedule
@@ -29,14 +23,6 @@ class CronScheduleSchema(VersionedSchema):
     cron = fields.String(required=True)
 
 
-@version("0.3.3")
-class DateScheduleSchema(VersionedSchema):
-    class Meta:
-        object_class = prefect.schedules.DateSchedule
-
-    dates = fields.List(fields.DateTime(), required=True)
-
-
 class ScheduleSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -44,8 +30,6 @@ class ScheduleSchema(OneOfSchema):
 
     # map class name to schema
     type_schemas = {
-        "NoSchedule": NoScheduleSchema,
         "IntervalSchedule": IntervalScheduleSchema,
         "CronSchedule": CronScheduleSchema,
-        "DateSchedule": DateScheduleSchema,
     }
