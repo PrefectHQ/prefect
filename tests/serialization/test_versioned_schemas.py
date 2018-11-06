@@ -1,5 +1,5 @@
 import datetime
-import pytz
+import pendulum
 import prefect
 import pytest
 import marshmallow
@@ -291,12 +291,11 @@ def test_schemas_dump_datetime_to_UTC():
         dt = marshmallow.fields.DateTime()
 
     dt = datetime.datetime(2020, 1, 1)
-    dt_utc = datetime.datetime(2020, 1, 1, tzinfo=pytz.UTC)
+    dt_with_tz = pendulum.datetime(2020, 1, 1)
 
     serialized_dt = Schema().dump({"dt": dt})
     assert serialized_dt["dt"] == "2020-01-01T00:00:00+00:00"
-    assert dt.isoformat() == "2020-01-01T00:00:00"
-    assert Schema().load(serialized_dt)["dt"] == dt_utc
+    assert Schema().load(serialized_dt)["dt"] == dt_with_tz
 
 
 def test_nested_schemas_pass_context_on_load():
