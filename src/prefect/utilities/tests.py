@@ -28,10 +28,7 @@ def set_temporary_config(key: str, value: Any) -> Iterator:
         old_config = copy.deepcopy(prefect.config.__dict__)
 
         config = prefect.config
-        keys = key.split(".")
-        for key in keys[:-1]:
-            config = config.setdefault(key, Config())
-        setattr(config, keys[-1], value)
+        config.set_nested(key, value)
         yield
     finally:
         prefect.config.__dict__.clear()

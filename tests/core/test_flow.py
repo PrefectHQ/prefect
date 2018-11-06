@@ -755,11 +755,35 @@ def test_validate_missing_task_info():
     assert "tasks are not in the task_info" in str(exc.value).lower()
 
 
-def test_validate_edges():
+def test_validate_edges_kwarg():
     f = Flow()
     t1, t2 = Task(), Task()  # these tasks don't support keyed edges
     with pytest.raises(TypeError):
-        f.add_edge(t1, t2, key="x")
+        f.add_edge(t1, t2, key="x", validate=True)
+
+
+def test_validate_edges():
+    with set_temporary_config("flows.eager_edge_validation", True):
+        f = Flow()
+        t1, t2 = Task(), Task()  # these tasks don't support keyed edges
+        with pytest.raises(TypeError):
+            f.add_edge(t1, t2, key="x")
+
+
+def test_skip_validate_edges():
+    f = Flow()
+    t1, t2 = Task(), Task()  # these tasks don't support keyed edges
+    f.add_edge(t1, t2, key="x", validate=False)
+    f.add_edge(t2, t1, validate=False)  # this introduces a cycle
+
+
+def test_skip_validation_in_init_with_kwarg():
+    t1, t2 = Task(), Task()  # these tasks don't support keyed edges
+    e1, e2 = Edge(t1, t2), Edge(t2, t1)
+    with pytest.raises(ValueError):
+        Flow(edges=[e1, e2], validate=True)
+
+    assert Flow(edges=[e1, e2], validate=False)
 
 
 def test_task_ids_are_cached():
@@ -1189,3 +1213,14 @@ class TestSerialize:
         assert f2.name == f.name
         assert f2.version == f.version
         assert isinstance(f2.schedule, prefect.schedules.CronSchedule)
+
+    def test_serialize_validates_invalid_flows(self):
+        t1, t2 = Task(), Task()
+        f = Flow()
+        f.add_edge(t1, t2)
+        # default settings should allow this even though it's illegal
+        f.add_edge(t2, t1)
+
+        with pytest.raises(ValueError) as exc:
+            f.serialize()
+        assert "cycle found" in str(exc).lower()

@@ -13,7 +13,6 @@ import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities.json import Serializable, to_qualified_name
 from prefect.utilities import logging
-from prefect.serialization.task import TaskSchema, ParameterSchema
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
@@ -439,7 +438,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         Returns:
             - dict representing this task
         """
-        return TaskSchema().dump(self)
+        return prefect.serialization.task.TaskSchema().dump(self)
 
     # Operators  ----------------------------------------------------------------
 
@@ -877,4 +876,4 @@ class Parameter(Task):
         Returns:
             - dict representing this parameter
         """
-        return ParameterSchema().dump(self)
+        return prefect.serialization.task.ParameterSchema().dump(self)

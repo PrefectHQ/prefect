@@ -4,11 +4,13 @@
 
 ### Major Features
 
-- Add versioned serialization schemas for `Flow`, `Task`, `Edge`, `State`, and `Schedule` objects - [#310](https://github.com/PrefectHQ/prefect/pull/310)
+- Add versioned serialization schemas for `Flow`, `Task`, `Parameter`, `Edge`, `State`, and `Schedule` objects - [#310](https://github.com/PrefectHQ/prefect/pull/310), [#318](https://github.com/PrefectHQ/prefect/pull/318), [#319](https://github.com/PrefectHQ/prefect/pull/319)
 
 ### Minor Features
 
 - Add new `TimedOut` state for task execution timeouts - [#255](https://github.com/PrefectHQ/prefect/issues/255)
+- Add `description` and `tags` arguments to `Parameters` - [#318](https://github.com/PrefectHQ/prefect/pull/318)
+- Allow edge `key` checks to be skipped in order to create "dummy" flows from metadata - [#319](https://github.com/PrefectHQ/prefect/pull/319)
 
 ### Fixes
 
@@ -16,8 +18,9 @@
 
 ### Breaking Changes
 
-- Remove `timestamp` property from `State` classes - [#305](https://github.com/PrefectHQ/prefect/pull/305)
 - Remove `NoSchedule` and `DateSchedule` schedule classes - [#324](https://github.com/PrefectHQ/prefect/pull/324)
+- Change `serialize()` method to use schemas rather than custom dict - [#318](https://github.com/PrefectHQ/prefect/pull/318)
+- Remove `timestamp` property from `State` classes - [#305](https://github.com/PrefectHQ/prefect/pull/305)
 
 ## 0.3.3 <Badge text="alpha" type="warn"/>
 
