@@ -89,8 +89,7 @@ class Flow(Serializable):
         - name (str, optional): The name of the flow
         - version (str, optional): The flow's version
         - project (str, optional): The flow's project
-        - schedule (prefect.schedules.Schedule, optional): A schedule used to
-        represent when the flow should run
+        - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - description (str, optional): Descriptive information about the flow
         - environment (prefect.environments.Environment, optional): The environment
         type that the flow should be run in
@@ -146,7 +145,7 @@ class Flow(Serializable):
         self.version = version or prefect.config.flows.default_version  # type: ignore
         self.project = project or prefect.config.flows.default_project  # type: ignore
         self.description = description or None
-        self.schedule = schedule or prefect.schedules.NoSchedule()
+        self.schedule = schedule
         self.environment = environment
 
         self.tasks = set()  # type: Set[Task]
