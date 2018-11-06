@@ -74,6 +74,10 @@ class Client:
         Args:
             - path (str): the path of the API url. For example, to POST
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
+            - json (bool): boolean specifying whether to return the JSON
+                representation of the response, or the response itself; defaults to `True`
+            - server (str, optional): the server to send the POST request to;
+                defaults to `self.api_server`
             - params (dict): POST parameters
 
         Returns:
