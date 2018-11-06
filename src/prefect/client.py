@@ -1,7 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import os
-from typing import Optional
+from typing import Optional, Union
 
 import prefect
 from prefect.utilities import json
@@ -88,7 +88,7 @@ class Client:
         else:
             return response
 
-    def graphql(self, query: str, **variables) -> dict:
+    def graphql(self, query: str, **variables: Union[bool, dict, str]) -> dict:
         """
         Convenience function for running queries against the Prefect GraphQL API
 
@@ -107,13 +107,13 @@ class Client:
             path="",
             query=query,
             variables=json.dumps(variables),
-            _server=self._graphql_server,
+            server=self.graphql_server,
         )
 
         if "errors" in result:
             raise ValueError(result["errors"])
         else:
-            return to_dotdict(result).data
+            return to_dotdict(result).data  # type: ignore
 
     def _request(self, method: str, path: str, params: dict = None, server: str = None):
         """
@@ -237,11 +237,11 @@ class ClientModule:
     def __repr__(self) -> str:
         return "<Client Module: {name}>".format(name=self._name)
 
-    def post(self, path, **data):
+    def post(self, path: str, **data):
         path = path.lstrip("/")
         return self._client.post(os.path.join(self._path, path), **data)
 
-    def _graphql(self, query, **variables):
+    def _graphql(self, query: str, **variables):
         return self._client.graphql(query=query, **variables)
 
 
@@ -250,7 +250,7 @@ class ClientModule:
 
 
 class Projects(ClientModule):
-    def create(self, name) -> dict:
+    def create(self, name: str) -> dict:
         """
         Create a new project for this account
 
@@ -277,7 +277,7 @@ class Projects(ClientModule):
 
 
 class Flows(ClientModule):
-    def create(self, serialized_flow) -> dict:
+    def create(self, serialized_flow: dict) -> dict:
         """
         Create a new flow on the server
 
@@ -298,7 +298,7 @@ class Flows(ClientModule):
             input=dict(serializedFlow=json.dumps(serialized_flow)),
         )
 
-    def query(self, project_name, flow_name, flow_version) -> dict:
+    def query(self, project_name: str, flow_name: str, flow_version: str) -> dict:
         """
         Retrieve a flow's environment metadata
 
@@ -329,7 +329,7 @@ class Flows(ClientModule):
             project_name=project_name,
         )
 
-    def delete(self, flow_id) -> dict:
+    def delete(self, flow_id: str) -> dict:
         """
         Delete a flow on the server
 
@@ -356,7 +356,7 @@ class Flows(ClientModule):
 
 
 class FlowRuns(ClientModule):
-    def create(self, flow_id, parameters, start_time: None) -> dict:
+    def create(self, flow_id: str, parameters, start_time: None) -> dict:
         """
         Create a flow run
 
@@ -379,7 +379,7 @@ class FlowRuns(ClientModule):
             input=dict(flowId=flow_id, parameters=parameters, startTime=start_time),
         )
 
-    def set_state(self, flow_run_id, state) -> dict:
+    def set_state(self, flow_run_id: str, state) -> dict:
         """
         Set a flow run state
 
@@ -402,7 +402,7 @@ class FlowRuns(ClientModule):
             input=dict(flowRunId=flow_run_id, state=json.dumps(state)),
         )
 
-    def query(self, flow_run_id) -> dict:
+    def query(self, flow_run_id: str) -> dict:
         """
         Retrieve a flow's environment metadata
 
@@ -432,7 +432,7 @@ class FlowRuns(ClientModule):
 
 
 class TaskRuns(ClientModule):
-    def set_state(self, task_run_id, state) -> dict:
+    def set_state(self, task_run_id: str, state) -> dict:
         """
         Set a task run state
 
@@ -455,7 +455,7 @@ class TaskRuns(ClientModule):
             input=dict(taskRunId=task_run_id, state=json.dumps(state)),
         )
 
-    def query(self, flow_run_id, task_id) -> dict:
+    def query(self, flow_run_id: str, task_id: str) -> dict:
         """
         Retrieve a flow's environment metadata
 
@@ -487,7 +487,7 @@ class TaskRuns(ClientModule):
 
 
 class RunFlow(ClientModule):
-    def run_flow(self, flow_run_id) -> dict:
+    def run_flow(self, flow_run_id: str) -> dict:
         """
         Run a flow
 
@@ -526,7 +526,7 @@ class Secret(json.Serializable):
     def __init__(self, name: str) -> None:
         self.name = name
 
-    def get(self):
+    def get(self) -> str:
         """
         Retrieve the secret value.
 
