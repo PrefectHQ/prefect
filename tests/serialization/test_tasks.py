@@ -109,3 +109,59 @@ def test_deserialize_parameter():
 def test_serialize_parameter_requires_name():
     with pytest.raises(marshmallow.ValidationError):
         ParameterSchema().dump({})
+
+
+@pytest.mark.parametrize(
+    "trigger",
+    [
+        prefect.triggers.all_finished,
+        prefect.triggers.manual_only,
+        prefect.triggers.always_run,
+        prefect.triggers.all_successful,
+        prefect.triggers.all_failed,
+        prefect.triggers.any_successful,
+        prefect.triggers.any_failed,
+    ],
+)
+def test_trigger(trigger):
+    t = Task(trigger=trigger)
+    t2 = TaskSchema().load(TaskSchema().dump(t))
+    assert t2.trigger is trigger
+
+
+def test_unknown_trigger():
+    def hello():
+        pass
+
+    t = Task(trigger=hello)
+    t2 = TaskSchema().load(TaskSchema().dump(t))
+    assert isinstance(t2.trigger, str)
+    assert t2.trigger.endswith("hello")
+
+
+@pytest.mark.parametrize(
+    "cache_validator",
+    [
+        prefect.engine.cache_validators.never_use,
+        prefect.engine.cache_validators.duration_only,
+        prefect.engine.cache_validators.all_inputs,
+        prefect.engine.cache_validators.all_parameters,
+        prefect.engine.cache_validators.partial_inputs_only,
+        prefect.engine.cache_validators.partial_parameters_only,
+    ],
+)
+def test_cache_validator(cache_validator):
+    t = Task(cache_validator=cache_validator)
+    t2 = TaskSchema().load(TaskSchema().dump(t))
+    assert t2.cache_validator is cache_validator
+
+
+def test_unknown_cache_validator():
+    def hello():
+        pass
+
+    t = Task(cache_validator=hello)
+    t2 = TaskSchema().load(TaskSchema().dump(t))
+    assert isinstance(t2.cache_validator, str)
+    assert t2.cache_validator.endswith("hello")
+
