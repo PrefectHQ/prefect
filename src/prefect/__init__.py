@@ -7,7 +7,6 @@ from prefect.utilities.context import context
 
 from prefect.client import Client
 import prefect.schedules
-import prefect.serialization
 import prefect.triggers
 import prefect.environments
 
@@ -17,6 +16,8 @@ import prefect.engine
 import prefect.tasks
 import prefect.flows
 from prefect.utilities.tasks import task, tags, unmapped
+
+import prefect.serialization
 
 from ._version import get_versions
 

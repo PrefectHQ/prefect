@@ -164,4 +164,3 @@ def test_unknown_cache_validator():
     t2 = TaskSchema().load(TaskSchema().dump(t))
     assert isinstance(t2.cache_validator, str)
     assert t2.cache_validator.endswith("hello")
-
