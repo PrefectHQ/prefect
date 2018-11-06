@@ -1,4 +1,5 @@
 import pytest
+import requests
 from unittest.mock import MagicMock
 
 import prefect
@@ -13,9 +14,9 @@ def test_client_initializes_from_kwargs():
     client = Client(
         api_server="api_server", graphql_server="graphql_server", token="token"
     )
-    assert client._api_server == "api_server"
-    assert client._graphql_server == "graphql_server"
-    assert client._token == "token"
+    assert client.api_server == "api_server"
+    assert client.graphql_server == "graphql_server"
+    assert client.token == "token"
 
 
 def test_client_initializes_from_config():
@@ -23,9 +24,9 @@ def test_client_initializes_from_config():
         with set_temporary_config("server.graphql_server", "graphql_server"):
             with set_temporary_config("server.token", "token"):
                 client = Client()
-    assert client._api_server == "api_server"
-    assert client._graphql_server == "graphql_server"
-    assert client._token is None
+    assert client.api_server == "api_server"
+    assert client.graphql_server == "graphql_server"
+    assert client.token == "token"
 
 
 def test_client_initializes_from_context():
@@ -39,15 +40,15 @@ def test_client_initializes_from_context():
                 ):
                     client = Client()
 
-    assert client._api_server == "api_server"
-    assert client._graphql_server == "graphql_server"
-    assert client._token == "token"
+    assert client.api_server == "api_server"
+    assert client.graphql_server == "graphql_server"
+    assert client.token == "token"
 
 
 def test_client_logs_in_and_saves_token(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
-            ok=True, json=MagicMock(return_value=dict(token="secret_token"))
+            ok=True, json=MagicMock(return_value=dict(token="secrettoken"))
         )
     )
     monkeypatch.setattr("requests.post", post)
@@ -56,7 +57,7 @@ def test_client_logs_in_and_saves_token(monkeypatch):
     assert post.called
     assert post.call_args[0][0] == "http://my-server.foo/login"
     assert post.call_args[1]["auth"] == ("test@example.com", "1234")
-    assert client._token == "secret_token"
+    assert client.token == "secrettoken"
 
 
 def test_client_raises_if_login_fails(monkeypatch):
@@ -67,6 +68,45 @@ def test_client_raises_if_login_fails(monkeypatch):
         client.login("test@example.com", "1234")
     assert post.called
     assert post.call_args[0][0] == "http://my-server.foo/login"
+
+
+def test_client_posts_raises_with_no_token(monkeypatch):
+    post = MagicMock()
+    monkeypatch.setattr("requests.post", post)
+    client = Client(api_server="http://my-server.foo")
+    with pytest.raises(ValueError) as exc:
+        result = client.post("/foo/bar")
+    assert "Client.login" in str(exc.value)
+
+
+def test_client_posts_to_api_server(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(json=MagicMock(return_value=dict(success=True)))
+    )
+    monkeypatch.setattr("requests.post", post)
+    client = Client(api_server="http://my-server.foo", token="secret_token")
+    result = client.post("/foo/bar")
+    assert result == {"success": True}
+    assert post.called
+    assert post.call_args[0][0] == "http://my-server.foo/foo/bar"
+
+
+def test_client_posts_retries_if_token_needs_refreshing(monkeypatch):
+    error = requests.HTTPError()
+    error.response = MagicMock(status_code=401)  # unauthorized
+    post = MagicMock(
+        return_value=MagicMock(
+            raise_for_status=MagicMock(side_effect=error),
+            json=MagicMock(return_value=dict(token="new-token")),
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    client = Client(api_server="http://my-server.foo", token="secret_token")
+    with pytest.raises(requests.HTTPError) as exc:
+        result = client.post("/foo/bar", json=False)
+    assert exc.value is error
+    assert post.call_count == 3  # first call, refresh token, last call
+    assert client.token == "new-token"
 
 
 #################################
