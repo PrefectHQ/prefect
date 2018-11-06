@@ -10,6 +10,8 @@ from prefect.utilities.tests import set_temporary_config
 #################################
 ##### Client Tests
 #################################
+
+
 def test_client_initializes_from_kwargs():
     client = Client(
         api_server="api_server", graphql_server="graphql_server", token="token"
@@ -105,7 +107,41 @@ def test_client_posts_retries_if_token_needs_refreshing(monkeypatch):
     with pytest.raises(requests.HTTPError) as exc:
         result = client.post("/foo/bar", json=False)
     assert exc.value is error
-    assert post.call_count == 3  # first call, refresh token, last call
+    assert post.call_count == 3  # first call -> refresh token -> last call
+    assert post.call_args[0][0] == "http://my-server.foo/foo/bar"
+    assert client.token == "new-token"
+
+
+def test_client_posts_graphql_to_graphql_server(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(success=True)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    client = Client(graphql_server="http://my-server.foo/graphql", token="secret_token")
+    result = client.graphql("{projects{name}}")
+    assert result == {"success": True}
+    assert post.called
+    assert post.call_args[0][0] == "http://my-server.foo/graphql"
+
+
+def test_client_graphql_retries_if_token_needs_refreshing(monkeypatch):
+    error = requests.HTTPError()
+    error.response = MagicMock(status_code=401)  # unauthorized
+    post = MagicMock(
+        return_value=MagicMock(
+            raise_for_status=MagicMock(side_effect=error),
+            json=MagicMock(return_value=dict(token="new-token")),
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    client = Client(graphql_server="http://my-server.foo/graphql", token="secret_token")
+    with pytest.raises(requests.HTTPError) as exc:
+        result = client.graphql("{}")
+    assert exc.value is error
+    assert post.call_count == 3  # first call -> refresh token -> last call
+    assert post.call_args[0][0] == "http://my-server.foo/graphql"
     assert client.token == "new-token"
 
 
