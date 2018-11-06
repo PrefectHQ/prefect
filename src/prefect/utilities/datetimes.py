@@ -69,6 +69,6 @@ def ensure_tz_aware(dt: datetime.datetime) -> datetime.datetime:
     Returns
         - datetime: a timezone-aware datetime
     """
-    if isinstance(dt, datetime.datetime) and dt.tzinfo is None:
+    if dt.tzinfo is None:
         return pendulum.timezone("utc").convert(dt)
     return dt

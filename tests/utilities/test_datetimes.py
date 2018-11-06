@@ -1,3 +1,4 @@
+import pytest
 import datetime
 import pendulum
 import prefect.utilities.datetimes as dts
@@ -21,6 +22,5 @@ def test_ensure_tz_aware_doesnt_change_tz():
 
 
 def test_ensure_tz_aware_with_non_datetimes():
-    assert dts.ensure_tz_aware(None) is None
-    td = datetime.timedelta(seconds=3)
-    assert dts.ensure_tz_aware(td) is td
+    with pytest.raises(AttributeError):
+        dts.ensure_tz_aware(None)

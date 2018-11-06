@@ -63,6 +63,7 @@ class IntervalSchedule(Schedule):
         """
         if on_or_after is None:
             on_or_after = pendulum.now("utc")
+        assert isinstance(on_or_after, datetime)  # mypy assertion
         on_or_after = ensure_tz_aware(on_or_after)
 
         # infinite generator of all dates in the series
@@ -102,6 +103,7 @@ class CronSchedule(Schedule):
         """
         if on_or_after is None:
             on_or_after = pendulum.now("utc")
+        assert isinstance(on_or_after, datetime)  # mypy assertion
         on_or_after = ensure_tz_aware(on_or_after)
 
         # croniter only supports >, not >=, so we subtract a second
