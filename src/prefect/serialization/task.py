@@ -24,13 +24,19 @@ class FunctionReference(fields.Field):
     """
     Field that stores a reference to a function as a string and reloads it when
     deserialized.
+
+    The valid functions must be provided as a dictionary of {qualified_name: function}
     """
+
+    def __init__(self, valid_functions, **kwargs):
+        self.valid_functions = {to_qualified_name(f): f for f in valid_functions}
+        super().__init__(**kwargs)
 
     def _serialize(self, value, attr, obj, **kwargs):
         return to_qualified_name(value)
 
     def _deserialize(self, value, attr, data, **kwargs):
-        return from_qualified_name(value)
+        return self.valid_functions.get(value, value)
 
 
 class TaskMethodsMixin:
@@ -103,10 +109,31 @@ class TaskSchema(TaskMethodsMixin, VersionedSchema):
     max_retries = fields.Integer(allow_none=True)
     retry_delay = fields.TimeDelta(allow_none=True)
     timeout = fields.TimeDelta(allow_none=True)
-    trigger = FunctionReference(allow_none=True)
+    trigger = FunctionReference(
+        valid_functions=[
+            prefect.triggers.all_finished,
+            prefect.triggers.manual_only,
+            prefect.triggers.always_run,
+            prefect.triggers.all_successful,
+            prefect.triggers.all_failed,
+            prefect.triggers.any_successful,
+            prefect.triggers.any_failed,
+        ],
+        allow_none=True,
+    )
     skip_on_upstream_skip = fields.Boolean(allow_none=True)
     cache_for = fields.TimeDelta(allow_none=True)
-    cache_validator = FunctionReference(allow_none=True)
+    cache_validator = FunctionReference(
+        valid_functions=[
+            prefect.engine.cache_validators.never_use,
+            prefect.engine.cache_validators.duration_only,
+            prefect.engine.cache_validators.all_inputs,
+            prefect.engine.cache_validators.all_parameters,
+            prefect.engine.cache_validators.partial_inputs_only,
+            prefect.engine.cache_validators.partial_parameters_only,
+        ],
+        allow_none=True,
+    )
 
 
 @version("0.3.3")
