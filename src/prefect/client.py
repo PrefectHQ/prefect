@@ -1,11 +1,18 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import datetime
 import os
-from typing import Optional, Union
+from typing import Optional, TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    import requests
 
 import prefect
 from prefect.utilities import json
 from prefect.utilities.collections import to_dotdict
+
+
+BuiltIn = Union[bool, dict, list, str, set, tuple]
 
 
 class AuthorizationError(Exception):
@@ -67,15 +74,13 @@ class Client:
     # -------------------------------------------------------------------------
     # Utilities
 
-    def post(self, path: str, json: bool = True, server: str = None, **params) -> dict:
+    def post(self, path: str, server: str = None, **params: BuiltIn) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and POST request
 
         Args:
             - path (str): the path of the API url. For example, to POST
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
-            - json (bool): boolean specifying whether to return the JSON
-                representation of the response, or the response itself; defaults to `True`
             - server (str, optional): the server to send the POST request to;
                 defaults to `self.api_server`
             - params (dict): POST parameters
@@ -84,13 +89,10 @@ class Client:
             - dict: Dictionary representation of the request made
         """
         response = self._request(method="POST", path=path, params=params, server=server)
-        if json:
-            if response.text:
-                return response.json()
-            else:
-                return {}
+        if response.text:
+            return response.json()
         else:
-            return response
+            return {}
 
     def graphql(self, query: str, **variables: Union[bool, dict, str]) -> dict:
         """
@@ -119,7 +121,9 @@ class Client:
         else:
             return to_dotdict(result).data  # type: ignore
 
-    def _request(self, method: str, path: str, params: dict = None, server: str = None):
+    def _request(
+        self, method: str, path: str, params: dict = None, server: str = None
+    ) -> "requests.models.Response":
         """
         Runs any specified request (GET, POST, DELETE) against the server
 
@@ -152,8 +156,8 @@ class Client:
         params = params or {}
 
         # write this as a function to allow reuse in next try/except block
-        def request_fn():
-            headers = {"Authorization": "Bearer " + self.token}
+        def request_fn() -> "requests.models.Response":
+            headers = {"Authorization": "Bearer {}".format(self.token)}
             if method == "GET":
                 response = requests.get(url, headers=headers, params=params)
             elif method == "POST":
@@ -224,7 +228,9 @@ class Client:
         import requests
 
         url = os.path.join(self.api_server, "refresh_token")
-        response = requests.post(url, headers={"Authorization": "Bearer " + self.token})
+        response = requests.post(
+            url, headers={"Authorization": "Bearer {}".format(self.token)}
+        )
         self.token = response.json().get("token")
 
 
@@ -241,12 +247,12 @@ class ClientModule:
     def __repr__(self) -> str:
         return "<Client Module: {name}>".format(name=self._name)
 
-    def post(self, path: str, **data):
+    def post(self, path: str, **data: BuiltIn) -> dict:
         path = path.lstrip("/")
-        return self._client.post(os.path.join(self._path, path), **data)
+        return self._client.post(os.path.join(self._path, path), **data)  # type: ignore
 
-    def _graphql(self, query: str, **variables):
-        return self._client.graphql(query=query, **variables)
+    def _graphql(self, query: str, **variables: BuiltIn) -> dict:
+        return self._client.graphql(query=query, **variables)  # type: ignore
 
 
 # -------------------------------------------------------------------------
@@ -360,13 +366,15 @@ class Flows(ClientModule):
 
 
 class FlowRuns(ClientModule):
-    def create(self, flow_id: str, parameters, start_time: None) -> dict:
+    def create(
+        self, flow_id: str, parameters: dict, start_time: datetime.datetime = None
+    ) -> dict:
         """
         Create a flow run
 
         Args:
             - flow_id (str): A unique flow identifier
-            - parameters (str): Paramaters set on a flow
+            - parameters (dict): Paramater dictionary to provide for the flow run
             - start_time (datetime, optional): An optional start time for the flow run
 
         Returns:
@@ -383,7 +391,7 @@ class FlowRuns(ClientModule):
             input=dict(flowId=flow_id, parameters=parameters, startTime=start_time),
         )
 
-    def set_state(self, flow_run_id: str, state) -> dict:
+    def set_state(self, flow_run_id: str, state: "prefect.engine.state.State") -> dict:
         """
         Set a flow run state
 
@@ -436,7 +444,7 @@ class FlowRuns(ClientModule):
 
 
 class TaskRuns(ClientModule):
-    def set_state(self, task_run_id: str, state) -> dict:
+    def set_state(self, task_run_id: str, state: "prefect.engine.state.State") -> dict:
         """
         Set a task run state
 
@@ -530,7 +538,7 @@ class Secret(json.Serializable):
     def __init__(self, name: str) -> None:
         self.name = name
 
-    def get(self) -> str:
+    def get(self) -> Optional[str]:
         """
         Retrieve the secret value.
 
@@ -655,5 +663,5 @@ class States(ClientModule):
             }
             """,
             flow_run_id=flow_run_id,
-            task_id=task_id,
+            task_id=task_id or "",
         )
