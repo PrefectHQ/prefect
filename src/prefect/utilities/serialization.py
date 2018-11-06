@@ -1,5 +1,4 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
-import importlib
 import types
 import prefect
 import sys
@@ -21,7 +20,6 @@ def from_qualified_name(obj_str: str) -> object:
     imported in advance.
     """
 
-    importlib
     path_components = obj_str.split(".")
     for i in range(len(path_components), 0, -1):
         module_path = ".".join(path_components[:i])
