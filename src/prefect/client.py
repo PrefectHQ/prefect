@@ -26,7 +26,9 @@ class Client:
         - token (str, optional): Authentication token server connection
     """
 
-    def __init__(self, api_server=None, graphql_server=None, token=None):
+    def __init__(
+        self, api_server: str = None, graphql_server: str = None, token: str = None
+    ) -> None:
         if api_server is None:
             api_server = prefect.config.server.get("api_server", None)
 
@@ -35,7 +37,7 @@ class Client:
                 api_server = prefect.context.get("api_server", None)
                 if not api_server:
                     raise ValueError("Could not determine API server.")
-        self._api_server = api_server
+        self.api_server = api_server
 
         if graphql_server is None:
             graphql_server = prefect.config.server.get("graphql_server", None)
@@ -47,12 +49,15 @@ class Client:
                 # Default to the API server
                 if not graphql_server:
                     graphql_server = api_server
-        self._graphql_server = graphql_server
+        self.graphql_server = graphql_server
 
-        # Check context
         if token is None:
-            token = prefect.context.get("token", None)
-        self._token = token
+            token = prefect.config.server.get("token", None)
+
+            # Check context
+            if not token:
+                token = prefect.context.get("token", None)
+        self.token = token
 
         self.projects = Projects(client=self)
         self.flows = Flows(client=self)
@@ -62,27 +67,7 @@ class Client:
     # -------------------------------------------------------------------------
     # Utilities
 
-    def _get(self, path, *, _json=True, _server=None, **params) -> dict:
-        """
-        Convenience function for calling the Prefect API with token auth and GET request
-
-        Args:
-            - path (str): the path of the API url. For example, to GET
-                http://prefect-server/v1/auth/login, path would be 'auth/login'.
-            - params (dict): GET parameters
-
-        Returns:
-            - dict: Dictionary representation of the request made
-        """
-        response = self._request(method="GET", path=path, params=params, server=_server)
-        if _json:
-            if response.text:
-                response = response.json()
-            else:
-                response = {}
-        return response
-
-    def _post(self, path, *, _json=True, _server=None, **params) -> dict:
+    def post(self, path: str, json: bool = True, server: str = None, **params) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and POST request
 
@@ -94,37 +79,16 @@ class Client:
         Returns:
             - dict: Dictionary representation of the request made
         """
-        response = self._request(
-            method="POST", path=path, params=params, server=_server
-        )
-        if _json:
+        response = self._request(method="POST", path=path, params=params, server=server)
+        if json:
             if response.text:
                 return response.json()
             else:
-                response = {}
+                return {}
         else:
             return response
 
-    def _delete(self, path, *, _server=None, _json=True) -> dict:
-        """
-        Convenience function for calling the Prefect API with token auth and DELETE request
-
-        Args:
-            - path (str): the path of the API url. For example, to DELETE
-                http://prefect-server/v1/auth/login, path would be 'auth/login'
-
-        Returns:
-            - dict: Dictionary representation of the request made
-        """
-        response = self._request(method="DELETE", path=path, server=_server)
-        if _json:
-            if response.text:
-                response = response.json()
-            else:
-                response = {}
-        return response
-
-    def graphql(self, query, **variables) -> dict:
+    def graphql(self, query: str, **variables) -> dict:
         """
         Convenience function for running queries against the Prefect GraphQL API
 
@@ -139,7 +103,7 @@ class Client:
         Raises:
             - ValueError if there are errors raised in the graphql query
         """
-        result = self._post(
+        result = self.post(
             path="",
             query=query,
             variables=json.dumps(variables),
@@ -151,7 +115,7 @@ class Client:
         else:
             return to_dotdict(result).data
 
-    def _request(self, method, path, params=None, server=None):
+    def _request(self, method: str, path: str, params: dict = None, server: str = None):
         """
         Runs any specified request (GET, POST, DELETE) against the server
 
@@ -174,9 +138,9 @@ class Client:
         import requests
 
         if server is None:
-            server = self._api_server
+            server = self.api_server
 
-        if self._token is None:
+        if self.token is None:
             raise ValueError("Call Client.login() to set the client token.")
 
         url = os.path.join(server, path.lstrip("/")).rstrip("/")
@@ -185,7 +149,7 @@ class Client:
 
         # write this as a function to allow reuse in next try/except block
         def request_fn():
-            headers = {"Authorization": "Bearer " + self._token}
+            headers = {"Authorization": "Bearer " + self.token}
             if method == "GET":
                 response = requests.get(url, headers=headers, params=params)
             elif method == "POST":
@@ -213,7 +177,13 @@ class Client:
     # Auth
     # -------------------------------------------------------------------------
 
-    def login(self, email, password, account_slug=None, account_id=None) -> dict:
+    def login(
+        self,
+        email: str,
+        password: str,
+        account_slug: str = None,
+        account_id: str = None,
+    ) -> None:
         """
         Login to the server in order to gain access
 
@@ -223,10 +193,6 @@ class Client:
             - account_slug (str, optional): Slug that is unique to the user
             - account_id (str, optional): Specific Account ID for this user to use
 
-        Returns:
-            - dict: Request with the list of accounts linked to this email/password combination
-                Will not return anything if a single account is logged in to
-
         Raises:
             - ValueError if unable to login to the server (request does not return `200`)
         """
@@ -234,7 +200,7 @@ class Client:
         # lazy import for performance
         import requests
 
-        url = os.path.join(self._api_server, "login")
+        url = os.path.join(self.api_server, "login")
         response = requests.post(
             url,
             auth=(email, password),
@@ -244,15 +210,7 @@ class Client:
         # Load the current auth token if able to login
         if not response.ok:
             raise ValueError("Could not log in.")
-        self._token = response.json().get("token")
-
-        # Functionality not yet ready
-        # User must specify a single account to access
-        # if not (account_id or account_slug):
-        #     print("No account provided; returning available accounts.")
-        #     # Will need to be a graphql query
-        #     accounts = self._get("auth/accounts")
-        #     return accounts
+        self.token = response.json().get("token")
 
     def refresh_token(self) -> None:
         """
@@ -261,11 +219,9 @@ class Client:
         # lazy import for performance
         import requests
 
-        url = os.path.join(self._api_server, "refresh_token")
-        response = requests.post(
-            url, headers={"Authorization": "Bearer " + self._token}
-        )
-        self._token = response.json().get("token")
+        url = os.path.join(self.api_server, "refresh_token")
+        response = requests.post(url, headers={"Authorization": "Bearer " + self.token})
+        self.token = response.json().get("token")
 
 
 class ClientModule:
@@ -281,17 +237,9 @@ class ClientModule:
     def __repr__(self) -> str:
         return "<Client Module: {name}>".format(name=self._name)
 
-    def _get(self, path, **params):
+    def post(self, path, **data):
         path = path.lstrip("/")
-        return self._client._get(os.path.join(self._path, path), **params)
-
-    def _post(self, path, **data):
-        path = path.lstrip("/")
-        return self._client._post(os.path.join(self._path, path), **data)
-
-    def _delete(self, path, **params):
-        path = path.lstrip("/")
-        return self._client._delete(os.path.join(self._path, path), **params)
+        return self._client.post(os.path.join(self._path, path), **data)
 
     def _graphql(self, query, **variables):
         return self._client.graphql(query=query, **variables)
