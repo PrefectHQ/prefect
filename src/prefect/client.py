@@ -1,6 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import os
+from typing import Optional
 
 import prefect
 from prefect.utilities import json
@@ -271,13 +272,13 @@ class ClientModule:
 
     _path = ""
 
-    def __init__(self, client, name=None):
+    def __init__(self, client: Client, name: str = None) -> None:
         if name is None:
             name = type(self).__name__
         self._name = name
         self._client = client
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Client Module: {name}>".format(name=self._name)
 
     def _get(self, path, **params):
@@ -595,7 +596,9 @@ class Secret(json.Serializable):
 
 
 class States(ClientModule):
-    def set_flow_run_from_serialized_state(self, flow_run_id, version, state) -> dict:
+    def set_flow_run_from_serialized_state(
+        self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
+    ) -> dict:
         """
         Set a flow run state
 
@@ -622,7 +625,7 @@ class States(ClientModule):
             ),
         )
 
-    def query_flow_run_version(self, flow_run_id) -> dict:
+    def query_flow_run_version(self, flow_run_id: str) -> dict:
         """
         Retrieve a flow run's version
 
@@ -645,7 +648,9 @@ class States(ClientModule):
             flow_run_id=flow_run_id,
         )
 
-    def set_task_run_from_serialized_state(self, task_run_id, version, state) -> dict:
+    def set_task_run_from_serialized_state(
+        self, task_run_id: str, version: int, state: "prefect.engine.state.State"
+    ) -> dict:
         """
         Set a task run state
 
@@ -672,7 +677,9 @@ class States(ClientModule):
             ),
         )
 
-    def query_task_run_id_and_version(self, flow_run_id, task_id) -> dict:
+    def query_task_run_id_and_version(
+        self, flow_run_id: str, task_id: Optional[str]
+    ) -> dict:
         """
         Retrieve a task run's id and version
 

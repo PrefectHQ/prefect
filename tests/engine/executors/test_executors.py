@@ -23,7 +23,7 @@ class TestBaseExecutor:
 
     def test_map_raises_notimplemented(self):
         with pytest.raises(NotImplementedError):
-            Executor().map(lambda: 1)
+            Executor().map(lambda: 1, upstream_states={})
 
     def test_submit_with_context_requires_context_kwarg(self):
         with pytest.raises(TypeError) as exc:

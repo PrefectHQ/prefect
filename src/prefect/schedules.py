@@ -25,7 +25,7 @@ class Schedule:
         """
         raise NotImplementedError("Must be implemented on Schedule subclasses")
 
-    def serialize(self):
+    def serialize(self) -> tuple:
         from prefect.serialization.schedule import ScheduleSchema
 
         return ScheduleSchema().dump(self)
