@@ -91,7 +91,7 @@ class DaskExecutor(Executor):
         return q
 
     def map(
-        self, fn: Callable, *args: Any, upstream_states: dict = None, **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
     ) -> Future:
         def mapper(
             fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
