@@ -55,7 +55,11 @@ OUTLINE = [
         "title": "Triggers",
         "top-level-doc": prefect.triggers,
     },
-    {"page": "client.md", "classes": [prefect.client.Secret], "title": "Client"},
+    {
+        "page": "client.md",
+        "classes": [prefect.client.Client, prefect.client.Secret],
+        "title": "Client",
+    },
     {
         "page": "schedules.md",
         "classes": [
