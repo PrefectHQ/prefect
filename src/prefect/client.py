@@ -178,8 +178,8 @@ class Client:
 
     def login(
         self,
-        email: str,
-        password: str,
+        email: str = None,
+        password: str = None,
         account_slug: str = None,
         account_id: str = None,
     ) -> None:
@@ -187,8 +187,10 @@ class Client:
         Login to the server in order to gain access
 
         Args:
-            - email (str): User's email on the platform
-            - password (str): User's password on the platform
+            - email (str): User's email on the platform; if not provided, pulled
+                from config
+            - password (str): User's password on the platform; if not provided,
+                pulled from config
             - account_slug (str, optional): Slug that is unique to the user
             - account_id (str, optional): Specific Account ID for this user to use
 
@@ -198,6 +200,9 @@ class Client:
 
         # lazy import for performance
         import requests
+
+        email = email or prefect.config.cloud.email
+        password = password or prefect.config.cloud.password
 
         url = os.path.join(self.api_server, "login")
         response = requests.post(
