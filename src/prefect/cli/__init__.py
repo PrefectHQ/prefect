@@ -43,6 +43,7 @@ def make_user_config():
 
     config_path = os.path.join(os.path.dirname(prefect.__file__), "config.toml")
     with open(config_path, "r") as standard_config:
+        os.makedirs(os.path.dirname(user_config_path), exist_ok=True)
         with open(user_config_path, "w") as user_config:
             user_config.write(standard_config.read())
 
