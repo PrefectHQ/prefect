@@ -1,6 +1,7 @@
+import os
 import pytest
 import requests
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, mock_open
 
 import prefect
 from prefect.client import Client, Secret
@@ -24,27 +25,26 @@ def test_client_initializes_from_kwargs():
 def test_client_initializes_from_config():
     with set_temporary_config("server.api_server", "api_server"):
         with set_temporary_config("server.graphql_server", "graphql_server"):
-            with set_temporary_config("server.token", "token"):
+            with set_temporary_config("server.auth_token", "token"):
                 client = Client()
     assert client.api_server == "api_server"
     assert client.graphql_server == "graphql_server"
     assert client.token == "token"
 
 
-def test_client_initializes_from_context():
-    with set_temporary_config("server.api_server", None):
-        with set_temporary_config("server.graphql_server", None):
-            with set_temporary_config("server.token", None):
-                with prefect.context(
-                    api_server="api_server",
-                    graphql_server="graphql_server",
-                    token="token",
-                ):
-                    client = Client()
+def test_client_token_initializes_from_file(monkeypatch):
+    monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
+    monkeypatch.setattr("builtins.open", mock_open(read_data="TOKEN"))
+    client = Client()
+    assert client.token == "TOKEN"
 
-    assert client.api_server == "api_server"
-    assert client.graphql_server == "graphql_server"
-    assert client.token == "token"
+
+def test_client_token_priotizes_config_over_file(monkeypatch):
+    monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
+    monkeypatch.setattr("builtins.open", mock_open(read_data="file-token"))
+    with set_temporary_config("server.auth_token", "config-token"):
+        client = Client()
+    assert client.token == "config-token"
 
 
 def test_client_logs_in_and_saves_token(monkeypatch):
@@ -53,6 +53,9 @@ def test_client_logs_in_and_saves_token(monkeypatch):
             ok=True, json=MagicMock(return_value=dict(token="secrettoken"))
         )
     )
+    monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
+    mock_file = mock_open()
+    monkeypatch.setattr("builtins.open", mock_file)
     monkeypatch.setattr("requests.post", post)
     client = Client(api_server="http://my-server.foo")
     client.login("test@example.com", "1234")
@@ -60,6 +63,23 @@ def test_client_logs_in_and_saves_token(monkeypatch):
     assert post.call_args[0][0] == "http://my-server.foo/login"
     assert post.call_args[1]["auth"] == ("test@example.com", "1234")
     assert client.token == "secrettoken"
+    assert mock_file.call_args[0] == ("~/.prefect/.credentials/auth_token", "w+")
+
+
+def test_client_logs_out_and_deletes_auth_token(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            ok=True, json=MagicMock(return_value=dict(token="secrettoken"))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    client = Client(api_server="http://my-server.foo")
+    client.login("test@example.com", "1234")
+    assert os.path.exists("~/.prefect/.credentials/auth_token")
+    with open("~/.prefect/.credentials/auth_token", "r") as f:
+        assert f.read() == "secrettoken"
+    client.logout()
+    assert not os.path.exists("~/.prefect/.credentials/auth_token")
 
 
 def test_client_raises_if_login_fails(monkeypatch):
