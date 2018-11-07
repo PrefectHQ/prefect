@@ -348,7 +348,7 @@ def load_configuration(
 config = load_configuration(config_path=DEFAULT_CONFIG, env_var_prefix=ENV_VAR_PREFIX)
 
 # if user config exists, load and merge it with default config
-user_config_path = config.get('user_config_path', None)
+user_config_path = config.get("user_config_path", None)
 if user_config_path and os.path.isfile(user_config_path):
     config = load_configuration(
         config_path=user_config_path,
