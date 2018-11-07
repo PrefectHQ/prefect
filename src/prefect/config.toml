@@ -12,6 +12,7 @@ user_config_path = "$HOME/.prefect/config.toml"
 # the Prefect Server address
 api_server = "http://localhost:4200"
 graphql_server = "http://localhost:4200/graphql"
+logger_server = "http://localhost:4202/log"
 use_local_secrets = true
 
 
