@@ -1,11 +1,12 @@
-debug = false
-
-prefect_cloud = false
-
-[general]
-
 # the location of the user's config file
 user_config_path = "$HOME/.prefect/config.toml"
+
+# turns out debug mode
+debug = false
+
+# running in prefect cloud
+prefect_cloud = false
+
 
 
 [server]
