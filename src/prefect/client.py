@@ -28,20 +28,18 @@ class Client:
     token will only be present in the current context.
 
     Args:
-        - api_server (str, optional): Address for connection to the rest API
-        - graphql_server (str, optional): Address for connection to the GraphQL rest API
         - token (str, optional): Authentication token server connection
     """
 
     def __init__(self, token: str = None) -> None:
-        api_server = prefect.config.server.get("api_server", None)
+        api_server = prefect.config.cloud.get("api_server", None)
 
         if not api_server:
             raise ValueError("Could not determine API server.")
 
         self.api_server = api_server
 
-        graphql_server = prefect.config.server.get("graphql_server", None)
+        graphql_server = prefect.config.cloud.get("graphql_server", None)
 
         # Default to the API server
         if not graphql_server:
@@ -50,7 +48,7 @@ class Client:
         self.graphql_server = graphql_server
 
         if token is None:
-            token = prefect.config.server.get("auth_token", None)
+            token = prefect.config.cloud.get("auth_token", None)
 
             if token is None:
                 if os.path.exists("~/.prefect/.credentials/auth_token"):
@@ -552,7 +550,7 @@ class Secret(json.Serializable):
         Raises:
             - ValueError: if `use_local_secrets=False` and the Client fails to retrieve your secret
         """
-        if prefect.config.server.use_local_secrets is True:
+        if prefect.config.cloud.use_local_secrets is True:
             secrets = prefect.context.get("_secrets", {})
             return secrets.get(self.name)
         else:

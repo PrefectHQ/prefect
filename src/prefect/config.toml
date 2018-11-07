@@ -8,7 +8,7 @@ prefect_cloud = false
 user_config_path = "$HOME/.prefect/config.toml"
 
 
-[server]
+[cloud]
 # the Prefect Server address
 api_server = "http://localhost:4200"
 graphql_server = "http://localhost:4200/graphql"
