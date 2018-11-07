@@ -98,7 +98,7 @@ def test_cron_schedule_next_n_with_on_or_after_argument():
     ]
 
 
-@pytest.mark.xfail("Cron seems to have issues with DST")
+@pytest.mark.xfail(reason="Cron seems to have issues with DST")
 def test_cron_schedule_daylight_savings_time():
     """
     Cron's behavior is to skip the 2am hour altogether, which seems wrong??
