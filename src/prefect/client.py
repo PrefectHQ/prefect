@@ -33,23 +33,19 @@ class Client:
         - token (str, optional): Authentication token server connection
     """
 
-    def __init__(
-        self, api_server: str = None, graphql_server: str = None, token: str = None
-    ) -> None:
-        if api_server is None:
-            api_server = prefect.config.server.get("api_server", None)
+    def __init__(self, token: str = None) -> None:
+        api_server = prefect.config.server.get("api_server", None)
 
-            if not api_server:
-                raise ValueError("Could not determine API server.")
+        if not api_server:
+            raise ValueError("Could not determine API server.")
 
         self.api_server = api_server
 
-        if graphql_server is None:
-            graphql_server = prefect.config.server.get("graphql_server", None)
+        graphql_server = prefect.config.server.get("graphql_server", None)
 
-            # Default to the API server
-            if not graphql_server:
-                graphql_server = api_server
+        # Default to the API server
+        if not graphql_server:
+            graphql_server = api_server
 
         self.graphql_server = graphql_server
 
@@ -217,7 +213,7 @@ class Client:
             raise ValueError("Could not log in.")
         self.token = response.json().get("token")
         if self.token:
-            if not os.path.exists("~/.prefect/.credentials/auth_token"):
+            if not os.path.exists("~/.prefect/.credentials"):
                 os.makedirs("~/.prefect/.credentials")
             with open("~/.prefect/.credentials/auth_token", "w+") as f:
                 f.write(self.token)
@@ -552,12 +548,24 @@ class Secret(json.Serializable):
         Retrieve the secret value.
 
         If not found, returns `None`.
+
+        Raises:
+            - ValueError: if `use_local_secrets=False` and the Client fails to retrieve your secret
         """
         if prefect.config.server.use_local_secrets is True:
             secrets = prefect.context.get("_secrets", {})
             return secrets.get(self.name)
         else:
-            return None
+            client = Client()
+            return client.graphql(  # type: ignore
+                """
+                query($key: String!) {
+                    secret(key: $key) {
+                        value
+                    }
+                }""",
+                key=self.name,
+            ).secret.value
 
 
 # -------------------------------------------------------------------------
