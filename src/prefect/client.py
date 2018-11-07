@@ -39,31 +39,28 @@ class Client:
         if api_server is None:
             api_server = prefect.config.server.get("api_server", None)
 
-            # Check context
             if not api_server:
-                api_server = prefect.context.get("api_server", None)
-                if not api_server:
-                    raise ValueError("Could not determine API server.")
+                raise ValueError("Could not determine API server.")
+
         self.api_server = api_server
 
         if graphql_server is None:
             graphql_server = prefect.config.server.get("graphql_server", None)
 
-            # Check context
+            # Default to the API server
             if not graphql_server:
-                graphql_server = prefect.context.get("graphql_server", None)
+                graphql_server = api_server
 
-                # Default to the API server
-                if not graphql_server:
-                    graphql_server = api_server
         self.graphql_server = graphql_server
 
         if token is None:
-            token = prefect.config.server.get("token", None)
+            token = prefect.config.server.get("auth_token", None)
 
-            # Check context
-            if not token:
-                token = prefect.context.get("token", None)
+            if token is None:
+                if os.path.exists("~/.prefect/.credentials/auth_token"):
+                    with open("~/.prefect/.credentials/auth_token", "r") as f:
+                        token = f.read()
+
         self.token = token
 
         self.projects = Projects(client=self)
@@ -219,6 +216,18 @@ class Client:
         if not response.ok:
             raise ValueError("Could not log in.")
         self.token = response.json().get("token")
+        if self.token:
+            if not os.path.exists("~/.prefect/.credentials/auth_token"):
+                os.makedirs("~/.prefect/.credentials")
+            with open("~/.prefect/.credentials/auth_token", "w+") as f:
+                f.write(self.token)
+
+    def logout(self) -> None:
+        """
+        Logs out by clearing all tokens, including deleting `~/.prefect/credentials/auth_token`
+        """
+        os.remove("~/.prefect/.credentials/auth_token")
+        del self.token
 
     def refresh_token(self) -> None:
         """
