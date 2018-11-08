@@ -1,17 +1,18 @@
-debug = false
-
-prefect_cloud = false
-
-[general]
-
 # the location of the user's config file
 user_config_path = "$HOME/.prefect/config.toml"
 
+# turns out debug mode
+debug = false
 
-[server]
+# running in prefect cloud
+prefect_cloud = false
+
+
+
+[cloud]
 # the Prefect Server address
-api_server = "http://127.0.0.1:4200"
-graphql_server = "http://127.0.0.1:4242/graphql"
+api_server = "http://localhost:4200"
+graphql_server = "http://localhost:4200/graphql"
 use_local_secrets = true
 
 

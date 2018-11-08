@@ -195,7 +195,7 @@ def test_gmail_notifier_sends_simple_email(monkeypatch):
     monkeypatch.setattr(prefect.utilities.notifications, "smtplib", smtp)
     s = Failed("optional message...")
 
-    monkeypatch.setattr(prefect.config.server, "use_local_secrets", True)
+    monkeypatch.setattr(prefect.config.cloud, "use_local_secrets", True)
     with prefect.context(_secrets=dict(EMAIL_USERNAME="alice", EMAIL_PASSWORD=1234)):
         returned = gmail_notifier(Task(name="dud"), "", s)
 
@@ -229,7 +229,7 @@ def test_gmail_notifier_is_curried_and_uses_only_states(monkeypatch, state):
     sendmail = MagicMock()
     smtp.SMTP_SSL.return_value.sendmail = sendmail
     monkeypatch.setattr(prefect.utilities.notifications, "smtplib", smtp)
-    monkeypatch.setattr(prefect.config.server, "use_local_secrets", True)
+    monkeypatch.setattr(prefect.config.cloud, "use_local_secrets", True)
     handler = gmail_notifier(only_states=[TriggerFailed])
     returned = handler(Task(), "", state)
     assert returned is state
@@ -252,7 +252,7 @@ def test_gmail_notifier_ignores_ignore_states(monkeypatch):
     smtp = MagicMock()
     sendmail = MagicMock()
     smtp.SMTP_SSL.return_value.sendmail = sendmail
-    monkeypatch.setattr(prefect.config.server, "use_local_secrets", True)
+    monkeypatch.setattr(prefect.config.cloud, "use_local_secrets", True)
     monkeypatch.setattr(prefect.utilities.notifications, "smtplib", smtp)
     for state in all_states:
         s = state()
