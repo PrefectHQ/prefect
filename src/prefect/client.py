@@ -561,12 +561,12 @@ class Secret(json.Serializable):
             client = Client()
             return client.graphql(  # type: ignore
                 """
-                query($key: String!) {
-                    secret(key: $key) {
+                query($name: String!) {
+                    secret(name: $name) {
                         value
                     }
                 }""",
-                key=self.name,
+                name=self.name,
             ).secret.value
 
 
