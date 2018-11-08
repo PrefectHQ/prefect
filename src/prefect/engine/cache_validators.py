@@ -15,7 +15,7 @@ Note that _all_ validators take into account cache expiration.
 
 A cache validator returns `True` if the cache is still valid, and `False` otherwise.
 """
-from datetime import datetime
+import pendulum
 from toolz import curry
 from typing import Any, Dict, Iterable
 
@@ -63,7 +63,7 @@ def duration_only(
     """
     if state.cached_result_expiration is None:
         return True
-    elif state.cached_result_expiration > datetime.utcnow():
+    elif state.cached_result_expiration > pendulum.now("utc"):
         return True
     else:
         return False
@@ -148,7 +148,8 @@ def partial_parameters_only(
 
     Example:
     ```python
-    from datetime import datetime, timedelta
+    from datetime import timedelta
+    import pendulum
     from prefect import Flow, Parameter, task
     from prefect.engine.cache_validators import partial_parameters_only
 
@@ -162,12 +163,12 @@ def partial_parameters_only(
         runtime = Parameter("runtime")
         db_state = daily_db_refresh(nrows, runtime)
 
-    state1 = f.run(parameters=dict(nrows=1000, runtime=datetime.utcnow()),
+    state1 = f.run(parameters=dict(nrows=1000, runtime=pendulum.now('utc')),
                   return_tasks=[db_state])
 
     ## the second run will use the cache contained within state1.result[db_state]
     ## even though `runtime` has changed
-    state2 = f.run(parameters=dict(nrows=1000, runtime=datetime.utcnow()),
+    state2 = f.run(parameters=dict(nrows=1000, runtime=pendulum.now('utc')),
                    return_tasks=[db_state], task_states={result: state1.result[db_state]})
     ```
     """

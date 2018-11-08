@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
+import pendulum
 import pytest
 
 from prefect.engine.cache_validators import (
@@ -28,14 +29,16 @@ def test_never_use_returns_false():
 
 @pytest.mark.parametrize("validator", all_validators)
 def test_expired_cache(validator):
-    state = CachedState(cached_result_expiration=datetime.utcnow() - timedelta(days=1))
+    state = CachedState(
+        cached_result_expiration=pendulum.now("utc") - timedelta(days=1)
+    )
     assert validator(state, None, None) is False
 
 
 class TestDurationOnly:
     def test_unexpired_cache(self):
         state = CachedState(
-            cached_result_expiration=datetime.utcnow() + timedelta(days=1)
+            cached_result_expiration=pendulum.now("utc") + timedelta(days=1)
         )
         assert duration_only(state, None, None) is True
 
