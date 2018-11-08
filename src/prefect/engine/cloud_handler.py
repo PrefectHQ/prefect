@@ -1,3 +1,5 @@
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+
 import os
 import toml
 from pathlib import Path
@@ -14,14 +16,10 @@ class CloudHandler:
             self.load_prefect_client()
 
     def load_prefect_client(self) -> None:
-        client = Client(  # type: ignore
-            config.api_url, os.path.join(config.api_url, "graphql/")
-        )
+        client = Client()
         client.login(email=config.email, password=config.password)
-
         self.states_gql = States(client=client)
-
-        self.flow_run_id = config.get("flow_run_id", None)
+        self.flow_run_id = config.get("flow_run_id")
 
     def setFlowRunState(self, version: int, state: State) -> None:
         self.states_gql.set_flow_run_from_serialized_state(
