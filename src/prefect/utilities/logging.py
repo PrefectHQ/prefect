@@ -1,6 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 import json
 import logging
+import prefect
 import queue
 import requests
 
@@ -22,6 +23,16 @@ class RemoteHandler(logging.StreamHandler):
         r = self.client.post(path="", server=self.logger_server, **record.__dict__)
 
 
+old_factory = logging.getLogRecordFactory()
+
+
+def cloud_record_factory(*args, **kwargs):
+    record = old_factory(*args, **kwargs)
+    record.flowrunid = config.get("flow_run_id", "")
+    record.taskrunid = prefect.context.get("_task_run_id", "")
+    return record
+
+
 def configure_logging() -> logging.Logger:
     """
     Creates a "prefect" root logger with a `StreamHandler` that has level and formatting
@@ -39,6 +50,7 @@ def configure_logging() -> logging.Logger:
 
     ## send logs to server
     if config.prefect_cloud is True:
+        logging.setLogRecordFactory(cloud_record_factory)
         log_queue = queue.Queue(-1)  # unlimited size queue
         queue_handler = QueueHandler(log_queue)
         remote_handler = RemoteHandler()
