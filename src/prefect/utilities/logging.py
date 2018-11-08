@@ -5,17 +5,21 @@ import queue
 import requests
 
 from logging.handlers import QueueHandler, QueueListener
-from prefect.client import Client
 from prefect.configuration import config
 
 
 class RemoteHandler(logging.StreamHandler):
     def __init__(self):
         super().__init__()
-        self.logger_server = config.cloud.logger_server
+        self.logger_server = config.cloud.log
+        self.client = None
 
     def emit(self, record):
-        r = requests.post(self.logger_server, params=record.__dict__)
+        if self.client is None:
+            from prefect.client import Client
+
+            self.client = Client()
+        r = self.client.post(path="", server=self.logger_server, **record.__dict__)
 
 
 def configure_logging() -> logging.Logger:

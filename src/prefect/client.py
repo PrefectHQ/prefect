@@ -9,7 +9,6 @@ if TYPE_CHECKING:
 
 import prefect
 from prefect.utilities import json
-from prefect.utilities.collections import to_dotdict
 
 
 BuiltIn = Union[bool, dict, list, str, set, tuple]
@@ -32,14 +31,14 @@ class Client:
     """
 
     def __init__(self, token: str = None) -> None:
-        api_server = prefect.config.cloud.get("api_server", None)
+        api_server = prefect.config.cloud.get("api", None)
 
         if not api_server:
             raise ValueError("Could not determine API server.")
 
         self.api_server = api_server
 
-        graphql_server = prefect.config.cloud.get("graphql_server", None)
+        graphql_server = prefect.config.cloud.get("graphql", None)
 
         # Default to the API server
         if not graphql_server:
@@ -110,7 +109,7 @@ class Client:
         if "errors" in result:
             raise ValueError(result["errors"])
         else:
-            return to_dotdict(result).data  # type: ignore
+            return prefect.utilities.collections.to_dotdict(result).data  # type: ignore
 
     def _request(
         self, method: str, path: str, params: dict = None, server: str = None
