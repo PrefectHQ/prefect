@@ -19,10 +19,12 @@ The six types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, `Ti
 `Skipped`.
 """
 import datetime
+import pendulum
 from typing import Any, Dict, Union
 
 import prefect
 from prefect.utilities.json import Serializable
+from prefect.utilities.datetimes import ensure_tz_aware
 
 
 class State(Serializable):
@@ -221,6 +223,8 @@ class CachedState(Pending):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.cached_result = cached_result
         self.cached_parameters = cached_parameters
+        if cached_result_expiration is not None:
+            cached_result_expiration = ensure_tz_aware(cached_result_expiration)
         self.cached_result_expiration = cached_result_expiration
 
 
@@ -247,7 +251,7 @@ class Scheduled(Pending):
         cached_inputs: Dict[str, Any] = None,
     ) -> None:
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
-        self.start_time = start_time or datetime.datetime.utcnow()
+        self.start_time = ensure_tz_aware(start_time or pendulum.now("utc"))
 
 
 class Retrying(Scheduled):

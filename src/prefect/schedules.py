@@ -2,8 +2,9 @@
 
 import itertools
 from datetime import datetime, timedelta
+import pendulum
 from typing import Iterable, List
-
+from prefect.utilities.datetimes import ensure_tz_aware
 import croniter
 
 
@@ -46,7 +47,7 @@ class IntervalSchedule(Schedule):
     def __init__(self, start_date: datetime, interval: timedelta) -> None:
         if interval.total_seconds() <= 0:
             raise ValueError("Interval must be positive")
-        self.start_date = start_date
+        self.start_date = ensure_tz_aware(start_date)
         self.interval = interval
 
     def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
@@ -61,7 +62,9 @@ class IntervalSchedule(Schedule):
             - list: list of next scheduled dates
         """
         if on_or_after is None:
-            on_or_after = datetime.utcnow()
+            on_or_after = pendulum.now("utc")
+        assert isinstance(on_or_after, datetime)  # mypy assertion
+        on_or_after = ensure_tz_aware(on_or_after)
 
         # infinite generator of all dates in the series
         all_dates = (
@@ -99,9 +102,11 @@ class CronSchedule(Schedule):
             - list: list of next scheduled dates
         """
         if on_or_after is None:
-            on_or_after = datetime.utcnow()
+            on_or_after = pendulum.now("utc")
+        assert isinstance(on_or_after, datetime)  # mypy assertion
+        on_or_after = ensure_tz_aware(on_or_after)
 
-        # croniter only supports >, not >=, so we subtract a microsecond
+        # croniter only supports >, not >=, so we subtract a second
         on_or_after -= timedelta(seconds=1)
 
         cron = croniter.croniter(self.cron, on_or_after)
