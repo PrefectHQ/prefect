@@ -1,10 +1,8 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import collections
-import datetime
-import functools
+import pendulum
 import logging
-from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterable, List, Union, Set, Sized, Optional
 
 import prefect
@@ -451,7 +449,7 @@ class TaskRunner(Runner):
             if (
                 not ignore_trigger
                 and state.start_time
-                and state.start_time > datetime.datetime.utcnow()
+                and state.start_time > pendulum.now("utc")
             ):
                 raise ENDRUN(state)
         return state
@@ -666,7 +664,7 @@ class TaskRunner(Runner):
             and not state.is_skipped()
             and self.task.cache_for is not None
         ):
-            expiration = datetime.datetime.utcnow() + self.task.cache_for
+            expiration = pendulum.now("utc") + self.task.cache_for
             cached_state = CachedState(
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
@@ -695,7 +693,7 @@ class TaskRunner(Runner):
         if state.is_failed():
             run_count = prefect.context.get("_task_run_count", 1)
             if run_count <= self.task.max_retries:
-                start_time = datetime.datetime.utcnow() + self.task.retry_delay
+                start_time = pendulum.now("utc") + self.task.retry_delay
                 msg = "Retrying Task (after attempt {n} of {m})".format(
                     n=run_count, m=self.task.max_retries + 1
                 )

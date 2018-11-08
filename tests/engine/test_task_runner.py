@@ -1,17 +1,16 @@
 import collections
 from datetime import datetime, timedelta
 from time import sleep
-
-import pytest
-
 from unittest.mock import MagicMock
+
+import pendulum
+import pytest
 
 import prefect
 from prefect.client import Secret
 from prefect.core.edge import Edge
 from prefect.core.task import Task
-from prefect.engine import signals, cache_validators
-from prefect.engine.task_runner import TaskRunner, ENDRUN
+from prefect.engine import cache_validators, signals
 from prefect.engine.cache_validators import (
     all_inputs,
     all_parameters,
@@ -36,6 +35,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
+from prefect.engine.task_runner import ENDRUN, TaskRunner
 from prefect.utilities.tasks import pause_task
 from prefect.utilities.tests import raise_on_exception
 
@@ -149,7 +149,7 @@ def test_task_that_fails_gets_retried_up_to_max_retry_time():
 
 
 def test_task_that_raises_retry_has_start_time_recognized():
-    now = datetime.utcnow()
+    now = pendulum.now("utc")
 
     class RetryNow(Task):
         def run(self):
@@ -166,6 +166,20 @@ def test_task_that_raises_retry_has_start_time_recognized():
     state = TaskRunner(task=Retry5Min()).run()
     assert isinstance(state, Retrying)
     assert state.start_time == now + timedelta(minutes=5)
+
+
+def test_task_that_raises_retry_with_naive_datetime_is_assumed_UTC():
+    now = datetime.utcnow()
+    assert now.tzinfo is None
+
+    class Retry5Min(Task):
+        def run(self):
+            raise signals.RETRY(start_time=now + timedelta(minutes=5))
+
+    state = TaskRunner(task=Retry5Min()).run()
+    assert isinstance(state, Retrying)
+    assert state.start_time == pendulum.instance(now, tz="UTC") + timedelta(minutes=5)
+    assert state.start_time.tzinfo
 
 
 def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
@@ -619,7 +633,7 @@ class TestCheckTaskCached:
         task = Task(cache_validator=cache_validators.duration_only)
         state = CachedState(
             cached_result=2,
-            cached_result_expiration=datetime.utcnow() + timedelta(minutes=1),
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
         )
 
         with pytest.raises(ENDRUN) as exc:
@@ -632,7 +646,7 @@ class TestCheckTaskCached:
         task = Task(cache_validator=cache_validators.duration_only)
         state = CachedState(
             cached_result=2,
-            cached_result_expiration=datetime.utcnow() + timedelta(minutes=-1),
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=-1),
         )
         new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
         assert new_state is state
@@ -791,7 +805,7 @@ class TestCheckRetryStep:
             assert new_state is state
 
     def test_retrying_with_start_time(self):
-        state = Retrying(start_time=datetime.utcnow())
+        state = Retrying(start_time=pendulum.now("utc"))
         new_state = TaskRunner(
             task=Task(max_retries=1, retry_delay=timedelta(0))
         ).check_for_retry(state=state, inputs={})
@@ -855,8 +869,8 @@ class TestCheckScheduledStep:
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled(start_time=datetime.utcnow() + timedelta(minutes=10)),
-            Retrying(start_time=datetime.utcnow() + timedelta(minutes=10)),
+            Scheduled(start_time=pendulum.now("utc") + timedelta(minutes=10)),
+            Retrying(start_time=pendulum.now("utc") + timedelta(minutes=10)),
         ],
     )
     def test_scheduled_states_with_future_start_time(self, state):
@@ -867,8 +881,8 @@ class TestCheckScheduledStep:
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled(start_time=datetime.utcnow() - timedelta(minutes=1)),
-            Retrying(start_time=datetime.utcnow() - timedelta(minutes=1)),
+            Scheduled(start_time=pendulum.now("utc") - timedelta(minutes=1)),
+            Retrying(start_time=pendulum.now("utc") - timedelta(minutes=1)),
         ],
     )
     def test_scheduled_states_with_past_start_time(self, state):
@@ -879,8 +893,8 @@ class TestCheckScheduledStep:
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled(start_time=datetime.utcnow() + timedelta(minutes=10)),
-            Retrying(start_time=datetime.utcnow() + timedelta(minutes=10)),
+            Scheduled(start_time=pendulum.now("utc") + timedelta(minutes=10)),
+            Retrying(start_time=pendulum.now("utc") + timedelta(minutes=10)),
         ],
     )
     def test_scheduled_stategnore_trigger_with_future_start_time(self, state):
