@@ -529,7 +529,7 @@ class Secret(json.Serializable):
     A Secret is a serializable object used to represent a secret key & value.
 
     Args:
-        - name (str): The name of the secret
+        - key (str): The name / key for the secret
 
     The value of the `Secret` is not set upon initialization and instead is set
     either in `prefect.context` or on the server, with behavior dependent on the value
@@ -538,8 +538,8 @@ class Secret(json.Serializable):
 
     _json_codec = json.ObjectAttributesCodec
 
-    def __init__(self, name: str) -> None:
-        self.name = name
+    def __init__(self, key: str) -> None:
+        self.key = key
 
     def get(self) -> Optional[str]:
         """
@@ -552,7 +552,7 @@ class Secret(json.Serializable):
         """
         if prefect.config.cloud.use_local_secrets is True:
             secrets = prefect.context.get("_secrets", {})
-            return secrets.get(self.name)
+            return secrets.get(self.key)
         else:
             client = Client()
             return client.graphql(  # type: ignore
@@ -562,7 +562,7 @@ class Secret(json.Serializable):
                         value
                     }
                 }""",
-                key=self.name,
+                key=self.key,
             ).secret.value
 
 
