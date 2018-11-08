@@ -1,12 +1,13 @@
-import json
-import pytz
 import datetime
-import prefect
-import pytest
-import marshmallow
-from prefect.serialization.state import StateSchema
-from prefect.engine import state
+import json
 
+import marshmallow
+import pendulum
+import pytest
+
+import prefect
+from prefect.engine import state
+from prefect.serialization.state import StateSchema
 
 all_states = set(
     cls
@@ -16,21 +17,32 @@ all_states = set(
 
 
 def complex_states():
-    dt = datetime.datetime(2020, 1, 1, tzinfo=pytz.UTC)
+    naive_dt = datetime.datetime(2020, 1, 1)
+    utc_dt = pendulum.datetime(2020, 1, 1)
     complex_result = {"x": 1, "y": {"z": 2}}
     cached_state = state.CachedState(
         cached_inputs=complex_result,
         cached_result=complex_result,
         cached_parameters=complex_result,
-        cached_result_expiration=dt,
+        cached_result_expiration=utc_dt,
+    )
+    cached_state_naive = state.CachedState(
+        cached_inputs=complex_result,
+        cached_result=complex_result,
+        cached_parameters=complex_result,
+        cached_result_expiration=naive_dt,
     )
     test_states = [
         state.Pending(cached_inputs=complex_result),
         state.Paused(cached_inputs=complex_result),
-        state.Retrying(start_time=dt, run_count=3),
-        state.Scheduled(start_time=dt),
+        state.Retrying(start_time=utc_dt, run_count=3),
+        state.Retrying(start_time=naive_dt, run_count=3),
+        state.Scheduled(start_time=utc_dt),
+        state.Scheduled(start_time=naive_dt),
         cached_state,
+        cached_state_naive,
         state.Success(result=complex_result, cached=cached_state),
+        state.Success(result=complex_result, cached=cached_state_naive),
         state.TimedOut(cached_inputs=complex_result),
     ]
     return test_states
@@ -68,20 +80,10 @@ def test_serialize_state(cls):
 @pytest.mark.parametrize("cls", all_states)
 def test_deserialize_state(cls):
     s = cls(message="message", result=1)
-    if isinstance(s, state.Scheduled):
-        s.start_time = s.start_time.replace(tzinfo=pytz.UTC)
     serialized = StateSchema().dump(s)
     deserialized = StateSchema().load(serialized)
     assert isinstance(deserialized, cls)
     assert deserialized == s
-
-
-def test_start_time_not_UTC():
-    """
-    in the above test, we replace the start time with a UTC time zone. This shouldn't
-    be necessary once it becomes tz-aware by default, at which time this test will fail.
-    """
-    assert state.Scheduled().start_time.tzinfo is None
 
 
 @pytest.mark.parametrize("cls", all_states)
