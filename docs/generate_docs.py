@@ -198,15 +198,6 @@ OUTLINE = [
         "title": "Collections",
     },
     {
-        "page": "utilities/json.md",
-        "classes": [
-            prefect.utilities.json.JSONCodec,
-            prefect.utilities.json.Serializable,
-        ],
-        "functions": [prefect.utilities.json.register_json_codec],
-        "title": "JSON",
-    },
-    {
         "page": "utilities/executors.md",
         "functions": [
             prefect.utilities.executors.main_thread_timeout,

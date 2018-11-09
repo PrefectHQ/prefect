@@ -23,11 +23,10 @@ import pendulum
 from typing import Any, Dict, Union
 
 import prefect
-from prefect.utilities.json import Serializable
 from prefect.utilities.datetimes import ensure_tz_aware
 
 
-class State(Serializable):
+class State:
     """
     Base state class implementing the basic helper methods for checking state.
 

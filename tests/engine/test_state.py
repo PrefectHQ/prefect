@@ -19,7 +19,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.utilities import json
+from prefect.serialization.state import StateSchema
 
 all_states = set(
     cls
@@ -102,8 +102,8 @@ def test_serialize():
         cached_result_expiration=now,
     )
     state = Success(result=dict(hi=5, bye=6), cached=cached)
-    j = json.dumps(state)
-    new_state = json.loads(j)
+    serialized = state.serialize()
+    new_state = StateSchema().load(serialized)
     assert isinstance(new_state, Success)
     assert new_state.color == state.color
     assert new_state.result == state.result
@@ -115,8 +115,8 @@ def test_serialize():
 
 def test_serialization_of_cached_inputs():
     state = Pending(cached_inputs=dict(hi=5, bye=6))
-    j = json.dumps(state)
-    new_state = json.loads(j)
+    serialized = state.serialize()
+    new_state = StateSchema().load(serialized)
     assert isinstance(new_state, Pending)
     assert new_state.cached_inputs == state.cached_inputs
 

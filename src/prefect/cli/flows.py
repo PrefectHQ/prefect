@@ -1,15 +1,15 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import json
 import os
 
 import click
 
 import prefect
-from prefect.client import Client, Flows, FlowRuns
 from prefect import config
+from prefect.client import Client, FlowRuns, Flows
 from prefect.core import registry
 from prefect.environments import ContainerEnvironment
-from prefect.utilities import json as prefect_json
 
 
 def load_flow(project, name, version, file):
@@ -46,7 +46,7 @@ def info():
     """
     Prints a JSON string of information about all registered flows.
     """
-    click.echo(prefect_json.dumps([f.serialize() for f in registry.REGISTRY.values()]))
+    click.echo(json.dumps([f.serialize() for f in registry.REGISTRY.values()]))
 
 
 @flows.command()
@@ -55,7 +55,7 @@ def ids():
     Prints all the flows in the registry.
     """
     output = {id: f.key() for id, f in registry.REGISTRY.items()}
-    click.echo(prefect_json.dumps(output, sort_keys=True))
+    click.echo(json.dumps(output, sort_keys=True))
 
 
 @flows.command()
@@ -171,7 +171,7 @@ def deploy(project, name, version, file, testing, parameters):
         type(flow.environment).__name__: flow.environment.build(flow=flow)
     }
     serialized_flow = flow.serialize()
-    serialized_flow["environment"] = prefect_json.dumps(environment_metadata)
+    serialized_flow["environment"] = json.dumps(environment_metadata)
 
     flows_gql = Flows(client=client)
 
