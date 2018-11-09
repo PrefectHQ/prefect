@@ -376,14 +376,15 @@ class Flows(ClientModule):
 
 class FlowRuns(ClientModule):
     def create(
-        self, flow_id: str, parameters: dict, start_time: datetime.datetime = None
+        self, flow_id: str, parameters: str, start_time: datetime.datetime = None
     ) -> dict:
         """
         Create a flow run
 
         Args:
             - flow_id (str): A unique flow identifier
-            - parameters (dict): Paramater dictionary to provide for the flow run
+            - parameters (str): Paramater dictionary to provide for the flow
+                run, as a JSON string
             - start_time (datetime, optional): An optional start time for the flow run
 
         Returns:
@@ -397,7 +398,9 @@ class FlowRuns(ClientModule):
                 }
             }
             """,
-            input=dict(flowId=flow_id, parameters=parameters, startTime=start_time),
+            input=dict(
+                flowId=flow_id, parameters=parameters, startTime=start_time.isoformat()
+            ),
         )
 
     def set_state(self, flow_run_id: str, state: "prefect.engine.state.State") -> dict:
