@@ -1,14 +1,15 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import datetime
+import json
 import os
-from typing import Optional, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
+
+import prefect
 
 if TYPE_CHECKING:
     import requests
-
-import prefect
-from prefect.utilities import json
+    from prefect.core import Flow
 
 
 BuiltIn = Union[bool, dict, list, str, set, tuple]
@@ -137,6 +138,7 @@ class Client:
 
         if server is None:
             server = self.api_server
+        assert isinstance(server, str)  # mypy assert
 
         if self.token is None:
             raise ValueError("Call Client.login() to set the client token.")
@@ -294,12 +296,12 @@ class Projects(ClientModule):
 
 
 class Flows(ClientModule):
-    def create(self, serialized_flow: dict) -> dict:
+    def create(self, flow: "Flow") -> dict:
         """
         Create a new flow on the server
 
         Args:
-            - serialized_flow (dict): A json serialized version of a flow
+            - flow (Flow): A Flow
 
         Returns:
             - dict: Data returned from the GraphQL mutation
@@ -312,7 +314,7 @@ class Flows(ClientModule):
                 }
             }
             """,
-            input=dict(serializedFlow=json.dumps(serialized_flow)),
+            input=dict(serializedFlow=json.dumps(flow.serialize())),
         )
 
     def query(self, project_name: str, flow_name: str, flow_version: str) -> dict:
@@ -418,7 +420,7 @@ class FlowRuns(ClientModule):
                 }
             }
             """,
-            input=dict(flowRunId=flow_run_id, state=json.dumps(state)),
+            input=dict(flowRunId=flow_run_id, state=json.dumps(state.serialize())),
         )
 
     def query(self, flow_run_id: str) -> dict:
@@ -471,7 +473,7 @@ class TaskRuns(ClientModule):
                 }
             }
             """,
-            input=dict(taskRunId=task_run_id, state=json.dumps(state)),
+            input=dict(taskRunId=task_run_id, state=json.dumps(state.serialize())),
         )
 
     def query(self, flow_run_id: str, task_id: str) -> dict:
@@ -528,7 +530,7 @@ class RunFlow(ClientModule):
         )
 
 
-class Secret(json.Serializable):
+class Secret:
     """
     A Secret is a serializable object used to represent a secret key & value.
 
@@ -539,8 +541,6 @@ class Secret(json.Serializable):
     either in `prefect.context` or on the server, with behavior dependent on the value
     of the `use_local_secrets` flag in your Prefect configuration file.
     """
-
-    _json_codec = json.ObjectAttributesCodec
 
     def __init__(self, name: str) -> None:
         self.name = name
@@ -600,7 +600,7 @@ class States(ClientModule):
             input=dict(
                 flowRunId=flow_run_id,
                 version=version,
-                serializedState=json.dumps(state),
+                state=json.dumps(state.serialize()),
             ),
         )
 
@@ -652,7 +652,7 @@ class States(ClientModule):
             input=dict(
                 taskRunId=task_run_id,
                 version=version,
-                serializedState=json.dumps(state),
+                state=json.dumps(state.serialize()),
             ),
         )
 

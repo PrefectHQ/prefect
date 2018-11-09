@@ -25,18 +25,12 @@ import toml
 
 import prefect
 from prefect.client import Secret
-from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 
-class Environment(Serializable):
+class Environment:
     """
     Base class for Environments
     """
-
-    _json_codec = ObjectAttributesCodec
-
-    def __init__(self) -> None:
-        pass
 
     def build(self, flow: "prefect.Flow") -> bytes:
         """

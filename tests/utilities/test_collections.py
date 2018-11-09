@@ -1,6 +1,7 @@
 import pytest
 import types
-from prefect.utilities import collections, json
+import json
+from prefect.utilities import collections
 from prefect.utilities.collections import DotDict, merge_dicts, to_dotdict
 
 
@@ -238,13 +239,9 @@ class TestDotDict:
         assert dotdict.d.e[0].f == 4
 
     def test_dotdict_is_not_json_serializable_with_default_encoder(self):
-        import json as default_json
 
         with pytest.raises(TypeError):
-            default_json.dumps(DotDict(x=1))
-
-    def test_dotdict_is_json_serialiable_with_prefect_encoder(self):
-        assert json.loads(json.dumps(DotDict(x=1))) == {"x": 1}
+            json.dumps(DotDict(x=1))
 
 
 @pytest.mark.parametrize("dct_class", [dict, DotDict])
