@@ -390,6 +390,7 @@ class FlowRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL mutation
         """
+        date_string = start_time.isoformat() if start_time else None
         return self._graphql(
             """
             mutation($input: CreateFlowRunInput!) {
@@ -399,7 +400,7 @@ class FlowRuns(ClientModule):
             }
             """,
             input=dict(
-                flowId=flow_id, parameters=parameters, startTime=start_time.isoformat()
+                flowId=flow_id, parameters=parameters, startTime=date_string
             ),
         )
 
