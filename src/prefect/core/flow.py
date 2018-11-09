@@ -4,6 +4,7 @@ import collections
 import copy
 import functools
 import inspect
+import json
 import tempfile
 import uuid
 from collections import Counter
@@ -17,10 +18,9 @@ import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.environments import Environment
-from prefect.utilities.json import Serializable, dumps
-from prefect.utilities.tasks import as_task, unmapped
 from prefect.utilities import logging
 from prefect.utilities.serialization import to_qualified_name
+from prefect.utilities.tasks import as_task, unmapped
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
@@ -56,7 +56,7 @@ def cache(method: Callable) -> Callable:
     return wrapper
 
 
-class Flow(Serializable):
+class Flow:
     """
     The Flow class is used as the representation of a collection of dependent Tasks.
     Flows track Task dependencies, parameters and provide the main API for constructing and managing workflows.
@@ -1013,7 +1013,7 @@ class Flow(Serializable):
         serialized = prefect.serialization.flow.FlowSchema().dump(self)
 
         serialized.update(
-            environment=dumps(self.environment), environment_key=environment_key
+            environment=json.dumps(self.environment), environment_key=environment_key
         )
 
         return serialized
@@ -1107,7 +1107,9 @@ class Flow(Serializable):
         # -----------------------------------------------------------
 
         ids = {
-            t: _hash(dumps((t.serialize(), self.project, self.name), sort_keys=True))
+            t: _hash(
+                json.dumps((t.serialize(), self.project, self.name), sort_keys=True)
+            )
             for t in tasks
         }
 

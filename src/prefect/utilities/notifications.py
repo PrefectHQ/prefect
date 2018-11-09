@@ -3,15 +3,15 @@ Tools and utilities for notifications and callbacks.
 
 For an in-depth guide to setting up your system for using Slack notifications, [please see our tutorial](../../tutorials/slack-notifications.html).
 """
-import requests
 import smtplib
+from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.header import Header
+
+import requests
 from toolz import curry
 
-from prefect.client import Secret
-
+import prefect
 
 __all__ = ["gmail_notifier", "slack_notifier"]
 
@@ -130,8 +130,8 @@ def gmail_notifier(
             return x + y
         ```
     """
-    username = Secret("EMAIL_USERNAME").get()
-    password = Secret("EMAIL_PASSWORD").get()
+    username = prefect.client.Secret("EMAIL_USERNAME").get()
+    password = prefect.client.Secret("EMAIL_PASSWORD").get()
     ignore_states = ignore_states or []
     only_states = only_states or []
 
@@ -199,7 +199,7 @@ def slack_notifier(
             return x + y
         ```
     """
-    webhook_url = webhook_url or Secret("SLACK_WEBHOOK_URL").get()
+    webhook_url = webhook_url or prefect.client.Secret("SLACK_WEBHOOK_URL").get()
     ignore_states = ignore_states or []
     only_states = only_states or []
 

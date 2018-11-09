@@ -11,7 +11,6 @@ import prefect
 import prefect.engine.cache_validators
 import prefect.engine.signals
 import prefect.triggers
-from prefect.utilities.json import Serializable, to_qualified_name
 from prefect.utilities import logging
 
 if TYPE_CHECKING:
@@ -52,7 +51,7 @@ class SignatureValidator(type):
         return type.__new__(cls, name, parents, methods)
 
 
-class Task(Serializable, metaclass=SignatureValidator):
+class Task(metaclass=SignatureValidator):
     """
     The Task class which is used as the full representation of a unit of work.
 

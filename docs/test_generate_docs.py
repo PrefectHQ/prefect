@@ -19,7 +19,6 @@ from generate_docs import (
 )
 from prefect import task
 from prefect.engine.state import State
-from prefect.utilities.json import dumps, loads
 
 
 def no_args():
@@ -151,11 +150,6 @@ def test_create_absolute_path_on_prefect_object(obj, exp):
 def test_create_absolute_path_on_nonprefect_object(obj, exp):
     path = create_absolute_path(obj)
     assert path == exp
-
-
-@pytest.mark.parametrize("obj", [dumps, loads])
-def test_format_subheader_doesnt_raise_on_json_utils(obj):
-    doc = format_subheader(obj)
 
 
 def test_format_subheader_on_class():
