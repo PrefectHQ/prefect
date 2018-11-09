@@ -5,10 +5,9 @@ from typing import Any, Callable, Dict, Iterable, Iterator
 
 import prefect
 from prefect.utilities.executors import multiprocessing_timeout
-from prefect.utilities.json import Serializable
 
 
-class Executor(Serializable):
+class Executor:
     """
     Base Executor class which all other executors inherit from.
     """
