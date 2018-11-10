@@ -469,13 +469,16 @@ class FlowRuns(ClientModule):
 
 
 class TaskRuns(ClientModule):
-    def set_state(self, task_run_id: str, state: "prefect.engine.state.State") -> dict:
+    def set_state(
+        self, task_run_id: str, state: "prefect.engine.state.State", version: str
+    ) -> dict:
         """
         Set a task run state
 
         Args:
             - task_run_id (str): A unique task run identifier
             - state (State): A prefect state object
+            - version (str): the current task run version number
 
         Returns:
             - dict: Data returned from the GraphQL query
@@ -485,11 +488,21 @@ class TaskRuns(ClientModule):
             """
             mutation($input: SetTaskRunStateInput!) {
                 setTaskRunState(input: $input) {
-                    task_state {state}
+                    state {
+                        state
+                        message
+                        taskRun{
+                            version
+                        }
+                    }
                 }
             }
             """,
-            input=dict(taskRunId=task_run_id, state=json.dumps(state.serialize())),
+            input=dict(
+                taskRunId=task_run_id,
+                state=json.dumps(state.serialize()),
+                version=version,
+            ),
         )
 
     def query(self, flow_run_id: str, task_id: str) -> dict:
