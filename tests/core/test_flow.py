@@ -999,14 +999,14 @@ class TestCache:
 
         # check that cache holds result
         key = ("parameters", ())
-        assert f._cache[key] == dict(t1=dict(required=True, default=None))
+        assert f._cache[key] == {t1}
 
         # check that cache is read
         f._cache[key] = 1
         assert f.parameters() == 1
 
         f.add_edge(t2, t3)
-        assert f.parameters() == dict(t1=dict(required=True, default=None))
+        assert f.parameters() == {t1}
 
     def test_cache_all_upstream_edges(self):
         f = Flow()
