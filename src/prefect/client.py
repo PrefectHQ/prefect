@@ -399,18 +399,19 @@ class FlowRuns(ClientModule):
                 }
             }
             """,
-            input=dict(
-                flowId=flow_id, parameters=parameters, startTime=date_string
-            ),
+            input=dict(flowId=flow_id, parameters=parameters, startTime=date_string),
         )
 
-    def set_state(self, flow_run_id: str, state: "prefect.engine.state.State") -> dict:
+    def set_state(
+        self, flow_run_id: str, state: "prefect.engine.state.State", version: str
+    ) -> dict:
         """
         Set a flow run state
 
         Args:
             - flow_run_id (str): A unique flow_run identifier
             - state (State): A prefect state object
+            - version (str): the current flow run version number
 
         Returns:
             - dict: Data returned from the GraphQL query
@@ -420,11 +421,21 @@ class FlowRuns(ClientModule):
             """
             mutation($input: SetFlowRunStateInput!) {
                 setFlowRunState(input: $input) {
-                    flow_state {state}
+                    state {
+                        state
+                        message
+                        flowRun{
+                            version
+                        }
+                    }
                 }
             }
             """,
-            input=dict(flowRunId=flow_run_id, state=json.dumps(state.serialize())),
+            input=dict(
+                flowRunId=flow_run_id,
+                state=json.dumps(state.serialize()),
+                version=version,
+            ),
         )
 
     def query(self, flow_run_id: str) -> dict:
