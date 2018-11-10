@@ -8,7 +8,7 @@ import json
 import tempfile
 import uuid
 from collections import Counter
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Set, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Set, Tuple, Union
 
 import xxhash
 from mypy_extensions import TypedDict
@@ -382,7 +382,7 @@ class Flow:
     @cache
     def parameters(
         self, names_only: bool = False, only_required: bool = False
-    ) -> Dict[str, ParameterDetails]:
+    ) -> Set[Union[str, Parameter]]:
         """
         Get details about any Parameters in this flow.
 
