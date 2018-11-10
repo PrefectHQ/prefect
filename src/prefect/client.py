@@ -478,7 +478,7 @@ class TaskRuns(ClientModule):
         Args:
             - task_run_id (str): A unique task run identifier
             - state (State): A prefect state object
-            - version (str): the current task run version number
+            - version (int): the current task run version number
 
         Returns:
             - dict: Data returned from the GraphQL query
