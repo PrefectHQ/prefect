@@ -376,15 +376,14 @@ class Flows(ClientModule):
 
 class FlowRuns(ClientModule):
     def create(
-        self, flow_id: str, parameters: str, start_time: datetime.datetime = None
+        self, flow_id: str, parameters: dict, start_time: datetime.datetime = None
     ) -> dict:
         """
         Create a flow run
 
         Args:
             - flow_id (str): A unique flow identifier
-            - parameters (str): Paramater dictionary to provide for the flow
-                run, as a JSON string
+            - parameters (dict): Paramater dictionary to provide for the flow run
             - start_time (datetime, optional): An optional start time for the flow run
 
         Returns:
@@ -399,7 +398,9 @@ class FlowRuns(ClientModule):
                 }
             }
             """,
-            input=dict(flowId=flow_id, parameters=parameters, startTime=date_string),
+            input=dict(
+                flowId=flow_id, parameters=json.dumps(parameters), startTime=date_string
+            ),
         )
 
     def set_state(
