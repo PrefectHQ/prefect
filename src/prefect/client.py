@@ -507,7 +507,7 @@ class TaskRuns(ClientModule):
 
     def query(self, flow_run_id: str, task_id: str) -> dict:
         """
-        Retrieve a flow's environment metadata
+        Retrieve a task's environment metadata
 
         Args:
             - flow_run_id (str): Unique identifier of a flow run this task run belongs to
