@@ -96,6 +96,11 @@ class DotDict(MutableMapping):
         return dict(self)
 
 
+class GraphQLResult(DotDict):
+    def __repr__(self) -> str:
+        return json.dumps(as_nested_dict(self, dict), indent=4)
+
+
 def merge_dicts(d1: DictLike, d2: DictLike) -> DictLike:
     """
     Updates `d1` from `d2` by replacing each `(k, v1)` pair in `d1` with the
