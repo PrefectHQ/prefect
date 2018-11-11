@@ -191,7 +191,7 @@ OUTLINE = [
         "classes": [prefect.utilities.collections.DotDict],
         "functions": [
             prefect.utilities.collections.merge_dicts,
-            prefect.utilities.collections.to_dotdict,
+            prefect.utilities.collections.as_nested_dict,
             prefect.utilities.collections.dict_to_flatdict,
             prefect.utilities.collections.flatdict_to_dict,
         ],
