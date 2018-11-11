@@ -6,6 +6,7 @@ import os
 from typing import TYPE_CHECKING, Optional, Union
 
 import prefect
+from prefect.utilities import collections
 
 if TYPE_CHECKING:
     import requests
@@ -110,7 +111,9 @@ class Client:
         if "errors" in result:
             raise ValueError(result["errors"])
         else:
-            return prefect.utilities.collections.to_dotdict(result).data  # type: ignore
+            return collections.as_nested_dict(  # type: ignore
+                result, collections.GraphQLResult
+            ).data
 
     def _request(
         self, method: str, path: str, params: dict = None, server: str = None

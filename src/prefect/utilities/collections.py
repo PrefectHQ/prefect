@@ -1,9 +1,8 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
-
 import collections
+import json
 from collections.abc import MutableMapping
 from typing import Any, Generator, Iterable, Iterator, Union
-
 
 DictLike = Union[dict, "DotDict"]
 
@@ -97,6 +96,11 @@ class DotDict(MutableMapping):
         return dict(self)
 
 
+class GraphQLResult(DotDict):
+    def __repr__(self) -> str:
+        return json.dumps(as_nested_dict(self, dict), indent=4)
+
+
 def merge_dicts(d1: DictLike, d2: DictLike) -> DictLike:
     """
     Updates `d1` from `d2` by replacing each `(k, v1)` pair in `d1` with the
@@ -125,27 +129,25 @@ def merge_dicts(d1: DictLike, d2: DictLike) -> DictLike:
     return new_dict
 
 
-def to_dotdict(
-    obj: Union[DictLike, Iterable[DictLike]]
+def as_nested_dict(
+    obj: Union[DictLike, Iterable[DictLike]], dct_class: type = DotDict
 ) -> Union[DictLike, Iterable[DictLike]]:
     """
-    Given a obj formatted as a dictionary, returns an object
-    that also supports "dot" access:
-
-    **Example**:
-    `obj['data']['child']` becomes accessible by `obj.data.child`
+    Given a obj formatted as a dictionary, transforms it (and any nested dictionaries)
+    into the provided dct_class
 
     Args:
-        - obj (Any): An object that is formatted as a standard `dict`
+        - obj (Any): An object that is formatted as a `dict`
+        - dct_class (type): the `dict` class to use (defaults to DotDict)
 
     Returns:
-        - A DotDict representation of the object passed in
+        - A `dict_class` representation of the object passed in
     ```
     """
     if isinstance(obj, (list, tuple, set)):
-        return type(obj)([to_dotdict(d) for d in obj])
-    elif isinstance(obj, dict):
-        return DotDict({k: to_dotdict(v) for k, v in obj.items()})
+        return type(obj)([as_nested_dict(d, dct_class) for d in obj])
+    elif isinstance(obj, (dict, DotDict)):
+        return dct_class({k: as_nested_dict(v, dct_class) for k, v in obj.items()})
     return obj
 
 
