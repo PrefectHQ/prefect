@@ -8,7 +8,7 @@ import json
 import tempfile
 import uuid
 from collections import Counter
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Set, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Set, Tuple, Union
 
 import xxhash
 from mypy_extensions import TypedDict
@@ -380,11 +380,15 @@ class Flow:
         return set(t for t in self.tasks if not self.edges_from(t))
 
     @cache
-    def parameters(self, only_required: bool = False) -> Dict[str, ParameterDetails]:
+    def parameters(
+        self, names_only: bool = False, only_required: bool = False
+    ) -> Set[Union[str, Parameter]]:
         """
         Get details about any Parameters in this flow.
 
         Args:
+            - names_only (bool, optional): Whether or not to only return
+            parameter names
             - only_required (bool, optional): Whether or not to only get
             required parameters; defaults to `False`
 
@@ -393,7 +397,7 @@ class Flow:
             Parameters
         """
         return {
-            t.name: {"required": t.required, "default": t.default}
+            t.name if names_only else t
             for t in self.tasks
             if isinstance(t, Parameter) and (t.required if only_required else True)
         }
@@ -892,7 +896,9 @@ class Flow:
         """
         runner = prefect.engine.flow_runner.FlowRunner(flow=self)  # type: ignore
         parameters = parameters or {}
-        unknown_params = [p for p in parameters if p not in self.parameters()]
+        unknown_params = [
+            p for p in parameters if p not in self.parameters(names_only=True)
+        ]
         if unknown_params:
             fmt_params = ", ".join(unknown_params)
             raise TypeError(
@@ -902,7 +908,7 @@ class Flow:
             )
 
         passed_parameters = {}
-        for p in self.parameters():
+        for p in self.parameters(names_only=True):
             if p in kwargs:
                 passed_parameters[p] = kwargs.pop(p)
             elif p in parameters:
