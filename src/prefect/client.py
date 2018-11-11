@@ -470,7 +470,7 @@ class FlowRuns(ClientModule):
 
 class TaskRuns(ClientModule):
     def set_state(
-        self, task_run_id: str, state: "prefect.engine.state.State", version: str
+        self, task_run_id: str, state: "prefect.engine.state.State", version: int
     ) -> dict:
         """
         Set a task run state
