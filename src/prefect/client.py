@@ -523,8 +523,8 @@ class TaskRuns(ClientModule):
             """
             query($flow_run_id: ID!, $task_id: ID!) {
                 taskRuns(where: {
-                    flow_run_id: $flow_run_id,
-                    task_id: $task_id,
+                    flowRun: {id: $flow_run_id},
+                    task: {id: $task_id},
                 }) {
                     id
                 }
