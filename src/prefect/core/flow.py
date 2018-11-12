@@ -1018,9 +1018,7 @@ class Flow:
 
         serialized = prefect.serialization.flow.FlowSchema().dump(self)
 
-        serialized.update(
-            environment=json.dumps(self.environment), environment_key=environment_key
-        )
+        serialized.update(environment_key=environment_key)
 
         return serialized
 
