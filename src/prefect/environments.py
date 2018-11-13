@@ -24,12 +24,13 @@ import docker
 import toml
 
 import prefect
+from prefect import config
 from prefect.client import Secret
-from prefect.serializers import JSONSerializer
+from prefect.serializers import Serializer
 # from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 
-class Environment(JSONSerializer):
+class Environment:
     """
     Base class for Environments
     """
@@ -141,9 +142,7 @@ class ContainerEnvironment(Environment):
 
             self.pull_image()
 
-            path = os.path.join(
-                os.getenv("HOME"), "Desktop/code/prefect/src/prefect/config.toml"
-            )
+            path = config.user_config_path
 
             if Path(path).is_file():
                 config_data = toml.load(path)
@@ -158,10 +157,10 @@ class ContainerEnvironment(Environment):
 
             client = docker.from_env()
 
-            if not config_data["registry_url"]:
+            if not config.cloud.registry_url:
                 raise ValueError("Registry not specified.")
 
-            image_name = os.path.join(config_data["registry_url"], self.name)
+            image_name = os.path.join(config.cloud.registry_url, self.name)
 
             logging.info("Building the flow's container environment...")
             client.images.build(
