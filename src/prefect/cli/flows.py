@@ -100,13 +100,7 @@ def build(project, name, version, file):
     """
     flow = load_flow(project, name, version, file)
 
-    # Store output from building environment
-    # Use metadata instead of environment object to avoid storing client secrets
-    environment_metadata = {
-        type(flow.environment).__name__: flow.environment.build(flow=flow)
-    }
-
-    return environment_metadata
+    return flow.serialize(build=True)
 
 
 @flows.command()
@@ -166,13 +160,6 @@ def deploy(project, name, version, file, testing, parameters):
     client = Client()
     client.login(email=config["email"], password=config["password"])
 
-    # Store output from building environment
-    # Use metadata instead of environment object to avoid storing client secrets
-    # environment_metadata = {
-    #     type(flow.environment).__name__: flow.environment.build(flow=flow)
-    # }
-    # serialized_flow = flow.serialize()
-    # serialized_flow["environment"] = json.dumps(environment_metadata)
     flow.environment = flow.environment.build(flow=flow)
 
     flows_gql = Flows(client=client)
