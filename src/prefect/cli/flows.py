@@ -171,8 +171,8 @@ def deploy(project, name, version, file, testing, parameters):
     # environment_metadata = {
     #     type(flow.environment).__name__: flow.environment.build(flow=flow)
     # }
-    #serialized_flow = flow.serialize()
-    #serialized_flow["environment"] = json.dumps(environment_metadata)
+    # serialized_flow = flow.serialize()
+    # serialized_flow["environment"] = json.dumps(environment_metadata)
     flow.environment = flow.environment.build(flow=flow)
 
     flows_gql = Flows(client=client)
