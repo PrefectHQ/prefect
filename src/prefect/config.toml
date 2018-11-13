@@ -7,14 +7,12 @@ debug = false
 # running in prefect cloud
 prefect_cloud = false
 
-email = "leia@prefect.io"
-password = "test"
-registry_url = "gcr.io/prefect-dev/flows/"
+
 
 [cloud]
 # the Prefect Server address
-api = "http://35.231.19.186:4200"
-graphql = "http://35.231.19.186:4200/graphql"
+api = "http://localhost:4200"
+graphql = "http://localhost:4200/graphql"
 log = "http://localhost:4202/log"
 use_local_secrets = true
 
