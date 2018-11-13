@@ -73,7 +73,7 @@ def run(id):
     flow_run_id = config.get("flow_run_id", None)
 
     if flow_run_id:
-        client = Client(config.api_url, os.path.join(config.api_url, "graphql/"))
+        client = Client()
         client.login(email=config.email, password=config.password)
 
         flow_runs_gql = FlowRuns(client=client)
