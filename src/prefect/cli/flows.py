@@ -162,7 +162,7 @@ def deploy(project, name, version, file, testing, parameters):
     """
     flow = load_flow(project, name, version, file)
 
-    client = Client(config["api_url"], os.path.join(config["api_url"], "graphql/"))
+    client = Client()
     client.login(email=config["email"], password=config["password"])
 
     # Store output from building environment
@@ -188,7 +188,7 @@ def deploy(project, name, version, file, testing, parameters):
 
     # Create the flow in the database
     try:
-        flow_create_output = flows_gql.create(serialized_flow=serialized_flow)
+        flow_create_output = flows_gql.create(flow=flow)
     except ValueError as value_error:
         if "No project found for" in str(value_error):
             raise click.ClickException("No project found for {}".format(project))

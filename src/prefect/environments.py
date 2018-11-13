@@ -25,12 +25,17 @@ import toml
 
 import prefect
 from prefect.client import Secret
+from prefect.serializers import JSONSerializer
+# from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 
-class Environment:
+class Environment(JSONSerializer):
     """
     Base class for Environments
     """
+
+    def __init__(self) -> None:
+        pass
 
     def build(self, flow: "prefect.Flow") -> bytes:
         """
@@ -136,7 +141,9 @@ class ContainerEnvironment(Environment):
 
             self.pull_image()
 
-            path = os.path.join(os.getenv("HOME"), ".prefect/config.toml")
+            path = os.path.join(
+                os.getenv("HOME"), "Desktop/code/prefect/src/prefect/config.toml"
+            )
 
             if Path(path).is_file():
                 config_data = toml.load(path)
@@ -151,10 +158,10 @@ class ContainerEnvironment(Environment):
 
             client = docker.from_env()
 
-            if not config_data["REGISTRY_URL"]:
+            if not config_data["registry_url"]:
                 raise ValueError("Registry not specified.")
 
-            image_name = os.path.join(config_data["REGISTRY_URL"], self.name)
+            image_name = os.path.join(config_data["registry_url"], self.name)
 
             logging.info("Building the flow's container environment...")
             client.images.build(
@@ -264,9 +271,9 @@ class ContainerEnvironment(Environment):
                 COPY config.toml /root/.prefect/config.toml
 
                 ENV PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="/root/.prefect/registry"
-                ENV PREFECT__GENERAL__USER_CONFIG_PATH="/root/.prefect/config.toml"
+                ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
 
-                RUN pip install jinja2
+
                 RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
             """.format(
