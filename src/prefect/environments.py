@@ -84,14 +84,18 @@ class ContainerEnvironment(Environment):
         image: str,
         name: str = None,
         tag: str = None,
+        registry_url: str = None,
         python_dependencies: list = None,
         secrets: list = None,
+        flow_id: str = None,
     ) -> None:
         self._image = image
         self._name = name or str(uuid.uuid4())
         self._tag = tag or str(uuid.uuid4())
+        self._registry_url = registry_url
         self._python_dependencies = python_dependencies or []
         self._secrets = secrets or []
+        self._flow_id = flow_id
         self.last_container_id = None
 
         super().__init__()
@@ -122,11 +126,23 @@ class ContainerEnvironment(Environment):
         return self._tag
 
     @property
+    def registry_url(self) -> str:
+        """Get the container's registry URL"""
+        return self._registry_url
+
+    @property
+    def flow_id(self) -> str:
+        """Get the container's flow ID"""
+        return self._flow_id
+
+    @property
     def client(self) -> "docker.client.DockerClient":
         """Get the environment's client"""
         return docker.from_env()
 
-    def build(self, flow: "prefect.Flow", push: bool = True) -> tuple:
+    def build(
+        self, flow: "prefect.Flow", push: bool = True
+    ) -> "prefect.environments.ContainerEnvironment":
         """Build the Docker container
 
         Args:
@@ -158,10 +174,10 @@ class ContainerEnvironment(Environment):
 
             client = docker.from_env()
 
-            if not config.cloud.registry_url:
+            if not self.registry_url:
                 raise ValueError("Registry not specified.")
 
-            image_name = os.path.join(config.cloud.registry_url, self.name)
+            image_name = os.path.join(self.registry_url, self.name)
 
             logging.info("Building the flow's container environment...")
             client.images.build(
@@ -174,7 +190,8 @@ class ContainerEnvironment(Environment):
             # Remove the image locally after being pushed
             client.images.remove("{}:{}".format(image_name, self.tag))
 
-            return {"image_name": image_name, "image_tag": self.tag, "flow_id": flow.id}
+            self._flow_id = flow.id
+            return self
 
     def run(self, cli_cmd: str) -> None:
         """Run a command in the Docker container
