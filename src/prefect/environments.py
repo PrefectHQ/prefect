@@ -291,7 +291,7 @@ class ContainerEnvironment(Environment):
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
 
 
-                RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
+                RUN git clone -b josh/handoff https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
             """.format(
                     image=self.image, pip_installs=pip_installs, env_vars=env_vars

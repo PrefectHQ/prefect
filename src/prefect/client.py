@@ -462,7 +462,8 @@ class FlowRuns(ClientModule):
                     id: $flow_run_id
                 }) {
                     id,
-                    parameters
+                    parameters,
+                    version
                 }
             }
             """,
@@ -529,7 +530,8 @@ class TaskRuns(ClientModule):
                     flowRun: {id: $flow_run_id},
                     task: {id: $task_id},
                 }) {
-                    id
+                    id,
+                    version
                 }
             }
             """,
