@@ -4,6 +4,7 @@ import json
 import os
 
 import click
+import pendulum
 
 import prefect
 from prefect import config
@@ -197,15 +198,17 @@ def deploy(project, name, version, file, testing, parameters):
 
     flow_db_id = flow_create_output.createFlow.flow.id
 
-    next_scheduled_run = None
-    if flow.schedule.next(1):
-        next_scheduled_run = flow.schedule.next(1)[0]
-        next_scheduled_run = next_scheduled_run.isoformat()
+    if flow.schedule:
+        next_scheduled_run = None
+        if flow.schedule.next(1):
+            next_scheduled_run = flow.schedule.next(1)[0]
 
-    # Create Flow Run
-    flow_runs_gql = FlowRuns(client=client)
-    flow_runs_gql.create(
-        flow_id=flow_db_id, parameters=parameters, start_time=next_scheduled_run
-    )
+        # Create Flow Run
+        flow_runs_gql = FlowRuns(client=client)
+        flow_runs_gql.create(
+            flow_id=flow_db_id,
+            parameters=parameters or {},
+            start_time=next_scheduled_run,
+        )
 
     click.echo("{} deployed.".format(name))
