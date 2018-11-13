@@ -3,6 +3,7 @@ from marshmallow import fields, post_load, pre_dump
 import prefect
 from prefect.serialization.edge import EdgeSchema
 from prefect.serialization.schedule import ScheduleSchema
+from prefect.serialization.environment import EnvironmentSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
 from prefect.utilities.serialization import VersionedSchema, version, to_qualified_name
 from prefect.utilities.serialization import JSONField, NestedField
@@ -12,13 +13,7 @@ from prefect.utilities.serialization import JSONField, NestedField
 class FlowSchema(VersionedSchema):
     class Meta:
         object_class = lambda: prefect.core.Flow
-        object_class_exclude = [
-            "id",
-            "type",
-            "parameters",
-            "environment_key",
-            "environment",
-        ]
+        object_class_exclude = ["id", "type", "parameters", "environment_key"]
         # ordered to make sure Task objects are loaded before Edge objects, due to Task caching
         ordered = True
 
@@ -29,7 +24,7 @@ class FlowSchema(VersionedSchema):
     description = fields.String(allow_none=True)
     type = fields.Function(lambda flow: to_qualified_name(type(flow)), lambda x: x)
     schedule = fields.Nested(ScheduleSchema, allow_none=True)
-    environment = JSONField(allow_none=True)
+    environment = fields.Nested(EnvironmentSchema, allow_none=True)
     environment_key = fields.String(allow_none=True)
     parameters = NestedField(
         ParameterSchema,
