@@ -72,7 +72,7 @@ def login():
         "password", hide_input=True, confirmation_prompt=True
     )
 
-    client = Client(config["api_url"], os.path.join(config["api_url"], "graphql/"))
+    client = Client()
 
     client.login(email=config["email"], password=config["password"])
 
