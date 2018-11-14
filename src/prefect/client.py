@@ -165,9 +165,6 @@ class Client:
             else:
                 raise ValueError("Invalid method: {}".format(method))
 
-            print(url, headers, params)
-            print(response)
-
             # Check if request returned a successful status
             response.raise_for_status()
 
@@ -315,25 +312,25 @@ class Flows(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL mutation
         """
-        # mutation = {
-        #     "mutation": {
-        #         with_args(
-        #             "createFlow",
-        #             {"input": {"serializedFlow": json.dumps(flow.serialize())}},
-        #         ): {"flow": {"id"}}
-        #     }
-        # }
-        # return self._graphql(parse_graphql(mutation))
-        return self._graphql(
-            """
-            mutation($input: CreateFlowInput!) {
-                createFlow(input: $input) {
-                    flow {id}
-                }
+        mutation = {
+            "mutation": {
+                with_args(
+                    "createFlow",
+                    {"input": {"serializedFlow": json.dumps(flow.serialize())}},
+                ): {"flow": {"id"}}
             }
-            """,
-            input=dict(serializedFlow=json.dumps(flow.serialize())),
-        )
+        }
+        return self._graphql(parse_graphql(mutation))
+        # return self._graphql(
+        #     """
+        #     mutation($input: CreateFlowInput!) {
+        #         createFlow(input: $input) {
+        #             flow {id}
+        #         }
+        #     }
+        #     """,
+        #     input=dict(serializedFlow=json.dumps(flow.serialize())),
+        # )
 
     def query(self, project_name: str, flow_name: str, flow_version: str) -> dict:
         """
