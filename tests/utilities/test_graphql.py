@@ -1,6 +1,7 @@
 from textwrap import dedent
 import pytest
 from prefect.utilities.graphql import GQLObject, parse_graphql
+from collections import OrderedDict
 
 
 class Account(GQLObject):
@@ -29,12 +30,24 @@ class Mutation(GQLObject):
 
 
 def verify(query, expected):
-    parsed = parse_graphql(query)
-    assert dedent(parsed).strip() == dedent(expected).strip()
+    assert parse_graphql(query) == dedent(expected).strip()
 
 
 def test_default_gqlo_name_is_lowercase():
     assert str(Account()) == "account"
+
+
+def test_parse_graphql_dedents_and_strips():
+    query = """
+
+
+
+        hi
+            there
+
+
+    """
+    assert parse_graphql(query) == "hi\n    there"
 
 
 def test_string_query_1():
@@ -68,8 +81,14 @@ def test_string_query_2():
 
 
 def test_string_query_3():
+
+    # do this to ensure field order on Python < 3.6
+    inner = OrderedDict()
+    inner["users"] = ["id", "name"]
+    inner["accounts"] = ["id", "name"]
+
     verify(
-        query={"query": {"users": ["id", "name"], "accounts": ["id", "name"]}},
+        query={"query": inner},
         expected="""
             query {
                 users {
@@ -100,13 +119,14 @@ def test_gqlo_1():
 
 
 def test_gqlo_2():
+
+    # do this to ensure field order on Python < 3.6
+    inner = OrderedDict()
+    inner[Query.accounts] = [Account.id, Account.name]
+    inner[Query.users] = [User.id, User.name]
+
     verify(
-        query={
-            "query": {
-                Query.accounts: [Account.id, Account.name],
-                Query.users: [User.id, User.name],
-            }
-        },
+        query={"query": inner},
         expected="""
             query {
                 accounts {
