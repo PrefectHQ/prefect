@@ -1,5 +1,7 @@
+import re
 import textwrap
-from typing import Any
+from typing import Any, Union
+from prefect.utilities.collections import as_nested_dict
 
 
 def lowercase_first_letter(s: str) -> str:
@@ -119,17 +121,30 @@ def _parse_graphql_inner(document: Any, delimiter: str) -> str:
         return str(document).replace("\n", "\n" + delimiter)
 
 
-def parse_graphql_arguments(arguments: Any) -> str:
+def parse_graphql_arguments(arguments: Union[dict, str]) -> str:
     """
     Parses a dictionary of GraphQL arguments, returning a GraphQL-compliant string
-    representation.
+    representation. If a string is passed, it is returned without modification.
+
+    This parser makes a few adjustments to the dictionary's usual string representation:
+        - `'` around keys are removed
+        - spaces added around curly braces
+        - leading and lagging braces are removed
+        - `True` becomes `true`, `False` becomes `false`, and `None` becomes `null`
     """
     if isinstance(arguments, dict):
+        parsed = as_nested_dict(arguments, dict)
         # remove quotes around keys
-        parsed = str(arguments).replace("'", "")
+        parsed = str(parsed).replace("'", "")
         # strip leading and lagging braces
         parsed = parsed[1:-1]
         # add space before/after braces
         parsed = parsed.replace("{", "{ ").replace("}", " }")
+        # replace True with true
+        parsed = re.sub(r"\bTrue\b", "true", parsed)
+        # replace False with false
+        parsed = re.sub(r"\bFalse\b", "false", parsed)
+        # replace None with null
+        parsed = re.sub(r"\bNone\b", "null", parsed)
         return parsed
     return arguments
