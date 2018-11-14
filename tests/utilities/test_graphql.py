@@ -1,6 +1,7 @@
+import sys
 from textwrap import dedent
 import pytest
-from prefect.utilities.graphql import GQLObject, parse_graphql
+from prefect.utilities.graphql import GQLObject, parse_graphql, parse_graphql_arguments
 from collections import OrderedDict
 
 
@@ -40,14 +41,43 @@ def test_default_gqlo_name_is_lowercase():
 def test_parse_graphql_dedents_and_strips():
     query = """
 
-
-
         hi
             there
 
-
     """
     assert parse_graphql(query) == "hi\n    there"
+
+
+def test_parse_arguments():
+    args = parse_graphql_arguments({"where": {"x": {"eq": "1"}}})
+    assert args == 'where: { x: { eq: "1" } }'
+
+
+def test_parse_bool_arguments():
+    # test that bool args are matched, even if follwed by a comma
+    # ordering issues in earlier python versions
+    inner = OrderedDict()
+    inner["x"] = True
+    inner["y"] = False
+
+    args = parse_graphql_arguments({"where": inner})
+    assert args == "where: { x: true, y: false }"
+
+
+def test_parse_none_arguments():
+    # test that nulls are matched, even when followed by a comma
+
+    # ordering issues in earlier python versions
+    inner = OrderedDict()
+    inner["x"] = None
+    inner["y"] = None
+    args = parse_graphql_arguments({"where": inner})
+    assert args == "where: { x: null, y: null }"
+
+
+def test_arguments_are_parsed_automatically():
+    account = Account()({"where": {"x": {"eq": "1"}}})
+    assert str(account) == 'account(where: { x: { eq: "1" } })'
 
 
 def test_string_query_1():
@@ -148,6 +178,22 @@ def test_gqlo_is_callable_for_arguments():
         expected="""
             query {
                 accounts(where: {id: 5}) {
+                    id
+                    name
+                }
+            }
+            """,
+    )
+
+
+def test_gqlo_is_callable_for_dict_arguments():
+    verify(
+        query={
+            "query": {Query.accounts({"where": {"id": 5}}): [Account.id, Account.name]}
+        },
+        expected="""
+            query {
+                accounts(where: { id: 5 }) {
                     id
                     name
                 }

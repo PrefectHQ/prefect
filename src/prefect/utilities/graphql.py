@@ -1,5 +1,7 @@
+import re
 import textwrap
-from typing import Any
+from typing import Any, Union
+from prefect.utilities.collections import as_nested_dict
 
 
 def lowercase_first_letter(s: str) -> str:
@@ -24,18 +26,66 @@ class GQLObject:
         return type(self)(name=self.__name, _arguments=arguments)
 
     def __repr__(self) -> str:
-        return '<GQL: "{name}">'.format(self.__name)
+        return '<GQL: "{name}">'.format(name=self.__name)
 
     def __str__(self) -> str:
-        if not self.__arguments:
-            return self.__name
-        else:
-            return "{name}({arguments})".format(
-                name=self.__name, arguments=self.__arguments
-            )
+        if self.__arguments:
+            arguments = parse_graphql_arguments(self.__arguments)
+            return "{name}({arguments})".format(name=self.__name, arguments=arguments)
+        return self.__name
 
 
 def parse_graphql(document: Any) -> str:
+    """
+    Parses a document into a GraphQL-compliant query string.
+
+    Documents can be a mix of `strings`, `dicts`, `lists` (or other sequences), and
+    `GQLObjects`.
+
+    The parser attempts to maintain the form of the Python objects in the resulting GQL query.
+
+    For example:
+    ```
+    query = parse_graphql({
+        'query': {
+            'books(published: {gt: 1990})': {
+                'title'
+            },
+            'authors': [
+                'name',
+                'books': {
+                    'title'
+                }]
+            }
+        }
+    })
+    ```
+    results in:
+    ```
+    query {
+        books(published: {gt: 1990}) {
+            title
+        }
+        authors {
+            name
+            books {
+                title
+            }
+        }
+    }
+    ```
+
+    Args:
+        - document (Any): A collection of Python objects complying with the general shape
+            of a GraphQL query. Generally, this will consist of (at least) a dictionary, but
+            also sequences and `GQLObjects`.
+
+    Returns:
+        - str: a GraphQL query compiled from the provided Python structures.
+
+    Raises:
+        - TypeError: if the user provided a `GQLObject` class, rather than an instance.
+    """
     delimiter = "    "
     parsed = _parse_graphql_inner(document, delimiter=delimiter)
     parsed = parsed.replace(delimiter + "}", "}")
@@ -69,3 +119,45 @@ def _parse_graphql_inner(document: Any, delimiter: str) -> str:
         )
     else:
         return str(document).replace("\n", "\n" + delimiter)
+
+
+def parse_graphql_arguments(arguments: Any) -> str:
+    """
+    Parses a dictionary of GraphQL arguments, returning a GraphQL-compliant string
+    representation. If a string is passed, it is returned without modification.
+
+    This parser makes a few adjustments to the dictionary's usual string representation:
+        - `'` around keys are removed
+        - spaces added around curly braces
+        - leading and lagging braces are removed
+        - `True` becomes `true`, `False` becomes `false`, and `None` becomes `null`
+    """
+    parsed = _parse_arguments_inner(arguments)
+    # remove '{ ' and ' }' from front and end of parsed dict
+    if isinstance(arguments, dict):
+        parsed = parsed[2:-2]
+    # remove '"' and '"' from front and end of parsed str
+    elif isinstance(arguments, str):
+        parsed = parsed[1:-1]
+    return parsed
+
+
+def _parse_arguments_inner(arguments: Any) -> str:
+    if isinstance(arguments, dict):
+        formatted = []
+        for key, value in arguments.items():
+            formatted.append(
+                "{key}: {value}".format(key=key, value=_parse_arguments_inner(value))
+            )
+        return "{ " + ", ".join(formatted) + " }"
+    elif isinstance(arguments, (list, tuple, set)):
+        return "[" + ", ".join([_parse_arguments_inner(a) for a in arguments]) + "]"
+    elif isinstance(arguments, str):
+        return '"{}"'.format(arguments)
+    elif arguments is True:
+        return "true"
+    elif arguments is False:
+        return "false"
+    elif arguments is None:
+        return "null"
+    return str(arguments)
