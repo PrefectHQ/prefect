@@ -1,3 +1,4 @@
+import json
 import sys
 from collections import OrderedDict
 from textwrap import dedent
@@ -60,6 +61,11 @@ def test_parse_arguments():
     assert args == 'where: { x: { eq: "1" } }'
 
 
+def test_parse_string_arguments():
+    args = parse_graphql_arguments({"where": {"x": {"eq": r"a 'b' c"}}})
+    assert args == "where: { x: { eq: \"a 'b' c\" } }"
+
+
 def test_parse_bool_arguments():
     # test that bool args are matched, even if follwed by a comma
     # ordering issues in earlier python versions
@@ -80,6 +86,12 @@ def test_parse_none_arguments():
     inner["y"] = None
     args = parse_graphql_arguments({"where": inner})
     assert args == "where: { x: null, y: null }"
+
+
+def test_parse_json_arguments():
+    json_arg = json.dumps({"a": "b", "c": [1, "d"]}, sort_keys=True)
+    args = parse_graphql_arguments({"where": {"x": {"eq": json_arg}}})
+    assert args == r'where: { x: { eq: "{\"a\": \"b\", \"c\": [1, \"d\"]}" } }'
 
 
 def test_with_args():
