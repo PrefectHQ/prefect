@@ -75,6 +75,17 @@ def parse_graphql(document: Any) -> str:
         }
     }
     ```
+
+    Args:
+        - document (Any): A collection of Python objects complying with the general shape
+            of a GraphQL query. Generally, this will consist of (at least) a dictionary, but
+            also sequences and `GQLObjects`.
+
+    Returns:
+        - str: a GraphQL query compiled from the provided Python structures.
+
+    Raises:
+        - TypeError: if the user provided a `GQLObject` class, rather than an instance.
     """
     delimiter = "    "
     parsed = _parse_graphql_inner(document, delimiter=delimiter)
