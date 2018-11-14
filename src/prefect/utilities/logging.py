@@ -48,15 +48,15 @@ def configure_logging() -> logging.Logger:
     logger.addHandler(handler)
     logger.setLevel(config.logging.level)
 
-    ## send logs to server
-    # if config.prefect_cloud is True:
-    #     logging.setLogRecordFactory(cloud_record_factory)
-    #     log_queue = queue.Queue(-1)  # unlimited size queue
-    #     queue_handler = QueueHandler(log_queue)
-    #     remote_handler = RemoteHandler()
-    #     remote_listener = QueueListener(log_queue, remote_handler)
-    #     logger.addHandler(queue_handler)
-    #     remote_listener.start()
+    # send logs to server
+    if config.prefect_cloud is True:
+        logging.setLogRecordFactory(cloud_record_factory)
+        log_queue = queue.Queue(-1)  # unlimited size queue
+        queue_handler = QueueHandler(log_queue)
+        remote_handler = RemoteHandler()
+        remote_listener = QueueListener(log_queue, remote_handler)
+        logger.addHandler(queue_handler)
+        remote_listener.start()
 
     return logger
 
