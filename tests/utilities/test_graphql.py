@@ -33,6 +33,10 @@ def verify(query, expected):
     assert dedent(parsed).strip() == dedent(expected).strip()
 
 
+def test_default_gqlo_name_is_lowercase():
+    assert str(Account()) == "account"
+
+
 def test_string_query_1():
     verify(
         query={"query": {"users": ["id", "name"]}},
