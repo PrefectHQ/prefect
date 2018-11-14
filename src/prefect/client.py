@@ -9,6 +9,7 @@ import pendulum
 
 import prefect
 from prefect.utilities import collections
+from prefect.utilities.graphql import parse_graphql
 
 if TYPE_CHECKING:
     import requests
@@ -335,23 +336,41 @@ class Flows(ClientModule):
             - dict: Data returned from the GraphQL query
         """
         return self._graphql(
-            """
-            query($name: String!, $project_name: String!, $version: String!) {
-                flows(where: {
-                    name: $name,
-                    version: $version,
-                    project: {
-                        name: $project_name
+            parse_graphql({
+                "query": {
+                    "($name: String!, $project_name: String!, $version: String!)": {
+                        "flows(where": {
+                            "name": flow_name,
+                            "version": flow_version,
+                            "project": {
+                                "name": project_name
+                            }
+                        }")", {
+                            "id"
+                        }
                     }
-                }) {
-                    id
                 }
             }
-            """,
-            name=flow_name,
-            version=flow_version,
-            project_name=project_name,
+            )
         )
+        # return self._graphql(
+        #     """
+        #     query($name: String!, $project_name: String!, $version: String!) {
+        #         flows(where: {
+        #             name: $name,
+        #             version: $version,
+        #             project: {
+        #                 name: $project_name
+        #             }
+        #         }) {
+        #             id
+        #         }
+        #     }
+        #     """,
+        #     name=flow_name,
+        #     version=flow_version,
+        #     project_name=project_name,
+        # )
 
     def delete(self, flow_id: str) -> dict:
         """
