@@ -162,7 +162,7 @@ def _parse_arguments_inner(arguments: Any) -> str:
     return str(arguments)
 
 
-def with_args(field, arguments):
+def with_args(field, arguments) -> str:
     """
     Given Python objects representing a field name and arguments, formats them as a single
     GraphQL compatible string.
