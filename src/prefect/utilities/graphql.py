@@ -26,7 +26,7 @@ class GQLObject:
         return type(self)(name=self.__name, _arguments=arguments)
 
     def __repr__(self) -> str:
-        return '<GQL: "{name}">'.format(self.__name)
+        return '<GQL: "{name}">'.format(name=self.__name)
 
     def __str__(self) -> str:
         if self.__arguments:
@@ -121,7 +121,7 @@ def _parse_graphql_inner(document: Any, delimiter: str) -> str:
         return str(document).replace("\n", "\n" + delimiter)
 
 
-def parse_graphql_arguments(arguments: Union[dict, str]) -> str:
+def parse_graphql_arguments(arguments: Any) -> str:
     """
     Parses a dictionary of GraphQL arguments, returning a GraphQL-compliant string
     representation. If a string is passed, it is returned without modification.
@@ -132,19 +132,32 @@ def parse_graphql_arguments(arguments: Union[dict, str]) -> str:
         - leading and lagging braces are removed
         - `True` becomes `true`, `False` becomes `false`, and `None` becomes `null`
     """
+    parsed = _parse_arguments_inner(arguments)
+    # remove '{ ' and ' }' from front and end of parsed dict
     if isinstance(arguments, dict):
-        parsed = as_nested_dict(arguments, dict)
-        # remove quotes around keys
-        parsed = str(parsed).replace("'", "")
-        # strip leading and lagging braces
+        parsed = parsed[2:-2]
+    # remove '"' and '"' from front and end of parsed str
+    elif isinstance(arguments, str):
         parsed = parsed[1:-1]
-        # add space before/after braces
-        parsed = parsed.replace("{", "{ ").replace("}", " }")
-        # replace True with true
-        parsed = re.sub(r"\bTrue\b", "true", parsed)
-        # replace False with false
-        parsed = re.sub(r"\bFalse\b", "false", parsed)
-        # replace None with null
-        parsed = re.sub(r"\bNone\b", "null", parsed)
-        return parsed
-    return arguments
+    return parsed
+
+
+def _parse_arguments_inner(arguments: Any) -> str:
+    if isinstance(arguments, dict):
+        formatted = []
+        for key, value in arguments.items():
+            formatted.append(
+                "{key}: {value}".format(key=key, value=_parse_arguments_inner(value))
+            )
+        return "{ " + ", ".join(formatted) + " }"
+    elif isinstance(arguments, (list, tuple, set)):
+        return "[" + ", ".join([_parse_arguments_inner(a) for a in arguments]) + "]"
+    elif isinstance(arguments, str):
+        return '"{}"'.format(arguments)
+    elif arguments is True:
+        return "true"
+    elif arguments is False:
+        return "false"
+    elif arguments is None:
+        return "null"
+    return str(arguments)

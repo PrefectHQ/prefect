@@ -49,36 +49,34 @@ def test_parse_graphql_dedents_and_strips():
 
 
 def test_parse_arguments():
-    args = parse_graphql_arguments({"where": {"x": {"eq": '"1"'}}})
+    args = parse_graphql_arguments({"where": {"x": {"eq": "1"}}})
     assert args == 'where: { x: { eq: "1" } }'
 
 
 def test_parse_bool_arguments():
     # test that bool args are matched, even if follwed by a comma
-
-    args = parse_graphql_arguments({"x": True, "y": False})
-
     # ordering issues in earlier python versions
-    if sys.version_info >= (3, 6):
-        assert args == "x: true, y: false"
-    else:
-        assert args in ("x: true, y: false", "y: false, x: true")
+    inner = OrderedDict()
+    inner["x"] = True
+    inner["y"] = False
+
+    args = parse_graphql_arguments({"where": inner})
+    assert args == "where: { x: true, y: false }"
 
 
 def test_parse_none_arguments():
     # test that nulls are matched, even when followed by a comma
 
-    args = parse_graphql_arguments({"x": None, "y": None})
-
     # ordering issues in earlier python versions
-    if sys.version_info >= (3, 6):
-        assert args == "x: null, y: null"
-    else:
-        assert args in ("x: null, y: null", "y: null, x: null")
+    inner = OrderedDict()
+    inner["x"] = None
+    inner["y"] = None
+    args = parse_graphql_arguments({"where": inner})
+    assert args == "where: { x: null, y: null }"
 
 
 def test_arguments_are_parsed_automatically():
-    account = Account()({"where": {"x": {"eq": '"1"'}}})
+    account = Account()({"where": {"x": {"eq": "1"}}})
     assert str(account) == 'account(where: { x: { eq: "1" } })'
 
 
