@@ -55,6 +55,26 @@ def test_parse_arguments():
     assert args == 'where: { x: { eq: "1" } }'
 
 
+def test_parse_bool_arguments():
+
+    # do this to ensure field order on Python < 3.6
+    inner = OrderedDict()
+    inner["x"] = True
+    inner["y"] = False
+    args = parse_graphql_arguments({"where": inner})
+    assert args == "where: { x: true, y: false }"
+
+
+def test_parse_none_arguments():
+
+    # do this to ensure field order on Python < 3.6
+    inner = OrderedDict()
+    inner["x"] = None
+    inner["y"] = None
+    args = parse_graphql_arguments({"where": inner})
+    assert args == "where: { x: null, y: null }"
+
+
 def test_arguments_are_parsed_automatically():
     account = Account()({"where": {"x": {"eq": '"1"'}}})
     assert str(account) == 'account(where: { x: { eq: "1" } })'
