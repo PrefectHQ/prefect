@@ -28,10 +28,7 @@ class GQLObject:
 
     def __str__(self) -> str:
         if self.__arguments:
-            if isinstance(self.__arguments, dict):
-                arguments = str(self.__arguments).replace("'", "")[1:-1]
-            else:
-                arguments = self.__arguments
+            arguments = parse_graphql_arguments(self.__arguments)
             return "{name}({arguments})".format(name=self.__name, arguments=arguments)
         return self.__name
 
@@ -122,6 +119,11 @@ def _parse_graphql_inner(document: Any, delimiter: str) -> str:
         return str(document).replace("\n", "\n" + delimiter)
 
 
-def _parse_arguments(arguments: Any) -> str:
+def parse_graphql_arguments(arguments: Any) -> str:
+    """
+    Parses a dictionary of GraphQL arguments, returning a GraphQL-compliant string
+    representation.
+    """
     if isinstance(arguments, dict):
         return str(arguments).replace("'", "")[1:-1]
+    return arguments
