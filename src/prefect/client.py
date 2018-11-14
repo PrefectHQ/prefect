@@ -165,6 +165,9 @@ class Client:
             else:
                 raise ValueError("Invalid method: {}".format(method))
 
+            print(url, headers, params)
+            print(response)
+
             # Check if request returned a successful status
             response.raise_for_status()
 
