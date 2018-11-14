@@ -1,8 +1,15 @@
 import sys
-from textwrap import dedent
-import pytest
-from prefect.utilities.graphql import GQLObject, parse_graphql, parse_graphql_arguments
 from collections import OrderedDict
+from textwrap import dedent
+
+import pytest
+
+from prefect.utilities.graphql import (
+    GQLObject,
+    parse_graphql,
+    parse_graphql_arguments,
+    with_args,
+)
 
 
 class Account(GQLObject):
@@ -73,6 +80,32 @@ def test_parse_none_arguments():
     inner["y"] = None
     args = parse_graphql_arguments({"where": inner})
     assert args == "where: { x: null, y: null }"
+
+
+def test_with_args():
+    verify(
+        query={"query": {with_args("accounts", {"where": {"x": 1}}): {"id"}}},
+        expected="""
+            query {
+                accounts(where: { x: 1 }) {
+                    id
+                }
+            }
+        """,
+    )
+
+
+def test_gqlo_with_args():
+    verify(
+        query={"query": {with_args(Account(), {"where": {"x": 1}}): {"id"}}},
+        expected="""
+            query {
+                account(where: { x: 1 }) {
+                    id
+                }
+            }
+        """,
+    )
 
 
 def test_arguments_are_parsed_automatically():
