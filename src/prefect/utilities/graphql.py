@@ -125,5 +125,11 @@ def parse_graphql_arguments(arguments: Any) -> str:
     representation.
     """
     if isinstance(arguments, dict):
-        return str(arguments).replace("'", "")[1:-1]
+        # remove quotes around keys
+        parsed = str(arguments).replace("'", "")
+        # strip leading and lagging braces
+        parsed = parsed[1:-1]
+        # add space before/after braces
+        parsed = parsed.replace("{", "{ ").replace("}", " }")
+        return parsed
     return arguments
