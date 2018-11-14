@@ -52,12 +52,12 @@ def test_parse_graphql_dedents_and_strips():
 
 def test_parse_arguments():
     args = parse_graphql_arguments({"where": {"x": {"eq": '"1"'}}})
-    assert args == 'where: {x: {eq: "1"}}'
+    assert args == 'where: { x: { eq: "1" } }'
 
 
 def test_arguments_are_parsed_automatically():
     account = Account()({"where": {"x": {"eq": '"1"'}}})
-    assert str(account) == 'account(where: {x: {eq: "1"}})'
+    assert str(account) == 'account(where: { x: { eq: "1" } })'
 
 
 def test_string_query_1():
@@ -173,7 +173,7 @@ def test_gqlo_is_callable_for_dict_arguments():
         },
         expected="""
             query {
-                accounts(where: {id: 5}) {
+                accounts(where: { id: 5 }) {
                     id
                     name
                 }
