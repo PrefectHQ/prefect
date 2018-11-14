@@ -160,7 +160,7 @@ def deploy(project, name, version, file, testing, parameters):
     client = Client()
     client.login(email=config["email"], password=config["password"])
 
-    flow.environment = flow.environment.build(flow=flow)
+    # flow.environment = flow.environment.build(flow=flow)
 
     flows_gql = Flows(client=client)
 
@@ -172,31 +172,33 @@ def deploy(project, name, version, file, testing, parameters):
             project_name=project, flow_name=name, flow_version=version
         )
 
-        if flow_id.flows:
-            flows_gql.delete(flow_id=flow_id.flows[0].id)
+    click.echo(flow_id)
+
+    #     if flow_id.flows:
+    #         flows_gql.delete(flow_id=flow_id.flows[0].id)
 
     # Create the flow in the database
-    try:
-        flow_create_output = flows_gql.create(flow=flow)
-    except ValueError as value_error:
-        if "No project found for" in str(value_error):
-            raise click.ClickException("No project found for {}".format(project))
-        else:
-            raise click.ClickException(str(value_error))
+    # try:
+    #     flow_create_output = flows_gql.create(flow=flow)
+    # except ValueError as value_error:
+    #     if "No project found for" in str(value_error):
+    #         raise click.ClickException("No project found for {}".format(project))
+    #     else:
+    #         raise click.ClickException(str(value_error))
 
-    flow_db_id = flow_create_output.createFlow.flow.id
+    # flow_db_id = flow_create_output.createFlow.flow.id
 
-    if flow.schedule:
-        next_scheduled_run = None
-        if flow.schedule.next(1):
-            next_scheduled_run = flow.schedule.next(1)[0]
+    # if flow.schedule:
+    #     next_scheduled_run = None
+    #     if flow.schedule.next(1):
+    #         next_scheduled_run = flow.schedule.next(1)[0]
 
-        # Create Flow Run
-        flow_runs_gql = FlowRuns(client=client)
-        flow_runs_gql.create(
-            flow_id=flow_db_id,
-            parameters=parameters or {},
-            start_time=next_scheduled_run,
-        )
+    #     # Create Flow Run
+    #     flow_runs_gql = FlowRuns(client=client)
+    #     flow_runs_gql.create(
+    #         flow_id=flow_db_id,
+    #         parameters=parameters or {},
+    #         start_time=next_scheduled_run,
+    #     )
 
-    click.echo("{} deployed.".format(name))
+    # click.echo("{} deployed.".format(name))
