@@ -89,7 +89,7 @@ def test_parse_none_arguments():
 
 
 def test_parse_json_arguments():
-    json_arg = json.dumps({"a": "b", "c": [1, "d"]})
+    json_arg = json.dumps({"a": "b", "c": [1, "d"]}, sort_keys=True)
     args = parse_graphql_arguments({"where": {"x": {"eq": json_arg}}})
     assert args == r'where: { x: { eq: "{\"a\": \"b\", \"c\": [1, \"d\"]}" } }'
 
