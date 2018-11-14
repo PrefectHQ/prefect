@@ -9,7 +9,7 @@ import pendulum
 
 import prefect
 from prefect.utilities import collections
-from prefect.utilities.graphql import parse_graphql
+from prefect.utilities.graphql import parse_graphql, with_args
 
 if TYPE_CHECKING:
     import requests
@@ -312,6 +312,15 @@ class Flows(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL mutation
         """
+        # mutation = {
+        #     "mutation": {
+        #         with_args(
+        #             "createFlow",
+        #             {"input": {"serializedFlow": json.dumps(flow.serialize())}},
+        #         ): {"flow": {"id"}}
+        #     }
+        # }
+        # return self._graphql(parse_graphql(mutation))
         return self._graphql(
             """
             mutation($input: CreateFlowInput!) {
@@ -335,42 +344,23 @@ class Flows(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        return self._graphql(
-            parse_graphql({
-                "query": {
-                    "($name: String!, $project_name: String!, $version: String!)": {
-                        "flows(where": {
+
+        query = {
+            "query": {
+                with_args(
+                    "flows",
+                    {
+                        "where": {
                             "name": flow_name,
                             "version": flow_version,
-                            "project": {
-                                "name": project_name
-                            }
-                        }")", {
-                            "id"
+                            "project": {"name": project_name},
                         }
-                    }
-                }
+                    },
+                ): {"id"}
             }
-            )
-        )
-        # return self._graphql(
-        #     """
-        #     query($name: String!, $project_name: String!, $version: String!) {
-        #         flows(where: {
-        #             name: $name,
-        #             version: $version,
-        #             project: {
-        #                 name: $project_name
-        #             }
-        #         }) {
-        #             id
-        #         }
-        #     }
-        #     """,
-        #     name=flow_name,
-        #     version=flow_version,
-        #     project_name=project_name,
-        # )
+        }
+
+        return self._graphql(parse_graphql(query))
 
     def delete(self, flow_id: str) -> dict:
         """
@@ -382,16 +372,22 @@ class Flows(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL mutation
         """
-        return self._graphql(
-            """
-            mutation($input: DeleteFlowInput!) {
-                deleteFlow(input: $input) {
-                    flowId
-                }
+        mutation = {
+            "mutation": {
+                with_args("deleteFlow", {"input": {"flowId": flow_id}}): {"flowId"}
             }
-            """,
-            input=dict(flowId=flow_id),
-        )
+        }
+        return self._graphql(parse_graphql(mutation))
+        # return self._graphql(
+        #     """
+        # mutation($input: DeleteFlowInput!) {
+        #     deleteFlow(input: $input) {
+        #         flowId
+        #     }
+        # }
+        #     """,
+        #     input=dict(flowId=flow_id),
+        # )
 
 
 # -------------------------------------------------------------------------
