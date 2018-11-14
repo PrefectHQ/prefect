@@ -50,6 +50,11 @@ def test_parse_graphql_dedents_and_strips():
     assert parse_graphql(query) == "hi\n    there"
 
 
+def test_arguments_are_parsed_automatically():
+    account = Account()({"where": {"x": {"eq": '"1"'}}})
+    assert str(account) == 'account(where: {x: {eq: "1"}})'
+
+
 def test_string_query_1():
     verify(
         query={"query": {"users": ["id", "name"]}},
@@ -145,6 +150,22 @@ def test_gqlo_2():
 def test_gqlo_is_callable_for_arguments():
     verify(
         query={"query": {Query.accounts("where: {id: 5}"): [Account.id, Account.name]}},
+        expected="""
+            query {
+                accounts(where: {id: 5}) {
+                    id
+                    name
+                }
+            }
+            """,
+    )
+
+
+def test_gqlo_is_callable_for_dict_arguments():
+    verify(
+        query={
+            "query": {Query.accounts({"where": {"id": 5}}): [Account.id, Account.name]}
+        },
         expected="""
             query {
                 accounts(where: {id: 5}) {

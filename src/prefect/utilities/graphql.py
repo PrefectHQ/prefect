@@ -27,15 +27,55 @@ class GQLObject:
         return '<GQL: "{name}">'.format(self.__name)
 
     def __str__(self) -> str:
-        if not self.__arguments:
-            return self.__name
-        else:
-            return "{name}({arguments})".format(
-                name=self.__name, arguments=self.__arguments
-            )
+        if self.__arguments:
+            if isinstance(self.__arguments, dict):
+                arguments = str(self.__arguments).replace("'", "")[1:-1]
+            else:
+                arguments = self.__arguments
+            return "{name}({arguments})".format(name=self.__name, arguments=arguments)
+        return self.__name
 
 
 def parse_graphql(document: Any) -> str:
+    """
+    Parses a document into a GraphQL-compliant query string.
+
+    Documents can be a mix of `strings`, `dicts`, `lists` (or other sequences), and
+    `GQLObjects`.
+
+    The parser attempts to maintain the form of the Python objects in the resulting GQL query.
+
+    For example:
+    ```
+    query = parse_graphql({
+        'query': {
+            'books(published: {gt: 1990})': {
+                'title'
+            },
+            'authors': [
+                'name',
+                'books': {
+                    'title'
+                }]
+            }
+        }
+    })
+    ```
+    results in:
+    ```
+    query {
+        books(published: {gt: 1990}) {
+            title
+        }
+        authors {
+            name
+            books {
+                title
+            }
+        }
+    }
+    ```
+    """
     delimiter = "    "
     parsed = _parse_graphql_inner(document, delimiter=delimiter)
     parsed = parsed.replace(delimiter + "}", "}")
@@ -69,3 +109,8 @@ def _parse_graphql_inner(document: Any, delimiter: str) -> str:
         )
     else:
         return str(document).replace("\n", "\n" + delimiter)
+
+
+def _parse_arguments(arguments: Any) -> str:
+    if isinstance(arguments, dict):
+        return str(arguments).replace("'", "")[1:-1]
