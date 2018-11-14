@@ -1,3 +1,4 @@
+import sys
 from textwrap import dedent
 import pytest
 from prefect.utilities.graphql import GQLObject, parse_graphql, parse_graphql_arguments
@@ -40,11 +41,8 @@ def test_default_gqlo_name_is_lowercase():
 def test_parse_graphql_dedents_and_strips():
     query = """
 
-
-
         hi
             there
-
 
     """
     assert parse_graphql(query) == "hi\n    there"
@@ -56,23 +54,27 @@ def test_parse_arguments():
 
 
 def test_parse_bool_arguments():
+    # test that bool args are matched, even if follwed by a comma
 
-    # do this to ensure field order on Python < 3.6
-    inner = OrderedDict()
-    inner["x"] = True
-    inner["y"] = False
-    args = parse_graphql_arguments({"where": inner})
-    assert args == "where: { x: true, y: false }"
+    args = parse_graphql_arguments({"x": True, "y": False})
+
+    # ordering issues in earlier python versions
+    if sys.version_info >= (3, 6):
+        assert args == "x: true, y: false"
+    else:
+        assert args in ("x: true, y: false", "y: false, x: true")
 
 
 def test_parse_none_arguments():
+    # test that nulls are matched, even when followed by a comma
 
-    # do this to ensure field order on Python < 3.6
-    inner = OrderedDict()
-    inner["x"] = None
-    inner["y"] = None
-    args = parse_graphql_arguments({"where": inner})
-    assert args == "where: { x: null, y: null }"
+    args = parse_graphql_arguments({"x": None, "y": None})
+
+    # ordering issues in earlier python versions
+    if sys.version_info >= (3, 6):
+        assert args == "x: null, y: null"
+    else:
+        assert args in ("x: null, y: null", "y: null, x: null")
 
 
 def test_arguments_are_parsed_automatically():
