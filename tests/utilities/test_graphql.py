@@ -1,6 +1,6 @@
 from textwrap import dedent
 import pytest
-from prefect.utilities.graphql import GQLObject, parse_graphql
+from prefect.utilities.graphql import GQLObject, parse_graphql, parse_graphql_arguments
 from collections import OrderedDict
 
 
@@ -48,6 +48,11 @@ def test_parse_graphql_dedents_and_strips():
 
     """
     assert parse_graphql(query) == "hi\n    there"
+
+
+def test_parse_arguments():
+    args = parse_graphql_arguments({"where": {"x": {"eq": '"1"'}}})
+    assert args == 'where: {x: {eq: "1"}}'
 
 
 def test_arguments_are_parsed_automatically():
