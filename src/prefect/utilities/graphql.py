@@ -30,8 +30,7 @@ class GQLObject:
 
     def __str__(self) -> str:
         if self.__arguments:
-            arguments = parse_graphql_arguments(self.__arguments)
-            return "{name}({arguments})".format(name=self.__name, arguments=arguments)
+            return with_args(self.__name, self.__arguments)
         return self.__name
 
 
@@ -161,3 +160,13 @@ def _parse_arguments_inner(arguments: Any) -> str:
     elif arguments is None:
         return "null"
     return str(arguments)
+
+
+def with_args(field, arguments):
+    """
+    Given Python objects representing a field name and arguments, formats them as a single
+    GraphQL compatible string.
+    """
+    parsed_field = parse_graphql(field)
+    parsed_arguments = parse_graphql_arguments(arguments)
+    return "{field}({arguments})".format(field=parsed_field, arguments=parsed_arguments)
