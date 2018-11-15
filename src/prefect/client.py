@@ -488,6 +488,7 @@ class TaskRuns(ClientModule):
                 ): {"state": ["state", "message", {"taskRun": {"version"}}]}
             }
         }
+        print(parse_graphql(mutation))
         return self._graphql(parse_graphql(mutation))
 
     def query(self, flow_run_id: str, task_id: str) -> dict:
