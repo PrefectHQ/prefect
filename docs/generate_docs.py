@@ -11,15 +11,17 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
 
 On a development installation of Prefect, simply run `python generate_docs.py` from inside the `docs/` folder.
 """
+import glob
 import inspect
+import nbformat as nbf
 import os
 import re
 import shutil
 import subprocess
 import textwrap
+import toolz
 import warnings
 
-import toolz
 from functools import partial
 
 import prefect
@@ -449,6 +451,25 @@ def get_class_methods(obj):
     return public_members
 
 
+def create_tutorial_notebooks():
+    tutorials = glob.glob("tutorials/*.md")
+    os.makedirs("tutorials/notebooks", exist_ok=True)
+    for tut in tutorials:
+        if "README" in tut:
+            continue
+        text = open(tut, "r").read()
+        code_blocks = re.findall(r"```(.*?)```", text, re.DOTALL)
+        nb = nbf.v4.new_notebook()
+        nb["cells"] = []
+        for code in code_blocks:
+            if not code.startswith("python"):
+                continue
+            code = code[7:]
+            nb["cells"].append(nbf.v4.new_code_cell(code))
+        fname = os.path.basename(tut).split(".md")[0] + ".ipynb"
+        nbf.write(nb, f"tutorials/notebooks/{fname}")
+
+
 if __name__ == "__main__":
 
     assert (
@@ -561,3 +582,5 @@ if __name__ == "__main__":
             f.write(create_methods_table(fns, title="top-level functions:"))
             f.write("\n")
             f.write(auto_generated_footer)
+
+    create_tutorial_notebooks()
