@@ -1,10 +1,8 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import json
-import os
 
 import click
-import pendulum
 
 import prefect
 from prefect import config
@@ -101,40 +99,6 @@ def build(project, name, version, file):
     flow = load_flow(project, name, version, file)
 
     return flow.serialize(build=True)
-
-
-@flows.command()
-@click.argument("project")
-@click.argument("name")
-@click.argument("version")
-@click.option(
-    "--file",
-    required=False,
-    help="Path to a file which contains the flow.",
-    type=click.Path(exists=True),
-)
-def push(project, name, version, file):
-    """
-    Push a flow's container environment to a registry.
-    """
-    flow = load_flow(project, name, version, file)
-
-    if not isinstance(flow.environment, ContainerEnvironment):
-        raise click.ClickException(
-            "{} does not have a ContainerEnvironment".format(name)
-        )
-
-    # Check if login access was provided for registry
-    if config.get("registry_username", None) and config.get("registry_password", None):
-        flow.environment.client.login(
-            username=config["registry_username"], password=config["registry_password"]
-        )
-
-    # Push to registry
-    return flow.environment.client.images.push(
-        "{}/{}".format(config["registry_url"], flow.environment.image),
-        tag=flow.environment.tag,
-    )
 
 
 @flows.command()

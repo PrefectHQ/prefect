@@ -285,16 +285,14 @@ class Projects(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        return self._graphql(
-            """
-            mutation($input: CreateProjectInput!) {
-                createProject(input: $input) {
-                    project {id}
+        mutation = {
+            "mutation": {
+                with_args("createProject", {"input": {"name": name}}): {
+                    "project": {"id"}
                 }
             }
-            """,
-            input=dict(name=name),
-        )
+        }
+        return self._graphql(parse_graphql(mutation))
 
 
 # -------------------------------------------------------------------------
@@ -321,16 +319,6 @@ class Flows(ClientModule):
             }
         }
         return self._graphql(parse_graphql(mutation))
-        # return self._graphql(
-        #     """
-        #     mutation($input: CreateFlowInput!) {
-        #         createFlow(input: $input) {
-        #             flow {id}
-        #         }
-        #     }
-        #     """,
-        #     input=dict(serializedFlow=json.dumps(flow.serialize())),
-        # )
 
     def query(self, project_name: str, flow_name: str, flow_version: str) -> dict:
         """
@@ -378,16 +366,6 @@ class Flows(ClientModule):
             }
         }
         return self._graphql(parse_graphql(mutation))
-        # return self._graphql(
-        #     """
-        # mutation($input: DeleteFlowInput!) {
-        #     deleteFlow(input: $input) {
-        #         flowId
-        #     }
-        # }
-        #     """,
-        #     input=dict(flowId=flow_id),
-        # )
 
 
 # -------------------------------------------------------------------------
@@ -409,20 +387,21 @@ class FlowRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL mutation
         """
-        return self._graphql(
-            """
-            mutation($input: CreateFlowRunInput!) {
-                createFlowRun(input: $input) {
-                    flowRun {id}
-                }
+        mutation = {
+            "mutation": {
+                with_args(
+                    "createFlowRun",
+                    {
+                        "input": {
+                            "flowId": flow_id,
+                            "parameters": json.dumps(parameters),
+                            "startTime": start_time.isoformat(),
+                        }
+                    },
+                ): {"flowRun": {"id"}}
             }
-            """,
-            input=dict(
-                flowId=flow_id,
-                parameters=json.dumps(parameters),
-                startTime=start_time.isoformat(),
-            ),
-        )
+        }
+        return self._graphql(parse_graphql(mutation))
 
     def set_state(
         self, flow_run_id: str, state: "prefect.engine.state.State", version: str
