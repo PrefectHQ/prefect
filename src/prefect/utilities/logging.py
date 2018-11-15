@@ -1,12 +1,9 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
-import json
 import logging
 import prefect
 import queue
-import requests
 
 from logging.handlers import QueueHandler, QueueListener
-from prefect import config as prefect_config
 from prefect.configuration import config
 
 
@@ -14,14 +11,14 @@ class RemoteHandler(logging.StreamHandler):
     def __init__(self):
         super().__init__()
         self.logger_server = config.cloud.log
-        self.client = Client()
-        self.client.login(email=prefect_config.email, password=prefect_config.password)
+        self.client = None
 
     def emit(self, record):
         if self.client is None:
             from prefect.client import Client
 
             self.client = Client()
+            self.client.login(email=config.email, password=config.password)
         r = self.client.post(path="", server=self.logger_server, **record.__dict__)
 
 
