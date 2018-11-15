@@ -20,9 +20,9 @@ class RemoteHandler(logging.StreamHandler):
 
             self.client = Client()
             self.client.login(
-                email=config.email, password=config.password, server=self.logger_server
+                email=config.email, password=config.password, server=config.cloud.log
             )
-        r = self.client.post(path="", server=config.cloud.log, **record.__dict__)
+        r = self.client.post(path="", server=self.logger_server, **record.__dict__)
 
 
 old_factory = logging.getLogRecordFactory()
