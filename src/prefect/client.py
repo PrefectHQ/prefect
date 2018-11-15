@@ -417,7 +417,7 @@ class FlowRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        state.result = None  # Temporary until we have cloud pickling
+        # state.result = None  # Temporary until we have cloud pickling
         return self._graphql(
             """
             mutation($input: SetFlowRunStateInput!) {
@@ -484,7 +484,7 @@ class TaskRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        state.result = None  # Temporary until we have cloud pickling
+        # state.result = None  # Temporary until we have cloud pickling
         return self._graphql(
             """
             mutation($input: SetTaskRunStateInput!) {
@@ -531,33 +531,6 @@ class TaskRuns(ClientModule):
             """,
             flow_run_id=flow_run_id,
             task_id=task_id,
-        )
-
-
-# -------------------------------------------------------------------------
-# Execution
-
-
-class RunFlow(ClientModule):
-    def run_flow(self, flow_run_id: str) -> dict:
-        """
-        Run a flow
-
-        Args:
-            - flow_run_id (str): The flow run to communicate to
-
-        Returns:
-            - dict: Data returned from the GraphQL query
-        """
-        return self._graphql(
-            """
-            mutation($input: RunFlowInput!) {
-                runFlow(input: $input) {
-                    status
-                }
-            }
-            """,
-            input=dict(flowRunId=flow_run_id),
         )
 
 
