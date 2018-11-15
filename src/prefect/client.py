@@ -417,27 +417,21 @@ class FlowRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        # state.result = None  # Temporary until we have cloud pickling
-        return self._graphql(
-            """
-            mutation($input: SetFlowRunStateInput!) {
-                setFlowRunState(input: $input) {
-                    state {
-                        state
-                        message
-                        flowRun{
-                            version
+        mutation = {
+            "mutation": {
+                with_args(
+                    "setFlowRunState",
+                    {
+                        "input": {
+                            "flowRunId": flow_run_id,
+                            "state": json.dumps(state.serialize()),
+                            "version": version,
                         }
-                    }
-                }
+                    },
+                ): {"state": ["state", "message", {"flowRun": {"version"}}]}
             }
-            """,
-            input=dict(
-                flowRunId=flow_run_id,
-                state=json.dumps(state.serialize()),
-                version=version,
-            ),
-        )
+        }
+        return self._graphql(parse_graphql(mutation))
 
     def query(self, flow_run_id: str) -> dict:
         """
@@ -449,20 +443,16 @@ class FlowRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        return self._graphql(
-            """
-            query($flow_run_id: ID!) {
-                flowRuns(where: {
-                    id: $flow_run_id
-                }) {
-                    id,
-                    parameters,
-                    version
+        query = {
+            "query": {
+                with_args("flowRuns", {"where": {"id": flow_run_id}}): {
+                    "id",
+                    "parameters",
+                    "version",
                 }
             }
-            """,
-            flow_run_id=flow_run_id,
-        )
+        }
+        return self._graphql(parse_graphql(query))
 
 
 # -------------------------------------------------------------------------
@@ -484,27 +474,21 @@ class TaskRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        # state.result = None  # Temporary until we have cloud pickling
-        return self._graphql(
-            """
-            mutation($input: SetTaskRunStateInput!) {
-                setTaskRunState(input: $input) {
-                    state {
-                        state
-                        message
-                        taskRun{
-                            version
+        mutation = {
+            "mutation": {
+                with_args(
+                    "setTaskRunState",
+                    {
+                        "input": {
+                            "taskRunId": task_run_id,
+                            "state": json.dumps(state.serialize()),
+                            "version": version,
                         }
-                    }
-                }
+                    },
+                ): {"state": ["state", "message", {"taskRun": {"version"}}]}
             }
-            """,
-            input=dict(
-                taskRunId=task_run_id,
-                state=json.dumps(state.serialize()),
-                version=version,
-            ),
-        )
+        }
+        return self._graphql(parse_graphql(mutation))
 
     def query(self, flow_run_id: str, task_id: str) -> dict:
         """
@@ -517,21 +501,20 @@ class TaskRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        return self._graphql(
-            """
-            query($flow_run_id: ID!, $task_id: ID!) {
-                taskRuns(where: {
-                    flowRun: {id: $flow_run_id},
-                    task: {id: $task_id},
-                }) {
-                    id,
-                    version
-                }
+        query = {
+            "query": {
+                with_args(
+                    "taskRuns",
+                    {
+                        "where": {
+                            "flowRun": {"id": flow_run_id},
+                            "task": {"id": task_id},
+                        }
+                    },
+                ): {"id", "version"}
             }
-            """,
-            flow_run_id=flow_run_id,
-            task_id=task_id,
-        )
+        }
+        return self._graphql(parse_graphql(query))
 
 
 class Secret:
