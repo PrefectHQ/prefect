@@ -6,6 +6,7 @@ import queue
 import requests
 
 from logging.handlers import QueueHandler, QueueListener
+from prefect import config as prefect_config
 from prefect.configuration import config
 
 
@@ -13,7 +14,8 @@ class RemoteHandler(logging.StreamHandler):
     def __init__(self):
         super().__init__()
         self.logger_server = config.cloud.log
-        self.client = None
+        self.client = Client()
+        self.client.login(email=prefect_config.email, password=prefect_config.password)
 
     def emit(self, record):
         if self.client is None:
