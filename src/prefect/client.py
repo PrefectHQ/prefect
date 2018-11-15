@@ -489,6 +489,16 @@ class TaskRuns(ClientModule):
             }
         }
         print("@@@@@@@")
+        print(
+            {
+                "input": {
+                    "taskRunId": task_run_id,
+                    "state": json.dumps(state.serialize()),
+                    "version": version,
+                }
+            }
+        )
+        print("@@@@@@@")
         print(mutation)
         print("@@@@@@@")
         print(parse_graphql(mutation))
