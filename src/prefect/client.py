@@ -488,6 +488,9 @@ class TaskRuns(ClientModule):
                 ): {"state": ["state", "message", {"taskRun": {"version"}}]}
             }
         }
+        print("@@@@@@@")
+        print(mutation)
+        print("@@@@@@@")
         print(parse_graphql(mutation))
         return self._graphql(parse_graphql(mutation))
 
