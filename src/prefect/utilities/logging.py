@@ -11,7 +11,7 @@ from prefect.configuration import config
 class RemoteHandler(logging.StreamHandler):
     def __init__(self):
         super().__init__()
-        self.logger_server = os.path.join(config.cloud.log, "log")
+        self.logger_server = os.path.join(config.cloud.api, "log")
         self.client = None
 
     def emit(self, record):
@@ -19,9 +19,7 @@ class RemoteHandler(logging.StreamHandler):
             from prefect.client import Client
 
             self.client = Client()
-            self.client.login(
-                email=config.email, password=config.password, server=config.cloud.log
-            )
+            self.client.login(email=config.email, password=config.password)
         r = self.client.post(path="", server=self.logger_server, **record.__dict__)
 
 
