@@ -1,8 +1,5 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import os
-import toml
-from pathlib import Path
 from typing import Any, Optional
 
 from prefect import config
@@ -18,7 +15,6 @@ class CloudHandler:
     def load_prefect_client(self) -> None:
         client = Client()
         client.login(email=config.email, password=config.password)
-        self.states_gql = States(client=client)
 
         self.flow_runs_gql = FlowRuns(client=client)
         self.task_runs_gql = TaskRuns(client=client)
