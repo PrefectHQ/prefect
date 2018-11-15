@@ -92,8 +92,9 @@ class DotDict(MutableMapping):
         """Creates and returns a shallow copy of the current DotDict"""
         return type(self)(self.__dict__.copy())
 
-    def __json__(self) -> dict:
-        return dict(self)
+    def to_dict(self) -> dict:
+        """Converts current `DotDict` (and any `DotDict`s contained within) to an appropriate nested dictionary."""
+        return as_nested_dict(self, dct_class=dict)
 
 
 class GraphQLResult(DotDict):
