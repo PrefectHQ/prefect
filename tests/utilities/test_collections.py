@@ -235,6 +235,10 @@ class TestDotDict:
         with pytest.raises(TypeError):
             json.dumps(DotDict(x=1))
 
+    def test_dotdict_to_dict(self):
+        d = DotDict(x=5, y=DotDict(z="zzz", qq=DotDict()))
+        assert d.to_dict() == {"x": 5, "y": {"z": "zzz", "qq": {}}}
+
 
 def test_as_nested_dict_defaults_dotdict():
     orig_d = dict(a=1, b=[2, dict(c=3)], d=dict(e=[dict(f=4)]))
