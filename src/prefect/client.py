@@ -189,6 +189,7 @@ class Client:
         password: str = None,
         account_slug: str = None,
         account_id: str = None,
+        server: str = None,
     ) -> None:
         """
         Login to the server in order to gain access
@@ -211,7 +212,7 @@ class Client:
         email = email or prefect.config.cloud.email
         password = password or prefect.config.cloud.password
 
-        url = os.path.join(self.api_server, "login")
+        url = os.path.join(server or self.api_server, "login")
         response = requests.post(
             url,
             auth=(email, password),
