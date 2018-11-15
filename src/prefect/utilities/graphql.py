@@ -153,7 +153,7 @@ def _parse_arguments_inner(arguments: Any) -> str:
     elif isinstance(arguments, (list, tuple, set)):
         return "[" + ", ".join([_parse_arguments_inner(a) for a in arguments]) + "]"
     elif isinstance(arguments, str):
-        return arguments.replace(r'\\"', r"\"")
+        return json.dumps(arguments).replace(r'\\"', r"\"")
     elif arguments is True:
         return "true"
     elif arguments is False:
