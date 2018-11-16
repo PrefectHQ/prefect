@@ -15,7 +15,7 @@ install_requires = ["".join(req) for req in config["base"].items()]
 ## section dependencies
 includes = {}
 for section in config.sections():
-    includes[section] = config[section].pop("include", None)
+    includes[section] = config[section].pop("include", "").split(",")
 
 extras = {
     "dev": ["".join(req) for req in config["dev"].items()],
@@ -25,7 +25,8 @@ extras = {
 
 ## process include keyword for related sections
 for section in extras:
-    extras[section] += extras.get(includes[section], [])
+    for other in includes[section]:
+        extras[section] += extras.get(other.strip(), [])
 
 
 if sys.version_info >= (3, 6):
