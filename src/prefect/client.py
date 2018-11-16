@@ -5,8 +5,6 @@ import json
 import os
 from typing import TYPE_CHECKING, Optional, Union
 
-import pendulum
-
 import prefect
 from prefect.utilities import collections
 from prefect.utilities.graphql import parse_graphql, with_args
@@ -395,7 +393,7 @@ class FlowRuns(ClientModule):
                         "input": {
                             "flowId": flow_id,
                             "parameters": json.dumps(parameters),
-                            "startTime": start_time.isoformat(),
+                            "startTime": start_time.isoformat(),  # type: ignore
                         }
                     },
                 ): {"flowRun": {"id"}}
