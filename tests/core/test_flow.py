@@ -928,8 +928,13 @@ class TestFlowVisualize:
     def test_viz_renders_if_ipython_isnt_installed_or_errors(self, error, monkeypatch):
         graphviz = MagicMock()
         ipython = MagicMock(get_ipython=MagicMock(side_effect=error))
+        warnings = sys.modules.get("warnings")
         with monkeypatch.context() as m:
-            m.setattr(sys, "modules", {"IPython": ipython, "graphviz": graphviz})
+            m.setattr(
+                sys,
+                "modules",
+                {"IPython": ipython, "graphviz": graphviz, "warnings": warnings},
+            )
             with Flow() as f:
                 res = AddTask(name="a_nice_task").map(x=Task(name="a_list_task"), y=8)
             f.visualize()
