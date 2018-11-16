@@ -152,7 +152,7 @@ class ContainerEnvironment(Environment):
             - push (bool): Whether or not to push to registry after build
 
         Returns:
-            - tuple: tuple consisting of (`docker.models.images.Image`, iterable logs)
+            - ContainerEnvironment: an instance of this environment
         """
         with tempfile.TemporaryDirectory() as tempdir:
 
@@ -349,7 +349,7 @@ class LocalEnvironment(Environment):
             - flow (Flow): The prefect Flow object to build the environment for
 
         Returns:
-            - bytes: The encrypted and pickled flow registry
+            - LocalEnvironment: An instance of this environment
         """
         registry = {}  # type: dict
         flow.register(registry=registry)
