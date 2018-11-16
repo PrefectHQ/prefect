@@ -3,6 +3,8 @@ import logging
 
 import cloudpickle
 import pytest
+import sys
+from unittest.mock import MagicMock
 
 import prefect
 from prefect.core.edge import Edge
@@ -869,18 +871,68 @@ def test_build_environment():
     assert isinstance(key, bytes)
 
 
-def test_visualize_raises_informative_importerror_without_graphviz(monkeypatch):
-    f = Flow()
-    f.add_task(Task())
+class TestFlowVisualize:
+    def test_visualize_raises_informative_importerror_without_graphviz(
+        self, monkeypatch
+    ):
+        f = Flow()
+        f.add_task(Task())
 
-    import sys
+        with monkeypatch.context() as m:
+            m.setattr(sys, "path", "")
+            with pytest.raises(ImportError) as exc:
+                f.visualize()
 
-    with monkeypatch.context() as m:
-        m.setattr(sys, "path", "")
-        with pytest.raises(ImportError) as exc:
+        assert "pip install prefect[viz]" in repr(exc.value)
+
+    def test_viz_returns_graph_object_if_in_ipython(self, monkeypatch):
+        import graphviz
+
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        with monkeypatch.context() as m:
+            m.setattr(sys, "modules", {"IPython": ipython, "graphviz": graphviz})
+            f = Flow()
+            f.add_task(Task(name="a_nice_task"))
+            graph = f.visualize()
+        assert "label=a_nice_task" in graph.source
+        assert "shape=ellipse" in graph.source
+
+    def test_viz_reflects_mapping(self, monkeypatch):
+        import graphviz
+
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        with monkeypatch.context() as m:
+            m.setattr(sys, "modules", {"IPython": ipython, "graphviz": graphviz})
+            with Flow() as f:
+                res = AddTask(name="a_nice_task").map(x=Task(name="a_list_task"), y=8)
+            graph = f.visualize()
+        assert 'label="a_nice_task <map>" shape=box' in graph.source
+        assert "label=a_list_task shape=ellipse" in graph.source
+        assert "label=x style=dashed" in graph.source
+        assert "label=y style=dashed" in graph.source
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ImportError("abc"),
+            ValueError("abc"),
+            TypeError("abc"),
+            NameError("abc"),
+            AttributeError("abc"),
+        ],
+    )
+    def test_viz_renders_if_ipython_isnt_installed_or_errors(self, error, monkeypatch):
+        graphviz = MagicMock()
+        ipython = MagicMock(get_ipython=MagicMock(side_effect=error))
+        with monkeypatch.context() as m:
+            m.setattr(sys, "modules", {"IPython": ipython, "graphviz": graphviz})
+            with Flow() as f:
+                res = AddTask(name="a_nice_task").map(x=Task(name="a_list_task"), y=8)
             f.visualize()
-
-    assert "pip install prefect[viz]" in repr(exc.value)
 
 
 class TestCache:

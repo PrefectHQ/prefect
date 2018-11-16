@@ -986,7 +986,7 @@ class Flow:
 
             if get_ipython().config.get("IPKernelApp") is not None:
                 return graph
-        except NameError:
+        except Exception:
             pass
 
         with tempfile.NamedTemporaryFile() as tmp:
