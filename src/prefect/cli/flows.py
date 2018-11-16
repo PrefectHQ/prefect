@@ -78,7 +78,7 @@ def run(id):
 
         parameters = stored_parameters.flowRuns[0].parameters
 
-        return flow_runner.run(parameters=parameters)
+    return flow_runner.run(parameters=parameters)
 
 
 @flows.command()
