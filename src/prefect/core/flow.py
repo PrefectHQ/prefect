@@ -1011,14 +1011,10 @@ class Flow:
 
         self.validate()
 
-        if self.environment and build:
-            environment_key = self.build_environment()
-        else:
-            environment_key = None
+        if build and self.environment:
+            self.environment = self.environment.build(self)
 
         serialized = prefect.serialization.flow.FlowSchema().dump(self)
-
-        serialized.update(environment_key=environment_key)
 
         return serialized
 
