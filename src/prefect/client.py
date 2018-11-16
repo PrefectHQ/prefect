@@ -393,7 +393,9 @@ class FlowRuns(ClientModule):
                         "input": {
                             "flowId": flow_id,
                             "parameters": json.dumps(parameters),
-                            "startTime": start_time.isoformat(),  # type: ignore
+                            "startTime": start_time.isoformat()
+                            if start_time
+                            else None,  # type: ignore
                         }
                     },
                 ): {"flowRun": {"id"}}
