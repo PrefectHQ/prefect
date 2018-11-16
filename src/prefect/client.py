@@ -417,21 +417,26 @@ class FlowRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        mutation = {
-            "mutation": {
-                with_args(
-                    "setFlowRunState",
-                    {
-                        "input": {
-                            "flowRunId": flow_run_id,
-                            "state": json.dumps(state.serialize()),
-                            "version": version,
+        return self._graph(
+            """
+            mutation($input: SetFlowRunStateInput!) {
+                setFlowRunState(input: $input) {
+                    state {
+                        state
+                        message
+                        flowRun {
+                            version
                         }
-                    },
-                ): {"state": ["state", "message", {"flowRun": {"version"}}]}
+                    }
+                }
             }
-        }
-        return self._graphql(parse_graphql(mutation))
+            """,
+            input=dict(
+                flowRunId=flow_run_id,
+                state=json.dumps(state.serialize()),
+                version=version,
+            ),
+        )
 
     def query(self, flow_run_id: str) -> dict:
         """
@@ -474,35 +479,26 @@ class TaskRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        mutation = {
-            "mutation": {
-                with_args(
-                    "setTaskRunState",
-                    {
-                        "input": {
-                            "taskRunId": task_run_id,
-                            "state": json.dumps(state.serialize()),
-                            "version": version,
+        return self._graph(
+            """
+            mutation($input: SetTaskRunStateInput!) {
+                setTaskRunState(input: $input) {
+                    state {
+                        state
+                        message
+                        taskRun {
+                            version
                         }
-                    },
-                ): {"state": ["state", "message", {"taskRun": {"version"}}]}
-            }
-        }
-        print("@@@@@@@")
-        print(
-            {
-                "input": {
-                    "taskRunId": task_run_id,
-                    "state": json.dumps(state.serialize()),
-                    "version": version,
+                    }
                 }
             }
+            """,
+            input=dict(
+                taskRunId=task_run_id,
+                state=json.dumps(state.serialize()),
+                version=version,
+            ),
         )
-        print("@@@@@@@")
-        print(mutation)
-        print("@@@@@@@")
-        print(parse_graphql(mutation))
-        return self._graphql(parse_graphql(mutation))
 
     def query(self, flow_run_id: str, task_id: str) -> dict:
         """
