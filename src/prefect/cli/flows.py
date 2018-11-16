@@ -8,8 +8,6 @@ import prefect
 from prefect import config
 from prefect.client import Client, FlowRuns, Flows
 from prefect.core import registry
-from prefect.environments import ContainerEnvironment
-from prefect.utilities.tests import raise_on_exception
 
 
 def load_flow(project, name, version, file):
@@ -80,7 +78,6 @@ def run(id):
 
         parameters = stored_parameters.flowRuns[0].parameters
 
-    with raise_on_exception():
         return flow_runner.run(parameters=parameters)
 
 
