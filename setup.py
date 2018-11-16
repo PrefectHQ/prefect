@@ -29,7 +29,7 @@ install_requires = [
 templates = ["jinja2 >= 2.0, < 3.0"]
 viz = ["bokeh == 0.13.0", "graphviz >= 0.8.3"]
 dev = [
-    "nbformat >= 4.4.0 < 4.5.0",
+    "nbformat >= 4.4.0, < 4.5.0",
     "pre-commit",
     "pytest >= 3.8, < 4.0",
     "pytest-cov",
