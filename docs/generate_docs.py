@@ -11,7 +11,6 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
 
 On a development installation of Prefect, simply run `python generate_docs.py` from inside the `docs/` folder.
 """
-import glob
 import inspect
 import nbformat as nbf
 import os
@@ -451,23 +450,32 @@ def get_class_methods(obj):
     return public_members
 
 
-def create_tutorial_notebooks():
-    tutorials = glob.glob("tutorials/*.md")
+def create_tutorial_notebooks(tutorial):
+    """
+    Utility which automagically creates an .ipynb notebook file from a markdown file consisting
+    of all python code blocks contained within the markdown file.
+
+    Args:
+        - tutorial (str): path to tutorial markdown file
+
+    Will save the resulting notebook in tutorials/notebooks under the same name as the .md file provided.
+    """
+    assert (
+        os.path.basename(os.getcwd()) == "docs"
+    ), "Only run this utility from inside the docs/ directory!"
+
     os.makedirs("tutorials/notebooks", exist_ok=True)
-    for tut in tutorials:
-        if "README" in tut:
+    text = open(tutorial, "r").read()
+    code_blocks = re.findall(r"```(.*?)```", text, re.DOTALL)
+    nb = nbf.v4.new_notebook()
+    nb["cells"] = []
+    for code in code_blocks:
+        if not code.startswith("python"):
             continue
-        text = open(tut, "r").read()
-        code_blocks = re.findall(r"```(.*?)```", text, re.DOTALL)
-        nb = nbf.v4.new_notebook()
-        nb["cells"] = []
-        for code in code_blocks:
-            if not code.startswith("python"):
-                continue
-            code = code[7:]
-            nb["cells"].append(nbf.v4.new_code_cell(code))
-        fname = os.path.basename(tut).split(".md")[0] + ".ipynb"
-        nbf.write(nb, f"tutorials/notebooks/{fname}")
+        code = code[7:]
+        nb["cells"].append(nbf.v4.new_code_cell(code))
+    fname = os.path.basename(tutorial).split(".md")[0] + ".ipynb"
+    nbf.write(nb, f"tutorials/notebooks/{fname}")
 
 
 if __name__ == "__main__":
@@ -582,5 +590,3 @@ if __name__ == "__main__":
             f.write(create_methods_table(fns, title="top-level functions:"))
             f.write("\n")
             f.write(auto_generated_footer)
-
-    create_tutorial_notebooks()
