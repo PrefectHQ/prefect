@@ -39,7 +39,7 @@ class Environment:
     def __init__(self) -> None:
         pass
 
-    def build(self, flow: "prefect.Flow") -> bytes:
+    def build(self, flow: "prefect.Flow") -> "prefect.environments.Environment":
         """
         Build the environment. Returns a key that must be passed to interact with the
         environment.
@@ -337,8 +337,9 @@ class LocalEnvironment(Environment):
 
     def __init__(self, encryption_key: str = None) -> None:
         self.encryption_key = encryption_key
+        self.serialized = None
 
-    def build(self, flow: "prefect.Flow") -> bytes:
+    def build(self, flow: "prefect.Flow") -> "prefect.environments.LocalEnvironment":
         """
         Build the LocalEnvironment
 
@@ -353,7 +354,8 @@ class LocalEnvironment(Environment):
         serialized = prefect.core.registry.serialize_registry(
             registry=registry, include_ids=[flow.id], encryption_key=self.encryption_key
         )
-        return serialized
+        self.serialized = serialized
+        return self
 
     def run(self, key: bytes, cli_cmd: str) -> bytes:
         """
