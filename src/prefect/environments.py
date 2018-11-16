@@ -74,9 +74,11 @@ class ContainerEnvironment(Environment):
         *Note*: An image that is provided must be able to handle `python` and `pip` commands
         - name (str, optional): The name the image will take on the registry
         - tag (str, optional): The tag for this container
+        - registry_url (str, optional): The registry to push the image to
         - python_dependencies (list, optional): The list of pip installable python packages
         that will be installed on build of the Docker container
         - secrets (list, optional): A list of secret value names to be loaded into the environment
+        - flow_id (str, optional): A consistent flow ID (generally set on build and not passed in)
     """
 
     def __init__(
