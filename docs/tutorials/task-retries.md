@@ -4,6 +4,10 @@ sidebarDepth: 0
 
 # Task Retries
 
+::: tip Practice Makes Prefect
+A notebook containing all code presented in this tutorial can be downloaded [here](/notebooks/task-retries.ipynb).
+:::
+
 When designing data workflows, it is to be expected that certain components might occasionally fail or need manual intervention.  In these situations, to avoid re-running entire flows from scratch and still ensure the necessary data arrives at the paused / retrying task, Prefect will automatically detect that caching is required and will store the necessary inputs to be used in subsequent executions of the flow.
 
 <img src='/retry_success.png'>
