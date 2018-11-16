@@ -4,6 +4,10 @@ sidebarDepth: 0
 
 ## Local Debugging
 
+::: tip Practice Makes Prefect
+A notebook containing all code presented in this tutorial can be downloaded [here](/notebooks/local-debugging.ipynb).
+:::
+
 Oftentimes you want to experiment with your ideas before putting them into production; moreover, when something unexpected happens you need an efficient way of diagnosing what went wrong.  Prefect provides you with a wealth of tools for debugging your flows locally and diagnosing issues.
 
 ### Choice of Executor
