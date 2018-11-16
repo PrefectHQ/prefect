@@ -464,7 +464,7 @@ def create_tutorial_notebooks(tutorial):
         os.path.basename(os.getcwd()) == "docs"
     ), "Only run this utility from inside the docs/ directory!"
 
-    os.makedirs("tutorials/notebooks", exist_ok=True)
+    os.makedirs(".vuepress/public/notebooks", exist_ok=True)
     text = open(tutorial, "r").read()
     code_blocks = re.findall(r"```(.*?)```", text, re.DOTALL)
     nb = nbf.v4.new_notebook()
@@ -475,7 +475,7 @@ def create_tutorial_notebooks(tutorial):
         code = code[7:]
         nb["cells"].append(nbf.v4.new_code_cell(code))
     fname = os.path.basename(tutorial).split(".md")[0] + ".ipynb"
-    nbf.write(nb, f"tutorials/notebooks/{fname}")
+    nbf.write(nb, f".vuepress/public/notebooks/{fname}")
 
 
 if __name__ == "__main__":
