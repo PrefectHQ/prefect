@@ -417,7 +417,7 @@ class FlowRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        return self._graph(
+        return self._graphql(
             """
             mutation($input: SetFlowRunStateInput!) {
                 setFlowRunState(input: $input) {
@@ -479,7 +479,7 @@ class TaskRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL query
         """
-        return self._graph(
+        return self._graphql(
             """
             mutation($input: SetTaskRunStateInput!) {
                 setTaskRunState(input: $input) {
