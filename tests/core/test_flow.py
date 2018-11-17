@@ -868,7 +868,7 @@ def test_build_environment_with_none_set():
 def test_build_environment():
     flow = Flow(environment=prefect.environments.LocalEnvironment())
     key = flow.build_environment()
-    assert isinstance(key, bytes)
+    assert isinstance(key, prefect.environments.LocalEnvironment)
 
 
 class TestFlowVisualize:
