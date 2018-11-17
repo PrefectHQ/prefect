@@ -4,7 +4,7 @@ import logging
 import cloudpickle
 import pytest
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import prefect
 from prefect.core.edge import Edge
@@ -885,28 +885,24 @@ class TestFlowVisualize:
 
         assert "pip install prefect[viz]" in repr(exc.value)
 
-    def test_viz_returns_graph_object_if_in_ipython(self, monkeypatch):
+    def test_viz_returns_graph_object_if_in_ipython(self):
         import graphviz
 
         ipython = MagicMock(
             get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
         )
-        with monkeypatch.context() as m:
-            m.setattr(sys, "modules", {"IPython": ipython, "graphviz": graphviz})
+        with patch.dict("sys.modules", IPython=ipython):
             f = Flow()
             f.add_task(Task(name="a_nice_task"))
             graph = f.visualize()
         assert "label=a_nice_task" in graph.source
         assert "shape=ellipse" in graph.source
 
-    def test_viz_reflects_mapping(self, monkeypatch):
-        import graphviz
-
+    def test_viz_reflects_mapping(self):
         ipython = MagicMock(
             get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
         )
-        with monkeypatch.context() as m:
-            m.setattr(sys, "modules", {"IPython": ipython, "graphviz": graphviz})
+        with patch.dict("sys.modules", IPython=ipython):
             with Flow() as f:
                 res = AddTask(name="a_nice_task").map(x=Task(name="a_list_task"), y=8)
             graph = f.visualize()
@@ -925,16 +921,10 @@ class TestFlowVisualize:
             AttributeError("abc"),
         ],
     )
-    def test_viz_renders_if_ipython_isnt_installed_or_errors(self, error, monkeypatch):
+    def test_viz_renders_if_ipython_isnt_installed_or_errors(self, error):
         graphviz = MagicMock()
         ipython = MagicMock(get_ipython=MagicMock(side_effect=error))
-        warnings = sys.modules.get("warnings")
-        with monkeypatch.context() as m:
-            m.setattr(
-                sys,
-                "modules",
-                {"IPython": ipython, "graphviz": graphviz, "warnings": warnings},
-            )
+        with patch.dict("sys.modules", graphviz=graphviz, IPython=ipython):
             with Flow() as f:
                 res = AddTask(name="a_nice_task").map(x=Task(name="a_list_task"), y=8)
             f.visualize()
