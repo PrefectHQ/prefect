@@ -272,9 +272,14 @@ def test_nested_gqlo():
     )
 
 
-def test_ignore_non_collection_fields_1():
+def test_use_true_to_indicate_field_name():
+    # do this to ensure field order on Python < 3.6
+    inner = OrderedDict()
+    inner["id"] = True
+    inner["authors"] = {"id"}
+
     verify(
-        query={"query": {"books": {"id": True, "authors": {"id"}}}},
+        query={"query": {"books": inner}},
         expected="""
             query {
                 books {
