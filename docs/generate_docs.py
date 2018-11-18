@@ -11,12 +11,14 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
 
 On a development installation of Prefect, simply run `python generate_docs.py` from inside the `docs/` folder.
 """
+import importlib
 import inspect
 import os
 import re
 import shutil
 import subprocess
 import textwrap
+import toml
 import warnings
 
 import toolz
@@ -30,209 +32,106 @@ from prefect.utilities.tests import raise_on_exception
 from tokenizer import format_code
 
 
-OUTLINE = [
-    {
-        "page": "environments.md",
-        "classes": [
-            prefect.environments.Environment,
-            prefect.environments.ContainerEnvironment,
-            prefect.environments.LocalEnvironment,
-        ],
-        "title": "Environments",
-        "top-level-doc": prefect.environments,
-    },
-    {
-        "page": "triggers.md",
-        "functions": [
-            prefect.triggers.all_finished,
-            prefect.triggers.manual_only,
-            prefect.triggers.always_run,
-            prefect.triggers.all_successful,
-            prefect.triggers.all_failed,
-            prefect.triggers.any_successful,
-            prefect.triggers.any_failed,
-        ],
-        "title": "Triggers",
-        "top-level-doc": prefect.triggers,
-    },
-    {
-        "page": "client.md",
-        "classes": [prefect.client.Client, prefect.client.Secret],
-        "title": "Client",
-    },
-    {
-        "page": "schedules.md",
-        "classes": [
-            prefect.schedules.Schedule,
-            prefect.schedules.IntervalSchedule,
-            prefect.schedules.CronSchedule,
-        ],
-        "title": "Schedules",
-    },
-    {"page": "core/edge.md", "classes": [prefect.core.edge.Edge], "title": "Edge"},
-    {"page": "core/flow.md", "classes": [prefect.core.flow.Flow], "title": "Flow"},
-    {
-        "page": "core/task.md",
-        "classes": [prefect.core.task.Task, prefect.core.task.Parameter],
-        "title": "Task",
-    },
-    {
-        "page": "core/registry.md",
-        "functions": [
-            prefect.core.registry.register_flow,
-            prefect.core.registry.build_flows,
-            prefect.core.registry.load_flow,
-            prefect.core.registry.serialize_registry,
-            prefect.core.registry.load_serialized_registry,
-            prefect.core.registry.load_serialized_registry_from_path,
-        ],
-        "title": "Registry",
-    },
-    {
-        "page": "engine/cache_validators.md",
-        "functions": [
-            prefect.engine.cache_validators.never_use,
-            prefect.engine.cache_validators.duration_only,
-            prefect.engine.cache_validators.all_inputs,
-            prefect.engine.cache_validators.all_parameters,
-            prefect.engine.cache_validators.partial_parameters_only,
-            prefect.engine.cache_validators.partial_inputs_only,
-        ],
-        "title": "Cache Validators",
-        "top-level-doc": prefect.engine.cache_validators,
-    },
-    {
-        "page": "engine/state.md",
-        "classes": [
-            prefect.engine.state.State,
-            prefect.engine.state.Pending,
-            prefect.engine.state.Paused,
-            prefect.engine.state.CachedState,
-            prefect.engine.state.Scheduled,
-            prefect.engine.state.Retrying,
-            prefect.engine.state.Running,
-            prefect.engine.state.Finished,
-            prefect.engine.state.Success,
-            prefect.engine.state.Failed,
-            prefect.engine.state.TriggerFailed,
-            prefect.engine.state.Skipped,
-        ],
-        "title": "State",
-        "top-level-doc": prefect.engine.state,
-    },
-    {
-        "page": "engine/signals.md",
-        "classes": [
-            prefect.engine.signals.FAIL,
-            prefect.engine.signals.TRIGGERFAIL,
-            prefect.engine.signals.SUCCESS,
-            prefect.engine.signals.RETRY,
-            prefect.engine.signals.SKIP,
-            prefect.engine.signals.PAUSE,
-        ],
-        "title": "Signals",
-        "top-level-doc": prefect.engine.signals,
-    },
-    {
-        "page": "engine/flow_runner.md",
-        "classes": [prefect.engine.flow_runner.FlowRunner],
-        "title": "FlowRunner",
-    },
-    {
-        "page": "engine/task_runner.md",
-        "classes": [prefect.engine.task_runner.TaskRunner],
-        "title": "TaskRunner",
-    },
-    {
-        "page": "engine/executors.md",
-        "classes": [
-            prefect.engine.executors.base.Executor,
-            prefect.engine.executors.dask.DaskExecutor,
-            prefect.engine.executors.local.LocalExecutor,
-            prefect.engine.executors.sync.SynchronousExecutor,
-        ],
-        "title": "Executors",
-        "top-level-doc": prefect.engine.executors,
-    },
-    {
-        "page": "tasks/control_flow.md",
-        "functions": [
-            prefect.tasks.control_flow.switch,
-            prefect.tasks.control_flow.ifelse,
-        ],
-        "title": "Control Flow",
-    },
-    {
-        "page": "tasks/function.md",
-        "classes": [prefect.tasks.core.function.FunctionTask],
-        "title": "FunctionTask",
-    },
-    {
-        "page": "tasks/shell.md",
-        "classes": [prefect.tasks.shell.ShellTask],
-        "title": "ShellTask",
-    },
-    {
-        "page": "tasks/strings.md",
-        "classes": [
-            prefect.tasks.templates.StringFormatterTask,
-            prefect.tasks.templates.JinjaTemplateTask,
-        ],
-        "title": "String Templating Tasks",
-    },
-    {
-        "page": "utilities/bokeh.md",
-        "classes": [BokehRunner],
-        "title": "BokehRunner",
-        "top-level-doc": prefect.utilities.bokeh_runner,
-    },
-    {
-        "page": "utilities/collections.md",
-        "classes": [prefect.utilities.collections.DotDict],
-        "functions": [
-            prefect.utilities.collections.merge_dicts,
-            prefect.utilities.collections.as_nested_dict,
-            prefect.utilities.collections.dict_to_flatdict,
-            prefect.utilities.collections.flatdict_to_dict,
-        ],
-        "title": "Collections",
-    },
-    {
-        "page": "utilities/executors.md",
-        "functions": [
-            prefect.utilities.executors.main_thread_timeout,
-            prefect.utilities.executors.multiprocessing_timeout,
-        ],
-        "title": "Executors",
-    },
-    {
-        "page": "utilities/notifications.md",
-        "functions": [
-            prefect.utilities.notifications.slack_notifier,
-            prefect.utilities.notifications.gmail_notifier,
-        ],
-        "title": "Notifications and Callback Tools",
-        "top-level-doc": prefect.utilities.notifications,
-    },
-    {
-        "page": "utilities/tasks.md",
-        "functions": [
-            prefect.utilities.tasks.tags,
-            prefect.utilities.tasks.as_task,
-            prefect.utilities.tasks.pause_task,
-            prefect.utilities.tasks.task,
-            prefect.utilities.tasks.unmapped,
-        ],
-        "title": "Tasks",
-    },
-    {"page": "utilities/tests.md", "functions": [raise_on_exception], "title": "Tests"},
-    {
-        "page": "utilities/airflow.md",
-        "classes": [AirFlow],
-        "title": "Airflow Conversion Tools",
-        "top-level-doc": prefect.utilities.airflow_utils,
-    },
-]
+PATH = 'outline.toml'
+
+#OUTLINE = [
+#    {
+#        "page": "tasks/control_flow.md",
+#        "functions": [
+#            prefect.tasks.control_flow.switch,
+#            prefect.tasks.control_flow.ifelse,
+#        ],
+#        "title": "Control Flow",
+#    },
+#    {
+#        "page": "tasks/function.md",
+#        "classes": [prefect.tasks.core.function.FunctionTask],
+#        "title": "FunctionTask",
+#    },
+#    {
+#        "page": "tasks/shell.md",
+#        "classes": [prefect.tasks.shell.ShellTask],
+#        "title": "ShellTask",
+#    },
+#    {
+#        "page": "tasks/strings.md",
+#        "classes": [
+#            prefect.tasks.templates.StringFormatterTask,
+#            prefect.tasks.templates.JinjaTemplateTask,
+#        ],
+#        "title": "String Templating Tasks",
+#    },
+#    {
+#        "page": "utilities/bokeh.md",
+#        "classes": [BokehRunner],
+#        "title": "BokehRunner",
+#        "top-level-doc": prefect.utilities.bokeh_runner,
+#    },
+#    {
+#        "page": "utilities/collections.md",
+#        "classes": [prefect.utilities.collections.DotDict],
+#        "functions": [
+#            prefect.utilities.collections.merge_dicts,
+#            prefect.utilities.collections.as_nested_dict,
+#            prefect.utilities.collections.dict_to_flatdict,
+#            prefect.utilities.collections.flatdict_to_dict,
+#        ],
+#        "title": "Collections",
+#    },
+#    {
+#        "page": "utilities/executors.md",
+#        "functions": [
+#            prefect.utilities.executors.main_thread_timeout,
+#            prefect.utilities.executors.multiprocessing_timeout,
+#        ],
+#        "title": "Executors",
+#    },
+#    {
+#        "page": "utilities/notifications.md",
+#        "functions": [
+#            prefect.utilities.notifications.slack_notifier,
+#            prefect.utilities.notifications.gmail_notifier,
+#        ],
+#        "title": "Notifications and Callback Tools",
+#        "top-level-doc": prefect.utilities.notifications,
+#    },
+#    {
+#        "page": "utilities/tasks.md",
+#        "functions": [
+#            prefect.utilities.tasks.tags,
+#            prefect.utilities.tasks.as_task,
+#            prefect.utilities.tasks.pause_task,
+#            prefect.utilities.tasks.task,
+#            prefect.utilities.tasks.unmapped,
+#        ],
+#        "title": "Tasks",
+#    },
+#    {"page": "utilities/tests.md", "functions": [raise_on_exception], "title": "Tests"},
+#    {
+#        "page": "utilities/airflow.md",
+#        "classes": [AirFlow],
+#        "title": "Airflow Conversion Tools",
+#        "top-level-doc": prefect.utilities.airflow_utils,
+#    },
+#]
+#
+
+def load_outline(path=PATH):
+    outline = toml.load(path)
+    ext = outline.get("extension", ".md")
+    OUTLINE = []
+    for name, data in outline['pages'].items():
+        if 'module' in data:
+            page = {}
+            page.update(page=f"{name}{ext}", title=data.get("title", ""), classes=[], functions=[])
+            module = importlib.import_module(data['module'])
+            page['top-level-doc'] = module
+            for fun in data.get('functions', []):
+                page['functions'].append(getattr(module, fun))
+            for clss in data.get('classes', []):
+                page['classes'].append(getattr(module, clss))
+        OUTLINE.append(page)
+    return OUTLINE
 
 
 @toolz.curry
@@ -522,6 +421,7 @@ if __name__ == "__main__":
             f.write(changelog)
             f.write(auto_generated_footer)
 
+    OUTLINE = load_outline()
     for page in OUTLINE:
         # collect what to document
         fname, classes, fns = (
@@ -540,10 +440,12 @@ if __name__ == "__main__":
             if title:  # this would be a good place to have assignments
                 f.write(f"# {title}\n---\n")
 
-            top_doc = page.get("top-level-doc")
-            if top_doc is not None:
-                f.write(inspect.getdoc(top_doc))
-                f.write("\n<hr>\n<br>\n\n")
+            top_doc_obj = page.get("top-level-doc")
+            if top_doc_obj is not None:
+                top_doc = inspect.getdoc(top_doc_obj)
+                if top_doc is not None:
+                    f.write(top_doc)
+                    f.write("\n<hr>\n<br>\n\n")
             for obj in classes:
                 f.write(format_subheader(obj))
 
