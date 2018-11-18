@@ -95,7 +95,9 @@ def test_parse_json_arguments():
 
 
 def test_parse_nested_string():
-    gql_args = parse_graphql_arguments({"input": {"x": json.dumps({"a": 1, "b": 2})}})
+    gql_args = parse_graphql_arguments(
+        {"input": {"x": json.dumps({"a": 1, "b": 2}, sort_keys=True)}}
+    )
     assert gql_args == r'input: { x: "{\"a\": 1, \"b\": 2}" }'
 
 
