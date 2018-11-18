@@ -75,6 +75,37 @@ def parse_graphql(document: Any) -> str:
     }
     ```
 
+    For convenience, if a dictionary key is True, it is ignored and the key alone is used as
+    a field name
+
+    ```python
+    {'query':{
+        'books': {
+            'id': True,
+            'name': True,
+            'author': {
+                'id',
+                'name',
+            }
+        }
+    }}
+    ```
+
+    is equivalent to:
+
+    ```python
+    {'query':{
+        'books': [
+            'id',
+            'name',
+            {'author': {
+                'id',
+                'name',
+            }}
+        ]
+    }}
+    ```
+
     Args:
         - document (Any): A collection of Python objects complying with the general shape
             of a GraphQL query. Generally, this will consist of (at least) a dictionary, but
@@ -102,13 +133,17 @@ def _parse_graphql_inner(document: Any, delimiter: str) -> str:
             [_parse_graphql_inner(item, delimiter=delimiter) for item in document]
         )
     elif isinstance(document, dict):
-        result = [
-            "{key} {{\n{value}\n}}".format(
-                key=_parse_graphql_inner(key, delimiter=delimiter),
-                value=_parse_graphql_inner(value, delimiter=delimiter),
-            )
-            for key, value in document.items()
-        ]
+        result = []
+        for key, value in document.items():
+            if value is True:
+                result.append(key)
+            else:
+                result.append(
+                    "{key} {{\n{value}\n}}".format(
+                        key=key, value=_parse_graphql_inner(value, delimiter=delimiter)
+                    )
+                )
+
         return _parse_graphql_inner(result, delimiter=delimiter)
     elif isinstance(document, type) and issubclass(document, GQLObject):
         raise TypeError(

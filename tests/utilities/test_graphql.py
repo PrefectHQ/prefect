@@ -270,3 +270,19 @@ def test_nested_gqlo():
             }
         """,
     )
+
+
+def test_ignore_non_collection_fields_1():
+    verify(
+        query={"query": {"books": {"id": True, "authors": {"id"}}}},
+        expected="""
+            query {
+                books {
+                    id
+                    authors {
+                        id
+                    }
+                }
+            }
+        """,
+    )
