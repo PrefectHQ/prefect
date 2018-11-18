@@ -89,9 +89,14 @@ def test_parse_none_arguments():
 
 
 def test_parse_json_arguments():
-    json_arg = json.dumps({"a": "b", "c": [1, "d"]}, sort_keys=True)
-    args = parse_graphql_arguments({"where": {"x": {"eq": json_arg}}})
-    assert args == r'where: { x: { eq: "{\"a\": \"b\", \"c\": [1, \"d\"]}" } }'
+    arg = json.dumps({"a": "b", "c": [1, "d"]}, sort_keys=True)
+    gql_args = parse_graphql_arguments({"where": {"x": {"eq": arg}}})
+    assert gql_args == r'where: { x: { eq: "{\"a\": \"b\", \"c\": [1, \"d\"]}" } }'
+
+
+def test_parse_nested_string():
+    gql_args = parse_graphql_arguments({"input": {"x": json.dumps({"a": 1, "b": 2})}})
+    assert gql_args == r'input: { x: "{\"a\": 1, \"b\": 2}" }'
 
 
 def test_with_args():
