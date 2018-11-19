@@ -31,22 +31,31 @@ from prefect.utilities.tests import raise_on_exception
 from tokenizer import format_code
 
 
-outline_config = toml.load('outline.toml')
+outline_config = toml.load("outline.toml")
 
 
-def load_outline(outline=outline_config['pages'], ext=outline_config.get("extension", ".md"), prefix=None):
+def load_outline(
+    outline=outline_config["pages"],
+    ext=outline_config.get("extension", ".md"),
+    prefix=None,
+):
     OUTLINE = []
     for name, data in outline.items():
         fname = os.path.join(prefix or "", name)
-        if 'module' in data:
+        if "module" in data:
             page = {}
-            page.update(page=f"{fname}{ext}", title=data.get("title", ""), classes=[], functions=[])
-            module = importlib.import_module(data['module'])
-            page['top-level-doc'] = module
-            for fun in data.get('functions', []):
-                page['functions'].append(getattr(module, fun))
-            for clss in data.get('classes', []):
-                page['classes'].append(getattr(module, clss))
+            page.update(
+                page=f"{fname}{ext}",
+                title=data.get("title", ""),
+                classes=[],
+                functions=[],
+            )
+            module = importlib.import_module(data["module"])
+            page["top-level-doc"] = module
+            for fun in data.get("functions", []):
+                page["functions"].append(getattr(module, fun))
+            for clss in data.get("classes", []):
+                page["classes"].append(getattr(module, clss))
             OUTLINE.append(page)
         else:
             OUTLINE.extend(load_outline(data, prefix=fname))

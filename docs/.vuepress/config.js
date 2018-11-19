@@ -56,7 +56,7 @@ module.exports = {
                 {
                     title: 'prefect.utilities',
                     collapsable: true,
-                    children: ['utilities/bokeh', 'utilities/collections', 'utilities/executors', 'utilities/json', 'utilities/tasks', 'utilities/tests', 'utilities/notifications', 'utilities/airflow']
+                    children: ['utilities/bokeh', 'utilities/collections', 'utilities/executors', 'utilities/tasks', 'utilities/tests', 'utilities/notifications', 'utilities/airflow']
                 },
             ],
             '/license': [],
