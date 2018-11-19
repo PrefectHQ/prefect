@@ -25,99 +25,15 @@ import toolz
 from functools import partial
 
 import prefect
-from prefect.utilities.airflow_utils import AirFlow
-from prefect.utilities.bokeh_runner import BokehRunner
 from prefect.utilities.tests import raise_on_exception
 
 from tokenizer import format_code
 
 
-PATH = 'outline.toml'
+outline_config = toml.load('outline.toml')
 
-#OUTLINE = [
-#    {
-#        "page": "tasks/control_flow.md",
-#        "functions": [
-#            prefect.tasks.control_flow.switch,
-#            prefect.tasks.control_flow.ifelse,
-#        ],
-#        "title": "Control Flow",
-#    },
-#    {
-#        "page": "tasks/function.md",
-#        "classes": [prefect.tasks.core.function.FunctionTask],
-#        "title": "FunctionTask",
-#    },
-#    {
-#        "page": "tasks/shell.md",
-#        "classes": [prefect.tasks.shell.ShellTask],
-#        "title": "ShellTask",
-#    },
-#    {
-#        "page": "tasks/strings.md",
-#        "classes": [
-#            prefect.tasks.templates.StringFormatterTask,
-#            prefect.tasks.templates.JinjaTemplateTask,
-#        ],
-#        "title": "String Templating Tasks",
-#    },
-#    {
-#        "page": "utilities/bokeh.md",
-#        "classes": [BokehRunner],
-#        "title": "BokehRunner",
-#        "top-level-doc": prefect.utilities.bokeh_runner,
-#    },
-#    {
-#        "page": "utilities/collections.md",
-#        "classes": [prefect.utilities.collections.DotDict],
-#        "functions": [
-#            prefect.utilities.collections.merge_dicts,
-#            prefect.utilities.collections.as_nested_dict,
-#            prefect.utilities.collections.dict_to_flatdict,
-#            prefect.utilities.collections.flatdict_to_dict,
-#        ],
-#        "title": "Collections",
-#    },
-#    {
-#        "page": "utilities/executors.md",
-#        "functions": [
-#            prefect.utilities.executors.main_thread_timeout,
-#            prefect.utilities.executors.multiprocessing_timeout,
-#        ],
-#        "title": "Executors",
-#    },
-#    {
-#        "page": "utilities/notifications.md",
-#        "functions": [
-#            prefect.utilities.notifications.slack_notifier,
-#            prefect.utilities.notifications.gmail_notifier,
-#        ],
-#        "title": "Notifications and Callback Tools",
-#        "top-level-doc": prefect.utilities.notifications,
-#    },
-#    {
-#        "page": "utilities/tasks.md",
-#        "functions": [
-#            prefect.utilities.tasks.tags,
-#            prefect.utilities.tasks.as_task,
-#            prefect.utilities.tasks.pause_task,
-#            prefect.utilities.tasks.task,
-#            prefect.utilities.tasks.unmapped,
-#        ],
-#        "title": "Tasks",
-#    },
-#    {"page": "utilities/tests.md", "functions": [raise_on_exception], "title": "Tests"},
-#    {
-#        "page": "utilities/airflow.md",
-#        "classes": [AirFlow],
-#        "title": "Airflow Conversion Tools",
-#        "top-level-doc": prefect.utilities.airflow_utils,
-#    },
-#]
-#
 
-def load_outline(path=PATH):
-    outline = toml.load(path)
+def load_outline(outline_config=outline_config):
     ext = outline.get("extension", ".md")
     OUTLINE = []
     for name, data in outline['pages'].items():
@@ -130,7 +46,7 @@ def load_outline(path=PATH):
                 page['functions'].append(getattr(module, fun))
             for clss in data.get('classes', []):
                 page['classes'].append(getattr(module, clss))
-        OUTLINE.append(page)
+            OUTLINE.append(page)
     return OUTLINE
 
 
