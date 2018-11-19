@@ -1,12 +1,13 @@
 import os
+from pathlib import Path
+from unittest.mock import MagicMock, mock_open
+
 import pytest
 import requests
-from unittest.mock import MagicMock, mock_open
 
 import prefect
 from prefect.client import Client, Secret
 from prefect.utilities.tests import set_temporary_config
-
 
 #################################
 ##### Client Tests
@@ -34,7 +35,7 @@ def test_client_token_initializes_from_kwarg():
 
 
 def test_client_token_initializes_from_file(monkeypatch):
-    monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
+    monkeypatch.setattr("pathlib.Path.exists", MagicMock(return_value=True))
     monkeypatch.setattr("builtins.open", mock_open(read_data="TOKEN"))
     client = Client()
     assert client.token == "TOKEN"
@@ -65,7 +66,10 @@ def test_client_logs_in_and_saves_token(monkeypatch):
     assert post.call_args[0][0] == "http://my-cloud.foo/login"
     assert post.call_args[1]["auth"] == ("test@example.com", "1234")
     assert client.token == "secrettoken"
-    assert mock_file.call_args[0] == ("~/.prefect/.credentials/auth_token", "w+")
+    assert mock_file.call_args[0] == (
+        Path("~/.prefect/.credentials/auth_token").expanduser(),
+        "w+",
+    )
 
 
 def test_client_logs_in_from_config_credentials(monkeypatch):
@@ -87,7 +91,10 @@ def test_client_logs_in_from_config_credentials(monkeypatch):
     assert post.call_args[0][0] == "http://my-cloud.foo/login"
     assert post.call_args[1]["auth"] == ("test@example.com", "1234")
     assert client.token == "secrettoken"
-    assert mock_file.call_args[0] == ("~/.prefect/.credentials/auth_token", "w+")
+    assert mock_file.call_args[0] == (
+        Path("~/.prefect/.credentials/auth_token").expanduser(),
+        "w+",
+    )
 
 
 def test_client_logs_out_and_deletes_auth_token(monkeypatch):
@@ -100,11 +107,13 @@ def test_client_logs_out_and_deletes_auth_token(monkeypatch):
     with set_temporary_config("cloud.api", "http://my-cloud.foo"):
         client = Client()
     client.login("test@example.com", "1234")
-    assert os.path.exists("~/.prefect/.credentials/auth_token")
-    with open("~/.prefect/.credentials/auth_token", "r") as f:
+
+    token_path = Path("~/.prefect/.credentials/auth_token").expanduser()
+    assert token_path.exists()
+    with open(token_path, "r") as f:
         assert f.read() == "secrettoken"
     client.logout()
-    assert not os.path.exists("~/.prefect/.credentials/auth_token")
+    assert not token_path.exists()
 
 
 def test_client_raises_if_login_fails(monkeypatch):

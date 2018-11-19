@@ -3,6 +3,7 @@
 import datetime
 import json
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Union
 
 import prefect
@@ -53,8 +54,9 @@ class Client:
             token = prefect.config.cloud.get("auth_token", None)
 
             if token is None:
-                if os.path.exists("~/.prefect/.credentials/auth_token"):
-                    with open("~/.prefect/.credentials/auth_token", "r") as f:
+                token_path = Path("~/.prefect/.credentials/auth_token").expanduser()
+                if token_path.exists():
+                    with open(token_path, "r") as f:
                         token = f.read()
 
         self.token = token
@@ -221,16 +223,19 @@ class Client:
             raise ValueError("Could not log in.")
         self.token = response.json().get("token")
         if self.token:
-            if not os.path.exists("~/.prefect/.credentials"):
-                os.makedirs("~/.prefect/.credentials")
-            with open("~/.prefect/.credentials/auth_token", "w+") as f:
+            creds_dir = Path("~/.prefect/.credentials").expanduser()
+            if not creds_dir.exists():
+                os.makedirs(creds_dir)
+            with open(creds_dir / "auth_token", "w+") as f:
                 f.write(self.token)
 
     def logout(self) -> None:
         """
         Logs out by clearing all tokens, including deleting `~/.prefect/credentials/auth_token`
         """
-        os.remove("~/.prefect/.credentials/auth_token")
+        token_path = Path("~/.prefect/.credentials/auth_token").expanduser()
+        if token_path.exists():
+            os.remove(token_path)
         del self.token
 
     def refresh_token(self) -> None:
