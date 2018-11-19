@@ -385,20 +385,15 @@ class FlowRuns(ClientModule):
         Returns:
             - dict: Data returned from the GraphQL mutation
         """
+
+        input_dict = {"flowId": flow_id, "parameters": json.dumps(parameters)}
+
+        if start_time:
+            input_dict["startTime"] = start_time.isoformat()
+
         mutation = {
             "mutation": {
-                with_args(
-                    "createFlowRun",
-                    {
-                        "input": {
-                            "flowId": flow_id,
-                            "parameters": json.dumps(parameters),
-                            "startTime": start_time.isoformat()
-                            if start_time
-                            else None,  # type: ignore
-                        }
-                    },
-                ): {"flowRun": {"id"}}
+                with_args("createFlowRun", {"input": input_dict}): {"flowRun": {"id"}}
             }
         }
         return self._graphql(parse_graphql(mutation))
