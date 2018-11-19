@@ -4,7 +4,7 @@ from collections import OrderedDict
 from textwrap import dedent
 
 import pytest
-
+from prefect.utilities.collections import DotDict
 from prefect.utilities.graphql import (
     GQLObject,
     parse_graphql,
@@ -294,6 +294,38 @@ def test_use_true_to_indicate_field_name():
                     authors {
                         id
                     }
+                }
+            }
+        """,
+    )
+
+
+def test_dotdict_query_parsing():
+    verify(
+        query=DotDict(query=DotDict(books={"id"})),
+        expected="""
+            query {
+                books {
+                    id
+                }
+            }
+        """,
+    )
+
+
+def test_pass_dotdicts_as_args():
+    verify(
+        query={
+            "query": {
+                with_args(
+                    "books", DotDict(author=DotDict(name=DotDict(first="first")))
+                ): {"id"}
+            }
+        },
+        expected="""
+            query {
+                books(author: { name: { first: "first" } }) {
+                    id
                 }
             }
         """,
