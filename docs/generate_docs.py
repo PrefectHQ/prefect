@@ -26,12 +26,11 @@ import warnings
 from functools import partial
 
 import prefect
-from prefect.utilities.tests import raise_on_exception
-
 from tokenizer import format_code
 
 
-outline_config = toml.load("outline.toml")
+OUTLINE_PATH = os.path.join(os.path.dirname(__file__), "outline.toml")
+outline_config = toml.load(OUTLINE_PATH)
 
 
 def load_outline(
@@ -60,6 +59,9 @@ def load_outline(
         else:
             OUTLINE.extend(load_outline(data, prefix=fname))
     return OUTLINE
+
+
+OUTLINE = load_outline()
 
 
 @toolz.curry
@@ -377,7 +379,6 @@ if __name__ == "__main__":
             f.write(changelog)
             f.write(auto_generated_footer)
 
-    OUTLINE = load_outline()
     for page in OUTLINE:
         # collect what to document
         fname, classes, fns = (
