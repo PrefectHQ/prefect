@@ -89,9 +89,16 @@ def test_parse_none_arguments():
 
 
 def test_parse_json_arguments():
-    json_arg = json.dumps({"a": "b", "c": [1, "d"]}, sort_keys=True)
-    args = parse_graphql_arguments({"where": {"x": {"eq": json_arg}}})
-    assert args == r'where: { x: { eq: "{\"a\": \"b\", \"c\": [1, \"d\"]}" } }'
+    arg = json.dumps({"a": "b", "c": [1, "d"]}, sort_keys=True)
+    gql_args = parse_graphql_arguments({"where": {"x": {"eq": arg}}})
+    assert gql_args == r'where: { x: { eq: "{\"a\": \"b\", \"c\": [1, \"d\"]}" } }'
+
+
+def test_parse_nested_string():
+    gql_args = parse_graphql_arguments(
+        {"input": {"x": json.dumps({"a": 1, "b": 2}, sort_keys=True)}}
+    )
+    assert gql_args == r'input: { x: "{\"a\": 1, \"b\": 2}" }'
 
 
 def test_with_args():
@@ -265,6 +272,27 @@ def test_nested_gqlo():
                         account {
                             id
                         }
+                    }
+                }
+            }
+        """,
+    )
+
+
+def test_use_true_to_indicate_field_name():
+    # do this to ensure field order on Python < 3.6
+    inner = OrderedDict()
+    inner["id"] = True
+    inner["authors"] = {"id"}
+
+    verify(
+        query={"query": {"books": inner}},
+        expected="""
+            query {
+                books {
+                    id
+                    authors {
+                        id
                     }
                 }
             }

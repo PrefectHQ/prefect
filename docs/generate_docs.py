@@ -13,15 +13,16 @@ On a development installation of Prefect, simply run `python generate_docs.py` f
 """
 import importlib
 import inspect
+import nbformat as nbf
 import os
 import re
 import shutil
 import subprocess
 import textwrap
 import toml
+import toolz
 import warnings
 
-import toolz
 from functools import partial
 
 import prefect
@@ -264,6 +265,34 @@ def get_class_methods(obj):
     )
     public_members = [method for (name, method) in members if not name.startswith("_")]
     return public_members
+
+
+def create_tutorial_notebooks(tutorial):
+    """
+    Utility which automagically creates an .ipynb notebook file from a markdown file consisting
+    of all python code blocks contained within the markdown file.
+
+    Args:
+        - tutorial (str): path to tutorial markdown file
+
+    Will save the resulting notebook in tutorials/notebooks under the same name as the .md file provided.
+    """
+    assert (
+        os.path.basename(os.getcwd()) == "docs"
+    ), "Only run this utility from inside the docs/ directory!"
+
+    os.makedirs(".vuepress/public/notebooks", exist_ok=True)
+    text = open(tutorial, "r").read()
+    code_blocks = re.findall(r"```(.*?)```", text, re.DOTALL)
+    nb = nbf.v4.new_notebook()
+    nb["cells"] = []
+    for code in code_blocks:
+        if not code.startswith("python"):
+            continue
+        code = code[7:]
+        nb["cells"].append(nbf.v4.new_code_cell(code))
+    fname = os.path.basename(tutorial).split(".md")[0] + ".ipynb"
+    nbf.write(nb, f".vuepress/public/notebooks/{fname}")
 
 
 if __name__ == "__main__":
