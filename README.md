@@ -102,10 +102,17 @@ def function(x: int, y: float, z: str = None):
 ```
 
 - in order for your new functions / classes / modules to be compiled into documentation, you must do two things:
-  1. in the `OUTLINE` list contained within `docs/generate_docs.py`, specify the following information about your page (or update an existing page):
-     - `"page"`: the location and filename of the markdown page
-     - `"title"`: the displayed title of the page
-     - `"classes"`: a list of all documented classes on this page
-     - `"functions"`: a list of all documented standalone functions on this page
-     - `"top-level-doc"`: a module object which contains the docstring which will be displayed at the top of the generated page
+  1. update the `outline.toml` file within the `docs/` directory, specify the following information about your page (or update an existing page):
+     ```
+     [pages.group.page_name]
+     module = ""
+     title = ""
+     classes = []
+     functions = []
+    ```
+     - the location and filename of the markdown page will be inferred from your header specification
+     - if your module has a module-level docstring, this will be displayed at the top of the page
+     - `title`: a string specifying the displayed title of the page
+     - `classes`: an optional list of strings specifying all documented classes on this page
+     - `functions`: an optional list of strings specifying all documented standalone functions on this page
   2. update `docs/.vuepress/config.js` to include your new page / section / etc. in the sidebar
