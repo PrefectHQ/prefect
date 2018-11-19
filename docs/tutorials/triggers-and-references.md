@@ -1,6 +1,10 @@
 
 # Triggers and Reference Tasks
 
+::: tip Practice Makes Prefect
+A notebook containing all code presented in this tutorial can be downloaded [here](/notebooks/triggers-and-references.ipynb).
+:::
+
 In some cases, we explicitly _don't_ want to automate some portion of a system; in these cases the notion of a "Success" can be difficult or impossible to verify automatically, so instead we want a person to review the state of affairs and decide if it's safe to proceed with the work.  Othertimes user input is needed at _task_ runtime (as opposed to _flow_ runtime).
 
 For example, imagine we have the following workflow:
