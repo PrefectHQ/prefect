@@ -24,7 +24,11 @@ import docker
 import toml
 
 import prefect
+from prefect import config
 from prefect.client import Secret
+from prefect.serializers import Serializer
+
+# from prefect.utilities.json import ObjectAttributesCodec, Serializable
 
 
 class Environment:
@@ -32,7 +36,10 @@ class Environment:
     Base class for Environments
     """
 
-    def build(self, flow: "prefect.Flow") -> bytes:
+    def __init__(self) -> None:
+        pass
+
+    def build(self, flow: "prefect.Flow") -> "prefect.environments.Environment":
         """
         Build the environment. Returns a key that must be passed to interact with the
         environment.
@@ -67,9 +74,11 @@ class ContainerEnvironment(Environment):
         *Note*: An image that is provided must be able to handle `python` and `pip` commands
         - name (str, optional): The name the image will take on the registry
         - tag (str, optional): The tag for this container
+        - registry_url (str, optional): The registry to push the image to
         - python_dependencies (list, optional): The list of pip installable python packages
         that will be installed on build of the Docker container
         - secrets (list, optional): A list of secret value names to be loaded into the environment
+        - flow_id (str, optional): A consistent flow ID (generally set on build and not passed in)
     """
 
     def __init__(
@@ -77,14 +86,18 @@ class ContainerEnvironment(Environment):
         image: str,
         name: str = None,
         tag: str = None,
+        registry_url: str = None,
         python_dependencies: list = None,
         secrets: list = None,
+        flow_id: str = None,
     ) -> None:
         self._image = image
         self._name = name or str(uuid.uuid4())
         self._tag = tag or str(uuid.uuid4())
+        self._registry_url = registry_url
         self._python_dependencies = python_dependencies or []
         self._secrets = secrets or []
+        self._flow_id = flow_id
         self.last_container_id = None
 
         super().__init__()
@@ -115,11 +128,23 @@ class ContainerEnvironment(Environment):
         return self._tag
 
     @property
+    def registry_url(self) -> str:
+        """Get the container's registry URL"""
+        return self._registry_url
+
+    @property
+    def flow_id(self) -> str:
+        """Get the container's flow ID"""
+        return self._flow_id
+
+    @property
     def client(self) -> "docker.client.DockerClient":
         """Get the environment's client"""
         return docker.from_env()
 
-    def build(self, flow: "prefect.Flow", push: bool = True) -> tuple:
+    def build(
+        self, flow: "prefect.Flow", push: bool = True
+    ) -> "prefect.environments.ContainerEnvironment":
         """Build the Docker container
 
         Args:
@@ -127,7 +152,7 @@ class ContainerEnvironment(Environment):
             - push (bool): Whether or not to push to registry after build
 
         Returns:
-            - tuple: tuple consisting of (`docker.models.images.Image`, iterable logs)
+            - ContainerEnvironment: an instance of this environment
         """
         with tempfile.TemporaryDirectory() as tempdir:
 
@@ -136,7 +161,7 @@ class ContainerEnvironment(Environment):
 
             self.pull_image()
 
-            path = os.path.join(os.getenv("HOME"), ".prefect/config.toml")
+            path = config.user_config_path
 
             if Path(path).is_file():
                 config_data = toml.load(path)
@@ -151,10 +176,10 @@ class ContainerEnvironment(Environment):
 
             client = docker.from_env()
 
-            if not config_data["REGISTRY_URL"]:
+            if not self.registry_url:
                 raise ValueError("Registry not specified.")
 
-            image_name = os.path.join(config_data["REGISTRY_URL"], self.name)
+            image_name = os.path.join(self.registry_url, self.name)
 
             logging.info("Building the flow's container environment...")
             client.images.build(
@@ -167,7 +192,8 @@ class ContainerEnvironment(Environment):
             # Remove the image locally after being pushed
             client.images.remove("{}:{}".format(image_name, self.tag))
 
-            return {"image_name": image_name, "image_tag": self.tag, "flow_id": flow.id}
+            self._flow_id = flow.id
+            return self
 
     def run(self, cli_cmd: str) -> None:
         """Run a command in the Docker container
@@ -264,9 +290,9 @@ class ContainerEnvironment(Environment):
                 COPY config.toml /root/.prefect/config.toml
 
                 ENV PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="/root/.prefect/registry"
-                ENV PREFECT__GENERAL__USER_CONFIG_PATH="/root/.prefect/config.toml"
+                ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
 
-                RUN pip install jinja2
+
                 RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
             """.format(
@@ -313,8 +339,9 @@ class LocalEnvironment(Environment):
 
     def __init__(self, encryption_key: str = None) -> None:
         self.encryption_key = encryption_key
+        self.serialized = None
 
-    def build(self, flow: "prefect.Flow") -> bytes:
+    def build(self, flow: "prefect.Flow") -> "prefect.environments.LocalEnvironment":
         """
         Build the LocalEnvironment
 
@@ -322,14 +349,15 @@ class LocalEnvironment(Environment):
             - flow (Flow): The prefect Flow object to build the environment for
 
         Returns:
-            - bytes: The encrypted and pickled flow registry
+            - LocalEnvironment: An instance of this environment
         """
         registry = {}  # type: dict
         flow.register(registry=registry)
         serialized = prefect.core.registry.serialize_registry(
             registry=registry, include_ids=[flow.id], encryption_key=self.encryption_key
         )
-        return serialized
+        self.serialized = serialized
+        return self
 
     def run(self, key: bytes, cli_cmd: str) -> bytes:
         """
