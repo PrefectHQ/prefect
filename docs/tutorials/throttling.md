@@ -2,6 +2,10 @@
 
 > Topics covered: _executors_, _parallelism_, _tags_,  _throttling_
 
+::: tip Practice Makes Prefect
+A notebook containing all code presented in this tutorial can be downloaded [here](/notebooks/throttling.ipynb).
+:::
+
 Task throttling refers to the ability to constrain how many tasks are allowed to run in parallel.  Some questions we'd like to answer:
 - How do we run parallel workflows locally in Prefect?
 - Why is task throttling useful?
