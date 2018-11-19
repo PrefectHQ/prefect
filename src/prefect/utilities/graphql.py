@@ -2,7 +2,7 @@ import json
 import re
 import textwrap
 from typing import Any, Union
-from prefect.utilities.collections import as_nested_dict
+from prefect.utilities.collections import DotDict
 
 
 def lowercase_first_letter(s: str) -> str:
@@ -132,7 +132,7 @@ def _parse_graphql_inner(document: Any, delimiter: str) -> str:
         return "\n".join(
             [_parse_graphql_inner(item, delimiter=delimiter) for item in document]
         )
-    elif isinstance(document, dict):
+    elif isinstance(document, (dict, DotDict)):
         result = []
         for key, value in document.items():
             if value is True:
@@ -169,7 +169,7 @@ def parse_graphql_arguments(arguments: Any) -> str:
     """
     parsed = _parse_arguments_inner(arguments)
     # remove '{ ' and ' }' from front and end of parsed dict
-    if isinstance(arguments, dict):
+    if isinstance(arguments, (dict, DotDict)):
         parsed = parsed[2:-2]
     # remove '"' and '"' from front and end of parsed str
     elif isinstance(arguments, str):
@@ -178,7 +178,7 @@ def parse_graphql_arguments(arguments: Any) -> str:
 
 
 def _parse_arguments_inner(arguments: Any) -> str:
-    if isinstance(arguments, dict):
+    if isinstance(arguments, (dict, DotDict)):
         formatted = []
         for key, value in arguments.items():
             formatted.append(
