@@ -225,7 +225,7 @@ class Client:
         if self.token:
             creds_dir = Path("~/.prefect/.credentials").expanduser()
             if not creds_dir.exists():
-                os.makedirs(creds_dir)
+                creds_dir.mkdir()
             with open(creds_dir / "auth_token", "w+") as f:
                 f.write(self.token)
 
@@ -235,7 +235,7 @@ class Client:
         """
         token_path = Path("~/.prefect/.credentials/auth_token").expanduser()
         if token_path.exists():
-            os.remove(token_path)
+            os.remove(str(token_path))
         del self.token
 
     def refresh_token(self) -> None:
