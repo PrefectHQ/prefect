@@ -13,7 +13,7 @@ from prefect.utilities.serialization import JSONField, NestedField
 class FlowSchema(VersionedSchema):
     class Meta:
         object_class = lambda: prefect.core.Flow
-        object_class_exclude = ["id", "type", "parameters", "environment_key"]
+        object_class_exclude = ["id", "type", "parameters"]
         # ordered to make sure Task objects are loaded before Edge objects, due to Task caching
         ordered = True
 
@@ -25,7 +25,6 @@ class FlowSchema(VersionedSchema):
     type = fields.Function(lambda flow: to_qualified_name(type(flow)), lambda x: x)
     schedule = fields.Nested(ScheduleSchema, allow_none=True)
     environment = fields.Nested(EnvironmentSchema, allow_none=True)
-    environment_key = fields.String(allow_none=True)
     parameters = NestedField(
         ParameterSchema,
         dump_fn=lambda obj, context: {
