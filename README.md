@@ -103,16 +103,18 @@ def function(x: int, y: float, z: str = None):
 
 - in order for your new functions / classes / modules to be compiled into documentation, you must do two things:
   1. update the `outline.toml` file within the `docs/` directory, specify the following information about your page (or update an existing page):
- ```
-[pages.utilities.collections]
-title = "Collections"
-module = "prefect.utilities.collections"
-classes = ["DotDict"]
-functions = ["merge_dicts", "as_nested_dict", "dict_to_flatdict", "flatdict_to_dict"]
-```
      - the location and filename of the markdown page will be inferred from your header specification
      - if your module has a module-level docstring, this will be displayed at the top of the page
      - `title`: a string specifying the displayed title of the page
      - `classes`: an optional list of strings specifying all documented classes on this page
      - `functions`: an optional list of strings specifying all documented standalone functions on this page
   2. update `docs/.vuepress/config.js` to include your new page / section / etc. in the sidebar
+
+For example:
+```
+[pages.utilities.collections]
+title = "Collections"
+module = "prefect.utilities.collections"
+classes = ["DotDict"]
+functions = ["merge_dicts", "as_nested_dict", "dict_to_flatdict", "flatdict_to_dict"]
+```
