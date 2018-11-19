@@ -33,13 +33,13 @@ from tokenizer import format_code
 outline_config = toml.load('outline.toml')
 
 
-def load_outline(outline_config=outline_config):
-    ext = outline.get("extension", ".md")
+def load_outline(outline=outline_config['pages'], ext=outline_config.get("extension", ".md"), prefix=None):
     OUTLINE = []
-    for name, data in outline['pages'].items():
+    for name, data in outline.items():
+        fname = os.path.join(prefix or "", name)
         if 'module' in data:
             page = {}
-            page.update(page=f"{name}{ext}", title=data.get("title", ""), classes=[], functions=[])
+            page.update(page=f"{fname}{ext}", title=data.get("title", ""), classes=[], functions=[])
             module = importlib.import_module(data['module'])
             page['top-level-doc'] = module
             for fun in data.get('functions', []):
@@ -47,6 +47,8 @@ def load_outline(outline_config=outline_config):
             for clss in data.get('classes', []):
                 page['classes'].append(getattr(module, clss))
             OUTLINE.append(page)
+        else:
+            OUTLINE.extend(load_outline(data, prefix=fname))
     return OUTLINE
 
 
