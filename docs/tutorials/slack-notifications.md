@@ -8,6 +8,10 @@ sidebarDepth: 1
 <img src="https://uploads-ssl.webflow.com/5ba446b0e783e26d5a2f2382/5bc4f20bd534b99be66f24aa_slack.png">
 </center>
 
+::: tip Practice Makes Prefect
+A notebook containing all code presented in this tutorial can be downloaded [here](/notebooks/slack-notifications.ipynb).
+:::
+
 Prefect lets you easily setup callback hooks to get notified when certain state changes occur within your flows or for a given task.
 This can be as simple as:
 ```python
