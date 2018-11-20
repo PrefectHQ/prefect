@@ -14,7 +14,7 @@ class ENDRUN(Exception):
     stop. The pipeline result should be the state contained in the exception.
     """
 
-    def __init__(self, state: State = None) -> None:
+    def __init__(self, state: State) -> None:
         """
         Args
             - state (State): the state that should be used as the result of the Runner's run
@@ -130,6 +130,6 @@ class Runner:
             if raise_on_exception:
                 raise
             raise ENDRUN(
-                Failed("Exception raised while calling state handlers.", message=exc)
+                Failed("Exception raised while calling state handlers.", result=exc)
             )
         return new_state

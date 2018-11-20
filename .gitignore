@@ -59,6 +59,8 @@ local_settings.py
 
 # Dask stuff:
 *dask-worker-space/*
+*.dirlock
+*.lock
 
 # Flask stuff:
 instance/
@@ -120,5 +122,6 @@ node_modules
 
 # docs
 docs/api
+docs/changelog.md
 docs/deploy/dist
 docs/.vuepress/public/prefect-coverage

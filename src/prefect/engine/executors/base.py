@@ -5,10 +5,9 @@ from typing import Any, Callable, Dict, Iterable, Iterator
 
 import prefect
 from prefect.utilities.executors import multiprocessing_timeout
-from prefect.utilities.json import Serializable
 
 
-class Executor(Serializable):
+class Executor:
     """
     Base Executor class which all other executors inherit from.
     """
@@ -29,7 +28,7 @@ class Executor(Serializable):
         yield
 
     def map(
-        self, fn: Callable, *args: Any, upstream_states: dict = None, **kwargs: Any
+        self, fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
     ) -> Any:
         """
         Submit a function to be mapped over.

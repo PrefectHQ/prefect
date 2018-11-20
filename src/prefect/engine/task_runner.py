@@ -1,26 +1,29 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import collections
-import datetime
-import functools
+import pendulum
 import logging
-from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterable, List, Union, Set, Optional
+from typing import Any, Callable, Dict, Iterable, List, Union, Set, Sized, Optional
 
 import prefect
+from prefect import config
+from prefect.client import Client, TaskRuns
 from prefect.core import Edge, Task
 from prefect.engine import signals
+from prefect.engine.cloud_handler import CloudHandler
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.state import (
     CachedState,
     Failed,
     Mapped,
     Pending,
+    Scheduled,
     Retrying,
     Running,
     Skipped,
     State,
     Success,
+    TimedOut,
     TriggerFailed,
 )
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
@@ -56,6 +59,7 @@ class TaskRunner(Runner):
 
     def __init__(self, task: Task, state_handlers: Iterable[Callable] = None) -> None:
         self.task = task
+        self.cloud_handler = CloudHandler()
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -68,10 +72,21 @@ class TaskRunner(Runner):
             - new_state (State): the new (current) state
 
         Returns:
-            State: the new state
+            - State: the new state
         """
         for handler in self.task.state_handlers:
             new_state = handler(self.task, old_state, new_state)
+
+        # Set state if in prefect cloud
+        if config.get("prefect_cloud", None):
+            task_run_id = prefect.context.get("_task_run_id")
+            version = prefect.context.get("_task_run_version")
+
+            self.cloud_handler.setTaskRunState(
+                task_run_id=task_run_id, version=version, state=new_state
+            )
+            prefect.context.update(_task_run_version=version + 1)
+
         return new_state
 
     def run(
@@ -81,7 +96,7 @@ class TaskRunner(Runner):
         inputs: Dict[str, Any] = None,
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
-        queues: Iterable = None,
+        queues: List = None,
         mapped: bool = False,
         executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
@@ -100,7 +115,7 @@ class TaskRunner(Runner):
                 to the task's `run()` arguments. Any keys that are provided will override the
                 `State`-based inputs provided in upstream_states.
             - ignore_trigger (bool): boolean specifying whether to ignore the
-                Task trigger; defaults to `False`
+                Task trigger and certain other dependency checks; defaults to `False`
             - context (dict, optional): prefect Context to use for execution
             - queues ([queue], optional): list of queues of tickets to use when deciding
                 whether it's safe for the Task to run based on resource limitations. The
@@ -116,14 +131,23 @@ class TaskRunner(Runner):
         """
 
         queues = queues or []
-        state = state or Pending()
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
         executor = executor or DEFAULT_EXECUTOR
 
+        # Initialize CloudHandler and get task run version
+        if config.get("prefect_cloud", None):
+            self.cloud_handler.load_prefect_client()
+            task_run_info = self.cloud_handler.getTaskRunIdAndVersion(
+                context.get("task_id")
+            )
+            context.update(
+                _task_run_version=task_run_info.version, _task_run_id=task_run_info.id
+            )
+
         # construct task inputs
-        task_inputs = {}
+        task_inputs = {}  # type: Dict[str, Any]
         if not mapped:
             for edge, v in upstream_states.items():
                 if edge.key is None:
@@ -159,6 +183,12 @@ class TaskRunner(Runner):
         with prefect.context(context, _task_name=self.task.name):
 
             try:
+                # determine starting state
+                new_state = None
+                for handler in self.state_handlers:
+                    new_state = handler(self, None, new_state)
+                state = new_state or state or Pending()
+
                 # retrieve the run number and place in context
                 state = self.get_run_count(state=state)
 
@@ -182,6 +212,11 @@ class TaskRunner(Runner):
 
                 # check to make sure the task is in a pending state
                 state = self.check_task_is_pending(state)
+
+                # check if the task has reached its scheduled time
+                state = self.check_task_reached_start_time(
+                    state, ignore_trigger=ignore_trigger
+                )
 
                 # check to see if the task has a cached result
                 state = self.check_task_is_cached(state, inputs=task_inputs)
@@ -223,8 +258,8 @@ class TaskRunner(Runner):
                 state = exc.state
 
             except signals.PAUSE as exc:
-                state.cached_inputs = task_inputs or {}
-                state.message = exc
+                state = exc.state
+                state.cached_inputs = task_inputs or {}  # type: ignore
 
             finally:  # resource is now available
                 for ticket, q in zip(tickets, queues):
@@ -243,7 +278,7 @@ class TaskRunner(Runner):
             - state (State): the current state of the task
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
         """
         if isinstance(state, Retrying):
             run_count = state.run_count + 1
@@ -264,7 +299,7 @@ class TaskRunner(Runner):
             - upstream_states_set: a set containing the states of any upstream tasks.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if upstream tasks are not finished.
@@ -285,7 +320,7 @@ class TaskRunner(Runner):
             - upstream_states_set: a set containing the states of any upstream tasks.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
         """
         if self.task.skip_on_upstream_skip and any(
             s.is_skipped() for s in upstream_states_set
@@ -315,11 +350,11 @@ class TaskRunner(Runner):
         Args:
             - state (State): the current state of this task
             - upstream_states_set (Set[State]): a set containing the states of any upstream tasks.
-            - ignore_trigger (bool): a boolean indicating whether to ignore the
-                tasks's trigger
+            - ignore_trigger (bool): if True, skips the trigger check because the task is a
+                start task.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if the trigger raises an error
@@ -347,7 +382,11 @@ class TaskRunner(Runner):
             logging.debug("Unexpected error while running task.")
             if raise_on_exception:
                 raise exc
-            raise ENDRUN(TriggerFailed(message=exc))
+            raise ENDRUN(
+                TriggerFailed(
+                    "Unexpected error while checking task trigger.", result=exc
+                )
+            )
 
         return state
 
@@ -360,7 +399,7 @@ class TaskRunner(Runner):
             - state (State): the current state of this task
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if the task is not ready to run
@@ -387,15 +426,46 @@ class TaskRunner(Runner):
             raise ENDRUN(state)
 
     @call_state_handlers
+    def check_task_reached_start_time(
+        self, state: State, ignore_trigger: bool = False
+    ) -> State:
+        """
+        Checks if a task is in a Scheduled state and, if it is, ensures that the scheduled
+        time has been reached. Note: Scheduled states include Retry states.
+
+        Args:
+            - state (State): the current state of this task
+            - ignore_trigger (bool): if True, the task is treated as a start task and the
+                scheduled check is not run
+
+        Returns:
+            - State: the state of the task after running the task
+
+        Raises:
+            - ENDRUN: if the task is not a start task and Scheduled with a future
+                scheduled time
+        """
+        if isinstance(state, Scheduled):
+            if (
+                not ignore_trigger
+                and state.start_time
+                and state.start_time > pendulum.now("utc")
+            ):
+                raise ENDRUN(state)
+        return state
+
+    @call_state_handlers
     def check_task_is_cached(self, state: State, inputs: Dict[str, Any]) -> State:
         """
+        Checks if task is cached and whether the cache is still valid.
+
         Args:
             - state (State): the current state of this task
             - inputs (Dict[str, Any]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if the task is not ready to run
@@ -409,7 +479,7 @@ class TaskRunner(Runner):
     @call_state_handlers
     def check_upstreams_for_mapping(
         self, state: State, upstream_states: Dict[Edge, Union[State, List[State]]]
-    ):
+    ) -> State:
         """
         If the task is being mapped, checks if the upstream states are in a state
         to be mapped over.
@@ -421,7 +491,7 @@ class TaskRunner(Runner):
                 dictionary should correspond to the edges leading to the task.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if the task is not ready to be mapped
@@ -454,11 +524,11 @@ class TaskRunner(Runner):
         self,
         state: State,
         upstream_states: Dict[Edge, Union[State, List[State]]],
-        inputs,
-        ignore_trigger,
-        context,
-        queues,
-        executor,
+        inputs: Dict[str, Any],
+        ignore_trigger: bool,
+        context: Dict[str, Any],
+        queues: Iterable,
+        executor: "prefect.engine.executors.Executor",
     ) -> State:
         """
         If the task is being mapped, sets the task to `Mapped`
@@ -471,7 +541,7 @@ class TaskRunner(Runner):
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
             - ignore_trigger (bool): boolean specifying whether to ignore the
-                Task trigger; defaults to `False`
+                Task trigger and certain other dependency checks; defaults to `False`
             - context (dict, optional): prefect Context to use for execution
             - queues ([queue], optional): list of queues of tickets to use when deciding
                 whether it's safe for the Task to run based on resource limitations. The
@@ -479,7 +549,7 @@ class TaskRunner(Runner):
             - executor (Executor): executor to use when performing computation
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
         """
         result = executor.map(
             self.run,
@@ -503,7 +573,7 @@ class TaskRunner(Runner):
             - state (State): the current state of this task
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - ENDRUN: if the task is not ready to run
@@ -529,7 +599,7 @@ class TaskRunner(Runner):
                 `prefect.utilities.executors.main_thread_timeout`
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         Raises:
             - signals.PAUSE: if the task raises PAUSE
@@ -554,12 +624,20 @@ class TaskRunner(Runner):
                 raise exc
             return exc.state
 
+        # inform user of timeout
+        except TimeoutError as exc:
+            if raise_on_exception:
+                raise exc
+            return TimedOut(
+                "Task timed out during execution.", result=exc, cached_inputs=inputs
+            )
+
         # Exceptions are trapped and turned into Failed states
         except Exception as exc:
             logging.debug("Unexpected error while running task.")
             if raise_on_exception:
                 raise exc
-            return Failed(message=exc)
+            return Failed("Unexpected error while running task.", result=exc)
 
         return Success(result=result, message="Task run succeeded.")
 
@@ -578,7 +656,7 @@ class TaskRunner(Runner):
                 to the task's `run()` arguments.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
 
         """
         if (
@@ -586,7 +664,7 @@ class TaskRunner(Runner):
             and not state.is_skipped()
             and self.task.cache_for is not None
         ):
-            expiration = datetime.datetime.utcnow() + self.task.cache_for
+            expiration = pendulum.now("utc") + self.task.cache_for
             cached_state = CachedState(
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
@@ -610,12 +688,12 @@ class TaskRunner(Runner):
                 to the task's `run()` arguments.
 
         Returns:
-            State: the state of the task after running the check
+            - State: the state of the task after running the check
         """
         if state.is_failed():
             run_count = prefect.context.get("_task_run_count", 1)
             if run_count <= self.task.max_retries:
-                start_time = datetime.datetime.utcnow() + self.task.retry_delay
+                start_time = pendulum.now("utc") + self.task.retry_delay
                 msg = "Retrying Task (after attempt {n} of {m})".format(
                     n=run_count, m=self.task.max_retries + 1
                 )

@@ -15,13 +15,19 @@ class PrefectStateSignal(PrefectError):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
+        - args (Any, optional): additional arguments to pass to this Signal's
+            associated state constructor
+        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+            associated state constructor
     """
 
     _state_cls = state.State
 
     def __init__(self, message=None, *args, **kwargs) -> None:  # type: ignore
         super().__init__(message)  # type: ignore
-        self.state = self._state_cls(message=self, *args, **kwargs)
+        self.state = self._state_cls(  # type: ignore
+            result=self, message=message, *args, **kwargs
+        )
 
 
 class FAIL(PrefectStateSignal):
@@ -30,6 +36,10 @@ class FAIL(PrefectStateSignal):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
+        - args (Any, optional): additional arguments to pass to this Signal's
+            associated state constructor
+        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+            associated state constructor
     """
 
     _state_cls = state.Failed
@@ -41,6 +51,10 @@ class TRIGGERFAIL(FAIL):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
+        - args (Any, optional): additional arguments to pass to this Signal's
+            associated state constructor
+        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+            associated state constructor
     """
 
     _state_cls = state.TriggerFailed
@@ -52,6 +66,10 @@ class SUCCESS(PrefectStateSignal):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
+        - args (Any, optional): additional arguments to pass to this Signal's
+            associated state constructor
+        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+            associated state constructor
     """
 
     _state_cls = state.Success
@@ -63,6 +81,10 @@ class RETRY(PrefectStateSignal):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
+        - args (Any, optional): additional arguments to pass to this Signal's
+            associated state constructor
+        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+            associated state constructor
     """
 
     _state_cls = state.Retrying
@@ -75,6 +97,10 @@ class SKIP(PrefectStateSignal):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
+        - args (Any, optional): additional arguments to pass to this Signal's
+            associated state constructor
+        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+            associated state constructor
     """
 
     _state_cls = state.Skipped
@@ -86,4 +112,10 @@ class PAUSE(PrefectStateSignal):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
+        - args (Any, optional): additional arguments to pass to this Signal's
+            associated state constructor
+        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+            associated state constructor
     """
+
+    _state_cls = state.Paused

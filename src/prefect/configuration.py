@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import datetime
 import logging
 import os
 import re
@@ -22,6 +23,79 @@ class Config(collections.DotDict):
             return super().__getattr__(attr)
         else:
             raise AttributeError("Config has no key '{}'".format(attr))
+
+    def get_nested(self, key: str, default=None) -> Any:
+        """
+        Retrieves a (possibly nested) config key's value, creating intermediate keys if
+        necessary
+
+        For example:
+        >>> config = Config(a=Config(b=Config(c=5)))
+        >>> assert config.get_nested('a.b.c') == 5
+
+        >>> config = Config()
+        >>> assert config.get_nested('a.b.c') is None
+
+        Args:
+            - key (str): a key, indicated nested keys by separating them with '.'
+            - default (Any): a value to return if the key is not found
+        """
+        tmp_val = self
+        for k in key.split("."):
+            if isinstance(tmp_val, Config) and k in tmp_val:
+                tmp_val = tmp_val[k]
+            else:
+                return default
+        return tmp_val
+
+    def set_nested(self, key: str, value: Any) -> None:
+        """
+        Sets a (possibly nested) config key to have some value. Creates intermediate keys
+        if necessary.
+
+        For example:
+        >>> config = Config()
+        >>> config.set_nested('a.b.c', 5)
+        >>> assert config.a.b.c == 5
+
+        Args:
+            - key (str): a key, indicated nested keys by separating them with '.'
+            - value (Any): a value to set
+
+        """
+        config = self
+        keys = key.split(".")
+        for k in keys[:-1]:
+            config = config.setdefault(k, Config())
+        config[keys[-1]] = value
+
+    def setdefault_nested(self, key: str, value: Any) -> Any:
+        """
+        Sets a (possibly nested) config key to have some value, if it doesn't already exist.
+        Creates intermediate keys if necessary.
+
+        For example:
+        >>> config = Config()
+        >>> config.setdefault_nested('a.b.c', 5)
+        >>> assert config.a.b.c == 5
+        >>> config.setdefault_nested('a.b.c', 10)
+        >>> assert config.a.b.c == 5
+
+        Args:
+            - key (str): a key, indicated nested keys by separating them with '.'
+            - value (Any): a value to set
+
+        Returns:
+            Any: the value at the provided key
+
+        """
+        config = self
+        keys = key.split(".")
+        for k in keys[:-1]:
+            config = config.setdefault(k, Config())
+        if keys[-1] not in config:
+            config[keys[-1]] = value
+        return config[keys[-1]]
 
 
 def string_to_type(val: str) -> Union[bool, int, float, str]:
@@ -108,6 +182,39 @@ def create_user_config(dest_path: str, source_path: str = DEFAULT_CONFIG) -> Non
             dest.write(source.read())
 
 
+# Process Config -------------------------------------------------------------
+
+
+def process_task_defaults(config: Config) -> Config:
+    """
+    Converts task defaults from basic types to Python objects like timedeltas
+
+    Args:
+        - config (Config): the configuration to modify
+    """
+    # make sure defaults exists
+    defaults = config.setdefault_nested("tasks.defaults", Config())
+
+    # max_retries defaults to 0 if not set, False, or None
+    if not defaults.setdefault("max_retries", 0):
+        defaults.max_retries = 0
+    defaults.max_retries = defaults.get("max_retries", 0) or 0
+
+    # retry_delay defaults to None if not set - also check for False because TOML has no NULL
+    if defaults.setdefault("retry_delay", False) is False:
+        defaults.retry_delay = None
+    elif isinstance(defaults.retry_delay, int):
+        defaults.retry_delay = datetime.timedelta(seconds=defaults.retry_delay)
+
+    # timeout defaults to None if not set - also check for False because TOML has no NULL
+    if defaults.setdefault("timeout", False) is False:
+        defaults.timeout = None
+    elif isinstance(defaults.timeout, int):
+        defaults.timeout = datetime.timedelta(seconds=defaults.timeout)
+
+    return config
+
+
 # Validation ------------------------------------------------------------------
 
 
@@ -121,14 +228,17 @@ def validate_config(config: Config) -> None:
 # Load configuration ----------------------------------------------------------
 
 
-def load_config_file(path: str, env_var_prefix: str = None) -> Config:
+def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) -> Config:
     """
     Loads a configuration file from a path, optionally merging it into an existing
     configuration.
     """
 
     # load the configuration file
-    config = toml.load(interpolate_env_var(path))
+    config = {
+        key.lower(): value
+        for key, value in toml.load(interpolate_env_var(path)).items()
+    }
 
     # toml supports nested dicts, so we work with a flattened representation to do any
     # requested interpolation
@@ -138,8 +248,9 @@ def load_config_file(path: str, env_var_prefix: str = None) -> Config:
     # check if any env var sets a configuration value with the format:
     #     [ENV_VAR_PREFIX]__[Section]__[Optional Sub-Sections...]__[Key] = Value
     # and if it does, add it to the config file.
+    env = env or os.environ
     if env_var_prefix:
-        for env_var in os.environ:
+        for env_var in env:
             if env_var.startswith(env_var_prefix + "__"):
 
                 # strip the prefix off the env var
@@ -154,7 +265,7 @@ def load_config_file(path: str, env_var_prefix: str = None) -> Config:
                     env_var_option.lower().split("__")
                 )
                 flat_config[config_option] = string_to_type(
-                    interpolate_env_var(os.getenv(env_var))
+                    interpolate_env_var(env.get(env_var))
                 )
 
     # interpolate any env vars referenced
@@ -206,7 +317,10 @@ def load_config_file(path: str, env_var_prefix: str = None) -> Config:
 
 
 def load_configuration(
-    config_path: str, env_var_prefix: str = None, merge_into_config: Config = None
+    config_path: str,
+    env_var_prefix: str = None,
+    merge_into_config: Config = None,
+    env: dict = None,
 ) -> Config:
     """
     Given a `config_path` with a toml configuration file, returns a Config object.
@@ -221,7 +335,7 @@ def load_configuration(
     """
 
     # load default config
-    config = load_config_file(config_path, env_var_prefix=env_var_prefix or "")
+    config = load_config_file(config_path, env_var_prefix=env_var_prefix or "", env=env)
 
     if merge_into_config is not None:
         config = collections.merge_dicts(merge_into_config, config)
@@ -234,9 +348,12 @@ def load_configuration(
 config = load_configuration(config_path=DEFAULT_CONFIG, env_var_prefix=ENV_VAR_PREFIX)
 
 # if user config exists, load and merge it with default config
-if os.path.isfile(config.get("general", {}).get("user_config_path", "")):
+user_config_path = config.get("user_config_path", None)
+if user_config_path and os.path.isfile(user_config_path):
     config = load_configuration(
-        config_path=config.general.user_config_path,
+        config_path=user_config_path,
         env_var_prefix=ENV_VAR_PREFIX,
         merge_into_config=config,
     )
+
+config = process_task_defaults(config)

@@ -10,9 +10,8 @@ from cryptography.fernet import Fernet
 import prefect
 from prefect.core.flow import Flow
 from prefect.core.task import Task
-from prefect.utilities.json import dumps
 
-REGISTRY = {}
+REGISTRY = {}  # type: dict
 
 
 def register_flow(flow: Flow, registry: dict = None) -> None:

@@ -3,6 +3,8 @@ import logging
 
 import cloudpickle
 import pytest
+import sys
+from unittest.mock import MagicMock, patch
 
 import prefect
 from prefect.core.edge import Edge
@@ -73,7 +75,7 @@ class TestCreateFlow:
 
     def test_create_flow_with_schedule(self):
         f1 = Flow()
-        assert isinstance(f1.schedule, prefect.schedules.NoSchedule)
+        assert f1.schedule is None
 
         cron = prefect.schedules.CronSchedule("* * * * *")
         f2 = Flow(schedule=cron)
@@ -755,6 +757,37 @@ def test_validate_missing_task_info():
     assert "tasks are not in the task_info" in str(exc.value).lower()
 
 
+def test_validate_edges_kwarg():
+    f = Flow()
+    t1, t2 = Task(), Task()  # these tasks don't support keyed edges
+    with pytest.raises(TypeError):
+        f.add_edge(t1, t2, key="x", validate=True)
+
+
+def test_validate_edges():
+    with set_temporary_config("flows.eager_edge_validation", True):
+        f = Flow()
+        t1, t2 = Task(), Task()  # these tasks don't support keyed edges
+        with pytest.raises(TypeError):
+            f.add_edge(t1, t2, key="x")
+
+
+def test_skip_validate_edges():
+    f = Flow()
+    t1, t2 = Task(), Task()  # these tasks don't support keyed edges
+    f.add_edge(t1, t2, key="x", validate=False)
+    f.add_edge(t2, t1, validate=False)  # this introduces a cycle
+
+
+def test_skip_validation_in_init_with_kwarg():
+    t1, t2 = Task(), Task()  # these tasks don't support keyed edges
+    e1, e2 = Edge(t1, t2), Edge(t2, t1)
+    with pytest.raises(ValueError):
+        Flow(edges=[e1, e2], validate=True)
+
+    assert Flow(edges=[e1, e2], validate=False)
+
+
 def test_task_ids_are_cached():
     f = Flow()
     t1 = Task()
@@ -835,75 +868,66 @@ def test_build_environment_with_none_set():
 def test_build_environment():
     flow = Flow(environment=prefect.environments.LocalEnvironment())
     key = flow.build_environment()
-    assert isinstance(key, bytes)
+    assert isinstance(key, prefect.environments.LocalEnvironment)
 
 
-def test_serialize_default_keys():
-    serialized = Flow().serialize()
-    assert set(serialized.keys()) == set(
-        [
-            "id",
-            "name",
-            "version",
-            "project",
-            "description",
-            "environment",
-            "environment_key",
-            "parameters",
-            "schedule",
-            "tasks",
-            "reference_tasks",
-            "edges",
-            "throttle",
-        ]
-    )
+class TestFlowVisualize:
+    def test_visualize_raises_informative_importerror_without_graphviz(
+        self, monkeypatch
+    ):
+        f = Flow()
+        f.add_task(Task())
 
+        with monkeypatch.context() as m:
+            m.setattr(sys, "path", "")
+            with pytest.raises(ImportError) as exc:
+                f.visualize()
 
-def test_serialize_tasks():
-    flow = Flow()
-    t1 = Task()
-    t2 = Task()
-    t3 = Task()
-    flow.add_edge(t1, t2)
-    flow.add_task(t3)
+        assert "pip install prefect[viz]" in repr(exc.value)
 
-    serialized = flow.serialize()
-    assert len(serialized["tasks"]) == 3
-    for t in serialized["tasks"]:
-        assert "id" in t
-        assert "mapped" in t
-        assert "name" in t
-        assert "max_retries" in t
-    assert len(serialized["edges"]) == 1
-    for e in serialized["edges"]:
-        assert e.keys() == set(
-            ["upstream_task_id", "downstream_task_id", "key", "mapped"]
+    def test_viz_returns_graph_object_if_in_ipython(self):
+        import graphviz
+
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
         )
-        assert e["upstream_task_id"] in flow.task_ids
-        assert e["downstream_task_id"] in flow.task_ids
-    assert set([flow.task_ids[i] for i in serialized["reference_tasks"]]) == set(
-        [t2, t3]
+        with patch.dict("sys.modules", IPython=ipython):
+            f = Flow()
+            f.add_task(Task(name="a_nice_task"))
+            graph = f.visualize()
+        assert "label=a_nice_task" in graph.source
+        assert "shape=ellipse" in graph.source
+
+    def test_viz_reflects_mapping(self):
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        with patch.dict("sys.modules", IPython=ipython):
+            with Flow() as f:
+                res = AddTask(name="a_nice_task").map(x=Task(name="a_list_task"), y=8)
+            graph = f.visualize()
+        assert 'label="a_nice_task <map>" shape=box' in graph.source
+        assert "label=a_list_task shape=ellipse" in graph.source
+        assert "label=x style=dashed" in graph.source
+        assert "label=y style=dashed" in graph.source
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ImportError("abc"),
+            ValueError("abc"),
+            TypeError("abc"),
+            NameError("abc"),
+            AttributeError("abc"),
+        ],
     )
-
-
-def test_serialize_build():
-    flow = Flow(environment=prefect.environments.LocalEnvironment())
-    assert flow.serialize()["environment_key"] is None
-    assert isinstance(flow.serialize(build=True)["environment_key"], bytes)
-
-
-def test_visualize_raises_informative_importerror_without_graphviz(monkeypatch):
-    f = Flow()
-    f.add_task(Task())
-
-    import sys
-
-    with monkeypatch.context() as m:
-        m.setattr(sys, "path", "")
-        with pytest.raises(ImportError) as exc:
+    def test_viz_renders_if_ipython_isnt_installed_or_errors(self, error):
+        graphviz = MagicMock()
+        ipython = MagicMock(get_ipython=MagicMock(side_effect=error))
+        with patch.dict("sys.modules", graphviz=graphviz, IPython=ipython):
+            with Flow() as f:
+                res = AddTask(name="a_nice_task").map(x=Task(name="a_list_task"), y=8)
             f.visualize()
-
-    assert "pip install prefect[viz]" in repr(exc.value)
 
 
 class TestCache:
@@ -1022,14 +1046,14 @@ class TestCache:
 
         # check that cache holds result
         key = ("parameters", ())
-        assert f._cache[key] == dict(t1=dict(required=True, default=None))
+        assert f._cache[key] == {t1}
 
         # check that cache is read
         f._cache[key] = 1
         assert f.parameters() == 1
 
         f.add_edge(t2, t3)
-        assert f.parameters() == dict(t1=dict(required=True, default=None))
+        assert f.parameters() == {t1}
 
     def test_cache_all_upstream_edges(self):
         f = Flow()
@@ -1200,3 +1224,50 @@ class TestGetTasks:
         t1, t2 = Task(name="t1", tags=["a", "b"]), Specific(name="t1", tags=["a"])
         f = Flow(tasks=[t1, t2])
         assert f.get_tasks(task_type=Specific) == [t2]
+
+
+class TestSerialize:
+    def test_serialization(self):
+        p1, t2, t3, = Parameter("1"), Task("2"), Task("3")
+
+        f = Flow(tasks=[p1, t2, t3])
+        f.add_edge(p1, t2)
+        f.add_edge(p1, t3)
+
+        serialized = f.serialize()
+        assert isinstance(serialized, dict)
+        assert len(serialized["tasks"]) == len(f.tasks)
+
+    def test_deserialization(self):
+        p1, t2, t3, = Parameter("1"), Task("2"), Task("3")
+
+        f = Flow(
+            name="hi",
+            version="2",
+            tasks=[p1, t2, t3],
+            schedule=prefect.schedules.CronSchedule("* * 0 0 0"),
+        )
+        f.add_edge(p1, t2)
+        f.add_edge(p1, t3)
+
+        serialized = f.serialize()
+        f2 = prefect.serialization.flow.FlowSchema().load(serialized)
+
+        assert len(f2.tasks) == 3
+        assert len(f2.edges) == 2
+        assert len(f2.reference_tasks()) == 2
+        assert {t.name for t in f2.reference_tasks()} == {"2", "3"}
+        assert f2.name == f.name
+        assert f2.version == f.version
+        assert isinstance(f2.schedule, prefect.schedules.CronSchedule)
+
+    def test_serialize_validates_invalid_flows(self):
+        t1, t2 = Task(), Task()
+        f = Flow()
+        f.add_edge(t1, t2)
+        # default settings should allow this even though it's illegal
+        f.add_edge(t2, t1)
+
+        with pytest.raises(ValueError) as exc:
+            f.serialize()
+        assert "cycle found" in str(exc).lower()

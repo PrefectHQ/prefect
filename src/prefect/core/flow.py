@@ -4,10 +4,11 @@ import collections
 import copy
 import functools
 import inspect
+import json
 import tempfile
 import uuid
 from collections import Counter
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Set, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Set, Tuple, Union
 
 import xxhash
 from mypy_extensions import TypedDict
@@ -17,9 +18,9 @@ import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.environments import Environment
-from prefect.utilities.json import Serializable, dumps
-from prefect.utilities.tasks import as_task, unmapped
 from prefect.utilities import logging
+from prefect.utilities.serialization import to_qualified_name
+from prefect.utilities.tasks import as_task, unmapped
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
@@ -55,7 +56,7 @@ def cache(method: Callable) -> Callable:
     return wrapper
 
 
-class Flow(Serializable):
+class Flow:
     """
     The Flow class is used as the representation of a collection of dependent Tasks.
     Flows track Task dependencies, parameters and provide the main API for constructing and managing workflows.
@@ -88,8 +89,7 @@ class Flow(Serializable):
         - name (str, optional): The name of the flow
         - version (str, optional): The flow's version
         - project (str, optional): The flow's project
-        - schedule (prefect.schedules.Schedule, optional): A schedule used to
-        represent when the flow should run
+        - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - description (str, optional): Descriptive information about the flow
         - environment (prefect.environments.Environment, optional): The environment
         type that the flow should be run in
@@ -101,6 +101,18 @@ class Flow(Serializable):
         - throttle (dict, optional): dictionary of tags -> int specifying
             how many tasks with a given tag should be allowed to run simultaneously. Used
             for throttling resource usage.
+        - state_handlers (Iterable[Callable], optional): A list of state change handlers
+            that will be called whenever the flow changes state, providing an
+            opportunity to inspect or modify the new state. The handler
+            will be passed the flow instance, the old (prior) state, and the new
+            (current) state, with the following signature:
+                `state_handler(flow: Flow, old_state: State, new_state: State) -> State`
+            If multiple functions are passed, then the `new_state` argument will be the
+            result of the previous handler.
+        - validate (bool, optional): Whether or not to check the validity of
+            the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
+            in the `edges` argument. Defaults to the value of `eager_edge_validation` in
+            your prefect configuration file.
 
     Raises:
         - ValueError: if any throttle values are `<= 0`
@@ -120,6 +132,7 @@ class Flow(Serializable):
         register: bool = False,
         throttle: Dict[str, int] = None,
         state_handlers: Iterable[Callable] = None,
+        validate: bool = None,
     ) -> None:
         self._cache = {}  # type: dict
 
@@ -132,7 +145,7 @@ class Flow(Serializable):
         self.version = version or prefect.config.flows.default_version  # type: ignore
         self.project = project or prefect.config.flows.default_project  # type: ignore
         self.description = description or None
-        self.schedule = schedule or prefect.schedules.NoSchedule()
+        self.schedule = schedule
         self.environment = environment
 
         self.tasks = set()  # type: Set[Task]
@@ -143,7 +156,13 @@ class Flow(Serializable):
 
         self.set_reference_tasks(reference_tasks or [])
         for e in edges or []:
-            self.add_edge(**e.serialize())
+            self.add_edge(
+                upstream_task=e.upstream_task,
+                downstream_task=e.downstream_task,
+                key=e.key,
+                mapped=e.mapped,
+                validate=validate,
+            )
 
         self._prefect_version = prefect.__version__
 
@@ -199,7 +218,7 @@ class Flow(Serializable):
 
     def copy(self) -> "Flow":
         """
-        Returns a copy of the current Flow.
+        Create and returns a copy of the current Flow.
         """
         new = copy.copy(self)
         new._cache = dict()
@@ -361,11 +380,15 @@ class Flow(Serializable):
         return set(t for t in self.tasks if not self.edges_from(t))
 
     @cache
-    def parameters(self, only_required: bool = False) -> Dict[str, ParameterDetails]:
+    def parameters(
+        self, names_only: bool = False, only_required: bool = False
+    ) -> Set[Union[str, Parameter]]:
         """
         Get details about any Parameters in this flow.
 
         Args:
+            - names_only (bool, optional): Whether or not to only return
+            parameter names
             - only_required (bool, optional): Whether or not to only get
             required parameters; defaults to `False`
 
@@ -374,7 +397,7 @@ class Flow(Serializable):
             Parameters
         """
         return {
-            t.name: {"required": t.required, "default": t.default}
+            t.name if names_only else t
             for t in self.tasks
             if isinstance(t, Parameter) and (t.required if only_required else True)
         }
@@ -453,7 +476,11 @@ class Flow(Serializable):
 
         if task not in self.tasks:
             self.tasks.add(task)
-            self.task_info[task] = dict(id=str(uuid.uuid4()), mapped=False)
+            self.task_info[task] = {
+                "id": str(uuid.uuid4()),
+                "type": to_qualified_name(type(task)),
+                "mapped": False,
+            }
             self._cache.clear()
 
         return task
@@ -478,8 +505,8 @@ class Flow(Serializable):
                 `run()` method of the downstream task
             - mapped (bool, optional): Whether this edge represents a call to `Task.map()`; defaults to `False`
             - validate (bool, optional): Whether or not to check the validity of
-                the flow (e.g., presence of cycles).  Defaults to the value of `eager_edge_validation`
-                in your prefect configuration file.
+                the flow (e.g., presence of cycles and illegal keys). Defaults to the value
+                of `eager_edge_validation` in your prefect configuration file.
 
         Returns:
             - prefect.core.edge.Edge: The `Edge` object that was successfully added to the flow
@@ -488,6 +515,8 @@ class Flow(Serializable):
             - ValueError: if the `downstream_task` is of type `Parameter`
             - ValueError: if the edge exists with this `key` and `downstream_task`
         """
+        if validate is None:
+            validate = prefect.config.flows.eager_edge_validation  # type: ignore
         if isinstance(downstream_task, Parameter):
             raise ValueError(
                 "Parameters must be root tasks and can not have upstream dependencies."
@@ -498,7 +527,7 @@ class Flow(Serializable):
 
         # we can only check the downstream task's edges once it has been added to the
         # flow, so we need to perform this check here and not earlier.
-        if key and key in {e.key for e in self.edges_to(downstream_task)}:
+        if validate and key and key in {e.key for e in self.edges_to(downstream_task)}:
             raise ValueError(
                 'Argument "{a}" for task {t} has already been assigned in '
                 "this flow. If you are trying to call the task again with "
@@ -515,7 +544,7 @@ class Flow(Serializable):
         self.edges.add(edge)
 
         # check that the edges are valid keywords by binding them
-        if key is not None:
+        if validate and key is not None:
             edge_keys = {
                 e.key: None for e in self.edges_to(downstream_task) if e.key is not None
             }
@@ -527,9 +556,6 @@ class Flow(Serializable):
         self._cache.clear()
 
         # check for cycles
-        if validate is None:
-            validate = prefect.config.flows.eager_edge_validation  # type: ignore
-
         if validate:
             self.validate()
 
@@ -567,7 +593,7 @@ class Flow(Serializable):
             - validate (bool, optional): Whether or not to check the validity of the flow
 
         Returns:
-            None
+            - None
         """
         for task in flow.tasks:
             if task not in self.tasks:
@@ -870,7 +896,9 @@ class Flow(Serializable):
         """
         runner = prefect.engine.flow_runner.FlowRunner(flow=self)  # type: ignore
         parameters = parameters or {}
-        unknown_params = [p for p in parameters if p not in self.parameters()]
+        unknown_params = [
+            p for p in parameters if p not in self.parameters(names_only=True)
+        ]
         if unknown_params:
             fmt_params = ", ".join(unknown_params)
             raise TypeError(
@@ -880,7 +908,7 @@ class Flow(Serializable):
             )
 
         passed_parameters = {}
-        for p in self.parameters():
+        for p in self.parameters(names_only=True):
             if p in kwargs:
                 passed_parameters[p] = kwargs.pop(p)
             elif p in parameters:
@@ -926,13 +954,13 @@ class Flow(Serializable):
             raise ImportError(msg)
 
         def get_color(task: Task) -> str:
-            try:
-                assert flow_state  # mypy assert
-                assert isinstance(flow_state.result, dict)  # mypy assert
-                state = flow_state.result.get(task)
+            assert flow_state  # mypy assert
+            assert isinstance(flow_state.result, dict)  # mypy assert
+            state = flow_state.result.get(task)
+            if state is not None:
+                assert state is not None  # mypy assert
                 return state.color + "80"
-            except:
-                return "#00000080"
+            return "#00000080"
 
         graph = graphviz.Digraph()
 
@@ -958,7 +986,7 @@ class Flow(Serializable):
 
             if get_ipython().config.get("IPKernelApp") is not None:
                 return graph
-        except NameError:
+        except Exception:
             pass
 
         with tempfile.NamedTemporaryFile() as tmp:
@@ -981,41 +1009,14 @@ class Flow(Serializable):
             - dict representing the flow
         """
 
-        if self.environment and build:
-            environment_key = self.build_environment()
-        else:
-            environment_key = None
+        self.validate()
 
-        tasks = []
-        for t in self.tasks:
-            task_info = t.serialize()
-            task_info.update(self.task_info[t])
-            tasks.append(task_info)
+        if build and self.environment:
+            self.environment = self.environment.build(self)
 
-        edges = []
-        for e in self.edges:
-            edge_info = e.serialize()
-            upstream_task = edge_info.pop("upstream_task")
-            edge_info["upstream_task_id"] = self.task_info[upstream_task]["id"]
-            downstream_task = edge_info.pop("downstream_task")
-            edge_info["downstream_task_id"] = self.task_info[downstream_task]["id"]
-            edges.append(edge_info)
+        serialized = prefect.serialization.flow.FlowSchema().dump(self)
 
-        return dict(
-            id=self.id,
-            name=self.name,
-            version=self.version,
-            project=self.project,
-            description=self.description,
-            environment=self.environment,
-            environment_key=environment_key,
-            parameters=self.parameters(),
-            schedule=self.schedule,
-            tasks=tasks,
-            edges=edges,
-            reference_tasks=[self.task_info[t]["id"] for t in self.reference_tasks()],
-            throttle=self.throttle,
-        )
+        return serialized
 
     def register(self, registry: dict = None) -> None:
         """
@@ -1024,7 +1025,9 @@ class Flow(Serializable):
         Args:
             - registry (dict): a registry (defaults to the global registry)
         """
-        return prefect.core.registry.register_flow(self, registry=registry)
+        return prefect.core.registry.register_flow(  # type: ignore
+            self, registry=registry
+        )
 
     @cache
     def build_environment(self) -> bytes:
@@ -1043,7 +1046,7 @@ class Flow(Serializable):
 
     def generate_local_task_ids(
         self, *, _debug_steps: bool = False
-    ) -> Dict[str, "Task"]:
+    ) -> Dict["Task", bytes]:
         """
         Generates stable IDs for each task that track across flow versions
 
@@ -1104,7 +1107,9 @@ class Flow(Serializable):
         # -----------------------------------------------------------
 
         ids = {
-            t: _hash(dumps((t.serialize(), self.project, self.name), sort_keys=True))
+            t: _hash(
+                json.dumps((t.serialize(), self.project, self.name), sort_keys=True)
+            )
             for t in tasks
         }
 
@@ -1202,7 +1207,7 @@ class Flow(Serializable):
                     continue
 
                 # create a new id by hashing the task ID with upstream dn downstream IDs
-                edges = [
+                edges = [  # type: ignore
                     sorted((e.key, ids[e.upstream_task]) for e in edges_to[task]),
                     sorted((e.key, ids[e.downstream_task]) for e in edges_from[task]),
                 ]
@@ -1247,7 +1252,7 @@ class Flow(Serializable):
 
         if _debug_steps:
             debug_steps[5] = ids.copy()
-            return debug_steps
+            return debug_steps  # type: ignore
 
         return ids
 

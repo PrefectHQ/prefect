@@ -4,6 +4,10 @@ sidebarDepth: 0
 
 ## Flow Visualization
 
+::: tip Practice Makes Prefect
+A notebook containing all code presented in this tutorial can be downloaded [here](/notebooks/visualization.ipynb).
+:::
+
 It is a common mantra that the first thing data professionals should do when trying to understand a dataset is to _visualize_ it; similarly, when designing workflows it is always a good idea to visually inspect what you've created.
 
 Prefect provides multiple tools for building, inspecting and testing your flows locally.  In this tutorial we will cover some ways you can _visualize_ your flow and its execution.  Everything we discuss will require Prefect to be installed with either the `"viz"` or `"dev"` extras:
