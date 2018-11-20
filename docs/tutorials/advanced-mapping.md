@@ -18,7 +18,7 @@ We will proceed in stages, introducing Prefect functionality as we go:
 1. First, we will scrape a specific episode to test our scraping logic; this will only require the core Prefect building blocks.
 2. Next, we will compile a _list_ of all episodes, and then scrape each individual episode; for this we will introduce the concept of "mapping" a Task to efficiently re-use our scraping logic across each episode.
 3. To speed up processing time, we will re-execute our flow to exploit the inherit _parallelism_ of our mapped tasks; moreover, to prevent opening too many simultaneous connections to the website, we will _throttle_ the scraping tasks.  To achieve this we need to use a new Prefect _executor_.  We will also save the results of this run to prevent re-running the scraping jobs as we extend our flow further.
-4. Finally, we want to create a simple sqlite database and store all of our data in it.
+4. Finally, we want to leverage the Prefect task library to create a simple sqlite database and store all of our data in it.
 
 As we proceed, we hope to ensure that our Flow is _reproducible_ and _reusable_ in the future.
 
