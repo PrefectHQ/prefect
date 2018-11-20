@@ -128,13 +128,13 @@ def test_mutation_with_return():
     verify(
         mutation,
         expected="""
-mutation {
-    createUser(input: { name: "chris" }) {
-        user {
-            name
-        }
-    }
-}
+            mutation {
+                createUser(input: { name: "chris" }) {
+                    user {
+                        name
+                    }
+                }
+            }
            """,
     )
 
