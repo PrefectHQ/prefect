@@ -9,13 +9,16 @@ from prefect import Task
 
 class SQLiteQueryTask(Task):
     """
+    Task for executing a single query against a sqlite3 database; returns
+    the result (if any) from the query.
+
     Args:
         - db (str): the location of the database (.db) file
         - query (str, optional): the optional _default_ query to execute at runtime;
             can also be provided as a keyword to `run`, which takes precendence over this default.
             Note that a query should consist of a _single SQL statement_.
         - **kwargs (optional): additional keyword arguments to pass to the
-            standard Task constructor
+            standard Task initalization
     """
 
     def __init__(self, db: str, query: str = None, **kwargs) -> None:
@@ -43,13 +46,14 @@ class SQLiteQueryTask(Task):
 
 class SQLiteScriptTask(Task):
     """
+    Task for executing a SQL script against a sqlite3 database.
+
     Args:
-        - script (str, optional): the optional _default_ query string to render at runtime;
-            can also be provided as a keyword to `run`, which takes precendence over this default.
-        - db (str, optional): the optional _default_ template string to render at runtime;
+        - db (str): the location of the database (.db) file
+        - script (str, optional): the optional _default_ script string to render at runtime;
             can also be provided as a keyword to `run`, which takes precendence over this default.
         - **kwargs (optional): additional keyword arguments to pass to the
-            standard Task constructor
+            standard Task initialization
     """
 
     def __init__(self, db: str, script: str = None, **kwargs) -> None:
@@ -60,8 +64,8 @@ class SQLiteScriptTask(Task):
     def run(self, script: str = None):
         """
         Args:
-            - query (str, optional): the optional query to execute at runtime;
-                if not provided, `self.query` will be used instead. Note that a query should consist of a _single SQL statement_.
+            - script (str, optional): the optional script to execute at runtime;
+                if not provided, `self.script` will be used instead.
         """
         script = self.script if script is None else script
         with closing(sql.connect(self.db)) as conn:
