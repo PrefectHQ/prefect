@@ -34,8 +34,12 @@ class Query(GQLObject):
     accounts = Account("accounts")
 
 
+class createUser(GQLObject):
+    pass
+
+
 class Mutation(GQLObject):
-    createUser = "createUser"
+    createUser = createUser("createUser")
     createAccount = "createAccount"
 
 
@@ -112,6 +116,26 @@ def test_with_args():
                 }
             }
         """,
+    )
+
+
+def test_mutation_with_return():
+    mutation = {
+        "mutation": {
+            Mutation.createUser({"input": {"name": "chris"}}): {User(): User.name}
+        }
+    }
+    verify(
+        mutation,
+        expected="""
+mutation {
+    createUser(input: { name: "chris" }) {
+        user {
+            name
+        }
+    }
+}
+           """,
     )
 
 
