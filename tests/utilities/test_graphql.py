@@ -330,3 +330,7 @@ def test_pass_dotdicts_as_args():
             }
         """,
     )
+
+
+def test_empty_dict_in_arguments():
+    assert parse_graphql_arguments({"where": {}}) == "where: {}"
