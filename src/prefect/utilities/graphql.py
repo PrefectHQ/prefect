@@ -179,6 +179,10 @@ def parse_graphql_arguments(arguments: Any) -> str:
 
 def _parse_arguments_inner(arguments: Any) -> str:
     if isinstance(arguments, (dict, DotDict)):
+        # empty dicts are valid GQL arguments
+        if len(arguments) == 0:
+            return "{}"
+
         formatted = []
         for key, value in arguments.items():
             formatted.append(
