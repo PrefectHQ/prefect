@@ -119,6 +119,11 @@ title = "Control Flow"
 module = "prefect.tasks.control_flow"
 functions = ["switch", "ifelse"]
 
+[pages.tasks.sqlite]
+title = "SQLite Tasks"
+module = "prefect.tasks.database"
+classes = ["SQLiteQueryTask", "SQLiteScriptTask"]
+
 [pages.tasks.function]
 title = "FunctionTask"
 module = "prefect.tasks.core.function"
