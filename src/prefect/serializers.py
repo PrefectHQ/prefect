@@ -7,7 +7,7 @@ objects in the prefect library.
 
 from typing import Any
 
-from prefect.utilities import json
+import json
 
 
 class Serializer:
@@ -49,33 +49,28 @@ class Serializer:
 
 
 class JSONSerializer:
-    """
-    Parent implementation that uses the `prefect.utilities.json` object to serialize
-    and deserialize custom json objects.
-    """
-
     @classmethod
     def serialize(cls, object: Any) -> str:
         """
-        Serializes an object using `prefect.utilities.json`
+        Serializes an object
 
         Args:
             - object (Any): an object to be dumped to a json string
 
         Returns:
-            An encoded json string
+            - str: An encoded json string
         """
         return json.dumps(object)
 
     @classmethod
     def deserialize(cls, key: str) -> Any:
         """
-        Deserializes an encoded json string using `prefect.utilities.json`
+        Deserializes an encoded json string
 
         Args:
             - key (str): a json string to be loaded
 
         Returns:
-            An dencoded json string in the form of the original object before serialization
+            - A decoded json string in the form of the original object before serialization
         """
         return json.loads(key)

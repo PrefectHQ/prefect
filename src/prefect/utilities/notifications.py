@@ -3,20 +3,69 @@ Tools and utilities for notifications and callbacks.
 
 For an in-depth guide to setting up your system for using Slack notifications, [please see our tutorial](../../tutorials/slack-notifications.html).
 """
+import smtplib
+from email.header import Header
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 import requests
 from toolz import curry
 
-from prefect.client import Secret
+import prefect
+
+__all__ = ["gmail_notifier", "slack_notifier"]
+
+
+def email_message_formatter(tracked_obj, state, email_to):
+    if isinstance(state.result, Exception):
+        msg = "<pre>{}</pre>".format(repr(state.result))
+    else:
+        msg = '"{}"'.format(state.message)
+
+    html = """
+    <html><head></head><body>
+    <table align="left" border="0" cellpadding="2px" cellspacing="2px">
+    <tr>
+    <td style="border-left: 2px solid {color};">
+    <img src="https://emoji.slack-edge.com/TAN3D79AL/prefect/2497370f58500a5a.png">
+    </td>
+    <td style="border-left: 2px solid {color}; padding-left: 6px;">
+    {text}
+    </td>
+    </tr>
+    </table>
+    </body></html>
+    """
+    color = state.color
+    text = """
+    <pre>{name}</pre> is now in a <font color="{color}"><b>{state}</b></font> state
+    <br><br>
+    Message: {msg}
+    """.format(
+        name=tracked_obj.name, color=state.color, state=type(state).__name__, msg=msg
+    )
+
+    contents = MIMEMultipart("alternative")
+    contents.attach(MIMEText(text, "plain"))
+    contents.attach(MIMEText(html.format(color=color, text=text), "html"))
+
+    contents["Subject"] = Header(
+        "Prefect state change notification for {}".format(tracked_obj.name), "UTF-8"
+    )
+    contents["From"] = "notifications@prefect.io"
+    contents["To"] = email_to
+
+    return contents.as_string()
 
 
 def slack_message_formatter(tracked_obj, state):
     # see https://api.slack.com/docs/message-attachments
     fields = []
-    if state.message is not None:
-        if isinstance(state.message, Exception):
-            value = "```{}```".format(repr(state.message))
-        else:
-            value = state.message
+    if isinstance(state.result, Exception):
+        value = "```{}```".format(repr(state.result))
+    else:
+        value = state.message
+    if value is not None:
         fields.append({"title": "Message", "value": value, "short": False})
 
     data = {
@@ -38,6 +87,74 @@ def slack_message_formatter(tracked_obj, state):
         ]
     }
     return data
+
+
+@curry
+def gmail_notifier(
+    tracked_obj,
+    old_state,
+    new_state,
+    ignore_states: list = None,
+    only_states: list = None,
+):
+    """
+    Email state change handler - configured to work solely with Gmail; works as a standalone state handler, or can be called from within a custom
+    state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
+
+    The username and password Gmail credentials will be taken from your `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` secrets, respectively; note the username
+    will also serve as the destination email address for the notification.
+
+    Args:
+        - tracked_obj (Task or Flow): Task or Flow object the handler is
+            registered with
+        - old_state (State): previous state of tracked object
+        - new_state (State): new state of tracked object
+        - ignore_states ([State], optional): list of `State` classes to ignore,
+            e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
+        - only_states ([State], optional): similar to `ignore_states`, but
+            instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
+
+    Returns:
+        - State: the `new_state` object which was provided
+
+    Raises:
+        - ValueError: if the email notification fails for any reason
+
+    Example:
+        ```python
+        from prefect import task
+        from prefect.utilities.notifications import gmail_notifier
+
+        @task(state_handlers=[gmail_notifier(ignore_states=[Running])]) # uses currying
+        def add(x, y):
+            return x + y
+        ```
+    """
+    username = prefect.client.Secret("EMAIL_USERNAME").get()
+    password = prefect.client.Secret("EMAIL_PASSWORD").get()
+    ignore_states = ignore_states or []
+    only_states = only_states or []
+
+    if any([isinstance(new_state, ignored) for ignored in ignore_states]):
+        return new_state
+
+    if only_states and not any(
+        [isinstance(new_state, included) for included in only_states]
+    ):
+        return new_state
+
+    body = email_message_formatter(tracked_obj, new_state, username)
+
+    server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+    server.login(username, password)
+    try:
+        server.sendmail("notifications@prefect.io", username, body)
+    except:
+        raise ValueError("Email notification for {} failed".format(tracked_obj))
+    finally:
+        server.quit()
+
+    return new_state
 
 
 @curry
@@ -63,7 +180,7 @@ def slack_notifier(
             e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
         - only_states ([State], optional): similar to `ignore_states`, but
             instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
-        - webhook_url (str, optional): the Prefet slack app webhook URL; if not
+        - webhook_url (str, optional): the Prefect slack app webhook URL; if not
             provided, will attempt to use your `"SLACK_WEBHOOK_URL"` Prefect Secret
 
     Returns:
@@ -82,7 +199,7 @@ def slack_notifier(
             return x + y
         ```
     """
-    webhook_url = webhook_url or Secret("SLACK_WEBHOOK_URL").get()
+    webhook_url = webhook_url or prefect.client.Secret("SLACK_WEBHOOK_URL").get()
     ignore_states = ignore_states or []
     only_states = only_states or []
 

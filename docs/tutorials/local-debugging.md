@@ -4,6 +4,10 @@ sidebarDepth: 0
 
 ## Local Debugging
 
+::: tip Practice Makes Prefect
+A notebook containing all code presented in this tutorial can be downloaded [here](/notebooks/local-debugging.ipynb).
+:::
+
 Oftentimes you want to experiment with your ideas before putting them into production; moreover, when something unexpected happens you need an efficient way of diagnosing what went wrong.  Prefect provides you with a wealth of tools for debugging your flows locally and diagnosing issues.
 
 ### Choice of Executor
@@ -86,7 +90,7 @@ Note that this utility doesn't require you know anything about where the error o
 
 ### Re-raising Execeptions post-hoc
 
-Suppose you want to let the full pipeline run and don't want to raise the trapped error at runtime.  Assuming your error was trapped and placed in a `Failed` state, the full exception is stored in the `message` attribute of the task state.  Knowing this, you can re-raise it locally and debug from there!  
+Suppose you want to let the full pipeline run and don't want to raise the trapped error at runtime.  Assuming your error was trapped and placed in a `Failed` state, the full exception is stored in the `result` attribute of the task state.  Knowing this, you can re-raise it locally and debug from there!  
 ::: tip Knowing what failed
 Sometimes, you aren't immediately sure which task(s) failed.  Because `flow.run()` doesn't return any task states by default, you might wonder how to get the correct task state to inspect the error message.  Prefect provides a convenient `return_failed` keyword argument in `Flow.run` that will return any tasks which failed during execution so you don't have to know which to request beforehand!
 :::
@@ -112,7 +116,7 @@ state = flow.run(return_failed=True)
 state.result # {<Task: gotcha>: Failed("")}
 
 failed_state = state.result[gotcha]
-raise failed_state.message
+raise failed_state.result
 
 ---------------------------------------------------------------------------
 
@@ -135,7 +139,7 @@ AssertionError                            Traceback (most recent call last)
 <ipython-input-50-8efcdf8dacda> in <module>()
      16 
      17 failed_state = state.result[gotcha]
----> 18 raise failed_state.message
+---> 18 raise failed_state.result
 
 ...
 

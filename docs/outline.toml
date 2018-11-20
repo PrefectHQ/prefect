@@ -1,0 +1,171 @@
+extension = ".md"
+
+[pages]
+[pages.environments]
+module = "prefect.environments"
+classes = ["Environment", "ContainerEnvironment", "LocalEnvironment"]
+title = "Environments"
+
+[pages.triggers]
+title = "Triggers"
+module = "prefect.triggers"
+functions = [
+            "all_finished",
+            "manual_only",
+            "always_run",
+            "all_successful",
+            "all_failed",
+            "any_successful",
+            "any_failed",
+        ]
+
+[pages.client]
+title = "Client"
+module = "prefect.client"
+classes = ["Client", "Secret"]
+
+[pages.schedules]
+title = "Schedules"
+module = "prefect.schedules"
+classes = [
+            "Schedule",
+            "IntervalSchedule",
+            "CronSchedule",
+        ]
+
+[pages.core.edge]
+title = "Edge"
+module = "prefect.core.edge"
+classes = ["Edge"]
+
+[pages.core.flow]
+title = "Flow"
+module = "prefect.core.flow"
+classes = ["Flow"]
+
+[pages.core.task]
+title = "Task"
+module = "prefect.core.task"
+classes = ["Task", "Parameter"]
+
+[pages.core.registry]
+title = "Registry"
+module = "prefect.core.registry"
+functions = [
+            "register_flow",
+            "build_flows",
+            "load_flow",
+            "serialize_registry",
+            "load_serialized_registry",
+            "load_serialized_registry_from_path",
+        ]
+
+[pages.engine.cache_validators]
+title = "Cache Validators"
+module = "prefect.engine.cache_validators"
+functions = ["never_use", "duration_only", "all_inputs", "all_parameters", "partial_parameters_only", "partial_inputs_only"]
+
+[pages.engine.state]
+title = "State"
+module = "prefect.engine.state"
+classes = [
+            "State",
+            "Pending",
+            "Paused",
+            "CachedState",
+            "Scheduled",
+            "Retrying",
+            "Running",
+            "Finished",
+            "Success",
+            "Failed",
+            "TriggerFailed",
+            "Skipped",
+        ]
+
+[pages.engine.signals]
+module = "prefect.engine.signals"
+title = "Signals"
+classes = [
+            "FAIL",
+            "TRIGGERFAIL",
+            "SUCCESS",
+            "RETRY",
+            "SKIP",
+            "PAUSE",
+        ]
+
+[pages.engine.flow_runner]
+title = "FlowRunner"
+module = "prefect.engine.flow_runner"
+classes = ["FlowRunner"]
+
+[pages.engine.task_runner]
+title = "TaskRunner"
+module = "prefect.engine.task_runner"
+classes = ["TaskRunner"]
+
+[pages.engine.executors]
+title = "Executors"
+module = "prefect.engine.executors"
+classes = [
+            "Executor",
+            "DaskExecutor",
+            "LocalExecutor",
+            "SynchronousExecutor"]
+
+[pages.tasks.control_flow]
+title = "Control Flow"
+module = "prefect.tasks.control_flow"
+functions = ["switch", "ifelse"]
+
+[pages.tasks.function]
+title = "FunctionTask"
+module = "prefect.tasks.core.function"
+classes = ["FunctionTask"]
+
+[pages.tasks.shell]
+title = "ShellTask"
+module = "prefect.tasks.shell"
+classes = ["ShellTask"]
+
+[pages.tasks.strings]
+title = "String Templating Tasks"
+module = "prefect.tasks.templates"
+classes = ["StringFormatterTask", "JinjaTemplateTask"]
+
+[pages.utilities.bokeh]
+title = "BokehRunner"
+module = "prefect.utilities.bokeh_runner"
+classes = ["BokehRunner"]
+
+[pages.utilities.collections]
+title = "Collections"
+module = "prefect.utilities.collections"
+classes = ["DotDict"]
+functions = ["merge_dicts", "as_nested_dict", "dict_to_flatdict", "flatdict_to_dict"]
+
+[pages.utilities.executors]
+title = "Executors"
+module = "prefect.utilities.executors"
+functions = ["main_thread_timeout", "multiprocessing_timeout"]
+
+[pages.utilities.notifications]
+title = "Notifications and Callback Tools"
+module = "prefect.utilities.notifications"
+functions = ["slack_notifier", "gmail_notifier"]
+
+[pages.utilities.tasks]
+title = "Tasks"
+module = "prefect.utilities.tasks"
+functions = ["tags", "as_task", "pause_task", "task", "unmapped"]
+
+[pages.utilities.tests]
+title = "Tests"
+module = "prefect.utilities.tests"
+functions = ["raise_on_exception"]
+
+[pages.utilities.airflow]
+title = "Airflow Conversion Tools"
+module = "prefect.utilities.airflow_utils"
+classes = ["AirFlow"]

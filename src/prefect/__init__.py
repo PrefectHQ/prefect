@@ -7,7 +7,6 @@ from prefect.utilities.context import context
 
 from prefect.client import Client
 import prefect.schedules
-import prefect.serializers
 import prefect.triggers
 import prefect.environments
 
@@ -18,9 +17,11 @@ import prefect.tasks
 import prefect.flows
 from prefect.utilities.tasks import task, tags, unmapped
 
+import prefect.serialization
+
 from ._version import get_versions
 
-__version__ = get_versions()["version"]
+__version__ = get_versions()["version"]  # type: ignore
 del get_versions
 
 if prefect.config.registry.startup_registry_path:

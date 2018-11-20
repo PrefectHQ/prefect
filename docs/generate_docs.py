@@ -11,245 +11,57 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
 
 On a development installation of Prefect, simply run `python generate_docs.py` from inside the `docs/` folder.
 """
+import importlib
 import inspect
+import nbformat as nbf
 import os
 import re
 import shutil
 import subprocess
 import textwrap
+import toml
+import toolz
 import warnings
 
-import toolz
 from functools import partial
 
 import prefect
-from prefect.utilities.airflow_utils import AirFlow
-from prefect.utilities.bokeh_runner import BokehRunner
-from prefect.utilities.tests import raise_on_exception
+from tokenizer import format_code
 
-OUTLINE = [
-    {
-        "page": "environments.md",
-        "classes": [
-            prefect.environments.Environment,
-            prefect.environments.ContainerEnvironment,
-            prefect.environments.LocalEnvironment,
-        ],
-        "title": "Environments",
-        "top-level-doc": prefect.environments,
-    },
-    {
-        "page": "triggers.md",
-        "functions": [
-            prefect.triggers.all_finished,
-            prefect.triggers.manual_only,
-            prefect.triggers.always_run,
-            prefect.triggers.all_successful,
-            prefect.triggers.all_failed,
-            prefect.triggers.any_successful,
-            prefect.triggers.any_failed,
-        ],
-        "title": "Triggers",
-        "top-level-doc": prefect.triggers,
-    },
-    {
-        "page": "client.md",
-        "classes": [
-            prefect.client.Secret,
-            #         prefect.client.Client,
-            #         prefect.client.ClientModule,
-            #         prefect.client.Projects,
-            #         prefect.client.Flows,
-            #         prefect.client.FlowRuns,
-            #         prefect.client.TaskRuns,
-        ],
-        "title": "Client",
-    },
-    {
-        "page": "schedules.md",
-        "classes": [
-            prefect.schedules.Schedule,
-            prefect.schedules.NoSchedule,
-            prefect.schedules.IntervalSchedule,
-            prefect.schedules.CronSchedule,
-            prefect.schedules.DateSchedule,
-        ],
-        "title": "Schedules",
-    },
-    {
-        "page": "serializers.md",
-        "classes": [prefect.serializers.Serializer, prefect.serializers.JSONSerializer],
-        "title": "Serializers",
-        "top-level-doc": prefect.serializers,
-    },
-    {"page": "core/edge.md", "classes": [prefect.core.edge.Edge], "title": "Edge"},
-    {"page": "core/flow.md", "classes": [prefect.core.flow.Flow], "title": "Flow"},
-    {
-        "page": "core/task.md",
-        "classes": [prefect.core.task.Task, prefect.core.task.Parameter],
-        "title": "Task",
-    },
-    {
-        "page": "core/registry.md",
-        "functions": [
-            prefect.core.registry.register_flow,
-            prefect.core.registry.build_flows,
-            prefect.core.registry.load_flow,
-            prefect.core.registry.serialize_registry,
-            prefect.core.registry.load_serialized_registry,
-            prefect.core.registry.load_serialized_registry_from_path,
-        ],
-        "title": "Registry",
-    },
-    {
-        "page": "engine/cache_validators.md",
-        "functions": [
-            prefect.engine.cache_validators.never_use,
-            prefect.engine.cache_validators.duration_only,
-            prefect.engine.cache_validators.all_inputs,
-            prefect.engine.cache_validators.all_parameters,
-            prefect.engine.cache_validators.partial_parameters_only,
-            prefect.engine.cache_validators.partial_inputs_only,
-        ],
-        "title": "Cache Validators",
-        "top-level-doc": prefect.engine.cache_validators,
-    },
-    {
-        "page": "engine/state.md",
-        "classes": [
-            prefect.engine.state.State,
-            prefect.engine.state.Pending,
-            prefect.engine.state.CachedState,
-            prefect.engine.state.Scheduled,
-            prefect.engine.state.Retrying,
-            prefect.engine.state.Running,
-            prefect.engine.state.Finished,
-            prefect.engine.state.Success,
-            prefect.engine.state.Failed,
-            prefect.engine.state.TriggerFailed,
-            prefect.engine.state.Skipped,
-        ],
-        "title": "State",
-        "top-level-doc": prefect.engine.state,
-    },
-    {
-        "page": "engine/signals.md",
-        "classes": [
-            prefect.engine.signals.FAIL,
-            prefect.engine.signals.TRIGGERFAIL,
-            prefect.engine.signals.SUCCESS,
-            prefect.engine.signals.RETRY,
-            prefect.engine.signals.SKIP,
-            prefect.engine.signals.PAUSE,
-        ],
-        "title": "Signals",
-        "top-level-doc": prefect.engine.signals,
-    },
-    {
-        "page": "engine/flow_runner.md",
-        "classes": [prefect.engine.flow_runner.FlowRunner],
-        "title": "FlowRunner",
-    },
-    {
-        "page": "engine/task_runner.md",
-        "classes": [prefect.engine.task_runner.TaskRunner],
-        "title": "TaskRunner",
-    },
-    {
-        "page": "engine/executors.md",
-        "classes": [
-            prefect.engine.executors.base.Executor,
-            prefect.engine.executors.dask.DaskExecutor,
-            prefect.engine.executors.local.LocalExecutor,
-            prefect.engine.executors.sync.SynchronousExecutor,
-        ],
-        "title": "Executors",
-        "top-level-doc": prefect.engine.executors,
-    },
-    {
-        "page": "tasks/control_flow.md",
-        "functions": [
-            prefect.tasks.control_flow.switch,
-            prefect.tasks.control_flow.ifelse,
-        ],
-        "title": "Control Flow",
-    },
-    {
-        "page": "tasks/function.md",
-        "classes": [prefect.tasks.core.function.FunctionTask],
-        "title": "FunctionTask",
-    },
-    {
-        "page": "tasks/shell.md",
-        "classes": [prefect.tasks.shell.ShellTask],
-        "title": "ShellTask",
-    },
-    {
-        "page": "tasks/strings.md",
-        "classes": [
-            prefect.tasks.templates.StringFormatterTask,
-            prefect.tasks.templates.JinjaTemplateTask,
-        ],
-        "title": "String Templating Tasks",
-    },
-    {
-        "page": "utilities/bokeh.md",
-        "classes": [BokehRunner],
-        "title": "BokehRunner",
-        "top-level-doc": prefect.utilities.bokeh_runner,
-    },
-    {
-        "page": "utilities/collections.md",
-        "classes": [prefect.utilities.collections.DotDict],
-        "functions": [
-            prefect.utilities.collections.merge_dicts,
-            prefect.utilities.collections.to_dotdict,
-            prefect.utilities.collections.dict_to_flatdict,
-            prefect.utilities.collections.flatdict_to_dict,
-        ],
-        "title": "Collections",
-    },
-    {
-        "page": "utilities/json.md",
-        "classes": [
-            prefect.utilities.json.JSONCodec,
-            prefect.utilities.json.Serializable,
-        ],
-        "functions": [prefect.utilities.json.register_json_codec],
-        "title": "JSON",
-    },
-    {
-        "page": "utilities/executors.md",
-        "functions": [
-            prefect.utilities.executors.main_thread_timeout,
-            prefect.utilities.executors.multiprocessing_timeout,
-        ],
-        "title": "Executors",
-    },
-    {
-        "page": "utilities/notifications.md",
-        "functions": [prefect.utilities.notifications.slack_notifier],
-        "title": "Notifications and Callback Tools",
-        "top-level-doc": prefect.utilities.notifications,
-    },
-    {
-        "page": "utilities/tasks.md",
-        "functions": [
-            prefect.utilities.tasks.tags,
-            prefect.utilities.tasks.as_task,
-            prefect.utilities.tasks.task,
-            prefect.utilities.tasks.unmapped,
-        ],
-        "title": "Tasks",
-    },
-    {"page": "utilities/tests.md", "functions": [raise_on_exception], "title": "Tests"},
-    {
-        "page": "utilities/airflow.md",
-        "classes": [AirFlow],
-        "title": "Airflow Conversion Tools",
-        "top-level-doc": prefect.utilities.airflow_utils,
-    },
-]
+
+OUTLINE_PATH = os.path.join(os.path.dirname(__file__), "outline.toml")
+outline_config = toml.load(OUTLINE_PATH)
+
+
+def load_outline(
+    outline=outline_config["pages"],
+    ext=outline_config.get("extension", ".md"),
+    prefix=None,
+):
+    OUTLINE = []
+    for name, data in outline.items():
+        fname = os.path.join(prefix or "", name)
+        if "module" in data:
+            page = {}
+            page.update(
+                page=f"{fname}{ext}",
+                title=data.get("title", ""),
+                classes=[],
+                functions=[],
+            )
+            module = importlib.import_module(data["module"])
+            page["top-level-doc"] = module
+            for fun in data.get("functions", []):
+                page["functions"].append(getattr(module, fun))
+            for clss in data.get("classes", []):
+                page["classes"].append(getattr(module, clss))
+            OUTLINE.append(page)
+        else:
+            OUTLINE.extend(load_outline(data, prefix=fname))
+    return OUTLINE
+
+
+OUTLINE = load_outline()
 
 
 @toolz.curry
@@ -275,6 +87,8 @@ def clean_line(line):
         line.replace("Args:", "**Args**:")
         .replace("Returns:", "**Returns**:")
         .replace("Raises:", "**Raises**:")
+        .replace("Example:", "**Example**:")
+        .replace(".**", ".\n\n**")
     )
     return line.lstrip()
 
@@ -311,7 +125,10 @@ def format_doc(obj, in_table=False):
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
         body = body.replace(block, f"$CODEBLOCK{num}", 1)
-    body = format_lists(body)
+    body = re.sub(
+        "(?<!\n)\n{1}(?!\n)", " ", format_lists(body)
+    )  # removes poorly placed newlines
+    body = body.replace("```", "\n```")
     lines = body.split("\n")
     cleaned = "\n".join([clean_line(line) for line in lines])
     if in_table:
@@ -321,7 +138,7 @@ def format_doc(obj, in_table=False):
             block = block[block.startswith("python") and 6 :].lstrip("\n")
             block = (
                 '<pre class="language-python"><code class="language-python">'
-                + block.rstrip("  ").replace("\n", "<br>")
+                + format_code(block).replace("\n", "<br>")
                 + "</code></pre>"
             )
         cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(" "))
@@ -461,6 +278,34 @@ def get_class_methods(obj):
     return public_members
 
 
+def create_tutorial_notebooks(tutorial):
+    """
+    Utility which automagically creates an .ipynb notebook file from a markdown file consisting
+    of all python code blocks contained within the markdown file.
+
+    Args:
+        - tutorial (str): path to tutorial markdown file
+
+    Will save the resulting notebook in tutorials/notebooks under the same name as the .md file provided.
+    """
+    assert (
+        os.path.basename(os.getcwd()) == "docs"
+    ), "Only run this utility from inside the docs/ directory!"
+
+    os.makedirs(".vuepress/public/notebooks", exist_ok=True)
+    text = open(tutorial, "r").read()
+    code_blocks = re.findall(r"```(.*?)```", text, re.DOTALL)
+    nb = nbf.v4.new_notebook()
+    nb["cells"] = []
+    for code in code_blocks:
+        if not code.startswith("python"):
+            continue
+        code = code[7:]
+        nb["cells"].append(nbf.v4.new_code_cell(code))
+    fname = os.path.basename(tutorial).split(".md")[0] + ".ipynb"
+    nbf.write(nb, f".vuepress/public/notebooks/{fname}")
+
+
 if __name__ == "__main__":
 
     assert (
@@ -487,6 +332,8 @@ if __name__ == "__main__":
     shutil.rmtree("api", ignore_errors=True)
     os.makedirs("api", exist_ok=True)
     generate_coverage()
+
+    ## UPDATE README
     with open("api/README.md", "w+") as f:
         f.write(
             textwrap.dedent(
@@ -515,6 +362,23 @@ if __name__ == "__main__":
             f.write("\n" + readme[readme.index("# Prefect") :])
             f.write(auto_generated_footer)
 
+    ## UPDATE CHANGELOG
+    with open("changelog.md", "w+") as f:
+        f.write(
+            textwrap.dedent(
+                """
+            ---
+            sidebarDepth: 1
+            editLink: false
+            ---
+            """
+            ).lstrip()
+        )
+        with open("../CHANGELOG.md", "r") as g:
+            changelog = g.read()
+            f.write(changelog)
+            f.write(auto_generated_footer)
+
     for page in OUTLINE:
         # collect what to document
         fname, classes, fns = (
@@ -533,10 +397,12 @@ if __name__ == "__main__":
             if title:  # this would be a good place to have assignments
                 f.write(f"# {title}\n---\n")
 
-            top_doc = page.get("top-level-doc")
-            if top_doc is not None:
-                f.write(inspect.getdoc(top_doc))
-                f.write("\n<hr>\n<br>\n\n")
+            top_doc_obj = page.get("top-level-doc")
+            if top_doc_obj is not None:
+                top_doc = inspect.getdoc(top_doc_obj)
+                if top_doc is not None:
+                    f.write(top_doc)
+                    f.write("\n<hr>\n<br>\n\n")
             for obj in classes:
                 f.write(format_subheader(obj))
 

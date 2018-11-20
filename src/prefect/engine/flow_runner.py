@@ -3,11 +3,14 @@
 import functools
 import logging
 from collections import defaultdict
-from typing import Any, Callable, Dict, Iterable, Set
+from typing import Any, Callable, Dict, Iterable, Set, Union
 
 import prefect
-from prefect.core import Flow, Task
+from prefect import config
+from prefect.client import Client, FlowRuns
+from prefect.core import Edge, Flow, Task
 from prefect.engine import signals
+from prefect.engine.cloud_handler import CloudHandler
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
@@ -36,6 +39,21 @@ class FlowRunner(Runner):
         - flow (Flow): the `Flow` to be run
         - task_runner_cls (TaskRunner, optional): The class used for running
             individual Tasks. Defaults to [TaskRunner](task_runner.html)
+        - state_handlers (Iterable[Callable], optional): A list of state change handlers
+            that will be called whenever the flow changes state, providing an
+            opportunity to inspect or modify the new state. The handler
+            will be passed the flow runner instance, the old (prior) state, and the new
+            (current) state, with the following signature:
+
+            ```
+                state_handler(
+                    flow_runner: FlowRunner,
+                    old_state: State,
+                    new_state: State) -> State
+            ```
+
+            If multiple functions are passed, then the `new_state` argument will be the
+            result of the previous handler.
 
     Note: new FlowRunners are initialized within the call to `Flow.run()` and in general,
     this is the endpoint through which FlowRunners will be interacted with most frequently.
@@ -62,6 +80,7 @@ class FlowRunner(Runner):
     ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
+        self.cloud_handler = CloudHandler()
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -74,10 +93,18 @@ class FlowRunner(Runner):
             - new_state (State): the new (current) state
 
         Returns:
-            State: the new state
+            - State: the new state
         """
         for handler in self.flow.state_handlers:
             new_state = handler(self.flow, old_state, new_state)
+
+        # Set state if in prefect cloud
+        if config.get("prefect_cloud", None):
+            version = prefect.context.get("_flow_run_version")
+
+            self.cloud_handler.setFlowRunState(version=version, state=new_state)
+            prefect.context.update(_flow_run_version=version + 1)
+
         return new_state
 
     def run(
@@ -127,6 +154,7 @@ class FlowRunner(Runner):
         Raises:
             - ValueError: if any throttle values are `<= 0`
         """
+
         state = state or Pending()
         context = context or {}
         return_tasks = set(return_tasks or [])
@@ -141,6 +169,11 @@ class FlowRunner(Runner):
                     bad_tags
                 )
             )
+
+        # Initialize CloudHandler and get flow run version
+        if config.get("prefect_cloud", None):
+            self.cloud_handler.load_prefect_client()
+            context.update(_flow_run_version=self.cloud_handler.getFlowRunVersion())
 
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
@@ -178,7 +211,9 @@ class FlowRunner(Runner):
                 logging.debug("Unexpected error while running task.")
                 if raise_on_exception:
                     raise exc
-                return Failed(message=exc)
+                return Failed(
+                    message="Unexpected error while running task.", result=exc
+                )
 
             return state
 
@@ -192,7 +227,7 @@ class FlowRunner(Runner):
             - state (State): the current state of this flow
 
         Returns:
-            State: the state of the flow after running the check
+            - State: the state of the flow after running the check
 
         Raises:
             - ENDRUN: if the flow is not pending or running
@@ -219,7 +254,7 @@ class FlowRunner(Runner):
             - state (State): the current state of this flow
 
         Returns:
-            State: the state of the flow after running the check
+            - State: the state of the flow after running the check
 
         Raises:
             - ENDRUN: if the flow is not pending or running
@@ -300,7 +335,7 @@ class FlowRunner(Runner):
 
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
-                upstream_states = {}
+                upstream_states = {}  # type: Dict[Edge, Union[State, Iterable]]
                 task_inputs = {}  # type: Dict[str, Any]
 
                 # -- process each edge to the task
@@ -313,6 +348,9 @@ class FlowRunner(Runner):
                     passed_state = task_states[task]
                     if not isinstance(passed_state, list):
                         assert isinstance(passed_state, Pending)  # mypy assertion
+                        assert isinstance(
+                            passed_state.cached_inputs, dict
+                        )  # mypy assertion
                         task_inputs.update(passed_state.cached_inputs)
 
                 # -- run the task
@@ -323,7 +361,7 @@ class FlowRunner(Runner):
 
                 if not self.flow.task_info[task]["mapped"]:
                     upstream_mapped = {
-                        e: executor.wait(f)
+                        e: executor.wait(f)  # type: ignore
                         for e, f in upstream_states.items()
                         if self.flow.task_info[e.upstream_task]["mapped"]
                     }
@@ -335,7 +373,11 @@ class FlowRunner(Runner):
                     upstream_states=upstream_states,
                     inputs=task_inputs,
                     ignore_trigger=(task in start_tasks),
-                    context=dict(prefect.context, **task_contexts.get(task, {})),
+                    context=dict(
+                        prefect.context,
+                        task_id=self.flow.task_info[task]["id"],
+                        **task_contexts.get(task, {})
+                    ),
                     queues=task_queues,
                     mapped=self.flow.task_info[task]["mapped"],
                     executor=executor,
@@ -352,7 +394,8 @@ class FlowRunner(Runner):
             reference_tasks = self.flow.reference_tasks()
 
             if return_failed:
-                final_states = executor.wait(dict(task_states))
+                final_states = executor.wait(dict(task_states))  # type: ignore
+                assert isinstance(final_states, dict)
                 failed_tasks = [
                     t
                     for t, state in final_states.items()
@@ -364,7 +407,7 @@ class FlowRunner(Runner):
                 ]
                 return_tasks.update(failed_tasks)
             else:
-                final_states = executor.wait(
+                final_states = executor.wait(  # type: ignore
                     {
                         t: task_states[t]
                         for t in terminal_tasks.union(reference_tasks).union(
@@ -372,6 +415,7 @@ class FlowRunner(Runner):
                         )
                     }
                 )
+                assert isinstance(final_states, dict)
 
             terminal_states = set(
                 flatten_seq([final_states[t] for t in terminal_tasks])

@@ -1,4 +1,5 @@
 import datetime
+import pendulum
 
 import pytest
 import prefect
@@ -7,6 +8,7 @@ from prefect.engine.state import (
     Failed,
     Finished,
     Mapped,
+    Paused,
     Pending,
     Retrying,
     Running,
@@ -14,24 +16,16 @@ from prefect.engine.state import (
     Skipped,
     State,
     Success,
+    TimedOut,
     TriggerFailed,
 )
-from prefect.utilities import json
+from prefect.serialization.state import StateSchema
 
-all_states = [
-    CachedState,
-    State,
-    Mapped,
-    Pending,
-    Running,
-    Finished,
-    Success,
-    Skipped,
-    Failed,
-    TriggerFailed,
-    Scheduled,
-    Retrying,
-]
+all_states = set(
+    cls
+    for cls in prefect.engine.state.__dict__.values()
+    if isinstance(cls, type) and issubclass(cls, prefect.engine.state.State)
+)
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -42,10 +36,17 @@ def test_create_state_with_no_args(cls):
 
 
 @pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_positional_data_arg(cls):
-    state = cls(1)
+def test_create_state_with_kwarg_data_arg(cls):
+    state = cls(result=1)
     assert state.result == 1
     assert state.message is None
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_positional_message_arg(cls):
+    state = cls("i am a string")
+    assert state.message == "i am a string"
+    assert state.result is None
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -66,27 +67,10 @@ def test_create_state_with_data_and_error(cls):
     assert "division by zero" in str(state.message)
 
 
-def test_timestamp_is_created_at_creation():
-    state = Success()
-    assert (datetime.datetime.utcnow() - state.timestamp).total_seconds() < 0.001
-
-
-def test_timestamp_protected():
-    state = Success()
-    with pytest.raises(AttributeError):
-        state.timestamp = 1
-
-
 def test_scheduled_states_have_default_times():
-    now = datetime.datetime.utcnow()
+    now = pendulum.now("utc")
     assert now - Scheduled().start_time < datetime.timedelta(seconds=0.1)
     assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
-
-
-def test_timestamp_is_serialized():
-    state = Success()
-    deserialized_state = json.loads(json.dumps(state))
-    assert state.timestamp == deserialized_state.timestamp
 
 
 def test_retry_stores_run_count():
@@ -111,19 +95,18 @@ def test_states_have_color(cls):
 
 
 def test_serialize():
-    now = datetime.datetime.utcnow()
+    now = pendulum.now("utc")
     cached = CachedState(
         cached_inputs=dict(x=99, p="p"),
         cached_result=dict(hi=5, bye=6),
         cached_result_expiration=now,
     )
     state = Success(result=dict(hi=5, bye=6), cached=cached)
-    j = json.dumps(state)
-    new_state = json.loads(j)
+    serialized = state.serialize()
+    new_state = StateSchema().load(serialized)
     assert isinstance(new_state, Success)
     assert new_state.color == state.color
     assert new_state.result == state.result
-    assert new_state.timestamp == state.timestamp
     assert isinstance(new_state.cached, CachedState)
     assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
     assert new_state.cached.cached_inputs == cached.cached_inputs
@@ -132,11 +115,10 @@ def test_serialize():
 
 def test_serialization_of_cached_inputs():
     state = Pending(cached_inputs=dict(hi=5, bye=6))
-    j = json.dumps(state)
-    new_state = json.loads(j)
+    serialized = state.serialize()
+    new_state = StateSchema().load(serialized)
     assert isinstance(new_state, Pending)
     assert new_state.cached_inputs == state.cached_inputs
-    assert new_state.timestamp == state.timestamp
 
 
 def test_state_equality():
@@ -156,9 +138,9 @@ def test_state_equality_ignores_message():
 
 
 def test_state_equality_with_nested_states():
-    s1 = State(result=Success(1))
-    s2 = State(result=Success(2))
-    s3 = State(result=Success(1))
+    s1 = State(result=Success(result=1))
+    s2 = State(result=Success(result=2))
+    s3 = State(result=Success(result=1))
     assert s1 != s2
     assert s1 == s3
 
@@ -169,6 +151,13 @@ def test_states_are_hashable():
 
 def test_states_with_mutable_attrs_are_hashable():
     assert {State(result=[1]), Pending(cached_inputs=dict(a=1))}
+
+
+@pytest.mark.parametrize("cls", [s for s in all_states if s is not State])
+def test_serialize_method(cls):
+    serialized = cls().serialize()
+    assert isinstance(serialized, dict)
+    assert isinstance(prefect.serialization.state.StateSchema().load(serialized), cls)
 
 
 class TestStateHierarchy:
@@ -196,11 +185,17 @@ class TestStateHierarchy:
     def test_trigger_failed_is_finished(self):
         assert issubclass(TriggerFailed, Finished)
 
+    def test_timedout_is_finished(self):
+        assert issubclass(TimedOut, Finished)
+
     def test_skipped_is_finished(self):
         assert issubclass(Skipped, Finished)
 
     def test_skipped_is_success(self):
         assert issubclass(Skipped, Success)
+
+    def test_timedout_is_failed(self):
+        assert issubclass(TimedOut, Failed)
 
     def test_trigger_failed_is_failed(self):
         assert issubclass(TriggerFailed, Failed)
@@ -209,6 +204,16 @@ class TestStateHierarchy:
 class TestStateMethods:
     def test_state_type_methods_with_pending_state(self):
         state = Pending()
+        assert state.is_pending()
+        assert not state.is_running()
+        assert not state.is_finished()
+        assert not state.is_skipped()
+        assert not state.is_scheduled()
+        assert not state.is_successful()
+        assert not state.is_failed()
+
+    def test_state_type_methods_with_paused_state(self):
+        state = Paused()
         assert state.is_pending()
         assert not state.is_running()
         assert not state.is_finished()
@@ -279,6 +284,16 @@ class TestStateMethods:
 
     def test_state_type_methods_with_failed_state(self):
         state = Failed(message="")
+        assert not state.is_pending()
+        assert not state.is_running()
+        assert state.is_finished()
+        assert not state.is_skipped()
+        assert not state.is_scheduled()
+        assert not state.is_successful()
+        assert state.is_failed()
+
+    def test_state_type_methods_with_timedout_state(self):
+        state = TimedOut(message="")
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()

@@ -1,9 +1,8 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
-
 import collections
+import json
 from collections.abc import MutableMapping
 from typing import Any, Generator, Iterable, Iterator, Union
-
 
 DictLike = Union[dict, "DotDict"]
 
@@ -36,7 +35,9 @@ def flatten_seq(seq: Iterable) -> Generator:
 class DotDict(MutableMapping):
     """
     A `dict` that also supports attribute ("dot") access. Think of this as an extension
-    to the standard python `dict` object.
+    to the standard python `dict` object.  **Note**: while any hashable object can be added to
+    a `DotDict`, _only_ valid Python identifiers can be accessed with the dot syntax; this excludes
+    strings which begin in numbers, special characters, or double underscores.
 
     Args:
         - init_dict (dict, optional): dictionary to initialize the `DotDict`
@@ -88,11 +89,17 @@ class DotDict(MutableMapping):
             return "<{}>".format(type(self).__name__)
 
     def copy(self) -> "DotDict":
-        """Returns a shallow copy of the current DotDict"""
+        """Creates and returns a shallow copy of the current DotDict"""
         return type(self)(self.__dict__.copy())
 
-    def __json__(self) -> dict:
-        return dict(self)
+    def to_dict(self) -> dict:
+        """Converts current `DotDict` (and any `DotDict`s contained within) to an appropriate nested dictionary."""
+        return as_nested_dict(self, dct_class=dict)
+
+
+class GraphQLResult(DotDict):
+    def __repr__(self) -> str:
+        return json.dumps(as_nested_dict(self, dict), indent=4)
 
 
 def merge_dicts(d1: DictLike, d2: DictLike) -> DictLike:
@@ -108,7 +115,7 @@ def merge_dicts(d1: DictLike, d2: DictLike) -> DictLike:
         - d2 (MutableMapping): A dictionary used for replacement
 
     Returns:
-        A `MutableMapping` with the two dictionary contents merged
+        - A `MutableMapping` with the two dictionary contents merged
     """
 
     new_dict = d1.copy()
@@ -123,27 +130,25 @@ def merge_dicts(d1: DictLike, d2: DictLike) -> DictLike:
     return new_dict
 
 
-def to_dotdict(
-    obj: Union[DictLike, Iterable[DictLike]]
+def as_nested_dict(
+    obj: Union[DictLike, Iterable[DictLike]], dct_class: type = DotDict
 ) -> Union[DictLike, Iterable[DictLike]]:
     """
-    Given a obj formatted as a dictionary, returns an object
-    that also supports "dot" access:
-
-    **Example**:
-    `obj['data']['child']` becomes accessible by `obj.data.child`
+    Given a obj formatted as a dictionary, transforms it (and any nested dictionaries)
+    into the provided dct_class
 
     Args:
-        - obj (Any): An object that is formatted as a standard `dict`
+        - obj (Any): An object that is formatted as a `dict`
+        - dct_class (type): the `dict` class to use (defaults to DotDict)
 
     Returns:
-        A DotDict representation of the object passed in
+        - A `dict_class` representation of the object passed in
     ```
     """
     if isinstance(obj, (list, tuple, set)):
-        return type(obj)([to_dotdict(d) for d in obj])
-    elif isinstance(obj, dict):
-        return DotDict({k: to_dotdict(v) for k, v in obj.items()})
+        return type(obj)([as_nested_dict(d, dct_class) for d in obj])
+    elif isinstance(obj, (dict, DotDict)):
+        return dct_class({k: as_nested_dict(v, dct_class) for k, v in obj.items()})
     return obj
 
 
@@ -163,7 +168,7 @@ def dict_to_flatdict(dct: dict, parent: CompoundKey = None) -> dict:
         (you shouldn't need to set this)
 
     Returns:
-        A flattened dict
+        - dict: A flattened dict
     """
 
     items = []  # type: list
@@ -186,7 +191,7 @@ def flatdict_to_dict(dct: dict, dct_class: type = None) -> MutableMapping:
         - dct_class (type, optional): the type of the result; defaults to `dict`
 
     Returns:
-        A `MutableMapping` used to represent a nested dictionary
+        - MutableMapping: A `MutableMapping` used to represent a nested dictionary
     """
 
     result = (dct_class or dict)()

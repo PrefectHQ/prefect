@@ -1,5 +1,9 @@
 # Airflow Conversion Tool
 
+::: tip Practice Makes Prefect
+A notebook containing all code presented in this tutorial can be downloaded [here](/notebooks/airflow_migration.ipynb).
+:::
+
 ## Overview
 
 Prefect is actively building out support for migrating workflows from Airflow to Prefect.  The current version of this functionality is not meant for production use cases _yet_; instead it is intended to be a proof-of-concept which whets your appetite for the possibilities, and demonstrates how easy it could be to migrate.

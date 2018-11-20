@@ -5,13 +5,12 @@ import copy
 import inspect
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Set, Tuple
 
 import prefect
 import prefect.engine.cache_validators
 import prefect.engine.signals
 import prefect.triggers
-from prefect.utilities.json import Serializable, to_qualified_name
 from prefect.utilities import logging
 
 if TYPE_CHECKING:
@@ -52,7 +51,7 @@ class SignatureValidator(type):
         return type.__new__(cls, name, parents, methods)
 
 
-class Task(Serializable, metaclass=SignatureValidator):
+class Task(metaclass=SignatureValidator):
     """
     The Task class which is used as the full representation of a unit of work.
 
@@ -113,9 +112,7 @@ class Task(Serializable, metaclass=SignatureValidator):
             opportunity to inspect or modify the new state. The handler
             will be passed the task instance, the old (prior) state, and the new
             (current) state, with the following signature:
-
                 `state_handler(task: Task, old_state: State, new_state: State) -> State`
-
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
 
@@ -132,15 +129,16 @@ class Task(Serializable, metaclass=SignatureValidator):
         slug: str = None,
         description: str = None,
         tags: Iterable[str] = None,
-        max_retries: int = 0,
-        retry_delay: timedelta = timedelta(minutes=1),
-        timeout: timedelta = None,
-        trigger: Callable[[Dict["Task", "State"]], bool] = None,
+        max_retries: int = prefect.config.tasks.defaults.max_retries,
+        retry_delay: timedelta = prefect.config.tasks.defaults.retry_delay,
+        timeout: timedelta = prefect.config.tasks.defaults.timeout,
+        trigger: Callable[[Set["State"]], bool] = None,
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
         state_handlers: Iterable[Callable] = None,
     ) -> None:
+
         self.name = name or type(self).__name__
         self.slug = slug
         self.description = description
@@ -153,6 +151,10 @@ class Task(Serializable, metaclass=SignatureValidator):
         current_tags = set(prefect.context.get("_tags", set()))
         self.tags = (set(tags) if tags is not None else set()) | current_tags
 
+        if max_retries > 0 and retry_delay is None:
+            raise ValueError(
+                "A datetime.timedelta `retry_delay` must be provided if max_retries > 0"
+            )
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
@@ -160,7 +162,10 @@ class Task(Serializable, metaclass=SignatureValidator):
         self.trigger = trigger or prefect.triggers.all_successful
         self.skip_on_upstream_skip = skip_on_upstream_skip
 
-        if cache_for is None and cache_validator is not None:
+        if cache_for is None and (
+            cache_validator is not None
+            and cache_validator is not prefect.engine.cache_validators.never_use
+        ):
             warnings.warn(
                 "cache_validator provided without specifying cache expiration (cache_for); this Task will not be cached."
             )
@@ -212,7 +217,7 @@ class Task(Serializable, metaclass=SignatureValidator):
 
     def copy(self) -> "Task":
         """
-        Returns a copy of the current Task.
+        Creates and returns a copy of the current Task.
         """
 
         flow = prefect.context.get("_flow", None)
@@ -432,20 +437,7 @@ class Task(Serializable, metaclass=SignatureValidator):
         Returns:
             - dict representing this task
         """
-        return dict(
-            name=self.name,
-            slug=self.slug,
-            description=self.description,
-            tags=self.tags,
-            type=to_qualified_name(type(self)),
-            max_retries=self.max_retries,
-            retry_delay=self.retry_delay,
-            timeout=self.timeout,
-            trigger=self.trigger,
-            skip_on_upstream_skip=self.skip_on_upstream_skip,
-            cache_for=self.cache_for,
-            cache_validator=self.cache_validator,
-        )
+        return prefect.serialization.task.TaskSchema().dump(self)
 
     # Operators  ----------------------------------------------------------------
 
@@ -812,16 +804,26 @@ class Parameter(Task):
             value is ignored.
         - default (any, optional): A default value for the parameter. If the default
             is not None, the Parameter will not be required.
+        - description (str, optional): Descriptive information about this parameter
+        - tags ([str], optional): A list of tags for this parameter
+
     """
 
-    def __init__(self, name: str, default: Any = None, required: bool = True) -> None:
+    def __init__(
+        self,
+        name: str,
+        default: Any = None,
+        required: bool = True,
+        description: str = None,
+        tags: Iterable[str] = None,
+    ) -> None:
         if default is not None:
             required = False
 
         self.required = required
         self.default = default
 
-        super().__init__(name=name, slug=name)
+        super().__init__(name=name, slug=name, description=description, tags=tags)
 
     def __repr__(self) -> str:
         return "<Parameter: {self.name}>".format(self=self)
@@ -863,3 +865,14 @@ class Parameter(Task):
         info = super().info()  # type: ignore
         info.update(required=self.required, default=self.default)
         return info
+
+    # Serialization ------------------------------------------------------------
+
+    def serialize(self) -> Dict[str, Any]:
+        """
+        Creates a serialized representation of this parameter
+
+        Returns:
+            - dict representing this parameter
+        """
+        return prefect.serialization.task.ParameterSchema().dump(self)

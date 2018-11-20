@@ -3,6 +3,7 @@
 import keyword
 from typing import Set
 
+import prefect
 from prefect.core.task import Task
 
 
@@ -53,6 +54,8 @@ class Edge:
         - key (str, optional): Passing a key indicates
             that the upstream result should be passed to the downstream
             task as a keyword argument given by `key`.
+        - mapped (bool, optional): boolean indicating whether this edge
+            represents a mapped task; defaults to `False`
 
     The key indicates that the result of the upstream task should be passed
     to the downstream task under the key.
@@ -114,7 +117,8 @@ class Edge:
 
     def __eq__(self, other: "Edge") -> bool:  # type: ignore
         if type(self) == type(other):
-            return self.serialize() == other.serialize()
+            attrs = ["upstream_task", "downstream_task", "key", "mapped"]
+            return all(getattr(self, a) == getattr(other, a) for a in attrs)
         return False
 
     def __hash__(self) -> int:
@@ -123,12 +127,5 @@ class Edge:
     def serialize(self) -> dict:
         """
         Represents the Edge as a dict.
-
-        Can be reversed by calling Edge(**edge.serialize())
         """
-        return dict(
-            upstream_task=self.upstream_task,
-            downstream_task=self.downstream_task,
-            key=self.key,
-            mapped=self.mapped,
-        )
+        return prefect.serialization.edge.EdgeSchema().dump(self)

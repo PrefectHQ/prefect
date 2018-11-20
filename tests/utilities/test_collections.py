@@ -1,7 +1,8 @@
 import pytest
 import types
-from prefect.utilities import collections, json
-from prefect.utilities.collections import DotDict, merge_dicts, to_dotdict
+import json
+from prefect.utilities import collections
+from prefect.utilities.collections import DotDict, merge_dicts, as_nested_dict
 
 
 class TestFlattenSeq:
@@ -176,11 +177,11 @@ class TestDotDict:
 
     def test_eq_complex(self):
         x = dict(x=1, y=dict(z=[3, 4, dict(a=5)]))
-        assert to_dotdict(x) == to_dotdict(x)
+        assert as_nested_dict(x) == as_nested_dict(x)
 
     def test_eq_complex_dict(self):
         x = dict(x=1, y=dict(z=[3, 4, dict(a=5)]))
-        assert to_dotdict(x) == x
+        assert as_nested_dict(x) == x
 
     def test_keyerror_is_thrown_when_accessing_nonexistent_key(self):
         d = DotDict(data=5)
@@ -229,22 +230,35 @@ class TestDotDict:
         identity = lambda **kwargs: kwargs
         assert identity(**d) == {"data": 5}
 
-    def test_to_dotdict(self):
-        orig_d = dict(a=1, b=[2, dict(c=3)], d=dict(e=[dict(f=4)]))
-        dotdict = to_dotdict(orig_d)
-        assert isinstance(dotdict, DotDict)
-        assert dotdict.a == 1
-        assert dotdict.b[1].c == 3
-        assert dotdict.d.e[0].f == 4
-
     def test_dotdict_is_not_json_serializable_with_default_encoder(self):
-        import json as default_json
 
         with pytest.raises(TypeError):
-            default_json.dumps(DotDict(x=1))
+            json.dumps(DotDict(x=1))
 
-    def test_dotdict_is_json_serialiable_with_prefect_encoder(self):
-        assert json.loads(json.dumps(DotDict(x=1))) == {"x": 1}
+    def test_dotdict_to_dict(self):
+        d = DotDict(x=5, y=DotDict(z="zzz", qq=DotDict()))
+        assert d.to_dict() == {"x": 5, "y": {"z": "zzz", "qq": {}}}
+
+    def test_dotdict_to_dict_with_lists_of_dicts(self):
+        d = DotDict(x=5, y=DotDict(z=[DotDict(abc=10, qq=DotDict())]))
+        assert d.to_dict() == {"x": 5, "y": {"z": [{"abc": 10, "qq": {}}]}}
+
+
+def test_as_nested_dict_defaults_dotdict():
+    orig_d = dict(a=1, b=[2, dict(c=3)], d=dict(e=[dict(f=4)]))
+    dotdict = as_nested_dict(orig_d)
+    assert isinstance(dotdict, DotDict)
+    assert dotdict.a == 1
+    assert dotdict.b[1].c == 3
+    assert dotdict.d.e[0].f == 4
+
+
+def test_as_nested_dict_dct_class():
+    orig_d = dict(a=1, b=[2, dict(c=3)], d=dict(e=[dict(f=4)]))
+    dot_dict_d = as_nested_dict(orig_d, DotDict)
+    dict_d = as_nested_dict(dot_dict_d, dict)
+    assert type(dict_d) is dict
+    assert type(dict_d["d"]["e"][0]) is dict
 
 
 @pytest.mark.parametrize("dct_class", [dict, DotDict])

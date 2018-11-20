@@ -133,10 +133,13 @@ class AirFlow(prefect.core.flow.Flow):
     of the same name.
 
     Args:
-        - dag_id (str): the `dag_id` of the Airflow DAG you wish to "import" as
-        a Prefect Flow
-        - *args, **kwargs: additional args and kwargs to be passed to the
-            standard Flow init method
+        - dag_id (str): the `dag_id` of the Airflow DAG you wish to "import" as a Prefect Flow
+        - *args (optional): additional arguments to be passed to the standard Flow init method
+        - db_file (str, optional): the location of the sqlite3 Airflow database;
+            defaults to creating a temporary one
+        - dag_folder (str, optional): the location of the dag_folder on disk;
+            defaults to your configured Airflow default
+        - **kwargs (optional): additional keyword arguments to be passed to the standard Flow init method
 
     Example:
         ```python
