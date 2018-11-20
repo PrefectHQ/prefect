@@ -51,7 +51,7 @@ module.exports = {
                 {
                     title: 'prefect.tasks',
                     collapsable: true,
-                    children: ['tasks/control_flow', 'tasks/function', 'tasks/shell', 'tasks/strings']
+                    children: ['tasks/control_flow', 'tasks/function', 'tasks/shell', 'tasks/sqlite', 'tasks/strings']
                 },
                 {
                     title: 'prefect.utilities',
