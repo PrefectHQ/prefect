@@ -14,6 +14,19 @@ def lowercase_first_letter(s: str) -> str:
     return s
 
 
+class EnumValue:
+    """
+    When parsing GraphQL arguments, strings can be wrapped in this class to be rendered
+    as enum values, without quotation marks.
+    """
+
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class GQLObject:
     """
     Helper object for building GraphQL queries.
