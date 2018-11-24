@@ -15,6 +15,9 @@ INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 
 
 class Config(collections.DotDict):
+
+    __protect_critical_keys__ = False
+
     def __getattr__(self, attr: str) -> Any:
         """
         This method helps mypy discover attribute types without annotations
