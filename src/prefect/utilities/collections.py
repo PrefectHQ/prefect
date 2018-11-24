@@ -54,6 +54,8 @@ class DotDict(MutableMapping):
         ```
     """
 
+    __protect_critical_keys__ = True
+
     def __init__(self, init_dict: DictLike = None, **kwargs: Any) -> None:
         if init_dict:
             self.update(init_dict)
@@ -64,7 +66,11 @@ class DotDict(MutableMapping):
 
     def __setitem__(self, key: str, value: Any) -> None:
         # prevent overwriting any critical attributes
-        if isinstance(key, str) and hasattr(MutableMapping, key):
+        if (
+            self.__protect_critical_keys__
+            and isinstance(key, str)
+            and hasattr(MutableMapping, key)
+        ):
             raise ValueError('Invalid key: "{}"'.format(key))
         self.__dict__[key] = value
 
@@ -98,6 +104,8 @@ class DotDict(MutableMapping):
 
 
 class GraphQLResult(DotDict):
+    __protect_critical_keys__ = False
+
     def __repr__(self) -> str:
         return json.dumps(as_nested_dict(self, dict), indent=4)
 
@@ -148,7 +156,11 @@ def as_nested_dict(
     if isinstance(obj, (list, tuple, set)):
         return type(obj)([as_nested_dict(d, dct_class) for d in obj])
     elif isinstance(obj, (dict, DotDict)):
-        return dct_class({k: as_nested_dict(v, dct_class) for k, v in obj.items()})
+        # instantiate the dict and call update because if a dotdict contains a key called
+        # `update`, then calling update in __init__ becomes impossible
+        new_dict = dct_class()
+        new_dict.update({k: as_nested_dict(v, dct_class) for k, v in obj.items()})
+        return new_dict
     return obj
 
 
