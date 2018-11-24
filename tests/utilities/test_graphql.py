@@ -1,3 +1,4 @@
+import uuid
 import json
 import sys
 from collections import OrderedDict
@@ -340,3 +341,9 @@ def test_empty_dict_in_arguments():
 def test_enum_value_in_arguments():
     query = parse_graphql_arguments({"where": {"color": EnumValue("red")}})
     assert query == "where: { color: red }"
+
+
+def test_uuid_value_in_arguments():
+    id = uuid.uuid4()
+    query = parse_graphql_arguments({"id": id})
+    assert query == 'id: "{}"'.format(id)
