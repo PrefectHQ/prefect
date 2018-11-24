@@ -89,6 +89,12 @@ class TestConfig:
     def test_get_nested_default(self):
         assert Config().get_nested("a.b.c", 1) == 1
 
+    def test_critical_key_protection_disabled(self):
+        config = Config()
+        assert not config.__protect_critical_keys__
+        config.update = 1
+        assert config.update == 1
+
 
 @pytest.fixture
 def test_config_file_path():
