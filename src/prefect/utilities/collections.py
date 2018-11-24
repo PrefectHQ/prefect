@@ -54,6 +54,8 @@ class DotDict(MutableMapping):
         ```
     """
 
+    __protect_critical_keys__ = True
+
     def __init__(self, init_dict: DictLike = None, **kwargs: Any) -> None:
         if init_dict:
             self.update(init_dict)
@@ -64,7 +66,11 @@ class DotDict(MutableMapping):
 
     def __setitem__(self, key: str, value: Any) -> None:
         # prevent overwriting any critical attributes
-        if isinstance(key, str) and hasattr(MutableMapping, key):
+        if (
+            self.__protect_critical_keys__
+            and isinstance(key, str)
+            and hasattr(MutableMapping, key)
+        ):
             raise ValueError('Invalid key: "{}"'.format(key))
         self.__dict__[key] = value
 
@@ -98,6 +104,8 @@ class DotDict(MutableMapping):
 
 
 class GraphQLResult(DotDict):
+    __protect_critical_keys__ = False
+
     def __repr__(self) -> str:
         return json.dumps(as_nested_dict(self, dict), indent=4)
 
