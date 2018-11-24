@@ -1,5 +1,6 @@
 import json
 import re
+import uuid
 import textwrap
 from typing import Any, Union
 from prefect.utilities.collections import DotDict
@@ -212,6 +213,8 @@ def _parse_arguments_inner(arguments: Any) -> str:
         return "false"
     elif arguments is None:
         return "null"
+    elif isinstance(arguments, uuid.UUID):
+        return _parse_arguments_inner(str(arguments))
     return str(arguments)
 
 
