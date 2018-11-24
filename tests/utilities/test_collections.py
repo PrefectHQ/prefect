@@ -318,7 +318,20 @@ def test_protect_critical_default_false_for_graphql_result():
     assert not x.__protect_critical_keys__
 
 
-def test_protect_critical_keys_inactive():
+def test_protect_critical_keys_inactive_for_graphql_result():
     x = GraphQLResult()
     x.update = 1
     assert x.update == 1
+
+
+def test_protect_critical_keys_inactive_for_graphql_result_init():
+    x = GraphQLResult(update=1)
+    assert x.update == 1
+
+
+def test_protect_critical_keys_inactive_for_nested_query():
+    """
+    Fails if the `update` method is called after an update key is set
+    """
+    gql = {"update": {"update": [{"x": 1}, {"x": 2}]}}
+    as_nested_dict(gql, GraphQLResult)
