@@ -3,7 +3,7 @@ import re
 import uuid
 import textwrap
 from typing import Any, Union
-from prefect.utilities.collections import DotDict
+from prefect.utilities.collections import DotDict, as_nested_dict
 
 
 def lowercase_first_letter(s: str) -> str:
@@ -13,6 +13,13 @@ def lowercase_first_letter(s: str) -> str:
     if s:
         return s[0].lower() + s[1:]
     return s
+
+
+class GraphQLResult(DotDict):
+    __protect_critical_keys__ = False
+
+    def __repr__(self) -> str:
+        return json.dumps(as_nested_dict(self, dict), indent=4)
 
 
 class EnumValue:

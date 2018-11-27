@@ -2,12 +2,8 @@ import pytest
 import types
 import json
 from prefect.utilities import collections
-from prefect.utilities.collections import (
-    DotDict,
-    merge_dicts,
-    as_nested_dict,
-    GraphQLResult,
-)
+from prefect.utilities.collections import DotDict, merge_dicts, as_nested_dict
+from prefect.utilities.graphql import GraphQLResult
 
 
 class TestFlattenSeq:
