@@ -6,8 +6,12 @@ import os
 from typing import TYPE_CHECKING, Optional, Union
 
 import prefect
-from prefect.utilities import collections
-from prefect.utilities.graphql import parse_graphql, with_args
+from prefect.utilities.graphql import (
+    parse_graphql,
+    with_args,
+    GraphQLResult,
+    as_nested_dict,
+)
 
 if TYPE_CHECKING:
     import requests
@@ -113,9 +117,7 @@ class Client:
         if "errors" in result:
             raise ValueError(result["errors"])
         else:
-            return collections.as_nested_dict(  # type: ignore
-                result, collections.GraphQLResult
-            ).data
+            return as_nested_dict(result, GraphQLResult).data  # type: ignore
 
     def _request(
         self, method: str, path: str, params: dict = None, server: str = None
