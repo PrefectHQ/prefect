@@ -1,14 +1,18 @@
 import datetime
-import pendulum
-import prefect
-import pytest
+
 import marshmallow
+import pendulum
+import pytest
+
+import prefect
+from prefect.utilities.collections import DotDict, as_nested_dict
 from prefect.utilities.serialization import (
-    VersionedSchema,
-    version,
     VERSIONS,
+    OneOfSchema,
+    VersionedSchema,
     get_versioned_schema,
     to_qualified_name,
+    version,
 )
 
 
@@ -313,3 +317,18 @@ def test_nested_schemas_pass_context_on_load():
             return obj
 
     assert Parent().load({"child": {"x": 1}})["child"]["x"] == 5
+
+
+def test_oneofschema_load_dotdict():
+    """
+    Tests that modified OneOfSchema can load data from a DotDict (standard can not)
+    """
+
+    class ChildSchema(marshmallow.Schema):
+        x = marshmallow.fields.Integer()
+
+    class ParentSchema(OneOfSchema):
+        type_schemas = {"Child": ChildSchema}
+
+    child = ParentSchema().load(DotDict(type="Child", x="5"))
+    assert child["x"] == 5
