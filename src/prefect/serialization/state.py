@@ -1,10 +1,16 @@
-from typing import Any, Dict
 import json
-from marshmallow_oneofschema import OneOfSchema
+from typing import Any, Dict
+
 from marshmallow import fields, post_load
-from prefect.utilities.serialization import VersionedSchema, version, to_qualified_name
+
 from prefect.engine import state
-from prefect.utilities.serialization import JSONField
+from prefect.utilities.serialization import (
+    JSONField,
+    OneOfSchema,
+    VersionedSchema,
+    to_qualified_name,
+    version,
+)
 
 
 @version("0.3.3")
