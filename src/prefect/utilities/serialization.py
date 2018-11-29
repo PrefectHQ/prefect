@@ -5,6 +5,9 @@ import sys
 from typing import Dict, Callable, Optional, Any, List
 import json
 from marshmallow import Schema, post_dump, post_load, SchemaOpts, pre_load, fields
+from prefect.utilities.collections import DotDict, as_nested_dict
+
+import marshmallow_oneofschema
 
 MAX_VERSION = "__MAX_VERSION__"
 VERSIONS = {}  # type: Dict[str, Dict[str, VersionedSchema]]
@@ -217,3 +220,14 @@ class NestedField(fields.Nested):
         if self.dump_fn is not None:
             value = self.dump_fn(obj, self.context)
         return super()._serialize(value, attr, obj, **kwargs)
+
+
+class OneOfSchema(marshmallow_oneofschema.OneOfSchema):
+    """
+    A subclass of marshmallow_oneofschema.OneOfSchema that can load DotDicts
+    """
+
+    def _load(self, data, partial=None, unknown=None):
+        if isinstance(data, DotDict):
+            data = as_nested_dict(data, dict)
+        return super()._load(data=data, partial=partial, unknown=unknown)
