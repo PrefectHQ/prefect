@@ -143,6 +143,25 @@ class TestLocalExecutor:
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, LocalExecutor)
 
+    def test_map_passes_things_along(self, monkeypatch):
+        monkeypatch.setattr(
+            prefect.engine.executors.local,
+            "dict_to_list",
+            lambda *args: ["a", "b", "c"],
+        )
+
+        def map_fn(*args, **kwargs):
+            return (args, kwargs)
+
+        e = LocalExecutor()
+        with e.start():
+            res = e.wait(e.map(map_fn, x=1, upstream_states={}, key="foo"))
+        assert res == [
+            ((), {"upstream_states": "a", "map_index": 0, "x": 1, "key": "foo"}),
+            ((), {"upstream_states": "b", "map_index": 1, "x": 1, "key": "foo"}),
+            ((), {"upstream_states": "c", "map_index": 2, "x": 1, "key": "foo"}),
+        ]
+
 
 @pytest.mark.skipif(sys.version_info >= (3, 5), reason="Only raised in Python 3.4")
 def test_importing_dask_raises_informative_import_error():
@@ -302,3 +321,23 @@ class TestDaskExecutor:
         with e.start():
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, DaskExecutor)
+
+    def test_map_passes_things_along(self, monkeypatch):
+        monkeypatch.setattr(
+            prefect.engine.executors.dask, "dict_to_list", lambda *args: ["a", "b", "c"]
+        )
+
+        def map_fn(*args, **kwargs):
+            return (args, kwargs)
+
+        # only need to test processes=False because the passing is the same;
+        # can't easily unit test processes=True because of the monkeypatch
+        e = DaskExecutor(processes=False)
+        with e.start():
+            # cant pass `key="foo"` because `key` is swallowed by client.submit
+            res = e.wait(e.map(map_fn, x=1, upstream_states={}, _key="foo"))
+        assert res == [
+            ((), {"upstream_states": "a", "map_index": 0, "x": 1, "_key": "foo"}),
+            ((), {"upstream_states": "b", "map_index": 1, "x": 1, "_key": "foo"}),
+            ((), {"upstream_states": "c", "map_index": 2, "x": 1, "_key": "foo"}),
+        ]

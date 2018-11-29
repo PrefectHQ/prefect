@@ -21,8 +21,12 @@ class LocalExecutor(Executor):
 
         states = dict_to_list(upstream_states)
         results = []
-        for elem in states:
-            results.append(self.submit(fn, *args, upstream_states=elem, **kwargs))
+        for map_index, elem in enumerate(states):
+            results.append(
+                self.submit(
+                    fn, *args, upstream_states=elem, map_index=map_index, **kwargs
+                )
+            )
 
         return results
 
