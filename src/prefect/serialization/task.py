@@ -1,7 +1,6 @@
 from collections import OrderedDict
 import marshmallow
 import prefect
-from marshmallow_oneofschema import OneOfSchema
 from marshmallow import (
     fields,
     pre_dump,
