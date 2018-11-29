@@ -2,11 +2,16 @@ from marshmallow import fields, post_load, pre_dump
 
 import prefect
 from prefect.serialization.edge import EdgeSchema
-from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.environment import EnvironmentSchema
+from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
-from prefect.utilities.serialization import VersionedSchema, version, to_qualified_name
-from prefect.utilities.serialization import JSONField, NestedField
+from prefect.utilities.serialization import (
+    JSONField,
+    NestedField,
+    VersionedSchema,
+    to_qualified_name,
+    version,
+)
 
 
 @version("0.3.3")
