@@ -98,6 +98,7 @@ class TaskRunner(Runner):
         context: Dict[str, Any] = None,
         queues: List = None,
         mapped: bool = False,
+        map_index: int = None,
         executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
         """
@@ -123,6 +124,8 @@ class TaskRunner(Runner):
             - mapped (bool, optional): whether this task is mapped; if `True`,
                 the task will _not_ be run, but a `Mapped` state will be returned indicating
                 it is ready to. Defaults to `False`
+            - map_index (int, optional): if this task run represents a spawned
+                mapped task, the `map_index` represents its mapped position
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
 
@@ -180,7 +183,7 @@ class TaskRunner(Runner):
                 break
 
         # run state transformation pipeline
-        with prefect.context(context, _task_name=self.task.name):
+        with prefect.context(context, _task_name=self.task.name, _map_index=map_index):
 
             try:
                 # determine starting state
