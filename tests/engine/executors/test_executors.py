@@ -104,6 +104,32 @@ class TestSyncExecutor:
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, SynchronousExecutor)
 
+    def test_map_doesnt_do_anything_for_empty_list_input(self):
+        def map_fn(*args, **kwargs):
+            raise ValueError("map_fn was called")
+
+        e = SynchronousExecutor()
+        with e.start():
+            res = e.wait(e.map(map_fn, x=1, upstream_states={}, key="foo"))
+        assert res == []
+
+    def test_map_passes_things_along(self, monkeypatch):
+        monkeypatch.setattr(
+            prefect.engine.executors.sync, "dict_to_list", lambda *args: ["a", "b", "c"]
+        )
+
+        def map_fn(*args, **kwargs):
+            return (args, kwargs)
+
+        e = SynchronousExecutor()
+        with e.start():
+            res = e.wait(e.map(map_fn, x=1, upstream_states={}, key="foo"))
+        assert res == [
+            ((), {"upstream_states": "a", "map_index": 0, "x": 1, "key": "foo"}),
+            ((), {"upstream_states": "b", "map_index": 1, "x": 1, "key": "foo"}),
+            ((), {"upstream_states": "c", "map_index": 2, "x": 1, "key": "foo"}),
+        ]
+
 
 class TestLocalExecutor:
     def test_submit(self):
@@ -142,6 +168,15 @@ class TestLocalExecutor:
         with e.start():
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, LocalExecutor)
+
+    def test_map_doesnt_do_anything_for_empty_list_input(self):
+        def map_fn(*args, **kwargs):
+            raise ValueError("map_fn was called")
+
+        e = LocalExecutor()
+        with e.start():
+            res = e.wait(e.map(map_fn, x=1, upstream_states={}, key="foo"))
+        assert res == []
 
     def test_map_passes_things_along(self, monkeypatch):
         monkeypatch.setattr(
@@ -321,6 +356,16 @@ class TestDaskExecutor:
         with e.start():
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, DaskExecutor)
+
+    @pytest.mark.parametrize("processes", [True, False])
+    def test_map_doesnt_do_anything_for_empty_list_input(self, processes):
+        def map_fn(*args, **kwargs):
+            raise ValueError("map_fn was called")
+
+        e = DaskExecutor(processes=processes)
+        with e.start():
+            res = e.wait(e.map(map_fn, x=1, upstream_states={}, key="foo"))
+        assert res == []
 
     def test_map_passes_things_along(self, monkeypatch):
         monkeypatch.setattr(
