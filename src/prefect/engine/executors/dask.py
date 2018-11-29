@@ -100,9 +100,15 @@ class DaskExecutor(Executor):
 
             with worker_client(separate_thread=False) as client:
                 futures = []
-                for elem in states:
+                for map_index, elem in enumerate(states):
                     futures.append(
-                        client.submit(fn, *args, upstream_states=elem, **kwargs)
+                        client.submit(
+                            fn,
+                            *args,
+                            upstream_states=elem,
+                            map_index=map_index,
+                            **kwargs
+                        )
                     )
                 fire_and_forget(
                     futures
