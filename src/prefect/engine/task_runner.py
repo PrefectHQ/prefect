@@ -7,7 +7,6 @@ from typing import Any, Callable, Dict, Iterable, List, Union, Set, Sized, Optio
 
 import prefect
 from prefect import config
-from prefect.client import Client, TaskRuns
 from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.cloud_handler import CloudHandler
