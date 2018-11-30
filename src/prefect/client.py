@@ -257,7 +257,11 @@ class Client:
                 }
             }
         }
-        return self.graphql(parse_graphql(query))
+        result = self.graphql(parse_graphql(query)).flow_run_by_pk
+        result.state = prefect.serialization.state.StateSchema().load(
+            result.current_state.serialized_state
+        )
+        return result
 
     def set_flow_run_state(
         self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
@@ -278,7 +282,7 @@ class Client:
         }
         return self.graphql(
             parse_graphql(mutation), state=json.dumps(state.serialize())
-        )
+        ).setFlowRunState.flow_run
 
     def get_task_run_info(
         self, flow_run_id: str, task_id: str, map_index: Optional[int]
@@ -289,9 +293,9 @@ class Client:
                     "getOrCreateTaskRun",
                     {
                         "input": {
-                            "flow_run_id": flow_run_id,
-                            "task_id": task_id,
-                            "map_index": map_index,
+                            "flowRunId": flow_run_id,
+                            "taskId": task_id,
+                            "mapIndex": map_index,
                         }
                     },
                 ): {
@@ -303,7 +307,7 @@ class Client:
                 }
             }
         }
-        return self.graphql(parse_graphql(mutation))
+        return self.graphql(parse_graphql(mutation)).getOrCreateTaskRun.task_run
 
     def set_task_run_state(
         self, task_run_id: str, version: int, state: "prefect.engine.state.State"
