@@ -6,7 +6,7 @@ import click
 
 import prefect
 from prefect import config
-from prefect.client import Client, FlowRuns, Flows
+from prefect.client import Client
 from prefect.core import registry
 
 

@@ -9,7 +9,6 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Flow, Task
 from prefect.engine import signals
-from prefect.engine.cloud_handler import CloudHandler
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (

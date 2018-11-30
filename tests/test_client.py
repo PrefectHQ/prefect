@@ -1,3 +1,4 @@
+import json
 import os
 import pytest
 import requests
@@ -5,6 +6,8 @@ from unittest.mock import MagicMock, mock_open
 
 import prefect
 from prefect.client import Client, Secret
+from prefect.engine.state import Pending
+from prefect.utilities.graphql import GraphQLResult
 from prefect.utilities.tests import set_temporary_config
 
 
@@ -201,6 +204,79 @@ def test_client_graphql_retries_if_token_needs_refreshing(monkeypatch):
     assert post.call_count == 3  # first call -> refresh token -> last call
     assert post.call_args[0][0] == "http://my-cloud.foo/graphql"
     assert client.token == "new-token"
+
+
+## test actual mutation and query handling
+def test_graphql_errors_get_raised(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data="42", errors="GraphQL issue!"))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        client = Client(token="secret_token")
+    with pytest.raises(ValueError) as exc:
+        res = client.graphql("query: {}")
+    assert "GraphQL issue!" in str(exc.value)
+
+
+def test_get_flow_run_info(monkeypatch):
+    response = """
+{
+    "flow_run_by_pk": {
+        "version": 0,
+        "current_state": {
+            "serialized_state": {
+                "type": "Pending",
+                "result": "42",
+                "message": null,
+                "__version__": "0.3.3+309.gf1db024",
+                "cached_inputs": "null"
+            }
+        }
+    }
+}
+    """
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=json.loads(response)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        client = Client(token="secret_token")
+    result = client.get_flow_run_info(flow_run_id="74-salt")
+    assert isinstance(result, GraphQLResult)
+    assert isinstance(result.state, Pending)
+    assert result.state.result == 42
+    assert result.state.message is None
+    assert result.version == 0
+
+
+def test_set_flow_run_state(monkeypatch):
+    response = """
+{
+    "setFlowRunState": {
+        "flow_run": {
+            "version": 1
+        }
+    }
+}
+    """
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=json.loads(response)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        client = Client(token="secret_token")
+    result = client.set_flow_run_state(
+        flow_run_id="74-salt", version=0, state=Pending()
+    )
+    assert isinstance(result, GraphQLResult)
+    assert result.version == 1
 
 
 #################################
