@@ -7,7 +7,6 @@ from typing import Any, Callable, Dict, Iterable, Set, Union
 
 import prefect
 from prefect import config
-from prefect.client import Client, FlowRuns
 from prefect.core import Edge, Flow, Task
 from prefect.engine import signals
 from prefect.engine.cloud_handler import CloudHandler
