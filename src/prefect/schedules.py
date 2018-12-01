@@ -1,9 +1,11 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
-from crontab import CronTab
 import itertools
 from datetime import datetime, timedelta
-import pendulum
 from typing import Iterable, List
+
+import pendulum
+from crontab import CronTab
+
 from prefect.utilities.datetimes import ensure_tz_aware
 
 
