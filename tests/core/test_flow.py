@@ -1245,7 +1245,7 @@ class TestSerialize:
             name="hi",
             version="2",
             tasks=[p1, t2, t3],
-            schedule=prefect.schedules.CronSchedule("* * 0 0 0"),
+            schedule=prefect.schedules.CronSchedule("0 0 * * *"),
         )
         f.add_edge(p1, t2)
         f.add_edge(p1, t3)
