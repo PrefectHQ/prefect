@@ -79,9 +79,9 @@ class FlowRunner(Runner):
     ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
-        self.cloud_handler = Client()
+        self.client = Client()
         if config.get("prefect_cloud", None):
-            self.cloud_handler.login()
+            self.client.login()
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -104,7 +104,7 @@ class FlowRunner(Runner):
             flow_run_id = config.get("flow_run_id", None)
             version = prefect.context.get("_flow_run_version")
 
-            res = self.cloud_handler.set_flow_run_state(
+            res = self.client.set_flow_run_state(
                 flow_run_id=flow_run_id, version=version, state=new_state
             )
             prefect.context.update(_flow_run_version=res.version)  # type: ignore
@@ -176,7 +176,7 @@ class FlowRunner(Runner):
 
         # Initialize CloudHandler and get flow run version
         if config.get("prefect_cloud", None):
-            flow_run_info = self.cloud_handler.get_flow_run_info(
+            flow_run_info = self.client.get_flow_run_info(
                 flow_run_id=config.get("flow_run_id", "")
             )
             context.update(_flow_run_version=flow_run_info.version)  # type: ignore
