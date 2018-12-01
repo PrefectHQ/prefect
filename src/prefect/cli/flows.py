@@ -67,6 +67,7 @@ def run(id):
 
     # Load optional parameters
     parameters = None
+    # TODO: pull flow_run_id from context not config
     flow_run_id = config.get("flow_run_id", None)
 
     if flow_run_id:

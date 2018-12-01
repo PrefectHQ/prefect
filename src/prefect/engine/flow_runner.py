@@ -80,8 +80,6 @@ class FlowRunner(Runner):
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
         self.client = Client()
-        if config.get("prefect_cloud", None):
-            self.client.login()
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -176,6 +174,7 @@ class FlowRunner(Runner):
 
         # Initialize CloudHandler and get flow run version
         if config.get("prefect_cloud", None):
+            # TODO: pull flow_run_id from context not config
             flow_run_info = self.client.get_flow_run_info(
                 flow_run_id=config.get("flow_run_id", "")
             )

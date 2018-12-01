@@ -64,6 +64,8 @@ class Client:
                         token = f.read()
 
         self.token = token
+        if self.token is None and prefect.config.get("prefect_cloud"):
+            self.login()
 
     # -------------------------------------------------------------------------
     # Utilities
