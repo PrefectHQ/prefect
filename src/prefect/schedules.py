@@ -10,6 +10,10 @@ from prefect.utilities.datetimes import ensure_tz_aware
 class Schedule:
     """
     Base class for Schedules
+
+    Args:
+        - start_date (datetime, optional): an optional start date for the schedule
+        - end_date (datetime, optional): an optional end date for the schedule
     """
 
     def __init__(self, start_date: datetime = None, end_date: datetime = None):
@@ -46,16 +50,21 @@ class IntervalSchedule(Schedule):
     Args:
         - start_date (datetime): first date of schedule
         - interval (timedelta): interval on which this schedule occurs
+        - end_date (datetime, optional): an optional end date for the schedule
 
     Raises:
+        - ValueError: if start_date is not a datetime
         - ValueError: if provided interval is negative
     """
 
     def __init__(
         self, start_date: datetime, interval: timedelta, end_date: datetime = None
     ) -> None:
-        if interval.total_seconds() <= 0:
+        if not isinstance(start_date, datetime):
+            raise TypeError("`start_date` must be a datetime.")
+        elif interval.total_seconds() <= 0:
             raise ValueError("Interval must be positive")
+
         self.interval = interval
         super().__init__(start_date=start_date, end_date=end_date)
 
@@ -72,9 +81,11 @@ class IntervalSchedule(Schedule):
         """
         if on_or_after is None:
             on_or_after = pendulum.now("utc")
-        assert isinstance(on_or_after, datetime)  # mypy assertion
-        on_or_after = ensure_tz_aware(on_or_after)
 
+        assert isinstance(on_or_after, datetime)  # mypy assertion
+        assert isinstance(self.start_date, datetime)  # mypy assertion
+
+        on_or_after = ensure_tz_aware(on_or_after)
         first_interval = int(
             (on_or_after - self.start_date).total_seconds()
             / self.interval.total_seconds()
@@ -97,9 +108,16 @@ class CronSchedule(Schedule):
 
     Args:
         - cron (str): a valid cron string
+        - start_date (datetime, optional): an optional start date for the schedule
+        - end_date (datetime, optional): an optional end date for the schedule
+
+    Raises:
+        - ValueError: if the cron string is invalid
     """
 
-    def __init__(self, cron: str, start_date=None, end_date=None) -> None:
+    def __init__(
+        self, cron: str, start_date: datetime = None, end_date: datetime = None
+    ) -> None:
         # build cron object to check the cron string - will raise an error if it's invalid
         CronTab(cron)
         self.cron = cron
