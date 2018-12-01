@@ -78,7 +78,6 @@ class FlowRunner(Runner):
     ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
-        self.cloud_handler = CloudHandler()
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
