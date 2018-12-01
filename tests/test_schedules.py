@@ -43,19 +43,20 @@ class TestIntervalSchedule:
             )
 
     def test_interval_schedule_next_n(self):
+        """Test that default on_or_after is *now*"""
         start_date = pendulum.datetime(2018, 1, 1)
         today = pendulum.today("utc")
         s = schedules.IntervalSchedule(start_date, timedelta(days=1))
-        assert s.next(3) == [today, today.add(days=1), today.add(days=2)]
+        assert s.next(3) == [today.add(days=1), today.add(days=2), today.add(days=3)]
 
     def test_interval_schedule_next_n_with_on_or_after_argument(self):
         start_date = pendulum.datetime(2018, 1, 1)
         today = pendulum.today("utc")
         s = schedules.IntervalSchedule(start_date, timedelta(days=1))
-        assert s.next(3, on_or_after=start_date) == [
-            start_date,
-            start_date.add(days=1),
-            start_date.add(days=2),
+        assert s.next(3, on_or_after=today) == [
+            today,
+            today.add(days=1),
+            today.add(days=2),
         ]
 
     def test_interval_schedule_start_daylight_savings_time(self):
@@ -84,6 +85,20 @@ class TestIntervalSchedule:
         )
         assert s.next(3, on_or_after=start_date) == [start_date, start_date.add(days=1)]
         assert s.next(3, on_or_after=pendulum.datetime(2018, 2, 1)) == []
+
+    def test_interval_schedule_respects_on_or_after_in_middle_of_interval(self):
+        """
+        If the "on_or_after" date is in the middle of an interval, then the IntervalSchedule
+        should advance to the next interval.
+        """
+        start_date = pendulum.datetime(2018, 1, 1)
+        s = schedules.IntervalSchedule(
+            start_date=start_date, interval=timedelta(hours=1)
+        )
+        assert s.next(2, on_or_after=start_date + timedelta(microseconds=1)) == [
+            start_date.add(hours=1),
+            start_date.add(hours=2),
+        ]
 
 
 class TestCronSchedule:
