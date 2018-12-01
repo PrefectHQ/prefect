@@ -54,11 +54,23 @@ class TestIntervalSchedule:
             start_date.add(days=2),
         ]
 
+    def test_interval_schedule_start_daylight_savings_time(self):
+        """
+        On 3/11/2018, at 2am, EST switched clocks forward an hour.
+        """
+        dt = pendulum.datetime(2018, 3, 11, tz="America/New_York")
+        s = schedules.IntervalSchedule(dt, timedelta(hours=1))
+        next_4 = s.next(4, on_or_after=dt)
+        assert [t.in_tz("utc").hour for t in next_4] == [5, 6, 7, 8]
+
     def test_interval_schedule_daylight_savings_time(self):
+        """
+        11/4/2018, at 2am, EST switched clocks back an hour.
+        """
         dt = pendulum.datetime(2018, 11, 4, tz="America/New_York")
         s = schedules.IntervalSchedule(dt, timedelta(hours=1))
         next_4 = s.next(4, on_or_after=dt)
-        assert [t.hour for t in next_4] == [0, 1, 1, 2]
+        assert [t.in_tz("utc").hour for t in next_4] == [4, 5, 6, 7]
 
     def test_interval_schedule_end_date(self):
         start_date = pendulum.datetime(2018, 1, 1)
@@ -102,18 +114,26 @@ class TestCronSchedule:
             start_date.add(days=2),
         ]
 
-    @pytest.mark.xfail(reason="Cron seems to have issues with DST")
-    def test_cron_schedule_daylight_savings_time(self):
+    def test_cron_schedule_start_daylight_savings_time(self):
         """
-        Cron's behavior is to skip the 2am hour altogether, which seems wrong??
+        On 3/11/2018, at 2am, EST switched clocks forward an hour.
+        """
+        dt = pendulum.datetime(2018, 3, 11, tz="America/New_York")
+        every_hour = "0 * * * *"
+        s = schedules.CronSchedule(every_hour)
+        next_4 = s.next(4, on_or_after=dt)
 
-        See also https://github.com/taichino/croniter/issues/116
+        assert [t.in_tz("utc").hour for t in next_4] == [5, 6, 7, 8]
+
+    def test_cron_schedule_end_daylight_savings_time(self):
+        """
+        11/4/2018, at 2am, EST switched clocks back an hour.
         """
         dt = pendulum.datetime(2018, 11, 4, tz="America/New_York")
-        every_day = "0 * * * *"
-        s = schedules.CronSchedule(every_day)
+        every_hour = "0 * * * *"
+        s = schedules.CronSchedule(every_hour)
         next_4 = s.next(4, on_or_after=dt)
-        assert [t.hour for t in next_4] == [0, 1, 1, 2]
+        assert [t.in_tz("utc").hour for t in next_4] == [4, 5, 6, 7]
 
     def test_cron_schedule_start_date(self):
         every_day = "0 0 * * *"
