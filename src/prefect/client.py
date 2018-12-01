@@ -248,7 +248,7 @@ class Client:
         )
         self.token = response.json().get("token")
 
-    def get_flow_run_info(self, flow_run_id: str) -> dict:
+    def get_flow_run_info(self, flow_run_id: str) -> GraphQLResult:
         """
         Retrieves version and current state information for the given flow run.
 
@@ -279,7 +279,7 @@ class Client:
 
     def set_flow_run_state(
         self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
-    ) -> dict:
+    ) -> GraphQLResult:
         """
         Sets new state for a flow run in the database.
 
@@ -315,7 +315,7 @@ class Client:
 
     def get_task_run_info(
         self, flow_run_id: str, task_id: str, map_index: Optional[int]
-    ) -> dict:
+    ) -> GraphQLResult:
         """
         Retrieves version and current state information for the given task run. If this task run is not present in the database (which could
         occur if the `map_index` is non-zero), it will be created with a `Pending` state.
@@ -327,7 +327,7 @@ class Client:
                 `None`, it is assumed this task is _not_ mapped
 
         Returns:
-            - GraphQLResult: a `DotDict` with `"version"` and `"state"` keys
+            - GraphQLResult: a `DotDict` with `"version"`, `"state"` and `"id"` keys
                 representing the version and most recent state for this task run
 
         Raises:
@@ -363,7 +363,7 @@ class Client:
 
     def set_task_run_state(
         self, task_run_id: str, version: int, state: "prefect.engine.state.State"
-    ) -> dict:
+    ) -> GraphQLResult:
         """
         Sets new state for a task run in the database.
 
