@@ -307,7 +307,11 @@ class Client:
                 }
             }
         }
-        return self.graphql(parse_graphql(mutation)).getOrCreateTaskRun.task_run
+        result = self.graphql(parse_graphql(mutation)).getOrCreateTaskRun.task_run
+        result.state = prefect.serialization.state.StateSchema().load(
+            result.current_state.serialized_state
+        )
+        return result
 
     def set_task_run_state(
         self, task_run_id: str, version: int, state: "prefect.engine.state.State"
@@ -328,7 +332,7 @@ class Client:
         }
         return self.graphql(
             parse_graphql(mutation), state=json.dumps(state.serialize())
-        )
+        ).setTaskRunState.task_run
 
 
 class Secret:
