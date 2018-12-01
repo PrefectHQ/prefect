@@ -32,6 +32,10 @@ class TestIntervalSchedule:
             start_date=pendulum.now("utc"), interval=timedelta(days=1)
         )
 
+    def test_start_date_must_be_datetime(self):
+        with pytest.raises(TypeError):
+            schedules.IntervalSchedule(start_date=None, interval=timedelta(hours=-1))
+
     def test_interval_schedule_interval_must_be_positive(self):
         with pytest.raises(ValueError):
             schedules.IntervalSchedule(

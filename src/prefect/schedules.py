@@ -55,7 +55,7 @@ class IntervalSchedule(Schedule):
         - end_date (datetime, optional): an optional end date for the schedule
 
     Raises:
-        - ValueError: if start_date is not a datetime
+        - TypeError: if start_date is not a datetime
         - ValueError: if provided interval is negative
     """
 
