@@ -46,7 +46,7 @@ def test_deserialize_flow_subclass_is_flow_but_not_flow_subclass():
 
 
 def test_deserialize_schedule():
-    schedule = prefect.schedules.CronSchedule("* * 0 0 0")
+    schedule = prefect.schedules.CronSchedule("0 0 * * *")
     f = Flow(schedule=schedule)
     serialized = FlowSchema().dump(f)
     deserialized = FlowSchema().load(serialized)
