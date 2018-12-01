@@ -19,13 +19,19 @@ all_schedule_classes = set(
 @pytest.fixture()
 def interval_schedule():
     return schedules.IntervalSchedule(
-        interval=datetime.timedelta(hours=1), start_date=datetime.datetime(2020, 1, 1)
+        interval=datetime.timedelta(hours=1),
+        start_date=datetime.datetime(2020, 1, 1),
+        end_date=datetime.datetime(2020, 5, 1),
     )
 
 
 @pytest.fixture()
 def cron_schedule():
-    return schedules.CronSchedule(cron="0 0 * * *")
+    return schedules.CronSchedule(
+        cron="0 0 * * *",
+        start_date=datetime.datetime(2020, 1, 1),
+        end_date=datetime.datetime(2020, 5, 1),
+    )
 
 
 def test_all_schedules_have_serialization_schemas():
@@ -65,6 +71,8 @@ def test_serialize_cron_schedule(cron_schedule):
     assert schema.dump(cron_schedule) == {
         "cron": cron_schedule.cron,
         "__version__": __version__,
+        "start_date": cron_schedule.start_date.isoformat(),
+        "end_date": cron_schedule.end_date.isoformat(),
     }
 
 
@@ -72,6 +80,7 @@ def test_serialize_interval_schedule(interval_schedule):
     schema = schemas.IntervalScheduleSchema()
     assert schema.dump(interval_schedule) == {
         "start_date": interval_schedule.start_date.isoformat(),
+        "end_date": interval_schedule.end_date.isoformat(),
         "interval": interval_schedule.interval.total_seconds(),
         "__version__": __version__,
     }
