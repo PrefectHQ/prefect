@@ -279,6 +279,70 @@ def test_set_flow_run_state(monkeypatch):
     assert result.version == 1
 
 
+def test_get_task_run_info(monkeypatch):
+    response = """
+{
+    "getOrCreateTaskRun": {
+        "task_run": {
+            "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
+            "version": 0,
+            "current_state": {
+                "serialized_state": {
+                    "type": "Pending",
+                    "result": "42",
+                    "message": null,
+                    "__version__": "0.3.3+310.gd19b9b7.dirty",
+                    "cached_inputs": "null"
+                }
+            }
+        }
+    }
+}
+    """
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=json.loads(response)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        client = Client(token="secret_token")
+    result = client.get_task_run_info(
+        flow_run_id="74-salt", task_id="72-salt", map_index=None
+    )
+    assert isinstance(result, GraphQLResult)
+    assert isinstance(result.state, Pending)
+    assert result.state.result == 42
+    assert result.state.message is None
+    assert result.id == "772bd9ee-40d7-479c-9839-4ab3a793cabd"
+    assert result.version == 0
+
+
+def test_set_task_run_state(monkeypatch):
+    response = """
+{
+    "setTaskRunState": {
+        "task_run": {
+            "version": 1
+        }
+    }
+}
+    """
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=json.loads(response)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        client = Client(token="secret_token")
+    result = client.set_task_run_state(
+        task_run_id="76-salt", version=0, state=Pending()
+    )
+    assert isinstance(result, GraphQLResult)
+    assert result.version == 1
+
+
 #################################
 ##### Secret Tests
 #################################
