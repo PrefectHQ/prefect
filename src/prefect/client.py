@@ -271,8 +271,8 @@ class Client:
                 }
             }
         }
-        result = self.graphql(parse_graphql(query)).flow_run_by_pk
-        result.state = prefect.serialization.state.StateSchema().load(
+        result = self.graphql(parse_graphql(query)).flow_run_by_pk  # type: ignore
+        result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
             result.current_state.serialized_state
         )
         return result
@@ -309,7 +309,7 @@ class Client:
                 ): {"flow_run": {"version"}}
             }
         }
-        return self.graphql(
+        return self.graphql(  # type: ignore
             parse_graphql(mutation), state=json.dumps(state.serialize())
         ).setFlowRunState.flow_run
 
@@ -353,8 +353,10 @@ class Client:
                 }
             }
         }
-        result = self.graphql(parse_graphql(mutation)).getOrCreateTaskRun.task_run
-        result.state = prefect.serialization.state.StateSchema().load(
+        result = self.graphql(  # type: ignore
+            parse_graphql(mutation)
+        ).getOrCreateTaskRun.task_run
+        result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
             result.current_state.serialized_state
         )
         return result
@@ -391,7 +393,7 @@ class Client:
                 ): {"task_run": {"version"}}
             }
         }
-        return self.graphql(
+        return self.graphql(  # type: ignore
             parse_graphql(mutation), state=json.dumps(state.serialize())
         ).setTaskRunState.task_run
 

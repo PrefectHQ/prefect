@@ -83,10 +83,10 @@ class TaskRunner(Runner):
             task_run_id = prefect.context.get("_task_run_id")
             version = prefect.context.get("_task_run_version")
 
-            self.cloud_handler.set_task_run_state(
+            res = self.cloud_handler.set_task_run_state(
                 task_run_id=task_run_id, version=version, state=new_state
             )
-            prefect.context.update(_task_run_version=version + 1)
+            prefect.context.update(_task_run_version=res.version)  # type: ignore
 
         return new_state
 
@@ -142,9 +142,13 @@ class TaskRunner(Runner):
 
         # Initialize CloudHandler and get task run version
         if config.get("prefect_cloud", None):
-            task_run_info = self.cloud_handler.get_task_run_info(context.get("task_id"))
+            flow_run_id = config.get("flow_run_id", None)
+            task_run_info = self.cloud_handler.get_task_run_info(
+                flow_run_id, context.get("task_id", ""), map_index=map_index
+            )
             context.update(
-                _task_run_version=task_run_info.version, _task_run_id=task_run_info.id
+                _task_run_version=task_run_info.version,  # type: ignore
+                _task_run_id=task_run_info.id,  # type: ignore
             )
 
         # construct task inputs
