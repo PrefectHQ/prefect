@@ -265,6 +265,7 @@ class Client:
         query = {
             "query": {
                 with_args("flow_run_by_pk", {"id": flow_run_id}): {
+                    "parameters": True,
                     "version": True,
                     "current_state": {"serialized_state"},
                 }

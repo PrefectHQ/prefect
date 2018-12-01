@@ -73,10 +73,8 @@ def run(id):
         client = Client()
         client.login(email=config.email, password=config.password)
 
-        flow_runs_gql = FlowRuns(client=client)
-        stored_parameters = flow_runs_gql.query(flow_run_id=flow_run_id)
-
-        parameters = stored_parameters.flowRuns[0].parameters
+        flow_run_info = client.get_flow_run_info(flow_run_id=flow_run_id)
+        parameters = flow_run_info.parameters
 
     return flow_runner.run(parameters=parameters)
 
