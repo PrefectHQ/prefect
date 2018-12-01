@@ -249,6 +249,19 @@ class Client:
         self.token = response.json().get("token")
 
     def get_flow_run_info(self, flow_run_id: str) -> dict:
+        """
+        Retrieves version and current state information for the given flow run.
+
+        Args:
+            - flow_run_id (str): the id of the flow run to get information for
+
+        Returns:
+            - GraphQLResult: a `DotDict` with `"version"` and `"state"` keys
+                representing the version and most recent state for this flow run
+
+        Raises:
+            - ValueError: if the GraphQL query is bad for any reason
+        """
         query = {
             "query": {
                 with_args("flow_run_by_pk", {"id": flow_run_id}): {
@@ -266,6 +279,21 @@ class Client:
     def set_flow_run_state(
         self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
     ) -> dict:
+        """
+        Sets new state for a flow run in the database.
+
+        Args:
+            - flow_run_id (str): the id of the flow run to set state for
+            - version (int): the current version of the flow run state
+            - state (State): the new state for this flow run
+
+        Returns:
+            - GraphQLResult: a `DotDict` with a single `"version"` key for the
+                new flow run version
+
+        Raises:
+            - ValueError: if the GraphQL query is bad for any reason
+        """
         mutation = {
             "mutation($state: String!)": {
                 with_args(
@@ -287,6 +315,23 @@ class Client:
     def get_task_run_info(
         self, flow_run_id: str, task_id: str, map_index: Optional[int]
     ) -> dict:
+        """
+        Retrieves version and current state information for the given task run. If this task run is not present in the database (which could
+        occur if the `map_index` is non-zero), it will be created with a `Pending` state.
+
+        Args:
+            - flow_run_id (str): the id of the flow run that this task run lives in
+            - task_id (str): the task id for this task run
+            - map_index (int, optional): the mapping index for this task run; if
+                `None`, it is assumed this task is _not_ mapped
+
+        Returns:
+            - GraphQLResult: a `DotDict` with `"version"` and `"state"` keys
+                representing the version and most recent state for this task run
+
+        Raises:
+            - ValueError: if the GraphQL query is bad for any reason
+        """
         mutation = {
             "mutation": {
                 with_args(
@@ -316,6 +361,21 @@ class Client:
     def set_task_run_state(
         self, task_run_id: str, version: int, state: "prefect.engine.state.State"
     ) -> dict:
+        """
+        Sets new state for a task run in the database.
+
+        Args:
+            - task_run_id (str): the id of the task run to set state for
+            - version (int): the current version of the task run state
+            - state (State): the new state for this task run
+
+        Returns:
+            - GraphQLResult: a `DotDict` with a single `"version"` key for the
+                new task run version
+
+        Raises:
+            - ValueError: if the GraphQL query is bad for any reason
+        """
         mutation = {
             "mutation($state: String!)": {
                 with_args(
