@@ -18,7 +18,7 @@ class IntervalScheduleSchema(VersionedSchema):
         object_class = prefect.schedules.IntervalSchedule
 
     start_date = fields.DateTime(required=True)
-    end_date = fields.DateTime()
+    end_date = fields.DateTime(allow_none=True)
     interval = fields.TimeDelta(required=True)
 
 
@@ -27,8 +27,8 @@ class CronScheduleSchema(VersionedSchema):
     class Meta:
         object_class = prefect.schedules.CronSchedule
 
-    start_date = fields.DateTime()
-    end_date = fields.DateTime()
+    start_date = fields.DateTime(allow_none=True)
+    end_date = fields.DateTime(allow_none=True)
     cron = fields.String(required=True)
 
 
