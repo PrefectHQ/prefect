@@ -146,11 +146,13 @@ class CronSchedule(Schedule):
         cron = CronTab(self.cron)
 
         # subtract one second because we want to include on_or_after as a possible date
-        next_date = on_or_after - timedelta(seconds=1)
-
+        next_date = on_or_after - timedelta(seconds=1)  # type: pendulum.DateTime
         dates = []
+
         for i in range(n):
-            next_date = next_date + timedelta(seconds=cron.next(next_date))
+            next_date += timedelta(
+                seconds=cron.next(next_date.in_tz("utc"), default_utc=True)
+            )
             if self.end_date and next_date > self.end_date:
                 break
             dates.append(next_date)
