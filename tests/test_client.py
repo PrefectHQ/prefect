@@ -74,6 +74,31 @@ def test_client_logs_in_and_saves_token(monkeypatch):
     )
 
 
+def test_client_logs_in_automatically(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            ok=True, json=MagicMock(return_value=dict(token="secrettoken"))
+        )
+    )
+    mock_file = mock_open()
+    monkeypatch.setattr("builtins.open", mock_file)
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config("cloud.api", "http://my-cloud.foo"):
+        with set_temporary_config("prefect_cloud", True):
+            with set_temporary_config("cloud.auth_token", None):
+                with set_temporary_config("cloud.email", "test@example.com"):
+                    with set_temporary_config("cloud.password", "1234"):
+                        client = Client()
+    assert post.called
+    assert post.call_args[0][0] == "http://my-cloud.foo/login"
+    assert post.call_args[1]["auth"] == ("test@example.com", "1234")
+    assert client.token == "secrettoken"
+    assert mock_file.call_args[0] == (
+        os.path.expanduser("~/.prefect/.credentials/auth_token"),
+        "w+",
+    )
+
+
 def test_client_logs_in_from_config_credentials(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(

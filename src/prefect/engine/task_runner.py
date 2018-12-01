@@ -59,8 +59,6 @@ class TaskRunner(Runner):
     def __init__(self, task: Task, state_handlers: Iterable[Callable] = None) -> None:
         self.task = task
         self.client = Client()
-        if config.get("prefect_cloud", None):
-            self.client.login()
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
