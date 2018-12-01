@@ -1,4 +1,5 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+import math
 import itertools
 from datetime import datetime, timedelta
 from typing import Iterable, List
@@ -88,7 +89,8 @@ class IntervalSchedule(Schedule):
         assert isinstance(self.start_date, datetime)  # mypy assertion
 
         on_or_after = ensure_tz_aware(on_or_after)
-        first_interval = int(
+
+        first_interval = math.ceil(
             (on_or_after - self.start_date).total_seconds()
             / self.interval.total_seconds()
         )
