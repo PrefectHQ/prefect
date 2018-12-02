@@ -5,9 +5,18 @@ import marshmallow
 import pendulum
 import pytest
 
+from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import DateTime, JSONCompatible
 
-json_test_values = [1, [1, 2], "1", [1, "2"], {"x": 1}, {"x": "1", "y": {"z": 3}}]
+json_test_values = [
+    1,
+    [1, 2],
+    "1",
+    [1, "2"],
+    {"x": 1},
+    {"x": "1", "y": {"z": 3}},
+    DotDict({"x": "1", "y": [DotDict(z=3)]}),
+]
 
 
 class TestJSONCompatibleField:
