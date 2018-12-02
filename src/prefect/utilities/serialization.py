@@ -188,6 +188,8 @@ class JSONCompatible(fields.Field):
         return super()._serialize(value, attr, obj, **kwargs)
 
     def validate_json(self, value):
+        # handle dict-like subclasses including DotDict and GraphQLResult
+        value = as_nested_dict(value, dict)
         try:
             json.dumps(value)
         except TypeError:
