@@ -278,7 +278,7 @@ class TestSerialization:
         p = Parameter(name="p")
         serialized = p.serialize()
         assert serialized["name"] == "p"
-        assert serialized["default"] == "null"
+        assert serialized["default"] is None
         assert serialized["required"] is True
 
     def test_parameter_deserialization(self):

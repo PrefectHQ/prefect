@@ -6,7 +6,6 @@ from prefect.serialization.environment import EnvironmentSchema
 from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
 from prefect.utilities.serialization import (
-    JSONField,
     NestedField,
     VersionedSchema,
     to_qualified_name,
