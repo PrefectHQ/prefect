@@ -284,24 +284,6 @@ def test_schema_doesnt_create_object_if_arg_is_false():
     assert Schema().load({"y": 1}, create_object=False) == {"y": 1}
 
 
-def test_schemas_dump_datetime_to_UTC():
-    """
-    Marshmallow always adds timezone info to datetimes.
-
-    This may not be desireable, but for the moment it is part of marshmallow.
-    """
-
-    class Schema(marshmallow.Schema):
-        dt = marshmallow.fields.DateTime()
-
-    dt = datetime.datetime(2020, 1, 1)
-    dt_with_tz = pendulum.datetime(2020, 1, 1)
-
-    serialized_dt = Schema().dump({"dt": dt})
-    assert serialized_dt["dt"] == "2020-01-01T00:00:00+00:00"
-    assert Schema().load(serialized_dt)["dt"] == dt_with_tz
-
-
 def test_nested_schemas_pass_context_on_load():
     @version("0")
     class Child(VersionedSchema):
