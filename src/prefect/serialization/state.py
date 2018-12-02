@@ -5,7 +5,7 @@ from marshmallow import fields, post_load
 
 from prefect.engine import state
 from prefect.utilities.serialization import (
-    JSONCompatibleField,
+    JSONCompatible,
     OneOfSchema,
     VersionedSchema,
     to_qualified_name,
@@ -19,7 +19,7 @@ class BaseStateSchema(VersionedSchema):
         object_class = state.State
 
     message = fields.String(allow_none=True)
-    result = JSONCompatibleField(allow_none=True)
+    result = JSONCompatible(allow_none=True)
     timestamp = fields.DateTime(allow_none=True)
 
 
@@ -28,7 +28,7 @@ class PendingSchema(BaseStateSchema):
     class Meta:
         object_class = state.Pending
 
-    cached_inputs = JSONCompatibleField(allow_none=True)
+    cached_inputs = JSONCompatible(allow_none=True)
 
 
 @version("0.3.3")
@@ -36,8 +36,8 @@ class CachedStateSchema(PendingSchema):
     class Meta:
         object_class = state.CachedState
 
-    cached_result = JSONCompatibleField(allow_none=True)
-    cached_parameters = JSONCompatibleField(allow_none=True)
+    cached_result = JSONCompatible(allow_none=True)
+    cached_parameters = JSONCompatible(allow_none=True)
     cached_result_expiration = fields.DateTime(allow_none=True)
 
 
@@ -94,7 +94,7 @@ class TimedOutSchema(FinishedSchema):
     class Meta:
         object_class = state.TimedOut
 
-    cached_inputs = JSONCompatibleField(allow_none=True)
+    cached_inputs = JSONCompatible(allow_none=True)
 
 
 @version("0.3.3")

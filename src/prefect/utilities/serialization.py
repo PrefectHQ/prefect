@@ -172,7 +172,7 @@ class VersionedSchema(Schema):
         return data
 
 
-class JSONCompatibleField(fields.Field):
+class JSONCompatible(fields.Field):
     """
     Field that ensures its values are JSON-compatible during serialization.
     """
@@ -192,7 +192,7 @@ class JSONCompatibleField(fields.Field):
             raise ValidationError("Value is not JSON-compatible")
 
 
-class NestedField(fields.Nested):
+class Nested(fields.Nested):
     """
     An extension of the Marshmallow Nested field that allows the value to be selected
     via a dump_fn.
