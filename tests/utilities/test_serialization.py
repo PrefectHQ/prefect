@@ -1,14 +1,14 @@
 import json
 import marshmallow
 import pytest
-from prefect.utilities.serialization import JSONCompatibleField
+from prefect.utilities.serialization import JSONCompatible
 
 json_test_values = [1, [1, 2], "1", [1, "2"], {"x": 1}, {"x": "1", "y": {"z": 3}}]
 
 
-class TestJSONCompatibleField:
+class TestJSONCompatible:
     class Schema(marshmallow.Schema):
-        j = JSONCompatibleField()
+        j = JSONCompatible()
 
     @pytest.mark.parametrize("value", json_test_values)
     def test_json_serialization(self, value):
