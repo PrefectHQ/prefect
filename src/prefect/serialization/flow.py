@@ -31,7 +31,7 @@ class FlowSchema(VersionedSchema):
     environment = fields.Nested(EnvironmentSchema, allow_none=True)
     parameters = Nested(
         ParameterSchema,
-        dump_fn=lambda obj, context: {
+        value_selection_fn=lambda obj, context: {
             p
             for p in getattr(obj, "tasks", [])
             if isinstance(p, prefect.core.task.Parameter)
@@ -43,7 +43,7 @@ class FlowSchema(VersionedSchema):
     reference_tasks = Nested(
         TaskSchema,
         many=True,
-        dump_fn=lambda obj, context: getattr(obj, "_reference_tasks", []),
+        value_selection_fn=lambda obj, context: getattr(obj, "_reference_tasks", []),
         only=["id"],
     )
 
