@@ -199,19 +199,21 @@ class JSONCompatible(fields.Field):
 class Nested(fields.Nested):
     """
     An extension of the Marshmallow Nested field that allows the value to be selected
-    via a dump_fn.
+    via a value_selection_fn.
     """
 
-    def __init__(self, nested: type, dump_fn: Callable = None, **kwargs) -> None:
+    def __init__(
+        self, nested: type, value_selection_fn: Callable = None, **kwargs
+    ) -> None:
         super().__init__(nested=nested, **kwargs)
-        self.dump_fn = dump_fn
+        self.value_selection_fn = value_selection_fn
 
-        if dump_fn is not None:
+        if value_selection_fn is not None:
             self._CHECK_ATTRIBUTE = False
 
     def _serialize(self, value, attr, obj, **kwargs):
-        if self.dump_fn is not None:
-            value = self.dump_fn(obj, self.context)
+        if self.value_selection_fn is not None:
+            value = self.value_selection_fn(obj, self.context)
         return super()._serialize(value, attr, obj, **kwargs)
 
 
