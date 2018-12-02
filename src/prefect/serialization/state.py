@@ -9,6 +9,7 @@ from prefect.utilities.serialization import (
     OneOfSchema,
     VersionedSchema,
     to_qualified_name,
+    DateTime,
     version,
 )
 
@@ -20,7 +21,7 @@ class BaseStateSchema(VersionedSchema):
 
     message = fields.String(allow_none=True)
     result = JSONCompatible(allow_none=True)
-    timestamp = fields.DateTime(allow_none=True)
+    timestamp = DateTime(allow_none=True)
 
 
 @version("0.3.3")
@@ -38,7 +39,7 @@ class CachedStateSchema(PendingSchema):
 
     cached_result = JSONCompatible(allow_none=True)
     cached_parameters = JSONCompatible(allow_none=True)
-    cached_result_expiration = fields.DateTime(allow_none=True)
+    cached_result_expiration = DateTime(allow_none=True)
 
 
 @version("0.3.3")
@@ -46,7 +47,7 @@ class ScheduledSchema(PendingSchema):
     class Meta:
         object_class = state.Scheduled
 
-    start_time = fields.DateTime(allow_none=True)
+    start_time = DateTime(allow_none=True)
 
 
 @version("0.3.3")
