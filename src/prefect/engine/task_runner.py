@@ -140,7 +140,7 @@ class TaskRunner(Runner):
 
         # Initialize CloudHandler and get task run version
         if config.get("prefect_cloud", None):
-            flow_run_id = config.get("flow_run_id", None)
+            flow_run_id = context.get("flow_run_id", None)
             task_run_info = self.client.get_task_run_info(
                 flow_run_id, context.get("task_id", ""), map_index=map_index
             )
