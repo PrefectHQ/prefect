@@ -129,8 +129,8 @@ class Task(metaclass=SignatureValidator):
         slug: str = None,
         description: str = None,
         tags: Iterable[str] = None,
-        max_retries: int = prefect.config.tasks.defaults.max_retries,
-        retry_delay: timedelta = prefect.config.tasks.defaults.retry_delay,
+        max_retries: int = None,
+        retry_delay: timedelta = None,
         timeout: timedelta = prefect.config.tasks.defaults.timeout,
         trigger: Callable[[Set["State"]], bool] = None,
         skip_on_upstream_skip: bool = True,
@@ -150,6 +150,17 @@ class Task(metaclass=SignatureValidator):
             raise TypeError("Tags should be a set of tags, not a string.")
         current_tags = set(prefect.context.get("_tags", set()))
         self.tags = (set(tags) if tags is not None else set()) | current_tags
+
+        max_retries = (
+            max_retries
+            if max_retries is not None
+            else prefect.config.tasks.defaults.max_retries
+        )
+        retry_delay = (
+            retry_delay
+            if retry_delay is not None
+            else prefect.config.tasks.defaults.retry_delay
+        )
 
         if max_retries > 0 and retry_delay is None:
             raise ValueError(

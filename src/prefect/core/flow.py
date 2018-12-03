@@ -87,10 +87,7 @@ class Flow:
 
     Args:
         - name (str, optional): The name of the flow
-        - version (str, optional): The flow's version
-        - project (str, optional): The flow's project
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
-        - description (str, optional): Descriptive information about the flow
         - environment (prefect.environments.Environment, optional): The environment
         type that the flow should be run in
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
@@ -121,10 +118,7 @@ class Flow:
     def __init__(
         self,
         name: str = None,
-        version: str = None,
-        project: str = None,
         schedule: prefect.schedules.Schedule = None,
-        description: str = None,
         environment: Environment = None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
@@ -142,9 +136,6 @@ class Flow:
         self.task_info = dict()  # type: Dict[Task, dict]
 
         self.name = name or type(self).__name__
-        self.version = version or prefect.config.flows.default_version  # type: ignore
-        self.project = project or prefect.config.flows.default_project  # type: ignore
-        self.description = description or None
         self.schedule = schedule
         self.environment = environment
 
@@ -188,29 +179,13 @@ class Flow:
 
     def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
-            s = (
-                self.project,
-                self.name,
-                self.version,
-                self.tasks,
-                self.edges,
-                self.reference_tasks(),
-            )
-            o = (
-                other.project,
-                other.name,
-                other.version,
-                other.tasks,
-                other.edges,
-                other.reference_tasks(),
-            )
+            s = (self.name, self.tasks, self.edges, self.reference_tasks())
+            o = (other.name, other.tasks, other.edges, other.reference_tasks())
             return s == o
         return False
 
     def __repr__(self) -> str:
-        template = (
-            "<{cls}: project={self.project}, name={self.name}, version={self.version}>"
-        )
+        template = "<{cls}: name={self.name}>"
         return template.format(cls=type(self).__name__, self=self)
 
     def __iter__(self) -> Iterable[Task]:
@@ -331,16 +306,6 @@ class Flow:
         Returns a dictionary of {task_id: Task} pairs.
         """
         return {self.task_info[task]["id"]: task for task in self.tasks}
-
-    def key(self) -> dict:
-        """
-        Get a human-readable key identifying the flow
-
-        Returns:
-            - dictionary with the keys set as the project identifier,
-            flow name, and flow version
-        """
-        return dict(project=self.project, name=self.name, version=self.version)
 
     # Context Manager ----------------------------------------------------------
 
@@ -1096,8 +1061,6 @@ class Flow:
         # -- Step 1 ---------------------------------------------------
         #
         # Generate an ID for each task by hashing:
-        # - its serialized version
-        # - its flow's project
         # - its flow's name
         #
         # This "fingerprints" each task in terms of its own characteristics and the parent flow.
@@ -1107,9 +1070,7 @@ class Flow:
         # -----------------------------------------------------------
 
         ids = {
-            t: _hash(
-                json.dumps((t.serialize(), self.project, self.name), sort_keys=True)
-            )
+            t: _hash(json.dumps((t.serialize(), self.name), sort_keys=True))
             for t in tasks
         }
 

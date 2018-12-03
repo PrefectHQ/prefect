@@ -12,7 +12,7 @@ from prefect.utilities.tests import set_temporary_config
 
 @pytest.fixture()
 def flow():
-    return Flow(name="name", project="project", version="version")
+    return Flow(name="name")
 
 
 @pytest.fixture(autouse=True)
