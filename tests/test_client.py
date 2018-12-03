@@ -254,7 +254,7 @@ def test_get_flow_run_info(monkeypatch):
         "current_state": {
             "serialized_state": {
                 "type": "Pending",
-                "result": "42",
+                "result": 42,
                 "message": null,
                 "__version__": "0.3.3+309.gf1db024",
                 "cached_inputs": "null"
@@ -337,7 +337,7 @@ def test_get_task_run_info(monkeypatch):
     )
     assert isinstance(result, GraphQLResult)
     assert isinstance(result.state, Pending)
-    assert result.state.result == 42
+    assert result.state.result == "42"
     assert result.state.message is None
     assert result.id == "772bd9ee-40d7-479c-9839-4ab3a793cabd"
     assert result.version == 0
