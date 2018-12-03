@@ -1,8 +1,12 @@
+import datetime
 import json
+
 import marshmallow
+import pendulum
 import pytest
+
 from prefect.utilities.collections import DotDict
-from prefect.utilities.serialization import JSONCompatible
+from prefect.utilities.serialization import DateTime, JSONCompatible
 
 json_test_values = [
     1,
@@ -15,7 +19,7 @@ json_test_values = [
 ]
 
 
-class TestJSONCompatible:
+class TestJSONCompatibleField:
     class Schema(marshmallow.Schema):
         j = JSONCompatible()
 
@@ -36,3 +40,31 @@ class TestJSONCompatible:
     def test_validate_on_load(self):
         with pytest.raises(marshmallow.ValidationError):
             self.Schema().load({"j": lambda: 1})
+
+
+class TestDateTimeField:
+    class Schema(marshmallow.Schema):
+        dt = DateTime()
+        dt_none = DateTime(allow_none=True)
+
+    def test_datetime_serialize(self):
+
+        dt = pendulum.datetime(2020, 1, 1, 6, tz="EST")
+        serialized = self.Schema().dump(dict(dt=dt))
+        assert serialized["dt"] != str(dt)
+        assert serialized["dt"] == str(dt.in_tz("utc"))
+
+    def test_datetime_deserialize(self):
+
+        dt = datetime.datetime(2020, 1, 1, 6)
+        serialized = self.Schema().load(dict(dt=str(dt)))
+        assert isinstance(serialized["dt"], pendulum.DateTime)
+        assert serialized["dt"].tz == pendulum.tz.UTC
+
+    def test_serialize_datetime_none(self):
+        serialized = self.Schema().dump(dict(dt_none=None))
+        assert serialized["dt_none"] is None
+
+    def test_deserialize_datetime_none(self):
+        deserialized = self.Schema().load(dict(dt_none=None))
+        assert deserialized["dt_none"] is None
