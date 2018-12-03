@@ -5,7 +5,7 @@ import json
 import click
 
 import prefect
-from prefect import config
+from prefect import config, context
 from prefect.client import Client
 from prefect.core import registry
 
@@ -67,8 +67,7 @@ def run(id):
 
     # Load optional parameters
     parameters = None
-    # TODO: pull flow_run_id from context not config
-    flow_run_id = config.get("flow_run_id", None)
+    flow_run_id = context.get("flow_run_id", None)
 
     if flow_run_id:
         client = Client()

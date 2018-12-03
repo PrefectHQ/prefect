@@ -99,7 +99,7 @@ class FlowRunner(Runner):
 
         # Set state if in prefect cloud
         if config.get("prefect_cloud", None):
-            flow_run_id = config.get("flow_run_id", None)
+            flow_run_id = prefect.context.get("flow_run_id", None)
             version = prefect.context.get("_flow_run_version")
 
             res = self.client.set_flow_run_state(
@@ -174,9 +174,8 @@ class FlowRunner(Runner):
 
         # Initialize CloudHandler and get flow run version
         if config.get("prefect_cloud", None):
-            # TODO: pull flow_run_id from context not config
             flow_run_info = self.client.get_flow_run_info(
-                flow_run_id=config.get("flow_run_id", "")
+                flow_run_id=prefect.context.get("flow_run_id", "")
             )
             context.update(_flow_run_version=flow_run_info.version)  # type: ignore
 
