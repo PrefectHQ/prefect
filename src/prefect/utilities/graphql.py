@@ -19,7 +19,10 @@ class GraphQLResult(DotDict):
     __protect_critical_keys__ = False
 
     def __repr__(self) -> str:
-        return json.dumps(as_nested_dict(self, dict), indent=4)
+        try:
+            return json.dumps(as_nested_dict(self, dict), indent=4)
+        except TypeError:
+            return repr(self.to_dict())
 
 
 class EnumValue:

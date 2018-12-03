@@ -78,7 +78,7 @@ def test_flows_runs():
         with prefect.Flow(register=True) as f:
             write_to_file(tmp.name)
 
-        run_cli_with_registry("flows run {}".format(f.id))
+        res = run_cli_with_registry("flows run {}".format(f.id))
 
         with open(tmp.name, "r") as f:
             assert f.read() == "1"

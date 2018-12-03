@@ -25,6 +25,7 @@
 
 ### Fixes
 
+- Fixed issue with `GraphQLResult` reprs - [#374](https://github.com/PrefectHQ/prefect/pull/374)
 - `CronSchedule` produces expected results across daylight savings time transitions - [#375](https://github.com/PrefectHQ/prefect/pull/375)
 
 ### Breaking Changes
