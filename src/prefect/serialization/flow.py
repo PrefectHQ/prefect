@@ -6,8 +6,7 @@ from prefect.serialization.environment import EnvironmentSchema
 from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
 from prefect.utilities.serialization import (
-    JSONField,
-    NestedField,
+    Nested,
     VersionedSchema,
     to_qualified_name,
     version,
@@ -30,7 +29,7 @@ class FlowSchema(VersionedSchema):
     type = fields.Function(lambda flow: to_qualified_name(type(flow)), lambda x: x)
     schedule = fields.Nested(ScheduleSchema, allow_none=True)
     environment = fields.Nested(EnvironmentSchema, allow_none=True)
-    parameters = NestedField(
+    parameters = Nested(
         ParameterSchema,
         value_selection_fn=lambda obj, context: {
             p
@@ -41,7 +40,7 @@ class FlowSchema(VersionedSchema):
     )
     tasks = fields.Nested(TaskSchema, many=True)
     edges = fields.Nested(EdgeSchema, many=True)
-    reference_tasks = NestedField(
+    reference_tasks = Nested(
         TaskSchema,
         many=True,
         value_selection_fn=lambda obj, context: getattr(obj, "_reference_tasks", []),
