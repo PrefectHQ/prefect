@@ -1,21 +1,23 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
-import types
-import prefect
-import sys
-from typing import Dict, Callable, Optional, Any, List
 import json
-from marshmallow import (
-    Schema,
-    post_dump,
-    post_load,
-    SchemaOpts,
-    pre_load,
-    fields,
-    ValidationError,
-)
-from prefect.utilities.collections import DotDict, as_nested_dict
+import sys
+import types
+from typing import Any, Callable, Dict, List, Optional
 
 import marshmallow_oneofschema
+import pendulum
+from marshmallow import (
+    Schema,
+    SchemaOpts,
+    ValidationError,
+    fields,
+    post_dump,
+    post_load,
+    pre_load,
+)
+
+import prefect
+from prefect.utilities.collections import DotDict, as_nested_dict
 
 MAX_VERSION = "__MAX_VERSION__"
 VERSIONS = {}  # type: Dict[str, Dict[str, VersionedSchema]]
@@ -224,3 +226,26 @@ class OneOfSchema(marshmallow_oneofschema.OneOfSchema):
         if isinstance(data, DotDict):
             data = as_nested_dict(data, dict)
         return super()._load(data=data, partial=partial, unknown=unknown)
+
+
+class DateTime(fields.DateTime):
+    """
+    Replacement for the built-in Marshmallow DateTime field that is timezone-aware but
+    can be used with non-timezone-aware targets.
+
+    All serialization takes place after conversion to UTC, and all deserialization returns
+    a tz-aware datetime.
+
+    Marshmallow would implicitly assume DT are UTC, but not apply any TZ logic.
+    """
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if value is not None:
+            value = pendulum.instance(value).in_tz("utc").naive()
+        return super()._serialize(value, attr, obj, **kwargs)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        value = super()._deserialize(value, attr, data, **kwargs)
+        if value is not None:
+            value = pendulum.instance(value).in_tz("utc")
+        return value
