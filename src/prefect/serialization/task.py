@@ -16,7 +16,7 @@ from prefect.utilities.serialization import (
     from_qualified_name,
 )
 from prefect.serialization.schedule import ScheduleSchema
-from prefect.utilities.serialization import JSONField
+from prefect.utilities.serialization import JSONCompatible
 
 
 class FunctionReference(fields.Field):
@@ -144,7 +144,7 @@ class ParameterSchema(TaskMethodsMixin, VersionedSchema):
     id = fields.Method("dump_task_id", "load_task_id", allow_none=True)
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
     name = fields.String()
-    default = JSONField(allow_none=True)
+    default = JSONCompatible(allow_none=True)
     required = fields.Boolean(allow_none=True)
     description = fields.String(allow_none=True)
     tags = fields.List(fields.String())
