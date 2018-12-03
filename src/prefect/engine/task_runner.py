@@ -7,10 +7,9 @@ from typing import Any, Callable, Dict, Iterable, List, Union, Set, Sized, Optio
 
 import prefect
 from prefect import config
-from prefect.client import Client, TaskRuns
+from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.cloud_handler import CloudHandler
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.state import (
     CachedState,
@@ -59,7 +58,7 @@ class TaskRunner(Runner):
 
     def __init__(self, task: Task, state_handlers: Iterable[Callable] = None) -> None:
         self.task = task
-        self.cloud_handler = CloudHandler()
+        self.client = Client()
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -82,10 +81,10 @@ class TaskRunner(Runner):
             task_run_id = prefect.context.get("_task_run_id")
             version = prefect.context.get("_task_run_version")
 
-            self.cloud_handler.setTaskRunState(
+            res = self.client.set_task_run_state(
                 task_run_id=task_run_id, version=version, state=new_state
             )
-            prefect.context.update(_task_run_version=version + 1)
+            prefect.context.update(_task_run_version=res.version)  # type: ignore
 
         return new_state
 
@@ -141,12 +140,13 @@ class TaskRunner(Runner):
 
         # Initialize CloudHandler and get task run version
         if config.get("prefect_cloud", None):
-            self.cloud_handler.load_prefect_client()
-            task_run_info = self.cloud_handler.getTaskRunIdAndVersion(
-                context.get("task_id")
+            flow_run_id = config.get("flow_run_id", None)
+            task_run_info = self.client.get_task_run_info(
+                flow_run_id, context.get("task_id", ""), map_index=map_index
             )
             context.update(
-                _task_run_version=task_run_info.version, _task_run_id=task_run_info.id
+                _task_run_version=task_run_info.version,  # type: ignore
+                _task_run_id=task_run_info.id,  # type: ignore
             )
 
         # construct task inputs

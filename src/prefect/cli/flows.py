@@ -6,7 +6,7 @@ import click
 
 import prefect
 from prefect import config
-from prefect.client import Client, FlowRuns, Flows
+from prefect.client import Client
 from prefect.core import registry
 
 
@@ -67,16 +67,15 @@ def run(id):
 
     # Load optional parameters
     parameters = None
+    # TODO: pull flow_run_id from context not config
     flow_run_id = config.get("flow_run_id", None)
 
     if flow_run_id:
         client = Client()
         client.login(email=config.email, password=config.password)
 
-        flow_runs_gql = FlowRuns(client=client)
-        stored_parameters = flow_runs_gql.query(flow_run_id=flow_run_id)
-
-        parameters = stored_parameters.flowRuns[0].parameters
+        flow_run_info = client.get_flow_run_info(flow_run_id=flow_run_id)
+        parameters = flow_run_info.parameters
 
     return flow_runner.run(parameters=parameters)
 

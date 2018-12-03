@@ -1,6 +1,5 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import prefect.engine.cloud_handler
 import prefect.engine.executors
 import prefect.engine.state
 import prefect.engine.signals
