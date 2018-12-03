@@ -335,7 +335,7 @@ def test_task_runner_can_handle_timeouts_by_default():
 
 def test_task_runner_handles_secrets():
     t = SecretTask()
-    state = TaskRunner(t).run(context=dict(_secrets=dict(testing="my_private_str")))
+    state = TaskRunner(t).run(context=dict(secrets=dict(testing="my_private_str")))
     assert state.is_successful()
     assert state.result is "my_private_str"
 

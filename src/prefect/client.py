@@ -425,7 +425,7 @@ class Secret:
             - ValueError: if `use_local_secrets=False` and the Client fails to retrieve your secret
         """
         if prefect.config.cloud.use_local_secrets is True:
-            secrets = prefect.context.get("_secrets", {})
+            secrets = prefect.context.get("secrets", {})
             return secrets.get(self.name)
         else:
             client = Client()
