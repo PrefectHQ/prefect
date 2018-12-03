@@ -68,9 +68,9 @@ It's perfectly OK to integrate the Prefect App multiple times into the same work
 
 ## Using your URL to get notifications
 
-Sooner rather than later, you will be able to store your slack webhook URL in your secure database of Prefect Secrets under `"SLACK_WEBHOOK_URL"`; until then, you simply need to include it in the `[secrets]` section of your prefect configuration file.  To do so, create a file `~/.prefect/config.toml` and place the following into it:
+Sooner rather than later, you will be able to store your slack webhook URL in your secure database of Prefect Secrets under `"SLACK_WEBHOOK_URL"`; until then, you simply need to include it in the `[context.secrets]` section of your prefect configuration file.  To do so, create a file `~/.prefect/config.toml` and place the following into it:
 ```
-[secrets]                                                                                                                                                                         
+[context.secrets]
 SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/XXXXXXXXX/xxxxxxxxx/XXXXXXXXXXX"
 ```
 
