@@ -634,46 +634,6 @@ def test_ids_change_if_flow_name_changes():
     assert not set(f1_task_ids.values()).intersection(f2_task_ids.values())
 
 
-def test_ids_change_if_flow_project_changes():
-    """
-    x1 -> x2 -> x3
-            \
-                y1 -> y2
-
-    a1 -> a2
-
-    """
-    f1 = flow_from_chains(["x1", "x2", "x3"], ["x2", "y1", "y2"], ["a1", "a2"])
-
-    f2 = f1.copy()
-    f2.project = "another flow project"
-
-    f1_task_ids = f1.generate_local_task_ids()
-    f2_task_ids = f2.generate_local_task_ids()
-    # no overlap
-    assert not set(f1_task_ids.values()).intersection(f2_task_ids.values())
-
-
-def test_ids_dont_change_if_flow_version_changes():
-    """
-    x1 -> x2 -> x3
-            \
-                y1 -> y2
-
-    a1 -> a2
-
-    """
-    f1 = flow_from_chains(["x1", "x2", "x3"], ["x2", "y1", "y2"], ["a1", "a2"])
-
-    f2 = f1.copy()
-    f2.version = "another flow version"
-
-    f1_task_ids = f1.generate_local_task_ids()
-    f2_task_ids = f2.generate_local_task_ids()
-    # no overlap
-    assert f1_task_ids == f2_task_ids
-
-
 def test_ids_are_stable_even_if_some_tasks_change():
     """
     x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7

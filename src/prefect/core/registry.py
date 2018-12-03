@@ -25,10 +25,10 @@ def register_flow(flow: Flow, registry: dict = None) -> None:
     if registry is None:
         registry = REGISTRY
 
-    if any(flow.key() == f.key() for f in registry.values()):
+    if any(flow.id == f.id for f in registry.values()):
         _warn(
             "The registered flow has the same key {} as an already-registered flow.".format(
-                flow.key()
+                flow.id
             )
         )
 

@@ -184,7 +184,6 @@ class FlowRunner(Runner):
 
         context.update(
             _flow_name=self.flow.name,
-            _flow_version=self.flow.version,
             _parameters=parameters,
             _executor_id=executor.executor_id,
         )

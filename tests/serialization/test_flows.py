@@ -18,19 +18,15 @@ def test_deserialize_empty_dict():
 
 
 def test_serialize_flow():
-    serialized = FlowSchema().dump(Flow(name="n", project="p", description="d"))
+    serialized = FlowSchema().dump(Flow(name="n"))
     assert serialized["name"] == "n"
-    assert serialized["project"] == "p"
-    assert serialized["description"] == "d"
 
 
 def test_deserialize_flow():
-    serialized = FlowSchema().dump(Flow(name="n", project="p", description="d"))
+    serialized = FlowSchema().dump(Flow(name="n"))
     deserialized = FlowSchema().load(serialized)
     assert isinstance(deserialized, Flow)
     assert deserialized.name == "n"
-    assert deserialized.project == "p"
-    assert deserialized.description == "d"
 
 
 def test_deserialize_flow_subclass_is_flow_but_not_flow_subclass():
