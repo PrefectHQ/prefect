@@ -96,7 +96,7 @@ def test_deserializing_tasks_with_ids_reuses_task_cache_to_recreate_object():
 def test_serialize_parameter():
     p = Parameter(name="p")
     ps = ParameterSchema().dump(p)
-    assert ps["default"] == "null"
+    assert ps["default"] == None
     assert ps["required"] is True
 
 
