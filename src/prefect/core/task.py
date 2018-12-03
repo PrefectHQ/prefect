@@ -89,7 +89,6 @@ class Task(metaclass=SignatureValidator):
     Args:
         - name (str, optional): The name of this task
         - slug (str, optional): The slug for this task, it must be unique within a given Flow
-        - description (str, optional): Descriptive information about this task
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
@@ -127,7 +126,6 @@ class Task(metaclass=SignatureValidator):
         self,
         name: str = None,
         slug: str = None,
-        description: str = None,
         tags: Iterable[str] = None,
         max_retries: int = None,
         retry_delay: timedelta = None,
@@ -141,7 +139,6 @@ class Task(metaclass=SignatureValidator):
 
         self.name = name or type(self).__name__
         self.slug = slug
-        self.description = description
 
         self.logger = logging.get_logger("Task")
 
@@ -815,7 +812,6 @@ class Parameter(Task):
             value is ignored.
         - default (any, optional): A default value for the parameter. If the default
             is not None, the Parameter will not be required.
-        - description (str, optional): Descriptive information about this parameter
         - tags ([str], optional): A list of tags for this parameter
 
     """
@@ -825,7 +821,6 @@ class Parameter(Task):
         name: str,
         default: Any = None,
         required: bool = True,
-        description: str = None,
         tags: Iterable[str] = None,
     ) -> None:
         if default is not None:
@@ -834,7 +829,7 @@ class Parameter(Task):
         self.required = required
         self.default = default
 
-        super().__init__(name=name, slug=name, description=description, tags=tags)
+        super().__init__(name=name, slug=name, tags=tags)
 
     def __repr__(self) -> str:
         return "<Parameter: {self.name}>".format(self=self)

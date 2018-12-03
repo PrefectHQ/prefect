@@ -26,7 +26,6 @@ def test_deserialize_task():
     task = Task(
         name="hi",
         slug="hi-1",
-        description="hello",
         max_retries=5,
         retry_delay=datetime.timedelta(seconds=5),
         timeout=datetime.timedelta(minutes=1),
@@ -39,7 +38,6 @@ def test_deserialize_task():
     for key in [
         "name",
         "slug",
-        "description",
         "max_retries",
         "retry_delay",
         "timeout",

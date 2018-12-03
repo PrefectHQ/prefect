@@ -36,13 +36,6 @@ class TestCreateTask:
         t2 = Task(slug="test")
         assert t2.slug == "test"
 
-    def test_create_task_with_description(self):
-        t1 = Task()
-        assert t1.description is None
-
-        t2 = Task(description="test")
-        assert t2.description == "test"
-
     def test_create_task_with_max_retries(self):
         t1 = Task()
         assert t1.max_retries == 0
