@@ -42,21 +42,6 @@ def test_register_flow_nondefault_registry(flow):
     assert r[flow.id] is flow
 
 
-def test_register_flow_warning_on_duplicate(flow):
-    assert prefect.config.registry.warn_on_duplicate_registration
-    registry.register_flow(flow)
-    with pytest.warns(UserWarning):
-        registry.register_flow(flow)
-
-
-def test_register_flow_warning_on_duplicate_nondefault_registry(flow):
-    assert prefect.config.registry.warn_on_duplicate_registration
-    r = {}
-    registry.register_flow(flow, registry=r)
-    with pytest.warns(UserWarning):
-        registry.register_flow(flow, registry=r)
-
-
 def load_flow(flow):
     with pytest.raises(ValueError):
         registry.load_flow(None)

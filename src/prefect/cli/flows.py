@@ -10,16 +10,13 @@ from prefect.client import Client
 from prefect.core import registry
 
 
-def load_flow(name, file):
+def load_flow(id, file):
     if file:
         # Load the registry from the file into the current process's environment
         exec(open(file).read(), locals())
 
     # Load the user specified flow
-    flow = None
-    for flow_id, registry_flow in registry.REGISTRY.items():
-        if registry_flow.name == name:
-            flow = prefect.core.registry.load_flow(flow_id)
+    flow = registry.REGISTRY.get(id)
 
     if not flow:
         raise click.ClickException("{} not found in {}".format(name, file))
