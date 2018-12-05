@@ -220,14 +220,12 @@ def test_merge_configurations(test_config_file_path):
     default_config = configuration.config
 
     assert default_config.logging.format != "log-format"
-    assert default_config.flows.default_version == "1"
 
     config = configuration.load_configuration(
         config_path=test_config_file_path, merge_into_config=default_config
     )
 
     assert config.logging.format == "log-format"
-    assert config.flows.default_version == "1"
     assert config.interpolation.value == 1
 
 

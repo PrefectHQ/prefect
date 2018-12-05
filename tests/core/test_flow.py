@@ -52,27 +52,6 @@ class TestCreateFlow:
         assert len(f1.edges) == 1
         assert len(f1.tasks) == 2
 
-    def test_create_flow_with_version(self):
-        f1 = Flow()
-        assert f1.version == prefect.config.flows.default_version
-
-        f2 = Flow(version="test")
-        assert f2.version == "test"
-
-    def test_create_flow_with_project(self):
-        f1 = Flow()
-        assert f1.project == prefect.config.flows.default_project
-
-        f2 = Flow(project="test")
-        assert f2.project == "test"
-
-    def test_create_flow_with_description(self):
-        f1 = Flow()
-        assert f1.description is None
-
-        f2 = Flow(description="test")
-        assert f2.description == "test"
-
     def test_create_flow_with_schedule(self):
         f1 = Flow()
         assert f1.schedule is None
@@ -549,20 +528,6 @@ class TestEquality:
         f1 = Flow("hi")
         f2 = Flow("bye")
         assert f1 != f2
-
-    def test_equality_based_on_project(self):
-        f1 = Flow("flow", project="1")
-        f2 = Flow("flow", project="1")
-        f3 = Flow("flow", project="2")
-        assert f1 == f2
-        assert f2 != f3
-
-    def test_equality_based_on_version(self):
-        f1 = Flow("flow", version="1")
-        f2 = Flow("flow", version="1")
-        f3 = Flow("flow", version="2")
-        assert f1 == f2
-        assert f2 != f3
 
     def test_equality_based_on_reference_tasks(self):
         f1 = Flow()
@@ -1243,7 +1208,6 @@ class TestSerialize:
 
         f = Flow(
             name="hi",
-            version="2",
             tasks=[p1, t2, t3],
             schedule=prefect.schedules.CronSchedule("0 0 * * *"),
         )
@@ -1258,7 +1222,6 @@ class TestSerialize:
         assert len(f2.reference_tasks()) == 2
         assert {t.name for t in f2.reference_tasks()} == {"2", "3"}
         assert f2.name == f.name
-        assert f2.version == f.version
         assert isinstance(f2.schedule, prefect.schedules.CronSchedule)
 
     def test_serialize_validates_invalid_flows(self):

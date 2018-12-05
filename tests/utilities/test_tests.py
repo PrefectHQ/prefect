@@ -103,13 +103,14 @@ def test_raise_on_exception_plays_well_with_context():
 
 
 def test_set_temporary_config_is_temporary():
-    f1 = Flow()
-    assert f1.version == "1"
-    with set_temporary_config("flows.default_version", "5"):
-        f2 = Flow()
-        assert f2.version == "5"
-    f3 = Flow()
-    assert f3.version == "1"
+    t1 = Task()
+    assert t1.max_retries == 0
+    with set_temporary_config("tasks.defaults.max_retries", 5):
+        with set_temporary_config("tasks.defaults.retry_delay", 1):
+            t2 = Task()
+            assert t2.max_retries == 5
+    t3 = Task()
+    assert t3.max_retries == 0
 
 
 def test_set_temporary_config_can_invent_new_settings():
