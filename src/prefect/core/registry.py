@@ -25,13 +25,6 @@ def register_flow(flow: Flow, registry: dict = None) -> None:
     if registry is None:
         registry = REGISTRY
 
-    if any(flow.key() == f.key() for f in registry.values()):
-        _warn(
-            "The registered flow has the same key {} as an already-registered flow.".format(
-                flow.key()
-            )
-        )
-
     if not isinstance(flow, Flow):
         raise TypeError("Expected a Flow; received {}".format(type(flow)))
     registry[flow.id] = flow

@@ -10,20 +10,13 @@ from prefect.client import Client
 from prefect.core import registry
 
 
-def load_flow(project, name, version, file):
+def load_flow(id, file):
     if file:
         # Load the registry from the file into the current process's environment
         exec(open(file).read(), locals())
 
     # Load the user specified flow
-    flow = None
-    for flow_id, registry_flow in registry.REGISTRY.items():
-        if (
-            registry_flow.project == project
-            and registry_flow.name == name
-            and registry_flow.version == version
-        ):
-            flow = prefect.core.registry.load_flow(flow_id)
+    flow = registry.REGISTRY.get(id)
 
     if not flow:
         raise click.ClickException("{} not found in {}".format(name, file))
@@ -52,7 +45,7 @@ def ids():
     """
     Prints all the flows in the registry.
     """
-    output = {id: f.key() for id, f in registry.REGISTRY.items()}
+    output = {id: f.id for id, f in registry.REGISTRY.items()}
     click.echo(json.dumps(output, sort_keys=True))
 
 

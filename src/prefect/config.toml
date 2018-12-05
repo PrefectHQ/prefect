@@ -27,13 +27,6 @@ format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
 
 
 [flows]
-
-# The default version for new Flows
-default_version = "1"
-
-# The default project for new Flows
-default_project = "Flows"
-
 # If true, edges are checked for cycles as soon as they are added to the flow. If false,
 # cycles are only checked when tasks are sorted (for example, when running or
 # serializing the flow). Defaults to false because it can affect the performance of
