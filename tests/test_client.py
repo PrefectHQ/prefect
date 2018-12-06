@@ -65,7 +65,7 @@ def test_client_logs_in_and_saves_token(monkeypatch):
         client = Client()
     client.login("test@example.com", "1234")
     assert post.called
-    assert post.call_args[0][0] == "http://my-cloud.foo/login"
+    assert post.call_args[0][0] == "http://my-cloud.foo/login_email"
     assert post.call_args[1]["auth"] == ("test@example.com", "1234")
     assert client.token == "secrettoken"
     assert mock_file.call_args[0] == (
@@ -90,7 +90,7 @@ def test_client_logs_in_automatically(monkeypatch):
                     with set_temporary_config("cloud.password", "1234"):
                         client = Client()
     assert post.called
-    assert post.call_args[0][0] == "http://my-cloud.foo/login"
+    assert post.call_args[0][0] == "http://my-cloud.foo/login_email"
     assert post.call_args[1]["auth"] == ("test@example.com", "1234")
     assert client.token == "secrettoken"
     assert mock_file.call_args[0] == (
@@ -115,7 +115,7 @@ def test_client_logs_in_from_config_credentials(monkeypatch):
                 client = Client()
                 client.login()
     assert post.called
-    assert post.call_args[0][0] == "http://my-cloud.foo/login"
+    assert post.call_args[0][0] == "http://my-cloud.foo/login_email"
     assert post.call_args[1]["auth"] == ("test@example.com", "1234")
     assert client.token == "secrettoken"
     assert mock_file.call_args[0] == (
@@ -150,7 +150,7 @@ def test_client_raises_if_login_fails(monkeypatch):
     with pytest.raises(ValueError):
         client.login("test@example.com", "1234")
     assert post.called
-    assert post.call_args[0][0] == "http://my-cloud.foo/login"
+    assert post.call_args[0][0] == "http://my-cloud.foo/login_email"
 
 
 def test_client_posts_raises_with_no_token(monkeypatch):

@@ -11,7 +11,7 @@ prefect_cloud = false
 
 [cloud]
 # the Prefect Server address
-api = "http://localhost:4200"
+api = "http://localhost:4202"
 graphql = "http://localhost:4200/graphql"
 log = "http://localhost:4202/log"
 use_local_secrets = true

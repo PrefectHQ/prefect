@@ -210,7 +210,7 @@ class Client:
         email = email or prefect.config.cloud.email
         password = password or prefect.config.cloud.password
 
-        url = os.path.join(self.api_server, "login")
+        url = os.path.join(self.api_server, "login_email")
         response = requests.post(
             url,
             auth=(email, password),
