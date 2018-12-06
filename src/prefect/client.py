@@ -274,6 +274,8 @@ class Client:
             }
         }
         result = self.graphql(parse_graphql(query)).flow_run_by_pk  # type: ignore
+        if result is None:
+            raise ValueError('Flow run id "{}" not found.'.format(flow_run_id))
         result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
             result.current_state.serialized_state
         )
