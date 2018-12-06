@@ -279,6 +279,25 @@ def test_get_flow_run_info(monkeypatch):
     assert result.version == 0
 
 
+def test_get_flow_run_info_raises_informative_error(monkeypatch):
+    response = """
+{
+    "flow_run_by_pk": null
+}
+    """
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=json.loads(response)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        client = Client(token="secret_token")
+    with pytest.raises(ValueError) as exc:
+        result = client.get_flow_run_info(flow_run_id="74-salt")
+    assert "not found" in str(exc.value)
+
+
 def test_set_flow_run_state(monkeypatch):
     response = """
 {
