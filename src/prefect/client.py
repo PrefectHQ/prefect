@@ -363,6 +363,8 @@ class Client:
         result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
             result.current_state.serialized_state
         )
+        # if result.state.result is a string, use serializer to pull...
+        # demonstrates that the serializer is a property of the flow
         return result
 
     def set_task_run_state(
