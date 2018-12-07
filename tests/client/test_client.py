@@ -5,10 +5,19 @@ import requests
 from unittest.mock import MagicMock, mock_open
 
 import prefect
-from prefect.client import Client, Secret
+from prefect.client import Client
+from prefect.client.result_handlers import ResultHandler
 from prefect.engine.state import Pending
 from prefect.utilities.graphql import GraphQLResult
 from prefect.utilities.tests import set_temporary_config
+
+
+class AddOneHandler(ResultHandler):
+    def deserialize(self, result):
+        return int(result) + 1
+
+    def serialize(self, result):
+        return str(result - 1)
 
 
 #################################
@@ -387,32 +396,111 @@ def test_set_task_run_state(monkeypatch):
     assert result.version == 1
 
 
-#################################
-##### Secret Tests
-#################################
+class TestResultHandlerSerialization:
+    def test_set_flow_run_state_calls_result_handler(self, monkeypatch):
+        monkeypatch.setattr("requests.post", MagicMock())
+        monkeypatch.setattr(prefect.client.client, "json", MagicMock())
+
+        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+            client = Client(token="secret_token")
+
+        serializer = MagicMock()
+        result = client.set_flow_run_state(
+            flow_run_id="74-salt",
+            version=0,
+            state=Pending(result=2),
+            result_handler=MagicMock(serialize=serializer),
+        )
+        assert serializer.call_count == 1
+        assert serializer.call_args[0] == (2,)
+
+    def test_set_task_run_state_calls_result_handler(self, monkeypatch):
+        monkeypatch.setattr("requests.post", MagicMock())
+        monkeypatch.setattr(prefect.client.client, "json", MagicMock())
+
+        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+            client = Client(token="secret_token")
+
+        serializer = MagicMock()
+        result = client.set_task_run_state(
+            task_run_id="76-salt",
+            version=0,
+            state=Pending(result=2),
+            result_handler=MagicMock(serialize=serializer),
+        )
+        assert serializer.call_count == 1
+        assert serializer.call_args[0] == (2,)
 
 
-def test_create_secret():
-    secret = Secret(name="test")
-    assert secret
+class TestResultHandlerDeserialization:
+    def test_get_flow_run_info_calls_result_handler(self, monkeypatch):
+        response = """
+    {
+        "flow_run_by_pk": {
+            "version": 0,
+            "current_state": {
+                "serialized_state": {
+                    "type": "Pending",
+                    "result": 42,
+                    "message": null,
+                    "__version__": "0.3.3+309.gf1db024",
+                    "cached_inputs": "null"
+                }
+            }
+        }
+    }
+        """
+        post = MagicMock(
+            return_value=MagicMock(
+                json=MagicMock(return_value=dict(data=json.loads(response)))
+            )
+        )
+        monkeypatch.setattr("requests.post", post)
+        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+            client = Client(token="secret_token")
 
+        result = client.get_flow_run_info(
+            flow_run_id="74-salt", result_handler=AddOneHandler()
+        )
+        assert isinstance(result, GraphQLResult)
+        assert isinstance(result.state, Pending)
+        assert result.state.result == 43
 
-def test_secret_get_none():
-    secret = Secret(name="test")
-    assert secret.get() is None
+    def test_get_task_run_info_calls_result_handler(self, monkeypatch):
+        response = """
+    {
+        "getOrCreateTaskRun": {
+            "task_run": {
+                "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
+                "version": 0,
+                "current_state": {
+                    "serialized_state": {
+                        "type": "Pending",
+                        "result": 42,
+                        "message": null,
+                        "__version__": "0.3.3+310.gd19b9b7.dirty",
+                        "cached_inputs": "null"
+                    }
+                }
+            }
+        }
+    }
+        """
+        post = MagicMock(
+            return_value=MagicMock(
+                json=MagicMock(return_value=dict(data=json.loads(response)))
+            )
+        )
+        monkeypatch.setattr("requests.post", post)
+        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+            client = Client(token="secret_token")
 
-
-def test_secret_value_pulled_from_context():
-    secret = Secret(name="test")
-    with prefect.context(secrets=dict(test=42)):
-        assert secret.get() == 42
-    assert secret.get() is None
-
-
-def test_secret_value_depends_on_use_local_secrets(monkeypatch):
-    secret = Secret(name="test")
-    monkeypatch.setattr(prefect.config.cloud, "use_local_secrets", False)
-    with prefect.context(secrets=dict(test=42)):
-        with pytest.raises(ValueError) as exc:
-            secret.get()
-        assert "Client.login" in str(exc.value)
+        result = client.get_task_run_info(
+            flow_run_id="74-salt",
+            task_id="72-salt",
+            map_index=None,
+            result_handler=AddOneHandler(),
+        )
+        assert isinstance(result, GraphQLResult)
+        assert isinstance(result.state, Pending)
+        assert result.state.result == 43
