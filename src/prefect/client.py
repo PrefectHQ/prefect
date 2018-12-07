@@ -210,7 +210,7 @@ class Client:
         email = email or prefect.config.cloud.email
         password = password or prefect.config.cloud.password
 
-        url = os.path.join(self.api_server, "login")
+        url = os.path.join(self.api_server, "login_email")
         response = requests.post(
             url,
             auth=(email, password),
@@ -274,6 +274,8 @@ class Client:
             }
         }
         result = self.graphql(parse_graphql(query)).flow_run_by_pk  # type: ignore
+        if result is None:
+            raise ValueError('Flow run id "{}" not found.'.format(flow_run_id))
         result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
             result.current_state.serialized_state
         )
