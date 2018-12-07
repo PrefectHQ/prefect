@@ -433,6 +433,80 @@ class TestResultHandlerSerialization:
 
 
 class TestResultHandlerDeserialization:
+    def test_get_flow_run_info_doesnt_call_result_handler_if_result_is_none(
+        self, monkeypatch
+    ):
+        response = """
+    {
+        "flow_run_by_pk": {
+            "version": 0,
+            "current_state": {
+                "serialized_state": {
+                    "type": "Pending",
+                    "result": null,
+                    "message": null,
+                    "__version__": "0.3.3+309.gf1db024",
+                    "cached_inputs": "null"
+                }
+            }
+        }
+    }
+        """
+        post = MagicMock(
+            return_value=MagicMock(
+                json=MagicMock(return_value=dict(data=json.loads(response)))
+            )
+        )
+        monkeypatch.setattr("requests.post", post)
+        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+            client = Client(token="secret_token")
+
+        result = client.get_flow_run_info(
+            flow_run_id="74-salt", result_handler=AddOneHandler()
+        )
+        assert isinstance(result, GraphQLResult)
+        assert isinstance(result.state, Pending)
+        assert result.state.result == None
+
+    def test_get_task_run_info_calls_result_handler(self, monkeypatch):
+        response = """
+    {
+        "getOrCreateTaskRun": {
+            "task_run": {
+                "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
+                "version": 0,
+                "current_state": {
+                    "serialized_state": {
+                        "type": "Pending",
+                        "result": null,
+                        "message": null,
+                        "__version__": "0.3.3+310.gd19b9b7.dirty",
+                        "cached_inputs": "null"
+                    }
+                }
+            }
+        }
+    }
+        """
+        post = MagicMock(
+            return_value=MagicMock(
+                json=MagicMock(return_value=dict(data=json.loads(response)))
+            )
+        )
+        monkeypatch.setattr("requests.post", post)
+        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+            client = Client(token="secret_token")
+
+        result = client.get_task_run_info(
+            flow_run_id="74-salt",
+            task_id="72-salt",
+            map_index=None,
+            result_handler=AddOneHandler(),
+        )
+        assert isinstance(result, GraphQLResult)
+        assert isinstance(result.state, Pending)
+        assert result.state.result == None
+
     def test_get_flow_run_info_calls_result_handler(self, monkeypatch):
         response = """
     {
