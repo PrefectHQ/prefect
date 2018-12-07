@@ -6,6 +6,7 @@ import os
 from typing import TYPE_CHECKING, Optional, Union
 
 import prefect
+from prefect.client.result_handlers import ResultHandler
 from prefect.utilities.graphql import (
     EnumValue,
     parse_graphql,
@@ -250,12 +251,16 @@ class Client:
         )
         self.token = response.json().get("token")
 
-    def get_flow_run_info(self, flow_run_id: str) -> GraphQLResult:
+    def get_flow_run_info(
+        self, flow_run_id: str, result_handler: ResultHandler = None
+    ) -> GraphQLResult:
         """
         Retrieves version and current state information for the given flow run.
 
         Args:
             - flow_run_id (str): the id of the flow run to get information for
+            - result_handler (ResultHandler, optional): the handler to use for
+                retrieving and storing state results during execution
 
         Returns:
             - GraphQLResult: a `DotDict` with `"version"` and `"state"` keys
@@ -276,13 +281,22 @@ class Client:
         result = self.graphql(parse_graphql(query)).flow_run_by_pk  # type: ignore
         if result is None:
             raise ValueError('Flow run id "{}" not found.'.format(flow_run_id))
+        serialized_state = result.current_state.serialized_state
+        if result_handler is not None:
+            serialized_state["result"] = result_handler.deserialize(
+                serialized_state["result"]
+            )
         result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
-            result.current_state.serialized_state
+            serialized_state
         )
         return result
 
     def set_flow_run_state(
-        self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
+        self,
+        flow_run_id: str,
+        version: int,
+        state: "prefect.engine.state.State",
+        result_handler: ResultHandler = None,
     ) -> GraphQLResult:
         """
         Sets new state for a flow run in the database.
@@ -291,6 +305,8 @@ class Client:
             - flow_run_id (str): the id of the flow run to set state for
             - version (int): the current version of the flow run state
             - state (State): the new state for this flow run
+            - result_handler (ResultHandler, optional): the handler to use for
+                retrieving and storing state results during execution
 
         Returns:
             - GraphQLResult: a `DotDict` with a single `"version"` key for the
@@ -313,12 +329,24 @@ class Client:
                 ): {"flow_run": {"version"}}
             }
         }
+
+        if result_handler is not None:
+            serialized_state = state.serialize(
+                result=result_handler.serialize(state.result)
+            )
+        else:
+            serialized_state = state.serialize()
+
         return self.graphql(  # type: ignore
-            parse_graphql(mutation), state=json.dumps(state.serialize())
+            parse_graphql(mutation), state=json.dumps(serialized_state)
         ).setFlowRunState.flow_run
 
     def get_task_run_info(
-        self, flow_run_id: str, task_id: str, map_index: Optional[int]
+        self,
+        flow_run_id: str,
+        task_id: str,
+        map_index: Optional[int],
+        result_handler: ResultHandler = None,
     ) -> GraphQLResult:
         """
         Retrieves version and current state information for the given task run. If this task run is not present in the database (which could
@@ -329,6 +357,8 @@ class Client:
             - task_id (str): the task id for this task run
             - map_index (int, optional): the mapping index for this task run; if
                 `None`, it is assumed this task is _not_ mapped
+            - result_handler (ResultHandler, optional): the handler to use for
+                retrieving and storing state results during execution
 
         Returns:
             - GraphQLResult: a `DotDict` with `"version"`, `"state"` and `"id"` keys
@@ -360,13 +390,24 @@ class Client:
         result = self.graphql(  # type: ignore
             parse_graphql(mutation)
         ).getOrCreateTaskRun.task_run
+
+        serialized_state = result.current_state.serialized_state
+        if result_handler is not None:
+            serialized_state["result"] = result_handler.deserialize(
+                serialized_state["result"]
+            )
         result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
-            result.current_state.serialized_state
+            serialized_state
         )
         return result
 
     def set_task_run_state(
-        self, task_run_id: str, version: int, state: "prefect.engine.state.State"
+        self,
+        task_run_id: str,
+        version: int,
+        state: "prefect.engine.state.State",
+        cache_for: datetime.timedelta = None,
+        result_handler: ResultHandler = None,
     ) -> GraphQLResult:
         """
         Sets new state for a task run in the database.
@@ -375,6 +416,10 @@ class Client:
             - task_run_id (str): the id of the task run to set state for
             - version (int): the current version of the task run state
             - state (State): the new state for this task run
+            - cache_for (timedelta, optional): how long to store the result of this task for, using the
+                serializer set in config; if not provided, no caching occurs
+            - result_handler (ResultHandler, optional): the handler to use for
+                retrieving and storing state results during execution
 
         Returns:
             - GraphQLResult: a `DotDict` with a single `"version"` key for the
@@ -397,46 +442,14 @@ class Client:
                 ): {"task_run": {"version"}}
             }
         }
-        return self.graphql(  # type: ignore
-            parse_graphql(mutation), state=json.dumps(state.serialize())
-        ).setTaskRunState.task_run
 
-
-class Secret:
-    """
-    A Secret is a serializable object used to represent a secret key & value.
-
-    Args:
-        - name (str): The name of the secret
-
-    The value of the `Secret` is not set upon initialization and instead is set
-    either in `prefect.context` or on the server, with behavior dependent on the value
-    of the `use_local_secrets` flag in your Prefect configuration file.
-    """
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-    def get(self) -> Optional[str]:
-        """
-        Retrieve the secret value.
-
-        If not found, returns `None`.
-
-        Raises:
-            - ValueError: if `use_local_secrets=False` and the Client fails to retrieve your secret
-        """
-        if prefect.config.cloud.use_local_secrets is True:
-            secrets = prefect.context.get("secrets", {})
-            return secrets.get(self.name)
+        if result_handler is not None:
+            serialized_state = state.serialize(
+                result=result_handler.serialize(state.result)
+            )
         else:
-            client = Client()
-            return client.graphql(  # type: ignore
-                """
-                query($name: String!) {
-                    secret(name: $name) {
-                        value
-                    }
-                }""",
-                name=self.name,
-            ).secret.value
+            serialized_state = state.serialize()
+
+        return self.graphql(  # type: ignore
+            parse_graphql(mutation), state=json.dumps(serialized_state)
+        ).setTaskRunState.task_run
