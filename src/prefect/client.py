@@ -366,7 +366,11 @@ class Client:
         return result
 
     def set_task_run_state(
-        self, task_run_id: str, version: int, state: "prefect.engine.state.State"
+        self,
+        task_run_id: str,
+        version: int,
+        state: "prefect.engine.state.State",
+        cache_for: datetime.timedelta = None,
     ) -> GraphQLResult:
         """
         Sets new state for a task run in the database.
@@ -375,6 +379,8 @@ class Client:
             - task_run_id (str): the id of the task run to set state for
             - version (int): the current version of the task run state
             - state (State): the new state for this task run
+            - cache_for (timedelta, optional): how long to store the result of this task for, using the
+                serializer set in config; if not provided, no caching occurs
 
         Returns:
             - GraphQLResult: a `DotDict` with a single `"version"` key for the
