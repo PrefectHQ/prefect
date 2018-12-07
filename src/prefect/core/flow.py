@@ -112,7 +112,7 @@ class Flow:
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
         - result_handler (ResultHandler, optional): the handler to use for
-            storing state results during execution
+            retrieving and storing state results during execution
 
     Raises:
         - ValueError: if any throttle values are `<= 0`
