@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, Iterable, List, Union, Set, Sized, Optio
 import prefect
 from prefect import config
 from prefect.client import Client
+from prefect.client.result_handlers import ResultHandler
 from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.executors import DEFAULT_EXECUTOR
@@ -39,6 +40,8 @@ class TaskRunner(Runner):
 
     Args:
         - task (Task): the Task to be run / executed
+        - result_handler (ResultHandler, optional): the handler to use for
+            retrieving and storing state results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -56,9 +59,15 @@ class TaskRunner(Runner):
             result of the previous handler.
     """
 
-    def __init__(self, task: Task, state_handlers: Iterable[Callable] = None) -> None:
+    def __init__(
+        self,
+        task: Task,
+        result_handler: ResultHandler = None,
+        state_handlers: Iterable[Callable] = None,
+    ) -> None:
         self.task = task
         self.client = Client()
+        self.result_handler = result_handler
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -86,6 +95,7 @@ class TaskRunner(Runner):
                 version=version,
                 state=new_state,
                 cache_for=self.task.cache_for,
+                result_handler=self.result_handler,
             )
             prefect.context.update(_task_run_version=res.version)  # type: ignore
 
@@ -145,7 +155,10 @@ class TaskRunner(Runner):
         if config.get("prefect_cloud", None):
             flow_run_id = context.get("flow_run_id", None)
             task_run_info = self.client.get_task_run_info(
-                flow_run_id, context.get("task_id", ""), map_index=map_index
+                flow_run_id,
+                context.get("task_id", ""),
+                map_index=map_index,
+                result_handler=self.result_handler,
             )
             context.update(
                 _task_run_version=task_run_info.version,  # type: ignore

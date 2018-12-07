@@ -103,7 +103,10 @@ class FlowRunner(Runner):
             version = prefect.context.get("_flow_run_version")
 
             res = self.client.set_flow_run_state(
-                flow_run_id=flow_run_id, version=version, state=new_state
+                flow_run_id=flow_run_id,
+                version=version,
+                state=new_state,
+                result_handler=self.flow.result_handler,
             )
             prefect.context.update(_flow_run_version=res.version)  # type: ignore
 
@@ -175,7 +178,8 @@ class FlowRunner(Runner):
         # Initialize CloudHandler and get flow run version
         if config.get("prefect_cloud", None):
             flow_run_info = self.client.get_flow_run_info(
-                flow_run_id=prefect.context.get("flow_run_id", "")
+                flow_run_id=prefect.context.get("flow_run_id", ""),
+                result_handler=self.flow.result_handler,
             )
             context.update(_flow_run_version=flow_run_info.version)  # type: ignore
 
@@ -357,7 +361,9 @@ class FlowRunner(Runner):
                         task_inputs.update(passed_state.cached_inputs)
 
                 # -- run the task
-                task_runner = self.task_runner_cls(task=task)
+                task_runner = self.task_runner_cls(
+                    task=task, result_handler=self.flow.result_handler
+                )
                 task_queues = [
                     queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
                 ]
