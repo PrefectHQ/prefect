@@ -5,10 +5,10 @@ from typing import Any
 
 
 class ResultHandler:
-    def deserialize(self, loc):
+    def deserialize(self, loc: str) -> Any:
         raise NotImplementedError()
 
-    def serialize(self, result):
+    def serialize(self, result: Any) -> str:
         raise NotImplementedError()
 
 
@@ -23,7 +23,7 @@ class LocalResultHandler(ResultHandler):
 
     def deserialize(self, fpath: str) -> Any:
         with open(fpath, "rb") as f:
-            return cloudpickle.loads(f.read(result))
+            return cloudpickle.loads(f.read())
 
     def serialize(self, result: Any) -> str:
         fd, loc = tempfile.mkstemp(prefix="prefect-", dir=self.dir)
