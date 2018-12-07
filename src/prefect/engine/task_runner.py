@@ -85,7 +85,7 @@ class TaskRunner(Runner):
                 task_run_id=task_run_id,
                 version=version,
                 state=new_state,
-                cache_for=task.cache_for,
+                cache_for=self.task.cache_for,
             )
             prefect.context.update(_task_run_version=res.version)  # type: ignore
 
