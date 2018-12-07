@@ -251,6 +251,21 @@ class Client:
         )
         self.token = response.json().get("token")
 
+    def _package_state(self, state, result_handler):
+        pass
+
+    def _unpackage_state(
+        self, serialized_state: dict, result_handler: ResultHandler = None
+    ) -> "prefect.engine.state.State":
+        if result_handler is not None and serialized_state["result"] is not None:
+            serialized_state["result"] = result_handler.deserialize(
+                serialized_state["result"]
+            )
+        state = prefect.serialization.state.StateSchema().load(  # type: ignore
+            serialized_state
+        )
+        return state
+
     def get_flow_run_info(
         self, flow_run_id: str, result_handler: ResultHandler = None
     ) -> GraphQLResult:
@@ -282,13 +297,8 @@ class Client:
         if result is None:
             raise ValueError('Flow run id "{}" not found.'.format(flow_run_id))
         serialized_state = result.current_state.serialized_state
-        if result_handler is not None:
-            serialized_state["result"] = result_handler.deserialize(
-                serialized_state["result"]
-            )
-        result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
-            serialized_state
-        )
+        state = self._unpackage_state(serialized_state, result_handler)
+        result.state = state
         return result
 
     def set_flow_run_state(
