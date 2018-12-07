@@ -138,13 +138,16 @@ class State:
         """
         return isinstance(self, Failed)
 
-    def serialize(self) -> dict:
+    def serialize(self, result: Any = None) -> dict:
         """
         Serializes the state to a dict.
         """
         from prefect.serialization.state import StateSchema
 
-        return StateSchema().dump(self)
+        json_blob = StateSchema().dump(self)
+        if result is not None:
+            json_blob["result"] = result
+        return json_blob
 
 
 # -------------------------------------------------------------------

@@ -160,6 +160,15 @@ def test_serialize_method(cls):
     assert isinstance(prefect.serialization.state.StateSchema().load(serialized), cls)
 
 
+@pytest.mark.parametrize("cls", [s for s in all_states if s is not State])
+def test_serialize_method_allows_for_overriding_result(cls):
+    serialized = cls(result=1).serialize(result="/path/to/1")
+    assert isinstance(serialized, dict)
+    deserialized = prefect.serialization.state.StateSchema().load(serialized)
+    assert isinstance(deserialized, cls)
+    assert deserialized.result == "/path/to/1"
+
+
 class TestStateHierarchy:
     def test_scheduled_is_pending(self):
         assert issubclass(Scheduled, Pending)
