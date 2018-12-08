@@ -257,21 +257,15 @@ class Client:
         if result_handler is None:
             return state.serialize()
 
-        if isinstance(state, prefect.engine.state.CachedState):
-            overrides = dict.fromkeys(
-                ["result", "cached_inputs", "cached_result", "cached_parameters"]
-            )
-            for key in list(overrides.keys()):
-                if getattr(state, key) is not None:
-                    overrides[key] = result_handler.serialize(getattr(state, key))
-                else:
-                    overrides.pop(key)
+        private_attrs = ["result", "cached_inputs", "cached_result"]
+        overrides = dict.fromkeys(private_attrs)
+        for key in list(overrides.keys()):
+            if hasattr(state, key) and getattr(state, key) is not None:
+                overrides[key] = result_handler.serialize(getattr(state, key))
+            else:
+                overrides.pop(key)
 
-            serialized_state = state.serialize(**overrides)
-        else:
-            serialized_state = state.serialize(
-                result=result_handler.serialize(state.result)
-            )
+        serialized_state = state.serialize(**overrides)
 
         return serialized_state
 
