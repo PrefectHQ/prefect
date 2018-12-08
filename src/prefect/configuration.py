@@ -266,8 +266,10 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
                 if "__" not in env_var:
                     continue
 
-                # make sure to handle newlines -- a "\n" in an env will be interpolated as "\\n"
-                value = env.get(env_var).replace("\\n", "\n")
+                # env vars with escaped characters are interpreted as literal "\", which
+                # Python helpfully escapes with a second "\". This step makes sure that
+                # escaped characters are properly interpreted.
+                value = env.get(env_var).encode().decode("unicode_escape")
 
                 # place the env var in the flat config as a compound key
                 config_option = collections.CompoundKey(
