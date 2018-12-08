@@ -511,6 +511,35 @@ class TestResultHandlerSerialization:
 
 
 class TestResultHandlerDeserialization:
+    def test_cached_states_are_unpackaged_appropriately(self):
+        handler = DictHandler()
+        client = Client(token="secret_token")
+        cached_state = CachedState(
+            cached_inputs=dict(x=4, y="value"),
+            cached_result_expiration=datetime.datetime.utcnow(),
+            cached_parameters=dict(zzz=dict(sleep=4)),
+            cached_result="private data",
+        )
+        new = client._unpackage_state(
+            client._package_state(cached_state, handler), handler
+        )
+        assert len(handler.data) == 2
+        assert new == cached_state
+
+    def test_cached_attribute_of_success_states_is_unpackaged(self):
+        handler = DictHandler()
+        client = Client(token="secret_token")
+        cached_state = CachedState(
+            cached_inputs=dict(x=4, y="value"),
+            cached_result_expiration=datetime.datetime.utcnow(),
+            cached_parameters=dict(zzz=dict(sleep=4)),
+            cached_result="private data",
+        )
+        state = Success(result=42, cached=cached_state)
+        new = client._unpackage_state(client._package_state(state, handler), handler)
+        assert len(handler.data) == 3
+        assert new == state
+
     def test_get_flow_run_info_doesnt_call_result_handler_if_result_is_none(
         self, monkeypatch
     ):
