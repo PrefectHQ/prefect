@@ -1,13 +1,30 @@
+import datetime
 import json
 import os
 import pytest
 import requests
+import uuid
 from unittest.mock import MagicMock, mock_open
 
 import prefect
 from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
-from prefect.engine.state import Pending
+from prefect.engine.state import (
+    CachedState,
+    Failed,
+    Finished,
+    Mapped,
+    Paused,
+    Pending,
+    Retrying,
+    Running,
+    Scheduled,
+    Skipped,
+    State,
+    Success,
+    TimedOut,
+    TriggerFailed,
+)
 from prefect.utilities.graphql import GraphQLResult
 from prefect.utilities.tests import set_temporary_config
 
@@ -18,6 +35,20 @@ class AddOneHandler(ResultHandler):
 
     def serialize(self, result):
         return str(result - 1)
+
+
+class DictHandler(ResultHandler):
+    def __init__(self, *args, **kwargs):
+        self.data = {}
+        super().__init__(*args, **kwargs)
+
+    def deserialize(self, key):
+        return self.data[key]
+
+    def serialize(self, result):
+        key = str(uuid.uuid4())
+        self.data[key] = result
+        return key
 
 
 #################################
@@ -397,6 +428,27 @@ def test_set_task_run_state(monkeypatch):
 
 
 class TestResultHandlerSerialization:
+    def test_cached_states_are_packaged_appropriately(self):
+        handler = DictHandler()
+        client = Client(token="secret_token")
+        cached_state = CachedState(
+            cached_inputs=dict(x=4, y="value"),
+            cached_result_expiration=datetime.datetime.utcnow(),
+            cached_parameters=dict(zzz=dict(sleep=4)),
+            cached_result="private data",
+        )
+        serialized = client._package_state(cached_state, handler)
+        assert len(handler.data) == 3
+        assert serialized["cached_inputs"] in handler.data
+        assert serialized["cached_parameters"] in handler.data
+        assert serialized["cached_result"] in handler.data
+
+    def test_cached_attribute_of_success_states_is_packaged(self):
+        pass
+
+    def test_cached_inputs_are_packaged(self):
+        pass
+
     def test_set_flow_run_state_calls_result_handler(self, monkeypatch):
         monkeypatch.setattr("requests.post", MagicMock())
         monkeypatch.setattr(prefect.client.client, "json", MagicMock())

@@ -113,12 +113,41 @@ def test_serialize():
     assert new_state.cached.cached_result == cached.cached_result
 
 
+def test_serialization_of_cached_state_can_be_overriden():
+    now = pendulum.now("utc")
+    cached = CachedState(
+        cached_inputs=dict(x=99, p="p"),
+        cached_result=dict(hi=5, bye=6),
+        cached_result_expiration=now,
+    )
+    state = Success(result=dict(hi=5, bye=6), cached=cached)
+    cached_dict = cached.serialize(cached_inputs=1, cached_result=2)
+    cached_dict.pop("type")
+    serialized = state.serialize(cached=cached_dict)
+    new_state = StateSchema().load(serialized)
+    assert isinstance(new_state, Success)
+    assert new_state.color == state.color
+    assert new_state.result == state.result
+    assert isinstance(new_state.cached, CachedState)
+    assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
+    assert new_state.cached.cached_inputs == 1
+    assert new_state.cached.cached_result == 2
+
+
 def test_serialization_of_cached_inputs():
     state = Pending(cached_inputs=dict(hi=5, bye=6))
     serialized = state.serialize()
     new_state = StateSchema().load(serialized)
     assert isinstance(new_state, Pending)
     assert new_state.cached_inputs == state.cached_inputs
+
+
+def test_serialization_of_cached_inputs_can_be_overriden():
+    state = Pending(cached_inputs=dict(hi=5, bye=6))
+    serialized = state.serialize(cached_inputs=dict(x=42))
+    new_state = StateSchema().load(serialized)
+    assert isinstance(new_state, Pending)
+    assert new_state.cached_inputs == {"x": 42}
 
 
 def test_state_equality():
