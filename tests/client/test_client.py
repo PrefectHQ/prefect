@@ -443,7 +443,20 @@ class TestResultHandlerSerialization:
         assert serialized["cached_result"] in handler.data
 
     def test_cached_attribute_of_success_states_is_packaged(self):
-        pass
+        handler = DictHandler()
+        client = Client(token="secret_token")
+        cached_state = CachedState(
+            cached_inputs=dict(x=4, y="value"),
+            cached_result_expiration=datetime.datetime.utcnow(),
+            cached_parameters=dict(zzz=dict(sleep=4)),
+            cached_result="private data",
+        )
+        state = Success(result=42, cached=cached_state)
+        serialized = client._package_state(state, handler)
+        assert len(handler.data) == 3
+        assert serialized["cached"]["cached_inputs"] in handler.data
+        assert serialized["cached"]["cached_result"] in handler.data
+        assert serialized["result"] in handler.data
 
     @pytest.mark.parametrize(
         "state_cls", [Pending, Paused, Scheduled, Retrying, TimedOut]
