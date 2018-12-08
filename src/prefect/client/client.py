@@ -251,8 +251,17 @@ class Client:
         )
         self.token = response.json().get("token")
 
-    def _package_state(self, state, result_handler):
-        pass
+    def _package_state(
+        self, state: "prefect.engine.state.State", result_handler: ResultHandler = None
+    ) -> dict:
+        if result_handler is not None:
+            serialized_state = state.serialize(
+                result=result_handler.serialize(state.result)
+            )
+        else:
+            serialized_state = state.serialize()
+
+        return serialized_state
 
     def _unpackage_state(
         self, serialized_state: dict, result_handler: ResultHandler = None
@@ -340,12 +349,7 @@ class Client:
             }
         }
 
-        if result_handler is not None:
-            serialized_state = state.serialize(
-                result=result_handler.serialize(state.result)
-            )
-        else:
-            serialized_state = state.serialize()
+        serialized_state = self._package_state(state, result_handler)
 
         return self.graphql(  # type: ignore
             parse_graphql(mutation), state=json.dumps(serialized_state)
@@ -402,13 +406,8 @@ class Client:
         ).getOrCreateTaskRun.task_run
 
         serialized_state = result.current_state.serialized_state
-        if result_handler is not None:
-            serialized_state["result"] = result_handler.deserialize(
-                serialized_state["result"]
-            )
-        result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
-            serialized_state
-        )
+        state = self._unpackage_state(serialized_state, result_handler)
+        result.state = state
         return result
 
     def set_task_run_state(
@@ -453,12 +452,7 @@ class Client:
             }
         }
 
-        if result_handler is not None:
-            serialized_state = state.serialize(
-                result=result_handler.serialize(state.result)
-            )
-        else:
-            serialized_state = state.serialize()
+        serialized_state = self._package_state(state, result_handler)
 
         return self.graphql(  # type: ignore
             parse_graphql(mutation), state=json.dumps(serialized_state)
