@@ -438,16 +438,29 @@ class TestResultHandlerSerialization:
             cached_result="private data",
         )
         serialized = client._package_state(cached_state, handler)
-        assert len(handler.data) == 3
+        assert len(handler.data) == 2
         assert serialized["cached_inputs"] in handler.data
-        assert serialized["cached_parameters"] in handler.data
         assert serialized["cached_result"] in handler.data
 
     def test_cached_attribute_of_success_states_is_packaged(self):
         pass
 
-    def test_cached_inputs_are_packaged(self):
-        pass
+    @pytest.mark.parametrize(
+        "state_cls", [Pending, Paused, Scheduled, Retrying, TimedOut]
+    )
+    def test_cached_inputs_are_packaged(self, state_cls):
+        handler = DictHandler()
+        client = Client(token="secret_token")
+        cached_state = state_cls(
+            cached_inputs=dict(x=4, y="value"),
+            result={"66": 66},
+            message="Publicly visible",
+        )
+        serialized = client._package_state(cached_state, handler)
+        assert len(handler.data) == 2
+        assert serialized["cached_inputs"] in handler.data
+        assert serialized["result"] in handler.data
+        assert serialized["message"] == "Publicly visible"
 
     def test_set_flow_run_state_calls_result_handler(self, monkeypatch):
         monkeypatch.setattr("requests.post", MagicMock())
