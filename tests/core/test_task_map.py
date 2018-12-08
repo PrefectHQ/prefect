@@ -110,7 +110,8 @@ def test_map_composition(executor):
     with Flow() as f:
         res = a.map(a.map(ll))
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    with raise_on_exception():
+        s = f.run(return_tasks=f.tasks, executor=executor)
     slist = s.result[res]
     assert s.is_successful()
     assert isinstance(slist, list)
@@ -453,34 +454,27 @@ def test_map_works_with_retries_and_cached_states(executor):
     assert s.result[res][0].result == 1 / 10
 
 
-@pytest.mark.parametrize("executor", ["sync", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
 def test_task_map_doesnt_bottleneck(executor):
-    """
-    This test also revealed a thread safety issue w/ mthread executor;
-    the `_raise_on_exception=True` flag persisted into future test contexts.
-    """
-
     @prefect.task
     def ll():
-        return [1, 2, 3]
+        return [0.5, 0.5, 2]
 
     @prefect.task
     def zz(s):
-        return s == 1 or time.sleep(1.5)  # we dont expect sleep to complete
+        time.sleep(s)
+        return s
 
     @prefect.task
     def rec(s):
-        if s == 1:
-            raise SyntaxError("flower")
-        else:
-            raise NotImplementedError("cactus")
+        return time.time()
 
     with Flow() as f:
         res = rec.map(zz.map(ll))
 
-    with pytest.raises(SyntaxError) as exc:
-        with raise_on_exception():
-            state = f.run(executor=executor)
+    state = f.run(executor=executor, return_tasks=[res])
+    times = [s.result for s in state.result[res]]
+    assert times[-1] - times[0] > 1
 
 
 @pytest.mark.parametrize(

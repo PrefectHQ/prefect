@@ -1,3 +1,4 @@
+import uuid
 import json
 import sys
 from collections import OrderedDict
@@ -10,6 +11,7 @@ from prefect.utilities.graphql import (
     parse_graphql,
     parse_graphql_arguments,
     with_args,
+    EnumValue,
 )
 
 
@@ -334,3 +336,14 @@ def test_pass_dotdicts_as_args():
 
 def test_empty_dict_in_arguments():
     assert parse_graphql_arguments({"where": {}}) == "where: {}"
+
+
+def test_enum_value_in_arguments():
+    query = parse_graphql_arguments({"where": {"color": EnumValue("red")}})
+    assert query == "where: { color: red }"
+
+
+def test_uuid_value_in_arguments():
+    id = uuid.uuid4()
+    query = parse_graphql_arguments({"id": id})
+    assert query == 'id: "{}"'.format(id)

@@ -84,6 +84,11 @@ class ListTask(Task):
         return [1, 2, 3]
 
 
+class MapTask(Task):
+    def run(self):
+        return prefect.context.get("_map_index")
+
+
 class SlowTask(Task):
     def run(self, secs):
         sleep(secs)
@@ -330,7 +335,7 @@ def test_task_runner_can_handle_timeouts_by_default():
 
 def test_task_runner_handles_secrets():
     t = SecretTask()
-    state = TaskRunner(t).run(context=dict(_secrets=dict(testing="my_private_str")))
+    state = TaskRunner(t).run(context=dict(secrets=dict(testing="my_private_str")))
     assert state.is_successful()
     assert state.result is "my_private_str"
 
@@ -1055,6 +1060,24 @@ def test_task_runner_performs_mapping(executor):
         res = executor.wait(lazy_list)
     assert isinstance(res, list)
     assert [s.result for s in res] == [2, 3, 4]
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_task_runner_receives_map_index_from_executor(executor):
+    mapped = MapTask()
+    edge = Edge(ListTask(), mapped, mapped=True)
+    runner = TaskRunner(mapped)
+    with executor.start():
+        lazy_list = runner.run(
+            upstream_states={edge: Success(result=[1, 2, 3])},
+            executor=executor,
+            mapped=True,
+        )
+        res = executor.wait(lazy_list)
+    assert isinstance(res, list)
+    assert [s.result for s in res] == [0, 1, 2]
 
 
 class TestCheckUpstreamsforMapping:

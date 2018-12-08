@@ -19,10 +19,20 @@ functions = [
             "any_failed",
         ]
 
-[pages.client]
+[pages.client.client]
 title = "Client"
 module = "prefect.client"
-classes = ["Client", "Secret"]
+classes = ["Client"]
+
+[pages.client.secrets]
+title = "Secrets"
+module = "prefect.client"
+classes = ["Secret"]
+
+[pages.client.result_handlers]
+title = "Result Handlers"
+module = "prefect.client.result_handlers"
+classes = ["LocalResultHandler"]
 
 [pages.schedules]
 title = "Schedules"

@@ -1,8 +1,10 @@
 import pytest
 import types
 import json
+from prefect.engine.state import Pending
 from prefect.utilities import collections
 from prefect.utilities.collections import DotDict, merge_dicts, as_nested_dict
+from prefect.utilities.graphql import GraphQLResult
 
 
 class TestFlattenSeq:
@@ -295,3 +297,51 @@ def test_merge_nested_dicts_with_empty_section(dct_class):
     assert merge_dicts(a, b) == a
     # merge a into b
     assert merge_dicts(b, a) == a
+
+
+def test_protect_critical_default_true():
+    x = DotDict()
+    assert x.__protect_critical_keys__
+
+
+def test_protect_critical_keys_active():
+    x = DotDict()
+    with pytest.raises(ValueError):
+        x.update = 1
+
+
+def test_protect_critical_default_false_for_graphql_result():
+    x = GraphQLResult()
+    assert not x.__protect_critical_keys__
+
+
+def test_protect_critical_keys_inactive_for_graphql_result():
+    x = GraphQLResult()
+    x.update = 1
+    assert x.update == 1
+
+
+def test_protect_critical_keys_inactive_for_graphql_result_init():
+    x = GraphQLResult(update=1)
+    assert x.update == 1
+
+
+def test_protect_critical_keys_inactive_for_nested_query():
+    """
+    Fails if the `update` method is called after an update key is set
+    """
+    gql = {"update": {"update": [{"x": 1}, {"x": 2}]}}
+    as_nested_dict(gql, GraphQLResult)
+
+
+def test_graphql_result_has_nice_repr():
+    expected = '{\n    "flow_run": {\n        "flow": [\n            {\n                "id": 1\n            },\n            {\n                "version": 2\n            }\n        ]\n    }\n}'
+    gql = {"flow_run": {"flow": [{"id": 1}, {"version": 2}]}}
+    res = as_nested_dict(gql, GraphQLResult)
+    assert repr(res) == expected
+
+
+def test_graphql_repr_falls_back_to_dict_repr():
+    gql = {"flow_run": Pending("test")}
+    res = as_nested_dict(gql, GraphQLResult)
+    assert repr(res) == """{'flow_run': Pending("test")}"""

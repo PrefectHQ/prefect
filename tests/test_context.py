@@ -90,11 +90,20 @@ def test_modify_context_by_calling_update_inside_contextmanager():
     assert "a" not in context
 
 
+def test_context_loads_values_from_config(monkeypatch):
+    subsection = DotDict(password="1234")
+    config = DotDict(context=DotDict(subsection=subsection, my_key="my_value"))
+    monkeypatch.setattr(prefect.utilities.context, "config", config)
+    fresh_context = Context()
+    assert "subsection" in fresh_context
+    assert fresh_context.my_key == "my_value"
+    assert fresh_context.subsection == subsection
+
+
 def test_context_loads_secrets_from_config(monkeypatch):
     secrets_dict = DotDict(password="1234")
-    monkeypatch.setattr(
-        prefect.utilities.context, "config", DotDict(secrets=secrets_dict)
-    )
+    config = DotDict(context=DotDict(secrets=secrets_dict))
+    monkeypatch.setattr(prefect.utilities.context, "config", config)
     fresh_context = Context()
-    assert "_secrets" in fresh_context
-    assert fresh_context._secrets == secrets_dict
+    assert "secrets" in fresh_context
+    assert fresh_context.secrets == secrets_dict

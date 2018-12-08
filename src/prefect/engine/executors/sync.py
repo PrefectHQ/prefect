@@ -3,14 +3,14 @@
 import datetime
 from contextlib import contextmanager
 from queue import Queue
-from typing import Any, Callable, Iterable, Iterator
+from typing import Any, Callable, Iterable, Iterator, List
 
 import dask
 import dask.bag
 import warnings
 
 from prefect.engine.executors.base import Executor
-from prefect.utilities.executors import state_to_list, unpack_dict_to_bag
+from prefect.utilities.executors import dict_to_list
 
 
 class SynchronousExecutor(Executor):
@@ -34,46 +34,25 @@ class SynchronousExecutor(Executor):
 
     def map(
         self, fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
-    ) -> dask.bag:
-        """
-        Submit a function to be mapped over.
+    ) -> Iterable[Any]:
+        def mapper(
+            fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
+        ) -> List[dask.delayed]:
+            states = dict_to_list(upstream_states)
 
-        Args:
-            - fn (Callable): function which is being submitted for execution
-            - *args (Any): arguments to be passed to `fn` with each call
-            - upstream_states ({Edge: State}): a dictionary of upstream
-                dependencies, keyed by Edge; the values are upstream states (or lists of states).
-                This dictionary is used to determine which upstream depdencies should be mapped over,
-                and under what keys (if any).
-            - **kwargs (Any): keyword arguments to be passed to `fn` with each
-                call
+            futures = []
+            for map_index, elem in enumerate(states):
+                futures.append(
+                    dask.delayed(fn)(
+                        *args, upstream_states=elem, map_index=map_index, **kwargs
+                    )
+                )
+            return futures
 
-        Returns:
-            - dask.bag: an `dask.bag` collection representing the computation of
-                ecah `fn(*args, **kwargs)` call
-        """
-        assert upstream_states is not None
-        # every task which is being mapped over needs its state represented as a
-        # dask.bag; there are two situations: 1.) the task being mapped over is
-        # itself a result of a mapped task, in which case it will already be a
-        # bag 2.) the task being mapped over will return a list, in which case
-        # we need to pull apart the list into a list of states and then a dask.bag
-        needs_bagging = {
-            edge: dask.bag.from_delayed(dask.delayed(state_to_list)(v))
-            for edge, v in upstream_states.items()
-            if edge.mapped and not isinstance(v, dask.bag.Bag)
-        }
-        upstream_states.update(needs_bagging)
-
-        # in order to call `dask.bag.map()` on the provided function `fn`,
-        # we need a dask.bag to map over; moreover, because the keys of
-        # upstream_states are Edges (not strings), we can't just splat them into a
-        # function call --> hence, we unpack them (maintaining order) and
-        # convert them to a bag
-        keys, values = list(zip(*upstream_states.items()))
-        bagged_states = dask.bag.map(unpack_dict_to_bag, *values, keys=keys)
-
-        return dask.bag.map(fn, *args, upstream_states=bagged_states, **kwargs)
+        future_list = self.submit(
+            mapper, fn, *args, upstream_states=upstream_states, **kwargs
+        )
+        return self.wait(future_list)
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """

@@ -1,10 +1,23 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
-import types
-import prefect
-import sys
-from typing import Dict, Callable, Optional, Any, List
 import json
-from marshmallow import Schema, post_dump, post_load, SchemaOpts, pre_load, fields
+import sys
+import types
+from typing import Any, Callable, Dict, List, Optional
+
+import marshmallow_oneofschema
+import pendulum
+from marshmallow import (
+    Schema,
+    SchemaOpts,
+    ValidationError,
+    fields,
+    post_dump,
+    post_load,
+    pre_load,
+)
+
+import prefect
+from prefect.utilities.collections import DotDict, as_nested_dict
 
 MAX_VERSION = "__MAX_VERSION__"
 VERSIONS = {}  # type: Dict[str, Dict[str, VersionedSchema]]
@@ -161,59 +174,78 @@ class VersionedSchema(Schema):
         return data
 
 
-class JSONField(fields.Field):
-    def __init__(
-        self, max_size: int = None, dump_fn: Callable = None, **kwargs
-    ) -> None:
-        """
-        Args:
-            - max_size (int): the maximum size of the payload, in bytes
-            - dump_fn (callable): a function of (obj, context) that should return a JSON-able
-                payload during serialization
-        """
-        super().__init__(**kwargs)
-        self.max_size = max_size
-        self.dump_fn = dump_fn
+class JSONCompatible(fields.Field):
+    """
+    Field that ensures its values are JSON-compatible during serialization.
+    """
 
-        if dump_fn is not None:
-            self._CHECK_ATTRIBUTE = False
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.validators.insert(0, self.validate_json)
 
     def _serialize(self, value, attr, obj, **kwargs):
-        if self.dump_fn is not None:
-            value = self.dump_fn(obj, self.context)
-        serialized = json.dumps(value)
-        if self.max_size and sys.getsizeof(serialized) > self.max_size:
-            raise ValueError(
-                "Serialization payload exceeds max size of {} bytes.".format(
-                    self.max_size
-                )
-            )
-        return serialized
+        self.validate_json(value)
+        return super()._serialize(value, attr, obj, **kwargs)
 
-    def _deserialize(self, value, attr, data, **kwargs):
-        if self.max_size and sys.getsizeof(value) > self.max_size:
-            raise ValueError(
-                "Deserialization payload exceeds max size of {} bytes.".format(
-                    self.max_size
-                )
-            )
-        return json.loads(value)
+    def validate_json(self, value):
+        # handle dict-like subclasses including DotDict and GraphQLResult
+        value = as_nested_dict(value, dict)
+        try:
+            json.dumps(value)
+        except TypeError:
+            raise ValidationError("Value is not JSON-compatible")
 
 
-class NestedField(fields.Nested):
+class Nested(fields.Nested):
     """
     An extension of the Marshmallow Nested field that allows the value to be selected
-    via a dump_fn.
+    via a value_selection_fn.
     """
 
-    def __init__(self, nested: type, dump_fn: Callable = None, **kwargs) -> None:
+    def __init__(
+        self, nested: type, value_selection_fn: Callable = None, **kwargs
+    ) -> None:
         super().__init__(nested=nested, **kwargs)
-        self.dump_fn = dump_fn
+        self.value_selection_fn = value_selection_fn
 
-        if dump_fn is not None:
+        if value_selection_fn is not None:
             self._CHECK_ATTRIBUTE = False
 
     def _serialize(self, value, attr, obj, **kwargs):
-        if self.dump_fn is not None:
-            value = self.dump_fn(obj, self.context)
+        if self.value_selection_fn is not None:
+            value = self.value_selection_fn(obj, self.context)
         return super()._serialize(value, attr, obj, **kwargs)
+
+
+class OneOfSchema(marshmallow_oneofschema.OneOfSchema):
+    """
+    A subclass of marshmallow_oneofschema.OneOfSchema that can load DotDicts
+    """
+
+    def _load(self, data, partial=None, unknown=None):
+        if isinstance(data, DotDict):
+            data = as_nested_dict(data, dict)
+        return super()._load(data=data, partial=partial, unknown=unknown)
+
+
+class DateTime(fields.DateTime):
+    """
+    Replacement for the built-in Marshmallow DateTime field that is timezone-aware but
+    can be used with non-timezone-aware targets.
+
+    All serialization takes place after conversion to UTC, and all deserialization returns
+    a tz-aware datetime.
+
+    Marshmallow would implicitly assume DT are UTC, but not apply any TZ logic.
+    """
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if value is not None:
+            value = pendulum.instance(value).in_tz("utc").naive()
+        return super()._serialize(value, attr, obj, **kwargs)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        value = super()._deserialize(value, attr, data, **kwargs)
+        if value is not None:
+            value = pendulum.instance(value).in_tz("utc")
+        return value

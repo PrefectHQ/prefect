@@ -1,14 +1,18 @@
 import datetime
-import pendulum
-import prefect
-import pytest
+
 import marshmallow
+import pendulum
+import pytest
+
+import prefect
+from prefect.utilities.collections import DotDict, as_nested_dict
 from prefect.utilities.serialization import (
-    VersionedSchema,
-    version,
     VERSIONS,
+    OneOfSchema,
+    VersionedSchema,
     get_versioned_schema,
     to_qualified_name,
+    version,
 )
 
 
@@ -280,24 +284,6 @@ def test_schema_doesnt_create_object_if_arg_is_false():
     assert Schema().load({"y": 1}, create_object=False) == {"y": 1}
 
 
-def test_schemas_dump_datetime_to_UTC():
-    """
-    Marshmallow always adds timezone info to datetimes.
-
-    This may not be desireable, but for the moment it is part of marshmallow.
-    """
-
-    class Schema(marshmallow.Schema):
-        dt = marshmallow.fields.DateTime()
-
-    dt = datetime.datetime(2020, 1, 1)
-    dt_with_tz = pendulum.datetime(2020, 1, 1)
-
-    serialized_dt = Schema().dump({"dt": dt})
-    assert serialized_dt["dt"] == "2020-01-01T00:00:00+00:00"
-    assert Schema().load(serialized_dt)["dt"] == dt_with_tz
-
-
 def test_nested_schemas_pass_context_on_load():
     @version("0")
     class Child(VersionedSchema):
@@ -313,3 +299,18 @@ def test_nested_schemas_pass_context_on_load():
             return obj
 
     assert Parent().load({"child": {"x": 1}})["child"]["x"] == 5
+
+
+def test_oneofschema_load_dotdict():
+    """
+    Tests that modified OneOfSchema can load data from a DotDict (standard can not)
+    """
+
+    class ChildSchema(marshmallow.Schema):
+        x = marshmallow.fields.Integer()
+
+    class ParentSchema(OneOfSchema):
+        type_schemas = {"Child": ChildSchema}
+
+    child = ParentSchema().load(DotDict(type="Child", x="5"))
+    assert child["x"] == 5

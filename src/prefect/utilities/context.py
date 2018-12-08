@@ -30,10 +30,9 @@ class Context(DotDict, threading.local):
     """
 
     def __init__(self, *args, **kwargs):
-        if "secrets" in config:
-            super().__init__(*args, _secrets=config.secrets, **kwargs)
-        else:
-            super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+        if "context" in config:
+            self.update(config.context)
 
     def __repr__(self) -> str:
         return "<Context>"

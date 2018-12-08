@@ -130,8 +130,3 @@ def state_to_list(s: StateList) -> List["prefect.engine.state.State"]:
         return s
     assert s.result is not None, "State's result must be iterable"
     return [type(s)(result=elem) for elem in s.result]
-
-
-def unpack_dict_to_bag(*values: Any, keys: List[str]) -> dict:
-    "Convenience function for packaging up all keywords into a dictionary"
-    return {k: v for k, v in zip(keys, values)}

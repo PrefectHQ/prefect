@@ -26,7 +26,6 @@ def test_deserialize_task():
     task = Task(
         name="hi",
         slug="hi-1",
-        description="hello",
         max_retries=5,
         retry_delay=datetime.timedelta(seconds=5),
         timeout=datetime.timedelta(minutes=1),
@@ -39,7 +38,6 @@ def test_deserialize_task():
     for key in [
         "name",
         "slug",
-        "description",
         "max_retries",
         "retry_delay",
         "timeout",
@@ -96,7 +94,7 @@ def test_deserializing_tasks_with_ids_reuses_task_cache_to_recreate_object():
 def test_serialize_parameter():
     p = Parameter(name="p")
     ps = ParameterSchema().dump(p)
-    assert ps["default"] == "null"
+    assert ps["default"] == None
     assert ps["required"] is True
 
 

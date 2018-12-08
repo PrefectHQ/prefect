@@ -7,10 +7,10 @@ from typing import Any, Callable, Dict, Iterable, List, Union, Set, Sized, Optio
 
 import prefect
 from prefect import config
-from prefect.client import Client, TaskRuns
+from prefect.client import Client
+from prefect.client.result_handlers import ResultHandler
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.cloud_handler import CloudHandler
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.state import (
     CachedState,
@@ -40,6 +40,8 @@ class TaskRunner(Runner):
 
     Args:
         - task (Task): the Task to be run / executed
+        - result_handler (ResultHandler, optional): the handler to use for
+            retrieving and storing state results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -57,9 +59,15 @@ class TaskRunner(Runner):
             result of the previous handler.
     """
 
-    def __init__(self, task: Task, state_handlers: Iterable[Callable] = None) -> None:
+    def __init__(
+        self,
+        task: Task,
+        result_handler: ResultHandler = None,
+        state_handlers: Iterable[Callable] = None,
+    ) -> None:
         self.task = task
-        self.cloud_handler = CloudHandler()
+        self.client = Client()
+        self.result_handler = result_handler
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -82,10 +90,14 @@ class TaskRunner(Runner):
             task_run_id = prefect.context.get("_task_run_id")
             version = prefect.context.get("_task_run_version")
 
-            self.cloud_handler.setTaskRunState(
-                task_run_id=task_run_id, version=version, state=new_state
+            res = self.client.set_task_run_state(
+                task_run_id=task_run_id,
+                version=version,
+                state=new_state,
+                cache_for=self.task.cache_for,
+                result_handler=self.result_handler,
             )
-            prefect.context.update(_task_run_version=version + 1)
+            prefect.context.update(_task_run_version=res.version)  # type: ignore
 
         return new_state
 
@@ -98,6 +110,7 @@ class TaskRunner(Runner):
         context: Dict[str, Any] = None,
         queues: List = None,
         mapped: bool = False,
+        map_index: int = None,
         executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
         """
@@ -123,6 +136,8 @@ class TaskRunner(Runner):
             - mapped (bool, optional): whether this task is mapped; if `True`,
                 the task will _not_ be run, but a `Mapped` state will be returned indicating
                 it is ready to. Defaults to `False`
+            - map_index (int, optional): if this task run represents a spawned
+                mapped task, the `map_index` represents its mapped position
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
 
@@ -138,12 +153,16 @@ class TaskRunner(Runner):
 
         # Initialize CloudHandler and get task run version
         if config.get("prefect_cloud", None):
-            self.cloud_handler.load_prefect_client()
-            task_run_info = self.cloud_handler.getTaskRunIdAndVersion(
-                context.get("task_id")
+            flow_run_id = context.get("flow_run_id", None)
+            task_run_info = self.client.get_task_run_info(
+                flow_run_id,
+                context.get("task_id", ""),
+                map_index=map_index,
+                result_handler=self.result_handler,
             )
             context.update(
-                _task_run_version=task_run_info.version, _task_run_id=task_run_info.id
+                _task_run_version=task_run_info.version,  # type: ignore
+                _task_run_id=task_run_info.id,  # type: ignore
             )
 
         # construct task inputs
@@ -180,7 +199,7 @@ class TaskRunner(Runner):
                 break
 
         # run state transformation pipeline
-        with prefect.context(context, _task_name=self.task.name):
+        with prefect.context(context, _task_name=self.task.name, _map_index=map_index):
 
             try:
                 # determine starting state

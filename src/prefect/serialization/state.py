@@ -1,10 +1,17 @@
-from typing import Any, Dict
 import json
-from marshmallow_oneofschema import OneOfSchema
+from typing import Any, Dict
+
 from marshmallow import fields, post_load
-from prefect.utilities.serialization import VersionedSchema, version, to_qualified_name
+
 from prefect.engine import state
-from prefect.utilities.serialization import JSONField
+from prefect.utilities.serialization import (
+    JSONCompatible,
+    OneOfSchema,
+    VersionedSchema,
+    to_qualified_name,
+    DateTime,
+    version,
+)
 
 
 @version("0.3.3")
@@ -13,8 +20,8 @@ class BaseStateSchema(VersionedSchema):
         object_class = state.State
 
     message = fields.String(allow_none=True)
-    result = JSONField(max_size=16000, allow_none=True)
-    timestamp = fields.DateTime(allow_none=True)
+    result = JSONCompatible(allow_none=True)
+    timestamp = DateTime(allow_none=True)
 
 
 @version("0.3.3")
@@ -22,7 +29,7 @@ class PendingSchema(BaseStateSchema):
     class Meta:
         object_class = state.Pending
 
-    cached_inputs = JSONField(max_size=16000, allow_none=True)
+    cached_inputs = JSONCompatible(allow_none=True)
 
 
 @version("0.3.3")
@@ -30,9 +37,9 @@ class CachedStateSchema(PendingSchema):
     class Meta:
         object_class = state.CachedState
 
-    cached_result = JSONField(max_size=16000, allow_none=True)
-    cached_parameters = JSONField(max_size=16000, allow_none=True)
-    cached_result_expiration = fields.DateTime(allow_none=True)
+    cached_result = JSONCompatible(allow_none=True)
+    cached_parameters = JSONCompatible(allow_none=True)
+    cached_result_expiration = DateTime(allow_none=True)
 
 
 @version("0.3.3")
@@ -40,7 +47,7 @@ class ScheduledSchema(PendingSchema):
     class Meta:
         object_class = state.Scheduled
 
-    start_time = fields.DateTime(allow_none=True)
+    start_time = DateTime(allow_none=True)
 
 
 @version("0.3.3")
@@ -88,7 +95,7 @@ class TimedOutSchema(FinishedSchema):
     class Meta:
         object_class = state.TimedOut
 
-    cached_inputs = JSONField(max_size=16000, allow_none=True)
+    cached_inputs = JSONCompatible(allow_none=True)
 
 
 @version("0.3.3")
