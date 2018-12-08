@@ -73,7 +73,7 @@ def test_serialize_state(cls):
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
     assert serialized["message"] is "message"
-    assert serialized["result"] == "1"
+    assert serialized["result"] == 1
     assert serialized["__version__"] == prefect.__version__
 
 
@@ -112,28 +112,21 @@ def test_complex_state_attributes_are_handled(state):
     assert state == deserialized
 
 
-def test_result_is_serialized_as_json_string():
-    s = state.Success(result={"x": 1})
+def test_result_must_be_valid_json():
+    s = state.Success(result={"x": {"y": {"z": 1}}})
     serialized = StateSchema().dump(s)
-    assert serialized["result"] == json.dumps({"x": 1})
+    assert serialized["result"] == s.result
 
 
-def test_result_deserializes_json_string():
-    s = StateSchema().load({"type": "Success", "result": json.dumps({"x": {"y": 2}})})
-    assert s.result == {"x": {"y": 2}}
-
-
-def test_result_has_max_size_respected_during_serialization():
-    payload = "x" * 20000  # over 16kb
-    s = state.Success(result=payload)
-    with pytest.raises(ValueError) as exc:
+def test_result_raises_error_on_dump_if_not_valid_json():
+    s = state.Success(result={"x": {"y": {"z": lambda: 1}}})
+    with pytest.raises(marshmallow.ValidationError):
         StateSchema().dump(s)
-    assert "payload exceeds max size" in str(exc).lower()
 
 
-def test_result_has_max_size_respected_during_deserialization():
-    payload = "x" * 20000  # over 16kb
-    state.Success(result=payload)
-    with pytest.raises(ValueError) as exc:
-        StateSchema().load({"type": "Success", "result": json.dumps(payload)})
-    assert "payload exceeds max size" in str(exc).lower()
+def test_result_raises_error_on_load_if_not_valid_json():
+    s = state.Success(result={"x": {"y": {"z": 1}}})
+    serialized = StateSchema().dump(s)
+    serialized["result"]["x"]["y"]["z"] = lambda: 1
+    with pytest.raises(marshmallow.ValidationError):
+        StateSchema().load(serialized)

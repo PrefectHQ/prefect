@@ -6,8 +6,14 @@ import os
 from typing import TYPE_CHECKING, Optional, Union
 
 import prefect
-from prefect.utilities import collections
-from prefect.utilities.graphql import parse_graphql, with_args
+from prefect.client.result_handlers import ResultHandler
+from prefect.utilities.graphql import (
+    EnumValue,
+    parse_graphql,
+    with_args,
+    GraphQLResult,
+    as_nested_dict,
+)
 
 if TYPE_CHECKING:
     import requests
@@ -59,11 +65,8 @@ class Client:
                         token = f.read()
 
         self.token = token
-
-        self.projects = Projects(client=self)
-        self.flows = Flows(client=self)
-        self.flow_runs = FlowRuns(client=self)
-        self.task_runs = TaskRuns(client=self)
+        if self.token is None and prefect.config.get("prefect_cloud"):
+            self.login()
 
     # -------------------------------------------------------------------------
     # Utilities
@@ -113,9 +116,7 @@ class Client:
         if "errors" in result:
             raise ValueError(result["errors"])
         else:
-            return collections.as_nested_dict(  # type: ignore
-                result, collections.GraphQLResult
-            ).data
+            return as_nested_dict(result, GraphQLResult).data  # type: ignore
 
     def _request(
         self, method: str, path: str, params: dict = None, server: str = None
@@ -210,7 +211,7 @@ class Client:
         email = email or prefect.config.cloud.email
         password = password or prefect.config.cloud.password
 
-        url = os.path.join(self.api_server, "login")
+        url = os.path.join(self.api_server, "login_email")
         response = requests.post(
             url,
             auth=(email, password),
@@ -250,317 +251,205 @@ class Client:
         )
         self.token = response.json().get("token")
 
-
-class ClientModule:
-
-    _path = ""
-
-    def __init__(self, client: Client, name: str = None) -> None:
-        if name is None:
-            name = type(self).__name__
-        self._name = name
-        self._client = client
-
-    def __repr__(self) -> str:
-        return "<Client Module: {name}>".format(name=self._name)
-
-    def post(self, path: str, **data: BuiltIn) -> dict:
-        path = path.lstrip("/")
-        return self._client.post(os.path.join(self._path, path), **data)  # type: ignore
-
-    def _graphql(self, query: str, **variables: BuiltIn) -> dict:
-        return self._client.graphql(query=query, **variables)  # type: ignore
-
-
-# -------------------------------------------------------------------------
-# Projects
-
-
-class Projects(ClientModule):
-    def create(self, name: str) -> dict:
+    def get_flow_run_info(
+        self, flow_run_id: str, result_handler: ResultHandler = None
+    ) -> GraphQLResult:
         """
-        Create a new project for this account
+        Retrieves version and current state information for the given flow run.
 
         Args:
-            - name (str): The name for this new project
+            - flow_run_id (str): the id of the flow run to get information for
+            - result_handler (ResultHandler, optional): the handler to use for
+                retrieving and storing state results during execution
 
         Returns:
-            - dict: Data returned from the GraphQL query
-        """
-        mutation = {
-            "mutation": {
-                with_args("createProject", {"input": {"name": name}}): {
-                    "project": {"id"}
-                }
-            }
-        }
-        return self._graphql(parse_graphql(mutation))
-
-
-# -------------------------------------------------------------------------
-# Flows
-
-
-class Flows(ClientModule):
-    def create(self, flow: "Flow") -> dict:
-        """
-        Create a new flow on the server
-
-        Args:
-            - flow (Flow): A Flow
-
-        Returns:
-            - dict: Data returned from the GraphQL mutation
-        """
-        mutation = {
-            "mutation": {
-                with_args(
-                    "createFlow",
-                    {"input": {"serializedFlow": json.dumps(flow.serialize())}},
-                ): {"flow": {"id"}}
-            }
-        }
-        return self._graphql(parse_graphql(mutation))
-
-    def query(self, project_name: str, flow_name: str, flow_version: str) -> dict:
-        """
-        Retrieve a flow's environment metadata
-
-        Args:
-            - project_name (str): Name of the project that the flow belongs to
-            - flow_name (str): Name of the flow
-            - flow_version (str): Version of the flow
-
-        Returns:
-            - dict: Data returned from the GraphQL query
-        """
-
-        query = {
-            "query": {
-                with_args(
-                    "flows",
-                    {
-                        "where": {
-                            "name": flow_name,
-                            "version": flow_version,
-                            "project": {"name": project_name},
-                        }
-                    },
-                ): {"id"}
-            }
-        }
-
-        return self._graphql(parse_graphql(query))
-
-    def delete(self, flow_id: str) -> dict:
-        """
-        Delete a flow on the server
-
-        Args:
-            - flow_id (str): The ID of a flow in the server
-
-        Returns:
-            - dict: Data returned from the GraphQL mutation
-        """
-        mutation = {
-            "mutation": {
-                with_args("deleteFlow", {"input": {"flowId": flow_id}}): {"flowId"}
-            }
-        }
-        return self._graphql(parse_graphql(mutation))
-
-
-# -------------------------------------------------------------------------
-# FlowRuns
-
-
-class FlowRuns(ClientModule):
-    def create(
-        self, flow_id: str, parameters: dict, start_time: datetime.datetime = None
-    ) -> dict:
-        """
-        Create a flow run
-
-        Args:
-            - flow_id (str): A unique flow identifier
-            - parameters (dict): Paramater dictionary to provide for the flow run
-            - start_time (datetime, optional): An optional start time for the flow run
-
-        Returns:
-            - dict: Data returned from the GraphQL mutation
-        """
-
-        input_dict = {"flowId": flow_id, "parameters": json.dumps(parameters)}
-
-        if start_time:
-            input_dict["startTime"] = start_time.isoformat()
-
-        mutation = {
-            "mutation": {
-                with_args("createFlowRun", {"input": input_dict}): {"flowRun": {"id"}}
-            }
-        }
-        return self._graphql(parse_graphql(mutation))
-
-    def set_state(
-        self, flow_run_id: str, state: "prefect.engine.state.State", version: str
-    ) -> dict:
-        """
-        Set a flow run state
-
-        Args:
-            - flow_run_id (str): A unique flow_run identifier
-            - state (State): A prefect state object
-            - version (str): the current flow run version number
-
-        Returns:
-            - dict: Data returned from the GraphQL query
-        """
-        return self._graphql(
-            """
-            mutation($input: SetFlowRunStateInput!) {
-                setFlowRunState(input: $input) {
-                    state {
-                        state
-                        message
-                        flowRun {
-                            version
-                        }
-                    }
-                }
-            }
-            """,
-            input=dict(
-                flowRunId=flow_run_id,
-                state=json.dumps(state.serialize()),
-                version=version,
-            ),
-        )
-
-    def query(self, flow_run_id: str) -> dict:
-        """
-        Retrieve a flow's environment metadata
-
-        Args:
-            - flow_run_id (str): Unique identifier of a flow run this task run belongs to
-
-        Returns:
-            - dict: Data returned from the GraphQL query
-        """
-        query = {
-            "query": {
-                with_args("flowRuns", {"where": {"id": flow_run_id}}): {
-                    "id",
-                    "parameters",
-                    "version",
-                }
-            }
-        }
-        return self._graphql(parse_graphql(query))
-
-
-# -------------------------------------------------------------------------
-# TaskRuns
-
-
-class TaskRuns(ClientModule):
-    def set_state(
-        self, task_run_id: str, state: "prefect.engine.state.State", version: int
-    ) -> dict:
-        """
-        Set a task run state
-
-        Args:
-            - task_run_id (str): A unique task run identifier
-            - state (State): A prefect state object
-            - version (int): the current task run version number
-
-        Returns:
-            - dict: Data returned from the GraphQL query
-        """
-        return self._graphql(
-            """
-            mutation($input: SetTaskRunStateInput!) {
-                setTaskRunState(input: $input) {
-                    state {
-                        state
-                        message
-                        taskRun {
-                            version
-                        }
-                    }
-                }
-            }
-            """,
-            input=dict(
-                taskRunId=task_run_id,
-                state=json.dumps(state.serialize()),
-                version=version,
-            ),
-        )
-
-    def query(self, flow_run_id: str, task_id: str) -> dict:
-        """
-        Retrieve a task's environment metadata
-
-        Args:
-            - flow_run_id (str): Unique identifier of a flow run this task run belongs to
-            - task_id (str): Unique identifier of this task
-
-        Returns:
-            - dict: Data returned from the GraphQL query
-        """
-        query = {
-            "query": {
-                with_args(
-                    "taskRuns",
-                    {
-                        "where": {
-                            "flowRun": {"id": flow_run_id},
-                            "task": {"id": task_id},
-                        }
-                    },
-                ): {"id", "version"}
-            }
-        }
-        return self._graphql(parse_graphql(query))
-
-
-class Secret:
-    """
-    A Secret is a serializable object used to represent a secret key & value.
-
-    Args:
-        - name (str): The name of the secret
-
-    The value of the `Secret` is not set upon initialization and instead is set
-    either in `prefect.context` or on the server, with behavior dependent on the value
-    of the `use_local_secrets` flag in your Prefect configuration file.
-    """
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-    def get(self) -> Optional[str]:
-        """
-        Retrieve the secret value.
-
-        If not found, returns `None`.
+            - GraphQLResult: a `DotDict` with `"version"` and `"state"` keys
+                representing the version and most recent state for this flow run
 
         Raises:
-            - ValueError: if `use_local_secrets=False` and the Client fails to retrieve your secret
+            - ValueError: if the GraphQL query is bad for any reason
         """
-        if prefect.config.cloud.use_local_secrets is True:
-            secrets = prefect.context.get("_secrets", {})
-            return secrets.get(self.name)
+        query = {
+            "query": {
+                with_args("flow_run_by_pk", {"id": flow_run_id}): {
+                    "parameters": True,
+                    "version": True,
+                    "current_state": {"serialized_state"},
+                }
+            }
+        }
+        result = self.graphql(parse_graphql(query)).flow_run_by_pk  # type: ignore
+        if result is None:
+            raise ValueError('Flow run id "{}" not found.'.format(flow_run_id))
+        serialized_state = result.current_state.serialized_state
+        if result_handler is not None:
+            serialized_state["result"] = result_handler.deserialize(
+                serialized_state["result"]
+            )
+        result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
+            serialized_state
+        )
+        return result
+
+    def set_flow_run_state(
+        self,
+        flow_run_id: str,
+        version: int,
+        state: "prefect.engine.state.State",
+        result_handler: ResultHandler = None,
+    ) -> GraphQLResult:
+        """
+        Sets new state for a flow run in the database.
+
+        Args:
+            - flow_run_id (str): the id of the flow run to set state for
+            - version (int): the current version of the flow run state
+            - state (State): the new state for this flow run
+            - result_handler (ResultHandler, optional): the handler to use for
+                retrieving and storing state results during execution
+
+        Returns:
+            - GraphQLResult: a `DotDict` with a single `"version"` key for the
+                new flow run version
+
+        Raises:
+            - ValueError: if the GraphQL query is bad for any reason
+        """
+        mutation = {
+            "mutation($state: String!)": {
+                with_args(
+                    "setFlowRunState",
+                    {
+                        "input": {
+                            "flowRunId": flow_run_id,
+                            "version": version,
+                            "state": EnumValue("$state"),
+                        }
+                    },
+                ): {"flow_run": {"version"}}
+            }
+        }
+
+        if result_handler is not None:
+            serialized_state = state.serialize(
+                result=result_handler.serialize(state.result)
+            )
         else:
-            client = Client()
-            return client.graphql(  # type: ignore
-                """
-                query($name: String!) {
-                    secret(name: $name) {
-                        value
+            serialized_state = state.serialize()
+
+        return self.graphql(  # type: ignore
+            parse_graphql(mutation), state=json.dumps(serialized_state)
+        ).setFlowRunState.flow_run
+
+    def get_task_run_info(
+        self,
+        flow_run_id: str,
+        task_id: str,
+        map_index: Optional[int],
+        result_handler: ResultHandler = None,
+    ) -> GraphQLResult:
+        """
+        Retrieves version and current state information for the given task run. If this task run is not present in the database (which could
+        occur if the `map_index` is non-zero), it will be created with a `Pending` state.
+
+        Args:
+            - flow_run_id (str): the id of the flow run that this task run lives in
+            - task_id (str): the task id for this task run
+            - map_index (int, optional): the mapping index for this task run; if
+                `None`, it is assumed this task is _not_ mapped
+            - result_handler (ResultHandler, optional): the handler to use for
+                retrieving and storing state results during execution
+
+        Returns:
+            - GraphQLResult: a `DotDict` with `"version"`, `"state"` and `"id"` keys
+                representing the version and most recent state for this task run
+
+        Raises:
+            - ValueError: if the GraphQL query is bad for any reason
+        """
+        mutation = {
+            "mutation": {
+                with_args(
+                    "getOrCreateTaskRun",
+                    {
+                        "input": {
+                            "flowRunId": flow_run_id,
+                            "taskId": task_id,
+                            "mapIndex": map_index,
+                        }
+                    },
+                ): {
+                    "task_run": {
+                        "id": True,
+                        "version": True,
+                        "current_state": {"serialized_state"},
                     }
-                }""",
-                name=self.name,
-            ).secret.value
+                }
+            }
+        }
+        result = self.graphql(  # type: ignore
+            parse_graphql(mutation)
+        ).getOrCreateTaskRun.task_run
+
+        serialized_state = result.current_state.serialized_state
+        if result_handler is not None:
+            serialized_state["result"] = result_handler.deserialize(
+                serialized_state["result"]
+            )
+        result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
+            serialized_state
+        )
+        return result
+
+    def set_task_run_state(
+        self,
+        task_run_id: str,
+        version: int,
+        state: "prefect.engine.state.State",
+        cache_for: datetime.timedelta = None,
+        result_handler: ResultHandler = None,
+    ) -> GraphQLResult:
+        """
+        Sets new state for a task run in the database.
+
+        Args:
+            - task_run_id (str): the id of the task run to set state for
+            - version (int): the current version of the task run state
+            - state (State): the new state for this task run
+            - cache_for (timedelta, optional): how long to store the result of this task for, using the
+                serializer set in config; if not provided, no caching occurs
+            - result_handler (ResultHandler, optional): the handler to use for
+                retrieving and storing state results during execution
+
+        Returns:
+            - GraphQLResult: a `DotDict` with a single `"version"` key for the
+                new task run version
+
+        Raises:
+            - ValueError: if the GraphQL query is bad for any reason
+        """
+        mutation = {
+            "mutation($state: String!)": {
+                with_args(
+                    "setTaskRunState",
+                    {
+                        "input": {
+                            "taskRunId": task_run_id,
+                            "version": version,
+                            "state": EnumValue("$state"),
+                        }
+                    },
+                ): {"task_run": {"version"}}
+            }
+        }
+
+        if result_handler is not None:
+            serialized_state = state.serialize(
+                result=result_handler.serialize(state.result)
+            )
+        else:
+            serialized_state = state.serialize()
+
+        return self.graphql(  # type: ignore
+            parse_graphql(mutation), state=json.dumps(serialized_state)
+        ).setTaskRunState.task_run

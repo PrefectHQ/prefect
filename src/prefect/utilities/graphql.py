@@ -1,8 +1,9 @@
 import json
 import re
+import uuid
 import textwrap
 from typing import Any, Union
-from prefect.utilities.collections import DotDict
+from prefect.utilities.collections import DotDict, as_nested_dict
 
 
 def lowercase_first_letter(s: str) -> str:
@@ -12,6 +13,29 @@ def lowercase_first_letter(s: str) -> str:
     if s:
         return s[0].lower() + s[1:]
     return s
+
+
+class GraphQLResult(DotDict):
+    __protect_critical_keys__ = False
+
+    def __repr__(self) -> str:
+        try:
+            return json.dumps(as_nested_dict(self, dict), indent=4)
+        except TypeError:
+            return repr(self.to_dict())
+
+
+class EnumValue:
+    """
+    When parsing GraphQL arguments, strings can be wrapped in this class to be rendered
+    as enum values, without quotation marks.
+    """
+
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class GQLObject:
@@ -199,6 +223,8 @@ def _parse_arguments_inner(arguments: Any) -> str:
         return "false"
     elif arguments is None:
         return "null"
+    elif isinstance(arguments, uuid.UUID):
+        return _parse_arguments_inner(str(arguments))
     return str(arguments)
 
 

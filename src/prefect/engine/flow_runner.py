@@ -7,10 +7,9 @@ from typing import Any, Callable, Dict, Iterable, Set, Union
 
 import prefect
 from prefect import config
-from prefect.client import Client, FlowRuns
+from prefect.client import Client
 from prefect.core import Edge, Flow, Task
 from prefect.engine import signals
-from prefect.engine.cloud_handler import CloudHandler
 from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
@@ -80,7 +79,7 @@ class FlowRunner(Runner):
     ) -> None:
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
-        self.cloud_handler = CloudHandler()
+        self.client = Client()
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -100,10 +99,16 @@ class FlowRunner(Runner):
 
         # Set state if in prefect cloud
         if config.get("prefect_cloud", None):
+            flow_run_id = prefect.context.get("flow_run_id", None)
             version = prefect.context.get("_flow_run_version")
 
-            self.cloud_handler.setFlowRunState(version=version, state=new_state)
-            prefect.context.update(_flow_run_version=version + 1)
+            res = self.client.set_flow_run_state(
+                flow_run_id=flow_run_id,
+                version=version,
+                state=new_state,
+                result_handler=self.flow.result_handler,
+            )
+            prefect.context.update(_flow_run_version=res.version)  # type: ignore
 
         return new_state
 
@@ -172,15 +177,17 @@ class FlowRunner(Runner):
 
         # Initialize CloudHandler and get flow run version
         if config.get("prefect_cloud", None):
-            self.cloud_handler.load_prefect_client()
-            context.update(_flow_run_version=self.cloud_handler.getFlowRunVersion())
+            flow_run_info = self.client.get_flow_run_info(
+                flow_run_id=prefect.context.get("flow_run_id", ""),
+                result_handler=self.flow.result_handler,
+            )
+            context.update(_flow_run_version=flow_run_info.version)  # type: ignore
 
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
 
         context.update(
             _flow_name=self.flow.name,
-            _flow_version=self.flow.version,
             _parameters=parameters,
             _executor_id=executor.executor_id,
         )
@@ -354,7 +361,9 @@ class FlowRunner(Runner):
                         task_inputs.update(passed_state.cached_inputs)
 
                 # -- run the task
-                task_runner = self.task_runner_cls(task=task)
+                task_runner = self.task_runner_cls(
+                    task=task, result_handler=self.flow.result_handler
+                )
                 task_queues = [
                     queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
                 ]

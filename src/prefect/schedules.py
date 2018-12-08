@@ -1,17 +1,31 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
-
+import math
 import itertools
 from datetime import datetime, timedelta
-import pendulum
 from typing import Iterable, List
+
+import pendulum
+from crontab import CronTab
+
 from prefect.utilities.datetimes import ensure_tz_aware
-import croniter
 
 
 class Schedule:
     """
     Base class for Schedules
+
+    Args:
+        - start_date (datetime, optional): an optional start date for the schedule
+        - end_date (datetime, optional): an optional end date for the schedule
     """
+
+    def __init__(self, start_date: datetime = None, end_date: datetime = None):
+        if start_date is not None:
+            start_date = ensure_tz_aware(start_date)
+        if end_date is not None:
+            end_date = ensure_tz_aware(end_date)
+        self.start_date = start_date
+        self.end_date = end_date
 
     def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
         """
@@ -39,16 +53,23 @@ class IntervalSchedule(Schedule):
     Args:
         - start_date (datetime): first date of schedule
         - interval (timedelta): interval on which this schedule occurs
+        - end_date (datetime, optional): an optional end date for the schedule
 
     Raises:
+        - TypeError: if start_date is not a datetime
         - ValueError: if provided interval is negative
     """
 
-    def __init__(self, start_date: datetime, interval: timedelta) -> None:
-        if interval.total_seconds() <= 0:
+    def __init__(
+        self, start_date: datetime, interval: timedelta, end_date: datetime = None
+    ) -> None:
+        if not isinstance(start_date, datetime):
+            raise TypeError("`start_date` must be a datetime.")
+        elif interval.total_seconds() <= 0:
             raise ValueError("Interval must be positive")
-        self.start_date = ensure_tz_aware(start_date)
+
         self.interval = interval
+        super().__init__(start_date=start_date, end_date=end_date)
 
     def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
         """
@@ -63,18 +84,26 @@ class IntervalSchedule(Schedule):
         """
         if on_or_after is None:
             on_or_after = pendulum.now("utc")
+
         assert isinstance(on_or_after, datetime)  # mypy assertion
+        assert isinstance(self.start_date, datetime)  # mypy assertion
+
         on_or_after = ensure_tz_aware(on_or_after)
 
-        # infinite generator of all dates in the series
-        all_dates = (
-            self.start_date + i * self.interval
-            for i in itertools.count(start=0, step=1)
+        first_interval = math.ceil(
+            (on_or_after - self.start_date).total_seconds()
+            / self.interval.total_seconds()
         )
-        # filter generator for only dates on or after the requested date
-        upcoming_dates = filter(lambda d: d >= on_or_after, all_dates)  # type: ignore
-        # get the next n items from the generator
-        return list(itertools.islice(upcoming_dates, n))
+
+        dates = []
+
+        for i in range(n):
+            next_date = self.start_date + self.interval * (first_interval + i)
+            if self.end_date and next_date > self.end_date:
+                break
+            dates.append(next_date)
+
+        return dates
 
 
 class CronSchedule(Schedule):
@@ -83,12 +112,20 @@ class CronSchedule(Schedule):
 
     Args:
         - cron (str): a valid cron string
+        - start_date (datetime, optional): an optional start date for the schedule
+        - end_date (datetime, optional): an optional end date for the schedule
+
+    Raises:
+        - ValueError: if the cron string is invalid
     """
 
-    def __init__(self, cron: str) -> None:
+    def __init__(
+        self, cron: str, start_date: datetime = None, end_date: datetime = None
+    ) -> None:
         # build cron object to check the cron string - will raise an error if it's invalid
-        croniter.croniter(cron)
+        CronTab(cron)
         self.cron = cron
+        super().__init__(start_date=start_date, end_date=end_date)
 
     def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
         """
@@ -103,11 +140,25 @@ class CronSchedule(Schedule):
         """
         if on_or_after is None:
             on_or_after = pendulum.now("utc")
+
+        if self.start_date is not None:
+            on_or_after = max(on_or_after, self.start_date)
+
         assert isinstance(on_or_after, datetime)  # mypy assertion
         on_or_after = ensure_tz_aware(on_or_after)
 
-        # croniter only supports >, not >=, so we subtract a second
-        on_or_after -= timedelta(seconds=1)
+        cron = CronTab(self.cron)
 
-        cron = croniter.croniter(self.cron, on_or_after)
-        return list(itertools.islice(cron.all_next(datetime), n))
+        # subtract one second because we want to include on_or_after as a possible date
+        next_date = on_or_after - timedelta(seconds=1)  # type: pendulum.DateTime
+        dates = []
+
+        for i in range(n):
+            next_date += timedelta(
+                seconds=cron.next(next_date.in_tz("utc"), default_utc=True)
+            )
+            if self.end_date and next_date > self.end_date:
+                break
+            dates.append(next_date)
+
+        return dates

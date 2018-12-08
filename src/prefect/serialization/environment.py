@@ -1,9 +1,13 @@
 from typing import Any
 import marshmallow
 import prefect
-from marshmallow_oneofschema import OneOfSchema
 from marshmallow import fields
-from prefect.utilities.serialization import VersionedSchema, version, to_qualified_name
+from prefect.utilities.serialization import (
+    VersionedSchema,
+    version,
+    to_qualified_name,
+    OneOfSchema,
+)
 
 
 @version("0.3.3")

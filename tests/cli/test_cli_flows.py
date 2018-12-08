@@ -57,11 +57,11 @@ def test_flows_ids_empty_registry():
 
 def test_flows_ids():
     f1 = prefect.Flow(register=True)
-    f2 = prefect.Flow(name="hi", version="1", register=True)
-    f3 = prefect.Flow(name="hi", version="2", register=True)
+    f2 = prefect.Flow(name="hi", register=True)
+    f3 = prefect.Flow(name="hi", register=True)
 
     output = json.loads(run_cli_with_registry("flows ids").output)
-    assert output == {f.id: f.key() for f in [f1, f2, f3]}
+    assert output == {f.id: f.id for f in [f1, f2, f3]}
 
 
 def test_flows_runs():
@@ -78,7 +78,7 @@ def test_flows_runs():
         with prefect.Flow(register=True) as f:
             write_to_file(tmp.name)
 
-        run_cli_with_registry("flows run {}".format(f.id))
+        res = run_cli_with_registry("flows run {}".format(f.id))
 
         with open(tmp.name, "r") as f:
             assert f.read() == "1"

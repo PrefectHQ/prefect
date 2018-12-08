@@ -196,7 +196,7 @@ def test_gmail_notifier_sends_simple_email(monkeypatch):
     s = Failed("optional message...")
 
     monkeypatch.setattr(prefect.config.cloud, "use_local_secrets", True)
-    with prefect.context(_secrets=dict(EMAIL_USERNAME="alice", EMAIL_PASSWORD=1234)):
+    with prefect.context(secrets=dict(EMAIL_USERNAME="alice", EMAIL_PASSWORD=1234)):
         returned = gmail_notifier(Task(name="dud"), "", s)
 
     assert returned is s
