@@ -4,9 +4,10 @@ import datetime
 import logging
 import os
 import re
+from typing import Any, Optional, Union
 
 import toml
-from typing import Any, Optional, Union
+
 from prefect.utilities import collections
 
 DEFAULT_CONFIG = os.path.join(os.path.dirname(__file__), "config.toml")
@@ -251,8 +252,10 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
     # check if any env var sets a configuration value with the format:
     #     [ENV_VAR_PREFIX]__[Section]__[Optional Sub-Sections...]__[Key] = Value
     # and if it does, add it to the config file.
+
     env = env or os.environ
     if env_var_prefix:
+
         for env_var in env:
             if env_var.startswith(env_var_prefix + "__"):
 
@@ -263,13 +266,16 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
                 if "__" not in env_var:
                     continue
 
+                # env vars with escaped characters are interpreted as literal "\", which
+                # Python helpfully escapes with a second "\". This step makes sure that
+                # escaped characters are properly interpreted.
+                value = env.get(env_var).encode().decode("unicode_escape")
+
                 # place the env var in the flat config as a compound key
                 config_option = collections.CompoundKey(
                     env_var_option.lower().split("__")
                 )
-                flat_config[config_option] = string_to_type(
-                    interpolate_env_var(env.get(env_var))
-                )
+                flat_config[config_option] = string_to_type(interpolate_env_var(value))
 
     # interpolate any env vars referenced
     for k, v in list(flat_config.items()):
@@ -280,6 +286,7 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
     # This has the potential to lead to nasty recursions, so we check at most 10 times.
     # we use a set called "keys_to_check" to track only the ones of interest, so we aren't
     # checking every key every time.
+
     keys_to_check = set(flat_config.keys())
 
     for _ in range(10):
