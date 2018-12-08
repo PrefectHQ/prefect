@@ -138,20 +138,19 @@ class State:
         """
         return isinstance(self, Failed)
 
-    def serialize(self, result: Any = None) -> dict:
+    def serialize(self, **kwargs: Any) -> dict:
         """
         Serializes the state to a dict.
 
         Args:
-            - result (Any, optional): if provided, will _overwrite_ the result
-                attribute of the serialized state object. Used during deployment
+            - **kwargs (Any, optional): if provided, will _overwrite_ the provided
+                attributes of the serialized state object. Used during deployment
                 for securely storing results in external file systems (e.g., Google Cloud)
         """
         from prefect.serialization.state import StateSchema
 
         json_blob = StateSchema().dump(self)
-        if result is not None:
-            json_blob["result"] = result
+        json_blob.update(kwargs)
         return json_blob
 
 
