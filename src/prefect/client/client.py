@@ -265,6 +265,19 @@ class Client:
             else:
                 overrides.pop(key)
 
+        if (
+            isinstance(state, prefect.engine.state.Success)
+            and getattr(state, "cached") is not None
+        ):
+            assert isinstance(
+                state.cached, prefect.engine.state.CachedState
+            )  # mypy assert
+            cached_and_serialized = self._package_state(
+                state.cached, result_handler=result_handler
+            )
+            cached_and_serialized.pop("type")
+            overrides["cached"] = cached_and_serialized
+
         serialized_state = state.serialize(**overrides)
 
         return serialized_state
