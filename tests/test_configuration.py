@@ -1,5 +1,7 @@
 import datetime
 import os
+import shlex
+import subprocess
 import tempfile
 import uuid
 
@@ -115,6 +117,7 @@ def config(test_config_file_path):
     environ["PREFECT__ENV_VARS__NEGATIVE_INT"] = "-10"
     environ["PREFECT__ENV_VARS__FLOAT"] = "7.5"
     environ["PREFECT__ENV_VARS__NEGATIVE_FLOAT"] = "-7.5"
+    environ["PREFECT__ENV_VARS__NEW_LINE"] = r"line 1\nline 2"
     yield configuration.load_config_file(
         path=test_config_file_path, env_var_prefix="PREFECT", env=environ
     )
@@ -213,6 +216,18 @@ def test_env_var_overrides_new_key(config):
 
 def test_env_var_creates_nested_keys(config):
     assert config.env_vars.twice.nested.new_key == "TEST"
+
+
+def test_env_var_newline(config):
+    assert config.env_vars.new_line == "line 1\nline 2"
+
+
+def test_env_var_newline_declared_inline(config):
+    result = subprocess.check_output(
+        r'PREFECT__ENV_VARS__X="line 1\nline 2" python -c "import prefect; print(prefect.config.env_vars.x)"',
+        shell=True,
+    )
+    assert result.strip() == b"line 1\nline 2"
 
 
 def test_merge_configurations(test_config_file_path):
