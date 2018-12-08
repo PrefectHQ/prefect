@@ -540,6 +540,23 @@ class TestResultHandlerDeserialization:
         assert len(handler.data) == 3
         assert new == state
 
+    @pytest.mark.parametrize(
+        "state_cls", [Pending, Paused, Scheduled, Retrying, TimedOut]
+    )
+    def test_cached_inputs_are_unpackaged(self, state_cls):
+        handler = DictHandler()
+        client = Client(token="secret_token")
+        cached_state = state_cls(
+            cached_inputs=dict(x=4, y="value"),
+            result={"66": 66},
+            message="Publicly visible",
+        )
+        new = client._unpackage_state(
+            client._package_state(cached_state, handler), handler
+        )
+        assert len(handler.data) == 2
+        assert new == cached_state
+
     def test_get_flow_run_info_doesnt_call_result_handler_if_result_is_none(
         self, monkeypatch
     ):
