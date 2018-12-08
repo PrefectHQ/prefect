@@ -260,14 +260,14 @@ class Client:
         private_attrs = ["result", "cached_inputs", "cached_result"]
         overrides = dict.fromkeys(private_attrs)
         for key in list(overrides.keys()):
-            if hasattr(state, key) and getattr(state, key) is not None:
+            if getattr(state, key, None) is not None:
                 overrides[key] = result_handler.serialize(getattr(state, key))
             else:
                 overrides.pop(key)
 
         if (
             isinstance(state, prefect.engine.state.Success)
-            and getattr(state, "cached") is not None
+            and getattr(state, "cached", None) is not None
         ):
             assert isinstance(
                 state.cached, prefect.engine.state.CachedState
@@ -285,10 +285,27 @@ class Client:
     def _unpackage_state(
         self, serialized_state: dict, result_handler: ResultHandler = None
     ) -> "prefect.engine.state.State":
-        if result_handler is not None and serialized_state["result"] is not None:
-            serialized_state["result"] = result_handler.deserialize(
-                serialized_state["result"]
+        if result_handler is None:
+            return prefect.serialization.state.StateSchema().load(  # type: ignore
+                serialized_state
             )
+
+        def update_attrs(ss: dict) -> None:
+            private_attrs = ["result", "cached_inputs", "cached_result"]
+            needs_updating = dict.fromkeys(private_attrs)
+            for key in list(needs_updating.keys()):
+                if ss.get(key, None) not in ["null", None]:  # json
+                    needs_updating[key] = result_handler.deserialize(  # type: ignore
+                        ss[key]
+                    )
+                else:
+                    needs_updating.pop(key)
+            if ss.get("cached", None) not in ["null", None]:
+                update_attrs(ss["cached"])
+
+            ss.update(needs_updating)
+
+        update_attrs(serialized_state)
         state = prefect.serialization.state.StateSchema().load(  # type: ignore
             serialized_state
         )
