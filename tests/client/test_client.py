@@ -468,7 +468,9 @@ class TestResultHandlerDeserialization:
         assert isinstance(result.state, Pending)
         assert result.state.result == None
 
-    def test_get_task_run_info_calls_result_handler(self, monkeypatch):
+    def test_get_task_run_info_doesnt_call_result_handler_if_result_is_none(
+        self, monkeypatch
+    ):
         response = """
     {
         "getOrCreateTaskRun": {
