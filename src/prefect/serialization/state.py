@@ -24,7 +24,7 @@ class Private(JSONCompatible):
 
     def _deserialize(self, value, attr, data, **kwargs):
         value = super()._deserialize(value, attr, data, **kwargs)
-        if "result_handler" in self.context and value is not None:
+        if "result_handler" in self.context and value not in [None, "null"]:
             true_val = self.context["result_handler"].deserialize(value)
         else:
             true_val = value

@@ -110,7 +110,7 @@ def test_states_have_color(cls):
     assert cls.color.startswith("#")
 
 
-def test_serialize():
+def test_serialize_and_deserialize():
     now = pendulum.now("utc")
     cached = CachedState(
         cached_inputs=dict(x=99, p="p"),
@@ -119,7 +119,7 @@ def test_serialize():
     )
     state = Success(result=dict(hi=5, bye=6), cached=cached)
     serialized = state.serialize()
-    new_state = StateSchema().load(serialized)
+    new_state = State.deserialize(serialized)
     assert isinstance(new_state, Success)
     assert new_state.color == state.color
     assert new_state.result == state.result
@@ -129,7 +129,7 @@ def test_serialize():
     assert new_state.cached.cached_result == cached.cached_result
 
 
-def test_lifecycle_of_state_serialization():
+def test_lifecycle_of_state_serialization_with_handler():
     handler = DictHandler()
     now = pendulum.now("utc")
     cached = CachedState(
@@ -139,7 +139,7 @@ def test_lifecycle_of_state_serialization():
     )
     state = Success(result=dict(hi=5, bye=6), cached=cached)
     serialized = state.serialize(result_handler=handler)
-    new_state = StateSchema(context=dict(result_handler=handler)).load(serialized)
+    new_state = State.deserialize(serialized, result_handler=handler)
     assert isinstance(new_state, Success)
     assert isinstance(new_state.cached, CachedState)
     assert new_state == state
@@ -170,7 +170,7 @@ def test_serialization_calls_result_handler():
 def test_serialization_of_cached_inputs():
     state = Pending(cached_inputs=dict(hi=5, bye=6))
     serialized = state.serialize()
-    new_state = StateSchema().load(serialized)
+    new_state = State.deserialize(serialized)
     assert isinstance(new_state, Pending)
     assert new_state.cached_inputs == state.cached_inputs
 
