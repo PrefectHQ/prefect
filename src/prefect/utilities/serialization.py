@@ -193,9 +193,6 @@ class JSONCompatible(fields.Field):
         try:
             json.dumps(value)
         except TypeError:
-            print("=" * 30)
-            print(value)
-            print("=" * 30)
             raise ValidationError("Value is not JSON-compatible")
 
 
