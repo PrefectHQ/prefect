@@ -8,7 +8,7 @@ import pytest
 import prefect
 from prefect.engine import state
 from prefect.client.result_handlers import ResultHandler
-from prefect.serialization.state import Private, StateSchema
+from prefect.serialization.state import ResultHandlerField, StateSchema
 
 all_states = set(
     cls
@@ -76,9 +76,9 @@ class AddOneHandler(ResultHandler):
         return str(result - 1)
 
 
-class TestPrivate:
+class TestResultHandlerField:
     class Schema(marshmallow.Schema):
-        field = Private()
+        field = ResultHandlerField()
 
     def test_initializes_and_calls_result_handler_for_serialization(self):
         schema = self.Schema(context={"result_handler": AddOneHandler()})

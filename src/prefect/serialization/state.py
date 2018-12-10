@@ -14,7 +14,7 @@ from prefect.utilities.serialization import (
 )
 
 
-class Private(JSONCompatible):
+class ResultHandlerField(JSONCompatible):
     def _serialize(self, value, attr, obj, **kwargs):
         if self.context.get("result_handler") and value is not None:
             uri = self.context["result_handler"].serialize(value)
@@ -37,7 +37,7 @@ class BaseStateSchema(VersionedSchema):
         object_class = state.State
 
     message = fields.String(allow_none=True)
-    result = Private(allow_none=True)
+    result = ResultHandlerField(allow_none=True)
     timestamp = DateTime(allow_none=True)
 
 
@@ -46,7 +46,7 @@ class PendingSchema(BaseStateSchema):
     class Meta:
         object_class = state.Pending
 
-    cached_inputs = Private(allow_none=True)
+    cached_inputs = ResultHandlerField(allow_none=True)
 
 
 @version("0.3.3")
@@ -54,7 +54,7 @@ class CachedStateSchema(PendingSchema):
     class Meta:
         object_class = state.CachedState
 
-    cached_result = Private(allow_none=True)
+    cached_result = ResultHandlerField(allow_none=True)
     cached_parameters = JSONCompatible(allow_none=True)
     cached_result_expiration = DateTime(allow_none=True)
 
@@ -112,7 +112,7 @@ class TimedOutSchema(FinishedSchema):
     class Meta:
         object_class = state.TimedOut
 
-    cached_inputs = Private(allow_none=True)
+    cached_inputs = ResultHandlerField(allow_none=True)
 
 
 @version("0.3.3")
