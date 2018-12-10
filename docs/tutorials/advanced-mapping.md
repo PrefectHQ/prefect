@@ -18,7 +18,7 @@ We will proceed in stages, introducing Prefect functionality as we go:
 1. First, we will scrape a specific episode to test our scraping logic; this will only require the core Prefect building blocks.
 2. Next, we will compile a _list_ of all episodes, and then scrape each individual episode; for this we will introduce the concept of "mapping" a Task to efficiently re-use our scraping logic across each episode.
 3. To speed up processing time, we will re-execute our flow to exploit the inherit _parallelism_ of our mapped tasks; moreover, to prevent opening too many simultaneous connections to the website, we will _throttle_ the scraping tasks.  To achieve this we need to use a new Prefect _executor_.  We will also save the results of this run to prevent re-running the scraping jobs as we extend our flow further.
-4. Finally, we want to create a simple sqlite database and store all of our data in it.
+4. Finally, we want to leverage the Prefect task library to create a simple sqlite database and store all of our data in it.
 
 As we proceed, we hope to ensure that our Flow is _reproducible_ and _reusable_ in the future.
 
@@ -285,37 +285,36 @@ Awesome - we significantly improved our execution speed practically for free!
 
 ## Extend flow to write to a database
 
-Now that we have successfully scraped all of the dialogue, the next natural step is to store this in a database for querying.  In order to ensure our entire workflow remains reproducible in the future, we want to extend the current flow with new tasks (as opposed to creating a new flow from scratch).  To this end, we first create two new tasks:
-- `create_db`: creates a new `"XFILES"` table if one does not already exist
-- `insert_episode`: inserts dialogue into the `"XFILES"` table
+Now that we have successfully scraped all of the dialogue, the next natural step is to store this in a database for querying.  In order to ensure our entire workflow remains reproducible in the future, we want to extend the current flow with new tasks (as opposed to creating a new flow from scratch). Moreover, we will pull from Prefect's task library for the common task of executing a SQL script against a sqlite database.
 
-As before, we tag each task with `"db"` so that we can throttle database connections when we actually run the flow (strictly speaking, this isn't necessary for a `sqlite3` database, we will still include it for the sake of illustration).
+To this end, we first create three new tasks:
+- `create_db`: creates a new `"XFILES"` table if one does not already exist using the builtin Prefect `SQLiteQueryTask`
+- `create_episode_script`: takes scraped episode and creates a sqlite script for inserting the data into the database
+- `insert_episode`: executes the created script and inserts dialogue into the `"XFILES"` table using the builtin Prefect `SQLiteQueryTask`
+
+As before, we will tag each task which touches the database with `"db"` so that we can throttle database connections when we actually run the flow (strictly speaking, this isn't necessary for a `sqlite3` database, but we will still include it for the sake of illustration).
 
 
 ```python
-import sqlite3
-from contextlib import closing
+from prefect.tasks.database import SQLiteScriptTask
 
+create_db = SQLiteScriptTask(name="Create DB",
+                             db="xfiles_db.sqlite",
+                             script="CREATE TABLE IF NOT EXISTS XFILES (EPISODE TEXT, CHARACTER TEXT, TEXT TEXT)",
+                             tags=["db"])
 
-@task(tags=["db"])
-def create_db(db_file):
-    with closing(sqlite3.connect(db_file)) as conn:
-        with closing(conn.cursor()) as c:
-            create_cmd = '''CREATE TABLE IF NOT EXISTS XFILES (EPISODE TEXT, CHARACTER TEXT, TEXT TEXT)'''
-            c.execute(create_cmd)
-            conn.commit()
+@task
+def create_episode_script(episode):
+    title, dialogue = episode
+    insert_cmd = "INSERT INTO XFILES (EPISODE, CHARACTER, TEXT) VALUES\n"
+    values = ',\n'.join(["('{0}', '{1}', '{2}')".format(title, *row) for row in dialogue]) + ";"
+    return insert_cmd + values
 
-    
-@task(tags=["db"])
-def insert_episode(db_file, episode):
-    with closing(sqlite3.connect(db_file)) as conn:
-        with closing(conn.cursor()) as c:
-            title, dialogue = episode
-            insert_cmd = "INSERT INTO XFILES (EPISODE, CHARACTER, TEXT) VALUES\n"
-            values = ',\n'.join(["('{0}', '{1}', '{2}')".format(title, *row) for row in dialogue]) + ";"
-            c.execute(insert_cmd + values)
-            conn.commit()
+insert_episode = SQLiteScriptTask(name="Insert Episode",
+                                  db="xfiles_db.sqlite", 
+                                  tags=["db"])
 ```
+Notice that for `create_db` we provide the script at initialization, whereas for the `insert_episode` task we provide the script at runtime.  Prefect's tasks often support both patterns, to allow for default settings to be set at initialization and optionally overriden dynamically at runtime.
 
 To extend our flow, we can simply use our current `flow` to open a context manager and add tasks like normal.  Note that we are utilizing the fact that `dialogue` is a task that was defined in our current session.
 
@@ -323,14 +322,13 @@ To extend our flow, we can simply use our current `flow` to open a context manag
 from prefect import unmapped
 
 with flow:
-    db_file = Parameter("db_file")
-    db = create_db(db_file)
-    final = insert_episode.map(episode=dialogue, db_file=unmapped(db_file), 
-                               upstream_tasks=[unmapped(db)])
+    db = create_db()
+    ep_script = create_episode_script.map(episode=dialogue)
+    final = insert_episode.map(ep_script, upstream_tasks=[unmapped(db)])
 ```
 
 ::: tip task.map()
-In the above example, we utilize a new call signature for `task.map()`.  It is often the case that some arguments to your task should _not_ be mapped over (they remain static).  This can be specified with the special `unmapped` container which we use to wrap such arguments to `map`.  In our example above, the argument `"db_file"` is _not_ mapped over and is simply provided as-is to `insert_episode`.  
+In the above example, we utilize a new call signature for `task.map()`.  It is often the case that some arguments to your task should _not_ be mapped over (they remain static).  This can be specified with the special `unmapped` container which we use to wrap such arguments to `map`.  In our example above, the argument `"db"` is _not_ mapped over and is simply provided as-is to `insert_episode`.  
 
 You also might notice the special `upstream_tasks` keyword argument; this is not unique to `map` and is simply a way of functionally specifying upstream dependencies which do not pass any data.
 :::
@@ -344,40 +342,33 @@ flow.visualize()
 
 We are now ready to execute our flow! Of course, we have _already_ scraped all the dialogue - there's no real need to redo all that work.  This is where our previous flow state (`scraped_state`) comes in handy! Recall that `scraped_state.result` will be a dictionary of tasks to their corresponding states; consequently we can feed this information to the next flow run via the `task_states` keyword argument.  These states will then be used in determining whether each task should be run or whether they are already finished.  Because we have added _new_ tasks to the flow, the new tasks will not have a corresponding state in this dictionary and will run as expected.  
 
-Moreover, to avoid a lot of unnecsesary processing, we can explicitly tell the flow to start running at the three tasks we just added using the `start_tasks` keyword argument:
+Moreover, to avoid a lot of unnecsesary processing, we can explicitly tell the flow to start running at the two tasks we just added using the `start_tasks` keyword argument:
 
 
 ```python
-state = flow.run(parameters={"url": "http://www.insidethex.co.uk/", 
-                             "db_file": "xfiles_db.sqlite"}, 
+state = flow.run(parameters={"url": "http://www.insidethex.co.uk/"},
                  executor=executor,
                  throttle={"web": 3, "db": 10},
                  task_states=scraped_state.result,
-                 start_tasks=[final, db, db_file])
+                 start_tasks=[ep_script, db])
 ```
 
-And now, with our DB set up and populated, we can start to tackle the _real_ questions, such as: how many times was "programming" mentioned in all of The X-Files?
+And now, with our DB set up and populated, we can start to tackle the _real_ questions, such as: how many times was "programming" mentioned in all of The X-Files?  Using the `sqlite3` command line shell:
 
 
-```python
-with closing(sqlite3.connect("xfiles_db.sqlite")) as conn:
-        with closing(conn.cursor()) as c:
-            create_cmd = '''SELECT * FROM XFILES WHERE TEXT LIKE '%programming%';'''
-            c.execute(create_cmd)
-            programming_mentions = c.fetchall()
-
-print(programming_mentions)
 ```
+sqlite> .open xfiles_db.sqlite
+sqlite> SELECT * FROM XFILES WHERE TEXT LIKE '%programming%';
 
-    [('First Person Shooter - 7X13',
-      'BYERS',
-      'Langly did some programming for them.  He created all of the\nbad guys.'),
-     ('The Springfield Files - X3601',
-      'HOMER',
-      'Now son, they do a lot of quality programming too. Haa haa haa! I kill me.'),
-     ('Kill Switch - 5X11',
-      'BYERS',
-      'This CD has some kind of enhanced background data. Lots of code. Maybe a programming design.')]
+Kill Switch - 5X11 | BYERS | This CD has some kind of enhanced background data. Lots
+of code. Maybe a programming design.
+
+First Person Shooter - 7X13 | BYERS | Langly did some programming for them.  
+He created all of the bad guys.
+
+The Springfield Files - X3601 | HOMER | Now son, they do a lot of quality programming 
+too. Haa haa haa! I kill me.
+```
 
 Disappointing, especially considering "The Springfield Files" was a Simpson's episode spoof of The X-Files.
 
@@ -390,31 +381,25 @@ Fun fact: The X-Files resulted in a spinoff TV series called "The Lone Gunmen"; 
 
 ```python
 final = flow.run(parameters={"url": "http://www.insidethex.co.uk/transcrp/tlg105.htm",
-                             "bypass": True,
-                             "db_file": "xfiles_db.sqlite"},
-                 start_tasks=[bypass, db_file, episodes, url])
-
-
-with closing(sqlite3.connect("xfiles_db.sqlite")) as conn:
-        with closing(conn.cursor()) as c:
-            create_cmd = '''SELECT * FROM XFILES WHERE TEXT LIKE '%programming%';'''
-            c.execute(create_cmd)
-            programming_mentions = c.fetchall()
-
-print(programming_mentions)
+                             "bypass": True},
+                 start_tasks=[bypass, db, episodes, url])
 ```
 
-    [('First Person Shooter - 7X13',
-      'BYERS',
-      'Langly did some programming for them.  He created all of the\nbad guys.'),
-     ('The Springfield Files - X3601',
-      'HOMER',
-      'Now son, they do a lot of quality programming too. Haa haa haa! I kill me.'),
-     ('Kill Switch - 5X11',
-      'BYERS',
-      'This CD has some kind of enhanced background data. Lots of code. Maybe a programming design.')]
-     ('Planet of the Frohikes - 1AEB05',
-      'FROHIKE',
-      'It's a pretty neat bit of programming.')]
+And back to the `sqlite3` shell to find out what's been updated:
+```
+sqlite> .open xfiles_db.sqlite
+sqlite> SELECT * FROM XFILES WHERE TEXT LIKE '%programming%';
+
+Kill Switch - 5X11 | BYERS | This CD has some kind of enhanced background data. Lots
+of code. Maybe a programming design.
+
+First Person Shooter - 7X13 | BYERS | Langly did some programming for them.  
+He created all of the bad guys.
+
+The Springfield Files - X3601 | HOMER | Now son, they do a lot of quality programming 
+too. Haa haa haa! I kill me.
+
+Planet of the Frohikes - 1AEB05 | FROHIKE | It's a pretty neat bit of programming.
+```
 
 Yes it is, Frohike, yes it is.

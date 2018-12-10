@@ -445,6 +445,28 @@ class TestStartTasks:
             state = FlowRunner(flow=f).run(task_states={t1: Failed()}, start_tasks=[t2])
         assert isinstance(state, Success)
 
+    def test_can_start_from_mapped_tasks(self):
+        @prefect.task
+        def my_list():
+            return [1, 2, 3]
+
+        @prefect.task
+        def add(x):
+            return x + 1
+
+        with Flow() as f:
+            res = my_list()
+
+        state = FlowRunner(flow=f).run(return_tasks=[res])
+
+        with f:
+            final = add.map(res)
+
+        final_state = FlowRunner(flow=f).run(
+            return_tasks=[final], start_tasks=[final], task_states=state.result
+        )
+        assert [s.result for s in final_state.result[final]] == [2, 3, 4]
+
 
 class TestInputCaching:
     @pytest.mark.parametrize(
