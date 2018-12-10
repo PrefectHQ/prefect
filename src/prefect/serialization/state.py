@@ -14,6 +14,23 @@ from prefect.utilities.serialization import (
 )
 
 
+class Private(JSONCompatible):
+    def _serialize(self, value, attr, obj, **kwargs):
+        if "result_handler" in self.context and value is not None:
+            uri = self.context["result_handler"].serialize(value)
+        else:
+            uri = value
+        return super()._serialize(uri, attr, obj, **kwargs)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        value = super()._deserialize(value, attr, data, **kwargs)
+        if "result_handler" in self.context and value is not None:
+            true_val = self.context["result_handler"].deserialize(value)
+        else:
+            true_val = value
+        return true_val
+
+
 @version("0.3.3")
 class BaseStateSchema(VersionedSchema):
     class Meta:
