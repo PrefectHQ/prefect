@@ -23,6 +23,7 @@ import pendulum
 from typing import Any, Dict, Union
 
 import prefect
+from prefect.client.result_handlers import ResultHandler
 from prefect.utilities.datetimes import ensure_tz_aware
 
 
@@ -138,19 +139,22 @@ class State:
         """
         return isinstance(self, Failed)
 
-    def serialize(self, **kwargs: Any) -> dict:
+    def serialize(self, result_handler: ResultHandler = None) -> dict:
         """
         Serializes the state to a dict.
 
         Args:
-            - **kwargs (Any, optional): if provided, will _overwrite_ the provided
-                attributes of the serialized state object. Used during deployment
-                for securely storing results in external file systems (e.g., Google Cloud)
+            - result_handler (ResultHandler, optional): if provided, used to
+                handle private attributes of state classes (e.g., results)
         """
         from prefect.serialization.state import StateSchema
 
-        json_blob = StateSchema().dump(self)
-        json_blob.update(kwargs)
+        if result_handler is not None:
+            json_blob = StateSchema(context=dict(result_handler=result_handler)).dump(
+                self
+            )
+        else:
+            json_blob = StateSchema().dump(self)
         return json_blob
 
 
