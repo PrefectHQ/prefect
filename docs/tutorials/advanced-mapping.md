@@ -356,7 +356,7 @@ state = flow.run(parameters={"url": "http://www.insidethex.co.uk/"},
 And now, with our DB set up and populated, we can start to tackle the _real_ questions, such as: how many times was "programming" mentioned in all of The X-Files?  Using the `sqlite3` command line shell:
 
 
-```bash
+```
 sqlite> .open xfiles_db.sqlite
 sqlite> SELECT * FROM XFILES WHERE TEXT LIKE '%programming%';
 
@@ -386,7 +386,7 @@ final = flow.run(parameters={"url": "http://www.insidethex.co.uk/transcrp/tlg105
 ```
 
 And back to the `sqlite3` shell to find out what's been updated:
-```bash
+```
 sqlite> .open xfiles_db.sqlite
 sqlite> SELECT * FROM XFILES WHERE TEXT LIKE '%programming%';
 
