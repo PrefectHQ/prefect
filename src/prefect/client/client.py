@@ -251,66 +251,6 @@ class Client:
         )
         self.token = response.json().get("token")
 
-    def _package_state(
-        self, state: "prefect.engine.state.State", result_handler: ResultHandler = None
-    ) -> dict:
-        if result_handler is None:
-            return state.serialize()
-
-        private_attrs = ["result", "cached_inputs", "cached_result"]
-        overrides = dict.fromkeys(private_attrs)
-        for key in list(overrides.keys()):
-            if getattr(state, key, None) is not None:
-                overrides[key] = result_handler.serialize(getattr(state, key))
-            else:
-                overrides.pop(key)
-
-        if (
-            isinstance(state, prefect.engine.state.Success)
-            and getattr(state, "cached", None) is not None
-        ):
-            assert isinstance(
-                state.cached, prefect.engine.state.CachedState
-            )  # mypy assert
-            cached_and_serialized = self._package_state(
-                state.cached, result_handler=result_handler
-            )
-            cached_and_serialized.pop("type")
-            overrides["cached"] = cached_and_serialized
-
-        serialized_state = state.serialize(**overrides)
-
-        return serialized_state
-
-    def _unpackage_state(
-        self, serialized_state: dict, result_handler: ResultHandler = None
-    ) -> "prefect.engine.state.State":
-        if result_handler is None:
-            return prefect.serialization.state.StateSchema().load(  # type: ignore
-                serialized_state
-            )
-
-        def update_attrs(ss: dict) -> None:
-            private_attrs = ["result", "cached_inputs", "cached_result"]
-            needs_updating = dict.fromkeys(private_attrs)
-            for key in list(needs_updating.keys()):
-                if ss.get(key, None) not in ["null", None]:  # json
-                    needs_updating[key] = result_handler.deserialize(  # type: ignore
-                        ss[key]
-                    )
-                else:
-                    needs_updating.pop(key)
-            if ss.get("cached", None) not in ["null", None]:
-                update_attrs(ss["cached"])
-
-            ss.update(needs_updating)
-
-        update_attrs(serialized_state)
-        state = prefect.serialization.state.StateSchema().load(  # type: ignore
-            serialized_state
-        )
-        return state
-
     def get_flow_run_info(
         self, flow_run_id: str, result_handler: ResultHandler = None
     ) -> GraphQLResult:
@@ -342,7 +282,7 @@ class Client:
         if result is None:
             raise ValueError('Flow run id "{}" not found.'.format(flow_run_id))
         serialized_state = result.current_state.serialized_state
-        state = self._unpackage_state(serialized_state, result_handler)
+        state = prefect.engine.state.State.deserialize(serialized_state, result_handler)
         result.state = state
         return result
 
@@ -385,7 +325,7 @@ class Client:
             }
         }
 
-        serialized_state = self._package_state(state, result_handler)
+        serialized_state = state.serialize(result_handler=result_handler)
 
         return self.graphql(  # type: ignore
             parse_graphql(mutation), state=json.dumps(serialized_state)
@@ -442,7 +382,9 @@ class Client:
         ).getOrCreateTaskRun.task_run
 
         serialized_state = result.current_state.serialized_state
-        state = self._unpackage_state(serialized_state, result_handler)
+        state = prefect.engine.state.State.deserialize(
+            serialized_state, result_handler=result_handler
+        )
         result.state = state
         return result
 
@@ -488,7 +430,7 @@ class Client:
             }
         }
 
-        serialized_state = self._package_state(state, result_handler)
+        serialized_state = state.serialize(result_handler=result_handler)
 
         return self.graphql(  # type: ignore
             parse_graphql(mutation), state=json.dumps(serialized_state)

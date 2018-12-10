@@ -139,6 +139,26 @@ class State:
         """
         return isinstance(self, Failed)
 
+    @staticmethod
+    def deserialize(json_blob: dict, result_handler: ResultHandler = None) -> "State":
+        """
+        Deserializes the state from a dict.
+
+        Args:
+            - json_blob (dict): the JSON representing the serialized state
+            - result_handler (ResultHandler, optional): if provided, used to
+                handle private attributes of state classes (e.g., results)
+        """
+        from prefect.serialization.state import StateSchema
+
+        if result_handler is not None:
+            state = StateSchema(context=dict(result_handler=result_handler)).load(
+                json_blob
+            )
+        else:
+            state = StateSchema().load(json_blob)
+        return state
+
     def serialize(self, result_handler: ResultHandler = None) -> dict:
         """
         Serializes the state to a dict.

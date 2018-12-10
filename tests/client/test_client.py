@@ -428,53 +428,6 @@ def test_set_task_run_state(monkeypatch):
 
 
 class TestResultHandlerSerialization:
-    def test_cached_states_are_packaged_appropriately(self):
-        handler = DictHandler()
-        client = Client(token="secret_token")
-        cached_state = CachedState(
-            cached_inputs=dict(x=4, y="value"),
-            cached_result_expiration=datetime.datetime.utcnow(),
-            cached_parameters=dict(zzz=dict(sleep=4)),
-            cached_result="private data",
-        )
-        serialized = client._package_state(cached_state, handler)
-        assert len(handler.data) == 2
-        assert serialized["cached_inputs"] in handler.data
-        assert serialized["cached_result"] in handler.data
-
-    def test_cached_attribute_of_success_states_is_packaged(self):
-        handler = DictHandler()
-        client = Client(token="secret_token")
-        cached_state = CachedState(
-            cached_inputs=dict(x=4, y="value"),
-            cached_result_expiration=datetime.datetime.utcnow(),
-            cached_parameters=dict(zzz=dict(sleep=4)),
-            cached_result="private data",
-        )
-        state = Success(result=42, cached=cached_state)
-        serialized = client._package_state(state, handler)
-        assert len(handler.data) == 3
-        assert serialized["cached"]["cached_inputs"] in handler.data
-        assert serialized["cached"]["cached_result"] in handler.data
-        assert serialized["result"] in handler.data
-
-    @pytest.mark.parametrize(
-        "state_cls", [Pending, Paused, Scheduled, Retrying, TimedOut]
-    )
-    def test_cached_inputs_are_packaged(self, state_cls):
-        handler = DictHandler()
-        client = Client(token="secret_token")
-        cached_state = state_cls(
-            cached_inputs=dict(x=4, y="value"),
-            result={"66": 66},
-            message="Publicly visible",
-        )
-        serialized = client._package_state(cached_state, handler)
-        assert len(handler.data) == 2
-        assert serialized["cached_inputs"] in handler.data
-        assert serialized["result"] in handler.data
-        assert serialized["message"] == "Publicly visible"
-
     def test_set_flow_run_state_calls_result_handler(self, monkeypatch):
         monkeypatch.setattr("requests.post", MagicMock())
         monkeypatch.setattr(prefect.client.client, "json", MagicMock())
@@ -482,7 +435,7 @@ class TestResultHandlerSerialization:
         with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
             client = Client(token="secret_token")
 
-        serializer = MagicMock()
+        serializer = MagicMock(return_value="empty")
         result = client.set_flow_run_state(
             flow_run_id="74-salt",
             version=0,
@@ -499,7 +452,7 @@ class TestResultHandlerSerialization:
         with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
             client = Client(token="secret_token")
 
-        serializer = MagicMock()
+        serializer = MagicMock(return_value="empty")
         result = client.set_task_run_state(
             task_run_id="76-salt",
             version=0,
@@ -511,52 +464,6 @@ class TestResultHandlerSerialization:
 
 
 class TestResultHandlerDeserialization:
-    def test_cached_states_are_unpackaged_appropriately(self):
-        handler = DictHandler()
-        client = Client(token="secret_token")
-        cached_state = CachedState(
-            cached_inputs=dict(x=4, y="value"),
-            cached_result_expiration=datetime.datetime.utcnow(),
-            cached_parameters=dict(zzz=dict(sleep=4)),
-            cached_result="private data",
-        )
-        new = client._unpackage_state(
-            client._package_state(cached_state, handler), handler
-        )
-        assert len(handler.data) == 2
-        assert new == cached_state
-
-    def test_cached_attribute_of_success_states_is_unpackaged(self):
-        handler = DictHandler()
-        client = Client(token="secret_token")
-        cached_state = CachedState(
-            cached_inputs=dict(x=4, y="value"),
-            cached_result_expiration=datetime.datetime.utcnow(),
-            cached_parameters=dict(zzz=dict(sleep=4)),
-            cached_result="private data",
-        )
-        state = Success(result=42, cached=cached_state)
-        new = client._unpackage_state(client._package_state(state, handler), handler)
-        assert len(handler.data) == 3
-        assert new == state
-
-    @pytest.mark.parametrize(
-        "state_cls", [Pending, Paused, Scheduled, Retrying, TimedOut]
-    )
-    def test_cached_inputs_are_unpackaged(self, state_cls):
-        handler = DictHandler()
-        client = Client(token="secret_token")
-        cached_state = state_cls(
-            cached_inputs=dict(x=4, y="value"),
-            result={"66": 66},
-            message="Publicly visible",
-        )
-        new = client._unpackage_state(
-            client._package_state(cached_state, handler), handler
-        )
-        assert len(handler.data) == 2
-        assert new == cached_state
-
     def test_get_flow_run_info_doesnt_call_result_handler_if_result_is_none(
         self, monkeypatch
     ):
