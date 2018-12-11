@@ -111,6 +111,17 @@ class TestIntervalSchedule:
             start_date.add(hours=2),
         ]
 
+    def test_interval_schedule_respects_microseconds(self):
+        start_date = pendulum.datetime(2018, 1, 1, 0, 0, 0, 1)
+        s = schedules.IntervalSchedule(
+            start_date=start_date, interval=timedelta(hours=1)
+        )
+        assert s.next(3, after=pendulum.datetime(2010, 1, 1)) == [
+            start_date,
+            start_date.add(hours=1),
+            start_date.add(hours=2),
+        ]
+
 
 class TestCronSchedule:
     def test_create_cron_schedule(self):
@@ -179,6 +190,26 @@ class TestCronSchedule:
         end_date = pendulum.datetime(2050, 1, 2)
         s = schedules.CronSchedule(every_day, start_date=start_date, end_date=end_date)
         assert s.next(3) == [start_date, start_date.add(days=1)]
+
+    def test_cron_schedule_when_start_date_doesnt_align_with_schedule(self):
+        every_day = "0 0 * * *"
+        start_date = pendulum.datetime(2050, 1, 1, 6, 0, 0)
+        s = schedules.CronSchedule(every_day, start_date=start_date)
+        assert s.next(1) == [pendulum.datetime(2050, 1, 2, 0, 0, 0)]
+
+    def test_cron_schedule_when_start_date_and_after_doesnt_align_with_schedule(self):
+        every_day = "0 0 * * *"
+        start_date = pendulum.datetime(2050, 1, 1, 6, 0, 0)
+        s = schedules.CronSchedule(every_day, start_date=start_date)
+        assert s.next(1, after=pendulum.datetime(2050, 1, 1, 7, 0, 0)) == [
+            pendulum.datetime(2050, 1, 2, 0, 0, 0)
+        ]
+
+    def test_cron_schedule_respects_microseconds(self):
+        every_day = "0 0 * * *"
+        start_date = pendulum.datetime(2050, 1, 1, 0, 0, 0, 1)
+        s = schedules.CronSchedule(every_day, start_date=start_date)
+        assert s.next(1) == [pendulum.datetime(2050, 1, 2)]
 
 
 class TestSerialization:
