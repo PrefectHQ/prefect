@@ -43,20 +43,20 @@ class TestIntervalSchedule:
             )
 
     def test_interval_schedule_next_n(self):
-        """Test that default on_or_after is *now*"""
+        """Test that default after is *now*"""
         start_date = pendulum.datetime(2018, 1, 1)
         today = pendulum.today("utc")
         s = schedules.IntervalSchedule(start_date, timedelta(days=1))
         assert s.next(3) == [today.add(days=1), today.add(days=2), today.add(days=3)]
 
-    def test_interval_schedule_next_n_with_on_or_after_argument(self):
+    def test_interval_schedule_next_n_with_after_argument(self):
         start_date = pendulum.datetime(2018, 1, 1)
         today = pendulum.today("utc")
         s = schedules.IntervalSchedule(start_date, timedelta(days=1))
-        assert s.next(3, on_or_after=today) == [
-            today,
+        assert s.next(3, after=today) == [
             today.add(days=1),
             today.add(days=2),
+            today.add(days=3),
         ]
 
     def test_interval_schedule_start_daylight_savings_time(self):
@@ -65,8 +65,8 @@ class TestIntervalSchedule:
         """
         dt = pendulum.datetime(2018, 3, 11, tz="America/New_York")
         s = schedules.IntervalSchedule(dt, timedelta(hours=1))
-        next_4 = s.next(4, on_or_after=dt)
-        assert [t.in_tz("utc").hour for t in next_4] == [5, 6, 7, 8]
+        next_4 = s.next(4, after=dt)
+        assert [t.in_tz("utc").hour for t in next_4] == [6, 7, 8, 9]
 
     def test_interval_schedule_daylight_savings_time(self):
         """
@@ -74,8 +74,8 @@ class TestIntervalSchedule:
         """
         dt = pendulum.datetime(2018, 11, 4, tz="America/New_York")
         s = schedules.IntervalSchedule(dt, timedelta(hours=1))
-        next_4 = s.next(4, on_or_after=dt)
-        assert [t.in_tz("utc").hour for t in next_4] == [4, 5, 6, 7]
+        next_4 = s.next(4, after=dt)
+        assert [t.in_tz("utc").hour for t in next_4] == [5, 6, 7, 8]
 
     def test_interval_schedule_end_date(self):
         start_date = pendulum.datetime(2018, 1, 1)
@@ -83,19 +83,30 @@ class TestIntervalSchedule:
         s = schedules.IntervalSchedule(
             start_date=start_date, interval=timedelta(days=1), end_date=end_date
         )
-        assert s.next(3, on_or_after=start_date) == [start_date, start_date.add(days=1)]
-        assert s.next(3, on_or_after=pendulum.datetime(2018, 2, 1)) == []
+        assert s.next(3, after=start_date) == [start_date.add(days=1)]
+        assert s.next(3, after=pendulum.datetime(2018, 2, 1)) == []
 
-    def test_interval_schedule_respects_on_or_after_in_middle_of_interval(self):
+    def test_interval_schedule_respects_after_in_middle_of_interval(self):
         """
-        If the "on_or_after" date is in the middle of an interval, then the IntervalSchedule
+        If the "after" date is in the middle of an interval, then the IntervalSchedule
         should advance to the next interval.
         """
         start_date = pendulum.datetime(2018, 1, 1)
         s = schedules.IntervalSchedule(
             start_date=start_date, interval=timedelta(hours=1)
         )
-        assert s.next(2, on_or_after=start_date + timedelta(microseconds=1)) == [
+        assert s.next(2, after=start_date + timedelta(microseconds=1)) == [
+            start_date.add(hours=1),
+            start_date.add(hours=2),
+        ]
+
+    def test_interval_schedule_doesnt_compute_dates_before_start_date(self):
+        start_date = pendulum.datetime(2018, 1, 1)
+        s = schedules.IntervalSchedule(
+            start_date=start_date, interval=timedelta(hours=1)
+        )
+        assert s.next(3, after=pendulum.datetime(2000, 1, 1)) == [
+            start_date,
             start_date.add(hours=1),
             start_date.add(hours=2),
         ]
@@ -124,15 +135,15 @@ class TestCronSchedule:
             pendulum.today("utc").add(days=3),
         ]
 
-    def test_cron_schedule_next_n_with_on_or_after_argument(self):
+    def test_cron_schedule_next_n_with_after_argument(self):
         every_day = "0 0 * * *"
         s = schedules.CronSchedule(every_day)
         start_date = pendulum.datetime(2018, 1, 1)
 
-        assert s.next(3, on_or_after=start_date) == [
-            start_date,
+        assert s.next(3, after=start_date) == [
             start_date.add(days=1),
             start_date.add(days=2),
+            start_date.add(days=3),
         ]
 
     def test_cron_schedule_start_daylight_savings_time(self):
@@ -142,9 +153,9 @@ class TestCronSchedule:
         dt = pendulum.datetime(2018, 3, 11, tz="America/New_York")
         every_hour = "0 * * * *"
         s = schedules.CronSchedule(every_hour)
-        next_4 = s.next(4, on_or_after=dt)
+        next_4 = s.next(4, after=dt)
 
-        assert [t.in_tz("utc").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.in_tz("utc").hour for t in next_4] == [6, 7, 8, 9]
 
     def test_cron_schedule_end_daylight_savings_time(self):
         """
@@ -153,8 +164,8 @@ class TestCronSchedule:
         dt = pendulum.datetime(2018, 11, 4, tz="America/New_York")
         every_hour = "0 * * * *"
         s = schedules.CronSchedule(every_hour)
-        next_4 = s.next(4, on_or_after=dt)
-        assert [t.in_tz("utc").hour for t in next_4] == [4, 5, 6, 7]
+        next_4 = s.next(4, after=dt)
+        assert [t.in_tz("utc").hour for t in next_4] == [5, 6, 7, 8]
 
     def test_cron_schedule_start_date(self):
         every_day = "0 0 * * *"

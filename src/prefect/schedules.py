@@ -1,5 +1,4 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
-import math
 import itertools
 from datetime import datetime, timedelta
 from typing import Iterable, List
@@ -27,13 +26,13 @@ class Schedule:
         self.start_date = start_date
         self.end_date = end_date
 
-    def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+    def next(self, n: int, after: datetime = None) -> List[datetime]:
         """
         Retrieve next scheduled dates.
 
         Args:
             - n (int): the number of future scheduled dates to return
-            - on_or_after (datetime, optional): date to begin returning from
+            - after (datetime, optional): the first result will be after this date
 
         Returns:
             - list[datetime]: a list of datetimes
@@ -71,34 +70,43 @@ class IntervalSchedule(Schedule):
         self.interval = interval
         super().__init__(start_date=start_date, end_date=end_date)
 
-    def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+    def next(self, n: int, after: datetime = None) -> List[datetime]:
         """
         Retrieve next scheduled dates.
 
         Args:
             - n (int): the number of future scheduled dates to return
-            - on_or_after (datetime, optional): date to begin returning from
+            - after (datetime, optional): the first result will be after this date
 
         Returns:
             - list: list of next scheduled dates
         """
-        if on_or_after is None:
-            on_or_after = pendulum.now("utc")
+        if after is None:
+            after = pendulum.now("utc")
 
-        assert isinstance(on_or_after, datetime)  # mypy assertion
+        assert isinstance(after, datetime)  # mypy assertion
         assert isinstance(self.start_date, datetime)  # mypy assertion
 
-        on_or_after = ensure_tz_aware(on_or_after)
+        after = ensure_tz_aware(after)
 
-        first_interval = math.ceil(
-            (on_or_after - self.start_date).total_seconds()
-            / self.interval.total_seconds()
-        )
+        # Use the difference between the `after` date and the `start_date` to calc the
+        # number of intervals we can skip over
+        skip = (after - self.start_date).total_seconds() / self.interval.total_seconds()
+
+        # if the after date is before the start date, we jump to the start date
+        if skip < 0:
+            skip = 0
+        # if the `after` date falls exactly on an interval, jump to the next interval
+        elif int(skip) == skip:
+            skip += 1
+        # otherwise jump to the next integer interval
+        else:
+            skip = int(skip + 1)
 
         dates = []
 
         for i in range(n):
-            next_date = self.start_date + self.interval * (first_interval + i)
+            next_date = self.start_date + self.interval * (skip + i)
             if self.end_date and next_date > self.end_date:
                 break
             dates.append(next_date)
@@ -127,30 +135,31 @@ class CronSchedule(Schedule):
         self.cron = cron
         super().__init__(start_date=start_date, end_date=end_date)
 
-    def next(self, n: int, on_or_after: datetime = None) -> List[datetime]:
+    def next(self, n: int, after: datetime = None) -> List[datetime]:
         """
         Retrieve next scheduled dates.
 
         Args:
             - n (int): the number of future scheduled dates to return
-            - on_or_after (datetime, optional): date to begin returning from
+            - after (datetime, optional): the first result will be after this date
 
         Returns:
             - list: list of next scheduled dates
         """
-        if on_or_after is None:
-            on_or_after = pendulum.now("utc")
+        if after is None:
+            after = pendulum.now("utc")
 
+        # if there is a start date, advance to at least one second before the start (so that
+        # the start date itself will be registered as a value schedule date)
         if self.start_date is not None:
-            on_or_after = max(on_or_after, self.start_date)
+            after = max(after, self.start_date - timedelta(seconds=1))
 
-        assert isinstance(on_or_after, datetime)  # mypy assertion
-        on_or_after = ensure_tz_aware(on_or_after)
+        assert isinstance(after, datetime)  # mypy assertion
+        after = ensure_tz_aware(after)
 
         cron = CronTab(self.cron)
 
-        # subtract one second because we want to include on_or_after as a possible date
-        next_date = on_or_after - timedelta(seconds=1)  # type: pendulum.DateTime
+        next_date = after  # type: pendulum.DateTime
         dates = []
 
         for i in range(n):
