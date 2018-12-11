@@ -7,7 +7,8 @@ import pytest
 
 import prefect
 from prefect.engine import state
-from prefect.serialization.state import StateSchema
+from prefect.client.result_handlers import ResultHandler
+from prefect.serialization.state import ResultHandlerField, StateSchema
 
 all_states = set(
     cls
@@ -65,6 +66,43 @@ def test_all_states_have_deserialization_schemas_in_stateschema():
     assert all_states == set(
         s.Meta.object_class for s in StateSchema.type_schemas.values()
     )
+
+
+class AddOneHandler(ResultHandler):
+    def deserialize(self, result):
+        return int(result) + 1
+
+    def serialize(self, result):
+        return str(result - 1)
+
+
+class TestResultHandlerField:
+    class Schema(marshmallow.Schema):
+        field = ResultHandlerField()
+
+    def test_initializes_and_calls_result_handler_for_serialization(self):
+        schema = self.Schema(context={"result_handler": AddOneHandler()})
+        serialized = schema.dump({"field": 50})
+        assert "field" in serialized
+        assert serialized["field"] == "49"
+
+    def test_initializes_and_calls_result_handler_for_deserialization(self):
+        schema = self.Schema(context={"result_handler": AddOneHandler()})
+        deserialized = schema.load({"field": "49"})
+        assert "field" in deserialized
+        assert deserialized["field"] == 50
+
+    def test_doesnt_require_result_handler_for_serialization(self):
+        schema = self.Schema()
+        serialized = schema.dump({"field": 50})
+        assert "field" in serialized
+        assert serialized["field"] == 50
+
+    def test_doesnt_require_result_handler_for_deserialization(self):
+        schema = self.Schema()
+        deserialized = schema.load({"field": "49"})
+        assert "field" in deserialized
+        assert deserialized["field"] == "49"
 
 
 @pytest.mark.parametrize("cls", all_states)

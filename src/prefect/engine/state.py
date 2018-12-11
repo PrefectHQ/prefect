@@ -23,6 +23,7 @@ import pendulum
 from typing import Any, Dict, Union
 
 import prefect
+from prefect.client.result_handlers import ResultHandler
 from prefect.utilities.datetimes import ensure_tz_aware
 
 
@@ -138,20 +139,42 @@ class State:
         """
         return isinstance(self, Failed)
 
-    def serialize(self, result: Any = None) -> dict:
+    @staticmethod
+    def deserialize(json_blob: dict, result_handler: ResultHandler = None) -> "State":
+        """
+        Deserializes the state from a dict.
+
+        Args:
+            - json_blob (dict): the JSON representing the serialized state
+            - result_handler (ResultHandler, optional): if provided, used to
+                handle private attributes of state classes (e.g., results)
+        """
+        from prefect.serialization.state import StateSchema
+
+        if result_handler is not None:
+            state = StateSchema(context=dict(result_handler=result_handler)).load(
+                json_blob
+            )
+        else:
+            state = StateSchema().load(json_blob)
+        return state
+
+    def serialize(self, result_handler: ResultHandler = None) -> dict:
         """
         Serializes the state to a dict.
 
         Args:
-            - result (Any, optional): if provided, will _overwrite_ the result
-                attribute of the serialized state object. Used during deployment
-                for securely storing results in external file systems (e.g., Google Cloud)
+            - result_handler (ResultHandler, optional): if provided, used to
+                handle private attributes of state classes (e.g., results)
         """
         from prefect.serialization.state import StateSchema
 
-        json_blob = StateSchema().dump(self)
-        if result is not None:
-            json_blob["result"] = result
+        if result_handler is not None:
+            json_blob = StateSchema(context=dict(result_handler=result_handler)).dump(
+                self
+            )
+        else:
+            json_blob = StateSchema().dump(self)
         return json_blob
 
 
