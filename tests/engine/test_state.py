@@ -1,8 +1,10 @@
 import datetime
 import pendulum
+import uuid
 
 import pytest
 import prefect
+from prefect.client.result_handlers import ResultHandler
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -26,6 +28,20 @@ all_states = set(
     for cls in prefect.engine.state.__dict__.values()
     if isinstance(cls, type) and issubclass(cls, prefect.engine.state.State)
 )
+
+
+class DictHandler(ResultHandler):
+    def __init__(self, *args, **kwargs):
+        self.data = {}
+        super().__init__(*args, **kwargs)
+
+    def deserialize(self, key):
+        return self.data[key]
+
+    def serialize(self, result):
+        key = str(uuid.uuid4())
+        self.data[key] = result
+        return key
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -94,7 +110,7 @@ def test_states_have_color(cls):
     assert cls.color.startswith("#")
 
 
-def test_serialize():
+def test_serialize_and_deserialize():
     now = pendulum.now("utc")
     cached = CachedState(
         cached_inputs=dict(x=99, p="p"),
@@ -103,7 +119,7 @@ def test_serialize():
     )
     state = Success(result=dict(hi=5, bye=6), cached=cached)
     serialized = state.serialize()
-    new_state = StateSchema().load(serialized)
+    new_state = State.deserialize(serialized)
     assert isinstance(new_state, Success)
     assert new_state.color == state.color
     assert new_state.result == state.result
@@ -113,10 +129,48 @@ def test_serialize():
     assert new_state.cached.cached_result == cached.cached_result
 
 
+def test_lifecycle_of_state_serialization_with_handler():
+    handler = DictHandler()
+    now = pendulum.now("utc")
+    cached = CachedState(
+        cached_inputs=dict(x=99, p="p"),
+        cached_result=dict(hi=5, bye=6),
+        cached_result_expiration=now,
+    )
+    state = Success(result=dict(hi=5, bye=6), cached=cached)
+    serialized = state.serialize(result_handler=handler)
+    new_state = State.deserialize(serialized, result_handler=handler)
+    assert isinstance(new_state, Success)
+    assert isinstance(new_state.cached, CachedState)
+    assert new_state == state
+    assert new_state.cached == cached
+    assert len(handler.data) == 3
+
+
+def test_serialization_calls_result_handler():
+    handler = DictHandler()
+    now = pendulum.now("utc")
+    cached = CachedState(
+        cached_inputs=dict(x=99, p="p"),
+        cached_result=dict(hi=5, bye=6),
+        cached_result_expiration=now,
+    )
+    state = Success(result=dict(hi=5, bye=6), cached=cached)
+    serialized = state.serialize(result_handler=handler)
+    assert len(handler.data) == 3
+    assert serialized["result"] in handler.data
+    assert handler.data[serialized["result"]] == state.result
+    assert serialized["cached"]["cached_result"] in handler.data
+    assert (
+        handler.data[serialized["cached"]["cached_result"]]
+        == state.cached.cached_result
+    )
+
+
 def test_serialization_of_cached_inputs():
     state = Pending(cached_inputs=dict(hi=5, bye=6))
     serialized = state.serialize()
-    new_state = StateSchema().load(serialized)
+    new_state = State.deserialize(serialized)
     assert isinstance(new_state, Pending)
     assert new_state.cached_inputs == state.cached_inputs
 
@@ -161,12 +215,15 @@ def test_serialize_method(cls):
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not State])
-def test_serialize_method_allows_for_overriding_result(cls):
-    serialized = cls(result=1).serialize(result="/path/to/1")
+def test_serialize_method_optionally_accepts_result_handler(cls):
+    handler = DictHandler()
+    serialized = cls(result=1).serialize(result_handler=handler)
     assert isinstance(serialized, dict)
+    assert serialized["result"] in handler.data
     deserialized = prefect.serialization.state.StateSchema().load(serialized)
     assert isinstance(deserialized, cls)
-    assert deserialized.result == "/path/to/1"
+    assert deserialized.result == list(handler.data.keys())[0]
+    assert handler.data[deserialized.result] == 1
 
 
 class TestStateHierarchy:

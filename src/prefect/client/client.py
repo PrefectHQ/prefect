@@ -282,13 +282,8 @@ class Client:
         if result is None:
             raise ValueError('Flow run id "{}" not found.'.format(flow_run_id))
         serialized_state = result.current_state.serialized_state
-        if result_handler is not None:
-            serialized_state["result"] = result_handler.deserialize(
-                serialized_state["result"]
-            )
-        result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
-            serialized_state
-        )
+        state = prefect.engine.state.State.deserialize(serialized_state, result_handler)
+        result.state = state
         return result
 
     def set_flow_run_state(
@@ -330,12 +325,7 @@ class Client:
             }
         }
 
-        if result_handler is not None:
-            serialized_state = state.serialize(
-                result=result_handler.serialize(state.result)
-            )
-        else:
-            serialized_state = state.serialize()
+        serialized_state = state.serialize(result_handler=result_handler)
 
         return self.graphql(  # type: ignore
             parse_graphql(mutation), state=json.dumps(serialized_state)
@@ -392,13 +382,10 @@ class Client:
         ).getOrCreateTaskRun.task_run
 
         serialized_state = result.current_state.serialized_state
-        if result_handler is not None:
-            serialized_state["result"] = result_handler.deserialize(
-                serialized_state["result"]
-            )
-        result.state = prefect.serialization.state.StateSchema().load(  # type: ignore
-            serialized_state
+        state = prefect.engine.state.State.deserialize(
+            serialized_state, result_handler=result_handler
         )
+        result.state = state
         return result
 
     def set_task_run_state(
@@ -443,12 +430,7 @@ class Client:
             }
         }
 
-        if result_handler is not None:
-            serialized_state = state.serialize(
-                result=result_handler.serialize(state.result)
-            )
-        else:
-            serialized_state = state.serialize()
+        serialized_state = state.serialize(result_handler=result_handler)
 
         return self.graphql(  # type: ignore
             parse_graphql(mutation), state=json.dumps(serialized_state)
