@@ -122,6 +122,20 @@ class TestIntervalSchedule:
             start_date.add(hours=2),
         ]
 
+    def test_interval_schedule_n_equals_0(self):
+        start_date = pendulum.datetime(2018, 1, 1)
+        s = schedules.IntervalSchedule(
+            start_date=start_date, interval=timedelta(hours=1)
+        )
+        assert s.next(0) == []
+
+    def test_interval_schedule_n_is_negative(self):
+        start_date = pendulum.datetime(2018, 1, 1)
+        s = schedules.IntervalSchedule(
+            start_date=start_date, interval=timedelta(hours=1)
+        )
+        assert s.next(-3) == []
+
 
 class TestCronSchedule:
     def test_create_cron_schedule(self):
@@ -210,6 +224,16 @@ class TestCronSchedule:
         start_date = pendulum.datetime(2050, 1, 1, 0, 0, 0, 1)
         s = schedules.CronSchedule(every_day, start_date=start_date)
         assert s.next(1) == [pendulum.datetime(2050, 1, 2)]
+
+    def test_cron_schedule_n_equals_0(self):
+        start_date = pendulum.datetime(2018, 1, 1)
+        s = schedules.CronSchedule(start_date=start_date, cron="0 0 * * *")
+        assert s.next(0) == []
+
+    def test_cron_schedule_n_is_negative(self):
+        start_date = pendulum.datetime(2018, 1, 1)
+        s = schedules.CronSchedule(start_date=start_date, cron="0 0 * * *")
+        assert s.next(-3) == []
 
 
 class TestSerialization:
