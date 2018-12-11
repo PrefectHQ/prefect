@@ -152,7 +152,7 @@ class CronSchedule(Schedule):
         # if there is a start date, advance to at least one second before the start (so that
         # the start date itself will be registered as a value schedule date)
         if self.start_date is not None:
-            after = max(after, self.start_date - timedelta(seconds=1))
+            after = max(after, self.start_date - timedelta(microseconds=1))
 
         assert isinstance(after, datetime)  # mypy assertion
         after = ensure_tz_aware(after)
