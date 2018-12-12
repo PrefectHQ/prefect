@@ -1,25 +1,24 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 """
-This module includes objects that package and run Flows in different environments.
+Environments are JSON-serializable objects that fully describe how to run a flow. Serialization
+schemas are contained in `prefect.serialization.environment.py`.
 
-An Environment object is a JSON-serializable object that contains all the information
-needed to run a Flow. Serialization is handled by the schemas in
-`prefect.serialization.environment.py`.
+Different Environment objects correspond to different computation environments -- for
+example, a `LocalEnvironment` runs a flow in the local process; a `ContainerEnvironment`
+runs a flow in a Docker container.
 
-The most basic Environment is a LocalEnvironment. This class stores a serialized version
+Some of the information that the environment requires to run a flow -- such as the flow
+itself -- may not available when the Environment class is instantiated. Therefore, Environments
+may be created with a subset of their (ultimate) required information, and the rest can be
+provided when the environment's `build()` method is called.
+
+The most basic Environment is a `LocalEnvironment`. This class stores a serialized version
 of a Flow and deserializes it to run it. It is expected that most other Environments
 will manipulate LocalEnvironments to actually run their flows. For example, the
-ContainerEnvironment deploys a DockerContainer with all necessary dependencies installed
-and also a serialized LocalEnvironment. When the ContainerEnvironment runs the
-container, the container in turn runs the LocalEnvironment.
-
-**Note:** To be fully functional, environments require data that may not be available
-when they are instantiated, such as the flow they need to run. Therefore, a method
-called `environment.build(flow)` is called when a flow is serialized, in order to
-provide any missing data. It returns a new Environment object with all required information.
-Therefore, it is important that environments can receive *all* relevant
-fields at instantiation, but fields that are set during the build process can be optional.
+`ContainerEnvironment` deploys a Docker container with all necessary dependencies installed
+and also a serialized `LocalEnvironment`. When the `ContainerEnvironment` runs the
+container, the container in turn runs the `LocalEnvironment`.
 """
 
 import base64
