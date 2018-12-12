@@ -45,8 +45,7 @@ def ids():
     """
     Prints all the flows in the registry.
     """
-    output = {id: f.id for id, f in registry.REGISTRY.items()}
-    click.echo(json.dumps(output, sort_keys=True))
+    click.echo(json.dumps(list(registry.REGISTRY.keys()), sort_keys=True))
 
 
 @flows.command()

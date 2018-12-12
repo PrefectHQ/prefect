@@ -167,14 +167,13 @@ def test_serialize_no_environment():
 
 def test_serialize_container_environment():
     env = prefect.environments.ContainerEnvironment(
-        image="a", name="b", tag="c", python_dependencies=["d", "e"], secrets=["f", "g"]
+        image="a", python_dependencies=["b", "c"], secrets=["d", "e"], registry_url="f"
     )
     deserialized = FlowSchema().load(FlowSchema().dump(Flow(environment=env)))
     assert isinstance(
         deserialized.environment, prefect.environments.ContainerEnvironment
     )
     assert deserialized.environment.image == env.image
-    assert deserialized.environment.name == env.name
-    assert deserialized.environment.tag == env.tag
     assert deserialized.environment.python_dependencies == env.python_dependencies
     assert deserialized.environment.secrets == env.secrets
+    assert deserialized.environment.registry_url == env.registry_url
