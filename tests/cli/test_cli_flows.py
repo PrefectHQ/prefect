@@ -61,7 +61,7 @@ def test_flows_ids():
     f3 = prefect.Flow(name="hi", register=True)
 
     output = json.loads(run_cli_with_registry("flows ids").output)
-    assert output == [f1.id, f2.id, f3.id]
+    assert set(output) == {f1.id, f2.id, f3.id}
 
 
 def test_flows_runs():
