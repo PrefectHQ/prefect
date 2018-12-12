@@ -48,4 +48,4 @@ def run(environment_file, runner_kwargs):
     Run a flow from an environment file.
     """
     environment = prefect.environments.from_file(environment_file)
-    print(environment.run(runner_kwargs=runner_kwargs))
+    click.echo(environment.run(runner_kwargs=runner_kwargs))
