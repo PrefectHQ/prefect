@@ -111,7 +111,7 @@ def pytest_addoption(parser):
         "--skip-formatting",
         action="store_true",
         dest="formatting",
-        help="including this flag will attempt to ONLY run formatting tests",
+        help="including this flag will skip all formatting tests",
     )
 
 
