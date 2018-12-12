@@ -1,15 +1,17 @@
 from typing import Any
+
 import marshmallow
-import prefect
 from marshmallow import fields, post_load
+
+import prefect
 from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
     Bytes,
     JSONCompatible,
-    VersionedSchema,
-    version,
-    to_qualified_name,
     OneOfSchema,
+    VersionedSchema,
+    to_qualified_name,
+    version,
 )
 
 

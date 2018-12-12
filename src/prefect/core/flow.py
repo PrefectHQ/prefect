@@ -8,7 +8,18 @@ import json
 import tempfile
 import uuid
 from collections import Counter
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Set, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 import xxhash
 from mypy_extensions import TypedDict
@@ -961,9 +972,12 @@ class Flow:
 
     # Building / Serialization ----------------------------------------------------
 
-    def to_environment_file(self, path) -> None:
+    def to_environment_file(self, path: str) -> None:
         """
         Serializes the flow as an environment file.
+
+        Args:
+            - path (str): the path of the environment file to create
         """
         self.environment.build(self).to_file(path)
 
@@ -984,7 +998,9 @@ class Flow:
         serialized = schema(exclude=["environment"]).dump(self)
 
         if build:
-            environment = self.environment.build(flow=self)
+            environment = self.environment.build(
+                flow=self
+            )  # type: Optional[Environment]
         else:
             environment = None
 

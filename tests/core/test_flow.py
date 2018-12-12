@@ -1204,5 +1204,5 @@ class TestSerialize:
         f = Flow()
         with tempfile.NamedTemporaryFile() as tmp:
             f.to_environment_file(tmp.name)
-            with open(tmp.name, 'r') as f:
+            with open(tmp.name, "r") as f:
                 assert f.read()
