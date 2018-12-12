@@ -177,3 +177,10 @@ def test_serialize_container_environment():
     assert deserialized.environment.python_dependencies == env.python_dependencies
     assert deserialized.environment.secrets == env.secrets
     assert deserialized.environment.registry_url == env.registry_url
+
+
+def test_deserialize_serialized_flow_after_build():
+    flow = Flow(environment=prefect.environments.LocalEnvironment())
+    serialized_flow = flow.serialize(build=True)
+    deserialized = FlowSchema().load(serialized_flow)
+    assert isinstance(deserialized, Flow)
