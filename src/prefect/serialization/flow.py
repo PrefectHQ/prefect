@@ -32,7 +32,7 @@ def get_reference_tasks(obj, context):
 class FlowSchema(VersionedSchema):
     class Meta:
         object_class = lambda: prefect.core.Flow
-        object_class_exclude = ["id", "type", "parameters", "environment_parameters"]
+        object_class_exclude = ["id", "type", "parameters"]
         # ordered to make sure Task objects are loaded before Edge objects, due to Task caching
         ordered = True
 
@@ -50,7 +50,6 @@ class FlowSchema(VersionedSchema):
         TaskSchema, value_selection_fn=get_reference_tasks, many=True, only=["id"]
     )
     environment = fields.Nested(EnvironmentSchema, allow_none=True)
-    environment_parameters = JSONCompatible(allow_none=True)
 
     @pre_dump
     def put_task_ids_in_context(self, flow: "prefect.core.Flow") -> "prefect.core.Flow":

@@ -90,7 +90,7 @@ class Flow:
         - name (str, optional): The name of the flow
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
-            type that the flow should be run in
+            type that the flow should be run in. If None, a LocalEnvironment will be created.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks
         - reference_tasks ([Task], optional): A list of tasks which determine the final
@@ -139,7 +139,7 @@ class Flow:
 
         self.name = name or type(self).__name__
         self.schedule = schedule
-        self.environment = environment
+        self.environment = environment or prefect.environments.LocalEnvironment()
         self.result_handler = result_handler
 
         self.tasks = set()  # type: Set[Task]
@@ -961,47 +961,38 @@ class Flow:
 
     # Building / Serialization ----------------------------------------------------
 
+    def to_environment_file(self, path) -> None:
+        """
+        Serializes the flow as an environment file.
+        """
+        self.environment.build(self).to_file(path)
+
     def serialize(self, build: bool = False) -> dict:
         """
         Creates a serialized representation of the flow.
 
         Args:
-            - build (bool, optional): if `True`, the flow's environment is built and the resulting
-                `environment_parameters` is included in the serialized flow. If `False` (default),
-                the environment is not built and the `environment_parameters` is `None`.
+            - build (bool, optional): if `True`, the flow's environment is built and included
+                in the serialized flow. Otherwise, the environment is not included.
 
         Returns:
             - dict representing the flow
         """
 
         self.validate()
+        schema = prefect.serialization.flow.FlowSchema
+        serialized = schema(exclude=["environment"]).dump(self)
 
-        serialized = prefect.serialization.flow.FlowSchema().dump(self)
+        if build:
+            environment = self.environment.build(flow=self)
+        else:
+            environment = None
 
-        if build and self.environment:
-            environment_parameters = self.environment.build(self)
-            serialized.update(
-                prefect.serialization.flow.FlowSchema().dump(
-                    {"environment_parameters": environment_parameters}
-                )
-            )
+        serialized.update(
+            schema(only=["environment"]).dump({"environment": environment})
+        )
 
         return serialized
-
-    @cache
-    def build_environment(self) -> dict:
-        """
-        Build the flow's environment.
-
-        Returns:
-            - dict: a key that can be used to recreate the environment.
-
-        Raises:
-            - ValueError: if no environment is specified in this flow
-        """
-        if not self.environment:
-            raise ValueError("No environment set!")
-        return self.environment.build(self)
 
     def generate_local_task_ids(
         self, *, _debug_steps: bool = False

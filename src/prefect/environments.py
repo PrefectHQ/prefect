@@ -1,17 +1,30 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 """
-Environments in the Prefect library serve as containers capable of serializing, loading and executing
-flows. Currently, available environments consist of a Docker `ContainerEnvironment`
-and a `LocalEnvironment`.
+This module includes objects that package and run Flows in different environments.
 
-Environments will be a crucial element in the execution lifecycle for a Flow
-through the Prefect Server.
+An Environment object is a JSON-serializable object that contains all the information
+needed to run a Flow. Serialization is handled by the schemas in
+`prefect.serialization.environment.py`.
 
-**Note:** Due to ongoing development this file is subject to large changes.
+The most basic Environment is a LocalEnvironment. This class stores a serialized version
+of a Flow and deserializes it to run it. It is expected that most other Environments
+will manipulate LocalEnvironments to actually run their flows. For example, the
+ContainerEnvironment deploys a DockerContainer with all necessary dependencies installed
+and also a serialized LocalEnvironment. When the ContainerEnvironment runs the
+container, the container in turn runs the LocalEnvironment.
+
+**Note:** To be fully functional, environments require data that may not be available
+when they are instantiated, such as the flow they need to run. Therefore, a method
+called `environment.build(flow)` is called when a flow is serialized, in order to
+provide any missing data. It returns a new Environment object with all required information.
+Therefore, it is important that environments can receive *all* relevant
+fields at instantiation, but fields that are set during the build process can be optional.
 """
 
 import base64
+import cloudpickle
+import json
 import logging
 import os
 import shlex
@@ -28,42 +41,168 @@ from cryptography.fernet import Fernet
 
 import prefect
 from prefect import config
-from prefect.client import Secret
 
+
+def from_file(path: str) -> "Environment":
+    """
+    Loads a serialized Environment class from a file
+
+    Args:
+        - path (str): the path of a file to deserialize as an Environment
+
+    Returns:
+        - Environment: an Environment object
+    """
+    schema = prefect.serialization.environment.EnvironmentSchema()
+    with open(path, "r") as f:
+        return schema.load(json.load(f))
 
 
 class Environment:
     """
-    Base class for Environments
+    Base class for Environments.
+
+    An environment is an object that can be instantiated in a way that makes it possible to
+    call `environment.run()` and run a flow.
+
+    Because certain `__init__` parameters may not be known when the Environment is first
+    created, including which Flow to run, Environments have a `build()` method that takes
+    a `Flow` argument and returns an Environment with all `__init__` parameters specified.
     """
 
     def __init__(self) -> None:
         pass
 
-    def build(self, flow: "prefect.Flow") -> dict:
+    def build(self, flow: "prefect.Flow") -> "Environment":
         """
-        Build the environment. Returns a JSON object that can be used to interact with the
-        environment.
+        Builds the environment for a specific flow. A new environment is returned.
 
         Args:
-            - flow (prefect.Flow): the Flow to build the environment for
+            - flow (prefect.Flow): the Flow for which the environment will be built
 
         Returns:
-            - dict: a JSON document that can be used to recreate the environment later.
+            - Environment: a new environment that can run the provided Flow.
         """
         raise NotImplementedError()
 
-    def run(self, parameters: dict) -> Optional[bytes]:
+    def run(self, runner_kwargs: dict) -> Optional[bytes]:
         """
-        Issue a CLI command to the environment.
+        Runs the `Flow` represented by this environment.
 
         Args:
-            - parameters (dict): the result of calling `self.build()`
+            - runner_kwargs (dict): Any arguments for `FlowRunner.run()`
         """
         raise NotImplementedError()
 
-    def to_file(self, flow: prefect.core.Flow, path: str):
-        pass
+    def serialize(self) -> dict:
+        """
+        Returns a serialized version of the Environment
+
+        Returns:
+            dict: the serialized Environment
+        """
+        schema = prefect.serialization.environment.EnvironmentSchema()
+        return schema.dump(self)
+
+    def to_file(self, path: str) -> None:
+        """
+        Serialize the environment to a file.
+
+        Args:
+            - path (str): the file path to which the environment will be written
+        """
+        with open(path, "w") as f:
+            json.dump(self.serialize(), f)
+
+
+class LocalEnvironment(Environment):
+    """
+    An environment for running a flow locally.
+
+    Flows are serialized as pickles and encrypted. The encryption key is stored in the environment
+    and is not meant to be secret, but rather to ensure that only this environment can run
+    the serialized flow.
+
+    Args:
+        - encryption_key (bytes): an encryption key for this environment. If None, one will be
+            generated automatically.
+        - serialized_flow (bytes): a serialized flow. This is usually generated by calling `build()`.
+    """
+
+    def __init__(
+        self, encryption_key: bytes = None, serialized_flow: bytes = None
+    ) -> None:
+        if encryption_key is None:
+            encryption_key = Fernet.generate_key()
+        else:
+            try:
+                Fernet(encryption_key)
+            except Exception:
+                raise ValueError("Invalid encryption key.")
+
+        self.encryption_key = encryption_key
+        self.serialized_flow = serialized_flow
+
+    def serialize_flow_to_bytes(self, flow: "prefect.Flow") -> bytes:
+        """
+        Serializes a Flow to binary.
+
+        Args:
+            - flow (Flow): the Flow to serialize
+
+        Returns:
+            - bytes: the serialized Flow
+        """
+        pickled_flow = cloudpickle.dumps(flow)
+        encrypted_pickle = Fernet(self.encryption_key).encrypt(pickled_flow)
+        encoded_pickle = base64.b64encode(encrypted_pickle)
+        return encoded_pickle
+
+    def deserialize_flow_from_bytes(self, serialized_flow: bytes) -> "prefect.Flow":
+        """
+        Deserializes a Flow to binary.
+
+        Args:
+            - flow (Flow): the Flow to serialize
+
+        Returns:
+            - bytes: the serialized Flow
+        """
+        decoded_pickle = base64.b64decode(serialized_flow)
+        decrypted_pickle = Fernet(self.encryption_key).decrypt(decoded_pickle)
+        flow = cloudpickle.loads(decrypted_pickle)
+        return flow
+
+    def build(self, flow: "prefect.Flow") -> "LocalEnvironment":
+        """
+        Build the LocalEnvironment. Returns a LocalEnvironment with a serialized flow attribute.
+
+        Args:
+            - flow (Flow): The prefect Flow object to build the environment for
+
+        Returns:
+            - LocalEnvironment: a LocalEnvironment with a serialized flow attribute
+        """
+        return LocalEnvironment(
+            encryption_key=self.encryption_key,
+            serialized_flow=self.serialize_flow_to_bytes(flow),
+        )
+
+    def run(self, runner_kwargs: dict = None) -> bytes:
+        """
+        Runs the `Flow` represented by this environment.
+
+        Args:
+            - runner_kwargs (dict): Any arguments for `FlowRunner.run()`
+        """
+
+        if not self.serialized_flow:
+            raise ValueError(
+                "No serialized flow found! Has this environment been built?"
+            )
+        flow = self.deserialize_flow_from_bytes(self.serialized_flow)
+        runner = prefect.engine.FlowRunner(flow=flow)
+        return runner.run(**(runner_kwargs or {}))
 
 
 class ContainerEnvironment(Environment):
@@ -79,41 +218,43 @@ class ContainerEnvironment(Environment):
         - registry_url (str, optional): The registry to push the image to
         - python_dependencies (list, optional): The list of pip installable python packages
         that will be installed on build of the Docker container
-        - secrets (list, optional): A list of secret value names to be loaded into the environment
+        - image_name (str, optional): A name for the image (usually provided by `build()`)
+        - image_tag (str, optional): A tag for the image (usually provided by `build()`)
     """
 
     def __init__(
         self,
         base_image: str,
-        registry_url: str = None,
+        registry_url: str,
         python_dependencies: list = None,
-        secrets: list = None,
+        image_name: str = None,
+        image_tag: str = None,
     ) -> None:
         self.base_image = base_image
         self.registry_url = registry_url
+        self.image_name = image_name
+        self.image_tag = image_tag
         self.python_dependencies = python_dependencies or []
-        self.secrets = secrets or []
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
     ) -> "prefect.environments.ContainerEnvironment":
-        """Build the Docker container
+        """
+        Build the Docker container. Returns a Container Environment with the appropriate
+        image_name and image_tag set.
 
         Args:
             - flow (prefect.Flow): Flow to be placed in container
             - push (bool): Whether or not to push to registry after build
 
         Returns:
-            - ContainerEnvironment: an instance of this environment
+            - ContainerEnvironment: a ContainerEnvironment that represents the provided flow.
         """
 
         image_name = str(uuid.uuid4())
         image_tag = str(uuid.uuid4())
 
         with tempfile.TemporaryDirectory() as tempdir:
-
-            # Write temp file of serialized registry to same location of Dockerfile
-            self.serialized_registry_to_file(flow=flow, directory=tempdir)
 
             self.pull_image()
 
@@ -128,12 +269,9 @@ class ContainerEnvironment(Environment):
             with open("{}/config.toml".format(tempdir), "w") as config_file:
                 toml.dump(config_data, config_file)
 
-            self.create_dockerfile(directory=tempdir)
+            self.create_dockerfile(flow=flow, directory=tempdir)
 
             client = docker.from_env()
-
-            if not self.registry_url:
-                raise ValueError("Registry not specified.")
 
             full_name = os.path.join(self.registry_url, image_name)
 
@@ -148,23 +286,30 @@ class ContainerEnvironment(Environment):
             # Remove the image locally after being pushed
             client.images.remove("{}:{}".format(full_name, image_tag))
 
-            return dict(name=image_name, tag=image_tag)
+            return ContainerEnvironment(
+                base_image=self.base_image,
+                registry_url=self.registry_url,
+                image_name=image_name,
+                image_tag=image_tag,
+                python_dependencies=self.python_dependencies,
+            )
 
-    def run(self, parameters: dict) -> None:
-        """Run a command in the Docker container
+    def run(self, runner_kwargs: dict) -> None:
+        """
+        Runs the `Flow` represented by this environment.
 
         Args:
-            - parameters (dict): a JSON document containing details about container, as produced
-                by the `build()` method.
-
-        Returns:
-            - `docker.models.containers.Container` object
-
+            - runner_kwargs (dict): Any arguments for `FlowRunner.run()`
         """
+
         client = docker.from_env()
 
         running_container = client.containers.run(
-            parameters["tag"], command="prefect run -f", detach=True
+            "{}:{}".format(
+                os.path.join(self.registry_url, self.image_name), self.image_tag
+            ),
+            command='bash -c "prefect run $PREFECT_ENVIRONMENT_FILE"',
+            detach=True,
         )
 
         return running_container
@@ -195,7 +340,7 @@ class ContainerEnvironment(Environment):
         client = docker.from_env()
         client.images.pull(self.base_image)
 
-    def create_dockerfile(self, directory: str = None) -> None:
+    def create_dockerfile(self, flow: "prefect.Flow", directory: str = None) -> None:
         """Creates a dockerfile to use as the container.
 
         In order for the docker python library to build a container it needs a
@@ -203,14 +348,15 @@ class ContainerEnvironment(Environment):
         image and python_dependencies then writes them to a file called Dockerfile.
 
         Args:
+            - flow (Flow): the flow that the container will run
             - directory (str, optional): A directory where the Dockerfile will be created,
                 if no directory is specified is will be created in the current working directory
 
         Returns:
             - None
         """
-        path = "{}/Dockerfile".format(directory)
-        with open(path, "w+") as dockerfile:
+
+        with open(os.path.join(directory, "Dockerfile"), "w+") as dockerfile:
 
             # Generate RUN pip install commands for python dependencies
             pip_installs = ""
@@ -218,11 +364,12 @@ class ContainerEnvironment(Environment):
                 for dependency in self.python_dependencies:
                     pip_installs += "RUN pip install {}\n".format(dependency)
 
-            # Generate the creation of environment variables from Secrets
-            env_vars = ""
-            if self.secrets:
-                for name in self.secrets:
-                    env_vars += "ENV {}={}\n".format(name, Secret(name).get())
+            # Create a LocalEnvironment to run the flow
+            # the local environment will be placed in the container and run when the container
+            # runs
+            local_environment = LocalEnvironment().build(flow=flow)
+            flow_path = os.path.join(directory, "flow_env.prefect")
+            local_environment.to_file(flow_path)
 
             # Due to prefect being a private repo it currently will require a
             # personal access token. Once pip installable this will change and there won't
@@ -237,109 +384,22 @@ class ContainerEnvironment(Environment):
 
                 RUN pip install pip --upgrade
                 RUN pip install wheel
-                {env_vars}
                 {pip_installs}
 
                 RUN mkdir /root/.prefect/
-                COPY registry /root/.prefect/registry
+                COPY flow_env.prefect /root/.prefect/flow_env.prefect
                 COPY config.toml /root/.prefect/config.toml
 
-                ENV PREFECT__REGISTRY__STARTUP_REGISTRY_PATH="/root/.prefect/registry"
+                ENV PREFECT_ENVIRONMENT_FILE="/root/.prefect/flow_env.prefect"
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
 
-
-                RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
+                RUN git clone -b remove-registry https://{access_token}@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
-            """.format(
+                """.format(
                     base_image=self.base_image,
                     pip_installs=pip_installs,
-                    env_vars=env_vars,
+                    access_token=os.getenv("PERSONAL_ACCESS_TOKEN"),
                 )
             )
 
             dockerfile.write(file_contents)
-
-    def serialized_registry_to_file(
-        self, flow: "prefect.Flow", directory: str = None
-    ) -> None:
-        """
-        Write a serialized registry to a temporary file so it can be added to the container
-
-        Args:
-            - flow (prefect.Flow): The flow to be contained in the serialized registry
-            - directory (str, optional): A directory where the Dockerfile will be created,
-            if no directory is specified is will be created in the current working directory
-
-        Returns:
-            - None
-        """
-
-        registry = {}
-        flow.register(registry=registry)
-        serialized_registry = prefect.core.registry.serialize_registry(
-            registry=registry, include_ids=[flow.id]
-        )
-
-        path = "{}/registry".format(directory)
-        with open(path, "wb+") as registry_file:
-            registry_file.write(serialized_registry)
-
-
-class LocalEnvironment(Environment):
-    """
-    An environment for running a flow locally.
-
-    Args:
-        - encryption_key (bytes, optional): a Fernet encryption key. One will be generated
-        automatically if None is passed.
-    """
-
-    def __init__(self, encryption_key: bytes = None) -> None:
-        # the config value might be an empty string, since configs don't support None
-        if encryption_key is None:
-            encryption_key = Fernet.generate_key()
-        self.encryption_key = encryption_key
-
-    def build(self, flow: "prefect.Flow") -> dict:
-        """
-        Build the LocalEnvironment
-
-        Args:
-            - flow (Flow): The prefect Flow object to build the environment for
-
-        Returns:
-            - dict: a dictionary containing the serialized registry
-        """
-        registry = {}  # type: dict
-        flow.register(registry=registry)
-        serialized = prefect.core.registry.serialize_registry(
-            registry=registry, include_ids=[flow.id], encryption_key=self.encryption_key
-        )
-        return {"serialized registry": base64.b64encode(serialized).decode()}
-
-    def run(self, parameters: dict) -> bytes:
-        """
-        Runs a flow.
-
-        Args:
-            - parameters (dict): a JSON document containing details about container, as produced
-                by the `build()` method.
-
-        Returns:
-            - bytes: the output of `subprocess.check_output` from the command run against the flow
-        """
-        with tempfile.NamedTemporaryFile() as tmp:
-            with open(tmp.name, "wb") as f:
-                f.write(base64.b64decode(parameters["serialized registry"]))
-
-            env_vars = {
-                "PREFECT__REGISTRY__STARTUP_REGISTRY_PATH": tmp.name,
-                "PREFECT__REGISTRY__ENCRYPTION_KEY": self.encryption_key,
-            }
-
-            env = os.environ.copy()
-            env.update(env_vars)
-
-            return subprocess.check_output(
-                shlex.split(cli_cmd), stderr=subprocess.STDOUT, env=env
-            )

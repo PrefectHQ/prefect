@@ -4,6 +4,7 @@ extension = ".md"
 [pages.environments]
 module = "prefect.environments"
 classes = ["Environment", "ContainerEnvironment", "LocalEnvironment"]
+functions = ["from_file"]
 title = "Environments"
 
 [pages.triggers]
