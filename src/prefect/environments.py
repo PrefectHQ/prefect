@@ -72,7 +72,7 @@ class ContainerEnvironment(Environment):
     and is subject to change.
 
     Args:
-        - image (str): The image to pull that is used as a base for the Docker container
+        - base_image (str): The image to pull that is used as a base for the Docker container
         *Note*: Images must include Python 3.4+ and `pip`.
         - registry_url (str, optional): The registry to push the image to
         - python_dependencies (list, optional): The list of pip installable python packages
@@ -82,12 +82,12 @@ class ContainerEnvironment(Environment):
 
     def __init__(
         self,
-        image: str,
+        base_image: str,
         registry_url: str = None,
         python_dependencies: list = None,
         secrets: list = None,
     ) -> None:
-        self.image = image
+        self.base_image = base_image
         self.registry_url = registry_url
         self.python_dependencies = python_dependencies or []
         self.secrets = secrets or []
@@ -192,7 +192,7 @@ class ContainerEnvironment(Environment):
         the environment variables.
         """
         client = docker.from_env()
-        client.images.pull(self.image)
+        client.images.pull(self.base_image)
 
     def create_dockerfile(self, directory: str = None) -> None:
         """Creates a dockerfile to use as the container.
@@ -230,7 +230,7 @@ class ContainerEnvironment(Environment):
 
             file_contents = textwrap.dedent(
                 """\
-                FROM {image}
+                FROM {base_image}
 
                 RUN apt-get -qq -y update && apt-get -qq -y install --no-install-recommends --no-install-suggests git
 
@@ -250,7 +250,9 @@ class ContainerEnvironment(Environment):
                 RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
             """.format(
-                    image=self.image, pip_installs=pip_installs, env_vars=env_vars
+                    base_image=self.base_image,
+                    pip_installs=pip_installs,
+                    env_vars=env_vars,
                 )
             )
 
