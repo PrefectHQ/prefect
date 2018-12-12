@@ -1219,5 +1219,5 @@ class TestSerialize:
         s_no_build = f.serialize()
         s_build = f.serialize(build=True)
 
-        assert "environment_key" not in s_no_build
-        assert isinstance(s_build["environment_key"], dict)
+        assert "environment_parameters" not in s_no_build
+        assert isinstance(s_build["environment_parameters"], dict)

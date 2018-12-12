@@ -29,7 +29,7 @@ from cryptography.fernet import Fernet
 import prefect
 from prefect import config
 from prefect.client import Secret
-from prefect.serializers import Serializer
+
 
 
 class Environment:
@@ -53,15 +53,17 @@ class Environment:
         """
         raise NotImplementedError()
 
-    def run(self, env_key: dict, cli_cmd: str) -> Optional[bytes]:
+    def run(self, parameters: dict) -> Optional[bytes]:
         """
         Issue a CLI command to the environment.
 
         Args:
-            - env_key (dict): the result of calling `self.build()`
-            - cli_cmd (str): the command to issue
+            - parameters (dict): the result of calling `self.build()`
         """
         raise NotImplementedError()
+
+    def to_file(self, flow: prefect.core.Flow, path: str):
+        pass
 
 
 class ContainerEnvironment(Environment):
@@ -148,13 +150,12 @@ class ContainerEnvironment(Environment):
 
             return dict(name=image_name, tag=image_tag)
 
-    def run(self, env_key: dict, cli_cmd: str = None) -> None:
+    def run(self, parameters: dict) -> None:
         """Run a command in the Docker container
 
         Args:
-            - env_key (dict): a JSON document containing details about container, as produced
+            - parameters (dict): a JSON document containing details about container, as produced
                 by the `build()` method.
-            - cli_cmd (str, optional): An initial cli_cmd that will be executed on container run
 
         Returns:
             - `docker.models.containers.Container` object
@@ -163,7 +164,7 @@ class ContainerEnvironment(Environment):
         client = docker.from_env()
 
         running_container = client.containers.run(
-            env_key["tag"], command=cli_cmd, detach=True
+            parameters["tag"], command="prefect run -f", detach=True
         )
 
         return running_container
@@ -286,8 +287,7 @@ class ContainerEnvironment(Environment):
 
 class LocalEnvironment(Environment):
     """
-    An environment for running a flow locally. This class may be used for debugging and
-    testing.
+    An environment for running a flow locally.
 
     Args:
         - encryption_key (bytes, optional): a Fernet encryption key. One will be generated
@@ -317,22 +317,20 @@ class LocalEnvironment(Environment):
         )
         return {"serialized registry": base64.b64encode(serialized).decode()}
 
-    def run(self, env_key: dict, cli_cmd: str) -> bytes:
+    def run(self, parameters: dict) -> bytes:
         """
-        Run a command in the `LocalEnvironment`. This functions by writing a pickled
-        flow to temporary memory and then executing prefect CLI commands against it.
+        Runs a flow.
 
         Args:
-            - env_key (dict): a JSON document containing details about container, as produced
+            - parameters (dict): a JSON document containing details about container, as produced
                 by the `build()` method.
-            - cli_cmd (str): The prefect CLI command to be run
 
         Returns:
             - bytes: the output of `subprocess.check_output` from the command run against the flow
         """
         with tempfile.NamedTemporaryFile() as tmp:
             with open(tmp.name, "wb") as f:
-                f.write(base64.b64decode(env_key["serialized registry"]))
+                f.write(base64.b64decode(parameters["serialized registry"]))
 
             env_vars = {
                 "PREFECT__REGISTRY__STARTUP_REGISTRY_PATH": tmp.name,

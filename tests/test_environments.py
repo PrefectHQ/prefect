@@ -65,7 +65,9 @@ class TestLocalEnvironment:
         assert isinstance(key, dict)
         assert isinstance(key["serialized registry"], str)
 
-    def test_local_environment_key_is_base64_encoded_and_encrypted_registry(self):
+    def test_local_environment_parameters_is_base64_encoded_and_encrypted_registry(
+        self
+    ):
         encryption_key = Fernet.generate_key()
         flow = Flow()
         key = LocalEnvironment(encryption_key=encryption_key).build(flow)

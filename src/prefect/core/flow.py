@@ -967,8 +967,8 @@ class Flow:
 
         Args:
             - build (bool, optional): if `True`, the flow's environment is built and the resulting
-                `environment_key` is included in the serialized flow. If `False` (default),
-                the environment is not built and the `environment_key` is `None`.
+                `environment_parameters` is included in the serialized flow. If `False` (default),
+                the environment is not built and the `environment_parameters` is `None`.
 
         Returns:
             - dict representing the flow
@@ -979,10 +979,10 @@ class Flow:
         serialized = prefect.serialization.flow.FlowSchema().dump(self)
 
         if build and self.environment:
-            environment_key = self.environment.build(self)
+            environment_parameters = self.environment.build(self)
             serialized.update(
                 prefect.serialization.flow.FlowSchema().dump(
-                    {"environment_key": environment_key}
+                    {"environment_parameters": environment_parameters}
                 )
             )
 
