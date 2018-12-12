@@ -90,12 +90,11 @@ class Flow:
         - name (str, optional): The name of the flow
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
-        type that the flow should be run in
+            type that the flow should be run in
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks
         - reference_tasks ([Task], optional): A list of tasks which determine the final
-        state of a flow
-        - register (bool, optional): Whether or not to add the flow to the registry
+            state of a flow
         - throttle (dict, optional): dictionary of tags -> int specifying
             how many tasks with a given tag should be allowed to run simultaneously. Used
             for throttling resource usage.
@@ -126,7 +125,6 @@ class Flow:
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
         reference_tasks: Iterable[Task] = None,
-        register: bool = False,
         throttle: Dict[str, int] = None,
         state_handlers: Iterable[Callable] = None,
         validate: bool = None,
@@ -161,9 +159,6 @@ class Flow:
             )
 
         self._prefect_version = prefect.__version__
-
-        if register:
-            self.register()
 
         self.throttle = throttle or {}
         if min(self.throttle.values(), default=1) <= 0:
@@ -992,17 +987,6 @@ class Flow:
             )
 
         return serialized
-
-    def register(self, registry: dict = None) -> None:
-        """
-        Register the flow.
-
-        Args:
-            - registry (dict): a registry (defaults to the global registry)
-        """
-        return prefect.core.registry.register_flow(  # type: ignore
-            self, registry=registry
-        )
 
     @cache
     def build_environment(self) -> dict:

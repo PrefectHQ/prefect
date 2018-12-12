@@ -6,7 +6,6 @@ import pytest
 
 from cryptography.fernet import Fernet
 import prefect
-import prefect.core.registry
 from prefect import Flow
 from prefect.environments import ContainerEnvironment, Environment, LocalEnvironment
 
