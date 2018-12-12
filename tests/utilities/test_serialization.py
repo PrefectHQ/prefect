@@ -6,7 +6,7 @@ import pendulum
 import pytest
 
 from prefect.utilities.collections import DotDict
-from prefect.utilities.serialization import DateTime, JSONCompatible
+from prefect.utilities.serialization import DateTime, JSONCompatible, Bytes
 
 json_test_values = [
     1,
@@ -62,9 +62,31 @@ class TestDateTimeField:
         assert serialized["dt"].tz == pendulum.tz.UTC
 
     def test_serialize_datetime_none(self):
-        serialized = self.Schema().dump(dict(dt_none=None))
-        assert serialized["dt_none"] is None
+        serialized = self.Schema().dump(dict(dt=None))
+        assert serialized["dt"] is None
 
     def test_deserialize_datetime_none(self):
         deserialized = self.Schema().load(dict(dt_none=None))
         assert deserialized["dt_none"] is None
+
+
+class TestBytesField:
+    class Schema(marshmallow.Schema):
+        b = Bytes()
+        b_none = Bytes(allow_none=True)
+
+    def test_bytes_serialize(self):
+        serialized = self.Schema().dump(dict(b=b"hello"))
+        assert serialized["b"] == "aGVsbG8="
+
+    def test_bytes_deserialize(self):
+        serialized = self.Schema().load(dict(b="aGVsbG8="))
+        assert serialized["b"] == b"hello"
+
+    def test_bytes_serialize_none(self):
+        serialized = self.Schema().dump(dict(b=None))
+        assert serialized["b"] is None
+
+    def test_bytes_deserialize_none(self):
+        serialized = self.Schema().load(dict(b_none=None))
+        assert serialized["b_none"] is None

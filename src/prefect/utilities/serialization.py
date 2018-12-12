@@ -1,4 +1,5 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+import base64
 import json
 import sys
 import types
@@ -249,3 +250,18 @@ class DateTime(fields.DateTime):
         if value is not None:
             value = pendulum.instance(value).in_tz("utc")
         return value
+
+
+class Bytes(fields.Field):
+    """
+    A Marshmallow Field that serializes bytes to a base64-encoded string, and deserializes
+    a base64-encoded string to bytes.
+    """
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if value is not None:
+            return base64.b64encode(value).decode("utf-8")
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if value is not None:
+            return base64.b64decode(value)
