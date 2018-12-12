@@ -14,8 +14,16 @@ jobs:
           command: pip install black
 
       - run:
+          name: Install mypy
+          command: pip install mypy mypy_extensions
+
+      - run:
           name: Run Black
           command: black --check .
+
+      - run:
+          name: Run mypy
+          command: mypy src/
 
   # ----------------------------------
   # Run unit tests in Python 3.4-3.7
