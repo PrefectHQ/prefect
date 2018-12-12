@@ -24,7 +24,7 @@ class ContainerEnvironmentSchema(VersionedSchema):
     class Meta:
         object_class = prefect.environments.ContainerEnvironment
 
-    image = fields.String(required=True)
+    base_image = fields.String(required=True)
     registry_url = fields.String(allow_none=True)
     python_dependencies = fields.List(fields.String(), allow_none=True)
     secrets = fields.List(fields.String(), allow_none=True)

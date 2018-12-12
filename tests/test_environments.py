@@ -33,13 +33,13 @@ def test_environment_build_error():
 
 class TestContainerEnvironment:
     def test_create_container_environment(self):
-        container = ContainerEnvironment(image=None)
+        container = ContainerEnvironment(base_image=None)
         assert container
 
     @pytest.mark.skip("Circle will need to handle container building")
     def test_build_image_process(self):
 
-        container = ContainerEnvironment(image="python:3.6", tag="tag")
+        container = ContainerEnvironment(base_image="python:3.6", tag="tag")
         image = container.build(Flow())
         assert image
 
