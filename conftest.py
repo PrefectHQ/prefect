@@ -107,23 +107,45 @@ def pytest_addoption(parser):
         dest="airflow",
         help="including this flag will attempt to ONLY run airflow compatibility tests",
     )
+    parser.addoption(
+        "--formatting",
+        action="store_true",
+        dest="formatting",
+        help="including this flag will attempt to ONLY run formatting tests",
+    )
 
 
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "airflow: mark test to run only when --airflow flag is provided."
     )
+    config.addinivalue_line(
+        "markers",
+        "formatting: mark test to run only when --formatting flag is provided.",
+    )
 
 
 def pytest_runtest_setup(item):
-    mark = item.get_marker("airflow")
+    air_mark = item.get_marker("airflow")
 
     # if a test IS marked as "airflow" and the airflow flag IS NOT set, skip it
-    if mark is not None and item.config.getoption("--airflow") is False:
+    if air_mark is not None and item.config.getoption("--airflow") is False:
         pytest.skip(
             "Airflow tests skipped by default unless --airflow flag provided to pytest."
         )
 
     # if a test IS NOT marked as airflow and the airflow flag IS set, skip it
-    elif mark is None and item.config.getoption("--airflow") is True:
+    elif air_mark is None and item.config.getoption("--airflow") is True:
         pytest.skip("Non-Airflow tests skipped because --airflow flag was provided.")
+
+    formatting_mark = item.get_marker("formatting")
+
+    # if a test IS marked as "formattingflow" and the formattingflow flag IS NOT set, skip it
+    if formatting_mark is not None and item.config.getoption("--formatting") is False:
+        pytest.skip(
+            "formatting tests skipped by default unless --formatting flag provided to pytest."
+        )
+
+    # if a test IS NOT marked as formatting and the formatting flag IS set, skip it
+    elif formatting_mark is None and item.config.getoption("--formatting") is True:
+        pytest.skip("Non-formatting tests skipped because --formatting flag was provided.")
