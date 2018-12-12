@@ -25,7 +25,7 @@ def get_environment_from_flow(obj, context):
 class FlowSchema(VersionedSchema):
     class Meta:
         object_class = lambda: prefect.core.Flow
-        object_class_exclude = ["id", "type", "parameters"]
+        object_class_exclude = ["id", "type", "parameters", "environment_key"]
         # ordered to make sure Task objects are loaded before Edge objects, due to Task caching
         ordered = True
 
