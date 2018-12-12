@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 
 airflow = pytest.importorskip("airflow")
+pytestmark = pytest.mark.airflow
 
 from prefect import task, Task, triggers
 from prefect.engine.state import Success, Skipped, Failed, TriggerFailed
@@ -23,7 +24,6 @@ def airflow_settings():
         yield dict(db_file=tmp.name, dag_folder=dag_folder)
 
 
-@pytest.mark.airflow()
 def test_trigger_rules_dag(airflow_settings):
     flow = AirFlow(dag_id="trigger_rules", **airflow_settings)
     res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
@@ -35,7 +35,6 @@ def test_trigger_rules_dag(airflow_settings):
             assert state.is_successful()
 
 
-@pytest.mark.airflow()
 def test_airflow_accepts_existing_sqlite_db():
     flow = AirFlow(dag_id="example_bash_operator", db_file="test_doesnt_exist")
     assert (
@@ -43,7 +42,6 @@ def test_airflow_accepts_existing_sqlite_db():
     )
 
 
-@pytest.mark.airflow()
 def test_airflow_creates_sqlite_db_if_none_provided():
     flow = AirFlow(dag_id="example_bash_operator")
     sql_conn = flow.env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")
@@ -51,7 +49,6 @@ def test_airflow_creates_sqlite_db_if_none_provided():
     assert sql_conn.endswith("prefect-airflow.db")
 
 
-@pytest.mark.airflow()
 def test_example_branch_operator(airflow_settings):
     flow = AirFlow(dag_id="example_branch_operator", **airflow_settings)
     res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
@@ -80,7 +77,6 @@ def test_example_branch_operator(airflow_settings):
     )
 
 
-@pytest.mark.airflow()
 def test_example_xcom(airflow_settings):
     flow = AirFlow(dag_id="example_xcom", **airflow_settings)
     res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
@@ -98,7 +94,6 @@ def test_example_xcom(airflow_settings):
             assert state.result == {"a": "b"}
 
 
-@pytest.mark.airflow()
 def test_example_short_circuit_operator(airflow_settings):
     flow = AirFlow(dag_id="example_short_circuit_operator", **airflow_settings)
     res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
@@ -113,7 +108,6 @@ def test_example_short_circuit_operator(airflow_settings):
             assert isinstance(state, Success)
 
 
-@pytest.mark.airflow()
 def test_example_bash_operator(airflow_settings):
     flow = AirFlow(dag_id="example_bash_operator", **airflow_settings)
     res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
@@ -123,7 +117,6 @@ def test_example_bash_operator(airflow_settings):
         assert isinstance(state, Success)
 
 
-@pytest.mark.airflow()
 def test_extending_airflow_dag_with_prefect_task(airflow_settings):
     flow = AirFlow(dag_id="example_bash_operator", **airflow_settings)
     run_task0 = flow.get_tasks(name="runme_0")
