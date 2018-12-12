@@ -184,3 +184,10 @@ def test_deserialize_serialized_flow_after_build():
     serialized_flow = flow.serialize(build=True)
     deserialized = FlowSchema().load(serialized_flow)
     assert isinstance(deserialized, Flow)
+
+
+def test_serialize_empty_dict_contains_only_basic_fields():
+    assert FlowSchema().dump({}) == {
+        "__version__": prefect.__version__,
+        "type": "builtins.dict",
+    }

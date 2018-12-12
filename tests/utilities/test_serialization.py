@@ -6,7 +6,7 @@ import pendulum
 import pytest
 
 from prefect.utilities.collections import DotDict
-from prefect.utilities.serialization import DateTime, JSONCompatible, Bytes
+from prefect.utilities.serialization import Bytes, DateTime, JSONCompatible, Nested
 
 json_test_values = [
     1,
@@ -17,6 +17,31 @@ json_test_values = [
     {"x": "1", "y": {"z": 3}},
     DotDict({"x": "1", "y": [DotDict(z=3)]}),
 ]
+
+
+class Child(marshmallow.Schema):
+    x = marshmallow.fields.String()
+
+
+def get_child(obj, context):
+    if obj.get("child key") is False:
+        return marshmallow.missing
+    else:
+        return obj.get("child key", {"x": -1})
+
+
+class TestNestedField:
+    class Schema(marshmallow.Schema):
+        child = Nested(Child, value_selection_fn=get_child)
+
+    def test_nested_calls_value_selection_fn(self):
+        assert self.Schema().dump({"child key": {"x": 42}}) == {"child": {"x": "42"}}
+
+    def test_nested_calls_value_selection_fn_if_key_is_missing(self):
+        assert self.Schema().dump({}) == {"child": {"x": "-1"}}
+
+    def test_nested_respects_missing(self):
+        assert self.Schema().dump({"child key": False}) == {}
 
 
 class TestJSONCompatibleField:
