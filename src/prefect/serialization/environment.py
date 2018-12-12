@@ -25,10 +25,7 @@ class ContainerEnvironmentSchema(VersionedSchema):
         object_class = prefect.environments.ContainerEnvironment
 
     image = fields.String(required=True)
-    name = fields.String(allow_none=True)
-    tag = fields.String(allow_none=True)
     registry_url = fields.String(allow_none=True)
-    flow_id = fields.String(allow_none=True)
     python_dependencies = fields.List(fields.String(), allow_none=True)
     secrets = fields.List(fields.String(), allow_none=True)
 

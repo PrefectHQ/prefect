@@ -1,9 +1,12 @@
+import base64
 import json
 import os
 
 import pytest
 
+from cryptography.fernet import Fernet
 import prefect
+import prefect.core.registry
 from prefect import Flow
 from prefect.environments import ContainerEnvironment, Environment, LocalEnvironment
 
@@ -28,48 +31,20 @@ def test_environment_build_error():
 #################################
 
 
-def test_create_container():
-    container = ContainerEnvironment(image="image", tag="tag")
-    assert container
+class TestContainerEnvironment:
+    def test_create_container_environment(self):
+        container = ContainerEnvironment(image=None)
+        assert container
 
+    @pytest.mark.skip("Circle will need to handle container building")
+    def test_build_image_process(self):
 
-def test_container_image():
-    container = ContainerEnvironment(image="image", tag="tag")
-    assert container.image == "image"
+        container = ContainerEnvironment(image="python:3.6", tag="tag")
+        image = container.build(Flow())
+        assert image
 
-
-def test_container_tag():
-    container = ContainerEnvironment(image="image", tag="tag")
-    assert container.tag == "tag"
-
-
-def test_container_tag_none():
-    container = ContainerEnvironment(image="image", tag=None)
-    assert container.tag
-
-
-def test_container_python_dependencies():
-    container = ContainerEnvironment(
-        image="image", tag=None, python_dependencies=["dependency"]
-    )
-    assert len(container.python_dependencies) == 1
-    assert container.python_dependencies[0] == "dependency"
-
-
-def test_container_client():
-    container = ContainerEnvironment(image="image", tag="tag")
-    assert container.client
-
-
-@pytest.mark.skip("Circle will need to handle container building")
-def test_build_image_process():
-
-    container = ContainerEnvironment(image="python:3.6", tag="tag")
-    image = container.build(Flow())
-    assert image
-
-    # Need to test running stuff in container, however circleci won't be able to build
-    # a container
+        # Need to test running stuff in container, however circleci won't be able to build
+        # a container
 
 
 #################################
@@ -81,18 +56,40 @@ class TestLocalEnvironment:
     def test_create_local_environment(self):
         env = LocalEnvironment()
         assert env
-        assert env.encryption_key is None
+
+    def test_local_environment_generates_encryption_key(self):
+        env = LocalEnvironment()
+        assert env.encryption_key is not None
 
     def test_build_local_environment(self):
         key = LocalEnvironment().build(Flow())
-        assert isinstance(key, LocalEnvironment)
+        assert isinstance(key, dict)
+        assert isinstance(key["serialized registry"], str)
 
-    @pytest.mark.skip("Cloudpickle truncation error")
+    def test_local_environment_key_is_base64_encoded_and_encrypted_registry(self):
+        encryption_key = Fernet.generate_key()
+        flow = Flow()
+        key = LocalEnvironment(encryption_key=encryption_key).build(flow)
+        decoded = base64.b64decode(key["serialized registry"])
+
+        registry = {}  # type: dict
+        prefect.core.registry.load_serialized_registry(
+            decoded, encryption_key=encryption_key, dest_registry=registry
+        )
+        assert isinstance(registry[flow.id], Flow)
+
     def test_local_environment_cli(self):
         f = prefect.Flow(environment=LocalEnvironment())
 
-        key = f.environment.build(f).serialized
+        key = f.environment.build(f)
+
         output = f.environment.run(key, "prefect flows ids")
-        assert json.loads(output.decode()) == {
-            f.id: dict(project=f.project, name=f.name, version=f.version)
-        }
+        assert json.loads(output.decode()) == [f.id]
+
+    def test_local_environment_cli_run(self):
+        f = prefect.Flow(environment=LocalEnvironment())
+
+        key = f.environment.build(f)
+
+        output = f.environment.run(key, "prefect flows run {}".format(f.id))
+        assert output

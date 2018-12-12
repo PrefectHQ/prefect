@@ -7,10 +7,18 @@ from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
 from prefect.utilities.serialization import (
     Nested,
+    JSONCompatible,
     VersionedSchema,
     to_qualified_name,
     version,
 )
+
+
+def get_environment_from_flow(obj, context):
+    env = getattr(obj, "environment", None)
+    if isinstance(env, prefect.environments.Environment):
+        return env.build()
+    return b""
 
 
 @version("0.3.3")
@@ -28,7 +36,6 @@ class FlowSchema(VersionedSchema):
     description = fields.String(allow_none=True)
     type = fields.Function(lambda flow: to_qualified_name(type(flow)), lambda x: x)
     schedule = fields.Nested(ScheduleSchema, allow_none=True)
-    environment = fields.Nested(EnvironmentSchema, allow_none=True)
     parameters = Nested(
         ParameterSchema,
         value_selection_fn=lambda obj, context: {
@@ -46,6 +53,8 @@ class FlowSchema(VersionedSchema):
         value_selection_fn=lambda obj, context: getattr(obj, "_reference_tasks", []),
         only=["id"],
     )
+    environment = fields.Nested(EnvironmentSchema, allow_none=True)
+    environment_key = JSONCompatible(allow_none=True)
 
     @pre_dump
     def put_task_ids_in_context(self, flow: "prefect.core.Flow") -> "prefect.core.Flow":
