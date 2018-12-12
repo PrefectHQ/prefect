@@ -52,7 +52,7 @@ def run_cli_with_registry(cmd):
 
 def test_flows_ids_empty_registry():
     output = json.loads(run_cli_with_registry("flows ids").output)
-    assert output == {}
+    assert output == []
 
 
 def test_flows_ids():
@@ -61,7 +61,7 @@ def test_flows_ids():
     f3 = prefect.Flow(name="hi", register=True)
 
     output = json.loads(run_cli_with_registry("flows ids").output)
-    assert output == {f.id: f.id for f in [f1, f2, f3]}
+    assert set(output) == {f1.id, f2.id, f3.id}
 
 
 def test_flows_runs():

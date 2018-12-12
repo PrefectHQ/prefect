@@ -3,6 +3,7 @@ import marshmallow
 import prefect
 from marshmallow import fields
 from prefect.utilities.serialization import (
+    Bytes,
     VersionedSchema,
     version,
     to_qualified_name,
@@ -15,7 +16,7 @@ class LocalEnvironmentSchema(VersionedSchema):
     class Meta:
         object_class = prefect.environments.LocalEnvironment
 
-    encryption_key = fields.String(allow_none=True)
+    encryption_key = Bytes(allow_none=True)
 
 
 @version("0.3.3")
@@ -23,11 +24,8 @@ class ContainerEnvironmentSchema(VersionedSchema):
     class Meta:
         object_class = prefect.environments.ContainerEnvironment
 
-    image = fields.String(required=True)
-    name = fields.String(allow_none=True)
-    tag = fields.String(allow_none=True)
+    base_image = fields.String(required=True)
     registry_url = fields.String(allow_none=True)
-    flow_id = fields.String(allow_none=True)
     python_dependencies = fields.List(fields.String(), allow_none=True)
     secrets = fields.List(fields.String(), allow_none=True)
 
