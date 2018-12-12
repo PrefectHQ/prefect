@@ -10,16 +10,20 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install zsh for tests
-          command: apt-get update && apt-get install -y zsh
+          name: Install Black
+          command: pip install black
 
       - run:
-          name: Install prefect
-          command: pip install ".[all_extras]"
+          name: Install mypy
+          command: pip install mypy mypy_extensions
 
       - run:
-          name: Run formatting tests
-          command: pytest -vv --formatting
+          name: Run Black
+          command: black --check .
+
+      - run:
+          name: Run mypy
+          command: mypy src/
 
   # ----------------------------------
   # Run unit tests in Python 3.4-3.7
