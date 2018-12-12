@@ -49,16 +49,16 @@ class Environment:
             - flow (prefect.Flow): the Flow to build the environment for
 
         Returns:
-            - dict: a JSON key required for interacting with the environment
+            - dict: a JSON document that can be used to recreate the environment later.
         """
         raise NotImplementedError()
 
-    def run(self, key: dict, cli_cmd: str) -> Optional[bytes]:
+    def run(self, env_key: dict, cli_cmd: str) -> Optional[bytes]:
         """
         Issue a CLI command to the environment.
 
         Args:
-            - key (dict): the environment key, as json
+            - env_key (dict): the result of calling `self.build()`
             - cli_cmd (str): the command to issue
         """
         raise NotImplementedError()
@@ -148,11 +148,12 @@ class ContainerEnvironment(Environment):
 
             return dict(name=image_name, tag=image_tag)
 
-    def run(self, key: dict, cli_cmd: str = None) -> None:
+    def run(self, env_key: dict, cli_cmd: str = None) -> None:
         """Run a command in the Docker container
 
         Args:
-            - key (dict): details for running the container, as produced by the `build()` method.
+            - env_key (dict): a JSON document containing details about container, as produced
+                by the `build()` method.
             - cli_cmd (str, optional): An initial cli_cmd that will be executed on container run
 
         Returns:
@@ -162,7 +163,7 @@ class ContainerEnvironment(Environment):
         client = docker.from_env()
 
         running_container = client.containers.run(
-            key["tag"], command=cli_cmd, detach=True
+            env_key["tag"], command=cli_cmd, detach=True
         )
 
         return running_container
@@ -314,13 +315,14 @@ class LocalEnvironment(Environment):
         )
         return {"serialized registry": base64.b64encode(serialized).decode()}
 
-    def run(self, key: dict, cli_cmd: str) -> bytes:
+    def run(self, env_key: dict, cli_cmd: str) -> bytes:
         """
         Run a command in the `LocalEnvironment`. This functions by writing a pickled
         flow to temporary memory and then executing prefect CLI commands against it.
 
         Args:
-            - key (dict): The result of calling `build()`
+            - env_key (dict): a JSON document containing details about container, as produced
+                by the `build()` method.
             - cli_cmd (str): The prefect CLI command to be run
 
         Returns:
@@ -328,7 +330,7 @@ class LocalEnvironment(Environment):
         """
         with tempfile.NamedTemporaryFile() as tmp:
             with open(tmp.name, "wb") as f:
-                f.write(base64.b64decode(key["serialized registry"]))
+                f.write(base64.b64decode(env_key["serialized registry"]))
 
             env_vars = {
                 "PREFECT__REGISTRY__STARTUP_REGISTRY_PATH": tmp.name,
