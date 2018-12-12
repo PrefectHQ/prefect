@@ -4,6 +4,8 @@ import shlex
 import subprocess
 import sys
 
+pytestmark = pytest.mark.formatting
+
 
 @pytest.mark.skipif(sys.version_info < (3, 6), reason="Black requires Python 3.6+")
 def test_black_formatting():
