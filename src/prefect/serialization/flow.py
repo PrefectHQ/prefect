@@ -1,4 +1,4 @@
-from marshmallow import fields, post_load, pre_dump
+from marshmallow import fields, post_load, pre_dump, utils
 
 import prefect
 from prefect.serialization.edge import EdgeSchema
@@ -6,6 +6,7 @@ from prefect.serialization.environment import EnvironmentSchema
 from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
 from prefect.utilities.serialization import (
+    JSONCompatible,
     Nested,
     VersionedSchema,
     to_qualified_name,
@@ -13,11 +14,25 @@ from prefect.utilities.serialization import (
 )
 
 
+def get_parameters(obj, context):
+    if isinstance(obj, prefect.Flow):
+        return {p for p in obj.tasks if isinstance(p, prefect.core.task.Parameter)}
+    else:
+        return utils.get_value(obj, "parameters")
+
+
+def get_reference_tasks(obj, context):
+    if isinstance(obj, prefect.Flow):
+        return obj._reference_tasks
+    else:
+        return utils.get_value(obj, "reference_tasks")
+
+
 @version("0.3.3")
 class FlowSchema(VersionedSchema):
     class Meta:
         object_class = lambda: prefect.core.Flow
-        object_class_exclude = ["id", "type", "parameters"]
+        object_class_exclude = ["id", "type", "parameters", "environment_key"]
         # ordered to make sure Task objects are loaded before Edge objects, due to Task caching
         ordered = True
 
@@ -28,24 +43,14 @@ class FlowSchema(VersionedSchema):
     description = fields.String(allow_none=True)
     type = fields.Function(lambda flow: to_qualified_name(type(flow)), lambda x: x)
     schedule = fields.Nested(ScheduleSchema, allow_none=True)
-    environment = fields.Nested(EnvironmentSchema, allow_none=True)
-    parameters = Nested(
-        ParameterSchema,
-        value_selection_fn=lambda obj, context: {
-            p
-            for p in getattr(obj, "tasks", [])
-            if isinstance(p, prefect.core.task.Parameter)
-        },
-        many=True,
-    )
+    parameters = Nested(ParameterSchema, value_selection_fn=get_parameters, many=True)
     tasks = fields.Nested(TaskSchema, many=True)
     edges = fields.Nested(EdgeSchema, many=True)
     reference_tasks = Nested(
-        TaskSchema,
-        many=True,
-        value_selection_fn=lambda obj, context: getattr(obj, "_reference_tasks", []),
-        only=["id"],
+        TaskSchema, value_selection_fn=get_reference_tasks, many=True, only=["id"]
     )
+    environment = fields.Nested(EnvironmentSchema, allow_none=True)
+    environment_key = JSONCompatible(allow_none=True)
 
     @pre_dump
     def put_task_ids_in_context(self, flow: "prefect.core.Flow") -> "prefect.core.Flow":

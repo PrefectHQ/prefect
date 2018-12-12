@@ -981,10 +981,15 @@ class Flow:
 
         self.validate()
 
-        if build and self.environment:
-            self.environment = self.environment.build(self)
-
         serialized = prefect.serialization.flow.FlowSchema().dump(self)
+
+        if build and self.environment:
+            environment_key = self.environment.build(self)
+            serialized.update(
+                prefect.serialization.flow.FlowSchema().dump(
+                    {"environment_key": environment_key}
+                )
+            )
 
         return serialized
 
@@ -1000,12 +1005,12 @@ class Flow:
         )
 
     @cache
-    def build_environment(self) -> bytes:
+    def build_environment(self) -> dict:
         """
         Build the flow's environment.
 
         Returns:
-            - bytes of a key that can be used to access the environment.
+            - dict: a key that can be used to recreate the environment.
 
         Raises:
             - ValueError: if no environment is specified in this flow

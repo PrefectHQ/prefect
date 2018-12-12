@@ -812,7 +812,7 @@ def test_register():
 
 
 def test_register_nondefault():
-    r = {}
+    r = {}  # type: dict
     flow = Flow()
     flow.register(registry=r)
     assert r[flow.id] is flow
@@ -833,7 +833,7 @@ def test_build_environment_with_none_set():
 def test_build_environment():
     flow = Flow(environment=prefect.environments.LocalEnvironment())
     key = flow.build_environment()
-    assert isinstance(key, prefect.environments.LocalEnvironment)
+    assert isinstance(key, dict)
 
 
 class TestFlowVisualize:
@@ -1234,3 +1234,11 @@ class TestSerialize:
         with pytest.raises(ValueError) as exc:
             f.serialize()
         assert "cycle found" in str(exc).lower()
+
+    def test_serialize_builds_environment(self):
+        f = Flow(environment=prefect.environments.LocalEnvironment())
+        s_no_build = f.serialize()
+        s_build = f.serialize(build=True)
+
+        assert "environment_key" not in s_no_build
+        assert isinstance(s_build["environment_key"], dict)

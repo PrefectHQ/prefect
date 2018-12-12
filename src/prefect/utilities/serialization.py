@@ -1,4 +1,5 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+import base64
 import json
 import sys
 import types
@@ -11,6 +12,7 @@ from marshmallow import (
     SchemaOpts,
     ValidationError,
     fields,
+    missing,
     post_dump,
     post_load,
     pre_load,
@@ -200,11 +202,13 @@ class Nested(fields.Nested):
     """
     An extension of the Marshmallow Nested field that allows the value to be selected
     via a value_selection_fn.
+
+    Note that because the value_selection_fn is always called, users must return
+    `marshmallow.missing` if they don't want this field included in the resulting serialized
+    object.
     """
 
-    def __init__(
-        self, nested: type, value_selection_fn: Callable = None, **kwargs
-    ) -> None:
+    def __init__(self, nested: type, value_selection_fn: Callable, **kwargs) -> None:
         super().__init__(nested=nested, **kwargs)
         self.value_selection_fn = value_selection_fn
 
@@ -214,6 +218,8 @@ class Nested(fields.Nested):
     def _serialize(self, value, attr, obj, **kwargs):
         if self.value_selection_fn is not None:
             value = self.value_selection_fn(obj, self.context)
+        if value is missing:
+            return value
         return super()._serialize(value, attr, obj, **kwargs)
 
 
@@ -249,3 +255,18 @@ class DateTime(fields.DateTime):
         if value is not None:
             value = pendulum.instance(value).in_tz("utc")
         return value
+
+
+class Bytes(fields.Field):
+    """
+    A Marshmallow Field that serializes bytes to a base64-encoded string, and deserializes
+    a base64-encoded string to bytes.
+    """
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if value is not None:
+            return base64.b64encode(value).decode("utf-8")
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if value is not None:
+            return base64.b64decode(value)
