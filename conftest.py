@@ -148,4 +148,6 @@ def pytest_runtest_setup(item):
 
     # if a test IS NOT marked as formatting and the formatting flag IS set, skip it
     elif formatting_mark is None and item.config.getoption("--formatting") is True:
-        pytest.skip("Non-formatting tests skipped because --formatting flag was provided.")
+        pytest.skip(
+            "Non-formatting tests skipped because --formatting flag was provided."
+        )
