@@ -23,7 +23,6 @@ fields at instantiation, but fields that are set during the build process can be
 """
 
 import base64
-import cloudpickle
 import json
 import logging
 import os
@@ -35,6 +34,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
+import cloudpickle
 import docker
 import toml
 from cryptography.fernet import Fernet
@@ -99,7 +99,7 @@ class Environment:
         Returns a serialized version of the Environment
 
         Returns:
-            dict: the serialized Environment
+            - dict: the serialized Environment
         """
         schema = prefect.serialization.environment.EnvironmentSchema()
         return schema.dump(self)

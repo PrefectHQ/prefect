@@ -1,13 +1,13 @@
 import base64
 import json
 import os
+import tempfile
 
 import pytest
-
-import tempfile
 from cryptography.fernet import Fernet, InvalidToken
+
 import prefect
-from prefect import Flow, Task, Parameter
+from prefect import Flow, Parameter, Task
 from prefect.environments import (
     ContainerEnvironment,
     Environment,
