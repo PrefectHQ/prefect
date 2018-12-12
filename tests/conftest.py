@@ -82,24 +82,6 @@ def executor(request, _switch):
     return _switch(request.param)
 
 
-@pytest.fixture(autouse=True, scope="session")
-def set_config():
-    """
-    Creates a registry encryption key for testing
-    """
-    with tests.set_temporary_config("registry.encryption_key", Fernet.generate_key()):
-        yield
-
-
-@pytest.fixture(autouse=True)
-def clear_registry():
-    """
-    Clear the flow registry after every test
-    """
-    yield
-    prefect.core.registry.REGISTRY.clear()
-
-
 def pytest_addoption(parser):
     parser.addoption(
         "--airflow",

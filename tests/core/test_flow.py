@@ -803,27 +803,6 @@ def test_create_task_mapped_info_entries():
     assert not f.task_info[t1]["mapped"]
     assert f.task_info[t2]["mapped"]
 
-
-def test_register():
-    flow = Flow()
-    assert flow.id not in prefect.core.registry.REGISTRY
-    flow.register()
-    assert prefect.core.registry.REGISTRY[flow.id] is flow
-
-
-def test_register_nondefault():
-    r = {}  # type: dict
-    flow = Flow()
-    flow.register(registry=r)
-    assert r[flow.id] is flow
-
-
-def test_register_init():
-    flow = Flow(register=True)
-    assert flow.id in prefect.core.registry.REGISTRY
-    assert prefect.core.registry.REGISTRY[flow.id] is flow
-
-
 def test_build_environment_with_none_set():
     flow = Flow()
     with pytest.raises(ValueError):
