@@ -241,6 +241,31 @@ class Client:
         )
         self.token = response.json().get("token")
 
+    def deploy(self, flow: "Flow", project_id: str) -> GraphQLResult:
+        """
+        Push a new Flow to the database.
+
+        Args:
+            - flow (Flow): the prefect Flow to insert into the database
+            - project_id (str): the project ID to associate this Flow with (note
+                that this can be changed later)
+
+        Returns:
+            - GraphQLResult: information about the newly created flow (e.g., its "id")
+        """
+        mutation = {
+            "mutation($input: createFlowInput!)": {
+                "createFlow(input: $input)": {"flow": {"id"}}
+            }
+        }
+        res = self.graphql(
+            parse_graphql(mutation),
+            input=dict(
+                projectId=project_id, serializedFlow=json.dumps(flow.serialize())
+            ),
+        )
+        return res.createFlow.flow  # type: ignore
+
     def get_flow_run_info(
         self, flow_run_id: str, result_handler: ResultHandler = None
     ) -> GraphQLResult:

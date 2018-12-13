@@ -296,6 +296,32 @@ def test_graphql_errors_get_raised(monkeypatch):
     assert "GraphQL issue!" in str(exc.value)
 
 
+def test_client_deploy(monkeypatch):
+    response = """
+{
+    "createFlow": {
+        "flow": {
+            "id": "long-id"
+        }
+    }
+}
+    """
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=json.loads(response)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    flow = prefect.Flow(name="test")
+    result = client.deploy(flow, project_id="my-default-0000")
+    assert isinstance(result, GraphQLResult)
+    assert result.id == "long-id"
+
+
 def test_get_flow_run_info(monkeypatch):
     response = """
 {
