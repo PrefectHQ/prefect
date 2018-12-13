@@ -14,7 +14,7 @@ from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.tasks import task, unmapped
-from prefect.utilities.tests import set_temporary_config
+from prefect.utilities.configuration import set_temporary_config
 
 
 class AddTask(Task):
