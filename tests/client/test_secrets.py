@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import prefect
 from prefect.client import Secret
-from prefect.utilities.tests import set_temporary_config
+from prefect.utilities.configuration import set_temporary_config
 
 
 #################################
