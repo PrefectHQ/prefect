@@ -47,11 +47,11 @@ class Client:
             api_server = prefect.config.cloud.get("api", None)
             if not api_server:
                 raise ValueError("Could not determine API server.")
-            self.api_server = api_server
+        self.api_server = api_server
 
         if not graphql_server:
-            graphql_server = prefect.config.cloud.get("graphql", api_server)
-            self.graphql_server = graphql_server
+            graphql_server = prefect.config.cloud.get("graphql") or self.api_server
+        self.graphql_server = graphql_server
 
         token = prefect.config.cloud.get("auth_token", None)
 

@@ -70,6 +70,30 @@ def test_client_initializes_from_config():
     assert client.token == "token"
 
 
+def test_client_initializes_and_prioritizes_kwargs():
+    with set_temporary_config(
+        {
+            "cloud.api": "api_server",
+            "cloud.graphql": "graphql_server",
+            "cloud.auth_token": "token",
+        }
+    ):
+        client = Client(api_server="my-api", graphql_server="my-graphql")
+    assert client.api_server == "my-api"
+    assert client.graphql_server == "my-graphql"
+    assert client.token == "token"
+
+
+def test_client_graphql_server_falls_back_to_api_server():
+    with set_temporary_config(
+        {"cloud.api": "api_server", "cloud.graphql": None, "cloud.auth_token": "token"}
+    ):
+        client = Client()
+    assert client.api_server == "api_server"
+    assert client.graphql_server == "api_server"
+    assert client.token == "token"
+
+
 def test_client_token_initializes_from_file(monkeypatch):
     monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
     monkeypatch.setattr("builtins.open", mock_open(read_data="TOKEN"))
