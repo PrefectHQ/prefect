@@ -244,6 +244,23 @@ def test_merge_configurations(test_config_file_path):
     assert config.interpolation.value == 1
 
 
+def test_copy_leaves_values_mutable(config):
+
+    config.set_nested("x.y.z", [1])
+    assert config.x.y.z == [1]
+    new = config.copy()
+    assert new.x.y.z == [1]
+    new.x.y.z.append(2)
+    assert config.x.y.z == [1, 2]
+
+
+def test_copy_doesnt_make_keys_mutable(config):
+
+    new = config.copy()
+    new.general.z = 1
+    assert "z" not in config.general
+
+
 class TestUserConfig:
     def test_load_user_config(self, test_config_file_path):
 
