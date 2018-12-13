@@ -301,6 +301,7 @@ def test_get_flow_run_info(monkeypatch):
 {
     "flow_run_by_pk": {
         "version": 0,
+        "parameters": {},
         "current_state": {
             "serialized_state": {
                 "type": "Pending",
@@ -329,6 +330,7 @@ def test_get_flow_run_info(monkeypatch):
     assert result.state.result == 42
     assert result.state.message is None
     assert result.version == 0
+    assert result.parameters == dict()
 
 
 def test_get_flow_run_info_raises_informative_error(monkeypatch):
