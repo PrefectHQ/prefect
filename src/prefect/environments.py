@@ -392,7 +392,7 @@ class ContainerEnvironment(Environment):
                 ENV PREFECT_ENVIRONMENT_FILE="/root/.prefect/flow_env.prefect"
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
 
-                RUN git clone -b remove-registry https://{access_token}@github.com/PrefectHQ/prefect.git
+                RUN git clone https://{access_token}@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
                 """.format(
                     base_image=self.base_image,
