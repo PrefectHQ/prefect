@@ -36,37 +36,32 @@ class Client:
     token will only be present in the current context.
 
     Args:
-        - token (str, optional): Authentication token server connection
+        - api_server (str, optional): the URL to send all basic POST requests
+            to; if not provided, will be pulled from `cloud.api` config var
+        - graphql_server (str, optional): the URL to send all GraphQL requests
+            to; if not provided, will be pulled from `cloud.graphql` config var
     """
 
-    def __init__(self, token: str = None) -> None:
-        api_server = prefect.config.cloud.get("api", None)
-
+    def __init__(self, api_server: str = None, graphql_server: str = None) -> None:
         if not api_server:
-            raise ValueError("Could not determine API server.")
+            api_server = prefect.config.cloud.get("api", None)
+            if not api_server:
+                raise ValueError("Could not determine API server.")
+            self.api_server = api_server
 
-        self.api_server = api_server
-
-        graphql_server = prefect.config.cloud.get("graphql", None)
-
-        # Default to the API server
         if not graphql_server:
-            graphql_server = api_server
+            graphql_server = prefect.config.cloud.get("graphql", api_server)
+            self.graphql_server = graphql_server
 
-        self.graphql_server = graphql_server
+        token = prefect.config.cloud.get("auth_token", None)
 
         if token is None:
-            token = prefect.config.cloud.get("auth_token", None)
-
-            if token is None:
-                token_path = os.path.expanduser("~/.prefect/.credentials/auth_token")
-                if os.path.exists(token_path):
-                    with open(token_path, "r") as f:
-                        token = f.read()
+            token_path = os.path.expanduser("~/.prefect/.credentials/auth_token")
+            if os.path.exists(token_path):
+                with open(token_path, "r") as f:
+                    token = f.read()
 
         self.token = token
-        if self.token is None and prefect.config.get("prefect_cloud"):
-            self.login()
 
     # -------------------------------------------------------------------------
     # Utilities
@@ -185,8 +180,8 @@ class Client:
 
     def login(
         self,
-        email: str = None,
-        password: str = None,
+        email: str,
+        password: str,
         account_slug: str = None,
         account_id: str = None,
     ) -> None:
@@ -194,10 +189,8 @@ class Client:
         Login to the server in order to gain access
 
         Args:
-            - email (str): User's email on the platform; if not provided, pulled
-                from config
-            - password (str): User's password on the platform; if not provided,
-                pulled from config
+            - email (str): User's email on the platform
+            - password (str): User's password on the platform
             - account_slug (str, optional): Slug that is unique to the user
             - account_id (str, optional): Specific Account ID for this user to use
 
@@ -207,9 +200,6 @@ class Client:
 
         # lazy import for performance
         import requests
-
-        email = email or prefect.config.cloud.email
-        password = password or prefect.config.cloud.password
 
         url = os.path.join(self.api_server, "login_email")
         response = requests.post(
