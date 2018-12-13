@@ -160,17 +160,9 @@ def test_recreate_task_info_dict():
     assert f2.task_info[z2]["mapped"] is True
 
 
-def test_serialize_no_environment():
-    deserialized = FlowSchema().load(FlowSchema().dump(Flow()))
-    assert deserialized.environment is None
-
-
 def test_serialize_container_environment():
     env = prefect.environments.ContainerEnvironment(
-        base_image="a",
-        python_dependencies=["b", "c"],
-        secrets=["d", "e"],
-        registry_url="f",
+        base_image="a", python_dependencies=["b", "c"], registry_url="f"
     )
     deserialized = FlowSchema().load(FlowSchema().dump(Flow(environment=env)))
     assert isinstance(
@@ -178,7 +170,6 @@ def test_serialize_container_environment():
     )
     assert deserialized.environment.base_image == env.base_image
     assert deserialized.environment.python_dependencies == env.python_dependencies
-    assert deserialized.environment.secrets == env.secrets
     assert deserialized.environment.registry_url == env.registry_url
 
 

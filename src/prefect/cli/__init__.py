@@ -3,29 +3,20 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import click
+import json
 import logging
 import os
 import requests
 import sys
 import prefect
 
-from .flows import flows
-
 
 @click.group()
-@click.option("--registry-path")
-@click.option("--registry-encryption-key")
-def cli(registry_path=None, registry_encryption_key=None):
+def cli():
     """
     The Prefect CLI
     """
-    if registry_path:
-        prefect.core.registry.load_serialized_registry_from_path(
-            registry_path, encryption_key=registry_encryption_key
-        )
-
-
-cli.add_command(flows)
+    pass
 
 
 @cli.command()
@@ -47,3 +38,14 @@ def make_user_config():
         )
 
     click.secho("Config created at {}".format(user_config_path), fg="green")
+
+
+@cli.command()
+@click.argument("environment_file", type=click.Path(exists=True))
+@click.option("--runner_kwargs", default={})
+def run(environment_file, runner_kwargs):
+    """
+    Run a flow from an environment file.
+    """
+    environment = prefect.environments.from_file(environment_file)
+    click.echo(environment.run(runner_kwargs=runner_kwargs))

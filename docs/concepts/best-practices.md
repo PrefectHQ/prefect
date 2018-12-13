@@ -3,6 +3,7 @@
 ## Writing Prefect code
 
 To maximize the clarity of your Prefect code, we recommend organizing your scripts in a few sections:
+
 1. Import any task classes you need
 2. Define any custom task functions
 3. Instantiate any task classes
@@ -57,12 +58,5 @@ with Flow() as flow:
 
     # use the imperative API where appropriate
     shell_result.set_upstream(two)
-
-
-#--------------------------------------------------------------
-# Register the flow
-#--------------------------------------------------------------
-
-flow.register()
 
 ```

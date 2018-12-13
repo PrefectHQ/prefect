@@ -1,10 +1,11 @@
 import datetime
 import logging
+import sys
+import tempfile
+from unittest.mock import MagicMock, patch
 
 import cloudpickle
 import pytest
-import sys
-from unittest.mock import MagicMock, patch
 
 import prefect
 from prefect.core.edge import Edge
@@ -804,38 +805,6 @@ def test_create_task_mapped_info_entries():
     assert f.task_info[t2]["mapped"]
 
 
-def test_register():
-    flow = Flow()
-    assert flow.id not in prefect.core.registry.REGISTRY
-    flow.register()
-    assert prefect.core.registry.REGISTRY[flow.id] is flow
-
-
-def test_register_nondefault():
-    r = {}  # type: dict
-    flow = Flow()
-    flow.register(registry=r)
-    assert r[flow.id] is flow
-
-
-def test_register_init():
-    flow = Flow(register=True)
-    assert flow.id in prefect.core.registry.REGISTRY
-    assert prefect.core.registry.REGISTRY[flow.id] is flow
-
-
-def test_build_environment_with_none_set():
-    flow = Flow()
-    with pytest.raises(ValueError):
-        flow.build_environment()
-
-
-def test_build_environment():
-    flow = Flow(environment=prefect.environments.LocalEnvironment())
-    key = flow.build_environment()
-    assert isinstance(key, dict)
-
-
 class TestFlowVisualize:
     def test_visualize_raises_informative_importerror_without_graphviz(
         self, monkeypatch
@@ -1049,22 +1018,6 @@ class TestCache:
         f.add_edge(t2, t3)
         assert f.all_downstream_edges() != 1
 
-    def test_cache_build_environment(self):
-        f = Flow(environment=prefect.environments.LocalEnvironment())
-        t1 = Task()
-        t2 = Task()
-        t3 = Task()
-        f.add_edge(t1, t2)
-
-        f.build_environment()
-
-        key = ("build_environment", ())
-        f._cache[key] = 1
-        assert f.build_environment() == 1
-
-        f.add_edge(t2, t3)
-        assert f.build_environment() != 1
-
     def test_cache_survives_pickling(self):
         f = Flow()
         t1 = Task()
@@ -1235,10 +1188,21 @@ class TestSerialize:
             f.serialize()
         assert "cycle found" in str(exc).lower()
 
+    def test_default_environment_is_local_environment(self):
+        f = Flow()
+        assert isinstance(f.environment, prefect.environments.LocalEnvironment)
+
     def test_serialize_builds_environment(self):
         f = Flow(environment=prefect.environments.LocalEnvironment())
         s_no_build = f.serialize()
         s_build = f.serialize(build=True)
 
-        assert "environment_key" not in s_no_build
-        assert isinstance(s_build["environment_key"], dict)
+        assert s_no_build["environment"] is None
+        assert s_build["environment"]["type"] == "LocalEnvironment"
+
+    def test_to_environment_file_writes_data(self):
+        f = Flow()
+        with tempfile.NamedTemporaryFile() as tmp:
+            f.to_environment_file(tmp.name)
+            with open(tmp.name, "r") as f:
+                assert f.read()

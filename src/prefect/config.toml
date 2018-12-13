@@ -51,21 +51,6 @@ retry_delay = false
 timeout = false
 
 
-[registry]
-
-# if true, Prefect will warn if a flow is registered with the same name/version as an
-# already-registered flow
-warn_on_duplicate_registration = true
-
-# The encryption key used to encrypt Flows
-encryption_key = ""
-
-
-# a path containing a serialized registry object
-startup_registry_path = ""
-
-
-
 [engine]
 # the default executor for all Flow runs, specified using a full path
 executor = "prefect.engine.executors.SynchronousExecutor"

@@ -4,6 +4,7 @@ extension = ".md"
 [pages.environments]
 module = "prefect.environments"
 classes = ["Environment", "ContainerEnvironment", "LocalEnvironment"]
+functions = ["from_file"]
 title = "Environments"
 
 [pages.triggers]
@@ -57,18 +58,6 @@ classes = ["Flow"]
 title = "Task"
 module = "prefect.core.task"
 classes = ["Task", "Parameter"]
-
-[pages.core.registry]
-title = "Registry"
-module = "prefect.core.registry"
-functions = [
-            "register_flow",
-            "build_flows",
-            "load_flow",
-            "serialize_registry",
-            "load_serialized_registry",
-            "load_serialized_registry_from_path",
-        ]
 
 [pages.engine.cache_validators]
 title = "Cache Validators"

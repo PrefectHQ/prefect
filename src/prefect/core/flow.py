@@ -8,7 +8,18 @@ import json
 import tempfile
 import uuid
 from collections import Counter
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Set, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 import xxhash
 from mypy_extensions import TypedDict
@@ -90,12 +101,11 @@ class Flow:
         - name (str, optional): The name of the flow
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
-        type that the flow should be run in
+            type that the flow should be run in. If None, a LocalEnvironment will be created.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks
         - reference_tasks ([Task], optional): A list of tasks which determine the final
-        state of a flow
-        - register (bool, optional): Whether or not to add the flow to the registry
+            state of a flow
         - throttle (dict, optional): dictionary of tags -> int specifying
             how many tasks with a given tag should be allowed to run simultaneously. Used
             for throttling resource usage.
@@ -126,7 +136,6 @@ class Flow:
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
         reference_tasks: Iterable[Task] = None,
-        register: bool = False,
         throttle: Dict[str, int] = None,
         state_handlers: Iterable[Callable] = None,
         validate: bool = None,
@@ -141,7 +150,7 @@ class Flow:
 
         self.name = name or type(self).__name__
         self.schedule = schedule
-        self.environment = environment
+        self.environment = environment or prefect.environments.LocalEnvironment()
         self.result_handler = result_handler
 
         self.tasks = set()  # type: Set[Task]
@@ -161,9 +170,6 @@ class Flow:
             )
 
         self._prefect_version = prefect.__version__
-
-        if register:
-            self.register()
 
         self.throttle = throttle or {}
         if min(self.throttle.values(), default=1) <= 0:
@@ -966,58 +972,43 @@ class Flow:
 
     # Building / Serialization ----------------------------------------------------
 
+    def to_environment_file(self, path: str) -> None:
+        """
+        Serializes the flow as an environment file.
+
+        Args:
+            - path (str): the path of the environment file to create
+        """
+        self.environment.build(self).to_file(path)
+
     def serialize(self, build: bool = False) -> dict:
         """
         Creates a serialized representation of the flow.
 
         Args:
-            - build (bool, optional): if `True`, the flow's environment is built and the resulting
-                `environment_key` is included in the serialized flow. If `False` (default),
-                the environment is not built and the `environment_key` is `None`.
+            - build (bool, optional): if `True`, the flow's environment is built and included
+                in the serialized flow. Otherwise, the environment is not included.
 
         Returns:
             - dict representing the flow
         """
 
         self.validate()
+        schema = prefect.serialization.flow.FlowSchema
+        serialized = schema(exclude=["environment"]).dump(self)
 
-        serialized = prefect.serialization.flow.FlowSchema().dump(self)
+        if build:
+            environment = self.environment.build(
+                flow=self
+            )  # type: Optional[Environment]
+        else:
+            environment = None
 
-        if build and self.environment:
-            environment_key = self.environment.build(self)
-            serialized.update(
-                prefect.serialization.flow.FlowSchema().dump(
-                    {"environment_key": environment_key}
-                )
-            )
-
-        return serialized
-
-    def register(self, registry: dict = None) -> None:
-        """
-        Register the flow.
-
-        Args:
-            - registry (dict): a registry (defaults to the global registry)
-        """
-        return prefect.core.registry.register_flow(  # type: ignore
-            self, registry=registry
+        serialized.update(
+            schema(only=["environment"]).dump({"environment": environment})
         )
 
-    @cache
-    def build_environment(self) -> dict:
-        """
-        Build the flow's environment.
-
-        Returns:
-            - dict: a key that can be used to recreate the environment.
-
-        Raises:
-            - ValueError: if no environment is specified in this flow
-        """
-        if not self.environment:
-            raise ValueError("No environment set!")
-        return self.environment.build(self)
+        return serialized
 
     def generate_local_task_ids(
         self, *, _debug_steps: bool = False

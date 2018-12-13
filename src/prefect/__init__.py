@@ -11,7 +11,6 @@ import prefect.triggers
 import prefect.environments
 
 from prefect.core import Task, Flow, Parameter
-import prefect.core.registry
 import prefect.engine
 import prefect.tasks
 import prefect.flows
@@ -23,8 +22,3 @@ from ._version import get_versions
 
 __version__ = get_versions()["version"]  # type: ignore
 del get_versions
-
-if prefect.config.registry.startup_registry_path:
-    prefect.core.registry.load_serialized_registry_from_path(
-        prefect.config.registry.startup_registry_path
-    )
