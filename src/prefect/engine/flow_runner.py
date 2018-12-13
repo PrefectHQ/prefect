@@ -164,6 +164,7 @@ class FlowRunner(Runner):
         context = context or {}
         return_tasks = set(return_tasks or [])
         executor = executor or DEFAULT_EXECUTOR
+        parameters = parameters or {}
         throttle = throttle or self.flow.throttle
         if min(throttle.values(), default=1) <= 0:
             bad_tags = ", ".join(
@@ -182,6 +183,11 @@ class FlowRunner(Runner):
                 result_handler=self.flow.result_handler,
             )
             context.update(_flow_run_version=flow_run_info.version)  # type: ignore
+
+            ## update parameters, prioritizing kwarg-provided params
+            for key, value in flow_run_info.parameters:  # type: ignore
+                if key not in parameters:
+                    parameters[key] = value
 
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
