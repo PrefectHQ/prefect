@@ -3,7 +3,7 @@ import pytest
 import prefect
 from prefect.core import Flow, Task
 from prefect.engine import FlowRunner, TaskRunner, state
-from prefect.utilities.tests import raise_on_exception, set_temporary_config
+from prefect.utilities.tests import raise_on_exception
 
 
 class SuccessTask(Task):
@@ -100,22 +100,3 @@ def test_raise_on_exception_plays_well_with_context():
     except ZeroDivisionError:
         assert "_raise_on_exception" not in prefect.context
         pass
-
-
-def test_set_temporary_config_is_temporary():
-    t1 = Task()
-    assert t1.max_retries == 0
-    with set_temporary_config("tasks.defaults.max_retries", 5):
-        with set_temporary_config("tasks.defaults.retry_delay", 1):
-            t2 = Task()
-            assert t2.max_retries == 5
-    t3 = Task()
-    assert t3.max_retries == 0
-
-
-def test_set_temporary_config_can_invent_new_settings():
-    with set_temporary_config("flows.nested.nested_again.val", "5"):
-        assert prefect.config.flows.nested.nested_again.val == "5"
-
-    with pytest.raises(AttributeError):
-        assert prefect.config.flows.nested.nested_again.val == "5"

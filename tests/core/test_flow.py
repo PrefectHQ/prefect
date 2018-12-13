@@ -14,7 +14,7 @@ from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.tasks import task, unmapped
-from prefect.utilities.tests import set_temporary_config
+from prefect.utilities.configuration import set_temporary_config
 
 
 class AddTask(Task):
@@ -358,7 +358,7 @@ def test_eager_cycle_detection_defaults_false():
 
 def test_eager_cycle_detection_works():
 
-    with set_temporary_config("flows.eager_edge_validation", True):
+    with set_temporary_config({"flows.eager_edge_validation": True}):
         f = Flow()
         t1 = Task()
         t2 = Task()
@@ -731,7 +731,7 @@ def test_validate_edges_kwarg():
 
 
 def test_validate_edges():
-    with set_temporary_config("flows.eager_edge_validation", True):
+    with set_temporary_config({"flows.eager_edge_validation": True}):
         f = Flow()
         t1, t2 = Task(), Task()  # these tasks don't support keyed edges
         with pytest.raises(TypeError):

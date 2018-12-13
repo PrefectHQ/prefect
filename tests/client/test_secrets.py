@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import prefect
 from prefect.client import Secret
-from prefect.utilities.tests import set_temporary_config
+from prefect.utilities.configuration import set_temporary_config
 
 
 #################################
@@ -28,10 +28,10 @@ def test_secret_value_pulled_from_context():
     assert secret.get() is None
 
 
-def test_secret_value_depends_on_use_local_secrets(monkeypatch):
+def test_secret_value_depends_on_use_local_secrets():
     secret = Secret(name="test")
-    monkeypatch.setattr(prefect.config.cloud, "use_local_secrets", False)
-    with prefect.context(secrets=dict(test=42)):
-        with pytest.raises(ValueError) as exc:
-            secret.get()
-        assert "Client.login" in str(exc.value)
+    with set_temporary_config({"cloud.use_local_secrets": False}):
+        with prefect.context(secrets=dict(test=42)):
+            with pytest.raises(ValueError) as exc:
+                secret.get()
+            assert "Client.login" in str(exc.value)
