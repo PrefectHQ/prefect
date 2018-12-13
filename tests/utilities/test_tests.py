@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 
 import prefect
@@ -103,14 +105,17 @@ def test_raise_on_exception_plays_well_with_context():
 
 
 def test_set_temporary_config_is_temporary():
-    with set_temporary_config({"tasks.defaults.max_retries": 5}):
-        with set_temporary_config({"tasks.defaults.max_retries": 1}):
-            t1 = Task()
-            assert t1.max_retries == 1
-        t2 = Task()
-        assert t2.max_retries == 5
-    t3 = Task()
-    assert t3.max_retries == 0
+    # without this setting, the tasks will error because they have max_retries but no
+    # retry delay
+    with set_temporary_config({"tasks.defaults.retry_delay": timedelta(seconds=1)}):
+        with set_temporary_config({"tasks.defaults.max_retries": 5}):
+            with set_temporary_config({"tasks.defaults.max_retries": 1}):
+                t1 = Task()
+                assert t1.max_retries == 1
+            t2 = Task()
+            assert t2.max_retries == 5
+        t3 = Task()
+        assert t3.max_retries == 0
 
 
 def test_set_temporary_config_can_invent_new_settings():
