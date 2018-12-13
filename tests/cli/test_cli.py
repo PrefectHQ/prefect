@@ -16,7 +16,9 @@ def test_cli_is_installed():
 def test_make_user_config():
     with tempfile.TemporaryDirectory() as td:
         path = os.path.join(td, "test-config.toml")
-        with prefect.utilities.tests.set_temporary_config({"user_config_path": path}):
+        with prefect.utilities.configuration.set_temporary_config(
+            {"user_config_path": path}
+        ):
             CliRunner().invoke(prefect.cli.make_user_config)
         with open(path, "r") as f:
             assert f.read().startswith("# This is a user configuration file")

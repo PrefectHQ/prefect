@@ -26,7 +26,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.graphql import GraphQLResult
-from prefect.utilities.tests import set_temporary_config
+from prefect.utilities.configuration import set_temporary_config
 
 
 class AddOneHandler(ResultHandler):
