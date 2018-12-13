@@ -57,20 +57,28 @@ class DictHandler(ResultHandler):
 
 
 def test_client_initializes_from_config():
-    with set_temporary_config("cloud.api", "api_server"):
-        with set_temporary_config("cloud.graphql", "graphql_server"):
-            with set_temporary_config("cloud.auth_token", "token"):
-                client = Client()
+    with set_temporary_config(
+        {
+            "cloud.api": "api_server",
+            "cloud.graphql": "graphql_server",
+            "cloud.auth_token": "token",
+        }
+    ):
+        client = Client()
     assert client.api_server == "api_server"
     assert client.graphql_server == "graphql_server"
     assert client.token == "token"
 
 
 def test_client_token_initializes_from_kwarg():
-    with set_temporary_config("cloud.api", "api_server"):
-        with set_temporary_config("cloud.graphql", "graphql_server"):
-            with set_temporary_config("cloud.auth_token", "token"):
-                client = Client(token="init-token")
+    with set_temporary_config(
+        {
+            "cloud.api": "api_server",
+            "cloud.graphql": "graphql_server",
+            "cloud.auth_token": "token",
+        }
+    ):
+        client = Client(token="init-token")
     assert client.api_server == "api_server"
     assert client.graphql_server == "graphql_server"
     assert client.token == "init-token"
@@ -86,7 +94,7 @@ def test_client_token_initializes_from_file(monkeypatch):
 def test_client_token_priotizes_config_over_file(monkeypatch):
     monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
     monkeypatch.setattr("builtins.open", mock_open(read_data="file-token"))
-    with set_temporary_config("cloud.auth_token", "config-token"):
+    with set_temporary_config({"cloud.auth_token": "config-token"}):
         client = Client()
     assert client.token == "config-token"
 
@@ -101,7 +109,7 @@ def test_client_logs_in_and_saves_token(monkeypatch):
     mock_file = mock_open()
     monkeypatch.setattr("builtins.open", mock_file)
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.api", "http://my-cloud.foo"):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         client = Client()
     client.login("test@example.com", "1234")
     assert post.called
@@ -123,12 +131,16 @@ def test_client_logs_in_automatically(monkeypatch):
     mock_file = mock_open()
     monkeypatch.setattr("builtins.open", mock_file)
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.api", "http://my-cloud.foo"):
-        with set_temporary_config("prefect_cloud", True):
-            with set_temporary_config("cloud.auth_token", None):
-                with set_temporary_config("cloud.email", "test@example.com"):
-                    with set_temporary_config("cloud.password", "1234"):
-                        client = Client()
+    with set_temporary_config(
+        {
+            "cloud.api": "http://my-cloud.foo",
+            "prefect_cloud": True,
+            "cloud.auth_token": None,
+            "cloud.email": "test@example.com",
+            "cloud.password": "1234",
+        }
+    ):
+        client = Client()
     assert post.called
     assert post.call_args[0][0] == "http://my-cloud.foo/login_email"
     assert post.call_args[1]["auth"] == ("test@example.com", "1234")
@@ -149,11 +161,15 @@ def test_client_logs_in_from_config_credentials(monkeypatch):
     mock_file = mock_open()
     monkeypatch.setattr("builtins.open", mock_file)
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.api", "http://my-cloud.foo"):
-        with set_temporary_config("cloud.email", "test@example.com"):
-            with set_temporary_config("cloud.password", "1234"):
-                client = Client()
-                client.login()
+    with set_temporary_config(
+        {
+            "cloud.api": "http://my-cloud.foo",
+            "cloud.email": "test@example.com",
+            "cloud.password": "1234",
+        }
+    ):
+        client = Client()
+        client.login()
     assert post.called
     assert post.call_args[0][0] == "http://my-cloud.foo/login_email"
     assert post.call_args[1]["auth"] == ("test@example.com", "1234")
@@ -171,7 +187,7 @@ def test_client_logs_out_and_deletes_auth_token(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.api", "http://my-cloud.foo"):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         client = Client()
     client.login("test@example.com", "1234")
     token_path = os.path.expanduser("~/.prefect/.credentials/auth_token")
@@ -185,7 +201,7 @@ def test_client_logs_out_and_deletes_auth_token(monkeypatch):
 def test_client_raises_if_login_fails(monkeypatch):
     post = MagicMock(return_value=MagicMock(ok=False))
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.api", "http://my-cloud.foo"):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         client = Client()
     with pytest.raises(ValueError):
         client.login("test@example.com", "1234")
@@ -196,7 +212,7 @@ def test_client_raises_if_login_fails(monkeypatch):
 def test_client_posts_raises_with_no_token(monkeypatch):
     post = MagicMock()
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.api", "http://my-cloud.foo"):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         client = Client()
     with pytest.raises(ValueError) as exc:
         result = client.post("/foo/bar")
@@ -208,7 +224,7 @@ def test_client_posts_to_api_server(monkeypatch):
         return_value=MagicMock(json=MagicMock(return_value=dict(success=True)))
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.api", "http://my-cloud.foo"):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         client = Client(token="secret_token")
     result = client.post("/foo/bar")
     assert result == {"success": True}
@@ -226,7 +242,7 @@ def test_client_posts_retries_if_token_needs_refreshing(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.api", "http://my-cloud.foo"):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         client = Client(token="secret_token")
     with pytest.raises(requests.HTTPError) as exc:
         result = client.post("/foo/bar")
@@ -243,7 +259,7 @@ def test_client_posts_graphql_to_graphql_server(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
         client = Client(token="secret_token")
     result = client.graphql("{projects{name}}")
     assert result == {"success": True}
@@ -261,7 +277,7 @@ def test_client_graphql_retries_if_token_needs_refreshing(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
         client = Client(token="secret_token")
     with pytest.raises(requests.HTTPError) as exc:
         result = client.graphql("{}")
@@ -279,7 +295,7 @@ def test_graphql_errors_get_raised(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
         client = Client(token="secret_token")
     with pytest.raises(ValueError) as exc:
         res = client.graphql("query: {}")
@@ -309,7 +325,7 @@ def test_get_flow_run_info(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
         client = Client(token="secret_token")
     result = client.get_flow_run_info(flow_run_id="74-salt")
     assert isinstance(result, GraphQLResult)
@@ -331,7 +347,7 @@ def test_get_flow_run_info_raises_informative_error(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
         client = Client(token="secret_token")
     with pytest.raises(ValueError) as exc:
         result = client.get_flow_run_info(flow_run_id="74-salt")
@@ -354,7 +370,7 @@ def test_set_flow_run_state(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
         client = Client(token="secret_token")
     result = client.set_flow_run_state(
         flow_run_id="74-salt", version=0, state=Pending()
@@ -389,7 +405,7 @@ def test_get_task_run_info(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
         client = Client(token="secret_token")
     result = client.get_task_run_info(
         flow_run_id="74-salt", task_id="72-salt", map_index=None
@@ -418,7 +434,7 @@ def test_set_task_run_state(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
         client = Client(token="secret_token")
     result = client.set_task_run_state(
         task_run_id="76-salt", version=0, state=Pending()
@@ -432,7 +448,7 @@ class TestResultHandlerSerialization:
         monkeypatch.setattr("requests.post", MagicMock())
         monkeypatch.setattr(prefect.client.client, "json", MagicMock())
 
-        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
             client = Client(token="secret_token")
 
         serializer = MagicMock(return_value="empty")
@@ -449,7 +465,7 @@ class TestResultHandlerSerialization:
         monkeypatch.setattr("requests.post", MagicMock())
         monkeypatch.setattr(prefect.client.client, "json", MagicMock())
 
-        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
             client = Client(token="secret_token")
 
         serializer = MagicMock(return_value="empty")
@@ -489,7 +505,7 @@ class TestResultHandlerDeserialization:
             )
         )
         monkeypatch.setattr("requests.post", post)
-        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
             client = Client(token="secret_token")
 
         result = client.get_flow_run_info(
@@ -527,7 +543,7 @@ class TestResultHandlerDeserialization:
             )
         )
         monkeypatch.setattr("requests.post", post)
-        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
             client = Client(token="secret_token")
 
         result = client.get_task_run_info(
@@ -563,7 +579,7 @@ class TestResultHandlerDeserialization:
             )
         )
         monkeypatch.setattr("requests.post", post)
-        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
             client = Client(token="secret_token")
 
         result = client.get_flow_run_info(
@@ -599,7 +615,7 @@ class TestResultHandlerDeserialization:
             )
         )
         monkeypatch.setattr("requests.post", post)
-        with set_temporary_config("cloud.graphql", "http://my-cloud.foo/graphql"):
+        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo/graphql"}):
             client = Client(token="secret_token")
 
         result = client.get_task_run_info(

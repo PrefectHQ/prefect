@@ -28,6 +28,19 @@ class Config(collections.DotDict):
         else:
             raise AttributeError("Config has no key '{}'".format(attr))
 
+    def copy(self) -> "Config":
+        """
+        Create a copy of the config. Each level of the Config is a new Config object, so
+        modifying keys won't affect the original Config object. However, values are not
+        deep-copied, and mutations can affect the original.
+        """
+        new_config = Config()
+        for key, value in self.items():
+            if isinstance(value, Config):
+                value = value.copy()
+            new_config[key] = value
+        return new_config
+
     def get_nested(self, key: str, default=None) -> Any:
         """
         Retrieves a (possibly nested) config key's value, creating intermediate keys if
