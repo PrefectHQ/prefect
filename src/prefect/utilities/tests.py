@@ -10,26 +10,28 @@ from prefect.engine.state import State
 
 
 @contextmanager
-def set_temporary_config(key: str, value: Any) -> Iterator:
+def set_temporary_config(temp_config: dict) -> Iterator:
     """
-    Temporarily sets a configuration value for the duration of the context manager.
+    Temporarily sets configuration values for the duration of the context manager.
 
     Args:
-        - key (str): the fully-qualified config key (including '.'s)
-        - value (Any): the value to apply to the key
+        - temp_config (dict): a dictionary containing (possibly nested) configuration keys and values.
+            Nested configuration keys should be supplied as `.`-delimited strings.
 
     Example:
         ```python
-        with set_temporary_config('flows.eager_edge_validation', True):
-            assert prefect.config.flows.eager_edge_validation
+        with set_temporary_config({'setting': 1, 'nested.setting': 2}):
+            assert prefect.config.setting == 1
+            assert prefect.config.nested.setting == 2
         ```
     """
     try:
-        old_config = copy.deepcopy(prefect.config.__dict__)
+        old_config = prefect.config.copy()
 
-        config = prefect.config
-        config.set_nested(key, value)
-        yield
+        for key, value in temp_config.items():
+            prefect.config.set_nested(key, value)
+
+        yield prefect.config
     finally:
         prefect.config.__dict__.clear()
         prefect.config.__dict__.update(old_config)

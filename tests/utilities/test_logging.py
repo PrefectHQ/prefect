@@ -4,10 +4,10 @@ from prefect import utilities
 
 def test_root_logger_level_responds_to_config():
     try:
-        with utilities.tests.set_temporary_config("logging.level", "DEBUG"):
+        with utilities.tests.set_temporary_config({"logging.level": "DEBUG"}):
             utilities.logging.configure_logging().level == logging.DEBUG
 
-        with utilities.tests.set_temporary_config("logging.level", "WARNING"):
+        with utilities.tests.set_temporary_config({"logging.level": "WARNING"}):
             utilities.logging.configure_logging().level == logging.WARNING
     finally:
         # reset root_logger
