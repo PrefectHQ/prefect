@@ -84,7 +84,7 @@ class Environment:
         """
         raise NotImplementedError()
 
-    def run(self, runner_kwargs: dict) -> Optional[bytes]:
+    def run(self, runner_kwargs: dict) -> "prefect.engine.state.State":
         """
         Runs the `Flow` represented by this environment.
 
@@ -187,7 +187,7 @@ class LocalEnvironment(Environment):
             serialized_flow=self.serialize_flow_to_bytes(flow),
         )
 
-    def run(self, runner_kwargs: dict = None) -> bytes:
+    def run(self, runner_kwargs: dict = None) -> "prefect.engine.state.State":
         """
         Runs the `Flow` represented by this environment.
 
