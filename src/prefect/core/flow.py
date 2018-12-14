@@ -1220,7 +1220,7 @@ class Flow:
 
     # Deployment ------------------------------------------------------------------
 
-    def deploy(self, project_id: str, set_schedule_active: bool) -> None:
+    def deploy(self, project_id: str, set_schedule_active: bool) -> str:
         """
         Deploy the flow to Prefect Cloud
 
@@ -1232,12 +1232,13 @@ class Flow:
                 Defaults to `False`
 
         Returns:
-            - None
+            - str: the ID of the flow that was deployed
         """
         client = prefect.Client()
-        client.deploy(
+        deployed_flow = client.deploy(
             flow=self, project_id=project_id, set_schedule_active=set_schedule_active
         )
+        return deployed_flow.id
 
 
 def _hash(value: str) -> bytes:
