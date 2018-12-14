@@ -277,7 +277,8 @@ class Client:
         res = self.graphql(
             parse_graphql(create_mutation),
             input=dict(
-                projectId=project_id, serializedFlow=json.dumps(flow.serialize())
+                projectId=project_id,
+                serializedFlow=json.dumps(flow.serialize(build=True)),
             ),
         )
         if set_schedule_active:
