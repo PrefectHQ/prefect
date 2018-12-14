@@ -258,6 +258,12 @@ class Client:
         Returns:
             - GraphQLResult: information about the newly created flow (e.g., its "id")
         """
+        required_parameters = flow.parameters(only_required=True)
+        if flow.schedule is not None and required_parameters:
+            raise ValueError(
+                "Flows with required parameters can not be scheduled automatically."
+            )
+
         create_mutation = {
             "mutation($input: createFlowInput!)": {
                 "createFlow(input: $input)": {"flow": {"id"}}
