@@ -989,8 +989,8 @@ class TestTaskStateHandlers:
 class TestTaskRunnerStateHandlers:
     def test_task_runner_handlers_are_called(self):
         TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
-        # the task changed state three times: Initialization -> Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 3
+        # the task changed state three times: Pending -> Running -> Success
+        assert handler_results["TaskRunner"] == 2
 
     def test_task_runner_handlers_are_called_on_retry(self):
         @prefect.task(max_retries=1, retry_delay=timedelta(0))
@@ -998,15 +998,15 @@ class TestTaskRunnerStateHandlers:
             1 / 0
 
         TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
-        # the task changed state four times: Initialization -> Pending -> Running -> Failed -> Retry
-        assert handler_results["TaskRunner"] == 4
+        # the task changed state four times: Pending -> Running -> Failed -> Retry
+        assert handler_results["TaskRunner"] == 3
 
     def test_multiple_task_runner_handlers_are_called(self):
         TaskRunner(
             task=Task(), state_handlers=[task_runner_handler, task_runner_handler]
         ).run()
-        # each task changed state three times: Initialization -> Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 6
+        # each task changed state three times: Pending -> Running -> Success
+        assert handler_results["TaskRunner"] == 4
 
     def test_multiple_task_runner_handlers_are_called_in_sequence(self):
         # the second task handler will assert the result of the first task handler is a state
