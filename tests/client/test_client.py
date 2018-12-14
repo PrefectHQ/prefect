@@ -322,6 +322,29 @@ def test_client_deploy(monkeypatch):
     assert result.id == "long-id"
 
 
+def test_client_deploy_rejects_setting_active_schedules_for_flows_with_req_params(
+    monkeypatch
+):
+    post = MagicMock()
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+
+    flow = prefect.Flow(name="test")
+    flow.add_task(prefect.Parameter("x", required=True))
+
+    with pytest.raises(ValueError) as exc:
+        result = client.deploy(
+            flow, project_id="my-default-0000", set_schedule_active=True
+        )
+    assert (
+        str(exc.value)
+        == "Flows with required parameters can not be scheduled automatically."
+    )
+
+
 def test_get_flow_run_info(monkeypatch):
     response = """
 {
