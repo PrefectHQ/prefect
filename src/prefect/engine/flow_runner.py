@@ -185,7 +185,8 @@ class FlowRunner(Runner):
             context.update(_flow_run_version=flow_run_info.version)  # type: ignore
 
             ## update parameters, prioritizing kwarg-provided params
-            for key, value in flow_run_info.parameters:  # type: ignore
+            db_parameters = flow_run_info.parameters or {}
+            for key, value in db_parameters:  # type: ignore
                 if key not in parameters:
                     parameters[key] = value
 
