@@ -929,10 +929,14 @@ class Flow:
             )
             raise ImportError(msg)
 
-        def get_color(task: Task) -> str:
-            assert flow_state  # mypy assert
-            assert isinstance(flow_state.result, dict)  # mypy assert
-            state = flow_state.result.get(task)
+        def get_color(task: Task, map_index: int = None) -> str:
+            assert flow_state
+            assert isinstance(flow_state.result, dict)
+
+            if map_index is not None:
+                state = flow_state.result.get(task, [])[map_index]
+            else:
+                state = flow_state.result.get(task)
             if state is not None:
                 assert state is not None  # mypy assert
                 return state.color + "80"
@@ -944,18 +948,45 @@ class Flow:
             is_mapped = any(edge.mapped for edge in self.edges_to(t))
             shape = "box" if is_mapped else "ellipse"
             name = "{} <map>".format(t.name) if is_mapped else t.name
-            kwargs = (
-                {}
-                if not flow_state
-                else dict(color=get_color(t), style="filled", colorscheme="svg")
-            )
-            graph.node(str(id(t)), name, shape=shape, **kwargs)
+            if is_mapped and flow_state:
+                assert isinstance(flow_state.result, dict)
+                for map_index, _ in enumerate(flow_state.result[t]):
+                    kwargs = dict(
+                        color=get_color(t, map_index=map_index),
+                        style="filled",
+                        colorscheme="svg",
+                    )
+                    graph.node(str(id(t)) + str(map_index), name, shape=shape, **kwargs)
+            else:
+                kwargs = (
+                    {}
+                    if not flow_state
+                    else dict(color=get_color(t), style="filled", colorscheme="svg")
+                )
+                graph.node(str(id(t)), name, shape=shape, **kwargs)
 
         for e in self.edges:
             style = "dashed" if e.mapped else None
-            graph.edge(
-                str(id(e.upstream_task)), str(id(e.downstream_task)), e.key, style=style
-            )
+            if (
+                e.mapped
+                or any(edge.mapped for edge in self.edges_to(e.downstream_task))
+            ) and flow_state:
+                assert isinstance(flow_state.result, dict)
+                assert isinstance(flow_state.result[e.downstream_task], list)
+                for map_index, _ in enumerate(flow_state.result[e.downstream_task]):
+                    graph.edge(
+                        str(id(e.upstream_task)),
+                        str(id(e.downstream_task)) + str(map_index),
+                        e.key,
+                        style=style,
+                    )
+            else:
+                graph.edge(
+                    str(id(e.upstream_task)),
+                    str(id(e.downstream_task)),
+                    e.key,
+                    style=style,
+                )
 
         try:
             from IPython import get_ipython
