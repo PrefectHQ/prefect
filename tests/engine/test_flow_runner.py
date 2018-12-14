@@ -1024,3 +1024,23 @@ class TestFlowRunnerStateHandlers:
         flow = Flow(state_handlers=[handler])
         state = FlowRunner(flow=flow).run()
         assert state.is_failed()
+
+
+def test_improper_use_of_unmapped_fails_gracefully():
+    add = AddTask()
+    x = Parameter("x", default=[1, 2, 3])
+    with Flow() as f:
+        res = add.map(x, y=8)  # incorrect, should use `unmapped`
+
+    state = FlowRunner(flow=f).run(return_tasks=f.tasks)
+    assert state.is_failed()
+
+    # make sure tasks were still returned with the correct states
+    x_state = state.result.pop(x)
+    res_state = state.result.pop(res)
+    y_state = state.result.popitem()[1]
+    assert x_state.is_successful()
+    assert x_state.result == [1, 2, 3]
+    assert y_state.is_successful()
+    assert y_state.result == 8
+    assert res_state.is_failed()

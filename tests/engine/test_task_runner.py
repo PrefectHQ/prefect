@@ -1203,3 +1203,17 @@ def test_task_runner_bypasses_pause_when_requested():
     runner = TaskRunner(t2)
     out = runner.run(upstream_states={e: Success(result=1)}, context=dict(resume=True))
     assert out.is_successful()
+
+
+@pytest.mark.parametrize("mapped", [False, True])
+def test_improperly_mapped_edge_fails_gracefully(mapped):
+    add = AddTask()
+    x = Task()
+    e = Edge(x, add, mapped=True, key="x")
+    f = Edge(x, 8, mapped=True, key="y")
+
+    state = TaskRunner(add).run(
+        upstream_states={e: Success(result=[1, 2, 3]), f: Success(result=8)},
+        mapped=mapped,
+    )
+    assert state.is_failed()

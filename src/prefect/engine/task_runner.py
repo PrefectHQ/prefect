@@ -277,6 +277,11 @@ class TaskRunner(Runner):
                 state = exc.state
                 state.cached_inputs = task_inputs or {}  # type: ignore
 
+            except Exception as exc:
+                state = Failed(
+                    message="Unexpected error while running Task", result=exc
+                )
+
             finally:  # resource is now available
                 for ticket, q in zip(tickets, queues):
                     q.put(ticket)
