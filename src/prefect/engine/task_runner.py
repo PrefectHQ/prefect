@@ -281,6 +281,9 @@ class TaskRunner(Runner):
                 state = Failed(
                     message="Unexpected error while running Task", result=exc
                 )
+                raise_on_exception = prefect.context.get("_raise_on_exception", False)
+                if raise_on_exception:
+                    raise exc
 
             finally:  # resource is now available
                 for ticket, q in zip(tickets, queues):
