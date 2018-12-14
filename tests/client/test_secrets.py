@@ -1,3 +1,4 @@
+import json
 import pytest
 from unittest.mock import MagicMock
 
@@ -35,3 +36,27 @@ def test_secret_value_depends_on_use_local_secrets():
             with pytest.raises(ValueError) as exc:
                 secret.get()
             assert "Client.login" in str(exc.value)
+
+
+def test_secrets_use_client(monkeypatch):
+    response = """
+{
+    "secretValue": "1234"
+}
+    """
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=json.loads(response)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config(
+        {
+            "cloud.api": "http://my-cloud.foo",
+            "cloud.auth_token": "secret_token",
+            "cloud.use_local_secrets": False,
+        }
+    ):
+        my_secret = Secret(name="the-key")
+        val = my_secret.get()
+    assert val == "1234"
