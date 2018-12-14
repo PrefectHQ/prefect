@@ -877,11 +877,14 @@ class TestFlowVisualize:
                     result={res: [Success(), Failed()], list_task: Success()}
                 )
             )
-            print(graph.source)
+
+        # one colored node for each mapped result
         assert 'label="a_nice_task <map>" color="#00800080"' in graph.source
         assert 'label="a_nice_task <map>" color="#FF000080"' in graph.source
         assert 'label=a_list_task color="#00800080"' in graph.source
         assert 'label=8 color="#00000080"' in graph.source
+
+        # two edges for each input to add()
         for var in ["x", "y"]:
             for index in [0, 1]:
                 assert "{0} [label={1} style=dashed]".format(index, var) in graph.source
