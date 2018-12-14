@@ -1232,7 +1232,7 @@ class Flow:
                 Defaults to `False`
 
         Returns:
-            None
+            - None
         """
         client = prefect.Client()
         client.deploy(
