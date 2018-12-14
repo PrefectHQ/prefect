@@ -40,9 +40,7 @@ class Secret:
             return client.graphql(  # type: ignore
                 """
                 query($name: String!) {
-                    secret(name: $name) {
-                        value
-                    }
+                    secretValue(name: $name)
                 }""",
                 name=self.name,
-            ).secret.value
+            ).secretValue
