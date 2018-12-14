@@ -160,7 +160,6 @@ class FlowRunner(Runner):
             - ValueError: if any throttle values are `<= 0`
         """
 
-        state = state or Pending()
         context = context or {}
         return_tasks = set(return_tasks or [])
         executor = executor or DEFAULT_EXECUTOR
@@ -183,6 +182,7 @@ class FlowRunner(Runner):
                 result_handler=self.flow.result_handler,
             )
             context.update(_flow_run_version=flow_run_info.version)  # type: ignore
+            state = flow_run_info.state  # type: ignore
 
             ## update parameters, prioritizing kwarg-provided params
             db_parameters = flow_run_info.parameters or {}  # type: ignore
@@ -190,6 +190,7 @@ class FlowRunner(Runner):
                 if key not in parameters:
                     parameters[key] = value
 
+        state = state or Pending()  # needs to remain below cloud check
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
 
