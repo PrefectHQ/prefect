@@ -1218,6 +1218,17 @@ class Flow:
 
         return ids
 
+    # Deployment ------------------------------------------------------------------
+
+    def deploy(self, project_id: str, set_schedule_active: bool) -> None:
+        """
+        Deploy the flow
+        """
+        client = prefect.Client()
+        client.deploy(
+            flow=self, project_id=project_id, set_schedule_active=set_schedule_active
+        )
+
 
 def _hash(value: str) -> bytes:
     return xxhash.xxh64(value).digest()
