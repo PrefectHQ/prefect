@@ -176,13 +176,14 @@ class FlowRunner(Runner):
             )
 
         # Initialize CloudHandler and get flow run version
+        db_state = None
         if config.get("prefect_cloud", None):
             flow_run_info = self.client.get_flow_run_info(
                 flow_run_id=prefect.context.get("flow_run_id", ""),
                 result_handler=self.flow.result_handler,
             )
             context.update(_flow_run_version=flow_run_info.version)  # type: ignore
-            state = flow_run_info.state  # type: ignore
+            db_state = flow_run_info.state  # type: ignore
 
             ## update parameters, prioritizing kwarg-provided params
             db_parameters = flow_run_info.parameters or {}  # type: ignore
@@ -190,7 +191,7 @@ class FlowRunner(Runner):
                 if key not in parameters:
                     parameters[key] = value
 
-        state = state or Pending()  # needs to remain below cloud check
+        state = state or db_state or Pending()  # needs to remain below cloud check
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
 
