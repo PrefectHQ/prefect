@@ -259,7 +259,7 @@ class Client:
             - GraphQLResult: information about the newly created flow (e.g., its "id")
         """
         required_parameters = flow.parameters(only_required=True)
-        if set_schedule_active and required_parameters:
+        if flow.schedule is not None and required_parameters:
             raise ValueError(
                 "Flows with required parameters can not be scheduled automatically."
             )

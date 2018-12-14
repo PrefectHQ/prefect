@@ -322,8 +322,9 @@ def test_client_deploy(monkeypatch):
     assert result.id == "long-id"
 
 
+@pytest.mark.parametrize("active", [False, True])
 def test_client_deploy_rejects_setting_active_schedules_for_flows_with_req_params(
-    monkeypatch
+    active, monkeypatch
 ):
     post = MagicMock()
     monkeypatch.setattr("requests.post", post)
@@ -332,12 +333,12 @@ def test_client_deploy_rejects_setting_active_schedules_for_flows_with_req_param
     ):
         client = Client()
 
-    flow = prefect.Flow(name="test")
+    flow = prefect.Flow(name="test", schedule=prefect.schedules.Schedule())
     flow.add_task(prefect.Parameter("x", required=True))
 
     with pytest.raises(ValueError) as exc:
         result = client.deploy(
-            flow, project_id="my-default-0000", set_schedule_active=True
+            flow, project_id="my-default-0000", set_schedule_active=active
         )
     assert (
         str(exc.value)
