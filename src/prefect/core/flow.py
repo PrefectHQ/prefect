@@ -1222,7 +1222,17 @@ class Flow:
 
     def deploy(self, project_id: str, set_schedule_active: bool) -> None:
         """
-        Deploy the flow
+        Deploy the flow to Prefect Cloud
+
+        Args:
+            - project_id (str): the project ID to associate this Flow with (note
+                that this can be changed later)
+            - set_schedule_active (bool, optional): if `True`, will set the
+                schedule to active in the database and begin scheduling runs (if the Flow has a schedule).
+                Defaults to `False`
+
+        Returns:
+            None
         """
         client = prefect.Client()
         client.deploy(
