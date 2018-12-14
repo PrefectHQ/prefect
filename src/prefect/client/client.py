@@ -241,7 +241,9 @@ class Client:
         )
         self.token = response.json().get("token")
 
-    def deploy(self, flow: "Flow", project_id: str) -> GraphQLResult:
+    def deploy(
+        self, flow: "Flow", project_id: str, set_schedule_active: bool = False
+    ) -> GraphQLResult:
         """
         Push a new Flow to the database.
 
@@ -249,21 +251,36 @@ class Client:
             - flow (Flow): the prefect Flow to insert into the database
             - project_id (str): the project ID to associate this Flow with (note
                 that this can be changed later)
+            - set_schedule_active (bool, optional): if `True`, will set the
+                schedule to active in the database and begin scheduling runs (if the Flow has a schedule).
+                Defaults to `False`
 
         Returns:
             - GraphQLResult: information about the newly created flow (e.g., its "id")
         """
-        mutation = {
+        create_mutation = {
             "mutation($input: createFlowInput!)": {
                 "createFlow(input: $input)": {"flow": {"id"}}
             }
         }
+        schedule_mutation = {
+            "mutation($input: setFlowScheduleIsActiveInput!)": {
+                "setFlowScheduleIsActive(input: $input)": {"flow": {"id"}}
+            }
+        }
         res = self.graphql(
-            parse_graphql(mutation),
+            parse_graphql(create_mutation),
             input=dict(
                 projectId=project_id, serializedFlow=json.dumps(flow.serialize())
             ),
         )
+        if set_schedule_active:
+            scheduled_res = self.graphql(
+                parse_graphql(schedule_mutation),
+                input=dict(
+                    flowId=res.createFlow.flow.id, isActive=True  # type: ignore
+                ),
+            )
         return res.createFlow.flow  # type: ignore
 
     def get_flow_run_info(
