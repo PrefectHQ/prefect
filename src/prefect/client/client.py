@@ -36,37 +36,32 @@ class Client:
     token will only be present in the current context.
 
     Args:
-        - token (str, optional): Authentication token server connection
+        - api_server (str, optional): the URL to send all basic POST requests
+            to; if not provided, will be pulled from `cloud.api` config var
+        - graphql_server (str, optional): the URL to send all GraphQL requests
+            to; if not provided, will be pulled from `cloud.graphql` config var
     """
 
-    def __init__(self, token: str = None) -> None:
-        api_server = prefect.config.cloud.get("api", None)
-
+    def __init__(self, api_server: str = None, graphql_server: str = None) -> None:
         if not api_server:
-            raise ValueError("Could not determine API server.")
-
+            api_server = prefect.config.cloud.get("api", None)
+            if not api_server:
+                raise ValueError("Could not determine API server.")
         self.api_server = api_server
 
-        graphql_server = prefect.config.cloud.get("graphql", None)
-
-        # Default to the API server
         if not graphql_server:
-            graphql_server = api_server
-
+            graphql_server = prefect.config.cloud.get("graphql") or self.api_server
         self.graphql_server = graphql_server
 
-        if token is None:
-            token = prefect.config.cloud.get("auth_token", None)
+        token = prefect.config.cloud.get("auth_token", None)
 
-            if token is None:
-                token_path = os.path.expanduser("~/.prefect/.credentials/auth_token")
-                if os.path.exists(token_path):
-                    with open(token_path, "r") as f:
-                        token = f.read()
+        if token is None:
+            token_path = os.path.expanduser("~/.prefect/.credentials/auth_token")
+            if os.path.exists(token_path):
+                with open(token_path, "r") as f:
+                    token = f.read()
 
         self.token = token
-        if self.token is None and prefect.config.get("prefect_cloud"):
-            self.login()
 
     # -------------------------------------------------------------------------
     # Utilities
@@ -185,8 +180,8 @@ class Client:
 
     def login(
         self,
-        email: str = None,
-        password: str = None,
+        email: str,
+        password: str,
         account_slug: str = None,
         account_id: str = None,
     ) -> None:
@@ -194,10 +189,8 @@ class Client:
         Login to the server in order to gain access
 
         Args:
-            - email (str): User's email on the platform; if not provided, pulled
-                from config
-            - password (str): User's password on the platform; if not provided,
-                pulled from config
+            - email (str): User's email on the platform
+            - password (str): User's password on the platform
             - account_slug (str, optional): Slug that is unique to the user
             - account_id (str, optional): Specific Account ID for this user to use
 
@@ -207,9 +200,6 @@ class Client:
 
         # lazy import for performance
         import requests
-
-        email = email or prefect.config.cloud.email
-        password = password or prefect.config.cloud.password
 
         url = os.path.join(self.api_server, "login_email")
         response = requests.post(
@@ -250,6 +240,48 @@ class Client:
             url, headers={"Authorization": "Bearer {}".format(self.token)}
         )
         self.token = response.json().get("token")
+
+    def deploy(
+        self, flow: "Flow", project_id: str, set_schedule_active: bool = False
+    ) -> GraphQLResult:
+        """
+        Push a new Flow to the database.
+
+        Args:
+            - flow (Flow): the prefect Flow to insert into the database
+            - project_id (str): the project ID to associate this Flow with (note
+                that this can be changed later)
+            - set_schedule_active (bool, optional): if `True`, will set the
+                schedule to active in the database and begin scheduling runs (if the Flow has a schedule).
+                Defaults to `False`
+
+        Returns:
+            - GraphQLResult: information about the newly created flow (e.g., its "id")
+        """
+        create_mutation = {
+            "mutation($input: createFlowInput!)": {
+                "createFlow(input: $input)": {"flow": {"id"}}
+            }
+        }
+        schedule_mutation = {
+            "mutation($input: setFlowScheduleIsActiveInput!)": {
+                "setFlowScheduleIsActive(input: $input)": {"flow": {"id"}}
+            }
+        }
+        res = self.graphql(
+            parse_graphql(create_mutation),
+            input=dict(
+                projectId=project_id, serializedFlow=json.dumps(flow.serialize())
+            ),
+        )
+        if set_schedule_active:
+            scheduled_res = self.graphql(
+                parse_graphql(schedule_mutation),
+                input=dict(
+                    flowId=res.createFlow.flow.id, isActive=True  # type: ignore
+                ),
+            )
+        return res.createFlow.flow  # type: ignore
 
     def get_flow_run_info(
         self, flow_run_id: str, result_handler: ResultHandler = None
