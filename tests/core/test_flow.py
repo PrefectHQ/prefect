@@ -12,6 +12,7 @@ from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
+from prefect.engine.state import Success, Failed, Skipped
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.tasks import task, unmapped
 from prefect.utilities.configuration import set_temporary_config
@@ -844,6 +845,46 @@ class TestFlowVisualize:
         assert "label=a_list_task shape=ellipse" in graph.source
         assert "label=x style=dashed" in graph.source
         assert "label=y style=dashed" in graph.source
+
+    @pytest.mark.parametrize("state", [Success(), Failed(), Skipped()])
+    def test_viz_if_flow_state_provided(self, state):
+        import graphviz
+
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        with patch.dict("sys.modules", IPython=ipython):
+            t = Task(name="a_nice_task")
+            f = Flow()
+            f.add_task(t)
+            graph = f.visualize(flow_state=Success(result={t: state}))
+        assert "label=a_nice_task" in graph.source
+        assert 'color="' + state.color + '80"' in graph.source
+        assert "shape=ellipse" in graph.source
+
+    def test_viz_reflects_mapping_if_flow_state_provided(self):
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        add = AddTask(name="a_nice_task")
+        list_task = Task(name="a_list_task")
+
+        with patch.dict("sys.modules", IPython=ipython):
+            with Flow() as f:
+                res = add.map(x=list_task, y=8)
+            graph = f.visualize(
+                flow_state=Success(
+                    result={res: [Success(), Failed()], list_task: Success()}
+                )
+            )
+            print(graph.source)
+        assert 'label="a_nice_task <map>" color="#00800080"' in graph.source
+        assert 'label="a_nice_task <map>" color="#FF000080"' in graph.source
+        assert 'label=a_list_task color="#00800080"' in graph.source
+        assert 'label=8 color="#00000080"' in graph.source
+        for var in ["x", "y"]:
+            for index in [0, 1]:
+                assert "{0} [label={1} style=dashed]".format(index, var) in graph.source
 
     @pytest.mark.parametrize(
         "error",
