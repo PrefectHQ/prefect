@@ -6,7 +6,16 @@ from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.task_runner import TaskRunner
-from prefect.engine.state import Failed, Running, Pending, Success
+from prefect.engine.state import (
+    Failed,
+    Running,
+    Pending,
+    Success,
+    Finished,
+    TriggerFailed,
+    TimedOut,
+    Skipped,
+)
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -42,9 +51,12 @@ class TestFlowRunner:
         states = [call[1]["state"] for call in set_flow_run_state.call_args_list]
         assert states == [Running(), Success(result=dict())]
 
-    def test_flow_runner_respects_the_db_state(self, monkeypatch):
+    @pytest.mark.parametrize(
+        "state", [Finished, Success, Skipped, Failed, TimedOut, TriggerFailed]
+    )
+    def test_flow_runner_respects_the_db_state(self, monkeypatch, state):
         flow = prefect.Flow(name="test")
-        db_state = Failed("already", result=10)
+        db_state = state("already", result=10)
         get_flow_run_info = MagicMock(return_value=MagicMock(state=db_state))
         set_flow_run_state = MagicMock()
         client = MagicMock(
@@ -60,9 +72,14 @@ class TestFlowRunner:
         assert set_flow_run_state.call_count == 0  # never needs to update state
         assert res == db_state
 
-    def test_flow_runner_prioritizes_kwarg_states_over_db_states(self, monkeypatch):
+    @pytest.mark.parametrize(
+        "state", [Finished, Success, Skipped, Failed, TimedOut, TriggerFailed]
+    )
+    def test_flow_runner_prioritizes_kwarg_states_over_db_states(
+        self, monkeypatch, state
+    ):
         flow = prefect.Flow(name="test")
-        db_state = Failed("already", result=10)
+        db_state = state("already", result=10)
         get_flow_run_info = MagicMock(return_value=MagicMock(state=db_state))
         set_flow_run_state = MagicMock()
         client = MagicMock(
@@ -101,9 +118,12 @@ class TestTaskRunner:
         states = [call[1]["state"] for call in set_task_run_state.call_args_list]
         assert states == [Running(), Success()]
 
-    def test_task_runner_respects_the_db_state(self, monkeypatch):
+    @pytest.mark.parametrize(
+        "state", [Finished, Success, Skipped, Failed, TimedOut, TriggerFailed]
+    )
+    def test_task_runner_respects_the_db_state(self, monkeypatch, state):
         task = prefect.Task(name="test")
-        db_state = Failed("already", result=10)
+        db_state = state("already", result=10)
         get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
         set_task_run_state = MagicMock()
         client = MagicMock(
@@ -119,9 +139,14 @@ class TestTaskRunner:
         assert set_task_run_state.call_count == 0  # never needs to update state
         assert res == db_state
 
-    def test_task_runner_prioritizes_kwarg_states_over_db_states(self, monkeypatch):
+    @pytest.mark.parametrize(
+        "state", [Finished, Success, Skipped, Failed, TimedOut, TriggerFailed]
+    )
+    def test_task_runner_prioritizes_kwarg_states_over_db_states(
+        self, monkeypatch, state
+    ):
         task = prefect.Task(name="test")
-        db_state = Failed("already", result=10)
+        db_state = state("already", result=10)
         get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
         set_task_run_state = MagicMock()
         client = MagicMock(
