@@ -310,6 +310,25 @@ def test_required_parameters_must_be_provided():
     assert "required but not provided" in str(flow_state.result[y]).lower()
 
 
+def test_parameters_are_placed_into_context():
+    flow = prefect.Flow()
+    y = prefect.Parameter("y", default=99)
+    flow.add_task(y)
+    flow_state = FlowRunner(flow=flow).run(return_tasks=[y], parameters=dict(y=42))
+    assert isinstance(flow_state, Success)
+    assert flow_state.result[y].result == 42
+
+
+def test_parameters_are_placed_into_context_and_override_current_context():
+    flow = prefect.Flow()
+    y = prefect.Parameter("y", default=99)
+    flow.add_task(y)
+    with prefect.context(_parameters=dict(y=88, z=55)):
+        flow_state = FlowRunner(flow=flow).run(return_tasks=[y], parameters=dict(y=42))
+    assert isinstance(flow_state, Success)
+    assert flow_state.result[y].result == 42
+
+
 def test_flow_run_state_determined_by_reference_tasks():
     flow = prefect.Flow()
     t1 = ErrorTask()

@@ -160,10 +160,10 @@ class FlowRunner(Runner):
             - ValueError: if any throttle values are `<= 0`
         """
 
-        state = state or Pending()
         context = context or {}
         return_tasks = set(return_tasks or [])
         executor = executor or DEFAULT_EXECUTOR
+        parameters = parameters or {}
         throttle = throttle or self.flow.throttle
         if min(throttle.values(), default=1) <= 0:
             bad_tags = ", ".join(
@@ -176,13 +176,22 @@ class FlowRunner(Runner):
             )
 
         # Initialize CloudHandler and get flow run version
+        db_state = None
         if config.get("prefect_cloud", None):
             flow_run_info = self.client.get_flow_run_info(
                 flow_run_id=prefect.context.get("flow_run_id", ""),
                 result_handler=self.flow.result_handler,
             )
             context.update(_flow_run_version=flow_run_info.version)  # type: ignore
+            db_state = flow_run_info.state  # type: ignore
 
+            ## update parameters, prioritizing kwarg-provided params
+            db_parameters = flow_run_info.parameters or {}  # type: ignore
+            for key, value in db_parameters:  # type: ignore
+                if key not in parameters:
+                    parameters[key] = value
+
+        state = state or db_state or Pending()  # needs to remain below cloud check
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
 

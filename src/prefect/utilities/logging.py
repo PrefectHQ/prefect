@@ -19,7 +19,6 @@ class RemoteHandler(logging.StreamHandler):
             from prefect.client import Client
 
             self.client = Client()
-            self.client.login(email=config.email, password=config.password)
         r = self.client.post(path="", server=self.logger_server, **record.__dict__)
 
 
