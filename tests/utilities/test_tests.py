@@ -82,11 +82,16 @@ def test_that_bad_code_in_task_runner_is_caught():
             raise RuntimeError("I represent bad code in the task runner.")
 
     flow = Flow()
-    flow.add_task(MathTask())
-    flow_state = FlowRunner(flow=flow, task_runner_cls=BadTaskRunner).run()
+    math_task = MathTask()
+    flow.add_task(math_task)
+    flow_state = FlowRunner(flow=flow, task_runner_cls=BadTaskRunner).run(
+        return_tasks=[math_task]
+    )
     assert isinstance(flow_state, state.Failed)
-    assert isinstance(flow_state.result, RuntimeError)
-    assert "I represent bad code in the task runner." == str(flow_state.result)
+    assert flow_state.result[math_task].is_failed()
+    caught_exc = flow_state.result[math_task].result
+    assert isinstance(caught_exc, RuntimeError)
+    assert "I represent bad code in the task runner." == str(caught_exc)
 
 
 def test_raise_on_exception_plays_well_with_context():
