@@ -109,27 +109,15 @@ def test_client_token_priotizes_config_over_file(monkeypatch):
     assert client.token == "config-token"
 
 
-def test_client_logs_in_and_saves_token(monkeypatch):
-    post = MagicMock(
-        return_value=MagicMock(
-            ok=True, json=MagicMock(return_value=dict(token="secrettoken"))
-        )
-    )
+def test_client_doesnt_write_to_file_if_token_provided_from_config(monkeypatch):
     monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
     mock_file = mock_open()
     monkeypatch.setattr("builtins.open", mock_file)
-    monkeypatch.setattr("requests.post", post)
-    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "token"}
+    ):
         client = Client()
-    client.login("test@example.com", "1234")
-    assert post.called
-    assert post.call_args[0][0] == "http://my-cloud.foo/login_email"
-    assert post.call_args[1]["auth"] == ("test@example.com", "1234")
-    assert client.token == "secrettoken"
-    assert mock_file.call_args[0] == (
-        os.path.expanduser("~/.prefect/.credentials/auth_token"),
-        "w+",
-    )
+    assert not mock_file.called
 
 
 @pytest.mark.parametrize("cloud", [True, False])
