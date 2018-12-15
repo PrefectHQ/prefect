@@ -989,8 +989,8 @@ class TestTaskStateHandlers:
 class TestTaskRunnerStateHandlers:
     def test_task_runner_handlers_are_called(self):
         TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
-        # the task changed state three times: Initialization -> Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 3
+        # the task changed state three times: Pending -> Running -> Success
+        assert handler_results["TaskRunner"] == 2
 
     def test_task_runner_handlers_are_called_on_retry(self):
         @prefect.task(max_retries=1, retry_delay=timedelta(0))
@@ -998,15 +998,15 @@ class TestTaskRunnerStateHandlers:
             1 / 0
 
         TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
-        # the task changed state four times: Initialization -> Pending -> Running -> Failed -> Retry
-        assert handler_results["TaskRunner"] == 4
+        # the task changed state four times: Pending -> Running -> Failed -> Retry
+        assert handler_results["TaskRunner"] == 3
 
     def test_multiple_task_runner_handlers_are_called(self):
         TaskRunner(
             task=Task(), state_handlers=[task_runner_handler, task_runner_handler]
         ).run()
-        # each task changed state three times: Initialization -> Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 6
+        # each task changed state three times: Pending -> Running -> Success
+        assert handler_results["TaskRunner"] == 4
 
     def test_multiple_task_runner_handlers_are_called_in_sequence(self):
         # the second task handler will assert the result of the first task handler is a state
@@ -1203,3 +1203,17 @@ def test_task_runner_bypasses_pause_when_requested():
     runner = TaskRunner(t2)
     out = runner.run(upstream_states={e: Success(result=1)}, context=dict(resume=True))
     assert out.is_successful()
+
+
+@pytest.mark.parametrize("mapped", [False, True])
+def test_improperly_mapped_edge_fails_gracefully(mapped):
+    add = AddTask()
+    x = Task()
+    e = Edge(x, add, mapped=True, key="x")
+    f = Edge(x, 8, mapped=True, key="y")
+
+    state = TaskRunner(add).run(
+        upstream_states={e: Success(result=[1, 2, 3]), f: Success(result=8)},
+        mapped=mapped,
+    )
+    assert state.is_failed()

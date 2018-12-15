@@ -152,6 +152,7 @@ class TaskRunner(Runner):
         executor = executor or DEFAULT_EXECUTOR
 
         # Initialize CloudHandler and get task run version
+        db_state = None
         if config.get("prefect_cloud", None):
             flow_run_id = context.get("flow_run_id", None)
             task_run_info = self.client.get_task_run_info(
@@ -160,10 +161,12 @@ class TaskRunner(Runner):
                 map_index=map_index,
                 result_handler=self.result_handler,
             )
+            db_state = task_run_info.state  # type: ignore
             context.update(
                 _task_run_version=task_run_info.version,  # type: ignore
                 _task_run_id=task_run_info.id,  # type: ignore
             )
+        state = state or db_state or Pending()
 
         # construct task inputs
         task_inputs = {}  # type: Dict[str, Any]
@@ -202,12 +205,6 @@ class TaskRunner(Runner):
         with prefect.context(context, _task_name=self.task.name, _map_index=map_index):
 
             try:
-                # determine starting state
-                new_state = None
-                for handler in self.state_handlers:
-                    new_state = handler(self, None, new_state)
-                state = new_state or state or Pending()
-
                 # retrieve the run number and place in context
                 state = self.get_run_count(state=state)
 
@@ -279,6 +276,14 @@ class TaskRunner(Runner):
             except signals.PAUSE as exc:
                 state = exc.state
                 state.cached_inputs = task_inputs or {}  # type: ignore
+
+            except Exception as exc:
+                state = Failed(
+                    message="Unexpected error while running Task", result=exc
+                )
+                raise_on_exception = prefect.context.get("_raise_on_exception", False)
+                if raise_on_exception:
+                    raise exc
 
             finally:  # resource is now available
                 for ticket, q in zip(tickets, queues):
