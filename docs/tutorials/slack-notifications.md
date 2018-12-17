@@ -99,12 +99,12 @@ The default settings are to be notified on _every_ state change for the task / f
 The `slack_notifier` state handler is [_curried_](https://en.wikipedia.org/wiki/Currying), meaning you can call it early to bind certain keyword arguments.  For example, suppose we only wanted to be notified on `Failed` states; in that case, we could do:
 ```python
 from prefect import task
-from prefect.engine.states import Failed
+from prefect.engine.state import Failed
 from prefect.utilities.notifications import slack_notifier
 
 handler = slack_notifier(only_states=[Failed]) # we can call it early
 
-@task(state_handler=[handler])
+@task(state_handlers=[handler])
 def add(x, y):
     return x + y
 ```
