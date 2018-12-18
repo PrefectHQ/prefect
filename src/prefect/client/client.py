@@ -270,8 +270,8 @@ class Client:
             }
         }
         schedule_mutation = {
-            "mutation($input: setFlowScheduleIsActiveInput!)": {
-                "setFlowScheduleIsActive(input: $input)": {"flow": {"id"}}
+            "mutation($input: setFlowScheduleInput!)": {
+                "setFlowScheduleActive(input: $input)": {"flow": {"id"}}
             }
         }
         res = self.graphql(
@@ -284,9 +284,7 @@ class Client:
         if set_schedule_active:
             scheduled_res = self.graphql(
                 parse_graphql(schedule_mutation),
-                input=dict(
-                    flowId=res.createFlow.flow.id, isActive=True  # type: ignore
-                ),
+                input=dict(flowId=res.createFlow.flow.id),  # type: ignore
             )
         return res.createFlow.flow  # type: ignore
 
