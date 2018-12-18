@@ -270,21 +270,21 @@ class Client:
             }
         }
         schedule_mutation = {
-            "mutation($input: setFlowScheduleInput!)": {
-                "setFlowScheduleActive(input: $input)": {"flow": {"id"}}
+            "mutation($input: setFlowScheduleStateInput!)": {
+                "setFlowScheduleState(input: $input)": {"flow": {"id"}}
             }
         }
         res = self.graphql(
             parse_graphql(create_mutation),
             input=dict(
                 projectId=project_id,
-                serializedFlow=json.dumps(flow.serialize(build=True)),
+                serializedFlow=flow.serialize(build=True),
             ),
         )
         if set_schedule_active:
             scheduled_res = self.graphql(
                 parse_graphql(schedule_mutation),
-                input=dict(flowId=res.createFlow.flow.id),  # type: ignore
+                input=dict(flowId=res.createFlow.flow.id, setActive=True),  # type: ignore
             )
         return res.createFlow.flow  # type: ignore
 
