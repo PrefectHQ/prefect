@@ -1,3 +1,4 @@
+import uuid
 import datetime
 import logging
 import sys
@@ -371,6 +372,20 @@ def test_eager_cycle_detection_works():
     assert not prefect.config.flows.eager_edge_validation
 
 
+
+def test_id_must_be_valid_uuid():
+    f = Flow()
+
+
+    with pytest.raises(ValueError):
+        f.id = 1
+
+    with pytest.raises(ValueError):
+        f.id = "1"
+
+    f.id = str(uuid.uuid4())
+
+
 def test_copy():
     with Flow() as f:
         t1 = Task()
@@ -388,6 +403,12 @@ def test_copy():
     assert len(f2.tasks) == len(f.tasks) - 2
     assert len(f2.edges) == len(f.edges) - 1
     assert f.reference_tasks() == f2.reference_tasks() == set([t1])
+
+
+def test_copy_creates_new_id():
+    f = Flow()
+    f2 = f.copy()
+    assert f.id != f2.id
 
 
 def test_infer_root_tasks():
