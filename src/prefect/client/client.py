@@ -347,7 +347,7 @@ class Client:
             - ValueError: if the GraphQL query is bad for any reason
         """
         mutation = {
-            "mutation($state: String!)": {
+            "mutation($state: JSON!)": {
                 with_args(
                     "setFlowRunState",
                     {
@@ -452,7 +452,7 @@ class Client:
             - ValueError: if the GraphQL query is bad for any reason
         """
         mutation = {
-            "mutation($state: String!)": {
+            "mutation($state: JSON!)": {
                 with_args(
                     "setTaskRunState",
                     {
