@@ -253,8 +253,6 @@ class ContainerEnvironment(Environment):
         image_name = str(uuid.uuid4())
         image_tag = str(uuid.uuid4())
 
-        print("gcr.io/prefect-dev/flows/{}:{}".format(image_name, image_tag))
-
         with tempfile.TemporaryDirectory() as tempdir:
 
             self.pull_image()
