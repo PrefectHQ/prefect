@@ -809,9 +809,9 @@ def test_task_info_entries_not_created_if_task_already_exists():
     assert f.task_info == {}
     f.add_task(t1)
     assert t1 in f.task_info
-    t1_id = f.task_info[t1]["id"]
+    f.task_info[t1] = 5
     f.add_task(t1)
-    assert f.task_info[t1]["id"] == t1_id
+    assert f.task_info[t1] == 5
 
 
 def test_create_task_mapped_info_entries():
