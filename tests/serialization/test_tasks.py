@@ -104,9 +104,9 @@ def test_deserialize_parameter():
     assert isinstance(p2, Parameter)
 
 
-def test_serialize_parameter_requires_name():
+def test_deserialize_parameter_requires_name():
     with pytest.raises(marshmallow.ValidationError):
-        ParameterSchema().dump({})
+        ParameterSchema().load({})
 
 
 @pytest.mark.parametrize(
