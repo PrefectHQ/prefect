@@ -19,24 +19,6 @@ from prefect.serialization.schedule import ScheduleSchema
 from prefect.utilities.serialization import JSONCompatible
 
 
-class FunctionReference(fields.Field):
-    """
-    Field that stores a reference to a function as a string and reloads it when
-    deserialized.
-
-    The valid functions must be provided as a dictionary of {qualified_name: function}
-    """
-
-    def __init__(self, valid_functions, **kwargs):
-        self.valid_functions = {to_qualified_name(f): f for f in valid_functions}
-        super().__init__(**kwargs)
-
-    def _serialize(self, value, attr, obj, **kwargs):
-        return to_qualified_name(value)
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        return self.valid_functions.get(value, value)
-
 
 class TaskMethodsMixin:
     def dump_task_id(self, obj):
