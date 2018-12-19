@@ -270,21 +270,20 @@ class Client:
             }
         }
         schedule_mutation = {
-            "mutation($input: setFlowScheduleInput!)": {
-                "setFlowScheduleActive(input: $input)": {"flow": {"id"}}
+            "mutation($input: setFlowScheduleStateInput!)": {
+                "setFlowScheduleState(input: $input)": {"flow": {"id"}}
             }
         }
         res = self.graphql(
             parse_graphql(create_mutation),
-            input=dict(
-                projectId=project_id,
-                serializedFlow=json.dumps(flow.serialize(build=True)),
-            ),
+            input=dict(projectId=project_id, serializedFlow=flow.serialize(build=True)),
         )
         if set_schedule_active:
             scheduled_res = self.graphql(
                 parse_graphql(schedule_mutation),
-                input=dict(flowId=res.createFlow.flow.id),  # type: ignore
+                input=dict(
+                    flowId=res.createFlow.flow.id, setActive=True  # type: ignore
+                ),
             )
         return res.createFlow.flow  # type: ignore
 
@@ -348,7 +347,7 @@ class Client:
             - ValueError: if the GraphQL query is bad for any reason
         """
         mutation = {
-            "mutation($state: String!)": {
+            "mutation($state: JSON!)": {
                 with_args(
                     "setFlowRunState",
                     {
@@ -365,7 +364,7 @@ class Client:
         serialized_state = state.serialize(result_handler=result_handler)
 
         return self.graphql(  # type: ignore
-            parse_graphql(mutation), state=json.dumps(serialized_state)
+            parse_graphql(mutation), state=serialized_state
         ).setFlowRunState.flow_run
 
     def get_task_run_info(
@@ -453,7 +452,7 @@ class Client:
             - ValueError: if the GraphQL query is bad for any reason
         """
         mutation = {
-            "mutation($state: String!)": {
+            "mutation($state: JSON!)": {
                 with_args(
                     "setTaskRunState",
                     {
@@ -470,5 +469,5 @@ class Client:
         serialized_state = state.serialize(result_handler=result_handler)
 
         return self.graphql(  # type: ignore
-            parse_graphql(mutation), state=json.dumps(serialized_state)
+            parse_graphql(mutation), state=serialized_state
         ).setTaskRunState.task_run
