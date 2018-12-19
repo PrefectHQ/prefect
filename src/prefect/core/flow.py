@@ -148,8 +148,6 @@ class Flow:
 
         self.logger = logging.get_logger("Flow")
 
-        self.task_info = dict()  # type: Dict[Task, dict]
-
         self.name = name or type(self).__name__
         self.schedule = schedule
         self.environment = environment or prefect.environments.LocalEnvironment()
@@ -278,7 +276,6 @@ class Flow:
 
         # update tasks
         self.tasks.remove(old)
-        self.task_info.pop(old)
         self.add_task(new)
 
         self._cache.clear()
@@ -333,7 +330,7 @@ class Flow:
         """
         Returns a dictionary of {task_id: Task} pairs.
         """
-        return {self.task_info[task]["id"]: task for task in self.tasks}
+        return {task.id: task for task in self.tasks}
 
     # Context Manager ----------------------------------------------------------
 
@@ -469,7 +466,6 @@ class Flow:
 
         if task not in self.tasks:
             self.tasks.add(task)
-            self.task_info[task] = {"mapped": False}
             self._cache.clear()
 
         return task
@@ -538,9 +534,6 @@ class Flow:
                 e.key: None for e in self.edges_to(downstream_task) if e.key is not None
             }
             inspect.signature(downstream_task.run).bind_partial(**edge_keys)
-
-        if mapped:
-            self.task_info[downstream_task]["mapped"] = True
 
         self._cache.clear()
 
@@ -713,9 +706,6 @@ class Flow:
 
         if any(t not in self.tasks for t in self.reference_tasks()):
             raise ValueError("Some reference tasks are not contained in this flow.")
-
-        if self.tasks.difference(self.task_info):
-            raise ValueError("Some tasks are not in the task_info dict.")
 
     def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
         """
