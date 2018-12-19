@@ -1,5 +1,4 @@
 import datetime
-import json
 
 import pytest
 
@@ -60,24 +59,18 @@ def test_deserialize_task_subclass_is_task_but_not_task_subclass():
     assert not isinstance(deserialized, NewTask)
 
 
-def test_serialize_task_with_id():
-    t = Task()
-    context = dict(task_ids={t: "xyz"})
-    serialized = TaskSchema(context=context).dump(t)
-    assert serialized["id"] == "xyz"
-
-
 def test_deserialize_task_with_id():
     """
-    When tasks are deserialized, they put their ID in a special task_cache in context
+    When tasks are deserialized, they put their ID in a special task_id_cache in context
     so it can be reused elsewhere.
     """
     t = Task()
-    context = dict(task_ids={t: "xyz"})
+    # empty contexts are replaced
+    context = {1: 1}
     serialized = TaskSchema(context=context).dump(t)
     deserialized = TaskSchema(context=context).load(serialized)
-    assert "task_cache" in context
-    assert context["task_cache"]["xyz"] is deserialized
+    assert "task_id_cache" in context
+    assert context["task_id_cache"][t.id] is deserialized
 
 
 def test_deserializing_tasks_with_ids_reuses_task_cache_to_recreate_object():
@@ -85,7 +78,7 @@ def test_deserializing_tasks_with_ids_reuses_task_cache_to_recreate_object():
     If an id is found in the task cache, the corresponding object is loaded
     """
     t = Task()
-    context = dict(task_ids={t: "xyz"}, task_cache={"xyz": t})
+    context = dict(task_id_cache={t.id: t})
     serialized = TaskSchema(context=context).dump(t)
     deserialized = TaskSchema(context=context).load(serialized)
     assert deserialized is t
@@ -104,9 +97,9 @@ def test_deserialize_parameter():
     assert isinstance(p2, Parameter)
 
 
-def test_serialize_parameter_requires_name():
+def test_deserialize_parameter_requires_name():
     with pytest.raises(marshmallow.ValidationError):
-        ParameterSchema().dump({})
+        ParameterSchema().load({})
 
 
 @pytest.mark.parametrize(

@@ -338,6 +338,10 @@ class FlowRunner(Runner):
         task_contexts = task_contexts or {}
         throttle = throttle or {}
 
+        # this set keeps track of any tasks that are mapped over - meaning they are the
+        # downstream task of at least one mapped edge
+        mapped_tasks = set()
+
         # -- process each task in order
 
         with executor.start():
@@ -357,6 +361,8 @@ class FlowRunner(Runner):
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
                     upstream_states[edge] = task_states[edge.upstream_task]
+                    if edge.mapped:
+                        mapped_tasks.add(task)
 
                 # if a task is provided as a start_task and its state is also
                 # provided, we assume that means it requires cached_inputs
@@ -377,11 +383,11 @@ class FlowRunner(Runner):
                     queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
                 ]
 
-                if not self.flow.task_info[task]["mapped"]:
+                if not task in mapped_tasks:
                     upstream_mapped = {
                         e: executor.wait(f)  # type: ignore
                         for e, f in upstream_states.items()
-                        if self.flow.task_info[e.upstream_task]["mapped"]
+                        if e.upstream_task in mapped_tasks
                     }
                     upstream_states.update(upstream_mapped)
 
@@ -392,12 +398,10 @@ class FlowRunner(Runner):
                     inputs=task_inputs,
                     ignore_trigger=(task in start_tasks),
                     context=dict(
-                        prefect.context,
-                        task_id=self.flow.task_info[task]["id"],
-                        **task_contexts.get(task, {})
+                        prefect.context, task_id=task.id, **task_contexts.get(task, {})
                     ),
                     queues=task_queues,
-                    mapped=self.flow.task_info[task]["mapped"],
+                    mapped=task in mapped_tasks,
                     executor=executor,
                 )
 
