@@ -261,7 +261,7 @@ class TestSerialization:
         s = t.serialize()
 
         assert isinstance(s, dict)
-        assert s["id"] is None
+        assert s["id"] == t.id
         assert s["type"] == "prefect.core.task.Task"
         assert s["name"] == t.name
 
