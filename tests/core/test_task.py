@@ -1,3 +1,4 @@
+import uuid
 import json
 import logging
 from datetime import timedelta
@@ -208,6 +209,30 @@ def test_copy_warns_if_dependencies_in_active_flow():
         with Flow():
             # no dependencies in this flow
             t1.copy()
+
+
+def test_copy_changes_id():
+    t1 = Task()
+    t2 = t1.copy()
+    assert t1.id != t2.id
+
+
+def test_task_has_id():
+    t1 = Task()
+    t2 = Task()
+
+    assert t1.id and t1.id != t2.id
+
+
+def test_task_id_must_be_uuid():
+    t = Task()
+
+    with pytest.raises(ValueError):
+        t.id = 1
+    with pytest.raises(ValueError):
+        t.id = "1"
+
+    t.id = str(uuid.uuid4())
 
 
 class TestDependencies:
