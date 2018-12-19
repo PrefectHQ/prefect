@@ -1,3 +1,4 @@
+import uuid
 import datetime
 import json
 
@@ -6,7 +7,13 @@ import pendulum
 import pytest
 
 from prefect.utilities.collections import DotDict
-from prefect.utilities.serialization import Bytes, DateTime, JSONCompatible, Nested
+from prefect.utilities.serialization import (
+    Bytes,
+    DateTime,
+    JSONCompatible,
+    Nested,
+    UUID,
+)
 
 json_test_values = [
     1,
@@ -115,3 +122,29 @@ class TestBytesField:
     def test_bytes_deserialize_none(self):
         serialized = self.Schema().load(dict(b_none=None))
         assert serialized["b_none"] is None
+
+
+class TestUUIDField:
+    class Schema(marshmallow.Schema):
+        u = UUID()
+
+    def test_serialize_uuid(self):
+        u = uuid.uuid4()
+        serialized = self.Schema().dump(dict(u=u))
+        assert serialized["u"] == str(u)
+
+    def test_serialize_str(self):
+        u = str(uuid.uuid4())
+        serialized = self.Schema().dump(dict(u=u))
+        assert serialized["u"] == u
+
+    def test_deserialize_uuid(self):
+        u = uuid.uuid4()
+        deserialized = self.Schema().load(dict(u=u))
+        assert deserialized["u"] == str(u)
+
+    def test_deserialize_str(self):
+        u = str(uuid.uuid4())
+        deserialized = self.Schema().load(dict(u=u))
+        assert deserialized["u"] == u
+

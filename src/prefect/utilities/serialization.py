@@ -270,3 +270,17 @@ class Bytes(fields.Field):
     def _deserialize(self, value, attr, data, **kwargs):
         if value is not None:
             return base64.b64decode(value)
+
+
+class UUID(fields.UUID):
+    """
+    Replacement for fields.UUID that performs validation but returns string objects,
+    not UUIDs
+    """
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        return super()._serialize(value, attr, obj, **kwargs)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        return str(super()._deserialize(value, attr, data, **kwargs))
+
