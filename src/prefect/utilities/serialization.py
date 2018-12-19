@@ -140,7 +140,7 @@ class VersionedSchema(Schema):
         # if we got a different (or no) schema, instantiate it
         if schema is not self:
             schema_instance = schema(*self._args, **self._kwargs)
-            schema_instance.context.update(self.context)
+            schema_instance.context = self.context
             return schema_instance.load(
                 data, create_object=create_object, check_version=False, **kwargs
             )

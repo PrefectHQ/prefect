@@ -51,17 +51,6 @@ class FlowSchema(VersionedSchema):
     )
     environment = fields.Nested(EnvironmentSchema, allow_none=True)
 
-    @pre_dump
-    def put_task_ids_in_context(self, flow: "prefect.core.Flow") -> "prefect.core.Flow":
-        """
-        Adds task ids to context so they may be used by nested TaskSchemas and EdgeSchemas.
-
-        If the serialized object is not a Flow (like a dict), this step is skipped.
-        """
-        if isinstance(flow, prefect.core.Flow):
-            self.context["task_ids"] = {t: i["id"] for t, i in flow.task_info.items()}
-        return flow
-
     @post_load
     def create_object(self, data):
         """
@@ -79,9 +68,10 @@ class FlowSchema(VersionedSchema):
         """
         data["validate"] = False
         flow = super().create_object(data)
-        flow._id = data.get("id", None)
+        if "id" in data:
+            flow.id = data["id"]
 
         for t in flow.tasks:
-            flow.task_info[t].update({"id": t._id, "type": t._type})
+            flow.task_info[t].update({"id": t.id})
 
         return flow
