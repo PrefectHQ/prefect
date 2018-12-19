@@ -133,33 +133,6 @@ def test_reference_tasks():
     assert f2.reference_tasks() == {t for t in f2.tasks if t.name == "y"}
 
 
-def test_recreate_task_info_dict():
-    class NewTask(Task):
-        def run(self, x):
-            return x
-
-    x = Parameter("x")
-    y = NewTask("y")
-    z = Task("z")
-    f = Flow(tasks=[x, y, z])
-    f.add_edge(x, y, key="x")
-    f.add_edge(y, z, mapped=True)
-
-    serialized = FlowSchema().dump(f)
-    f2 = FlowSchema().load(serialized)
-
-    x2 = next(t for t in f2.tasks if t.name == "x")
-    y2 = next(t for t in f2.tasks if t.name == "y")
-    z2 = next(t for t in f2.tasks if t.name == "z")
-
-    assert f2.task_info[x2] == f.task_info[x]
-    assert f2.task_info[y2] == f.task_info[y]
-    assert f2.task_info[z2] == f.task_info[z]
-
-    assert f2.task_info[y2]["type"].endswith("NewTask")
-    assert f2.task_info[z2]["mapped"] is True
-
-
 def test_serialize_container_environment():
     env = prefect.environments.ContainerEnvironment(
         base_image="a", python_dependencies=["b", "c"], registry_url="f"

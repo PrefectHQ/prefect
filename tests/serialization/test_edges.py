@@ -30,11 +30,11 @@ def test_serialize_edge_only_records_task_id():
     t1, t2 = Task("t1"), Task("t2")
     serialized = EdgeSchema().dump(Edge(t1, t2, key="x", mapped=True))
     assert serialized["upstream_task"] == {
-        "id": None,
+        "id": t1.id,
         "__version__": prefect.__version__,
     }
     assert serialized["downstream_task"] == {
-        "id": None,
+        "id": t2.id,
         "__version__": prefect.__version__,
     }
 
@@ -60,25 +60,13 @@ def test_deserialize_edge_has_no_task_info():
     assert deserialized.downstream_task.name is "Task"
 
 
-def test_deserialize_edge_uses_task_ids():
-    """
-    If a Task ID context is available, the task attributes will use it
-    """
-    t1, t2 = Task("t1"), Task("t2")
-    context = dict(task_ids={t1: "t1", t2: "t2"})
-
-    serialized = EdgeSchema(context=context).dump(Edge(t1, t2, key="x", mapped=True))
-    assert serialized["upstream_task"]["id"] == "t1"
-    assert serialized["downstream_task"]["id"] == "t2"
-
-
 def test_deserialize_edge_uses_task_cache():
     """
     If a Task Cache is available, the task attributes will use it
     """
     t1, t2 = Task("t1"), Task("t2")
-    context = dict(task_ids={t1: "t1", t2: "t2"}, task_cache={"t1": t1, "t2": t2})
-    serialized = EdgeSchema(context=context).dump(Edge(t1, t2, key="x", mapped=True))
+    context = dict(task_id_cache={t1.id: t1, t2.id: t2})
+    serialized = EdgeSchema().dump(Edge(t1, t2, key="x", mapped=True))
     deserialized = EdgeSchema(context=context).load(serialized)
 
     assert deserialized.upstream_task is t1

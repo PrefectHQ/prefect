@@ -143,10 +143,10 @@ class Flow:
     ) -> None:
         self._cache = {}  # type: dict
 
-        self._id = str(uuid.uuid4())
-        self.logger = logging.get_logger("Flow")
+        # set random id
+        self.id = str(uuid.uuid4())
 
-        self.task_info = dict()  # type: Dict[Task, dict]
+        self.logger = logging.get_logger("Flow")
 
         self.name = name or type(self).__name__
         self.schedule = schedule
@@ -207,7 +207,10 @@ class Flow:
         Create and returns a copy of the current Flow.
         """
         new = copy.copy(self)
+        # create a new cache
         new._cache = dict()
+        # create new id
+        new.id = str(uuid.uuid4())
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
         new.set_reference_tasks(self._reference_tasks)
@@ -273,7 +276,6 @@ class Flow:
 
         # update tasks
         self.tasks.remove(old)
-        self.task_info.pop(old)
         self.add_task(new)
 
         self._cache.clear()
@@ -310,13 +312,25 @@ class Flow:
     def id(self) -> str:
         return self._id
 
+    @id.setter
+    def id(self, value: str) -> None:
+        """
+        Args:
+            - value (str): a UUID-formatted string
+        """
+        try:
+            uuid.UUID(value)
+        except Exception:
+            raise ValueError("Badly formatted UUID string: {}".format(value))
+        self._id = value
+
     @property  # type: ignore
     @cache
     def task_ids(self) -> Dict[str, Task]:
         """
         Returns a dictionary of {task_id: Task} pairs.
         """
-        return {self.task_info[task]["id"]: task for task in self.tasks}
+        return {task.id: task for task in self.tasks}
 
     # Context Manager ----------------------------------------------------------
 
@@ -452,11 +466,6 @@ class Flow:
 
         if task not in self.tasks:
             self.tasks.add(task)
-            self.task_info[task] = {
-                "id": str(uuid.uuid4()),
-                "type": to_qualified_name(type(task)),
-                "mapped": False,
-            }
             self._cache.clear()
 
         return task
@@ -525,9 +534,6 @@ class Flow:
                 e.key: None for e in self.edges_to(downstream_task) if e.key is not None
             }
             inspect.signature(downstream_task.run).bind_partial(**edge_keys)
-
-        if mapped:
-            self.task_info[downstream_task]["mapped"] = True
 
         self._cache.clear()
 
@@ -700,9 +706,6 @@ class Flow:
 
         if any(t not in self.tasks for t in self.reference_tasks()):
             raise ValueError("Some reference tasks are not contained in this flow.")
-
-        if self.tasks.difference(self.task_info):
-            raise ValueError("Some tasks are not in the task_info dict.")
 
     def sorted_tasks(self, root_tasks: Iterable[Task] = None) -> Tuple[Task, ...]:
         """
@@ -1095,16 +1098,15 @@ class Flow:
         # Generate an ID for each task by hashing:
         # - its flow's name
         #
-        # This "fingerprints" each task in terms of its own characteristics and the parent flow.
-        # Note that the fingerprint does not include the flow version, meaning task IDs can
-        # remain stable across versions of the same flow.
+        # This "fingerprints" each task in terms of its own characteristics
         #
         # -----------------------------------------------------------
 
-        ids = {
-            t: _hash(json.dumps((t.serialize(), self.name), sort_keys=True))
-            for t in tasks
-        }
+        ids = {}
+        for t in tasks:
+            serialized = t.serialize()
+            del serialized["id"]  # remove the ID since it is unique but random
+            ids[t] = _hash(json.dumps(serialized, sort_keys=True))
 
         if _debug_steps:
             debug_steps[1] = ids.copy()

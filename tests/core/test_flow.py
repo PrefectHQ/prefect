@@ -1,3 +1,4 @@
+import uuid
 import datetime
 import logging
 import sys
@@ -371,6 +372,18 @@ def test_eager_cycle_detection_works():
     assert not prefect.config.flows.eager_edge_validation
 
 
+def test_id_must_be_valid_uuid():
+    f = Flow()
+
+    with pytest.raises(ValueError):
+        f.id = 1
+
+    with pytest.raises(ValueError):
+        f.id = "1"
+
+    f.id = str(uuid.uuid4())
+
+
 def test_copy():
     with Flow() as f:
         t1 = Task()
@@ -388,6 +401,12 @@ def test_copy():
     assert len(f2.tasks) == len(f.tasks) - 2
     assert len(f2.edges) == len(f.edges) - 1
     assert f.reference_tasks() == f2.reference_tasks() == set([t1])
+
+
+def test_copy_creates_new_id():
+    f = Flow()
+    f2 = f.copy()
+    assert f.id != f2.id
 
 
 def test_infer_root_tasks():
@@ -715,15 +734,6 @@ def test_validate_missing_reference_tasks():
     assert "reference tasks are not contained" in str(exc.value).lower()
 
 
-def test_validate_missing_task_info():
-    f = Flow()
-    t1 = Task()
-    f.tasks.add(t1)
-    with pytest.raises(ValueError) as exc:
-        f.validate()
-    assert "tasks are not in the task_info" in str(exc.value).lower()
-
-
 def test_validate_edges_kwarg():
     f = Flow()
     t1, t2 = Task(), Task()  # these tasks don't support keyed edges
@@ -753,57 +763,6 @@ def test_skip_validation_in_init_with_kwarg():
         Flow(edges=[e1, e2], validate=True)
 
     assert Flow(edges=[e1, e2], validate=False)
-
-
-def test_task_ids_are_cached():
-    f = Flow()
-    t1 = Task()
-    t2 = Task()
-    f.add_task(t1)
-    f.add_task(t2)
-
-    assert len(f.task_ids) == 2
-
-    for t in [t1, t2]:
-        assert not f.task_info[t]["mapped"]
-
-
-def test_auto_create_task_info_entries():
-    f = Flow()
-    t1 = Task()
-    t2 = Task()
-    f.add_edge(t1, t2)
-
-    assert len(f.task_info) == 2
-    assert set([t1, t2]) == set(f.task_info)
-
-    for t in [t1, t2]:
-        assert not f.task_info[t]["mapped"]
-
-
-def test_task_info_entries_not_created_if_task_already_exists():
-    f = Flow()
-    t1 = Task()
-
-    assert f.task_info == {}
-    f.add_task(t1)
-    assert t1 in f.task_info
-    t1_id = f.task_info[t1]["id"]
-    f.add_task(t1)
-    assert f.task_info[t1]["id"] == t1_id
-
-
-def test_create_task_mapped_info_entries():
-    f = Flow()
-    t1 = Task()
-    t2 = Task()
-
-    # this is legal, though probably not useful
-    f.add_edge(t1, t2, mapped=True)
-    f.add_edge(t1, t2, mapped=False)
-
-    assert not f.task_info[t1]["mapped"]
-    assert f.task_info[t2]["mapped"]
 
 
 class TestFlowVisualize:
