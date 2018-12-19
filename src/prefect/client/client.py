@@ -364,7 +364,7 @@ class Client:
         serialized_state = state.serialize(result_handler=result_handler)
 
         return self.graphql(  # type: ignore
-            parse_graphql(mutation), state=json.dumps(serialized_state)
+            parse_graphql(mutation), state=serialized_state
         ).setFlowRunState.flow_run
 
     def get_task_run_info(
@@ -469,5 +469,5 @@ class Client:
         serialized_state = state.serialize(result_handler=result_handler)
 
         return self.graphql(  # type: ignore
-            parse_graphql(mutation), state=json.dumps(serialized_state)
+            parse_graphql(mutation), state=serialized_state
         ).setTaskRunState.task_run
