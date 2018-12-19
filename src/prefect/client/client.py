@@ -276,15 +276,14 @@ class Client:
         }
         res = self.graphql(
             parse_graphql(create_mutation),
-            input=dict(
-                projectId=project_id,
-                serializedFlow=flow.serialize(build=True),
-            ),
+            input=dict(projectId=project_id, serializedFlow=flow.serialize(build=True)),
         )
         if set_schedule_active:
             scheduled_res = self.graphql(
                 parse_graphql(schedule_mutation),
-                input=dict(flowId=res.createFlow.flow.id, setActive=True),  # type: ignore
+                input=dict(
+                    flowId=res.createFlow.flow.id, setActive=True
+                ),  # type: ignore
             )
         return res.createFlow.flow  # type: ignore
 
