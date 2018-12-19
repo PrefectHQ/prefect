@@ -1108,16 +1108,15 @@ class Flow:
         # Generate an ID for each task by hashing:
         # - its flow's name
         #
-        # This "fingerprints" each task in terms of its own characteristics and the parent flow.
-        # Note that the fingerprint does not include the flow version, meaning task IDs can
-        # remain stable across versions of the same flow.
+        # This "fingerprints" each task in terms of its own characteristics
         #
         # -----------------------------------------------------------
 
-        ids = {
-            t: _hash(json.dumps((t.serialize(), self.name), sort_keys=True))
-            for t in tasks
-        }
+        ids = {}
+        for t in tasks:
+            serialized = t.serialize()
+            del serialized["id"]  # remove the ID since it is unique but random
+            ids[t] = _hash(json.dumps(serialized, sort_keys=True))
 
         if _debug_steps:
             debug_steps[1] = ids.copy()

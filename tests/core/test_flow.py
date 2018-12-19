@@ -372,10 +372,8 @@ def test_eager_cycle_detection_works():
     assert not prefect.config.flows.eager_edge_validation
 
 
-
 def test_id_must_be_valid_uuid():
     f = Flow()
-
 
     with pytest.raises(ValueError):
         f.id = 1
