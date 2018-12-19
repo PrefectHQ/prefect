@@ -25,6 +25,7 @@
 - Add DateTime marshmallow field for timezone-aware serialization - [#378](https://github.com/PrefectHQ/prefect/pull/378)
 - Adds ability to put variables into context via the config - [#381](https://github.com/PrefectHQ/prefect/issues/381)
 - Adds new `client.deploy` method for adding new Flows to the database - [#388](https://github.com/PrefectHQ/prefect/issues/388)
+- Add `id` attribute to `Task` class - [#416](https://github.com/PrefectHQ/prefect/issues/416)
 
 ### Fixes
 
