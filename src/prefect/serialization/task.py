@@ -1,69 +1,29 @@
+import uuid
 from collections import OrderedDict
+
 import marshmallow
-import prefect
 from marshmallow import (
-    fields,
-    pre_dump,
-    post_load,
-    pre_load,
-    post_dump,
     ValidationError,
+    fields,
+    post_dump,
+    post_load,
+    pre_dump,
+    pre_load,
 )
+
+import prefect
 from prefect.utilities.serialization import (
+    UUID,
+    FunctionReference,
+    JSONCompatible,
     VersionedSchema,
-    version,
-    to_qualified_name,
     from_qualified_name,
+    to_qualified_name,
+    version,
 )
-from prefect.serialization.schedule import ScheduleSchema
-from prefect.utilities.serialization import JSONCompatible
-
-
-class FunctionReference(fields.Field):
-    """
-    Field that stores a reference to a function as a string and reloads it when
-    deserialized.
-
-    The valid functions must be provided as a dictionary of {qualified_name: function}
-    """
-
-    def __init__(self, valid_functions, **kwargs):
-        self.valid_functions = {to_qualified_name(f): f for f in valid_functions}
-        super().__init__(**kwargs)
-
-    def _serialize(self, value, attr, obj, **kwargs):
-        return to_qualified_name(value)
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        return self.valid_functions.get(value, value)
 
 
 class TaskMethodsMixin:
-    def dump_task_id(self, obj):
-        """
-        Helper for serializing task IDs that may have been placed in the context dict
-
-        Args:
-            - obj (Task): the object being serialized
-
-        Returns:
-            - str: the object ID
-        """
-        if isinstance(obj, prefect.core.Task) and "task_ids" in self.context:
-            return self.context["task_ids"].get(obj, None)
-
-    def load_task_id(self, data):
-        """
-        Helper for loading task IDs (required because `id` is a Method field)
-
-        Args:
-            - data (str): the id of the object
-
-        Returns:
-            - str: the object ID
-        """
-        return data
-
     def get_attribute(self, obj, key, default):
         """
         By default, Marshmallow attempts to index an object, then get its attributes.
@@ -83,14 +43,16 @@ class TaskMethodsMixin:
         deserialized a matching task. In that case, we reload the task from a shared
         cache.
         """
-        task_id = data.get("id", None)
-        if task_id not in self.context.setdefault("task_cache", {}) or task_id is None:
-            task = super().create_object(data)
-            task._id = task_id
-            task._type = data.get("type", None)
-            self.context["task_cache"][task_id] = task
+        task_id = data.get("id", str(uuid.uuid4()))
 
-        return self.context["task_cache"][task_id]
+        # if the id is not in the task cache, create a task object and add it
+        if task_id not in self.context.setdefault("task_id_cache", {}):
+            task = super().create_object(data)
+            task.id = task_id
+            self.context["task_id_cache"][task_id] = task
+
+        # return the task object from the cache
+        return self.context["task_id_cache"][task_id]
 
 
 @version("0.3.3")
@@ -99,7 +61,7 @@ class TaskSchema(TaskMethodsMixin, VersionedSchema):
         object_class = lambda: prefect.core.Task
         object_class_exclude = ["id", "type"]
 
-    id = fields.Method("dump_task_id", "load_task_id", allow_none=True)
+    id = UUID()
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
     name = fields.String(allow_none=True)
     slug = fields.String(allow_none=True)
@@ -118,6 +80,8 @@ class TaskSchema(TaskMethodsMixin, VersionedSchema):
             prefect.triggers.any_successful,
             prefect.triggers.any_failed,
         ],
+        # don't reject custom functions, just leave them as strings
+        reject_invalid=False,
         allow_none=True,
     )
     skip_on_upstream_skip = fields.Boolean(allow_none=True)
@@ -131,6 +95,8 @@ class TaskSchema(TaskMethodsMixin, VersionedSchema):
             prefect.engine.cache_validators.partial_inputs_only,
             prefect.engine.cache_validators.partial_parameters_only,
         ],
+        # don't reject custom functions, just leave them as strings
+        reject_invalid=False,
         allow_none=True,
     )
 
@@ -141,16 +107,10 @@ class ParameterSchema(TaskMethodsMixin, VersionedSchema):
         object_class = lambda: prefect.core.task.Parameter
         object_class_exclude = ["id", "type"]
 
-    id = fields.Method("dump_task_id", "load_task_id", allow_none=True)
+    id = UUID()
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
-    name = fields.String()
+    name = fields.String(required=True)
     default = JSONCompatible(allow_none=True)
     required = fields.Boolean(allow_none=True)
     description = fields.String(allow_none=True)
     tags = fields.List(fields.String())
-
-    @pre_dump
-    def validate_name(self, data):
-        if self.get_attribute(data, "name", None) is None:
-            raise ValidationError("name is required.")
-        return data
