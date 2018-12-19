@@ -469,11 +469,7 @@ class Flow:
 
         if task not in self.tasks:
             self.tasks.add(task)
-            self.task_info[task] = {
-                "id": str(uuid.uuid4()),
-                "type": to_qualified_name(type(task)),
-                "mapped": False,
-            }
+            self.task_info[task] = {"mapped": False}
             self._cache.clear()
 
         return task
