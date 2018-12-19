@@ -282,8 +282,8 @@ class Client:
             scheduled_res = self.graphql(
                 parse_graphql(schedule_mutation),
                 input=dict(
-                    flowId=res.createFlow.flow.id, setActive=True
-                ),  # type: ignore
+                    flowId=res.createFlow.flow.id, setActive=True  # type: ignore
+                ),
             )
         return res.createFlow.flow  # type: ignore
 
