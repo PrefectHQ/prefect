@@ -143,7 +143,9 @@ class Flow:
     ) -> None:
         self._cache = {}  # type: dict
 
-        self._id = str(uuid.uuid4())
+        # set random id
+        self.id = str(uuid.uuid4())
+
         self.logger = logging.get_logger("Flow")
 
         self.task_info = dict()  # type: Dict[Task, dict]
@@ -207,7 +209,10 @@ class Flow:
         Create and returns a copy of the current Flow.
         """
         new = copy.copy(self)
+        # create a new cache
         new._cache = dict()
+        # create new id
+        new.id = str(uuid.uuid4())
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
         new.set_reference_tasks(self._reference_tasks)
@@ -309,6 +314,18 @@ class Flow:
     @property
     def id(self) -> str:
         return self._id
+
+    @id.setter
+    def id(self, value: str) -> None:
+        """
+        Args:
+            - value (str): a UUID-formatted string
+        """
+        try:
+            uuid.UUID(value)
+        except Exception:
+            raise ValueError("Badly formatted UUID string: {}".format(value))
+        self._id = value
 
     @property  # type: ignore
     @cache
