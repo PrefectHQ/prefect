@@ -70,8 +70,4 @@ class FlowSchema(VersionedSchema):
         flow = super().create_object(data)
         if "id" in data:
             flow.id = data["id"]
-
-        for t in flow.tasks:
-            flow.task_info[t].update({"id": t.id})
-
         return flow

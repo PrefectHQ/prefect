@@ -156,7 +156,6 @@ def test_recreate_task_info_dict():
     assert f2.task_info[y2] == f.task_info[y]
     assert f2.task_info[z2] == f.task_info[z]
 
-    assert f2.task_info[y2]["type"].endswith("NewTask")
     assert f2.task_info[z2]["mapped"] is True
 
 
