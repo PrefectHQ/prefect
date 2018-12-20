@@ -1,9 +1,64 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import cloudpickle
+import os
+import subprocess
+import tempfile
+
 from contextlib import contextmanager
 from typing import Any, Iterator
 
 import prefect
+
+
+def is_deployable(obj: Any, raise_on_error: bool = False) -> bool:
+    """
+    Checks whether a given object can be deployed to Prefect Cloud.  This requires
+    that the object can be serialized in the current process and deserialized in a fresh process.
+
+    Args:
+        - obj (Any): the object to check
+        - raise_on_error(bool, optional): if `True`, raises the `CalledProcessError` for inspection;
+            the `output` attribute of this exception can contain useful information about why the object is not deployable
+
+    Returns:
+        - bool: `True` if deployable, `False` otherwise
+
+    Raises:
+        - subprocess.CalledProcessError: if `raise_on_error=True` and the object is not deployable
+    """
+
+    template = """
+import cloudpickle
+
+with open('{}', 'rb') as z76123:
+    res = cloudpickle.load(z76123)
+    """
+    bd, binary_file = tempfile.mkstemp()
+    sd, script_file = tempfile.mkstemp()
+    os.close(bd)
+    os.close(sd)
+    try:
+        with open(binary_file, "wb") as bf:
+            cloudpickle.dump(obj, bf)
+        with open(script_file, "w") as sf:
+            sf.write(template.format(binary_file))
+        try:
+            subprocess.check_output(
+                "python {}".format(script_file), shell=True, stderr=subprocess.STDOUT
+            )
+        except subprocess.CalledProcessError as exc:
+            if raise_on_error:
+                raise exc
+            return False
+    except Exception as exc:
+        if raise_on_error:
+            raise exc
+        return False
+    finally:
+        os.unlink(binary_file)
+        os.unlink(script_file)
+    return True
 
 
 @contextmanager
