@@ -287,11 +287,11 @@ class Client:
             )
         return res.createFlow.flow  # type: ignore
 
-    def schedule_flow_run(
+    def create_flow_run(
         self,
         flow_id: str,
         parameters: dict = None,
-        start_time: datetime.datetime = None,
+        scheduled_start_time: datetime.datetime = None,
     ) -> GraphQLResult:
         """
         Create a new flow run for the given flow id.  If `start_time` is not provided, the flow run will be scheduled to start immediately.
@@ -299,7 +299,7 @@ class Client:
         Args:
             - flow_id (str): the id of the Flow you wish to schedule
             - parameters (dict, optional): a dictionary of parameter values to pass to the flow run
-            - start_time (datetime, optional): the time to schedule the execution for; if not provided, defaults to now
+            - scheduled_start_time (datetime, optional): the time to schedule the execution for; if not provided, defaults to now
 
         Returns:
             - GraphQLResult: a `DotDict` with an `"id"` key representing the id of the newly created flow run
@@ -315,8 +315,8 @@ class Client:
         inputs = dict(flowId=flow_id)
         if parameters is not None:
             inputs.update(parameters=parameters)  # type: ignore
-        if start_time is not None:
-            inputs.update(scheduledStartTime=start_time.isoformat())  # type: ignore
+        if scheduled_start_time is not None:
+            inputs.update(scheduledStartTime=scheduled_start_time.isoformat())  # type: ignore
         res = self.graphql(parse_graphql(create_mutation), input=inputs)
         return res.createFlowRun.flow_run  # type: ignore
 
