@@ -66,6 +66,26 @@ class Client:
     # -------------------------------------------------------------------------
     # Utilities
 
+    def get(self, path: str, server: str = None, **params: BuiltIn) -> dict:
+        """
+        Convenience function for calling the Prefect API with token auth and GET request
+
+        Args:
+            - path (str): the path of the API url. For example, to GET
+                http://prefect-server/v1/auth/login, path would be 'auth/login'.
+            - server (str, optional): the server to send the GET request to;
+                defaults to `self.api_server`
+            - params (dict): GET parameters
+
+        Returns:
+            - dict: Dictionary representation of the request made
+        """
+        response = self._request(method="GET", path=path, params=params, server=server)
+        if response.text:
+            return response.json()
+        else:
+            return {}
+
     def post(self, path: str, server: str = None, **params: BuiltIn) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and POST request

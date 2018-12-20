@@ -4,6 +4,7 @@ import tempfile
 from typing import Any
 
 from prefect import config
+from prefect.client import Client
 
 
 class ResultHandler:
@@ -16,7 +17,14 @@ class ResultHandler:
 
 class CloudResultHandler(ResultHandler):
     def __init__(self):
+        self.client = Client()
         self.result_handler_service = config.cloud.result_handler
+
+    def deserialize(self, uri: str) -> Any:
+        pass
+
+    def serialize(self, result: Any) -> str:
+        pass
 
 
 class LocalResultHandler(ResultHandler):
