@@ -35,6 +35,7 @@ def test_deserialize_task():
     deserialized = TaskSchema().load(TaskSchema().dump(task))
     assert isinstance(deserialized, Task)
     for key in [
+        "id",
         "name",
         "slug",
         "max_retries",
@@ -45,6 +46,13 @@ def test_deserialize_task():
         "cache_for",
     ]:
         assert getattr(task, key) == getattr(deserialized, key)
+
+
+def test_deserialize_id():
+    t = Task()
+    t2 = TaskSchema().load(TaskSchema().dump(t))
+
+    assert t.id and t.id == t2.id
 
 
 def test_deserialize_task_subclass_is_task_but_not_task_subclass():
