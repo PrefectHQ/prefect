@@ -64,13 +64,7 @@ def test_no_tasks_returns_empty_dict():
     assert Flow().generate_local_task_ids() == {}
 
 
-def test_one_task():
-    f = Flow()
-    f.add_task(get_task("x"))
-    assert len(f.generate_local_task_ids) == 1
-
-
-def test_flow_id_affects_task_ids():
+def test_flow_id_does_not_affect_task_ids():
     f = Flow()
     f.add_task(get_task("x"))
 
@@ -81,7 +75,7 @@ def test_flow_id_affects_task_ids():
     f3.add_task(get_task("x"))
 
     assert f.generate_local_task_ids() == f2.generate_local_task_ids()
-    assert f.generate_local_task_ids() != f3.generate_local_task_ids()
+    assert f.generate_local_task_ids() == f3.generate_local_task_ids()
 
 
 def test_modify_task_changes_hash():
@@ -612,26 +606,6 @@ def test_id_values_stable_across_identical_flows_with_duplicates():
     # the task_ids are not necessarily equal because the a's and b's
     # could switch ids. But the values are the same.
     assert set(f1_task_ids.values()) == set(f2_task_ids.values())
-
-
-def test_ids_change_if_flow_name_changes():
-    """
-    x1 -> x2 -> x3
-            \
-                y1 -> y2
-
-    a1 -> a2
-
-    """
-    f1 = flow_from_chains(["x1", "x2", "x3"], ["x2", "y1", "y2"], ["a1", "a2"])
-
-    f2 = f1.copy()
-    f2.name = "another flow name"
-
-    f1_task_ids = f1.generate_local_task_ids()
-    f2_task_ids = f2.generate_local_task_ids()
-    # no overlap
-    assert not set(f1_task_ids.values()).intersection(f2_task_ids.values())
 
 
 def test_ids_are_stable_even_if_some_tasks_change():

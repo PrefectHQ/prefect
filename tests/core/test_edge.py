@@ -78,11 +78,10 @@ def test_serialize_edge():
     t1 = Task()
     t2 = Task()
     edge = Edge(t1, t2, key="key", mapped=True)
-    version = dict(__version__=prefect.__version__)
     assert edge.serialize() == dict(
-        upstream_task=dict(id=None, **version),
-        downstream_task=dict(id=None, **version),
+        upstream_task=dict(id=t1.id, __version__=prefect.__version__),
+        downstream_task=dict(id=t2.id, __version__=prefect.__version__),
         key="key",
         mapped=True,
-        **version
+        __version__=prefect.__version__,
     )
