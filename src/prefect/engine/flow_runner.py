@@ -1,7 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import functools
-import logging
 from collections import defaultdict
 from typing import Any, Callable, Dict, Iterable, Set, Union
 
@@ -160,6 +159,7 @@ class FlowRunner(Runner):
             - ValueError: if any throttle values are `<= 0`
         """
 
+        self.logger.info("Beginning Flow run for '{}'".format(self.flow.name))
         context = context or {}
         return_tasks = set(return_tasks or [])
         executor = executor or DEFAULT_EXECUTOR
@@ -224,7 +224,7 @@ class FlowRunner(Runner):
 
             # All other exceptions are trapped and turned into Failed states
             except Exception as exc:
-                logging.debug("Unexpected error while running task.")
+                self.logger.debug("Unexpected error while running task.")
                 if raise_on_exception:
                     raise exc
                 return Failed(
