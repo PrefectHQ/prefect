@@ -396,14 +396,20 @@ class TaskRunner(Runner):
             raise
 
         except signals.PrefectStateSignal as exc:
-            self.logger.debug("{} signal raised.".format(type(exc).__name__))
+            self.logger.debug(
+                "{0} signal raised during execution of task '{1}'.".format(
+                    type(exc).__name__, self.task.name
+                )
+            )
             if raise_on_exception:
                 raise exc
             raise ENDRUN(exc.state)
 
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
-            self.logger.debug("Unexpected error while running task.")
+            self.logger.debug(
+                "Unexpected error while running task '{}'.".format(self.task.name)
+            )
             if raise_on_exception:
                 raise exc
             raise ENDRUN(
@@ -434,18 +440,20 @@ class TaskRunner(Runner):
 
         # this task is already running
         elif state.is_running():
-            self.logger.debug("Task is already running.")
+            self.logger.debug("Task '{}' is already running.".format(self.task.name))
             raise ENDRUN(state)
 
         # this task is already finished
         elif state.is_finished():
-            self.logger.debug("Task is already finished.")
+            self.logger.debug("Task '{}' is already finished.".format(self.task.name))
             raise ENDRUN(state)
 
         # this task is not pending
         else:
             self.logger.debug(
-                "Task is not ready to run or state was unrecognized ({}).".format(state)
+                "Task '{0}' is not ready to run or state was unrecognized ({1}).".format(
+                    self.task.name, state
+                )
             )
             raise ENDRUN(state)
 
