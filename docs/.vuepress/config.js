@@ -70,7 +70,7 @@ module.exports = {
                 {
                     title: 'Concepts',
                     collapsable: true,
-                    children: ['concepts/', 'concepts/core', 'concepts/execution', 'concepts/best-practices', 'concepts/common-pitfalls']
+                    children: ['concepts/', 'concepts/core', 'concepts/execution', 'concepts/best-practices']
                 },
                 {
                     title: 'Tutorials',
