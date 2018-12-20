@@ -11,7 +11,7 @@ from prefect.configuration import config
 class RemoteHandler(logging.StreamHandler):
     def __init__(self):
         super().__init__()
-        self.logger_server = os.path.join(config.cloud.api, "log")
+        self.logger_server = config.cloud.log
         self.client = None
 
     def emit(self, record):
