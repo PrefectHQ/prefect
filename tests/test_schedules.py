@@ -42,6 +42,29 @@ class TestIntervalSchedule:
                 pendulum.now("utc"), interval=timedelta(hours=-1)
             )
 
+    def test_interval_schedule_interval_must_be_more_than_one_minute(self):
+        with pytest.raises(ValueError):
+            schedules.IntervalSchedule(
+                pendulum.now("utc"), interval=timedelta(seconds=59)
+            )
+        with pytest.raises(ValueError):
+            schedules.IntervalSchedule(
+                pendulum.now("utc"), interval=timedelta(microseconds=59999999)
+            )
+        with pytest.raises(ValueError):
+            schedules.IntervalSchedule(pendulum.now("utc"), interval=timedelta(0))
+
+    def test_interval_schedule_can_be_exactly_one_minute(self):
+        assert schedules.IntervalSchedule(
+            pendulum.now("utc"), interval=timedelta(minutes=1)
+        )
+        assert schedules.IntervalSchedule(
+            pendulum.now("utc"), interval=timedelta(seconds=60)
+        )
+        assert schedules.IntervalSchedule(
+            pendulum.now("utc"), interval=timedelta(microseconds=60000000)
+        )
+
     def test_interval_schedule_next_n(self):
         """Test that default after is *now*"""
         start_date = pendulum.datetime(2018, 1, 1)
@@ -268,7 +291,7 @@ class TestSerialization:
             "type": "IntervalSchedule",
             "start_date": str(sd),
             "end_date": None,
-            "interval": 3600,
+            "interval": 3600000000,
             "__version__": __version__,
         }
 
@@ -283,6 +306,6 @@ class TestSerialization:
             "type": "IntervalSchedule",
             "start_date": str(sd),
             "end_date": str(ed),
-            "interval": 3600,
+            "interval": 3600000000,
             "__version__": __version__,
         }

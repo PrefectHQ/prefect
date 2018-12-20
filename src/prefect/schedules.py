@@ -49,6 +49,8 @@ class IntervalSchedule(Schedule):
     """
     A schedule formed by adding `timedelta` increments to a start_date.
 
+    IntervalSchedules only support intervals of one minute or greater.
+
     Args:
         - start_date (datetime): first date of schedule
         - interval (timedelta): interval on which this schedule occurs
@@ -56,7 +58,7 @@ class IntervalSchedule(Schedule):
 
     Raises:
         - TypeError: if start_date is not a datetime
-        - ValueError: if provided interval is negative
+        - ValueError: if provided interval is less than one minute
     """
 
     def __init__(
@@ -64,8 +66,8 @@ class IntervalSchedule(Schedule):
     ) -> None:
         if not isinstance(start_date, datetime):
             raise TypeError("`start_date` must be a datetime.")
-        elif interval.total_seconds() <= 0:
-            raise ValueError("Interval must be positive")
+        elif interval.total_seconds() < 60:
+            raise ValueError("Interval can not be less than one minute.")
 
         self.interval = interval
         super().__init__(start_date=start_date, end_date=end_date)
