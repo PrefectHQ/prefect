@@ -3,6 +3,8 @@ import tempfile
 
 from typing import Any
 
+from prefect import config
+
 
 class ResultHandler:
     def deserialize(self, loc: str) -> Any:
@@ -10,6 +12,11 @@ class ResultHandler:
 
     def serialize(self, result: Any) -> str:
         raise NotImplementedError()
+
+
+class CloudResultHandler(ResultHandler):
+    def __init__(self):
+        self.result_handler_service = config.cloud.result_handler
 
 
 class LocalResultHandler(ResultHandler):
