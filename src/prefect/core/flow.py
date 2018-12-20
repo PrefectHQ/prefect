@@ -1253,7 +1253,7 @@ class Flow:
 
     # Deployment ------------------------------------------------------------------
 
-    def deploy(self, project_id: str, set_schedule_active: bool) -> str:
+    def deploy(self, project_id: str, set_schedule_active: bool = False) -> str:
         """
         Deploy the flow to Prefect Cloud
 
