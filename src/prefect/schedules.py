@@ -67,7 +67,7 @@ class IntervalSchedule(Schedule):
         if not isinstance(start_date, datetime):
             raise TypeError("`start_date` must be a datetime.")
         elif interval.total_seconds() < 60:
-            raise ValueError("Interval must be more than one minute.")
+            raise ValueError("Interval can not be less than one minute.")
 
         self.interval = interval
         super().__init__(start_date=start_date, end_date=end_date)

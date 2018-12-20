@@ -118,4 +118,4 @@ def test_deserialize_schedule_with_overridden_interval():
 
     with pytest.raises(ValueError) as exc:
         schema.load(serialized)
-    assert "Interval must be more than one minute." in str(exc.value)
+    assert "Interval can not be less than one minute." in str(exc.value)
