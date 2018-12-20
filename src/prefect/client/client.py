@@ -59,7 +59,7 @@ class Client:
             token_path = os.path.expanduser("~/.prefect/.credentials/auth_token")
             if os.path.exists(token_path):
                 with open(token_path, "r") as f:
-                    token = f.read()
+                    token = f.read() or None
 
         self.token = token
 

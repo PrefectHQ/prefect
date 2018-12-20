@@ -2,7 +2,6 @@
 
 import collections
 import pendulum
-import logging
 from typing import Any, Callable, Dict, Iterable, List, Union, Set, Sized, Optional
 
 import prefect
@@ -145,6 +144,7 @@ class TaskRunner(Runner):
             - `State` object representing the final post-run state of the Task
         """
 
+        self.logger.info("Beginning task run for task '{}'".format(self.task.name))
         queues = queues or []
         upstream_states = upstream_states or {}
         inputs = inputs or {}
@@ -396,14 +396,14 @@ class TaskRunner(Runner):
             raise
 
         except signals.PrefectStateSignal as exc:
-            logging.debug("{} signal raised.".format(type(exc).__name__))
+            self.logger.debug("{} signal raised.".format(type(exc).__name__))
             if raise_on_exception:
                 raise exc
             raise ENDRUN(exc.state)
 
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
-            logging.debug("Unexpected error while running task.")
+            self.logger.debug("Unexpected error while running task.")
             if raise_on_exception:
                 raise exc
             raise ENDRUN(
@@ -643,7 +643,7 @@ class TaskRunner(Runner):
 
         # PrefectStateSignals are trapped and turned into States
         except signals.PrefectStateSignal as exc:
-            logging.debug("{} signal raised.".format(type(exc).__name__))
+            self.logger.debug("{} signal raised.".format(type(exc).__name__))
             if raise_on_exception:
                 raise exc
             return exc.state
@@ -658,7 +658,7 @@ class TaskRunner(Runner):
 
         # Exceptions are trapped and turned into Failed states
         except Exception as exc:
-            logging.debug("Unexpected error while running task.")
+            self.logger.debug("Unexpected error while running task.")
             if raise_on_exception:
                 raise exc
             return Failed("Unexpected error while running task.", result=exc)
