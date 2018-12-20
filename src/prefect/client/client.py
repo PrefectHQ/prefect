@@ -316,7 +316,9 @@ class Client:
         if parameters is not None:
             inputs.update(parameters=parameters)  # type: ignore
         if scheduled_start_time is not None:
-            inputs.update(scheduledStartTime=scheduled_start_time.isoformat())  # type: ignore
+            inputs.update(
+                scheduledStartTime=scheduled_start_time.isoformat()
+            )  # type: ignore
         res = self.graphql(parse_graphql(create_mutation), input=inputs)
         return res.createFlowRun.flow_run  # type: ignore
 
