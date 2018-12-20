@@ -1,3 +1,4 @@
+import pendulum
 import marshmallow
 import datetime
 import prefect
@@ -81,6 +82,40 @@ def test_serialize_interval_schedule(interval_schedule):
     assert schema.dump(interval_schedule) == {
         "start_date": interval_schedule.start_date.isoformat(),
         "end_date": interval_schedule.end_date.isoformat(),
-        "interval": interval_schedule.interval.total_seconds(),
+        "interval": int(interval_schedule.interval.total_seconds()) * 1000000,
         "__version__": __version__,
     }
+
+
+def test_serialize_interval_at_microsecond_resolution():
+    schedule = schedules.IntervalSchedule(
+        start_date=pendulum.now("utc"),
+        interval=datetime.timedelta(minutes=1, microseconds=1),
+    )
+    schema = schemas.IntervalScheduleSchema()
+    serialized = schema.dump(schedule)
+    assert serialized["interval"] == 60000001
+
+
+def test_serialize_interval_at_annual_resolution():
+    schedule = schedules.IntervalSchedule(
+        start_date=pendulum.now("utc"),
+        interval=datetime.timedelta(days=365, microseconds=1),
+    )
+    schema = schemas.IntervalScheduleSchema()
+    serialized = schema.dump(schedule)
+    assert serialized["interval"] == 31536000000001
+
+
+def test_deserialize_schedule_with_overridden_interval():
+    schedule = schedules.IntervalSchedule(
+        start_date=pendulum.now("utc"), interval=datetime.timedelta(minutes=1)
+    )
+    schedule.interval = datetime.timedelta(microseconds=1)
+    schema = schemas.IntervalScheduleSchema()
+    serialized = schema.dump(schedule)
+    assert serialized["interval"] == 1
+
+    with pytest.raises(ValueError) as exc:
+        schema.load(serialized)
+    assert "Interval must be more than one minute." in str(exc.value)

@@ -20,7 +20,7 @@ class IntervalScheduleSchema(VersionedSchema):
 
     start_date = DateTime(required=True)
     end_date = DateTime(allow_none=True)
-    interval = fields.TimeDelta(required=True)
+    interval = fields.TimeDelta(precision="microseconds", required=True)
 
 
 @version("0.3.3")
