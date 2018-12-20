@@ -3,6 +3,7 @@
 import collections
 import copy
 import inspect
+import uuid
 import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Set, Tuple
@@ -140,6 +141,7 @@ class Task(metaclass=SignatureValidator):
         self.name = name or type(self).__name__
         self.slug = slug
 
+        self.id = str(uuid.uuid4())
         self.logger = logging.get_logger("Task")
 
         # avoid silently iterating over a string
@@ -197,6 +199,22 @@ class Task(metaclass=SignatureValidator):
     def __hash__(self) -> int:
         return id(self)
 
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @id.setter
+    def id(self, value: str) -> None:
+        """
+        Args:
+            - value (str): a UUID-formatted string
+        """
+        try:
+            uuid.UUID(value)
+        except Exception:
+            raise ValueError("Badly formatted UUID string: {}".format(value))
+        self._id = value
+
     # Run  --------------------------------------------------------------------
 
     def run(self) -> None:
@@ -240,6 +258,8 @@ class Task(metaclass=SignatureValidator):
             )
 
         new = copy.copy(self)
+        # assign new id
+        new.id = str(uuid.uuid4())
 
         new.tags = copy.deepcopy(self.tags)
         tags = set(prefect.context.get("_tags", set()))
