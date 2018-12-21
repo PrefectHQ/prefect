@@ -36,6 +36,7 @@ def heartbeat():
 
 
 def look_alive(runner_method: Callable[..., State]) -> Callable[..., State]:
+    @wraps(runner_method)
     def inner(self: "TaskRunner", *args: Any, **kwargs: Any) -> State:
         try:
             if config.get("prefect_cloud", None):
