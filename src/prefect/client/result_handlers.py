@@ -1,3 +1,4 @@
+import base64
 import cloudpickle
 import tempfile
 
@@ -22,10 +23,16 @@ class CloudResultHandler(ResultHandler):
 
     def deserialize(self, uri: str) -> Any:
         res = self.client.get("/", server=self.result_handler_service, **{"uri": uri})
-        return cloudpickle.loads(res.get("result", ""))
+
+        try:
+            return_val = cloudpickle.loads(base64.b64decode(res.get("result", "")))
+        except EOFError:
+            return_val = None
+
+        return return_val
 
     def serialize(self, result: Any) -> str:
-        binary_data = cloudpickle.dumps(result)
+        binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()
         res = self.client.post(
             "/", server=self.result_handler_service, **{"result": binary_data}
         )
