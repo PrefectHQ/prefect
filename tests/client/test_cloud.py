@@ -214,3 +214,46 @@ class TestHeartBeats:
         monkeypatch.setattr("prefect.engine.task_runner.heartbeat", heartbeat)
         res = FlowRunner(flow=flow).run(executor=executor, state=Pending())
         assert heartbeat.call_count == 3
+
+
+def test_client_is_always_called_even_during_failures(monkeypatch):
+    @prefect.task
+    def raise_me(x, y):
+        raise AttributeError("Doesn't exist")
+
+    with prefect.Flow() as flow:
+        final = raise_me(4, 7)
+
+    assert len(flow.tasks) == 3
+
+    ## flow run setup
+    get_flow_run_info = MagicMock(return_value=MagicMock(state=None))
+    set_flow_run_state = MagicMock()
+    fr_client = MagicMock(
+        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.flow_runner.Client", MagicMock(return_value=fr_client)
+    )
+
+    ## task run setup
+    get_task_run_info = MagicMock(return_value=MagicMock(state=None))
+    set_task_run_state = MagicMock()
+    tr_client = MagicMock(
+        get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.task_runner.Client", MagicMock(return_value=tr_client)
+    )
+
+    res = flow.run(state=Pending())
+
+    ## assertions
+    assert get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert set_flow_run_state.call_count == 2  # Pending -> Running -> Failed
+
+    states = [call[1]["state"] for call in set_flow_run_state.call_args_list]
+    assert states == [Running(), Failed(result=dict())]
+
+    assert get_task_run_info.call_count == 3  # three time to pull latest states
+    assert set_task_run_state.call_count == 6  # (Pending -> Running -> Failed) * 3
