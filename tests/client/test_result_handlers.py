@@ -1,8 +1,22 @@
 import os
 import pytest
 import tempfile
+from unittest.mock import MagicMock
 
-from prefect.client.result_handlers import LocalResultHandler
+from prefect.client import Client
+from prefect.client.result_handlers import CloudResultHandler, LocalResultHandler
+from prefect.utilities.configuration import set_temporary_config
+
+
+class TestCloudHandler:
+    def test_cloud_handler_initializes_with_no_args(self):
+        handler = CloudResultHandler()
+        assert isinstance(handler.client, Client)
+
+    def test_cloud_handler_pulls_settings_from_config(self):
+        with set_temporary_config({"cloud.result_handler": "http://foo.bar:4204"}):
+            handler = CloudResultHandler()
+        assert handler.result_handler_service == "http://foo.bar:4204"
 
 
 class TestLocalHandler:

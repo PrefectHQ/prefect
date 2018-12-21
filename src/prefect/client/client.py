@@ -6,7 +6,6 @@ import os
 from typing import TYPE_CHECKING, Optional, Union
 
 import prefect
-from prefect.client.result_handlers import ResultHandler
 from prefect.utilities.graphql import (
     EnumValue,
     parse_graphql,
@@ -18,6 +17,7 @@ from prefect.utilities.graphql import (
 if TYPE_CHECKING:
     import requests
     from prefect.core import Flow
+    from prefect.client.result_handlers import ResultHandler
 
 
 BuiltIn = Union[bool, dict, list, str, set, tuple]
@@ -343,7 +343,7 @@ class Client:
         return res.createFlowRun.flow_run  # type: ignore
 
     def get_flow_run_info(
-        self, flow_run_id: str, result_handler: ResultHandler = None
+        self, flow_run_id: str, result_handler: "ResultHandler" = None
     ) -> GraphQLResult:
         """
         Retrieves version and current state information for the given flow run.
@@ -382,7 +382,7 @@ class Client:
         flow_run_id: str,
         version: int,
         state: "prefect.engine.state.State",
-        result_handler: ResultHandler = None,
+        result_handler: "ResultHandler" = None,
     ) -> GraphQLResult:
         """
         Sets new state for a flow run in the database.
@@ -427,7 +427,7 @@ class Client:
         flow_run_id: str,
         task_id: str,
         map_index: Optional[int],
-        result_handler: ResultHandler = None,
+        result_handler: "ResultHandler" = None,
     ) -> GraphQLResult:
         """
         Retrieves version and current state information for the given task run. If this task run is not present in the database (which could
@@ -485,7 +485,7 @@ class Client:
         version: int,
         state: "prefect.engine.state.State",
         cache_for: datetime.timedelta = None,
-        result_handler: ResultHandler = None,
+        result_handler: "ResultHandler" = None,
     ) -> GraphQLResult:
         """
         Sets new state for a task run in the database.

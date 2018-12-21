@@ -4,7 +4,7 @@ import tempfile
 from typing import Any
 
 from prefect import config
-from prefect.client import Client
+from prefect.client.client import Client
 
 
 class ResultHandler:
@@ -16,7 +16,7 @@ class ResultHandler:
 
 
 class CloudResultHandler(ResultHandler):
-    def __init__(self):
+    def __init__(self) -> None:
         self.client = Client()
         self.result_handler_service = config.cloud.result_handler
 
