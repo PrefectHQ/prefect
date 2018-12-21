@@ -164,6 +164,8 @@ class TestTaskRunner:
         states = [call[1]["state"] for call in set_task_run_state.call_args_list]
         assert states == [Running(), Success()]
 
+
+class TestHeartBeats:
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
@@ -200,3 +202,15 @@ class TestTaskRunner:
         res = TaskRunner(task=raise_me).run(executor=executor)
         assert res.is_failed()
         assert glob_dict.get("was_called") is True
+
+    @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+    def test_all_task_runners_have_heartbeats_within_flows(self, executor, monkeypatch):
+        """Because MagicMock()'s don't persist across multiple processes / threads, this test
+        can only test the local and synchronous executors"""
+        heartbeat = MagicMock()
+        flow = prefect.Flow(tasks=[prefect.Task(), prefect.Task(), prefect.Task()])
+        monkeypatch.setattr("prefect.engine.flow_runner.Client", MagicMock())
+        monkeypatch.setattr("prefect.engine.task_runner.Client", MagicMock())
+        monkeypatch.setattr("prefect.engine.task_runner.heartbeat", heartbeat)
+        res = FlowRunner(flow=flow).run(executor=executor, state=Pending())
+        assert heartbeat.call_count == 3
