@@ -35,17 +35,19 @@ def heartbeat():
     pass
 
 
-def look_alive(f):
-    def inner(self, *args, **kwargs):
+def look_alive(runner_method: Callable[..., State]) -> Callable[..., State]:
+    def inner(self: "TaskRunner", *args: Any, **kwargs: Any) -> State:
         try:
-            thread = threading.Thread(target=heartbeat)
-            thread.daemon = True
-            thread.start()
-            return f(self, *args, **kwargs)
+            if config.get("prefect_cloud", None):
+                thread = threading.Thread(target=heartbeat)
+                thread.daemon = True
+                thread.start()
+            return runner_method(self, *args, **kwargs)
         except Exception as exc:
             raise exc
         finally:
-            thread.join()
+            if config.get("prefect_cloud", None):
+                thread.join()
 
     return inner
 

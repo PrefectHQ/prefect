@@ -163,3 +163,40 @@ class TestTaskRunner:
 
         states = [call[1]["state"] for call in set_task_run_state.call_args_list]
         assert states == [Running(), Success()]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_task_runner_has_a_heartbeat(self, executor, monkeypatch):
+        glob_dict = {}
+
+        def heartbeat():
+            glob_dict["was_called"] = True
+
+        monkeypatch.setattr("prefect.engine.task_runner.Client", MagicMock())
+        monkeypatch.setattr("prefect.engine.task_runner.heartbeat", heartbeat)
+        task = prefect.Task(name="test")
+        res = TaskRunner(task=task).run(executor=executor)
+        assert glob_dict.get("was_called") is True
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_task_runner_has_a_heartbeat_even_when_things_go_wrong(
+        self, executor, monkeypatch
+    ):
+        glob_dict = {}
+
+        def heartbeat():
+            glob_dict["was_called"] = True
+
+        monkeypatch.setattr("prefect.engine.task_runner.Client", MagicMock())
+        monkeypatch.setattr("prefect.engine.task_runner.heartbeat", heartbeat)
+
+        @prefect.task
+        def raise_me():
+            raise AttributeError("Doesn't exist")
+
+        res = TaskRunner(task=raise_me).run(executor=executor)
+        assert res.is_failed()
+        assert glob_dict.get("was_called") is True
