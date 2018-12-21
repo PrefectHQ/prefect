@@ -172,7 +172,7 @@ class Client:
         def request_fn() -> "requests.models.Response":
             headers = {"Authorization": "Bearer {}".format(self.token)}
             if method == "GET":
-                response = requests.get(url, headers=headers, params=params)
+                response = requests.get(url, headers=headers, json=params)
             elif method == "POST":
                 response = requests.post(url, headers=headers, json=params)
             elif method == "DELETE":

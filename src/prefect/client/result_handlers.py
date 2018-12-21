@@ -21,10 +21,15 @@ class CloudResultHandler(ResultHandler):
         self.result_handler_service = config.cloud.result_handler
 
     def deserialize(self, uri: str) -> Any:
-        pass
+        res = self.client.get("/", server=self.result_handler_service, **{"uri": uri})
+        return cloudpickle.loads(res.get("result", ""))
 
     def serialize(self, result: Any) -> str:
-        pass
+        binary_data = cloudpickle.dumps(result)
+        res = self.client.post(
+            "/", server=self.result_handler_service, **{"result": binary_data}
+        )
+        return res.get("uri", "")
 
 
 class LocalResultHandler(ResultHandler):
