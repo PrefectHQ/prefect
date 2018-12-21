@@ -2,6 +2,8 @@
 
 import collections
 import pendulum
+import threading
+from functools import wraps
 from typing import Any, Callable, Dict, Iterable, List, Union, Set, Sized, Optional
 
 import prefect
@@ -27,6 +29,25 @@ from prefect.engine.state import (
 )
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.utilities.executors import main_thread_timeout
+
+
+def heartbeat():
+    pass
+
+
+def look_alive(f):
+    def inner(self, *args, **kwargs):
+        try:
+            thread = threading.Thread(target=heartbeat)
+            thread.daemon = True
+            thread.start()
+            return f(self, *args, **kwargs)
+        except Exception as exc:
+            raise exc
+        finally:
+            thread.join()
+
+    return inner
 
 
 class TaskRunner(Runner):
@@ -615,6 +636,7 @@ class TaskRunner(Runner):
 
         return Running(message="Starting task run.")
 
+    @look_alive
     @call_state_handlers
     def get_task_run_state(
         self, state: State, inputs: Dict[str, Any], timeout_handler: Optional[Callable]
