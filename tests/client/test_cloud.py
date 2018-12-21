@@ -219,7 +219,7 @@ class TestHeartBeats:
 def test_client_is_always_called_even_during_failures(monkeypatch):
     @prefect.task
     def raise_me(x, y):
-        raise AttributeError("Doesn't exist")
+        raise SyntaxError("Aggressively weird error")
 
     with prefect.Flow() as flow:
         final = raise_me(4, 7)
@@ -252,8 +252,13 @@ def test_client_is_always_called_even_during_failures(monkeypatch):
     assert get_flow_run_info.call_count == 1  # one time to pull latest state
     assert set_flow_run_state.call_count == 2  # Pending -> Running -> Failed
 
-    states = [call[1]["state"] for call in set_flow_run_state.call_args_list]
-    assert states == [Running(), Failed(result=dict())]
+    flow_states = [call[1]["state"] for call in set_flow_run_state.call_args_list]
+    assert flow_states == [Running(), Failed(result=dict())]
 
     assert get_task_run_info.call_count == 3  # three time to pull latest states
-    assert set_task_run_state.call_count == 6  # (Pending -> Running -> Failed) * 3
+    assert set_task_run_state.call_count == 6  # (Pending -> Running -> Finished) * 3
+
+    task_states = [call[1]["state"] for call in set_task_run_state.call_args_list]
+    assert len([s for s in task_states if s.is_running()]) == 3
+    assert len([s for s in task_states if s.is_successful()]) == 2
+    assert len([s for s in task_states if s.is_failed()]) == 1
