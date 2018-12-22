@@ -22,6 +22,7 @@ from prefect.engine.state import (
 )
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
+from prefect.utilities.executors import look_alive
 
 
 class FlowRunner(Runner):
@@ -80,6 +81,10 @@ class FlowRunner(Runner):
         self.task_runner_cls = task_runner_cls or TaskRunner
         self.client = Client()
         super().__init__(state_handlers=state_handlers)
+
+    def _heartbeat(self) -> None:
+        flow_run_id = prefect.context.get("_flow_run_id")
+        self.client.heartbeat_flow_run(flow_run_id)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -283,6 +288,7 @@ class FlowRunner(Runner):
         else:
             raise ENDRUN(state)
 
+    @look_alive
     @call_state_handlers
     def get_flow_run_state(
         self,
