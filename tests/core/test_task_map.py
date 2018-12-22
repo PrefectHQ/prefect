@@ -432,7 +432,7 @@ def test_map_works_with_retries_and_cached_states(executor):
         res = div.map(x=ll)
 
     s = f.run(return_tasks=[ll, res], executor=executor)
-    assert s.is_pending()
+    assert s.is_running()
     slist = s.result[res]
     assert slist[0].is_pending()
     assert slist[1].is_successful()
