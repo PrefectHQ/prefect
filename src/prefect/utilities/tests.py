@@ -11,7 +11,7 @@ from typing import Any, Iterator
 import prefect
 
 
-def is_deployable(obj: Any, raise_on_error: bool = False) -> bool:
+def is_serializable(obj: Any, raise_on_error: bool = False) -> bool:
     """
     Checks whether a given object can be deployed to Prefect Cloud.  This requires
     that the object can be serialized in the current process and deserialized in a fresh process.

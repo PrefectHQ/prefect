@@ -6,7 +6,7 @@ import tempfile
 import prefect
 from prefect.core import Flow, Task
 from prefect.engine import FlowRunner, TaskRunner, state
-from prefect.utilities.tests import is_deployable, raise_on_exception
+from prefect.utilities.tests import is_serializable, raise_on_exception
 
 
 class SuccessTask(Task):
@@ -126,30 +126,30 @@ def test_raise_on_exception_plays_well_with_context():
 
 
 @pytest.mark.parametrize("obj", [5, "string", lambda x, y, z: None, bool])
-def test_is_deployable_returns_true_for_basic_objects(obj):
-    assert is_deployable(obj) is True
+def test_is_serializable_returns_true_for_basic_objects(obj):
+    assert is_serializable(obj) is True
 
 
-def test_is_deployable_returns_false_for_curried_functions_defined_in_main():
+def test_is_serializable_returns_false_for_curried_functions_defined_in_main():
     script = """
 from toolz import curry
-from prefect.utilities.tests import is_deployable
+from prefect.utilities.tests import is_serializable
 
 @curry
 def f(x, y):
     pass
 
 g = f(y=5)
-assert is_deployable(g) is False
+assert is_serializable(g) is False
     """
     assert_script_runs(script)
 
 
-def test_is_deployable_with_raise_is_informative():
+def test_is_serializable_with_raise_is_informative():
     script = """
 import subprocess
 from toolz import curry
-from prefect.utilities.tests import is_deployable
+from prefect.utilities.tests import is_serializable
 
 @curry
 def f(x, y):
@@ -157,7 +157,7 @@ def f(x, y):
 
 g = f(y=5)
 try:
-    is_deployable(g, raise_on_error=True)
+    is_serializable(g, raise_on_error=True)
 except subprocess.CalledProcessError as exc:
     assert "has no attribute \'f\'" in exc.output.decode()
     """
