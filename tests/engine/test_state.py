@@ -12,6 +12,7 @@ from prefect.engine.state import (
     Mapped,
     Paused,
     Pending,
+    Resume,
     Retrying,
     Running,
     Scheduled,
