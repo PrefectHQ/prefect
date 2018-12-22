@@ -159,6 +159,6 @@ g = f(y=5)
 try:
     is_deployable(g, raise_on_error=True)
 except subprocess.CalledProcessError as exc:
-    assert "\'__main__\' has no attribute \'f\'" in exc.output.decode()
+    assert "has no attribute \'f\'" in exc.output.decode()
     """
     assert_script_runs(script)
