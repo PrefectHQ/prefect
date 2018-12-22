@@ -2,6 +2,7 @@
 
 import datetime
 import json
+import logging
 import os
 from typing import TYPE_CHECKING, Optional, Union
 
@@ -42,7 +43,16 @@ class Client:
             to; if not provided, will be pulled from `cloud.graphql` config var
     """
 
+    def _initialize_logger(self) -> None:
+        self.logger = logging.getLogger("Client")
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(prefect.config.logging.format)
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+        self.logger.setLevel(prefect.config.logging.level)
+
     def __init__(self, api_server: str = None, graphql_server: str = None) -> None:
+        self._initialize_logger()
         if not api_server:
             api_server = prefect.config.cloud.get("api", None)
             if not api_server:
@@ -52,6 +62,11 @@ class Client:
         if not graphql_server:
             graphql_server = prefect.config.cloud.get("graphql") or self.api_server
         self.graphql_server = graphql_server
+        self.logger.debug(
+            "Client initialized with api_server='{0}' and graphql_server='{1}'".format(
+                self.api_server, self.graphql_server
+            )
+        )
 
         token = prefect.config.cloud.get("auth_token", None)
 
@@ -60,6 +75,10 @@ class Client:
             if os.path.exists(token_path):
                 with open(token_path, "r") as f:
                     token = f.read() or None
+            if token is not None:
+                self.logger.debug("Client token set from file {}".format(token_path))
+        else:
+            self.logger.debug("Client token set from $PREFECT__CLOUD__AUTH_TOKEN")
 
         self.token = token
 
