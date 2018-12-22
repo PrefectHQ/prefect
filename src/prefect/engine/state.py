@@ -284,6 +284,22 @@ class Scheduled(Pending):
         self.start_time = ensure_tz_aware(start_time or pendulum.now("utc"))
 
 
+class Resume(Scheduled):
+    """
+    Resume state indicating the object can resume execution (presumably from a `Paused` state).
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - start_time (datetime): time at which the task is scheduled to run
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to values.  Used / set if the Task requires Retries.
+    """
+
+    color = "#20B2AA"
+
+
 class Retrying(Scheduled):
     """
     Pending state indicating the object has been scheduled to be retried.
