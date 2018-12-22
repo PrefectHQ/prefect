@@ -358,6 +358,16 @@ class Client:
         return result
 
     def heartbeat_flow_run(self, flow_run_id: str) -> GraphQLResult:
+        """
+        Convenience method for heartbeating a flow run.
+
+        Args:
+            - flow_run_id (str): the flow run ID to heartbeat
+
+        Returns:
+            - GraphQLResult: a GraphQL result containing the flow run ID for
+                validation
+        """
         mutation = {
             "mutation($input: updateFlowRunHeartbeatInput!)": {
                 with_args("updateFlowRunHeartbeat", {"input": EnumValue("$input")}): {
@@ -369,6 +379,16 @@ class Client:
         return res.updateFlowRunHeartbeat.flow_run.id  # type: ignore
 
     def heartbeat_task_run(self, task_run_id: str) -> GraphQLResult:
+        """
+        Convenience method for heartbeating a task run.
+
+        Args:
+            - task_run_id (str): the task run ID to heartbeat
+
+        Returns:
+            - GraphQLResult: a GraphQL result containing the task run ID for
+                validation
+        """
         mutation = {
             "mutation($input: updateTaskRunHeartbeatInput!)": {
                 with_args("updateTaskRunHeartbeat", {"input": EnumValue("$input")}): {

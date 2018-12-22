@@ -3,7 +3,7 @@
 import collections
 import pendulum
 import threading
-from functools import wraps
+from functools import partial, wraps
 from typing import Any, Callable, Dict, Iterable, List, Union, Set, Sized, Optional
 
 import prefect
@@ -28,29 +28,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
-from prefect.utilities.executors import main_thread_timeout
-
-
-def heartbeat():
-    pass
-
-
-def look_alive(runner_method: Callable[..., State]) -> Callable[..., State]:
-    @wraps(runner_method)
-    def inner(self: "TaskRunner", *args: Any, **kwargs: Any) -> State:
-        try:
-            if config.get("prefect_cloud", None):
-                thread = threading.Thread(target=heartbeat)
-                thread.daemon = True
-                thread.start()
-            return runner_method(self, *args, **kwargs)
-        except Exception as exc:
-            raise exc
-        finally:
-            if config.get("prefect_cloud", None):
-                thread.join()
-
-    return inner
+from prefect.utilities.executors import look_alive, main_thread_timeout
 
 
 class TaskRunner(Runner):
@@ -92,6 +70,10 @@ class TaskRunner(Runner):
         self.client = Client()
         self.result_handler = result_handler
         super().__init__(state_handlers=state_handlers)
+
+    def _heartbeat(self) -> None:
+        task_run_id = prefect.context.get("_task_run_id")
+        self.client.heartbeat_task_run(task_run_id)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """

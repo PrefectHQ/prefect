@@ -5,6 +5,8 @@ import dask.bag
 import datetime
 import multiprocessing
 import signal
+import threading
+from functools import wraps
 from typing import Any, Callable, Dict, List, Union
 
 import prefect
@@ -12,6 +14,36 @@ from prefect.core.edge import Edge
 
 
 StateList = Union["prefect.engine.state.State", List["prefect.engine.state.State"]]
+
+
+class HeartbeatTimer(threading.Timer):
+    def run(self):
+        while not self.finished.is_set():
+            self.function()
+            self.finished.wait(self.interval)
+
+
+def look_alive(
+    runner_method: Callable[..., "prefect.engine.state.State"]
+) -> Callable[..., "prefect.engine.state.State"]:
+    @wraps(runner_method)
+    def inner(
+        self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
+    ) -> "prefect.engine.state.State":
+        try:
+            if prefect.config.get("prefect_cloud", None):
+                timer = HeartbeatTimer(
+                    prefect.config.cloud.heartbeat_interval, self._heartbeat
+                )
+                timer.start()
+            return runner_method(self, *args, **kwargs)
+        except Exception as exc:
+            raise exc
+        finally:
+            if prefect.config.get("prefect_cloud", None):
+                timer.cancel()
+
+    return inner
 
 
 def multiprocessing_timeout(
