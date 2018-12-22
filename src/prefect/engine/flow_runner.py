@@ -84,7 +84,7 @@ class FlowRunner(Runner):
 
     def _heartbeat(self) -> None:
         flow_run_id = prefect.context.get("_flow_run_id")
-        self.client.heartbeat_flow_run(flow_run_id)
+        self.client.update_flow_run_heartbeat(flow_run_id)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
