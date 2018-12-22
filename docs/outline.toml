@@ -33,7 +33,7 @@ classes = ["Secret"]
 [pages.client.result_handlers]
 title = "Result Handlers"
 module = "prefect.client.result_handlers"
-classes = ["LocalResultHandler"]
+classes = ["CloudResultHandler", "LocalResultHandler"]
 
 [pages.schedules]
 title = "Schedules"
