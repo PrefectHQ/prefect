@@ -16,11 +16,19 @@ def requests_post(*args, result=None, **kwargs):
 class TestCloudHandler:
     def test_cloud_handler_initializes_with_no_args(self):
         handler = CloudResultHandler()
-        assert isinstance(handler.client, Client)
+        assert handler.client is None
+        assert handler.result_handler_service is None
 
-    def test_cloud_handler_pulls_settings_from_config(self):
+    def test_cloud_handler_pulls_settings_from_config_after_first_method_call(
+        self, monkeypatch
+    ):
+        client = MagicMock(post=requests_post)
+        monkeypatch.setattr(
+            "prefect.client.result_handlers.Client", MagicMock(return_value=client)
+        )
         with set_temporary_config({"cloud.result_handler": "http://foo.bar:4204"}):
             handler = CloudResultHandler()
+            handler.serialize("random string")
         assert handler.result_handler_service == "http://foo.bar:4204"
 
     @pytest.mark.parametrize("data", [None, "my_string", 42])

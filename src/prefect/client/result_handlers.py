@@ -27,8 +27,22 @@ class CloudResultHandler(ResultHandler):
     """
 
     def __init__(self) -> None:
-        self.client = Client()
-        self.result_handler_service = config.cloud.result_handler
+        self.client = None
+        self.result_handler_service = None
+
+    def _initialize_client(self) -> None:
+        """
+        Helper method for ensuring that CloudHandlers which are initialized locally
+        do not attempt to start a Client.  This is important because CloudHandlers are
+        currently attached to `Flow` objects which need to be serialized / deserialized
+        independently of cloud settings.
+
+        This will instantiate a Client upon the first call to (de)serialize.
+        """
+        if self.client is None:
+            self.client = Client()  # type: ignore
+        if self.result_handler_service is None:
+            self.result_handler_service = config.cloud.result_handler
 
     def deserialize(self, uri: str) -> Any:
         """
@@ -40,7 +54,10 @@ class CloudResultHandler(ResultHandler):
         Returns:
             - the deserialized result from the provided URI
         """
-        res = self.client.get("/", server=self.result_handler_service, **{"uri": uri})
+        self._initialize_client()
+        res = self.client.get(  # type: ignore
+            "/", server=self.result_handler_service, **{"uri": uri}
+        )
 
         try:
             return_val = cloudpickle.loads(base64.b64decode(res.get("result", "")))
@@ -59,8 +76,9 @@ class CloudResultHandler(ResultHandler):
         Returns:
             - str: the URI path to the serialized result in Cloud storage
         """
+        self._initialize_client()
         binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()
-        res = self.client.post(
+        res = self.client.post(  # type: ignore
             "/", server=self.result_handler_service, **{"result": binary_data}
         )
         return res.get("uri", "")
