@@ -172,11 +172,13 @@ class TestHeartBeats:
     def test_task_runner_has_a_heartbeat(self, executor, monkeypatch):
         glob_dict = {}
 
-        def heartbeat():
+        def heartbeat(self):
             glob_dict["was_called"] = True
 
         monkeypatch.setattr("prefect.engine.task_runner.Client", MagicMock())
-        monkeypatch.setattr("prefect.engine.task_runner.heartbeat", heartbeat)
+        monkeypatch.setattr(
+            "prefect.engine.task_runner.TaskRunner._heartbeat", heartbeat
+        )
         task = prefect.Task(name="test")
         res = TaskRunner(task=task).run(executor=executor)
         assert glob_dict.get("was_called") is True
@@ -189,11 +191,13 @@ class TestHeartBeats:
     ):
         glob_dict = {}
 
-        def heartbeat():
+        def heartbeat(self):
             glob_dict["was_called"] = True
 
         monkeypatch.setattr("prefect.engine.task_runner.Client", MagicMock())
-        monkeypatch.setattr("prefect.engine.task_runner.heartbeat", heartbeat)
+        monkeypatch.setattr(
+            "prefect.engine.task_runner.TaskRunner._heartbeat", heartbeat
+        )
 
         @prefect.task
         def raise_me():
@@ -211,7 +215,9 @@ class TestHeartBeats:
         flow = prefect.Flow(tasks=[prefect.Task(), prefect.Task(), prefect.Task()])
         monkeypatch.setattr("prefect.engine.flow_runner.Client", MagicMock())
         monkeypatch.setattr("prefect.engine.task_runner.Client", MagicMock())
-        monkeypatch.setattr("prefect.engine.task_runner.heartbeat", heartbeat)
+        monkeypatch.setattr(
+            "prefect.engine.task_runner.TaskRunner._heartbeat", heartbeat
+        )
         res = FlowRunner(flow=flow).run(executor=executor, state=Pending())
         assert heartbeat.call_count == 3
 
