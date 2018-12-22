@@ -357,6 +357,28 @@ class Client:
         result.state = state
         return result
 
+    def heartbeat_flow_run(self, flow_run_id: str) -> GraphQLResult:
+        mutation = {
+            "mutation($input: updateFlowRunHeartbeatInput!)": {
+                with_args("updateFlowRunHeartbeat", {"input": EnumValue("$input")}): {
+                    "flow_run": {"id"}
+                }
+            }
+        }
+        res = self.graphql(parse_graphql(mutation), input=dict(flowRunId=flow_run_id))
+        return res.updateFlowRunHeartbeat.flow_run.id  # type: ignore
+
+    def heartbeat_task_run(self, task_run_id: str) -> GraphQLResult:
+        mutation = {
+            "mutation($input: updateTaskRunHeartbeatInput!)": {
+                with_args("updateTaskRunHeartbeat", {"input": EnumValue("$input")}): {
+                    "task_run": {"id"}
+                }
+            }
+        }
+        res = self.graphql(parse_graphql(mutation), input=dict(taskRunId=task_run_id))
+        return res.updateTaskRunHeartbeat.task_run.id  # type: ignore
+
     def set_flow_run_state(
         self,
         flow_run_id: str,
