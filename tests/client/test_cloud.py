@@ -186,6 +186,23 @@ class TestHeartBeats:
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
+    def test_flow_runner_has_a_heartbeat(self, executor, monkeypatch):
+        glob_dict = {}
+
+        def heartbeat(self):
+            glob_dict["was_called"] = True
+
+        monkeypatch.setattr("prefect.engine.flow_runner.Client", MagicMock())
+        monkeypatch.setattr(
+            "prefect.engine.flow_runner.FlowRunner._heartbeat", heartbeat
+        )
+        flow = prefect.Flow(name="test", tasks=[prefect.Task()])
+        res = FlowRunner(flow=flow).run(executor=executor)
+        assert glob_dict.get("was_called") is True
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
     def test_task_runner_has_a_heartbeat_even_when_things_go_wrong(
         self, executor, monkeypatch
     ):
@@ -204,6 +221,33 @@ class TestHeartBeats:
             raise AttributeError("Doesn't exist")
 
         res = TaskRunner(task=raise_me).run(executor=executor)
+        assert res.is_failed()
+        assert glob_dict.get("was_called") is True
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flow_runner_has_a_heartbeat_even_when_things_go_wrong(
+        self, executor, monkeypatch
+    ):
+        glob_dict = {}
+
+        def heartbeat(self):
+            glob_dict["was_called"] = True
+
+        monkeypatch.setattr("prefect.engine.flow_runner.Client", MagicMock())
+        monkeypatch.setattr(
+            "prefect.engine.flow_runner.FlowRunner._heartbeat", heartbeat
+        )
+
+        class BadTaskRunner(TaskRunner):
+            def get_task_run_state(self, *args, **kwargs):
+                raise RuntimeError("I represent bad code in the task runner.")
+
+        flow = prefect.Flow(name="test", tasks=[prefect.Task()])
+        res = FlowRunner(flow=flow, task_runner_cls=BadTaskRunner).run(
+            executor=executor
+        )
         assert res.is_failed()
         assert glob_dict.get("was_called") is True
 
