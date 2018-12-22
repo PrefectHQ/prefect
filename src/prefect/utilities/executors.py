@@ -23,9 +23,14 @@ class HeartbeatTimer(threading.Timer):
             self.finished.wait(self.interval)
 
 
-def look_alive(
+def run_with_heartbeat(
     runner_method: Callable[..., "prefect.engine.state.State"]
 ) -> Callable[..., "prefect.engine.state.State"]:
+    """
+    Utility decorator for running class methods with a heartbeat.  The class should implement
+    `self._heartbeat` with no arguments.
+    """
+
     @wraps(runner_method)
     def inner(
         self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any

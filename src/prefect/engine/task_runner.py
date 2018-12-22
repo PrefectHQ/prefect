@@ -28,7 +28,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
-from prefect.utilities.executors import look_alive, main_thread_timeout
+from prefect.utilities.executors import run_with_heartbeat, main_thread_timeout
 
 
 class TaskRunner(Runner):
@@ -621,7 +621,7 @@ class TaskRunner(Runner):
 
         return Running(message="Starting task run.")
 
-    @look_alive
+    @run_with_heartbeat
     @call_state_handlers
     def get_task_run_state(
         self, state: State, inputs: Dict[str, Any], timeout_handler: Optional[Callable]

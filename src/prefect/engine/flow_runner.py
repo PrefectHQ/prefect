@@ -22,7 +22,7 @@ from prefect.engine.state import (
 )
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
-from prefect.utilities.executors import look_alive
+from prefect.utilities.executors import run_with_heartbeat
 
 
 class FlowRunner(Runner):
@@ -288,7 +288,7 @@ class FlowRunner(Runner):
         else:
             raise ENDRUN(state)
 
-    @look_alive
+    @run_with_heartbeat
     @call_state_handlers
     def get_flow_run_state(
         self,
