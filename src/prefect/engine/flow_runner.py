@@ -255,7 +255,7 @@ class FlowRunner(Runner):
         """
 
         # the flow run is already finished
-        if state.is_finished():
+        if state.is_finished() is True:
             self.logger.debug("Flow run has already finished.")
             raise ENDRUN(state)
 
