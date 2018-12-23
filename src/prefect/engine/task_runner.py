@@ -84,7 +84,7 @@ class TaskRunner(Runner):
         super().__init__(state_handlers=state_handlers)
 
     def _heartbeat(self) -> None:
-        task_run_id = prefect.context.get("_task_run_id")
+        task_run_id = self.task_run_id
         self.client.update_task_run_heartbeat(task_run_id)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -147,6 +147,7 @@ class TaskRunner(Runner):
                 _task_run_version=task_run_info.version,  # type: ignore
                 _task_run_id=task_run_info.id,  # type: ignore
             )
+            self.task_run_id = task_run_info.id  # type: ignore
         state = state or db_state or Pending()
         return state, context
 
