@@ -262,12 +262,12 @@ def test_flow_run_method_returns_task_states_even_if_it_doesnt_run():
     flow.add_edge(task1, task2)
 
     flow_state = flow.run(state=Success(), return_tasks=[task1, task2])
-    assert isinstance(flow_state, Success)
-    assert isinstance(flow_state.result[task1], Pending)
-    assert isinstance(flow_state.result[task2], Pending)
+    assert flow_state.is_successful()
+    assert flow_state.result[task1].is_pending()
+    assert flow_state.result[task2].is_pending()
 
 
-def test_flow_runner_remains_pending_if_tasks_are_retrying():
+def test_flow_runner_remains_running_if_tasks_are_retrying():
     # https://github.com/PrefectHQ/prefect/issues/19
     flow = prefect.Flow()
     task1 = SuccessTask()
@@ -276,8 +276,8 @@ def test_flow_runner_remains_pending_if_tasks_are_retrying():
     flow.add_edge(task1, task2)
 
     flow_state = FlowRunner(flow=flow).run(return_tasks=[task1, task2])
-    assert isinstance(flow_state, Pending)
-    assert isinstance(flow_state.result[task1], Success)
+    assert flow_state.is_running()
+    assert flow_state.result[task1].is_successful()
     assert isinstance(flow_state.result[task2], Retrying)
 
 
@@ -350,8 +350,8 @@ def test_flow_run_state_not_determined_by_reference_tasks_if_terminal_tasks_are_
 
     flow.set_reference_tasks([t1])
     flow_state = flow.run(return_tasks=[t1, t2])
-    assert isinstance(flow_state, Pending)
-    assert isinstance(flow_state.result[t1], Failed)
+    assert flow_state.is_running()
+    assert flow_state.result[t1].is_failed()
     assert isinstance(flow_state.result[t2], Retrying)
 
 
@@ -498,7 +498,7 @@ class TestInputCaching:
             res = b(a())
 
         first_state = FlowRunner(flow=f).run(executor=executor, return_tasks=[res])
-        assert isinstance(first_state, Pending)
+        assert first_state.is_running()
         b_state = first_state.result[res]
         b_state.cached_inputs = dict(x=2)  # artificially alter state
         with raise_on_exception():  # without caching we'd expect a KeyError
@@ -541,7 +541,7 @@ class TestInputCaching:
         first_state = FlowRunner(flow=f).run(
             executor=executor, parameters=dict(x=1), return_tasks=[res]
         )
-        assert isinstance(first_state, Pending)
+        assert first_state.is_running()
 
         res_state = first_state.result[res]
         res_state.cached_inputs = dict(x=2)  # artificially alter state
@@ -569,7 +569,7 @@ class TestInputCaching:
         first_state = FlowRunner(flow=f).run(
             executor=executor, parameters=dict(x=11), return_tasks=[res]
         )
-        assert isinstance(first_state, Pending)
+        assert first_state.is_running()
         second_state = FlowRunner(flow=f).run(
             executor=executor,
             parameters=dict(x=1),
@@ -669,7 +669,7 @@ class TestReturnFailed:
             e = ErrorTask(max_retries=1, retry_delay=datetime.timedelta(0))
             s.set_upstream(e)
         state = FlowRunner(flow=f).run(return_failed=True)
-        assert state.is_pending()
+        assert state.is_running()
         assert e in state.result
         assert isinstance(state.result[e], Retrying)
 
@@ -697,7 +697,7 @@ class TestRunCount:
 
         # first run
         state1 = FlowRunner(flow=flow).run(return_tasks=[t1, t2])
-        assert state1.is_pending()
+        assert state1.is_running()
         assert isinstance(state1.result[t1], Retrying)
         assert state1.result[t1].run_count == 1
         assert isinstance(state1.result[t2], Retrying)
@@ -707,7 +707,7 @@ class TestRunCount:
         state2 = FlowRunner(flow=flow).run(
             task_states=state1.result, return_tasks=[t1, t2]
         )
-        assert state2.is_pending()
+        assert state2.is_running()
         assert isinstance(state2.result[t1], Failed)
         assert isinstance(state2.result[t2], Retrying)
         assert state2.result[t2].run_count == 2

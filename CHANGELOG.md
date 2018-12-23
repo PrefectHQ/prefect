@@ -26,6 +26,7 @@
 - Adds ability to put variables into context via the config - [#381](https://github.com/PrefectHQ/prefect/issues/381)
 - Adds new `client.deploy` method for adding new Flows to the database - [#388](https://github.com/PrefectHQ/prefect/issues/388)
 - Add `id` attribute to `Task` class - [#416](https://github.com/PrefectHQ/prefect/issues/416)
+- Add new `Resume` state for resuming from Paused tasks - [#435](https://github.com/PrefectHQ/prefect/issues/435)
 
 ### Fixes
 
@@ -57,6 +58,7 @@
 - The `set_temporary_config` utility now accepts a single dict of multiple config values, instead of just a key/value pair, and is located in `utilities.configuration` - [#401](https://github.com/PrefectHQ/prefect/pull/401)
 - Bump `click` requirement to 7.0, which changes underscores to hyphens at CLI - [#409](https://github.com/PrefectHQ/prefect/pull/409)
 - `IntervalSchedule` rejects intervals of less than one minute - [#427](https://github.com/PrefectHQ/prefect/pull/427)
+- `FlowRunner` returns a `Running` state, not a `Pending` state, when flows do not finish - [#433](https://github.com/PrefectHQ/prefect/pull/433)
 
 ## 0.3.3 <Badge text="alpha" type="warn"/>
 

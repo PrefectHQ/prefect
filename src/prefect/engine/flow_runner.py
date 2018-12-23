@@ -22,6 +22,7 @@ from prefect.engine.state import (
 )
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
+from prefect.utilities.executors import run_with_heartbeat
 
 
 class FlowRunner(Runner):
@@ -80,6 +81,10 @@ class FlowRunner(Runner):
         self.task_runner_cls = task_runner_cls or TaskRunner
         self.client = Client()
         super().__init__(state_handlers=state_handlers)
+
+    def _heartbeat(self) -> None:
+        flow_run_id = prefect.context.get("_flow_run_id")
+        self.client.update_flow_run_heartbeat(flow_run_id)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -250,7 +255,7 @@ class FlowRunner(Runner):
         """
 
         # the flow run is already finished
-        if state.is_finished():
+        if state.is_finished() is True:
             self.logger.debug("Flow run has already finished.")
             raise ENDRUN(state)
 
@@ -283,6 +288,7 @@ class FlowRunner(Runner):
         else:
             raise ENDRUN(state)
 
+    @run_with_heartbeat
     @call_state_handlers
     def get_flow_run_state(
         self,
@@ -447,11 +453,8 @@ class FlowRunner(Runner):
 
             # check that the flow is finished
             if not all(s.is_finished() for s in terminal_states):
-                self.logger.info("Flow run PENDING: terminal tasks are incomplete.")
-                state = Pending(
-                    message="Some terminal tasks are still pending.",
-                    result=return_states,
-                )
+                self.logger.info("Flow run RUNNING: terminal tasks are incomplete.")
+                state = Running(message="Flow run in progress.", result=return_states)
 
             # check if any key task failed
             elif any(s.is_failed() for s in key_states):
