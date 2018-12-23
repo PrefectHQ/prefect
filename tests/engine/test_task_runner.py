@@ -26,6 +26,7 @@ from prefect.engine.state import (
     Mapped,
     Paused,
     Pending,
+    Resume,
     Retrying,
     Running,
     Scheduled,
@@ -1179,6 +1180,18 @@ def test_task_runner_converts_pause_signal_to_paused_state_for_manual_only_trigg
     out = runner.run(upstream_states={e: Success(result=1)})
     assert isinstance(out, Paused)
     assert "manual_only" in out.message
+
+
+def test_task_runner_puts_resume_in_context_if_state_is_resume():
+    class ContextResumeTask(Task):
+        def run(self):
+            return prefect.context.get("resume")
+
+    task = ContextResumeTask()
+    runner = TaskRunner(task)
+    out = runner.run(state=Resume(), context={"resume": False})
+    assert out.is_successful()
+    assert out.result is True
 
 
 def test_task_runner_converts_pause_signal_to_paused_state_for_internally_raised_pauses():
