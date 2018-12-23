@@ -77,6 +77,8 @@ def preprocess(f, remove_partial=True):
             new_obj = getattr(new_obj, "func", new_obj)
         new_args = list(args)
         new_args[0] = new_obj
+        if getattr(new_obj, "__wrapped__", None):
+            return wrapped(*new_args, **kwargs)
         return f(*new_args, **kwargs)
 
     return wrapped
