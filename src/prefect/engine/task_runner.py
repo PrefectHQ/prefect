@@ -174,8 +174,6 @@ class TaskRunner(Runner):
                 _task_run_id=task_run_info.id,  # type: ignore
             )
         state = state or db_state or Pending()
-        if isinstance(state, Resume):
-            context.update(resume=True)
 
         # construct task inputs
         task_inputs = {}  # type: Dict[str, Any]
