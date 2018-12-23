@@ -71,6 +71,7 @@ classes = [
             "State",
             "Pending",
             "Paused",
+            "Resume",
             "CachedState",
             "Scheduled",
             "Retrying",
