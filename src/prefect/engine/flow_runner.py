@@ -467,10 +467,25 @@ class FlowRunner(Runner):
         state = self.determine_final_state(key_states, return_states, terminal_states)
         return state
 
-    def determine_final_state(self, key_states, return_states, terminal_states):
+    def determine_final_state(
+        self,
+        key_states: Set[State],
+        return_states: Dict[Task, State],
+        terminal_states: Set[State],
+    ) -> State:
         """
         Implements the logic for determining the final state of the flow run.
+
+        Args:
+            - key_states ():
+            - return_states ():
+            - terminal_states ():
+
+        Returns:
+            - State: the final state of the flow run
         """
+        state = State()  # mypy initialization
+
         # check that the flow is finished
         if not all(s.is_finished() for s in terminal_states):
             self.logger.info("Flow run RUNNING: terminal tasks are incomplete.")
