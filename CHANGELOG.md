@@ -26,6 +26,7 @@
 - Adds ability to put variables into context via the config - [#381](https://github.com/PrefectHQ/prefect/issues/381)
 - Adds new `client.deploy` method for adding new Flows to the database - [#388](https://github.com/PrefectHQ/prefect/issues/388)
 - Add `id` attribute to `Task` class - [#416](https://github.com/PrefectHQ/prefect/issues/416)
+- Add new `Resume` state for resuming from Paused tasks - [#435](https://github.com/PrefectHQ/prefect/issues/435)
 
 ### Fixes
 

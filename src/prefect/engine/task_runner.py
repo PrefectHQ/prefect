@@ -19,6 +19,7 @@ from prefect.engine.state import (
     Mapped,
     Pending,
     Scheduled,
+    Resume,
     Retrying,
     Running,
     Skipped,
@@ -211,8 +212,9 @@ class TaskRunner(Runner):
         with prefect.context(context, _task_name=self.task.name, _map_index=map_index):
 
             try:
-                # retrieve the run number and place in context
-                state = self.get_run_count(state=state)
+                # retrieve the run number and place in context,
+                # or put resume in context if needed
+                state = self.update_context_from_state(state=state)
 
                 # check if all upstream tasks have finished
                 state = self.check_upstream_finished(
@@ -298,11 +300,15 @@ class TaskRunner(Runner):
         return state
 
     @call_state_handlers
-    def get_run_count(self, state: State) -> State:
+    def update_context_from_state(self, state: State) -> State:
         """
+        Updates context with information contained in the task state:
+
         If the task is being retried, then we retrieve the run count from the initial Retry
         state. Otherwise, we assume the run count is 1. The run count is stored in context as
         _task_run_count.
+
+        Also, if the task is being resumed through a `Resume` state, updates context to have `resume=True`.
 
         Args:
             - state (State): the current state of the task
@@ -314,6 +320,8 @@ class TaskRunner(Runner):
             run_count = state.run_count + 1
         else:
             run_count = 1
+        if isinstance(state, Resume):
+            prefect.context.update(resume=True)
         prefect.context.update(_task_run_count=run_count)
         return state
 
