@@ -165,13 +165,14 @@ class TestPauseTask:
         class AddTask(Task):
             def run(self, x, y):
                 if x == y:
-                    tasks.pause_task()
+                    tasks.pause_task("test message")
                 return x + y
 
         with Flow() as f:
             t1 = AddTask()(1, 1)
         res = f.run(return_tasks=f.tasks)
         assert isinstance(res.result[t1], Paused)
+        assert res.result[t1].message == "test message"
 
     def test_pause_task_doesnt_pause_sometimes(self):
         class OneTask(Task):
