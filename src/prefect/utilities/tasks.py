@@ -74,12 +74,15 @@ def as_task(x: Any) -> "prefect.Task":
         return prefect.tasks.core.constants.Constant(value=x)
 
 
-def pause_task(message=None):
+def pause_task(message: str = None):
     """
     Utility function for pausing a task during execution to wait for manual intervention.
     Note that the _entire task_ will be rerun if the user decides to run this task again!
     The only difference is that this utility will simply _not_ raise a `PAUSE` signal.
     To bypass a `PAUSE` signal being raised, simply put the task into a Resume state.
+
+    Args:
+        - message (str): an optional message for the Pause state.
 
     Example:
         ```python
