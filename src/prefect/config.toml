@@ -14,6 +14,7 @@ prefect_cloud = false
 api = "http://localhost:4202"
 graphql = "http://localhost:4300"
 log = "http://localhost:4202/log"
+result_handler = "http://localhost:4204"
 use_local_secrets = true
 heartbeat_interval = 30.0
 

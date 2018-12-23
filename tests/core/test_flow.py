@@ -9,6 +9,7 @@ import cloudpickle
 import pytest
 
 import prefect
+from prefect.client.result_handlers import CloudResultHandler
 from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
@@ -81,6 +82,10 @@ class TestCreateFlow:
 
     def test_create_flow_without_state_handler(self):
         assert Flow().state_handlers == []
+
+    def test_create_flow_without_result_handler(self):
+        flow = Flow()
+        assert isinstance(flow.result_handler, CloudResultHandler)
 
     @pytest.mark.parametrize("handlers", [[lambda *a: 1], [lambda *a: 1, lambda *a: 2]])
     def test_create_flow_with_state_handler(self, handlers):

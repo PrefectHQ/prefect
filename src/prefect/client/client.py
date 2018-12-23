@@ -2,11 +2,11 @@
 
 import datetime
 import json
+import logging
 import os
 from typing import TYPE_CHECKING, Optional, Union
 
 import prefect
-from prefect.client.result_handlers import ResultHandler
 from prefect.utilities.graphql import (
     EnumValue,
     parse_graphql,
@@ -18,6 +18,7 @@ from prefect.utilities.graphql import (
 if TYPE_CHECKING:
     import requests
     from prefect.core import Flow
+    from prefect.client.result_handlers import ResultHandler
 
 
 BuiltIn = Union[bool, dict, list, str, set, tuple]
@@ -42,7 +43,16 @@ class Client:
             to; if not provided, will be pulled from `cloud.graphql` config var
     """
 
+    def _initialize_logger(self) -> None:
+        self.logger = logging.getLogger("Client")
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(prefect.config.logging.format)
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+        self.logger.setLevel(prefect.config.logging.level)
+
     def __init__(self, api_server: str = None, graphql_server: str = None) -> None:
+        self._initialize_logger()
         if not api_server:
             api_server = prefect.config.cloud.get("api", None)
             if not api_server:
@@ -52,6 +62,11 @@ class Client:
         if not graphql_server:
             graphql_server = prefect.config.cloud.get("graphql") or self.api_server
         self.graphql_server = graphql_server
+        self.logger.debug(
+            "Client initialized with api_server='{0}' and graphql_server='{1}'".format(
+                self.api_server, self.graphql_server
+            )
+        )
 
         token = prefect.config.cloud.get("auth_token", None)
 
@@ -60,11 +75,35 @@ class Client:
             if os.path.exists(token_path):
                 with open(token_path, "r") as f:
                     token = f.read() or None
+            if token is not None:
+                self.logger.debug("Client token set from file {}".format(token_path))
+        else:
+            self.logger.debug("Client token set from $PREFECT__CLOUD__AUTH_TOKEN")
 
         self.token = token
 
     # -------------------------------------------------------------------------
     # Utilities
+
+    def get(self, path: str, server: str = None, **params: BuiltIn) -> dict:
+        """
+        Convenience function for calling the Prefect API with token auth and GET request
+
+        Args:
+            - path (str): the path of the API url. For example, to GET
+                http://prefect-server/v1/auth/login, path would be 'auth/login'.
+            - server (str, optional): the server to send the GET request to;
+                defaults to `self.api_server`
+            - params (dict): GET parameters
+
+        Returns:
+            - dict: Dictionary representation of the request made
+        """
+        response = self._request(method="GET", path=path, params=params, server=server)
+        if response.text:
+            return response.json()
+        else:
+            return {}
 
     def post(self, path: str, server: str = None, **params: BuiltIn) -> dict:
         """
@@ -152,7 +191,7 @@ class Client:
         def request_fn() -> "requests.models.Response":
             headers = {"Authorization": "Bearer {}".format(self.token)}
             if method == "GET":
-                response = requests.get(url, headers=headers, params=params)
+                response = requests.get(url, headers=headers, json=params)
             elif method == "POST":
                 response = requests.post(url, headers=headers, json=params)
             elif method == "DELETE":
@@ -323,7 +362,7 @@ class Client:
         return res.createFlowRun.flow_run  # type: ignore
 
     def get_flow_run_info(
-        self, flow_run_id: str, result_handler: ResultHandler = None
+        self, flow_run_id: str, result_handler: "ResultHandler" = None
     ) -> GraphQLResult:
         """
         Retrieves version and current state information for the given flow run.
@@ -404,7 +443,7 @@ class Client:
         flow_run_id: str,
         version: int,
         state: "prefect.engine.state.State",
-        result_handler: ResultHandler = None,
+        result_handler: "ResultHandler" = None,
     ) -> GraphQLResult:
         """
         Sets new state for a flow run in the database.
@@ -449,7 +488,7 @@ class Client:
         flow_run_id: str,
         task_id: str,
         map_index: Optional[int],
-        result_handler: ResultHandler = None,
+        result_handler: "ResultHandler" = None,
     ) -> GraphQLResult:
         """
         Retrieves version and current state information for the given task run. If this task run is not present in the database (which could
@@ -507,7 +546,7 @@ class Client:
         version: int,
         state: "prefect.engine.state.State",
         cache_for: datetime.timedelta = None,
-        result_handler: ResultHandler = None,
+        result_handler: "ResultHandler" = None,
     ) -> GraphQLResult:
         """
         Sets new state for a task run in the database.
