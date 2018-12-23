@@ -346,14 +346,14 @@ def test_task_that_starts_failed_doesnt_get_retried():
     assert state.is_failed()
 
 
-class TestGetRunCount:
+class TestUpdateContextFromState:
     @pytest.mark.parametrize(
         "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), CachedState()]
     )
     def test_states_without_run_count(self, state):
         with prefect.context() as ctx:
             assert "_task_run_count" not in ctx
-            new_state = TaskRunner(Task()).get_run_count(state)
+            new_state = TaskRunner(Task()).update_context_from_state(state)
             assert ctx._task_run_count == 1
             assert new_state is state
 
@@ -369,9 +369,26 @@ class TestGetRunCount:
     def test_states_with_run_count(self, state):
         with prefect.context() as ctx:
             assert "_task_run_count" not in ctx
-            new_state = TaskRunner(Task()).get_run_count(state)
+            new_state = TaskRunner(Task()).update_context_from_state(state)
             assert ctx._task_run_count == state.run_count + 1
             assert new_state is state
+
+    def test_task_runner_puts_resume_in_context_if_state_is_resume(self):
+        with prefect.context() as ctx:
+            assert "resume" not in ctx
+            new_state = TaskRunner(Task()).update_context_from_state(Resume())
+            assert ctx.resume is True
+
+    @pytest.mark.parametrize(
+        "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), CachedState()]
+    )
+    def test_task_runner_doesnt_put_resume_in_context_if_state_is_not_resume(
+        self, state
+    ):
+        with prefect.context() as ctx:
+            assert "resume" not in ctx
+            new_state = TaskRunner(Task()).update_context_from_state(state)
+            assert "resume" not in ctx
 
 
 class TestCheckUpstreamFinished:
@@ -1180,18 +1197,6 @@ def test_task_runner_converts_pause_signal_to_paused_state_for_manual_only_trigg
     out = runner.run(upstream_states={e: Success(result=1)})
     assert isinstance(out, Paused)
     assert "manual_only" in out.message
-
-
-def test_task_runner_puts_resume_in_context_if_state_is_resume():
-    class ContextResumeTask(Task):
-        def run(self):
-            return prefect.context.get("resume")
-
-    task = ContextResumeTask()
-    runner = TaskRunner(task)
-    out = runner.run(state=Resume(), context={"resume": False})
-    assert out.is_successful()
-    assert out.result is True
 
 
 def test_task_runner_converts_pause_signal_to_paused_state_for_internally_raised_pauses():
