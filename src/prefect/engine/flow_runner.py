@@ -468,9 +468,9 @@ class FlowRunner(Runner):
         Implements the logic for determining the final state of the flow run.
 
         Args:
-            - key_states ():
-            - return_states ():
-            - terminal_states ():
+            - key_states (Set[State]): the states which will determine the success / failure of the flow run
+            - return_states (Dict[Task, State]): states to return as results
+            - terminal_states (Set[State]): the states of the terminal tasks for this flow
 
         Returns:
             - State: the final state of the flow run
