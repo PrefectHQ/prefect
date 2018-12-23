@@ -162,7 +162,6 @@ class FlowRunner(Runner):
         parameters: Dict[str, Any] = None,
         executor: "prefect.engine.executors.Executor" = None,
         context: Dict[str, Any] = None,
-        task_contexts: Dict[Task, Dict[str, Any]] = None,
         throttle: Dict[str, int] = None,
     ) -> State:
         """
@@ -187,7 +186,6 @@ class FlowRunner(Runner):
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
             - context (dict, optional): prefect.Context to use for execution
-            - task_contexts (dict, optional): dictionary of individual contexts
                 to use for each Task run
             - throttle (dict, optional): dictionary of tags -> int specifying
                 how many tasks with a given tag should be allowed to run simultaneously. Used
@@ -235,7 +233,6 @@ class FlowRunner(Runner):
                     return_tasks=return_tasks,
                     return_failed=return_failed,
                     executor=executor,
-                    task_contexts=task_contexts,
                     throttle=throttle,
                 )
 
@@ -311,7 +308,6 @@ class FlowRunner(Runner):
         task_states: Dict[Task, State],
         start_tasks: Iterable[Task],
         return_tasks: Set[Task],
-        task_contexts: Dict[Task, Dict[str, Any]],
         executor: "prefect.engine.executors.base.Executor",
         return_failed: bool = False,
         throttle: Dict[str, int] = None,
@@ -329,8 +325,6 @@ class FlowRunner(Runner):
                 Defaults to `self.flow.root_tasks()`
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
-            - task_contexts (dict, optional): dictionary of individual contexts
-                to use for each Task run
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor provided in your prefect configuration
             - return_failed (bool, optional): whether to return all tasks
@@ -356,7 +350,6 @@ class FlowRunner(Runner):
         )
         start_tasks = start_tasks or []
         return_tasks = set(return_tasks or [])
-        task_contexts = task_contexts or {}
         throttle = throttle or {}
 
         # this set keeps track of any tasks that are mapped over - meaning they are the
@@ -418,9 +411,7 @@ class FlowRunner(Runner):
                     upstream_states=upstream_states,
                     inputs=task_inputs,
                     ignore_trigger=(task in start_tasks),
-                    context=dict(
-                        prefect.context, task_id=task.id, **task_contexts.get(task, {})
-                    ),
+                    context=dict(prefect.context, task_id=task.id),
                     queues=task_queues,
                     mapped=task in mapped_tasks,
                     executor=executor,
