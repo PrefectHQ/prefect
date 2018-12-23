@@ -151,6 +151,7 @@ class StateSchema(OneOfSchema):
         "CachedState": CachedStateSchema,
         "Scheduled": ScheduledSchema,
         "Retrying": RetryingSchema,
+        "Resume": ResumeSchema,
         "Running": RunningSchema,
         "Finished": FinishedSchema,
         "Success": SuccessSchema,
