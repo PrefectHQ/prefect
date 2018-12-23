@@ -106,7 +106,6 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
         parameters: Dict[str, Any] = None,
         executor: "prefect.engine.executors.Executor" = None,
         context: Dict[str, Any] = None,
-        task_contexts: Dict["prefect.Task", Dict[str, Any]] = None,
         title: str = None,
         viz: bool = True,
     ) -> "prefect.engine.state.State":
@@ -127,8 +126,6 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor provided in your prefect configuration
             - context (dict, optional): prefect.Context to use for execution
-            - task_contexts (dict, optional): dictionary of individual contexts
-                to use for each Task run
             - title (str, optional): optional title for the webapp plot;
                 defaults to "Prefect Flow Interactive Demonstration: flow.name"
             - viz (bool, optional): if `False`, will simply run the Flow and
@@ -151,7 +148,6 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
             parameters=parameters,
             executor=executor,
             context=context,
-            task_contexts=task_contexts,
         )
         self._reset_flow(self.flow_state)
         self.title = title or "Prefect Flow Interactive Demonstration: {}".format(
