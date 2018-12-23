@@ -15,6 +15,7 @@ api = "http://localhost:4202"
 graphql = "http://localhost:4300"
 log = "http://localhost:4202/log"
 use_local_secrets = true
+heartbeat_interval = 30.0
 
 
 [logging]
