@@ -463,7 +463,6 @@ class TestRunFlowStep:
             task_states={},
             start_tasks=[],
             return_tasks=set(),
-            task_contexts={},
             executor=LocalExecutor(),
         )
         assert new_state.is_failed()
