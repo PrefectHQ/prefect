@@ -2,7 +2,7 @@ import pytest
 
 from prefect.core import Flow, Task
 from prefect.engine.signals import PAUSE
-from prefect.engine.state import Paused
+from prefect.engine.state import Paused, Resume
 from prefect.utilities import tasks
 
 
@@ -165,13 +165,14 @@ class TestPauseTask:
         class AddTask(Task):
             def run(self, x, y):
                 if x == y:
-                    tasks.pause_task()
+                    tasks.pause_task("test message")
                 return x + y
 
         with Flow() as f:
             t1 = AddTask()(1, 1)
         res = f.run(return_tasks=f.tasks)
         assert isinstance(res.result[t1], Paused)
+        assert res.result[t1].message == "test message"
 
     def test_pause_task_doesnt_pause_sometimes(self):
         class OneTask(Task):
@@ -189,6 +190,6 @@ class TestPauseTask:
             t1 = AddTask()(1, 1)
             t2 = OneTask()(upstream_tasks=[t1])
 
-        res = f.run(return_tasks=f.tasks, task_contexts={t1: dict(resume=True)})
+        res = f.run(return_tasks=f.tasks, task_states={t1: Resume()})
         assert res.result[t1].is_successful()
         assert isinstance(res.result[t2], Paused)

@@ -74,12 +74,15 @@ def as_task(x: Any) -> "prefect.Task":
         return prefect.tasks.core.constants.Constant(value=x)
 
 
-def pause_task():
+def pause_task(message: str = None):
     """
     Utility function for pausing a task during execution to wait for manual intervention.
     Note that the _entire task_ will be rerun if the user decides to run this task again!
     The only difference is that this utility will simply _not_ raise a `PAUSE` signal.
-    To bypass a `PAUSE` signal being raised, simply set `resume=True` in this Tasks's context.
+    To bypass a `PAUSE` signal being raised, simply put the task into a Resume state.
+
+    Args:
+        - message (str): an optional message for the Pause state.
 
     Example:
         ```python
@@ -99,12 +102,14 @@ def pause_task():
         state = f.run(return_tasks=[res])
         state.result[res] # a Paused state
 
-        state = f.run(return_tasks=[res], task_contexts={res: dict(resume=True)})
+        state = f.run(return_tasks=[res], task_states={res: Resume()})
         state.result[res] # a Success state
         ```
     """
     if prefect.context.get("resume", False) is False:
-        raise prefect.engine.signals.PAUSE("Pause signal raised during task execution.")
+        raise prefect.engine.signals.PAUSE(
+            message or "Pause signal raised during task execution."
+        )
 
 
 @curry
