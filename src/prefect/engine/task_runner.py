@@ -174,8 +174,6 @@ class TaskRunner(Runner):
                 _task_run_id=task_run_info.id,  # type: ignore
             )
         state = state or db_state or Pending()
-        if isinstance(state, Resume):
-            context.update(resume=True)
 
         # construct task inputs
         task_inputs = {}  # type: Dict[str, Any]
@@ -215,7 +213,7 @@ class TaskRunner(Runner):
 
             try:
                 # retrieve the run number and place in context
-                state = self.get_run_count(state=state)
+                state = self.update_context_from_state(state=state)
 
                 # check if all upstream tasks have finished
                 state = self.check_upstream_finished(
@@ -301,7 +299,7 @@ class TaskRunner(Runner):
         return state
 
     @call_state_handlers
-    def get_run_count(self, state: State) -> State:
+    def update_context_from_state(self, state: State) -> State:
         """
         If the task is being retried, then we retrieve the run count from the initial Retry
         state. Otherwise, we assume the run count is 1. The run count is stored in context as
@@ -317,6 +315,8 @@ class TaskRunner(Runner):
             run_count = state.run_count + 1
         else:
             run_count = 1
+        if isinstance(state, Resume):
+            prefect.context.update(resume=True)
         prefect.context.update(_task_run_count=run_count)
         return state
 
