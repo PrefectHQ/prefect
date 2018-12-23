@@ -68,6 +68,12 @@ class ScheduledSchema(PendingSchema):
 
 
 @version("0.3.3")
+class ResumeSchema(ScheduledSchema):
+    class Meta:
+        object_class = state.Resume
+
+
+@version("0.3.3")
 class RetryingSchema(ScheduledSchema):
     class Meta:
         object_class = state.Retrying
