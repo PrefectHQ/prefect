@@ -71,6 +71,7 @@ classes = [
             "State",
             "Pending",
             "Paused",
+            "Resume",
             "CachedState",
             "Scheduled",
             "Retrying",
@@ -167,7 +168,7 @@ functions = ["tags", "as_task", "pause_task", "task", "unmapped"]
 [pages.utilities.tests]
 title = "Tests"
 module = "prefect.utilities.tests"
-functions = ["raise_on_exception"]
+functions = ["is_serializable", "raise_on_exception"]
 
 [pages.utilities.airflow]
 title = "Airflow Conversion Tools"

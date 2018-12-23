@@ -1,9 +1,12 @@
+import os
 import pytest
+import subprocess
+import tempfile
 
 import prefect
 from prefect.core import Flow, Task
 from prefect.engine import FlowRunner, TaskRunner, state
-from prefect.utilities.tests import raise_on_exception
+from prefect.utilities.tests import is_serializable, raise_on_exception
 
 
 class SuccessTask(Task):
@@ -19,6 +22,21 @@ class BusinessTask(Task):
 class MathTask(Task):
     def run(self):
         1 / 0
+
+
+def assert_script_runs(script):
+    sd, script_file = tempfile.mkstemp()
+    os.close(sd)
+    try:
+        with open(script_file, "w") as sf:
+            sf.write(script)
+        subprocess.check_output(
+            "python {}".format(script_file), shell=True, stderr=subprocess.STDOUT
+        )
+    except Exception as exc:
+        raise exc
+    finally:
+        os.unlink(script_file)
 
 
 def test_raise_on_exception_raises_basic_error():
@@ -105,3 +123,42 @@ def test_raise_on_exception_plays_well_with_context():
     except ZeroDivisionError:
         assert "_raise_on_exception" not in prefect.context
         pass
+
+
+@pytest.mark.parametrize("obj", [5, "string", lambda x, y, z: None, bool])
+def test_is_serializable_returns_true_for_basic_objects(obj):
+    assert is_serializable(obj) is True
+
+
+def test_is_serializable_returns_false_for_curried_functions_defined_in_main():
+    script = """
+from toolz import curry
+from prefect.utilities.tests import is_serializable
+
+@curry
+def f(x, y):
+    pass
+
+g = f(y=5)
+assert is_serializable(g) is False
+    """
+    assert_script_runs(script)
+
+
+def test_is_serializable_with_raise_is_informative():
+    script = """
+import subprocess
+from toolz import curry
+from prefect.utilities.tests import is_serializable
+
+@curry
+def f(x, y):
+    pass
+
+g = f(y=5)
+try:
+    is_serializable(g, raise_on_error=True)
+except subprocess.CalledProcessError as exc:
+    assert "has no attribute \'f\'" in exc.output.decode()
+    """
+    assert_script_runs(script)

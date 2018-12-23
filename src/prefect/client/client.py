@@ -396,6 +396,48 @@ class Client:
         result.state = state
         return result
 
+    def update_flow_run_heartbeat(self, flow_run_id: str) -> GraphQLResult:
+        """
+        Convenience method for heartbeating a flow run.
+
+        Args:
+            - flow_run_id (str): the flow run ID to heartbeat
+
+        Returns:
+            - GraphQLResult: a GraphQL result containing the flow run ID for
+                validation
+        """
+        mutation = {
+            "mutation": {
+                with_args(
+                    "updateFlowRunHeartbeat", {"input": {"flowRunId": flow_run_id}}
+                ): {"flow_run": {"id"}}
+            }
+        }
+        res = self.graphql(parse_graphql(mutation))
+        return res.updateFlowRunHeartbeat.flow_run.id  # type: ignore
+
+    def update_task_run_heartbeat(self, task_run_id: str) -> GraphQLResult:
+        """
+        Convenience method for heartbeating a task run.
+
+        Args:
+            - task_run_id (str): the task run ID to heartbeat
+
+        Returns:
+            - GraphQLResult: a GraphQL result containing the task run ID for
+                validation
+        """
+        mutation = {
+            "mutation": {
+                with_args(
+                    "updateTaskRunHeartbeat", {"input": {"taskRunId": task_run_id}}
+                ): {"task_run": {"id"}}
+            }
+        }
+        res = self.graphql(parse_graphql(mutation))
+        return res.updateTaskRunHeartbeat.task_run.id  # type: ignore
+
     def set_flow_run_state(
         self,
         flow_run_id: str,
