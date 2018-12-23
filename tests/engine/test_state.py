@@ -231,6 +231,9 @@ class TestStateHierarchy:
     def test_scheduled_is_pending(self):
         assert issubclass(Scheduled, Pending)
 
+    def test_resume_is_scheduled(self):
+        assert issubclass(Resume, Scheduled)
+
     def test_mapped_is_success(self):
         assert issubclass(Mapped, Success)
 
@@ -291,6 +294,16 @@ class TestStateMethods:
 
     def test_state_type_methods_with_scheduled_state(self):
         state = Scheduled()
+        assert state.is_pending()
+        assert not state.is_running()
+        assert not state.is_finished()
+        assert not state.is_skipped()
+        assert state.is_scheduled()
+        assert not state.is_successful()
+        assert not state.is_failed()
+
+    def test_state_type_methods_with_resume_state(self):
+        state = Resume()
         assert state.is_pending()
         assert not state.is_running()
         assert not state.is_finished()
