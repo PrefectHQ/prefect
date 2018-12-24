@@ -2,7 +2,7 @@
 
 import functools
 from collections import defaultdict
-from typing import Any, Callable, Dict, Iterable, Set, Union
+from typing import Any, Callable, Dict, Iterable, Set, Union, Tuple, Optional
 
 import prefect
 from prefect import config
@@ -116,6 +116,42 @@ class FlowRunner(Runner):
 
         return new_state
 
+    def initialize_run(
+        self,
+        state: Optional[State],
+        parameters: Dict[str, Any],
+        context: Dict[str, Any],
+    ) -> Tuple[State, Dict[str, Any], Dict[str, Any]]:
+        """
+        Initializes the Flow run by initializing state, parameters and context appropriately.
+
+        Args:
+            - state (State): the proposed initial state of the flow run; can be `None`
+            - parameters (dict): the proposed initial parameters for the flow run
+            - context (dict): the context to be updated with relevant information
+
+        Returns:
+            - tuple: a tuple of the updated state, parameters and context objects
+        """
+        db_state = None
+        if config.get("prefect_cloud", None):
+            flow_run_info = self.client.get_flow_run_info(
+                flow_run_id=prefect.context.get("flow_run_id", ""),
+                result_handler=self.flow.result_handler,
+            )
+            context.update(_flow_run_version=flow_run_info.version)  # type: ignore
+            db_state = flow_run_info.state  # type: ignore
+
+            ## update parameters, prioritizing kwarg-provided params
+            db_parameters = flow_run_info.parameters or {}  # type: ignore
+            for key, value in db_parameters:  # type: ignore
+                if key not in parameters:
+                    parameters[key] = value
+
+        state = state or db_state or Pending()  # needs to remain below cloud check
+        context.update(_flow_name=self.flow.name, _parameters=parameters)
+        return state, parameters, context
+
     def run(
         self,
         state: State = None,
@@ -178,31 +214,10 @@ class FlowRunner(Runner):
                 )
             )
 
-        # Initialize CloudHandler and get flow run version
-        db_state = None
-        if config.get("prefect_cloud", None):
-            flow_run_info = self.client.get_flow_run_info(
-                flow_run_id=prefect.context.get("flow_run_id", ""),
-                result_handler=self.flow.result_handler,
-            )
-            context.update(_flow_run_version=flow_run_info.version)  # type: ignore
-            db_state = flow_run_info.state  # type: ignore
+        state, parameters, context = self.initialize_run(state, parameters, context)
 
-            ## update parameters, prioritizing kwarg-provided params
-            db_parameters = flow_run_info.parameters or {}  # type: ignore
-            for key, value in db_parameters:  # type: ignore
-                if key not in parameters:
-                    parameters[key] = value
-
-        state = state or db_state or Pending()  # needs to remain below cloud check
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
-
-        context.update(
-            _flow_name=self.flow.name,
-            _parameters=parameters,
-            _executor_id=executor.executor_id,
-        )
 
         with prefect.context(context):
 
@@ -436,36 +451,52 @@ class FlowRunner(Runner):
                 )
                 assert isinstance(final_states, dict)
 
-            terminal_states = set(
-                flatten_seq([final_states[t] for t in terminal_tasks])
+        terminal_states = set(flatten_seq([final_states[t] for t in terminal_tasks]))
+        key_states = set(flatten_seq([final_states[t] for t in reference_tasks]))
+        return_states = {t: final_states[t] for t in return_tasks}
+
+        state = self.determine_final_state(key_states, return_states, terminal_states)
+        return state
+
+    def determine_final_state(
+        self,
+        key_states: Set[State],
+        return_states: Dict[Task, State],
+        terminal_states: Set[State],
+    ) -> State:
+        """
+        Implements the logic for determining the final state of the flow run.
+
+        Args:
+            - key_states (Set[State]): the states which will determine the success / failure of the flow run
+            - return_states (Dict[Task, State]): states to return as results
+            - terminal_states (Set[State]): the states of the terminal tasks for this flow
+
+        Returns:
+            - State: the final state of the flow run
+        """
+        state = State()  # mypy initialization
+
+        # check that the flow is finished
+        if not all(s.is_finished() for s in terminal_states):
+            self.logger.info("Flow run RUNNING: terminal tasks are incomplete.")
+            state = Running(message="Flow run in progress.", result=return_states)
+
+        # check if any key task failed
+        elif any(s.is_failed() for s in key_states):
+            self.logger.info("Flow run FAILED: some reference tasks failed.")
+            state = Failed(message="Some reference tasks failed.", result=return_states)
+
+        # check if all reference tasks succeeded
+        elif all(s.is_successful() for s in key_states):
+            self.logger.info("Flow run SUCCESS: all reference tasks succeeded")
+            state = Success(
+                message="All reference tasks succeeded.", result=return_states
             )
-            key_states = set(flatten_seq([final_states[t] for t in reference_tasks]))
-            return_states = {t: final_states[t] for t in return_tasks}
 
-            # check that the flow is finished
-            if not all(s.is_finished() for s in terminal_states):
-                self.logger.info("Flow run RUNNING: terminal tasks are incomplete.")
-                state = Running(message="Flow run in progress.", result=return_states)
+        # check for any unanticipated state that is finished but neither success nor failed
+        else:
+            self.logger.info("Flow run SUCCESS: no reference tasks failed")
+            state = Success(message="No reference tasks failed.", result=return_states)
 
-            # check if any key task failed
-            elif any(s.is_failed() for s in key_states):
-                self.logger.info("Flow run FAILED: some reference tasks failed.")
-                state = Failed(
-                    message="Some reference tasks failed.", result=return_states
-                )
-
-            # check if all reference tasks succeeded
-            elif all(s.is_successful() for s in key_states):
-                self.logger.info("Flow run SUCCESS: all reference tasks succeeded")
-                state = Success(
-                    message="All reference tasks succeeded.", result=return_states
-                )
-
-            # check for any unanticipated state that is finished but neither success nor failed
-            else:
-                self.logger.info("Flow run SUCCESS: no reference tasks failed")
-                state = Success(
-                    message="No reference tasks failed.", result=return_states
-                )
-
-            return state
+        return state
