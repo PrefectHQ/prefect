@@ -38,7 +38,6 @@ class BaseStateSchema(VersionedSchema):
 
     message = fields.String(allow_none=True)
     result = ResultHandlerField(allow_none=True)
-    timestamp = DateTime(allow_none=True)
 
 
 @version("0.3.3")
