@@ -1,10 +1,10 @@
 import collections
 import functools
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Tuple, Dict, Optional
 
 import prefect
 from prefect.engine import signals
-from prefect.engine.state import State, Failed
+from prefect.engine.state import State, Failed, Submitted, Pending
 from prefect.utilities import logging
 
 
@@ -70,6 +70,26 @@ class Runner:
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
         self.logger = logging.get_logger(type(self).__name__)
+
+    def initialize_run(
+        self, state: Optional[State], context: Dict[str, Any]
+    ) -> Tuple[State, Dict[str, Any]]:
+        """
+        Initializes the Task run by initializing state and context appropriately.
+
+        If the provided state is a Submitted state, the state it wraps is extracted.
+
+        Args:
+            - state (State): the proposed initial state of the flow run; can be `None`
+            - context (dict): the context to be updated with relevant information
+
+        Returns:
+            - tuple: a tuple of the updated state and context objects
+        """
+        if isinstance(state, Submitted):
+            state = state.state
+        state = state or Pending()
+        return state, context
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
