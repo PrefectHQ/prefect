@@ -83,5 +83,5 @@ def raise_on_exception() -> Iterator:
             f.run() # raises ZeroDivisionError
         ```
     """
-    with prefect.context(_raise_on_exception=True):
+    with prefect.context(raise_on_exception=True):
         yield

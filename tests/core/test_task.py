@@ -144,7 +144,7 @@ def test_tags_are_added_when_arguments_are_bound():
     t1 = AddTask(tags=["math"])
     t2 = AddTask(tags=["math"])
 
-    with prefect.context(_tags=["test"]):
+    with prefect.context(tags=["test"]):
         with Flow():
             t1.bind(1, 2)
             t3 = t2(1, 2)
@@ -163,11 +163,11 @@ def test_tags():
     t3 = Task(tags=["test", "test2", "test"])
     assert t3.tags == set(["test", "test2"])
 
-    with prefect.context(_tags=["test"]):
+    with prefect.context(tags=["test"]):
         t4 = Task()
         assert t4.tags == set(["test"])
 
-    with prefect.context(_tags=["test1", "test2"]):
+    with prefect.context(tags=["test1", "test2"]):
         t5 = Task(tags=["test3"])
         assert t5.tags == set(["test1", "test2", "test3"])
 

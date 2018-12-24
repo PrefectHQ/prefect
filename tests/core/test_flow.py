@@ -282,13 +282,13 @@ def test_context_manager_is_properly_applied_to_tasks():
 
 
 def test_that_flow_adds_and_removes_itself_from_prefect_context():
-    assert "_flow" not in prefect.context
+    assert "flow" not in prefect.context
     with Flow() as f1:
-        assert prefect.context._flow is f1
+        assert prefect.context.flow is f1
         with Flow() as f2:
-            assert prefect.context._flow is f2
-        assert prefect.context._flow is f1
-    assert "_flow" not in prefect.context
+            assert prefect.context.flow is f2
+        assert prefect.context.flow is f1
+    assert "flow" not in prefect.context
 
 
 def test_add_edge():
@@ -678,7 +678,7 @@ def test_sorted_tasks_with_start_task():
 def test_flow_raises_for_irrelevant_user_provided_parameters():
     class ParameterTask(Task):
         def run(self):
-            return prefect.context.get("_parameters")
+            return prefect.context.get("parameters")
 
     with Flow() as f:
         x = Parameter("x")

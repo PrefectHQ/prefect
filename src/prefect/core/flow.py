@@ -337,14 +337,14 @@ class Flow:
     # Context Manager ----------------------------------------------------------
 
     def __enter__(self) -> "Flow":
-        self.__previous_flow = prefect.context.get("_flow")
-        prefect.context.update(_flow=self)
+        self.__previous_flow = prefect.context.get("flow")
+        prefect.context.update(flow=self)
         return self
 
     def __exit__(self, _type, _value, _tb) -> None:  # type: ignore
-        del prefect.context._flow
+        del prefect.context.flow
         if self.__previous_flow is not None:
-            prefect.context.update(_flow=self.__previous_flow)
+            prefect.context.update(flow=self.__previous_flow)
 
         del self.__previous_flow
 

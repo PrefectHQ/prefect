@@ -105,8 +105,8 @@ class TaskRunner(Runner):
 
         # Set state if in prefect cloud
         if config.get("prefect_cloud", None):
-            task_run_id = prefect.context.get("_task_run_id")
-            version = prefect.context.get("_task_run_version")
+            task_run_id = prefect.context.get("task_run_id")
+            version = prefect.context.get("task_run_version")
 
             res = self.client.set_task_run_state(
                 task_run_id=task_run_id,
@@ -115,7 +115,7 @@ class TaskRunner(Runner):
                 cache_for=self.task.cache_for,
                 result_handler=self.result_handler,
             )
-            prefect.context.update(_task_run_version=res.version)  # type: ignore
+            prefect.context.update(task_run_version=res.version)  # type: ignore
 
         return new_state
 
@@ -137,19 +137,19 @@ class TaskRunner(Runner):
             task_run_info = self.client.get_task_run_info(
                 flow_run_id,
                 context.get("task_id", ""),
-                map_index=context.get("_map_index", None),
+                map_index=context.get("map_index", None),
                 result_handler=self.result_handler,
             )
 
             # if state is set, keep it; otherwise load from db
             state = state or task_run_info.state  # type: ignore
             context.update(
-                _task_run_version=task_run_info.version,  # type: ignore
-                _task_run_id=task_run_info.id,  # type: ignore
+                task_run_version=task_run_info.version,  # type: ignore
+                task_run_id=task_run_info.id,  # type: ignore
             )
             self.task_run_id = task_run_info.id  # type: ignore
 
-        context.update(_task_name=self.task.name)
+        context.update(task_name=self.task.name)
         return super().initialize_run(state=state, context=context)
 
     def run(
@@ -203,7 +203,7 @@ class TaskRunner(Runner):
         context = context or {}
         executor = executor or DEFAULT_EXECUTOR
 
-        context.update(_map_index=map_index)
+        context.update(map_index=map_index)
         state, context = self.initialize_run(state, context)
 
         # construct task inputs
@@ -321,7 +321,7 @@ class TaskRunner(Runner):
                 state = Failed(
                     message="Unexpected error while running Task", result=exc
                 )
-                raise_on_exception = prefect.context.get("_raise_on_exception", False)
+                raise_on_exception = prefect.context.get("raise_on_exception", False)
                 if raise_on_exception:
                     raise exc
 
@@ -338,7 +338,7 @@ class TaskRunner(Runner):
 
         If the task is being retried, then we retrieve the run count from the initial Retry
         state. Otherwise, we assume the run count is 1. The run count is stored in context as
-        _task_run_count.
+        task_run_count.
 
         Also, if the task is being resumed through a `Resume` state, updates context to have `resume=True`.
 
@@ -354,7 +354,7 @@ class TaskRunner(Runner):
             run_count = 1
         if isinstance(state, Resume):
             prefect.context.update(resume=True)
-        prefect.context.update(_task_run_count=run_count)
+        prefect.context.update(task_run_count=run_count)
         return state
 
     @call_state_handlers
@@ -430,7 +430,7 @@ class TaskRunner(Runner):
             - ENDRUN: if the trigger raises an error
         """
         # the trigger itself could raise a failure, but we raise TriggerFailed just in case
-        raise_on_exception = prefect.context.get("_raise_on_exception", False)
+        raise_on_exception = prefect.context.get("raise_on_exception", False)
 
         try:
             if not upstream_states_set:
@@ -549,7 +549,7 @@ class TaskRunner(Runner):
             - ENDRUN: if the task is not ready to run
         """
         if isinstance(state, CachedState) and self.task.cache_validator(
-            state, inputs, prefect.context.get("_parameters")
+            state, inputs, prefect.context.get("parameters")
         ):
             raise ENDRUN(Success(result=state.cached_result, cached=state))
         return state
@@ -687,7 +687,7 @@ class TaskRunner(Runner):
         if not state.is_running():
             raise ENDRUN(state)
 
-        raise_on_exception = prefect.context.get("_raise_on_exception", False)
+        raise_on_exception = prefect.context.get("raise_on_exception", False)
 
         try:
             timeout_handler = timeout_handler or main_thread_timeout
@@ -747,7 +747,7 @@ class TaskRunner(Runner):
             cached_state = CachedState(
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
-                cached_parameters=prefect.context.get("_parameters"),
+                cached_parameters=prefect.context.get("parameters"),
                 cached_result=state.result,
             )
             return Success(
@@ -770,7 +770,7 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
         """
         if state.is_failed():
-            run_count = prefect.context.get("_task_run_count", 1)
+            run_count = prefect.context.get("task_run_count", 1)
             if run_count <= self.task.max_retries:
                 start_time = pendulum.now("utc") + self.task.retry_delay
                 msg = "Retrying Task (after attempt {n} of {m})".format(
