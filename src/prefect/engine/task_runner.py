@@ -4,7 +4,18 @@ import collections
 import pendulum
 import threading
 from functools import partial, wraps
-from typing import Any, Callable, Dict, Iterable, List, Union, Set, Sized, Optional
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Union,
+    Set,
+    Sized,
+    Optional,
+    Tuple,
+)
 
 import prefect
 from prefect import config
@@ -107,6 +118,38 @@ class TaskRunner(Runner):
 
         return new_state
 
+    def initialize_run(
+        self, state: Optional[State], context: Dict[str, Any], map_index: Optional[int]
+    ) -> Tuple[State, Dict[str, Any]]:
+        """
+        Initializes the Task run by initializing state and context appropriately.
+
+        Args:
+            - state (State): the proposed initial state of the flow run; can be `None`
+            - context (dict): the context to be updated with relevant information
+            - map_index (int): if this task run represents a spawned
+                mapped task, the `map_index` represents its mapped position
+
+        Returns:
+            - tuple: a tuple of the updated state and context objects
+        """
+        db_state = None
+        if config.get("prefect_cloud", None):
+            flow_run_id = context.get("flow_run_id", None)
+            task_run_info = self.client.get_task_run_info(
+                flow_run_id,
+                context.get("task_id", ""),
+                map_index=map_index,
+                result_handler=self.result_handler,
+            )
+            db_state = task_run_info.state  # type: ignore
+            context.update(
+                _task_run_version=task_run_info.version,  # type: ignore
+                _task_run_id=task_run_info.id,  # type: ignore
+            )
+        state = state or db_state or Pending()
+        return state, context
+
     def run(
         self,
         state: State = None,
@@ -158,22 +201,7 @@ class TaskRunner(Runner):
         context = context or {}
         executor = executor or DEFAULT_EXECUTOR
 
-        # Initialize CloudHandler and get task run version
-        db_state = None
-        if config.get("prefect_cloud", None):
-            flow_run_id = context.get("flow_run_id", None)
-            task_run_info = self.client.get_task_run_info(
-                flow_run_id,
-                context.get("task_id", ""),
-                map_index=map_index,
-                result_handler=self.result_handler,
-            )
-            db_state = task_run_info.state  # type: ignore
-            context.update(
-                _task_run_version=task_run_info.version,  # type: ignore
-                _task_run_id=task_run_info.id,  # type: ignore
-            )
-        state = state or db_state or Pending()
+        state, context = self.initialize_run(state, context, map_index)
 
         # construct task inputs
         task_inputs = {}  # type: Dict[str, Any]
