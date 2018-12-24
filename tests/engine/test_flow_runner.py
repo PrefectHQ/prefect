@@ -452,6 +452,22 @@ class TestRunFlowStep:
                 executor=Executor(),
             )
 
+    def test_determine_final_state_has_final_say(self):
+        class MyFlowRunner(FlowRunner):
+            def determine_final_state(self, *args, **kwargs):
+                return Failed("Very specific error message")
+
+        flow = prefect.Flow(tasks=[prefect.Task()])
+        new_state = MyFlowRunner(flow=flow).get_flow_run_state(
+            state=Running(),
+            task_states={},
+            start_tasks=[],
+            return_tasks=set(),
+            executor=LocalExecutor(),
+        )
+        assert new_state.is_failed()
+        assert new_state.message == "Very specific error message"
+
 
 class TestStartTasks:
     def test_start_tasks_ignores_triggers(self):

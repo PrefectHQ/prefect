@@ -186,6 +186,30 @@ class TestHeartBeats:
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
+    def test_task_runner_has_a_heartbeat_with_task_run_id(self, executor, monkeypatch):
+        glob_dict = {}
+
+        def update_heartbeat(*args):
+            glob_dict["call_args"] = args
+
+        get_task_run_info = MagicMock(return_value=MagicMock(id="1234", version=0))
+        client = MagicMock(
+            get_task_run_info=get_task_run_info,
+            update_task_run_heartbeat=update_heartbeat,
+        )
+        monkeypatch.setattr(
+            "prefect.engine.task_runner.Client", MagicMock(return_value=client)
+        )
+        task = prefect.Task(name="test")
+        with set_temporary_config({"prefect_cloud": True}):
+            res = TaskRunner(task=task).run(executor=executor)
+
+        assert "call_args" in glob_dict
+        assert glob_dict["call_args"][0] == "1234"
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
     def test_flow_runner_has_a_heartbeat(self, executor, monkeypatch):
         glob_dict = {}
 
