@@ -149,6 +149,7 @@ class TaskRunner(Runner):
             )
             self.task_run_id = task_run_info.id  # type: ignore
 
+        context.update(_task_name=self.task.name)
         return super().initialize_run(state=state, context=context)
 
     def run(
@@ -239,7 +240,7 @@ class TaskRunner(Runner):
                 break
 
         # run state transformation pipeline
-        with prefect.context(context, _task_name=self.task.name, _map_index=map_index):
+        with prefect.context(context):
 
             try:
 
