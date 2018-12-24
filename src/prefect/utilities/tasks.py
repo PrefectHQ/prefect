@@ -34,8 +34,8 @@ def tags(*tags: str) -> Iterator[None]:
     ```
     """
     tags_set = set(tags)
-    tags_set.update(prefect.context.get("_tags", set()))
-    with prefect.context(_tags=tags_set):
+    tags_set.update(prefect.context.get("tags", set()))
+    with prefect.context(tags=tags_set):
         yield
 
 

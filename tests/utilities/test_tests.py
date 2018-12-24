@@ -116,12 +116,12 @@ def test_raise_on_exception_plays_well_with_context():
     flow = Flow()
     flow.add_task(MathTask())
     try:
-        assert "_raise_on_exception" not in prefect.context
+        assert "raise_on_exception" not in prefect.context
         with raise_on_exception():
-            assert "_raise_on_exception" in prefect.context
+            assert "raise_on_exception" in prefect.context
             flow.run()
     except ZeroDivisionError:
-        assert "_raise_on_exception" not in prefect.context
+        assert "raise_on_exception" not in prefect.context
         pass
 
 

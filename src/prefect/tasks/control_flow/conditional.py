@@ -72,7 +72,7 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
         for match_value, task in cases.items():
             task = prefect.utilities.tasks.as_task(task)
 
-            active_flow = prefect.context.get("_flow", None)
+            active_flow = prefect.context.get("flow", None)
             if (
                 active_flow
                 and task in active_flow.tasks

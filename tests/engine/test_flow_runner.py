@@ -323,7 +323,7 @@ def test_parameters_are_placed_into_context_and_override_current_context():
     flow = prefect.Flow()
     y = prefect.Parameter("y", default=99)
     flow.add_task(y)
-    with prefect.context(_parameters=dict(y=88, z=55)):
+    with prefect.context(parameters=dict(y=88, z=55)):
         flow_state = FlowRunner(flow=flow).run(return_tasks=[y], parameters=dict(y=42))
     assert isinstance(flow_state, Success)
     assert flow_state.result[y].result == 42
@@ -868,14 +868,14 @@ def test_flow_runner_allows_for_parallelism_with_times(executor):
 def test_flow_runner_properly_provides_context_to_task_runners(executor):
     @prefect.task
     def my_name():
-        return prefect.context.get("_my_name")
+        return prefect.context.get("my_name")
 
     @prefect.task
     def flow_name():
-        return prefect.context.get("_flow_name")
+        return prefect.context.get("flow_name")
 
     flow = Flow(name="test-dummy", tasks=[flow_name, my_name])
-    with prefect.context(_my_name="marvin"):
+    with prefect.context(my_name="marvin"):
         res = flow.run(executor=executor, return_tasks=flow.tasks)
 
     assert res.result[flow_name].result == "test-dummy"
@@ -884,7 +884,7 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
     with Flow("test-map") as f:
         tt = flow_name.map(upstream_tasks=[my_name])
 
-    with prefect.context(_my_name="mapped-marvin"):
+    with prefect.context(my_name="mapped-marvin"):
         res = f.run(executor=executor, return_tasks=f.tasks)
 
     assert res.result[my_name].result == "mapped-marvin"

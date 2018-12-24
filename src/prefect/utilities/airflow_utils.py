@@ -112,8 +112,8 @@ class AirTask(prefect.tasks.shell.ShellTask):
             return pickle.loads(data[0][0])
 
     def run(self) -> Any:  # type: ignore
-        execution_date = prefect.context.get("_execution_date", "")
-        airflow_env = prefect.context.get("_airflow_env", {})
+        execution_date = prefect.context.get("execution_date", "")
+        airflow_env = prefect.context.get("airflow_env", {})
         self.pre_check(execution_date, airflow_env)
         self.command = self.command.format(  # type: ignore
             self.dag_id, self.name, execution_date
@@ -199,7 +199,7 @@ class AirFlow(prefect.core.flow.Flow):
         Returns:
             - State: the Prefect State corresponding to the run of the Flow
         """
-        with prefect.context(_execution_date=execution_date, _airflow_env=self.env):
+        with prefect.context(execution_date=execution_date, airflow_env=self.env):
             return super().run(**kwargs)
 
     def _issue_warnings(self, task: "airflow.models.BaseOperator") -> None:

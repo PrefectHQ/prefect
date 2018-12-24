@@ -88,7 +88,7 @@ class ListTask(Task):
 
 class MapTask(Task):
     def run(self):
-        return prefect.context.get("_map_index")
+        return prefect.context.get("map_index")
 
 
 class SlowTask(Task):
@@ -197,14 +197,14 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     task_runner = TaskRunner(task=retry_task)
 
     # first run should be retrying
-    with prefect.context(_task_run_count=1):
+    with prefect.context(task_run_count=1):
         state = task_runner.run()
     assert isinstance(state, Retrying)
     assert isinstance(state.start_time, datetime)
 
     # second run should also be retry because the task raises it explicitly
 
-    with prefect.context(_task_run_count=2):
+    with prefect.context(task_run_count=2):
         state = task_runner.run(state=state)
     assert isinstance(state, Retrying)
 
@@ -353,9 +353,9 @@ class TestUpdateContextFromState:
     )
     def test_states_without_run_count(self, state):
         with prefect.context() as ctx:
-            assert "_task_run_count" not in ctx
+            assert "task_run_count" not in ctx
             new_state = TaskRunner(Task()).update_context_from_state(state)
-            assert ctx._task_run_count == 1
+            assert ctx.task_run_count == 1
             assert new_state is state
 
     @pytest.mark.parametrize(
@@ -369,9 +369,9 @@ class TestUpdateContextFromState:
     )
     def test_states_with_run_count(self, state):
         with prefect.context() as ctx:
-            assert "_task_run_count" not in ctx
+            assert "task_run_count" not in ctx
             new_state = TaskRunner(Task()).update_context_from_state(state)
-            assert ctx._task_run_count == state.run_count + 1
+            assert ctx.task_run_count == state.run_count + 1
             assert new_state is state
 
     def test_task_runner_puts_resume_in_context_if_state_is_resume(self):
@@ -806,7 +806,7 @@ class TestCheckRetryStep:
 
     def test_failed_one_max_retry_second_run(self):
         state = Failed()
-        with prefect.context(_task_run_count=2):
+        with prefect.context(task_run_count=2):
             new_state = TaskRunner(
                 task=Task(max_retries=1, retry_delay=timedelta(0))
             ).check_for_retry(state=state, inputs={})
@@ -821,7 +821,7 @@ class TestCheckRetryStep:
         assert new_state.cached_inputs == {"x": 1}
 
     def test_retrying_when_run_count_greater_than_max_retries(self):
-        with prefect.context(_task_run_count=10):
+        with prefect.context(task_run_count=10):
             state = Retrying()
             new_state = TaskRunner(
                 task=Task(max_retries=1, retry_delay=timedelta(0))
@@ -836,7 +836,7 @@ class TestCheckRetryStep:
         assert new_state is state
 
     def test_retrying_when_state_has_explicit_run_count_set(self):
-        with prefect.context(_task_run_count=10):
+        with prefect.context(task_run_count=10):
             state = Retrying(run_count=5)
             new_state = TaskRunner(
                 task=Task(max_retries=1, retry_delay=timedelta(0))
