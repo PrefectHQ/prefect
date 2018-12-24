@@ -83,7 +83,7 @@ class FlowRunner(Runner):
         super().__init__(state_handlers=state_handlers)
 
     def _heartbeat(self) -> None:
-        flow_run_id = prefect.context.get("_flow_run_id")
+        flow_run_id = prefect.context.get("flow_run_id")
         self.client.update_flow_run_heartbeat(flow_run_id)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -104,7 +104,7 @@ class FlowRunner(Runner):
         # Set state if in prefect cloud
         if config.get("prefect_cloud", None):
             flow_run_id = prefect.context.get("flow_run_id", None)
-            version = prefect.context.get("_flow_run_version")
+            version = prefect.context.get("flow_run_version")
 
             res = self.client.set_flow_run_state(
                 flow_run_id=flow_run_id,
@@ -112,7 +112,7 @@ class FlowRunner(Runner):
                 state=new_state,
                 result_handler=self.flow.result_handler,
             )
-            prefect.context.update(_flow_run_version=res.version)  # type: ignore
+            prefect.context.update(flow_run_version=res.version)  # type: ignore
 
         return new_state
 
@@ -135,14 +135,14 @@ class FlowRunner(Runner):
                 flow_run_id=prefect.context.get("flow_run_id", ""),
                 result_handler=self.flow.result_handler,
             )
-            context.update(_flow_run_version=flow_run_info.version)  # type: ignore
+            context.update(flow_run_version=flow_run_info.version)  # type: ignore
             # if state is set, keep it; otherwise load from db
             state = state or flow_run_info.state  # type: ignore
 
             ## update parameters, prioritizing kwarg-provided params
             parameters = flow_run_info.parameters or {}  # type: ignore
-            parameters.update(context.get("_parameters", {}))
-            context.update(_parameters=parameters)
+            parameters.update(context.get("parameters", {}))
+            context.update(parameters=parameters)
 
         return super().initialize_run(state=state, context=context)
 
@@ -208,7 +208,7 @@ class FlowRunner(Runner):
                 )
             )
 
-        context.update(_parameters=parameters, _flow_name=self.flow.name)
+        context.update(parameters=parameters, flow_name=self.flow.name)
         state, context = self.initialize_run(state, context)
 
         if return_tasks.difference(self.flow.tasks):
@@ -216,7 +216,7 @@ class FlowRunner(Runner):
 
         with prefect.context(context):
 
-            raise_on_exception = prefect.context.get("_raise_on_exception", False)
+            raise_on_exception = prefect.context.get("raise_on_exception", False)
 
             try:
                 state = self.check_flow_is_pending_or_running(state)

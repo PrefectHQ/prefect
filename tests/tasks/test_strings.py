@@ -28,7 +28,7 @@ def test_string_formatter_can_be_provided_template_at_runtime():
 
 
 def test_string_formatter_formats_from_context():
-    task = StringFormatterTask(template="I am {_task_name}", name="foo")
+    task = StringFormatterTask(template="I am {task_name}", name="foo")
     f = Flow(tasks=[task])
     res = f.run(return_tasks=[task])
     assert res.is_successful()
@@ -67,7 +67,7 @@ def test_jinja_template_can_be_provided_template_at_runtime():
 
 
 def test_jinja_template_formats_from_context():
-    task = JinjaTemplateTask(template="I am {{ _task_name }}", name="foo")
+    task = JinjaTemplateTask(template="I am {{ task_name }}", name="foo")
     f = Flow(tasks=[task])
     res = f.run(return_tasks=[task])
     assert res.is_successful()

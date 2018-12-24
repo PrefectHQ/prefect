@@ -147,7 +147,7 @@ class Task(metaclass=SignatureValidator):
         # avoid silently iterating over a string
         if isinstance(tags, str):
             raise TypeError("Tags should be a set of tags, not a string.")
-        current_tags = set(prefect.context.get("_tags", set()))
+        current_tags = set(prefect.context.get("tags", set()))
         self.tags = (set(tags) if tags is not None else set()) | current_tags
 
         max_retries = (
@@ -246,7 +246,7 @@ class Task(metaclass=SignatureValidator):
         Creates and returns a copy of the current Task.
         """
 
-        flow = prefect.context.get("_flow", None)
+        flow = prefect.context.get("flow", None)
         if (
             flow
             and self in flow.tasks
@@ -262,7 +262,7 @@ class Task(metaclass=SignatureValidator):
         new.id = str(uuid.uuid4())
 
         new.tags = copy.deepcopy(self.tags)
-        tags = set(prefect.context.get("_tags", set()))
+        tags = set(prefect.context.get("tags", set()))
         new.tags.update(tags)
 
         return new
@@ -339,7 +339,7 @@ class Task(metaclass=SignatureValidator):
         if var_kw_arg:
             callargs.update(callargs.pop(var_kw_arg.name, {}))
 
-        flow = prefect.context.get("_flow", None)
+        flow = prefect.context.get("flow", None)
         if not flow:
             raise ValueError("Could not infer an active Flow context.")
 
@@ -350,7 +350,7 @@ class Task(metaclass=SignatureValidator):
             mapped=mapped,
         )
 
-        tags = set(prefect.context.get("_tags", set()))
+        tags = set(prefect.context.get("tags", set()))
         self.tags.update(tags)
 
         return self
@@ -402,7 +402,7 @@ class Task(metaclass=SignatureValidator):
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
-        flow = flow or prefect.context.get("_flow", None)
+        flow = flow or prefect.context.get("flow", None)
         if not flow:
             raise ValueError(
                 "No Flow was passed, and could not infer an active Flow context."
@@ -880,7 +880,7 @@ class Parameter(Task):
             raise AttributeError("Parameter slug must be the same as its name.")
 
     def run(self) -> Any:
-        params = prefect.context.get("_parameters") or {}
+        params = prefect.context.get("parameters") or {}
         if self.required and self.name not in params:
             raise prefect.engine.signals.FAIL(
                 'Parameter "{}" was required but not provided.'.format(self.name)

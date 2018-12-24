@@ -339,7 +339,7 @@ class Retrying(Scheduled):
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to values.  Used / set if the Task requires Retries.
         - run_count (int): The number of runs that had been attempted at the time of this
-            Retry. Defaults to the value stored in context under "_task_run_count" or 1,
+            Retry. Defaults to the value stored in context under "task_run_count" or 1,
             if that value isn't found.
     """
 
@@ -360,7 +360,7 @@ class Retrying(Scheduled):
             cached_inputs=cached_inputs,
         )
         if run_count is None:
-            run_count = prefect.context.get("_task_run_count", 1)
+            run_count = prefect.context.get("task_run_count", 1)
         assert run_count is not None  # mypy assert
         self.run_count = run_count  # type: int
 
