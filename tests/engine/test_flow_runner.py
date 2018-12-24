@@ -1058,3 +1058,26 @@ def test_improper_use_of_unmapped_fails_gracefully():
     assert y_state.is_successful()
     assert y_state.result == 8
     assert res_state.is_failed()
+
+
+def test_all_pipeline_method_steps_are_called():
+
+    pipeline = [
+        "initialize_run",
+        "check_flow_is_pending_or_running",
+        "set_flow_to_running",
+        "get_flow_run_state",
+    ]
+
+    runner = FlowRunner(Flow())
+
+    for method in pipeline:
+        setattr(runner, method, MagicMock())
+
+    # initialize run is unpacked, which MagicMocks dont support
+    runner.initialize_run = MagicMock(return_value=(MagicMock(), MagicMock()))
+
+    runner.run()
+
+    for method in pipeline:
+        assert getattr(runner, method).call_count == 1

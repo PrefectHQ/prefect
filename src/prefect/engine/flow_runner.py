@@ -117,40 +117,34 @@ class FlowRunner(Runner):
         return new_state
 
     def initialize_run(
-        self,
-        state: Optional[State],
-        parameters: Dict[str, Any],
-        context: Dict[str, Any],
-    ) -> Tuple[State, Dict[str, Any], Dict[str, Any]]:
+        self, state: Optional[State], context: Dict[str, Any]
+    ) -> Tuple[State, Dict[str, Any]]:
         """
-        Initializes the Flow run by initializing state, parameters and context appropriately.
+        Initializes the Flow run by initializing state and context appropriately.
 
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
-            - parameters (dict): the proposed initial parameters for the flow run
             - context (dict): the context to be updated with relevant information
 
         Returns:
-            - tuple: a tuple of the updated state, parameters and context objects
+            - tuple: a tuple of the updated state and context objects
         """
-        db_state = None
+
         if config.get("prefect_cloud", None):
             flow_run_info = self.client.get_flow_run_info(
                 flow_run_id=prefect.context.get("flow_run_id", ""),
                 result_handler=self.flow.result_handler,
             )
             context.update(_flow_run_version=flow_run_info.version)  # type: ignore
-            db_state = flow_run_info.state  # type: ignore
+            # if state is set, keep it; otherwise load from db
+            state = state or flow_run_info.state  # type: ignore
 
             ## update parameters, prioritizing kwarg-provided params
-            db_parameters = flow_run_info.parameters or {}  # type: ignore
-            for key, value in db_parameters:  # type: ignore
-                if key not in parameters:
-                    parameters[key] = value
+            parameters = flow_run_info.parameters or {}  # type: ignore
+            parameters.update(context.get("_parameters", {}))
+            context.update(_parameters=parameters)
 
-        state = state or db_state or Pending()  # needs to remain below cloud check
-        context.update(_flow_name=self.flow.name, _parameters=parameters)
-        return state, parameters, context
+        return super().initialize_run(state=state, context=context)
 
     def run(
         self,
@@ -214,7 +208,8 @@ class FlowRunner(Runner):
                 )
             )
 
-        state, parameters, context = self.initialize_run(state, parameters, context)
+        context.update(_parameters=parameters, _flow_name=self.flow.name)
+        state, context = self.initialize_run(state, context)
 
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
