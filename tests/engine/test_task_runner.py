@@ -24,6 +24,7 @@ from prefect.engine.state import (
     Failed,
     Finished,
     Mapped,
+    Submitted,
     Paused,
     Pending,
     Resume,
@@ -990,7 +991,7 @@ class TestTaskRunnerStateHandlers:
     def test_task_runner_handlers_are_called(self):
         task_runner_handler = MagicMock()
         TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
-        # the task changed state three times: Pending -> Running -> Success
+        # the task changed state two times: Pending -> Running -> Success
         assert task_runner_handler.call_count == 2
 
     def test_task_runner_handlers_are_called_on_retry(self):
@@ -1001,7 +1002,7 @@ class TestTaskRunnerStateHandlers:
             1 / 0
 
         TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
-        # the task changed state four times: Pending -> Running -> Failed -> Retry
+        # the task changed state three times: Pending -> Running -> Failed -> Retry
         assert task_runner_handler.call_count == 3
 
     def test_multiple_task_runner_handlers_are_called(self):
@@ -1009,7 +1010,7 @@ class TestTaskRunnerStateHandlers:
         TaskRunner(
             task=Task(), state_handlers=[task_runner_handler, task_runner_handler]
         ).run()
-        # each task changed state three times: Pending -> Running -> Success
+        # each task changed state two times: Pending -> Running -> Success
         assert task_runner_handler.call_count == 4
 
     def test_multiple_task_runner_handlers_are_called_in_sequence(self):
@@ -1223,3 +1224,40 @@ def test_improperly_mapped_edge_fails_gracefully(mapped):
         mapped=mapped,
     )
     assert state.is_failed()
+
+
+@pytest.mark.parametrize("mapped", [False, True])
+def test_all_pipeline_method_steps_are_called(mapped):
+
+    pipeline = [
+        "initialize_run",
+        "update_context_from_state",
+        "check_upstream_finished",
+        "check_upstream_skipped",
+        "check_task_trigger",
+        "check_task_is_pending",
+        "check_task_reached_start_time",
+        "check_task_is_cached",
+        "set_task_to_running",
+    ]
+    unmapped_pipeline = ["get_task_run_state", "cache_result", "check_for_retry"]
+    mapped_pipeline = ["check_upstreams_for_mapping", "get_task_mapped_state"]
+
+    runner = TaskRunner(Task())
+
+    for method in pipeline + mapped_pipeline + unmapped_pipeline:
+        setattr(runner, method, MagicMock())
+
+    # initialize run is unpacked, which MagicMocks dont support
+    runner.initialize_run = MagicMock(return_value=(MagicMock(), MagicMock()))
+
+    runner.run(mapped=mapped)
+
+    for method in pipeline:
+        assert getattr(runner, method).call_count == 1
+    if mapped:
+        for method in mapped_pipeline:
+            assert getattr(runner, method).call_count == 1
+    else:
+        for method in unmapped_pipeline:
+            assert getattr(runner, method).call_count == 1
