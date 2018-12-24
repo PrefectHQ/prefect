@@ -56,14 +56,14 @@ def test_retry_signals_accept_run_count():
 
 
 def test_retry_signals_take_run_count_from_context():
-    with prefect.context(_task_run_count=5):
+    with prefect.context(task_run_count=5):
         with pytest.raises(PrefectStateSignal) as exc:
             raise RETRY()
     assert exc.value.state.run_count == 5
 
 
 def test_retry_signals_prefer_supplied_run_count_to_context():
-    with prefect.context(_task_run_count=5):
+    with prefect.context(task_run_count=5):
         with pytest.raises(PrefectStateSignal) as exc:
             raise RETRY(run_count=6)
     assert exc.value.state.run_count == 6

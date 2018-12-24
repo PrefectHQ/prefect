@@ -125,7 +125,7 @@ class Runner:
             - ENDRUN(Failed()): if any of the handlers fail
 
         """
-        raise_on_exception = prefect.context.get("_raise_on_exception", False)
+        raise_on_exception = prefect.context.get("raise_on_exception", False)
 
         try:
             # call runner's target handlers

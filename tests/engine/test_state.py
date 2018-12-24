@@ -103,7 +103,7 @@ def test_retry_stores_default_run_count():
 
 
 def test_retry_stores_default_run_count_in_context():
-    with prefect.context(_task_run_count=5):
+    with prefect.context(task_run_count=5):
         state = Retrying()
     assert state.run_count == 5
 
