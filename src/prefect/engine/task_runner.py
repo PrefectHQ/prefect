@@ -137,7 +137,7 @@ class TaskRunner(Runner):
             task_run_info = self.client.get_task_run_info(
                 flow_run_id,
                 context.get("task_id", ""),
-                map_index=context.get("map_index", None),
+                map_index=context.get("_map_index", None),
                 result_handler=self.result_handler,
             )
 
@@ -203,7 +203,7 @@ class TaskRunner(Runner):
         context = context or {}
         executor = executor or DEFAULT_EXECUTOR
 
-        context.update(map_index=map_index)
+        context.update(_map_index=map_index)
         state, context = self.initialize_run(state, context)
 
         # construct task inputs
