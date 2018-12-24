@@ -22,11 +22,12 @@
 - Add new SQLite tasks for basic SQL scripting and querying - [#291](https://github.com/PrefectHQ/prefect/issues/291)
 - Executors now pass `map_index` into the `TaskRunner`s - [#373](https://github.com/PrefectHQ/prefect/pull/373)
 - All schedules support `start_date` and `end_date` parameters - [#375](https://github.com/PrefectHQ/prefect/pull/375)
-- Add DateTime marshmallow field for timezone-aware serialization - [#378](https://github.com/PrefectHQ/prefect/pull/378)
+- Add `DateTime` marshmallow field for timezone-aware serialization - [#378](https://github.com/PrefectHQ/prefect/pull/378)
 - Adds ability to put variables into context via the config - [#381](https://github.com/PrefectHQ/prefect/issues/381)
-- Adds new `client.deploy` method for adding new Flows to the database - [#388](https://github.com/PrefectHQ/prefect/issues/388)
+- Adds new `client.deploy` method for adding new flows to the database - [#388](https://github.com/PrefectHQ/prefect/issues/388)
 - Add `id` attribute to `Task` class - [#416](https://github.com/PrefectHQ/prefect/issues/416)
-- Add new `Resume` state for resuming from Paused tasks - [#435](https://github.com/PrefectHQ/prefect/issues/435)
+- Add new `Resume` state for resuming from `Paused` tasks - [#435](https://github.com/PrefectHQ/prefect/issues/435)
+- Add new `Submitted` state for signaling that `Scheduled` tasks have been handled - [#445](https://github.com/PrefectHQ/prefect/issues/445)
 
 ### Fixes
 
@@ -60,6 +61,7 @@
 - `IntervalSchedule` rejects intervals of less than one minute - [#427](https://github.com/PrefectHQ/prefect/pull/427)
 - `FlowRunner` returns a `Running` state, not a `Pending` state, when flows do not finish - [#433](https://github.com/PrefectHQ/prefect/pull/433)
 - Remove the `task_contexts` argument from `FlowRunner.run()` - [#440](https://github.com/PrefectHQ/prefect/pull/440)
+- Remove the leading underscore from Prefect-set context keys - [#446](https://github.com/PrefectHQ/prefect/pull/446)
 
 ## 0.3.3 <Badge text="alpha" type="warn"/>
 
