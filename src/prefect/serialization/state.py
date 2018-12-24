@@ -38,7 +38,6 @@ class BaseStateSchema(VersionedSchema):
 
     message = fields.String(allow_none=True)
     result = ResultHandlerField(allow_none=True)
-    timestamp = DateTime(allow_none=True)
 
 
 @version("0.3.3")
@@ -47,6 +46,14 @@ class PendingSchema(BaseStateSchema):
         object_class = state.Pending
 
     cached_inputs = ResultHandlerField(allow_none=True)
+
+
+@version("0.3.3")
+class SubmittedSchema(BaseStateSchema):
+    class Meta:
+        object_class = state.Submitted
+
+    state = fields.Nested("StateSchema", allow_none=True)
 
 
 @version("0.3.3")
@@ -147,18 +154,19 @@ class StateSchema(OneOfSchema):
 
     # map class name to schema
     type_schemas = {
-        "Pending": PendingSchema,
         "CachedState": CachedStateSchema,
-        "Scheduled": ScheduledSchema,
-        "Retrying": RetryingSchema,
-        "Resume": ResumeSchema,
-        "Running": RunningSchema,
-        "Finished": FinishedSchema,
-        "Success": SuccessSchema,
-        "Mapped": MappedSchema,
         "Failed": FailedSchema,
+        "Finished": FinishedSchema,
+        "Mapped": MappedSchema,
+        "Paused": PausedSchema,
+        "Pending": PendingSchema,
+        "Resume": ResumeSchema,
+        "Retrying": RetryingSchema,
+        "Running": RunningSchema,
+        "Scheduled": ScheduledSchema,
+        "Skipped": SkippedSchema,
+        "Submitted": SubmittedSchema,
+        "Success": SuccessSchema,
         "TimedOut": TimedOutSchema,
         "TriggerFailed": TriggerFailedSchema,
-        "Skipped": SkippedSchema,
-        "Paused": PausedSchema,
     }

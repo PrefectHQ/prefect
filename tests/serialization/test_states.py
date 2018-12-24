@@ -42,6 +42,8 @@ def complex_states():
         state.Scheduled(start_time=naive_dt),
         state.Resume(start_time=utc_dt),
         state.Resume(start_time=naive_dt),
+        state.Submitted(state=state.Retrying(start_time=utc_dt, run_count=2)),
+        state.Submitted(state=state.Resume(start_time=utc_dt)),
         cached_state,
         cached_state_naive,
         state.Success(result=complex_result, cached=cached_state),

@@ -284,6 +284,33 @@ class Scheduled(Pending):
         self.start_time = ensure_tz_aware(start_time or pendulum.now("utc"))
 
 
+class Submitted(State):
+    """
+    The `Submitted` state is used to indicate that another state, usually a `Scheduled`
+    state, has been handled. For example, if a task is in a `Retrying` state, then at
+    the appropriate time it may be put into a `Submitted` state referencing the
+    `Retrying` state. This communicates to the system that the retry has been handled,
+    without losing the information contained in the `Retry` state.
+
+    The `Submitted` state should be initialized with another state, which it wraps. The
+    wrapped state is extracted at the beginning of a task run.
+
+    Args:
+        - message (string): a message for the state.
+        - result (Any, optional): Defaults to `None`.
+        - state (Scheduled): the `Scheduled` state that has been marked as
+            "submitted". The message of the `Submitted` state will be taken from this
+            `state`.
+
+    """
+
+    def __init__(
+        self, message: str = None, result: Any = None, state: State = None
+    ) -> None:
+        super().__init__(message=message, result=result)
+        self.state = state
+
+
 class Resume(Scheduled):
     """
     Resume state indicating the object can resume execution (presumably from a `Paused` state).

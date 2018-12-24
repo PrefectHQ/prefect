@@ -30,6 +30,7 @@ from prefect.engine.state import (
     Mapped,
     Pending,
     Scheduled,
+    Submitted,
     Resume,
     Retrying,
     Running,
@@ -119,7 +120,7 @@ class TaskRunner(Runner):
         return new_state
 
     def initialize_run(
-        self, state: Optional[State], context: Dict[str, Any], map_index: Optional[int]
+        self, state: Optional[State], context: Dict[str, Any]
     ) -> Tuple[State, Dict[str, Any]]:
         """
         Initializes the Task run by initializing state and context appropriately.
@@ -127,29 +128,29 @@ class TaskRunner(Runner):
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
             - context (dict): the context to be updated with relevant information
-            - map_index (int): if this task run represents a spawned
-                mapped task, the `map_index` represents its mapped position
 
         Returns:
             - tuple: a tuple of the updated state and context objects
         """
-        db_state = None
         if config.get("prefect_cloud", None):
             flow_run_id = context.get("flow_run_id", None)
             task_run_info = self.client.get_task_run_info(
                 flow_run_id,
                 context.get("task_id", ""),
-                map_index=map_index,
+                map_index=context.get("_map_index", None),
                 result_handler=self.result_handler,
             )
-            db_state = task_run_info.state  # type: ignore
+
+            # if state is set, keep it; otherwise load from db
+            state = state or task_run_info.state  # type: ignore
             context.update(
                 _task_run_version=task_run_info.version,  # type: ignore
                 _task_run_id=task_run_info.id,  # type: ignore
             )
             self.task_run_id = task_run_info.id  # type: ignore
-        state = state or db_state or Pending()
-        return state, context
+
+        context.update(_task_name=self.task.name)
+        return super().initialize_run(state=state, context=context)
 
     def run(
         self,
@@ -202,7 +203,8 @@ class TaskRunner(Runner):
         context = context or {}
         executor = executor or DEFAULT_EXECUTOR
 
-        state, context = self.initialize_run(state, context, map_index)
+        context.update(_map_index=map_index)
+        state, context = self.initialize_run(state, context)
 
         # construct task inputs
         task_inputs = {}  # type: Dict[str, Any]
@@ -238,9 +240,10 @@ class TaskRunner(Runner):
                 break
 
         # run state transformation pipeline
-        with prefect.context(context, _task_name=self.task.name, _map_index=map_index):
+        with prefect.context(context):
 
             try:
+
                 # retrieve the run number and place in context,
                 # or put resume in context if needed
                 state = self.update_context_from_state(state=state)

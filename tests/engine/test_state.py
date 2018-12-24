@@ -1,8 +1,9 @@
 import datetime
-import pendulum
 import uuid
 
+import pendulum
 import pytest
+
 import prefect
 from prefect.client.result_handlers import ResultHandler
 from prefect.engine.state import (
@@ -18,6 +19,7 @@ from prefect.engine.state import (
     Scheduled,
     Skipped,
     State,
+    Submitted,
     Success,
     TimedOut,
     TriggerFailed,
@@ -319,6 +321,16 @@ class TestStateMethods:
         assert not state.is_finished()
         assert not state.is_skipped()
         assert state.is_scheduled()
+        assert not state.is_successful()
+        assert not state.is_failed()
+
+    def test_state_type_methods_with_submitted_state(self):
+        state = Submitted()
+        assert not state.is_pending()
+        assert not state.is_running()
+        assert not state.is_finished()
+        assert not state.is_skipped()
+        assert not state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
 

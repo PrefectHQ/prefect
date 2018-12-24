@@ -24,6 +24,7 @@ from prefect.engine.state import (
     Failed,
     Finished,
     Mapped,
+    Submitted,
     Paused,
     Pending,
     Resume,
@@ -927,40 +928,17 @@ class TestCheckScheduledStep:
         assert result is state
 
 
-handler_results = collections.defaultdict(lambda: 0)
-
-
-@pytest.fixture(autouse=True)
-def clear_handler_results():
-    handler_results.clear()
-
-
-def task_handler(task, old_state, new_state):
-    """state change handler for tasks that increments a value by 1"""
-    assert isinstance(task, Task)
-    assert isinstance(old_state, State)
-    assert isinstance(new_state, State)
-    handler_results["Task"] += 1
-    return new_state
-
-
-def task_runner_handler(task_runner, old_state, new_state):
-    """state change handler for task runners that increments a value by 1"""
-    assert isinstance(task_runner, TaskRunner)
-    assert isinstance(old_state, (type(None), State))
-    assert isinstance(new_state, (type(None), State))
-    handler_results["TaskRunner"] += 1
-    return new_state or Pending()
-
-
 class TestTaskStateHandlers:
     def test_task_handlers_are_called(self):
+        task_handler = MagicMock()
         task = Task(state_handlers=[task_handler])
         TaskRunner(task=task).run()
         # the task changed state twice: Pending -> Running -> Success
-        assert handler_results["Task"] == 2
+        assert task_handler.call_count == 2
 
     def test_task_handlers_are_called_on_retry(self):
+        task_handler = MagicMock()
+
         @prefect.task(
             state_handlers=[task_handler], max_retries=1, retry_delay=timedelta(0)
         )
@@ -969,24 +947,30 @@ class TestTaskStateHandlers:
 
         TaskRunner(task=fn).run()
         # the task changed state three times: Pending -> Running -> Failed -> Retry
-        assert handler_results["Task"] == 3
+        assert task_handler.call_count == 3
 
     def test_task_handlers_are_called_on_failure(self):
+        task_handler = MagicMock()
+
         @prefect.task(state_handlers=[task_handler])
         def fn():
             1 / 0
 
         TaskRunner(task=fn).run()
         # the task changed state two times: Pending -> Running -> Failed
-        assert handler_results["Task"] == 2
+        assert task_handler.call_count == 2
 
     def test_multiple_task_handlers_are_called(self):
+        task_handler = MagicMock()
         task = Task(state_handlers=[task_handler, task_handler])
         TaskRunner(task=task).run()
         # each task changed state twice: Pending -> Running -> Success
-        assert handler_results["Task"] == 4
+        assert task_handler.call_count == 4
 
     def test_multiple_task_handlers_are_called_in_sequence(self):
+        def task_handler(task_runner, old_state, new_state):
+            assert isinstance(new_state, State)
+
         # the second task handler will assert the result of the first task handler is a state
         # and raise an error, as long as the task_handlers are called in sequence on the
         # previous result
@@ -996,9 +980,8 @@ class TestTaskStateHandlers:
                 TaskRunner(task=task).run()
 
     def test_task_handler_that_doesnt_return_state(self):
+        # this will raise an error because no state is returned
         task = Task(state_handlers=[lambda *a: None])
-        # raises an attribute error because it tries to access a property of the state that
-        # doesn't exist on None
         with pytest.raises(AttributeError):
             with prefect.utilities.tests.raise_on_exception():
                 TaskRunner(task=task).run()
@@ -1006,30 +989,37 @@ class TestTaskStateHandlers:
 
 class TestTaskRunnerStateHandlers:
     def test_task_runner_handlers_are_called(self):
+        task_runner_handler = MagicMock()
         TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
-        # the task changed state three times: Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 2
+        # the task changed state two times: Pending -> Running -> Success
+        assert task_runner_handler.call_count == 2
 
     def test_task_runner_handlers_are_called_on_retry(self):
+        task_runner_handler = MagicMock()
+
         @prefect.task(max_retries=1, retry_delay=timedelta(0))
         def fn():
             1 / 0
 
         TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
-        # the task changed state four times: Pending -> Running -> Failed -> Retry
-        assert handler_results["TaskRunner"] == 3
+        # the task changed state three times: Pending -> Running -> Failed -> Retry
+        assert task_runner_handler.call_count == 3
 
     def test_multiple_task_runner_handlers_are_called(self):
+        task_runner_handler = MagicMock()
         TaskRunner(
             task=Task(), state_handlers=[task_runner_handler, task_runner_handler]
         ).run()
-        # each task changed state three times: Pending -> Running -> Success
-        assert handler_results["TaskRunner"] == 4
+        # each task changed state two times: Pending -> Running -> Success
+        assert task_runner_handler.call_count == 4
 
     def test_multiple_task_runner_handlers_are_called_in_sequence(self):
         # the second task handler will assert the result of the first task handler is a state
         # and raise an error, as long as the task_handlers are called in sequence on the
         # previous result
+        def task_runner_handler(task_runner, old_state, new_state):
+            assert isinstance(new_state, State)
+
         with pytest.raises(AssertionError):
             with prefect.utilities.tests.raise_on_exception():
                 TaskRunner(
@@ -1038,8 +1028,7 @@ class TestTaskRunnerStateHandlers:
                 ).run()
 
     def test_task_runner_handler_that_doesnt_return_state(self):
-        # raises an attribute error because it tries to access a property of the state that
-        # doesn't exist on None
+        # raises an error because the state handler doesn't return a state
         with pytest.raises(AttributeError):
             with prefect.utilities.tests.raise_on_exception():
                 TaskRunner(task=Task(), state_handlers=[lambda *a: None]).run()
@@ -1235,3 +1224,40 @@ def test_improperly_mapped_edge_fails_gracefully(mapped):
         mapped=mapped,
     )
     assert state.is_failed()
+
+
+@pytest.mark.parametrize("mapped", [False, True])
+def test_all_pipeline_method_steps_are_called(mapped):
+
+    pipeline = [
+        "initialize_run",
+        "update_context_from_state",
+        "check_upstream_finished",
+        "check_upstream_skipped",
+        "check_task_trigger",
+        "check_task_is_pending",
+        "check_task_reached_start_time",
+        "check_task_is_cached",
+        "set_task_to_running",
+    ]
+    unmapped_pipeline = ["get_task_run_state", "cache_result", "check_for_retry"]
+    mapped_pipeline = ["check_upstreams_for_mapping", "get_task_mapped_state"]
+
+    runner = TaskRunner(Task())
+
+    for method in pipeline + mapped_pipeline + unmapped_pipeline:
+        setattr(runner, method, MagicMock())
+
+    # initialize run is unpacked, which MagicMocks dont support
+    runner.initialize_run = MagicMock(return_value=(MagicMock(), MagicMock()))
+
+    runner.run(mapped=mapped)
+
+    for method in pipeline:
+        assert getattr(runner, method).call_count == 1
+    if mapped:
+        for method in mapped_pipeline:
+            assert getattr(runner, method).call_count == 1
+    else:
+        for method in unmapped_pipeline:
+            assert getattr(runner, method).call_count == 1
