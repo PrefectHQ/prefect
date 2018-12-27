@@ -57,11 +57,56 @@ class TestContainerEnvironment:
     def test_build_image_process(self):
 
         container = ContainerEnvironment(
-            base_image="python:3.6", tag="tag", registry_url=""
+            base_image="python:3.6", image_tag="tag", registry_url=""
         )
         image = container.build(Flow())
         assert image
 
+    def test_basic_create_dockerfile(self):
+        container = ContainerEnvironment(base_image="python:3.6", registry_url="")
+        with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
+            container.create_dockerfile(Flow(), directory=tmp)
+            with open(os.path.join(tmp, "Dockerfile"), "r") as f:
+                dockerfile = f.read()
+
+        assert "FROM python:3.6" in dockerfile
+        assert "RUN pip install ./prefect" in dockerfile
+        assert "RUN mkdir /root/.prefect/" in dockerfile
+        assert "COPY config.toml /root/.prefect/config.toml" in dockerfile
+
+    def test_create_dockerfile_with_environment_variables(self):
+        container = ContainerEnvironment(
+            base_image="python:3.6",
+            registry_url="",
+            env_vars=dict(
+                X=2, Y='"/a/quoted/string/path"', Z="/an/unquoted/string/path"
+            ),
+        )
+        with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
+            container.create_dockerfile(Flow(), directory=tmp)
+            with open(os.path.join(tmp, "Dockerfile"), "r") as f:
+                dockerfile = f.read()
+
+        assert "ENV X=2" in dockerfile
+        assert 'ENV Y="/a/quoted/string/path"' in dockerfile
+        assert "ENV Z=/an/unquoted/string/path" in dockerfile
+
+    def test_create_dockerfile_with_copy_files(self):
+        container = ContainerEnvironment(
+            base_image="python:3.6",
+            registry_url="",
+            files={
+                "/my/config": "/root/dockerconfig",
+                ".secret_file": "./.secret_file",
+            },
+        )
+        with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
+            container.create_dockerfile(Flow(), directory=tmp)
+            with open(os.path.join(tmp, "Dockerfile"), "r") as f:
+                dockerfile = f.read()
+
+        assert "COPY /my/config /root/dockerconfig" in dockerfile
+        assert "COPY .secret_file ./.secret_file" in dockerfile
         # Need to test running stuff in container, however circleci won't be able to build
         # a container
 
