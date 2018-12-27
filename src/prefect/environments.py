@@ -223,6 +223,9 @@ class ContainerEnvironment(Environment):
             included in the Dockerfile
         - files (dict, optional): an optional dictionary mapping local file names to file names in the Docker container; file names should be
             _absolute paths_.  Note that the COPY directive will be used for these files, so please read the associated Docker documentation.
+
+    Raises:
+        - ValueError: if provided `files` contain non-absolute paths
     """
 
     def __init__(
