@@ -97,7 +97,7 @@ class TestContainerEnvironment:
             registry_url="",
             files={
                 "/my/config": "/root/dockerconfig",
-                ".secret_file": "./.secret_file",
+                "/.secret_file": "./.secret_file",
             },
         )
         with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
@@ -106,7 +106,24 @@ class TestContainerEnvironment:
                 dockerfile = f.read()
 
         assert "COPY /my/config /root/dockerconfig" in dockerfile
-        assert "COPY .secret_file ./.secret_file" in dockerfile
+        assert "COPY /.secret_file ./.secret_file" in dockerfile
+
+    def test_create_dockerfile_with_copy_files_raises_informative_error_if_not_absolute(
+        self
+    ):
+        with pytest.raises(ValueError) as exc:
+            container = ContainerEnvironment(
+                base_image="python:3.6",
+                registry_url="",
+                files={
+                    ".secret_file": "./.secret_file",
+                    "~/.prefect": ".prefect",
+                    "/def/abs": "/def/abs",
+                },
+            )
+
+        assert ".secret_file, ~/.prefect are not absolute file paths" in str(exc.value)
+
         # Need to test running stuff in container, however circleci won't be able to build
         # a container
 

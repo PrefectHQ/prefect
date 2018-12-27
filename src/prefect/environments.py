@@ -219,9 +219,9 @@ class ContainerEnvironment(Environment):
         that will be installed on build of the Docker container
         - image_name (str, optional): A name for the image (usually provided by `build()`)
         - image_tag (str, optional): A tag for the image (usually provided by `build()`)
-        - env_vars (dict, optional): an optional dictionary mapping environment variables to their values (e.g., `{SHELL="bash"}`) to be 
+        - env_vars (dict, optional): an optional dictionary mapping environment variables to their values (e.g., `{SHELL="bash"}`) to be
             included in the Dockerfile
-        - files (dict, optional): an optional dictionary mapping local file names to file names in the Docker container; file names should be 
+        - files (dict, optional): an optional dictionary mapping local file names to file names in the Docker container; file names should be
             _absolute paths_.  Note that the COPY directive will be used for these files, so please read the associated Docker documentation.
     """
 
@@ -242,6 +242,15 @@ class ContainerEnvironment(Environment):
         self.python_dependencies = python_dependencies or []
         self.env_vars = env_vars or {}
         self.files = files or {}
+        not_absolute = [
+            file_path for file_path in self.files if not os.path.isabs(file_path)
+        ]
+        if not_absolute:
+            raise ValueError(
+                "Provided paths {} are not absolute file paths, please provide absolute paths only.".format(
+                    ", ".join(not_absolute)
+                )
+            )
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
