@@ -219,6 +219,10 @@ class ContainerEnvironment(Environment):
         that will be installed on build of the Docker container
         - image_name (str, optional): A name for the image (usually provided by `build()`)
         - image_tag (str, optional): A tag for the image (usually provided by `build()`)
+        - env_vars (dict, optional): an optional dictionary mapping environment variables to their values (e.g., `{SHELL="bash"}`) to be 
+            included in the Dockerfile
+        - files (dict, optional): an optional dictionary mapping local file names to file names in the Docker container; file names should be 
+            _absolute paths_.  Note that the COPY directive will be used for these files, so please read the associated Docker documentation.
     """
 
     def __init__(
@@ -228,12 +232,16 @@ class ContainerEnvironment(Environment):
         python_dependencies: list = None,
         image_name: str = None,
         image_tag: str = None,
+        env_vars: dict = None,
+        files: dict = None,
     ) -> None:
         self.base_image = base_image
         self.registry_url = registry_url
         self.image_name = image_name
         self.image_tag = image_tag
         self.python_dependencies = python_dependencies or []
+        self.env_vars = env_vars or {}
+        self.files = files or {}
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
@@ -363,6 +371,16 @@ class ContainerEnvironment(Environment):
                 for dependency in self.python_dependencies:
                     pip_installs += "RUN pip install {}\n".format(dependency)
 
+            env_vars = ""
+            if self.env_vars:
+                for var, val in self.env_vars.items():
+                    env_vars += "ENV {var}={val}\n".format(var=var, val=val)
+
+            copy_files = ""
+            if self.files:
+                for src, dest in self.files.items():
+                    copy_files += "COPY {src} {dest}\n".format(src=src, dest=dest)
+
             # Create a LocalEnvironment to run the flow
             # the local environment will be placed in the container and run when the container
             # runs
@@ -388,15 +406,19 @@ class ContainerEnvironment(Environment):
                 RUN mkdir /root/.prefect/
                 COPY flow_env.prefect /root/.prefect/flow_env.prefect
                 COPY config.toml /root/.prefect/config.toml
+                {copy_files}
 
                 ENV PREFECT_ENVIRONMENT_FILE="/root/.prefect/flow_env.prefect"
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
+                {env_vars}
 
                 RUN git clone https://{access_token}@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
                 """.format(
                     base_image=self.base_image,
                     pip_installs=pip_installs,
+                    copy_files=copy_files,
+                    env_vars=env_vars,
                     access_token=os.getenv("PERSONAL_ACCESS_TOKEN"),
                 )
             )
