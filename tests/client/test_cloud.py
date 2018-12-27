@@ -1,4 +1,5 @@
 import pytest
+import time
 from unittest.mock import MagicMock
 
 import prefect
@@ -170,33 +171,28 @@ class TestHeartBeats:
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_task_runner_has_a_heartbeat(self, executor, monkeypatch):
-        glob_dict = {}
-
-        def heartbeat(self):
-            glob_dict["was_called"] = True
-
-        monkeypatch.setattr("prefect.engine.task_runner.Client", MagicMock())
+        client = MagicMock()
         monkeypatch.setattr(
-            "prefect.engine.task_runner.TaskRunner._heartbeat", heartbeat
+            "prefect.engine.task_runner.Client", MagicMock(return_value=client)
         )
-        task = prefect.Task(name="test")
-        res = TaskRunner(task=task).run(executor=executor)
-        assert glob_dict.get("was_called") is True
+
+        @prefect.task
+        def sleeper():
+            time.sleep(2)
+
+        with set_temporary_config({"cloud.heartbeat_interval": 1.0}):
+            res = TaskRunner(task=sleeper).run(executor=executor)
+
+        assert res.is_successful()
+        assert client.update_task_run_heartbeat.called
+        assert client.update_task_run_heartbeat.call_count >= 2
 
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_task_runner_has_a_heartbeat_with_task_run_id(self, executor, monkeypatch):
-        glob_dict = {}
-
-        def update_heartbeat(*args):
-            glob_dict["call_args"] = args
-
         get_task_run_info = MagicMock(return_value=MagicMock(id="1234", version=0))
-        client = MagicMock(
-            get_task_run_info=get_task_run_info,
-            update_task_run_heartbeat=update_heartbeat,
-        )
+        client = MagicMock(get_task_run_info=get_task_run_info)
         monkeypatch.setattr(
             "prefect.engine.task_runner.Client", MagicMock(return_value=client)
         )
@@ -204,90 +200,8 @@ class TestHeartBeats:
         with set_temporary_config({"prefect_cloud": True}):
             res = TaskRunner(task=task).run(executor=executor)
 
-        assert "call_args" in glob_dict
-        assert glob_dict["call_args"][0] == "1234"
-
-    @pytest.mark.parametrize(
-        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-    )
-    def test_flow_runner_has_a_heartbeat(self, executor, monkeypatch):
-        glob_dict = {}
-
-        def heartbeat(self):
-            glob_dict["was_called"] = True
-
-        monkeypatch.setattr("prefect.engine.flow_runner.Client", MagicMock())
-        monkeypatch.setattr(
-            "prefect.engine.flow_runner.FlowRunner._heartbeat", heartbeat
-        )
-        flow = prefect.Flow(name="test", tasks=[prefect.Task()])
-        res = FlowRunner(flow=flow).run(executor=executor)
-        assert glob_dict.get("was_called") is True
-
-    @pytest.mark.parametrize(
-        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-    )
-    def test_task_runner_has_a_heartbeat_even_when_things_go_wrong(
-        self, executor, monkeypatch
-    ):
-        glob_dict = {}
-
-        def heartbeat(self):
-            glob_dict["was_called"] = True
-
-        monkeypatch.setattr("prefect.engine.task_runner.Client", MagicMock())
-        monkeypatch.setattr(
-            "prefect.engine.task_runner.TaskRunner._heartbeat", heartbeat
-        )
-
-        @prefect.task
-        def raise_me():
-            raise AttributeError("Doesn't exist")
-
-        res = TaskRunner(task=raise_me).run(executor=executor)
-        assert res.is_failed()
-        assert glob_dict.get("was_called") is True
-
-    @pytest.mark.parametrize(
-        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-    )
-    def test_flow_runner_has_a_heartbeat_even_when_things_go_wrong(
-        self, executor, monkeypatch
-    ):
-        glob_dict = {}
-
-        def heartbeat(self):
-            glob_dict["was_called"] = True
-
-        monkeypatch.setattr("prefect.engine.flow_runner.Client", MagicMock())
-        monkeypatch.setattr(
-            "prefect.engine.flow_runner.FlowRunner._heartbeat", heartbeat
-        )
-
-        class BadTaskRunner(TaskRunner):
-            def get_task_run_state(self, *args, **kwargs):
-                raise RuntimeError("I represent bad code in the task runner.")
-
-        flow = prefect.Flow(name="test", tasks=[prefect.Task()])
-        res = FlowRunner(flow=flow, task_runner_cls=BadTaskRunner).run(
-            executor=executor
-        )
-        assert res.is_failed()
-        assert glob_dict.get("was_called") is True
-
-    @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
-    def test_all_task_runners_have_heartbeats_within_flows(self, executor, monkeypatch):
-        """Because MagicMock()'s don't persist across multiple processes / threads, this test
-        can only test the local and synchronous executors"""
-        heartbeat = MagicMock()
-        flow = prefect.Flow(tasks=[prefect.Task(), prefect.Task(), prefect.Task()])
-        monkeypatch.setattr("prefect.engine.flow_runner.Client", MagicMock())
-        monkeypatch.setattr("prefect.engine.task_runner.Client", MagicMock())
-        monkeypatch.setattr(
-            "prefect.engine.task_runner.TaskRunner._heartbeat", heartbeat
-        )
-        res = FlowRunner(flow=flow).run(executor=executor, state=Pending())
-        assert heartbeat.call_count == 3
+        assert res.is_successful()
+        assert client.update_task_run_heartbeat.call_args[0][0] == "1234"
 
 
 def test_client_is_always_called_even_during_failures(monkeypatch):
