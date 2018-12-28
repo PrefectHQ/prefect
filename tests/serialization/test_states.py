@@ -172,3 +172,13 @@ def test_result_raises_error_on_load_if_not_valid_json():
     serialized["result"]["x"]["y"]["z"] = lambda: 1
     with pytest.raises(marshmallow.ValidationError):
         StateSchema().load(serialized)
+
+
+def test_deserialize_json_without_version():
+    deserialized = StateSchema().load(
+        {"type": "Running", "message": "test", "result": 1}
+    )
+    assert type(deserialized) is state.Running
+    assert deserialized.is_running()
+    assert deserialized.message == "test"
+    assert deserialized.result == 1
