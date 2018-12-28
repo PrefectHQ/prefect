@@ -16,13 +16,6 @@ from prefect.core.edge import Edge
 StateList = Union["prefect.engine.state.State", List["prefect.engine.state.State"]]
 
 
-class HeartbeatTimer(threading.Timer):
-    def run(self):
-        while not self.finished.is_set():
-            self.function()
-            self.finished.wait(self.interval)
-
-
 def run_with_heartbeat(
     runner_method: Callable[..., "prefect.engine.state.State"]
 ) -> Callable[..., "prefect.engine.state.State"]:
@@ -37,9 +30,10 @@ def run_with_heartbeat(
     ) -> "prefect.engine.state.State":
         try:
             if prefect.config.get("prefect_cloud", None):
-                timer = HeartbeatTimer(
+                timer = threading.Timer(
                     prefect.config.cloud.heartbeat_interval, self._heartbeat
                 )
+                self._heartbeat()
                 timer.start()
             return runner_method(self, *args, **kwargs)
         except Exception as exc:
