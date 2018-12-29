@@ -22,11 +22,11 @@ container, the container in turn runs the `LocalEnvironment`.
 """
 
 import base64
+import filecmp
 import json
 import logging
 import os
-import shlex
-import subprocess
+import shutil
 import tempfile
 import textwrap
 import uuid
@@ -219,6 +219,13 @@ class ContainerEnvironment(Environment):
         that will be installed on build of the Docker container
         - image_name (str, optional): A name for the image (usually provided by `build()`)
         - image_tag (str, optional): A tag for the image (usually provided by `build()`)
+        - env_vars (dict, optional): an optional dictionary mapping environment variables to their values (e.g., `{SHELL="bash"}`) to be
+            included in the Dockerfile
+        - files (dict, optional): an optional dictionary mapping local file names to file names in the Docker container; file names should be
+            _absolute paths_.  Note that the COPY directive will be used for these files, so please read the associated Docker documentation.
+
+    Raises:
+        - ValueError: if provided `files` contain non-absolute paths
     """
 
     def __init__(
@@ -228,12 +235,25 @@ class ContainerEnvironment(Environment):
         python_dependencies: list = None,
         image_name: str = None,
         image_tag: str = None,
+        env_vars: dict = None,
+        files: dict = None,
     ) -> None:
         self.base_image = base_image
         self.registry_url = registry_url
         self.image_name = image_name
         self.image_tag = image_tag
         self.python_dependencies = python_dependencies or []
+        self.env_vars = env_vars or {}
+        self.files = files or {}
+        not_absolute = [
+            file_path for file_path in self.files if not os.path.isabs(file_path)
+        ]
+        if not_absolute:
+            raise ValueError(
+                "Provided paths {} are not absolute file paths, please provide absolute paths only.".format(
+                    ", ".join(not_absolute)
+                )
+            )
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
@@ -345,6 +365,8 @@ class ContainerEnvironment(Environment):
         In order for the docker python library to build a container it needs a
         Dockerfile that it can use to define the container. This function takes the
         image and python_dependencies then writes them to a file called Dockerfile.
+        
+        *Note*: if `files` are added to this container, they will be copied to this directory as well.
 
         Args:
             - flow (Flow): the flow that the container will run
@@ -362,6 +384,27 @@ class ContainerEnvironment(Environment):
             if self.python_dependencies:
                 for dependency in self.python_dependencies:
                     pip_installs += "RUN pip install {}\n".format(dependency)
+
+            env_vars = ""
+            if self.env_vars:
+                white_space = " " * 20
+                env_vars = "ENV " + " \ \n{}".format(white_space).join(
+                    "{k}={v}".format(k=k, v=v) for k, v in self.env_vars.items()
+                )
+
+            copy_files = ""
+            if self.files:
+                for src, dest in self.files.items():
+                    fname = os.path.basename(src)
+                    if os.path.exists(fname) and filecmp.cmp(src, fname) is False:
+                        raise ValueError(
+                            "File {fname} already exists in {directory}".format(
+                                fname=fname, directory=directory
+                            )
+                        )
+                    else:
+                        shutil.copy2(src, fname)
+                    copy_files += "COPY {fname} {dest}\n".format(fname=fname, dest=dest)
 
             # Create a LocalEnvironment to run the flow
             # the local environment will be placed in the container and run when the container
@@ -388,15 +431,19 @@ class ContainerEnvironment(Environment):
                 RUN mkdir /root/.prefect/
                 COPY flow_env.prefect /root/.prefect/flow_env.prefect
                 COPY config.toml /root/.prefect/config.toml
+                {copy_files}
 
                 ENV PREFECT_ENVIRONMENT_FILE="/root/.prefect/flow_env.prefect"
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
+                {env_vars}
 
                 RUN git clone https://{access_token}@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
                 """.format(
                     base_image=self.base_image,
                     pip_installs=pip_installs,
+                    copy_files=copy_files,
+                    env_vars=env_vars,
                     access_token=os.getenv("PERSONAL_ACCESS_TOKEN"),
                 )
             )
