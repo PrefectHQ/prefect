@@ -8,7 +8,6 @@ from prefect.utilities.serialization import (
     OneOfSchema,
     VersionedSchema,
     to_qualified_name,
-    DateTime,
     version,
 )
 
@@ -18,8 +17,8 @@ class IntervalScheduleSchema(VersionedSchema):
     class Meta:
         object_class = prefect.schedules.IntervalSchedule
 
-    start_date = DateTime(required=True)
-    end_date = DateTime(allow_none=True)
+    start_date = fields.DateTime(required=True)
+    end_date = fields.DateTime(allow_none=True)
     interval = fields.TimeDelta(precision="microseconds", required=True)
 
 
@@ -28,8 +27,8 @@ class CronScheduleSchema(VersionedSchema):
     class Meta:
         object_class = prefect.schedules.CronSchedule
 
-    start_date = DateTime(allow_none=True)
-    end_date = DateTime(allow_none=True)
+    start_date = fields.DateTime(allow_none=True)
+    end_date = fields.DateTime(allow_none=True)
     cron = fields.String(required=True)
 
 

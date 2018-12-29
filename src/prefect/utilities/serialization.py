@@ -234,29 +234,6 @@ class OneOfSchema(marshmallow_oneofschema.OneOfSchema):
         return super()._load(data=data, partial=partial, unknown=unknown)
 
 
-class DateTime(fields.DateTime):
-    """
-    Replacement for the built-in Marshmallow DateTime field that is timezone-aware but
-    can be used with non-timezone-aware targets.
-
-    All serialization takes place after conversion to UTC, and all deserialization returns
-    a tz-aware datetime.
-
-    Marshmallow would implicitly assume DT are UTC, but not apply any TZ logic.
-    """
-
-    def _serialize(self, value, attr, obj, **kwargs):
-        if value is not None:
-            value = pendulum.instance(value).in_tz("utc").naive()
-        return super()._serialize(value, attr, obj, **kwargs)
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        value = super()._deserialize(value, attr, data, **kwargs)
-        if value is not None:
-            value = pendulum.instance(value).in_tz("utc")
-        return value
-
-
 class Bytes(fields.Field):
     """
     A Marshmallow Field that serializes bytes to a base64-encoded string, and deserializes
