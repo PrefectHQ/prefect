@@ -255,7 +255,7 @@ class TaskRunner(Runner):
 
                 # check if any upstream tasks skipped (and if we need to skip)
                 state = self.check_upstream_skipped(
-                    state, upstream_states_set=upstream_states_set
+                    state, upstream_states_set=upstream_states_set, mapped=mapped
                 )
 
                 # check if the task's trigger passes
@@ -380,7 +380,7 @@ class TaskRunner(Runner):
 
     @call_state_handlers
     def check_upstream_skipped(
-        self, state: State, upstream_states_set: Set[State]
+        self, state: State, upstream_states_set: Set[State], mapped: bool = False
     ) -> State:
         """
         Checks if any of the upstream tasks have skipped.
@@ -388,12 +388,16 @@ class TaskRunner(Runner):
         Args:
             - state (State): the current state of this task
             - upstream_states_set: a set containing the states of any upstream tasks.
+            - mapped (bool): whether this task represents a parent mapped task,
+                in which case this check will be skipped
 
         Returns:
             - State: the state of the task after running the check
         """
-        if self.task.skip_on_upstream_skip and any(
-            s.is_skipped() for s in upstream_states_set
+        if (
+            not mapped
+            and self.task.skip_on_upstream_skip
+            and any(s.is_skipped() for s in upstream_states_set)
         ):
             raise ENDRUN(
                 state=Skipped(
@@ -581,7 +585,9 @@ class TaskRunner(Runner):
 
         ## no inputs provided
         if not mapped_upstreams:
-            raise ENDRUN(state=Skipped(message="No inputs provided to map over."))
+            raise ENDRUN(
+                state=Skipped(message="No inputs provided to map over.", result=[])
+            )
 
         iterable_values = []
         for value in mapped_upstreams:
@@ -594,7 +600,9 @@ class TaskRunner(Runner):
 
         ## check that no upstream values are empty
         if any([len(v) == 0 for v in iterable_values]):
-            raise ENDRUN(state=Skipped(message="Empty inputs provided to map over."))
+            raise ENDRUN(
+                state=Skipped(message="Empty inputs provided to map over.", result=[])
+            )
 
         return state
 
