@@ -1,15 +1,12 @@
 import uuid
-import datetime
 import json
 
 import marshmallow
-import pendulum
 import pytest
 
 from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
     Bytes,
-    DateTime,
     JSONCompatible,
     FunctionReference,
     Nested,
@@ -73,34 +70,6 @@ class TestJSONCompatibleField:
     def test_validate_on_load(self):
         with pytest.raises(marshmallow.ValidationError):
             self.Schema().load({"j": lambda: 1})
-
-
-class TestDateTimeField:
-    class Schema(marshmallow.Schema):
-        dt = DateTime()
-        dt_none = DateTime(allow_none=True)
-
-    def test_datetime_serialize(self):
-
-        dt = pendulum.datetime(2020, 1, 1, 6, tz="EST")
-        serialized = self.Schema().dump(dict(dt=dt))
-        assert serialized["dt"] != str(dt)
-        assert serialized["dt"] == str(dt.in_tz("utc"))
-
-    def test_datetime_deserialize(self):
-
-        dt = datetime.datetime(2020, 1, 1, 6)
-        serialized = self.Schema().load(dict(dt=str(dt)))
-        assert isinstance(serialized["dt"], pendulum.DateTime)
-        assert serialized["dt"].tz == pendulum.tz.UTC
-
-    def test_serialize_datetime_none(self):
-        serialized = self.Schema().dump(dict(dt=None))
-        assert serialized["dt"] is None
-
-    def test_deserialize_datetime_none(self):
-        deserialized = self.Schema().load(dict(dt_none=None))
-        assert deserialized["dt_none"] is None
 
 
 class TestBytesField:
