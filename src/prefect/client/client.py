@@ -284,7 +284,7 @@ class Client:
         self, flow: "Flow", project_id: str, set_schedule_active: bool = False
     ) -> GraphQLResult:
         """
-        Push a new Flow to the database.
+        Push a new Flow to Prefect Cloud
 
         Args:
             - flow (Flow): the prefect Flow to insert into the database
@@ -382,16 +382,16 @@ class Client:
         query = {
             "query": {
                 with_args("flow_run_by_pk", {"id": flow_run_id}): {
-                    "parameters": True,
-                    "version": True,
-                    "current_state": {"serialized_state"},
+                    "parameters",
+                    "version",
+                    "serialized_state",
                 }
             }
         }
         result = self.graphql(parse_graphql(query)).flow_run_by_pk  # type: ignore
         if result is None:
             raise ValueError('Flow run id "{}" not found.'.format(flow_run_id))
-        serialized_state = result.current_state.serialized_state
+        serialized_state = result.serialized_state
         state = prefect.engine.state.State.deserialize(serialized_state, result_handler)
         result.state = state
         return result
@@ -491,8 +491,7 @@ class Client:
         result_handler: "ResultHandler" = None,
     ) -> GraphQLResult:
         """
-        Retrieves version and current state information for the given task run. If this task run is not present in the database (which could
-        occur if the `map_index` is non-zero), it will be created with a `Pending` state.
+        Retrieves version and current state information for the given task run.
 
         Args:
             - flow_run_id (str): the id of the flow run that this task run lives in
@@ -520,22 +519,15 @@ class Client:
                             "mapIndex": map_index,
                         }
                     },
-                ): {
-                    "task_run": {
-                        "id": True,
-                        "version": True,
-                        "current_state": {"serialized_state"},
-                    }
-                }
+                ): {"task_run": {"id", "version", "serialized_state"}}
             }
         }
         result = self.graphql(  # type: ignore
             parse_graphql(mutation)
         ).getOrCreateTaskRun.task_run
 
-        serialized_state = result.current_state.serialized_state
         state = prefect.engine.state.State.deserialize(
-            serialized_state, result_handler=result_handler
+            result.serialized_state, result_handler=result_handler
         )
         result.state = state
         return result
@@ -549,7 +541,7 @@ class Client:
         result_handler: "ResultHandler" = None,
     ) -> GraphQLResult:
         """
-        Sets new state for a task run in the database.
+        Sets new state for a task run.
 
         Args:
             - task_run_id (str): the id of the task run to set state for
