@@ -70,6 +70,7 @@ class TestContainerEnvironment:
                 dockerfile = f.read()
 
         assert "FROM python:3.6" in dockerfile
+        assert " FROM python:3.6" not in dockerfile
         assert "RUN pip install ./prefect" in dockerfile
         assert "RUN mkdir /root/.prefect/" in dockerfile
         assert "COPY config.toml /root/.prefect/config.toml" in dockerfile
@@ -78,18 +79,18 @@ class TestContainerEnvironment:
         container = ContainerEnvironment(
             base_image="python:3.6",
             registry_url="",
-            env_vars=dict(
-                X=2, Y='"/a/quoted/string/path"', Z="/an/unquoted/string/path"
-            ),
+            env_vars=dict(X=2, Y='"/a/quoted/string/path"'),
         )
         with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
             container.create_dockerfile(Flow(), directory=tmp)
             with open(os.path.join(tmp, "Dockerfile"), "r") as f:
                 dockerfile = f.read()
 
-        assert "ENV X=2" in dockerfile
-        assert 'ENV Y="/a/quoted/string/path"' in dockerfile
-        assert "ENV Z=/an/unquoted/string/path" in dockerfile
+        var_orders = [
+            'X=2 \\ \n    Y="/a/quoted/string/path"',
+            'Y="/a/quoted/string/path" \\ \n    X=2',
+        ]
+        assert any(["ENV {}".format(v) in dockerfile for v in var_orders])
 
     def test_create_dockerfile_with_copy_files(self):
         with tempfile.NamedTemporaryFile() as t1, tempfile.NamedTemporaryFile() as t2:
