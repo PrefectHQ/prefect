@@ -340,14 +340,12 @@ def test_get_flow_run_info(monkeypatch):
     "flow_run_by_pk": {
         "version": 0,
         "parameters": {},
-        "current_state": {
-            "serialized_state": {
-                "type": "Pending",
-                "result": 42,
-                "message": null,
-                "__version__": "0.3.3+309.gf1db024",
-                "cached_inputs": "null"
-            }
+        "serialized_state": {
+            "type": "Pending",
+            "result": 42,
+            "message": null,
+            "__version__": "0.3.3+309.gf1db024",
+            "cached_inputs": "null"
         }
     }
 }
@@ -426,14 +424,12 @@ def test_get_task_run_info(monkeypatch):
         "task_run": {
             "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
             "version": 0,
-            "current_state": {
-                "serialized_state": {
-                    "type": "Pending",
-                    "result": "42",
-                    "message": null,
-                    "__version__": "0.3.3+310.gd19b9b7.dirty",
-                    "cached_inputs": "null"
-                }
+            "serialized_state": {
+                "type": "Pending",
+                "result": "42",
+                "message": null,
+                "__version__": "0.3.3+310.gd19b9b7.dirty",
+                "cached_inputs": "null"
             }
         }
     }
@@ -535,14 +531,12 @@ class TestResultHandlerDeserialization:
     {
         "flow_run_by_pk": {
             "version": 0,
-            "current_state": {
-                "serialized_state": {
-                    "type": "Pending",
-                    "result": null,
-                    "message": null,
-                    "__version__": "0.3.3+309.gf1db024",
-                    "cached_inputs": "null"
-                }
+            "serialized_state": {
+                "type": "Pending",
+                "result": null,
+                "message": null,
+                "__version__": "0.3.3+309.gf1db024",
+                "cached_inputs": "null"
             }
         }
     }
@@ -574,14 +568,12 @@ class TestResultHandlerDeserialization:
             "task_run": {
                 "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
                 "version": 0,
-                "current_state": {
-                    "serialized_state": {
-                        "type": "Pending",
-                        "result": null,
-                        "message": null,
-                        "__version__": "0.3.3+310.gd19b9b7.dirty",
-                        "cached_inputs": "null"
-                    }
+                "serialized_state": {
+                    "type": "Pending",
+                    "result": null,
+                    "message": null,
+                    "__version__": "0.3.3+310.gd19b9b7.dirty",
+                    "cached_inputs": "null"
                 }
             }
         }
@@ -613,14 +605,12 @@ class TestResultHandlerDeserialization:
     {
         "flow_run_by_pk": {
             "version": 0,
-            "current_state": {
-                "serialized_state": {
-                    "type": "Pending",
-                    "result": 42,
-                    "message": null,
-                    "__version__": "0.3.3+309.gf1db024",
-                    "cached_inputs": "null"
-                }
+            "serialized_state": {
+                "type": "Pending",
+                "result": 42,
+                "message": null,
+                "__version__": "0.3.3+309.gf1db024",
+                "cached_inputs": "null"
             }
         }
     }
@@ -650,14 +640,12 @@ class TestResultHandlerDeserialization:
             "task_run": {
                 "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
                 "version": 0,
-                "current_state": {
-                    "serialized_state": {
-                        "type": "Pending",
-                        "result": 42,
-                        "message": null,
-                        "__version__": "0.3.3+310.gd19b9b7.dirty",
-                        "cached_inputs": "null"
-                    }
+                "serialized_state": {
+                    "type": "Pending",
+                    "result": 42,
+                    "message": null,
+                    "__version__": "0.3.3+310.gd19b9b7.dirty",
+                    "cached_inputs": "null"
                 }
             }
         }
