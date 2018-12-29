@@ -181,6 +181,31 @@ def test_map_failures_dont_leak_out(executor):
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
+def test_map_skips_dont_leak_out(executor):
+    ll = ListTask()
+
+    @task
+    def add(x):
+        if x == 1:
+            raise prefect.engine.signals.SKIP("One is no good")
+        else:
+            return x + 1
+
+    with Flow() as f:
+        res = add.map(add.map(ll))
+
+    s = f.run(return_tasks=f.tasks, executor=executor)
+    slist = s.result[res]
+    assert s.is_successful()
+    assert isinstance(slist, list)
+    assert len(slist) == 3
+    assert [r.result for r in slist][1:] == [4, 5]
+    assert isinstance(slist[0], prefect.engine.state.Skipped)
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_skips_if_upstream_empty(executor):
     @task
     def make_list():
