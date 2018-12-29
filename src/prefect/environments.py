@@ -22,11 +22,11 @@ container, the container in turn runs the `LocalEnvironment`.
 """
 
 import base64
+import filecmp
 import json
 import logging
 import os
-import shlex
-import subprocess
+import shutil
 import tempfile
 import textwrap
 import uuid
@@ -365,6 +365,8 @@ class ContainerEnvironment(Environment):
         In order for the docker python library to build a container it needs a
         Dockerfile that it can use to define the container. This function takes the
         image and python_dependencies then writes them to a file called Dockerfile.
+        
+        *Note*: if `files` are added to this container, they will be copied to this directory as well.
 
         Args:
             - flow (Flow): the flow that the container will run
@@ -391,7 +393,16 @@ class ContainerEnvironment(Environment):
             copy_files = ""
             if self.files:
                 for src, dest in self.files.items():
-                    copy_files += "COPY {src} {dest}\n".format(src=src, dest=dest)
+                    fname = os.path.basename(src)
+                    if os.path.exists(fname) and filecmp.cmp(src, fname) is False:
+                        raise ValueError(
+                            "File {fname} already exists in {directory}".format(
+                                fname=fname, directory=directory
+                            )
+                        )
+                    else:
+                        shutil.copy2(src, fname)
+                    copy_files += "COPY {fname} {dest}\n".format(fname=fname, dest=dest)
 
             # Create a LocalEnvironment to run the flow
             # the local environment will be placed in the container and run when the container
