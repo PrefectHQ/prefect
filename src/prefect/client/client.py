@@ -4,7 +4,7 @@ import datetime
 import json
 import logging
 import os
-from typing import TYPE_CHECKING, Optional, Union
+from typing import Any, TYPE_CHECKING, Optional, Union
 
 import prefect
 from prefect.utilities.graphql import (
@@ -125,7 +125,7 @@ class Client:
         else:
             return {}
 
-    def graphql(self, query: str, **variables: Union[bool, dict, str]) -> dict:
+    def graphql(self, query: str, **variables: Union[bool, dict, str]) -> GraphQLResult:
         """
         Convenience function for running queries against the Prefect GraphQL API
 
@@ -587,3 +587,24 @@ class Client:
         return self.graphql(  # type: ignore
             parse_graphql(mutation), state=serialized_state
         ).setTaskRunState.task_run
+
+    def set_secret(self, name: str, value: Any) -> GraphQLResult:
+        """
+        Set a secret with the given name and value.
+
+        Args:
+            - name (str): the name of the secret; used for retrieving the secret
+                during task runs
+            - value (Any, optional): the value of the secret
+
+        Returns:
+            - GraphQLResult: the resulting GraphQL result from the mutation
+        """
+        mutation = {
+            "mutation": {
+                with_args(
+                    "setSecret", {"input": dict(name=name, value=value)}
+                ): "success"
+            }
+        }
+        return self.graphql(parse_graphql(mutation))
