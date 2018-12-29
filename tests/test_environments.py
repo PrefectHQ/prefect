@@ -57,13 +57,78 @@ class TestContainerEnvironment:
     def test_build_image_process(self):
 
         container = ContainerEnvironment(
-            base_image="python:3.6", tag="tag", registry_url=""
+            base_image="python:3.6", image_tag="tag", registry_url=""
         )
         image = container.build(Flow())
         assert image
 
-        # Need to test running stuff in container, however circleci won't be able to build
-        # a container
+    def test_basic_create_dockerfile(self):
+        container = ContainerEnvironment(base_image="python:3.6", registry_url="")
+        with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
+            container.create_dockerfile(Flow(), directory=tmp)
+            with open(os.path.join(tmp, "Dockerfile"), "r") as f:
+                dockerfile = f.read()
+
+        assert "FROM python:3.6" in dockerfile
+        assert " FROM python:3.6" not in dockerfile
+        assert "RUN pip install ./prefect" in dockerfile
+        assert "RUN mkdir /root/.prefect/" in dockerfile
+        assert "COPY config.toml /root/.prefect/config.toml" in dockerfile
+
+    def test_create_dockerfile_with_environment_variables(self):
+        container = ContainerEnvironment(
+            base_image="python:3.6",
+            registry_url="",
+            env_vars=dict(X=2, Y='"/a/quoted/string/path"'),
+        )
+        with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
+            container.create_dockerfile(Flow(), directory=tmp)
+            with open(os.path.join(tmp, "Dockerfile"), "r") as f:
+                dockerfile = f.read()
+
+        var_orders = [
+            'X=2 \\ \n    Y="/a/quoted/string/path"',
+            'Y="/a/quoted/string/path" \\ \n    X=2',
+        ]
+        assert any(["ENV {}".format(v) in dockerfile for v in var_orders])
+
+    def test_create_dockerfile_with_copy_files(self):
+        with tempfile.NamedTemporaryFile() as t1, tempfile.NamedTemporaryFile() as t2:
+            container = ContainerEnvironment(
+                base_image="python:3.6",
+                registry_url="",
+                files={t1.name: "/root/dockerconfig", t2.name: "./.secret_file"},
+            )
+
+            base1, base2 = os.path.basename(t1.name), os.path.basename(t2.name)
+
+            with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
+                container.create_dockerfile(Flow(), directory=tmp)
+                with open(os.path.join(tmp, "Dockerfile"), "r") as f:
+                    dockerfile = f.read()
+
+        assert "COPY {} /root/dockerconfig".format(base1) in dockerfile
+        assert "COPY {} ./.secret_file".format(base2) in dockerfile
+
+    def test_init_with_copy_files_raises_informative_error_if_not_absolute(self):
+        with pytest.raises(ValueError) as exc:
+            container = ContainerEnvironment(
+                base_image="python:3.6",
+                registry_url="",
+                files={
+                    ".secret_file": "./.secret_file",
+                    "~/.prefect": ".prefect",
+                    "/def/abs": "/def/abs",
+                },
+            )
+
+        file_list = [".secret_file, ~/.prefect", "~/.prefect, .secret_file"]
+        assert any(
+            [
+                "{} are not absolute file paths".format(fs) in str(exc.value)
+                for fs in file_list
+            ]
+        )
 
 
 #################################
