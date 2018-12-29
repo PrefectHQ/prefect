@@ -387,8 +387,10 @@ class ContainerEnvironment(Environment):
 
             env_vars = ""
             if self.env_vars:
-                for var, val in self.env_vars.items():
-                    env_vars += "ENV {var}={val}\n".format(var=var, val=val)
+                white_space = " " * 20
+                env_vars = "ENV " + " \ \n{}".format(white_space).join(
+                    "{k}={v}".format(k=k, v=v) for k, v in self.env_vars.items()
+                )
 
             copy_files = ""
             if self.files:
