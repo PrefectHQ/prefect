@@ -595,7 +595,7 @@ class Client:
         Args:
             - name (str): the name of the secret; used for retrieving the secret
                 during task runs
-            - value (Any, optional): the value of the secret
+            - value (Any): the value of the secret
 
         Returns:
             - GraphQLResult: the resulting GraphQL result from the mutation
