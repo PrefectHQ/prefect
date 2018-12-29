@@ -92,25 +92,24 @@ class TestContainerEnvironment:
         assert "ENV Z=/an/unquoted/string/path" in dockerfile
 
     def test_create_dockerfile_with_copy_files(self):
-        container = ContainerEnvironment(
-            base_image="python:3.6",
-            registry_url="",
-            files={
-                "/my/config": "/root/dockerconfig",
-                "/.secret_file": "./.secret_file",
-            },
-        )
-        with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
-            container.create_dockerfile(Flow(), directory=tmp)
-            with open(os.path.join(tmp, "Dockerfile"), "r") as f:
-                dockerfile = f.read()
+        with tempfile.NamedTemporaryFile() as t1, tempfile.NamedTemporaryFile() as t2:
+            container = ContainerEnvironment(
+                base_image="python:3.6",
+                registry_url="",
+                files={t1.name: "/root/dockerconfig", t2.name: "./.secret_file"},
+            )
 
-        assert "COPY /my/config /root/dockerconfig" in dockerfile
-        assert "COPY /.secret_file ./.secret_file" in dockerfile
+            base1, base2 = os.path.basename(t1.name), os.path.basename(t2.name)
 
-    def test_create_dockerfile_with_copy_files_raises_informative_error_if_not_absolute(
-        self
-    ):
+            with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
+                container.create_dockerfile(Flow(), directory=tmp)
+                with open(os.path.join(tmp, "Dockerfile"), "r") as f:
+                    dockerfile = f.read()
+
+        assert "COPY {} /root/dockerconfig".format(base1) in dockerfile
+        assert "COPY {} ./.secret_file".format(base2) in dockerfile
+
+    def test_init_with_copy_files_raises_informative_error_if_not_absolute(self):
         with pytest.raises(ValueError) as exc:
             container = ContainerEnvironment(
                 base_image="python:3.6",
@@ -122,10 +121,13 @@ class TestContainerEnvironment:
                 },
             )
 
-        assert ".secret_file, ~/.prefect are not absolute file paths" in str(exc.value)
-
-        # Need to test running stuff in container, however circleci won't be able to build
-        # a container
+        file_list = [".secret_file, ~/.prefect", "~/.prefect, .secret_file"]
+        assert any(
+            [
+                "{} are not absolute file paths".format(fs) in str(exc.value)
+                for fs in file_list
+            ]
+        )
 
 
 #################################
