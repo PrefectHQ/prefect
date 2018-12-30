@@ -365,7 +365,7 @@ class ContainerEnvironment(Environment):
         In order for the docker python library to build a container it needs a
         Dockerfile that it can use to define the container. This function takes the
         image and python_dependencies then writes them to a file called Dockerfile.
-        
+
         *Note*: if `files` are added to this container, they will be copied to this directory as well.
 
         Args:
@@ -396,14 +396,18 @@ class ContainerEnvironment(Environment):
             if self.files:
                 for src, dest in self.files.items():
                     fname = os.path.basename(src)
-                    if os.path.exists(fname) and filecmp.cmp(src, fname) is False:
+                    full_fname = os.path.join(directory, fname)
+                    if (
+                        os.path.exists(full_fname)
+                        and filecmp.cmp(src, full_fname) is False
+                    ):
                         raise ValueError(
                             "File {fname} already exists in {directory}".format(
-                                fname=fname, directory=directory
+                                fname=full_fname, directory=directory
                             )
                         )
                     else:
-                        shutil.copy2(src, fname)
+                        shutil.copy2(src, full_fname)
                     copy_files += "COPY {fname} {dest}\n".format(fname=fname, dest=dest)
 
             # Create a LocalEnvironment to run the flow
