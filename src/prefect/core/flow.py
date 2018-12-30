@@ -979,8 +979,11 @@ class Flow:
                 assert isinstance(flow_state.result, dict)
                 assert isinstance(flow_state.result[e.downstream_task], list)
                 for map_index, _ in enumerate(flow_state.result[e.downstream_task]):
+                    upstream_id = str(id(e.upstream_task))
+                    if any(edge.mapped for edge in self.edges_to(e.upstream_task)):
+                        upstream_id += str(map_index)
                     graph.edge(
-                        str(id(e.upstream_task)),
+                        upstream_id,
                         str(id(e.downstream_task)) + str(map_index),
                         e.key,
                         style=style,
