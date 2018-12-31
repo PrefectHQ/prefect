@@ -174,7 +174,7 @@ class CloudFlowRunner(FlowRunner):
         state_handlers: Iterable[Callable] = None,
     ) -> None:
         self.flow = flow
-        self.task_runner_cls = task_runner_cls or TaskRunner
+        self.task_runner_cls = task_runner_cls or CloudTaskRunner
         self.client = Client()
         super().__init__(
             flow=flow,

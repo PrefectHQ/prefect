@@ -875,7 +875,12 @@ class Flow:
         Returns:
             - State of the flow after it is run resulting from it's return tasks
         """
-        runner = prefect.engine.flow_runner.FlowRunner(flow=self)  # type: ignore
+        if prefect.config.get("prefect_cloud", False) is True:
+            runner_cls = prefect.engine.cloud_runners.CloudFlowRunner  # type: ignore
+        else:
+            runner_cls = prefect.engine.flow_runner.FlowRunner  # type: ignore
+
+        runner = runner_cls(flow=self)
         parameters = parameters or {}
         unknown_params = [
             p for p in parameters if p not in self.parameters(names_only=True)
