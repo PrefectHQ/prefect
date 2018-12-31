@@ -31,9 +31,8 @@ of task execution.
 import sys
 
 from warnings import warn as _warn
-from importlib import import_module as _import_module
 
-import prefect as _prefect
+import prefect
 from prefect.engine.executors.base import Executor
 from prefect.engine.executors.local import LocalExecutor
 from prefect.engine.executors.sync import SynchronousExecutor
@@ -42,14 +41,12 @@ if sys.version_info >= (3, 5):
     from prefect.engine.executors.dask import DaskExecutor
 
 try:
-    cfg_exec = _prefect.config.engine.executor
-    *module, cls_name = cfg_exec.split(".")
-    module = _import_module(".".join(module))
-    DEFAULT_EXECUTOR = getattr(module, cls_name)()
+    cfg_exec = prefect.config.engine.executor
+    DEFAULT_EXECUTOR = prefect.utilities.serialization.from_qualified_name(cfg_exec)()
 except:
     _warn(
         "Could not import {}, using prefect.engine.executors.LocalExecutor instead.".format(
-            _prefect.config.engine.executor
+            prefect.config.engine.executor
         )
     )
     DEFAULT_EXECUTOR = LocalExecutor()
