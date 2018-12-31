@@ -71,6 +71,9 @@ class Runner:
         self.state_handlers = state_handlers or []
         self.logger = logging.get_logger(type(self).__name__)
 
+    def _heartbeat(self) -> None:
+        pass
+
     def initialize_run(
         self, state: Optional[State], context: Dict[str, Any]
     ) -> Tuple[State, Dict[str, Any]]:
