@@ -41,8 +41,10 @@ if sys.version_info >= (3, 5):
     from prefect.engine.executors.dask import DaskExecutor
 
 try:
-    cfg_exec = prefect.config.engine.executor
-    DEFAULT_EXECUTOR = prefect.utilities.serialization.from_qualified_name(cfg_exec)()
+    cfg_exec = prefect.utilities.serialization.from_qualified_name(
+        prefect.config.engine.executor
+    )
+    DEFAULT_EXECUTOR = cfg_exec()  # type: Executor
 except:
     _warn(
         "Could not import {}, using prefect.engine.executors.LocalExecutor instead.".format(
