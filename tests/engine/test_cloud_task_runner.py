@@ -88,7 +88,28 @@ def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypa
     ## an ENDRUN will cause the TaskRunner to return the most recently computed state
     res = CloudTaskRunner(task=task).run()
     assert get_task_run_info.called
-    assert res is None
+    assert res.is_failed()
+    assert isinstance(res.result, SyntaxError)
+
+
+def test_task_runner_raises_endrun_with_correct_state_if_client_cant_receive_state_updates(
+    monkeypatch
+):
+    task = prefect.Task(name="test")
+    get_task_run_info = MagicMock(side_effect=SyntaxError)
+    set_task_run_state = MagicMock()
+    client = MagicMock(
+        get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+    )
+
+    ## an ENDRUN will cause the TaskRunner to return the most recently computed state
+    state = Pending(message="unique message", result=42)
+    res = CloudTaskRunner(task=task).run(state=state)
+    assert get_task_run_info.called
+    assert res is state
 
 
 @pytest.mark.parametrize(

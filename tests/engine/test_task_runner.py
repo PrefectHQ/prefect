@@ -1263,3 +1263,12 @@ def test_all_pipeline_method_steps_are_called(mapped):
     else:
         for method in unmapped_pipeline:
             assert getattr(runner, method).call_count == 1
+
+
+def test_endrun_raised_in_initialize_is_caught_correctly():
+    class BadInitializeRunner(TaskRunner):
+        def initialize_run(self, *args, **kwargs):
+            raise ENDRUN(state=Pending())
+
+    res = BadInitializeRunner(Task()).run()
+    assert res.is_pending()
