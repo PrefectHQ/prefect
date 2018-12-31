@@ -62,7 +62,7 @@ class CloudTaskRunner(TaskRunner):
             task_run_id = self.task_run_id
             self.client.update_task_run_heartbeat(task_run_id)
         except:
-            warnings.warn("Heartbeat failed for {}".format(self.task.name))
+            warnings.warn("Heartbeat failed for Task '{}'".format(self.task.name))
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -195,8 +195,11 @@ class CloudFlowRunner(FlowRunner):
         )
 
     def _heartbeat(self) -> None:
-        flow_run_id = prefect.context.get("flow_run_id")
-        self.client.update_flow_run_heartbeat(flow_run_id)
+        try:
+            flow_run_id = prefect.context.get("flow_run_id")
+            self.client.update_flow_run_heartbeat(flow_run_id)
+        except:
+            warnings.warn("Heartbeat failed for Flow '{}'".format(self.flow.name))
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -216,12 +219,16 @@ class CloudFlowRunner(FlowRunner):
         flow_run_id = prefect.context.get("flow_run_id", None)
         version = prefect.context.get("flow_run_version")
 
-        res = self.client.set_flow_run_state(
-            flow_run_id=flow_run_id,
-            version=version,
-            state=new_state,
-            result_handler=self.flow.result_handler,
-        )
+        try:
+            res = self.client.set_flow_run_state(
+                flow_run_id=flow_run_id,
+                version=version,
+                state=new_state,
+                result_handler=self.flow.result_handler,
+            )
+        except Exception as exc:
+            raise ENDRUN(state=new_state)
+
         prefect.context.update(flow_run_version=res.version)  # type: ignore
 
         return new_state
@@ -240,10 +247,14 @@ class CloudFlowRunner(FlowRunner):
             - tuple: a tuple of the updated state and context objects
         """
 
-        flow_run_info = self.client.get_flow_run_info(
-            flow_run_id=prefect.context.get("flow_run_id", ""),
-            result_handler=self.flow.result_handler,
-        )
+        try:
+            flow_run_info = self.client.get_flow_run_info(
+                flow_run_id=prefect.context.get("flow_run_id", ""),
+                result_handler=self.flow.result_handler,
+            )
+        except Exception as exc:
+            raise ENDRUN(state=state)
+
         context.update(flow_run_version=flow_run_info.version)  # type: ignore
         # if state is set, keep it; otherwise load from db
         state = state or flow_run_info.state  # type: ignore

@@ -51,6 +51,40 @@ def test_flow_runner_calls_client_the_approriate_number_of_times(monkeypatch):
     assert states == [Running(), Success(result=dict())]
 
 
+def test_flow_runner_raises_endrun_if_client_cant_update_state(monkeypatch):
+    flow = prefect.Flow(name="test")
+    get_flow_run_info = MagicMock(return_value=MagicMock(state=None))
+    set_flow_run_state = MagicMock(side_effect=SyntaxError)
+    client = MagicMock(
+        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+    )
+
+    ## if ENDRUN is raised, res will be last state seen
+    res = CloudFlowRunner(flow=flow).run()
+    assert set_flow_run_state.called
+    assert res.is_running()
+
+
+def test_flow_runner_raises_endrun_if_client_cant_retrieve_state(monkeypatch):
+    flow = prefect.Flow(name="test")
+    get_flow_run_info = MagicMock(side_effect=SyntaxError)
+    set_flow_run_state = MagicMock()
+    client = MagicMock(
+        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+    )
+
+    ## if ENDRUN is raised, res will be last state seen
+    res = CloudFlowRunner(flow=flow).run()
+    assert get_flow_run_info.called
+    assert res is None
+
+
 @pytest.mark.parametrize(
     "state", [Finished, Success, Skipped, Failed, TimedOut, TriggerFailed]
 )
@@ -137,3 +171,18 @@ def test_client_is_always_called_even_during_failures(monkeypatch):
     assert len([s for s in task_states if s.is_running()]) == 3
     assert len([s for s in task_states if s.is_successful()]) == 2
     assert len([s for s in task_states if s.is_failed()]) == 1
+
+
+def test_heartbeat_traps_errors_caused_by_client(monkeypatch):
+    client = MagicMock(update_flow_run_heartbeat=MagicMock(side_effect=SyntaxError))
+    monkeypatch.setattr(
+        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+    )
+    runner = CloudFlowRunner(flow=prefect.Flow(name="bad"))
+    with pytest.warns(UserWarning) as warning:
+        res = runner._heartbeat()
+
+    assert res is None
+    assert client.update_flow_run_heartbeat.called
+    w = warning.pop()
+    assert "Heartbeat failed for Flow 'bad'" in repr(w.message)
