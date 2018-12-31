@@ -167,7 +167,13 @@ class TaskRunner(Runner):
         executor = executor or DEFAULT_EXECUTOR
 
         context.update(map_index=map_index)
-        state, context = self.initialize_run(state, context)
+
+        # if run fails to initialize, end the run
+        try:
+            state, context = self.initialize_run(state, context)
+        except ENDRUN as exc:
+            state = exc.state
+            return state
 
         # construct task inputs
         task_inputs = {}  # type: Dict[str, Any]

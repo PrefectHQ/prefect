@@ -160,7 +160,13 @@ class FlowRunner(Runner):
             )
 
         context.update(parameters=parameters, flow_name=self.flow.name)
-        state, context = self.initialize_run(state, context)
+
+        # if run fails to initialize, end the run
+        try:
+            state, context = self.initialize_run(state, context)
+        except ENDRUN as exc:
+            state = exc.state
+            return state
 
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")

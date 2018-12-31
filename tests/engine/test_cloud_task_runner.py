@@ -70,6 +70,7 @@ def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updat
 
     ## an ENDRUN will cause the TaskRunner to return the most recently computed state
     res = CloudTaskRunner(task=raise_error).run()
+    assert set_task_run_state.called
     assert res.is_running()
 
 
@@ -83,8 +84,11 @@ def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypa
     monkeypatch.setattr(
         "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
     )
-    with pytest.raises(ENDRUN):
-        res = CloudTaskRunner(task=task).run()
+
+    ## an ENDRUN will cause the TaskRunner to return the most recently computed state
+    res = CloudTaskRunner(task=task).run()
+    assert get_task_run_info.called
+    assert res is None
 
 
 @pytest.mark.parametrize(
@@ -146,7 +150,7 @@ class TestHeartBeats:
         assert res is None
         assert client.update_task_run_heartbeat.called
         w = warning.pop()
-        assert "Heartbeat failed for bad" in repr(w.message)
+        assert "Heartbeat failed for Task 'bad'" in repr(w.message)
 
     def test_heartbeat_traps_errors_caused_by_bad_attributes(self, monkeypatch):
         monkeypatch.setattr("prefect.engine.cloud_runners.Client", MagicMock())
@@ -155,7 +159,7 @@ class TestHeartBeats:
             res = runner._heartbeat()
         assert res is None
         w = warning.pop()
-        assert "Heartbeat failed for Task" in repr(w.message)
+        assert "Heartbeat failed for Task 'Task'" in repr(w.message)
 
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
