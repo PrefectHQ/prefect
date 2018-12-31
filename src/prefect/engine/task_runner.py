@@ -166,11 +166,12 @@ class TaskRunner(Runner):
         context = context or {}
         executor = executor or DEFAULT_EXECUTOR
 
-        context.update(map_index=map_index)
+        context.update(inputs=inputs, map_index=map_index)
 
         # if run fails to initialize, end the run
         try:
             state, context = self.initialize_run(state, context)
+            inputs = context.get("inputs") or {}
         except ENDRUN as exc:
             state = exc.state
             return state
