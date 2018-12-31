@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 from prefect import Task
 from prefect.engine.runner import Runner, ENDRUN
-from prefect.engine import state
+from prefect.engine import signals, state
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.executors import run_with_heartbeat
 
@@ -26,6 +26,16 @@ def test_call_runner_target_handlers_gets_called_in_handle_state_change():
             raise ValueError()
 
     with pytest.raises(ENDRUN):
+        TestRunner().handle_state_change(state.Pending(), state.Running())
+
+
+@pytest.mark.parametrize("exc", [ENDRUN, signals.PAUSE])
+def test_call_runner_target_handlers_reraises_appropriately(exc):
+    class TestRunner(Runner):
+        def call_runner_target_handlers(self, old_state, new_state):
+            raise exc()
+
+    with pytest.raises(exc):
         TestRunner().handle_state_change(state.Pending(), state.Running())
 
 

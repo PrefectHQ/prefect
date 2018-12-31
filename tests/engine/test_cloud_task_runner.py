@@ -6,6 +6,7 @@ import prefect
 from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
 from prefect.engine.cloud_runners import CloudTaskRunner
+from prefect.engine.runner import ENDRUN
 from prefect.engine.state import (
     Failed,
     Running,
@@ -49,6 +50,41 @@ def test_task_runner_calls_client_the_approriate_number_of_times(monkeypatch):
 
     states = [call[1]["state"] for call in set_task_run_state.call_args_list]
     assert states == [Running(), Success()]
+
+
+def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updates(
+    monkeypatch
+):
+    @prefect.task(name="test")
+    def raise_error():
+        raise NameError("I don't exist")
+
+    get_task_run_info = MagicMock(return_value=MagicMock(state=None))
+    set_task_run_state = MagicMock(side_effect=SyntaxError)
+    client = MagicMock(
+        get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+    )
+
+    ## an ENDRUN will cause the TaskRunner to return the most recently computed state
+    res = CloudTaskRunner(task=raise_error).run()
+    assert res.is_running()
+
+
+def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypatch):
+    task = prefect.Task(name="test")
+    get_task_run_info = MagicMock(side_effect=SyntaxError)
+    set_task_run_state = MagicMock()
+    client = MagicMock(
+        get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+    )
+    with pytest.raises(ENDRUN):
+        res = CloudTaskRunner(task=task).run()
 
 
 @pytest.mark.parametrize(
@@ -98,6 +134,29 @@ def test_task_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
 
 
 class TestHeartBeats:
+    def test_heartbeat_traps_errors_caused_by_client(self, monkeypatch):
+        client = MagicMock(update_task_run_heartbeat=MagicMock(side_effect=SyntaxError))
+        monkeypatch.setattr(
+            "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+        )
+        runner = CloudTaskRunner(task=prefect.Task(name="bad"))
+        runner.task_run_id = None
+        with pytest.warns(UserWarning) as warning:
+            res = runner._heartbeat()
+        assert res is None
+        assert client.update_task_run_heartbeat.called
+        w = warning.pop()
+        assert "Heartbeat failed for bad" in repr(w.message)
+
+    def test_heartbeat_traps_errors_caused_by_bad_attributes(self, monkeypatch):
+        monkeypatch.setattr("prefect.engine.cloud_runners.Client", MagicMock())
+        runner = CloudTaskRunner(task=prefect.Task())
+        with pytest.warns(UserWarning) as warning:
+            res = runner._heartbeat()
+        assert res is None
+        w = warning.pop()
+        assert "Heartbeat failed for Task" in repr(w.message)
+
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )

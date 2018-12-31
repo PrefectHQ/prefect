@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import warnings
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import prefect
@@ -8,6 +9,7 @@ from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
 from prefect.core import Flow, Task
 from prefect.engine import signals
+from prefect.engine.runner import ENDRUN
 from prefect.engine.state import State
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.task_runner import TaskRunner
@@ -56,8 +58,11 @@ class CloudTaskRunner(TaskRunner):
         )
 
     def _heartbeat(self) -> None:
-        task_run_id = self.task_run_id
-        self.client.update_task_run_heartbeat(task_run_id)
+        try:
+            task_run_id = self.task_run_id
+            self.client.update_task_run_heartbeat(task_run_id)
+        except:
+            warnings.warn("Heartbeat failed for {}".format(self.task.name))
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -77,13 +82,17 @@ class CloudTaskRunner(TaskRunner):
         task_run_id = prefect.context.get("task_run_id")
         version = prefect.context.get("task_run_version")
 
-        res = self.client.set_task_run_state(
-            task_run_id=task_run_id,
-            version=version,
-            state=new_state,
-            cache_for=self.task.cache_for,
-            result_handler=self.result_handler,
-        )
+        try:
+            res = self.client.set_task_run_state(
+                task_run_id=task_run_id,
+                version=version,
+                state=new_state,
+                cache_for=self.task.cache_for,
+                result_handler=self.result_handler,
+            )
+        except Exception as exc:
+            raise ENDRUN(state=new_state)
+
         prefect.context.update(task_run_version=res.version)  # type: ignore
 
         return new_state
@@ -102,12 +111,15 @@ class CloudTaskRunner(TaskRunner):
             - tuple: a tuple of the updated state and context objects
         """
         flow_run_id = context.get("flow_run_id", None)
-        task_run_info = self.client.get_task_run_info(
-            flow_run_id,
-            context.get("task_id", ""),
-            map_index=context.get("map_index", None),
-            result_handler=self.result_handler,
-        )
+        try:
+            task_run_info = self.client.get_task_run_info(
+                flow_run_id,
+                context.get("task_id", ""),
+                map_index=context.get("map_index", None),
+                result_handler=self.result_handler,
+            )
+        except Exception as exc:
+            raise ENDRUN(state=state)
 
         # if state is set, keep it; otherwise load from db
         state = state or task_run_info.state  # type: ignore

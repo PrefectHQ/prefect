@@ -125,7 +125,8 @@ class Runner:
 
         Raises:
             - PAUSE: if raised by a handler
-            - ENDRUN(Failed()): if any of the handlers fail
+            - ENDRUN: if raised by a handler
+            - ENDRUN(Failed()): if any of the handlers fail unexpectedly
 
         """
         raise_on_exception = prefect.context.get("raise_on_exception", False)
@@ -138,8 +139,8 @@ class Runner:
             for handler in self.state_handlers:
                 new_state = handler(self, old_state, new_state)
 
-        # raise pauses
-        except signals.PAUSE:
+        # raise pauses and ENDRUNs
+        except (signals.PAUSE, ENDRUN):
             raise
 
         # trap signals
