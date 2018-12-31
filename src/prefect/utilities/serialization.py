@@ -29,7 +29,7 @@ def to_qualified_name(obj: Any) -> str:
     return obj.__module__ + "." + obj.__qualname__
 
 
-def from_qualified_name(obj_str: str) -> object:
+def from_qualified_name(obj_str: str) -> Any:
     """
     Retrives an object from a fully qualified string path. The object must be
     imported in advance.
