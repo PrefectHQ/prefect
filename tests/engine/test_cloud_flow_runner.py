@@ -82,7 +82,28 @@ def test_flow_runner_raises_endrun_if_client_cant_retrieve_state(monkeypatch):
     ## if ENDRUN is raised, res will be last state seen
     res = CloudFlowRunner(flow=flow).run()
     assert get_flow_run_info.called
-    assert res is None
+    assert res.is_failed()
+    assert isinstance(res.result, SyntaxError)
+
+
+def test_flow_runner_raises_endrun_with_correct_state_if_client_cant_retrieve_state(
+    monkeypatch
+):
+    flow = prefect.Flow(name="test")
+    get_flow_run_info = MagicMock(side_effect=SyntaxError)
+    set_flow_run_state = MagicMock()
+    client = MagicMock(
+        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+    )
+
+    ## if ENDRUN is raised, res will be last state seen
+    state = Pending("unique message", result=22)
+    res = CloudFlowRunner(flow=flow).run(state=state)
+    assert get_flow_run_info.called
+    assert res is state
 
 
 @pytest.mark.parametrize(

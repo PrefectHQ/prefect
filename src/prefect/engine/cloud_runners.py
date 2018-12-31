@@ -10,7 +10,7 @@ from prefect.client.result_handlers import ResultHandler
 from prefect.core import Flow, Task
 from prefect.engine import signals
 from prefect.engine.runner import ENDRUN
-from prefect.engine.state import State
+from prefect.engine.state import Failed, State
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.task_runner import TaskRunner
 
@@ -119,6 +119,10 @@ class CloudTaskRunner(TaskRunner):
                 result_handler=self.result_handler,
             )
         except Exception as exc:
+            if state is None:
+                state = Failed(
+                    message="Could not retrieve state from Prefect Cloud", result=exc
+                )
             raise ENDRUN(state=state)
 
         # if state is set, keep it; otherwise load from db
@@ -253,6 +257,10 @@ class CloudFlowRunner(FlowRunner):
                 result_handler=self.flow.result_handler,
             )
         except Exception as exc:
+            if state is None:
+                state = Failed(
+                    message="Could not retrieve state from Prefect Cloud", result=exc
+                )
             raise ENDRUN(state=state)
 
         context.update(flow_run_version=flow_run_info.version)  # type: ignore
