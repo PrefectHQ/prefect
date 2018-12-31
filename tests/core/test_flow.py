@@ -14,7 +14,7 @@ from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
-from prefect.engine.state import Success, Failed, Skipped
+from prefect.engine.state import Success, Failed, Skipped, TriggerFailed
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.tasks import task, unmapped
 from prefect.utilities.configuration import set_temporary_config
@@ -852,6 +852,34 @@ class TestFlowVisualize:
         for var in ["x", "y"]:
             for index in [0, 1]:
                 assert "{0} [label={1} style=dashed]".format(index, var) in graph.source
+
+    def test_viz_reflects_multiple_mapping_if_flow_state_provided(self):
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        add = AddTask(name="a_nice_task")
+        list_task = Task(name="a_list_task")
+
+        with patch.dict("sys.modules", IPython=ipython):
+            with Flow() as f:
+                first_res = add.map(x=list_task, y=8)
+                res = first_res.map(x=first_res, y=9)
+            graph = f.visualize(
+                flow_state=Success(
+                    result={
+                        res: [Success(), TriggerFailed()],
+                        list_task: Success(),
+                        first_res: [Success(), Failed()],
+                    }
+                )
+            )
+
+        assert "{first} -> {second} [label=x style=dashed]".format(
+            first=str(id(first_res)) + "0", second=str(id(res)) + "0"
+        )
+        assert "{first} -> {second} [label=x style=dashed]".format(
+            first=str(id(first_res)) + "1", second=str(id(res)) + "1"
+        )
 
     @pytest.mark.parametrize(
         "error",
