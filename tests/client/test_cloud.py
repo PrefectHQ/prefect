@@ -5,8 +5,7 @@ from unittest.mock import MagicMock
 import prefect
 from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
-from prefect.engine.flow_runner import FlowRunner
-from prefect.engine.task_runner import TaskRunner
+from prefect.engine.cloud_runners import CloudFlowRunner, CloudTaskRunner
 from prefect.engine.state import (
     Failed,
     Running,
@@ -32,7 +31,7 @@ def cloud_settings():
         yield
 
 
-class TestFlowRunner:
+class TestCloudFlowRunner:
     def test_flow_runner_calls_client_the_approriate_number_of_times(self, monkeypatch):
         flow = prefect.Flow(name="test")
         get_flow_run_info = MagicMock(return_value=MagicMock(state=None))
@@ -41,9 +40,9 @@ class TestFlowRunner:
             get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
         )
         monkeypatch.setattr(
-            "prefect.engine.flow_runner.Client", MagicMock(return_value=client)
+            "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
         )
-        res = FlowRunner(flow=flow).run()
+        res = CloudFlowRunner(flow=flow).run()
 
         ## assertions
         assert get_flow_run_info.call_count == 1  # one time to pull latest state
@@ -64,9 +63,9 @@ class TestFlowRunner:
             get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
         )
         monkeypatch.setattr(
-            "prefect.engine.flow_runner.Client", MagicMock(return_value=client)
+            "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
         )
-        res = FlowRunner(flow=flow).run()
+        res = CloudFlowRunner(flow=flow).run()
 
         ## assertions
         assert get_flow_run_info.call_count == 1  # one time to pull latest state
@@ -87,9 +86,9 @@ class TestFlowRunner:
             get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
         )
         monkeypatch.setattr(
-            "prefect.engine.flow_runner.Client", MagicMock(return_value=client)
+            "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
         )
-        res = FlowRunner(flow=flow).run(state=Pending("let's do this"))
+        res = CloudFlowRunner(flow=flow).run(state=Pending("let's do this"))
 
         ## assertions
         assert get_flow_run_info.call_count == 1  # one time to pull latest state
@@ -99,7 +98,7 @@ class TestFlowRunner:
         assert states == [Running(), Success(result=dict())]
 
 
-class TestTaskRunner:
+class TestCloudTaskRunner:
     def test_task_runner_calls_client_the_approriate_number_of_times(self, monkeypatch):
         task = prefect.Task(name="test")
         get_task_run_info = MagicMock(return_value=MagicMock(state=None))
@@ -108,9 +107,9 @@ class TestTaskRunner:
             get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
         )
         monkeypatch.setattr(
-            "prefect.engine.task_runner.Client", MagicMock(return_value=client)
+            "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
         )
-        res = TaskRunner(task=task).run()
+        res = CloudTaskRunner(task=task).run()
 
         ## assertions
         assert get_task_run_info.call_count == 1  # one time to pull latest state
@@ -131,9 +130,9 @@ class TestTaskRunner:
             get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
         )
         monkeypatch.setattr(
-            "prefect.engine.task_runner.Client", MagicMock(return_value=client)
+            "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
         )
-        res = TaskRunner(task=task).run()
+        res = CloudTaskRunner(task=task).run()
 
         ## assertions
         assert get_task_run_info.call_count == 1  # one time to pull latest state
@@ -154,9 +153,9 @@ class TestTaskRunner:
             get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
         )
         monkeypatch.setattr(
-            "prefect.engine.task_runner.Client", MagicMock(return_value=client)
+            "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
         )
-        res = TaskRunner(task=task).run(state=Pending("let's do this"))
+        res = CloudTaskRunner(task=task).run(state=Pending("let's do this"))
 
         ## assertions
         assert get_task_run_info.call_count == 1  # one time to pull latest state
@@ -173,7 +172,7 @@ class TestHeartBeats:
     def test_task_runner_has_a_heartbeat(self, executor, monkeypatch):
         client = MagicMock()
         monkeypatch.setattr(
-            "prefect.engine.task_runner.Client", MagicMock(return_value=client)
+            "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
         )
 
         @prefect.task
@@ -181,7 +180,7 @@ class TestHeartBeats:
             time.sleep(2)
 
         with set_temporary_config({"cloud.heartbeat_interval": 1.0}):
-            res = TaskRunner(task=sleeper).run(executor=executor)
+            res = CloudTaskRunner(task=sleeper).run(executor=executor)
 
         assert res.is_successful()
         assert client.update_task_run_heartbeat.called
@@ -194,11 +193,11 @@ class TestHeartBeats:
         get_task_run_info = MagicMock(return_value=MagicMock(id="1234", version=0))
         client = MagicMock(get_task_run_info=get_task_run_info)
         monkeypatch.setattr(
-            "prefect.engine.task_runner.Client", MagicMock(return_value=client)
+            "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
         )
         task = prefect.Task(name="test")
         with set_temporary_config({"prefect_cloud": True}):
-            res = TaskRunner(task=task).run(executor=executor)
+            res = CloudTaskRunner(task=task).run(executor=executor)
 
         assert res.is_successful()
         assert client.update_task_run_heartbeat.call_args[0][0] == "1234"
@@ -217,23 +216,17 @@ def test_client_is_always_called_even_during_failures(monkeypatch):
     ## flow run setup
     get_flow_run_info = MagicMock(return_value=MagicMock(state=None))
     set_flow_run_state = MagicMock()
-    fr_client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.flow_runner.Client", MagicMock(return_value=fr_client)
-    )
-
-    ## task run setup
     get_task_run_info = MagicMock(return_value=MagicMock(state=None))
     set_task_run_state = MagicMock()
-    tr_client = MagicMock(
-        get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
+    cloud_client = MagicMock(
+        get_flow_run_info=get_flow_run_info,
+        set_flow_run_state=set_flow_run_state,
+        get_task_run_info=get_task_run_info,
+        set_task_run_state=set_task_run_state,
     )
     monkeypatch.setattr(
-        "prefect.engine.task_runner.Client", MagicMock(return_value=tr_client)
+        "prefect.engine.cloud_runners.Client", MagicMock(return_value=cloud_client)
     )
-
     res = flow.run(state=Pending())
 
     ## assertions
