@@ -134,8 +134,6 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
 
-        Raises:
-            - ValueError: if any throttle values are `<= 0`
         """
         self.task_states = task_states or {}
         self.start_tasks = start_tasks or []
