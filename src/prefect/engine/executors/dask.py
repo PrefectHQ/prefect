@@ -47,7 +47,7 @@ class DaskExecutor(Executor):
         processes: bool = False,
         debug: bool = config.debug,
         **kwargs: Any
-    ) -> None:
+    ):
         self.address = address
         self.processes = processes
         self.debug = debug

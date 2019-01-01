@@ -20,7 +20,7 @@ class Secret:
     of the `use_local_secrets` flag in your Prefect configuration file.
     """
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str):
         self.name = name
 
     def get(self) -> Optional[str]:

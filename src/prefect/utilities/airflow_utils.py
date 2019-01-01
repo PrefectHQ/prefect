@@ -48,7 +48,7 @@ trigger_mapping = {
 
 
 class AirTask(prefect.tasks.shell.ShellTask):
-    def __init__(self, task: "airflow.models.BaseOperator", **kwargs: Any) -> None:
+    def __init__(self, task: "airflow.models.BaseOperator", **kwargs: Any):
         name = task.task_id
         dag_id = task.dag_id
         trigger = trigger_mapping[task.trigger_rule]
@@ -164,7 +164,7 @@ class AirFlow(prefect.core.flow.Flow):
         db_file: str = None,
         dag_folder: str = None,
         **kwargs: Any
-    ) -> None:
+    ):
         self.dag = airflow.models.DagBag(dag_folder=dag_folder).dags[dag_id]
         super().__init__(*args, **kwargs)
         self._populate_tasks()

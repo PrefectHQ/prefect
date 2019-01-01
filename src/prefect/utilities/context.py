@@ -29,7 +29,7 @@ class Context(DotDict, threading.local):
     A thread safe context store for Prefect data.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if "context" in config:
             self.update(config.context)

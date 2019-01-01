@@ -76,7 +76,7 @@ class FlowRunner(Runner):
         flow: Flow,
         task_runner_cls: type = None,
         state_handlers: Iterable[Callable] = None,
-    ) -> None:
+    ):
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
         self.client = Client()

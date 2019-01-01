@@ -27,7 +27,7 @@ class Match(Task):
         - **kwargs: keyword arguments for the Task
     """
 
-    def __init__(self, match_value: Any, **kwargs) -> None:
+    def __init__(self, match_value: Any, **kwargs):
         self.match_value = match_value
         kwargs.setdefault("name", 'match: "{}"'.format(match_value))
         super().__init__(**kwargs)

@@ -140,7 +140,7 @@ class Flow:
         state_handlers: Iterable[Callable] = None,
         validate: bool = None,
         result_handler: ResultHandler = None,
-    ) -> None:
+    ):
         self._cache = {}  # type: dict
 
         # set random id

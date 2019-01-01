@@ -63,7 +63,7 @@ class IntervalSchedule(Schedule):
 
     def __init__(
         self, start_date: datetime, interval: timedelta, end_date: datetime = None
-    ) -> None:
+    ):
         if not isinstance(start_date, datetime):
             raise TypeError("`start_date` must be a datetime.")
         elif interval.total_seconds() < 60:
@@ -131,7 +131,7 @@ class CronSchedule(Schedule):
 
     def __init__(
         self, cron: str, start_date: datetime = None, end_date: datetime = None
-    ) -> None:
+    ):
         # build cron object to check the cron string - will raise an error if it's invalid
         CronTab(cron)
         self.cron = cron
