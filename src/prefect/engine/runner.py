@@ -14,7 +14,7 @@ class ENDRUN(Exception):
     stop. The pipeline result should be the state contained in the exception.
     """
 
-    def __init__(self, state: State) -> None:
+    def __init__(self, state: State):
         """
         Args
             - state (State): the state that should be used as the result of the Runner's run
@@ -63,7 +63,7 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
 
 
 class Runner:
-    def __init__(self, state_handlers: Iterable[Callable] = None) -> None:
+    def __init__(self, state_handlers: Iterable[Callable] = None):
         if state_handlers is not None and not isinstance(
             state_handlers, collections.Sequence
         ):

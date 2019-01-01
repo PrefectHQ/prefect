@@ -49,7 +49,7 @@ class State:
 
     color = "#000000"
 
-    def __init__(self, message: str = None, result: Any = None) -> None:
+    def __init__(self, message: str = None, result: Any = None):
         self.message = message
         self.result = result
 
@@ -202,7 +202,7 @@ class Pending(State):
         message: str = None,
         result: Any = None,
         cached_inputs: Dict[str, Any] = None,
-    ) -> None:
+    ):
         super().__init__(message=message, result=result)
         self.cached_inputs = cached_inputs
 
@@ -249,7 +249,7 @@ class CachedState(Pending):
         cached_result: Any = None,
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
-    ) -> None:
+    ):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.cached_result = cached_result
         self.cached_parameters = cached_parameters
@@ -279,7 +279,7 @@ class Scheduled(Pending):
         result: Any = None,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Any] = None,
-    ) -> None:
+    ):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.start_time = ensure_tz_aware(start_time or pendulum.now("utc"))
 
@@ -304,9 +304,7 @@ class Submitted(State):
 
     """
 
-    def __init__(
-        self, message: str = None, result: Any = None, state: State = None
-    ) -> None:
+    def __init__(self, message: str = None, result: Any = None, state: State = None):
         super().__init__(message=message, result=result)
         self.state = state
 
@@ -352,7 +350,7 @@ class Retrying(Scheduled):
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Any] = None,
         run_count: int = None,
-    ) -> None:
+    ):
         super().__init__(
             result=result,
             message=message,
@@ -418,7 +416,7 @@ class Success(Finished):
 
     def __init__(
         self, message: str = None, result: Any = None, cached: CachedState = None
-    ) -> None:
+    ):
         super().__init__(message=message, result=result)
         self.cached = cached
 
@@ -473,7 +471,7 @@ class TimedOut(Failed):
         message: str = None,
         result: Any = None,
         cached_inputs: Dict[str, Any] = None,
-    ) -> None:
+    ):
         super().__init__(message=message, result=result)
         self.cached_inputs = cached_inputs
 
@@ -504,5 +502,5 @@ class Skipped(Success):
     color = "#F0FFF0"
 
     # note: this does not allow setting "cached" as Success states do
-    def __init__(self, message: str = None, result: Any = None) -> None:
+    def __init__(self, message: str = None, result: Any = None):
         super().__init__(message=message, result=result)

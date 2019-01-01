@@ -32,7 +32,7 @@ class ShellTask(prefect.Task):
 
     def __init__(
         self, shell: str = "bash", cd: str = None, command: str = None, **kwargs: Any
-    ) -> None:
+    ):
         self.shell = shell
         self.cd = cd
         self.command = command
