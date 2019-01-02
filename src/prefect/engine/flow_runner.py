@@ -328,7 +328,8 @@ class FlowRunner(Runner):
                     state=task_states.get(task),
                     upstream_states=upstream_states,
                     inputs=task_inputs,
-                    ignore_trigger=(task in start_tasks),
+                    # if the task is a "start task", don't check its upstream dependencies
+                    check_upstream=(task not in start_tasks),
                     context=dict(prefect.context, task_id=task.id),
                     mapped=task in mapped_tasks,
                     executor=executor,

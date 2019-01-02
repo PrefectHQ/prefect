@@ -344,8 +344,6 @@ def test_flow_with_multiple_retry_tasks_doesnt_run_them_early():
     only run t3, which requests an immediate retry, and not t2, which requests a retry in
     10 minutes.
 
-    Starting the flow from t2 SHOULD start running it since it is a start task.
-
     This tests a check on the TaskRunner, but which matters in Flows like this.
     """
     flow = prefect.Flow()
@@ -365,11 +363,6 @@ def test_flow_with_multiple_retry_tasks_doesnt_run_them_early():
     assert isinstance(state2.result[t2], Retrying)
     assert state2.result[t2] == state1.result[t2]  # state is not modified at all
     assert isinstance(state2.result[t3], Failed)  # this task ran
-
-    state3 = flow.run(
-        return_tasks=flow.tasks, task_states=state2.result, start_tasks=[t2]
-    )
-    assert isinstance(state3.result[t2], Failed)
 
 
 class TestCheckFlowPendingOrRunning:
