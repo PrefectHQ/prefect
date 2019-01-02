@@ -99,21 +99,32 @@ class TaskRunner(Runner):
 
         return new_state
 
-    def initialize_run(
-        self, state: Optional[State], context: Dict[str, Any]
-    ) -> Tuple[State, Dict[str, Any]]:
+    def initialize_run(  # type: ignore
+        self,
+        state: Optional[State],
+        context: Dict[str, Any],
+        upstream_states: Dict[Edge, Union[State, List[State]]],
+        inputs: Dict[str, Any],
+    ) -> Tuple[
+        State, Dict[str, Any], Dict[Edge, Union[State, List[State]]], Dict[str, Any]
+    ]:
         """
         Initializes the Task run by initializing state and context appropriately.
 
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
-            - context (dict): the context to be updated with relevant information
+            - context (Dict[str, Any]): the context to be updated with relevant information
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): a dictionary
+                representing the states of tasks upstream of this one
+            - inputs (Dict[str, Any]): a dictionary of inputs to the task that should override
+                the inputs taken from upstream states
 
         Returns:
-            - tuple: a tuple of the updated state and context objects
+            - tuple: a tuple of the updated state, context, upstream_states, and inputs objects
         """
         context.update(task_name=self.task.name)
-        return super().initialize_run(state=state, context=context)
+        state, context = super().initialize_run(state=state, context=context)
+        return state, context, upstream_states, inputs
 
     def run(
         self,
@@ -161,12 +172,13 @@ class TaskRunner(Runner):
         context = context or {}
         executor = executor or DEFAULT_EXECUTOR
 
-        context.update(inputs=inputs, map_index=map_index)
+        context.update(map_index=map_index)
 
         # if run fails to initialize, end the run
         try:
-            state, context = self.initialize_run(state, context)
-            inputs = context.get("inputs") or {}
+            state, context, upstream_states, inputs = self.initialize_run(
+                state, context, upstream_states, inputs
+            )
         except ENDRUN as exc:
             state = exc.state
             return state
