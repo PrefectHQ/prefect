@@ -19,7 +19,6 @@ from typing import (
 
 import prefect
 from prefect import config
-from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
 from prefect.core import Edge, Task
 from prefect.engine import signals
@@ -80,13 +79,8 @@ class TaskRunner(Runner):
         state_handlers: Iterable[Callable] = None,
     ):
         self.task = task
-        self.client = Client()
         self.result_handler = result_handler
         super().__init__(state_handlers=state_handlers)
-
-    def _heartbeat(self) -> None:
-        task_run_id = self.task_run_id
-        self.client.update_task_run_heartbeat(task_run_id)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -103,20 +97,6 @@ class TaskRunner(Runner):
         for handler in self.task.state_handlers:
             new_state = handler(self.task, old_state, new_state)
 
-        # Set state if in prefect cloud
-        if config.get("prefect_cloud", None):
-            task_run_id = prefect.context.get("task_run_id")
-            version = prefect.context.get("task_run_version")
-
-            res = self.client.set_task_run_state(
-                task_run_id=task_run_id,
-                version=version,
-                state=new_state,
-                cache_for=self.task.cache_for,
-                result_handler=self.result_handler,
-            )
-            prefect.context.update(task_run_version=res.version)  # type: ignore
-
         return new_state
 
     def initialize_run(
@@ -132,23 +112,6 @@ class TaskRunner(Runner):
         Returns:
             - tuple: a tuple of the updated state and context objects
         """
-        if config.get("prefect_cloud", None):
-            flow_run_id = context.get("flow_run_id", None)
-            task_run_info = self.client.get_task_run_info(
-                flow_run_id,
-                context.get("task_id", ""),
-                map_index=context.get("map_index", None),
-                result_handler=self.result_handler,
-            )
-
-            # if state is set, keep it; otherwise load from db
-            state = state or task_run_info.state  # type: ignore
-            context.update(
-                task_run_version=task_run_info.version,  # type: ignore
-                task_run_id=task_run_info.id,  # type: ignore
-            )
-            self.task_run_id = task_run_info.id  # type: ignore
-
         context.update(task_name=self.task.name)
         return super().initialize_run(state=state, context=context)
 
@@ -198,8 +161,15 @@ class TaskRunner(Runner):
         context = context or {}
         executor = executor or DEFAULT_EXECUTOR
 
-        context.update(map_index=map_index)
-        state, context = self.initialize_run(state, context)
+        context.update(inputs=inputs, map_index=map_index)
+
+        # if run fails to initialize, end the run
+        try:
+            state, context = self.initialize_run(state, context)
+            inputs = context.get("inputs") or {}
+        except ENDRUN as exc:
+            state = exc.state
+            return state
 
         # construct task inputs
         task_inputs = {}  # type: Dict[str, Any]

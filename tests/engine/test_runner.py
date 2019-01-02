@@ -1,9 +1,12 @@
 import pytest
+from time import sleep
 from unittest.mock import MagicMock
 
 from prefect import Task
 from prefect.engine.runner import Runner, ENDRUN
-from prefect.engine import state
+from prefect.engine import signals, state
+from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.executors import run_with_heartbeat
 
 
 def test_state_handlers_must_be_iterable():
@@ -23,6 +26,16 @@ def test_call_runner_target_handlers_gets_called_in_handle_state_change():
             raise ValueError()
 
     with pytest.raises(ENDRUN):
+        TestRunner().handle_state_change(state.Pending(), state.Running())
+
+
+@pytest.mark.parametrize("exc", [ENDRUN, signals.PAUSE])
+def test_call_runner_target_handlers_reraises_appropriately(exc):
+    class TestRunner(Runner):
+        def call_runner_target_handlers(self, old_state, new_state):
+            raise exc()
+
+    with pytest.raises(exc):
         TestRunner().handle_state_change(state.Pending(), state.Running())
 
 
@@ -83,3 +96,18 @@ class TestInitializeRun:
     def test_initialize_run_creates_pending_if_no_state_provided(self):
         new_state, _ = Runner().initialize_run(state=None, context={})
         assert isinstance(new_state, state.Pending)
+
+
+def test_bad_heartbeat_doesnt_prevent_completion_of_run():
+    class BadHeartBeatRunner(Runner):
+        def _heartbeat(self):
+            raise SyntaxError("message")
+
+        @run_with_heartbeat
+        def run(self):
+            sleep(2)
+            return state.Success()
+
+    with set_temporary_config({"cloud.heartbeat_interval": 1.0}):
+        res = BadHeartBeatRunner().run()
+        assert res.is_successful()

@@ -18,6 +18,7 @@ from prefect.engine.state import (
     Success,
     Skipped,
 )
+from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import (
     gmail_notifier,
     slack_message_formatter,
@@ -113,7 +114,8 @@ def test_slack_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
     ok = MagicMock(ok=True)
     monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
     new_state = Failed(message="1", result=0)
-    assert slack_notifier(Task(), "", new_state) is new_state
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        assert slack_notifier(Task(), "", new_state) is new_state
 
 
 def test_slack_notifier_ignores_ignore_states(monkeypatch):
@@ -133,7 +135,8 @@ def test_slack_notifier_ignores_ignore_states(monkeypatch):
     monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
     for state in all_states:
         s = state()
-        returned = slack_notifier(Task(), "", s, ignore_states=[State])
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            returned = slack_notifier(Task(), "", s, ignore_states=[State])
         assert returned is s
         assert ok.called is False
 
@@ -158,7 +161,8 @@ def test_slack_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state)
     ok = MagicMock(ok=True)
     monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
     handler = slack_notifier(ignore_states=[Finished])
-    returned = handler(Task(), "", state)
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        returned = handler(Task(), "", state)
     assert returned is state
     assert ok.called is not state.is_finished()
 
@@ -183,7 +187,8 @@ def test_slack_notifier_is_curried_and_uses_only_states(monkeypatch, state):
     ok = MagicMock(ok=True)
     monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
     handler = slack_notifier(only_states=[TriggerFailed])
-    returned = handler(Task(), "", state)
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        returned = handler(Task(), "", state)
     assert returned is state
     assert ok.called is isinstance(state, TriggerFailed)
 
