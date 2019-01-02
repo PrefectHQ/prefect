@@ -155,12 +155,17 @@ class TaskRunner(Runner):
         Returns:
             - `State` object representing the final post-run state of the Task
         """
-
-        self.logger.info("Beginning task run for task '{}'".format(self.task.name))
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
         executor = executor or DEFAULT_EXECUTOR
+
+        self.logger.info(
+            "Starting task run for task '{name}{index}'".format(
+                name=self.task.name,
+                index="" if map_index is None else "[{}]".format(map_index),
+            )
+        )
 
         context.update(inputs=inputs, map_index=map_index)
 
@@ -280,6 +285,13 @@ class TaskRunner(Runner):
                 if raise_on_exception:
                     raise exc
 
+            self.logger.info(
+                "Finished task run for task '{name}{index}' with final state: '{state}'".format(
+                    name=self.task.name,
+                    index="" if map_index is None else "[{}]".format(map_index),
+                    state=type(state).__name__,
+                )
+            )
         return state
 
     @call_state_handlers
