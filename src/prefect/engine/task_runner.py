@@ -77,7 +77,7 @@ class TaskRunner(Runner):
         task: Task,
         result_handler: ResultHandler = None,
         state_handlers: Iterable[Callable] = None,
-    ) -> None:
+    ):
         self.task = task
         self.result_handler = result_handler
         super().__init__(state_handlers=state_handlers)
@@ -394,7 +394,7 @@ class TaskRunner(Runner):
             raise
 
         except signals.PrefectStateSignal as exc:
-            self.logger.debug(
+            self.logger.info(
                 "{0} signal raised during execution of task '{1}'.".format(
                     type(exc).__name__, self.task.name
                 )
@@ -405,7 +405,7 @@ class TaskRunner(Runner):
 
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
-            self.logger.debug(
+            self.logger.info(
                 "Unexpected error while running task '{}'.".format(self.task.name)
             )
             if raise_on_exception:
@@ -438,17 +438,17 @@ class TaskRunner(Runner):
 
         # this task is already running
         elif state.is_running():
-            self.logger.debug("Task '{}' is already running.".format(self.task.name))
+            self.logger.info("Task '{}' is already running.".format(self.task.name))
             raise ENDRUN(state)
 
         # this task is already finished
         elif state.is_finished():
-            self.logger.debug("Task '{}' is already finished.".format(self.task.name))
+            self.logger.info("Task '{}' is already finished.".format(self.task.name))
             raise ENDRUN(state)
 
         # this task is not pending
         else:
-            self.logger.debug(
+            self.logger.info(
                 "Task '{0}' is not ready to run or state was unrecognized ({1}).".format(
                     self.task.name, state
                 )
@@ -641,6 +641,7 @@ class TaskRunner(Runner):
         raise_on_exception = prefect.context.get("raise_on_exception", False)
 
         try:
+            self.logger.info("Running task...")
             timeout_handler = timeout_handler or main_thread_timeout
             result = timeout_handler(self.task.run, timeout=self.task.timeout, **inputs)
 
@@ -649,7 +650,7 @@ class TaskRunner(Runner):
 
         # PrefectStateSignals are trapped and turned into States
         except signals.PrefectStateSignal as exc:
-            self.logger.debug("{} signal raised.".format(type(exc).__name__))
+            self.logger.info("{} signal raised.".format(type(exc).__name__))
             if raise_on_exception:
                 raise exc
             return exc.state
@@ -664,7 +665,7 @@ class TaskRunner(Runner):
 
         # Exceptions are trapped and turned into Failed states
         except Exception as exc:
-            self.logger.debug("Unexpected error while running task.")
+            self.logger.info("Unexpected error while running task.")
             if raise_on_exception:
                 raise exc
             return Failed("Unexpected error while running task.", result=exc)

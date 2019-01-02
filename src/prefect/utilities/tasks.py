@@ -193,5 +193,5 @@ class unmapped:
         ```
     """
 
-    def __init__(self, task: "prefect.Task") -> None:
+    def __init__(self, task: "prefect.Task"):
         self.task = as_task(task)
