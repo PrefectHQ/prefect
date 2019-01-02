@@ -31,7 +31,7 @@ class EnumValue:
     as enum values, without quotation marks.
     """
 
-    def __init__(self, value: str) -> None:
+    def __init__(self, value: str):
         self.value = value
 
     def __str__(self) -> str:

@@ -21,7 +21,7 @@ class JinjaTemplateTask(Task):
             standard Task constructor
     """
 
-    def __init__(self, template: str = None, **kwargs: Any) -> None:
+    def __init__(self, template: str = None, **kwargs: Any):
         self.template = Template(template or "")
         super().__init__(**kwargs)
 

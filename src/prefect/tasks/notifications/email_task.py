@@ -19,9 +19,7 @@ class EmailTask(prefect.Task):
     This task sends an email.
     """
 
-    def __init__(
-        self, username: str = None, password: str = None, **kwargs: Any
-    ) -> None:
+    def __init__(self, username: str = None, password: str = None, **kwargs: Any):
 
         self.username = username
         self.password = password

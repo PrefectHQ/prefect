@@ -9,7 +9,7 @@ from prefect.configuration import config
 
 
 class RemoteHandler(logging.StreamHandler):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.logger_server = config.cloud.log
         self.client = None

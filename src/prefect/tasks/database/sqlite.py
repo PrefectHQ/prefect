@@ -21,7 +21,7 @@ class SQLiteQueryTask(Task):
             standard Task initalization
     """
 
-    def __init__(self, db: str, query: str = None, **kwargs) -> None:
+    def __init__(self, db: str, query: str = None, **kwargs):
         self.db = db
         self.query = query
         super().__init__(**kwargs)
@@ -56,7 +56,7 @@ class SQLiteScriptTask(Task):
             standard Task initialization
     """
 
-    def __init__(self, db: str, script: str = None, **kwargs) -> None:
+    def __init__(self, db: str, script: str = None, **kwargs):
         self.db = db
         self.script = script
         super().__init__(**kwargs)
