@@ -87,7 +87,7 @@ class Edge:
         downstream_task: Task,
         key: str = None,
         mapped: bool = False,
-    ) -> None:
+    ):
         self.upstream_task = upstream_task
         self.downstream_task = downstream_task
         self.mapped = mapped

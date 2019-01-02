@@ -78,7 +78,7 @@ class TaskRunner(Runner):
         task: Task,
         result_handler: ResultHandler = None,
         state_handlers: Iterable[Callable] = None,
-    ) -> None:
+    ):
         self.task = task
         self.client = Client()
         self.result_handler = result_handler
