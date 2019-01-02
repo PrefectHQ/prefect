@@ -76,8 +76,9 @@ class CloudTaskRunner(TaskRunner):
         Returns:
             - State: the new state
         """
-        for handler in self.task.state_handlers:
-            new_state = handler(self.task, old_state, new_state)
+        new_state = super().call_runner_target_handlers(
+            old_state=old_state, new_state=new_state
+        )
 
         task_run_id = prefect.context.get("task_run_id")
         version = prefect.context.get("task_run_version")
@@ -93,7 +94,7 @@ class CloudTaskRunner(TaskRunner):
         except Exception as exc:
             raise ENDRUN(state=new_state)
 
-        prefect.context.update(task_run_version=res.version)  # type: ignore
+        prefect.context.update(task_run_version=version + 1)  # type: ignore
 
         return new_state
 
@@ -225,8 +226,9 @@ class CloudFlowRunner(FlowRunner):
         Returns:
             - State: the new state
         """
-        for handler in self.flow.state_handlers:
-            new_state = handler(self.flow, old_state, new_state)
+        new_state = super().call_runner_target_handlers(
+            old_state=old_state, new_state=new_state
+        )
 
         flow_run_id = prefect.context.get("flow_run_id", None)
         version = prefect.context.get("flow_run_version")
@@ -241,7 +243,7 @@ class CloudFlowRunner(FlowRunner):
         except Exception as exc:
             raise ENDRUN(state=new_state)
 
-        prefect.context.update(flow_run_version=res.version)  # type: ignore
+        prefect.context.update(flow_run_version=version + 1)  # type: ignore
 
         return new_state
 
