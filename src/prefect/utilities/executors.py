@@ -29,18 +29,19 @@ def run_with_heartbeat(
         self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
         try:
-            if prefect.config.get("prefect_cloud", None):
-                timer = threading.Timer(
-                    prefect.config.cloud.heartbeat_interval, self._heartbeat
-                )
+            timer = threading.Timer(
+                prefect.config.cloud.heartbeat_interval, self._heartbeat
+            )
+            try:
                 self._heartbeat()
-                timer.start()
+            except:
+                pass
+            timer.start()
             return runner_method(self, *args, **kwargs)
         except Exception as exc:
             raise exc
         finally:
-            if prefect.config.get("prefect_cloud", None):
-                timer.cancel()
+            timer.cancel()
 
     return inner
 

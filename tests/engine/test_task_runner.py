@@ -38,6 +38,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.engine.task_runner import ENDRUN, TaskRunner
+from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import pause_task
 from prefect.utilities.tests import raise_on_exception
 
@@ -296,7 +297,8 @@ def test_task_runner_can_handle_timeouts_by_default():
 
 def test_task_runner_handles_secrets():
     t = SecretTask()
-    state = TaskRunner(t).run(context=dict(secrets=dict(testing="my_private_str")))
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        state = TaskRunner(t).run(context=dict(secrets=dict(testing="my_private_str")))
     assert state.is_successful()
     assert state.result is "my_private_str"
 
@@ -1220,3 +1222,12 @@ def test_all_pipeline_method_steps_are_called(mapped):
     else:
         for method in unmapped_pipeline:
             assert getattr(runner, method).call_count == 1
+
+
+def test_endrun_raised_in_initialize_is_caught_correctly():
+    class BadInitializeRunner(TaskRunner):
+        def initialize_run(self, *args, **kwargs):
+            raise ENDRUN(state=Pending())
+
+    res = BadInitializeRunner(Task()).run()
+    assert res.is_pending()

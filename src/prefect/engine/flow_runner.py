@@ -6,7 +6,6 @@ from typing import Any, Callable, Dict, Iterable, Set, Union, Tuple, Optional
 
 import prefect
 from prefect import config
-from prefect.client import Client
 from prefect.core import Edge, Flow, Task
 from prefect.engine import signals
 from prefect.engine.executors import DEFAULT_EXECUTOR
@@ -79,12 +78,7 @@ class FlowRunner(Runner):
     ):
         self.flow = flow
         self.task_runner_cls = task_runner_cls or TaskRunner
-        self.client = Client()
         super().__init__(state_handlers=state_handlers)
-
-    def _heartbeat(self) -> None:
-        flow_run_id = prefect.context.get("flow_run_id")
-        self.client.update_flow_run_heartbeat(flow_run_id)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -101,50 +95,7 @@ class FlowRunner(Runner):
         for handler in self.flow.state_handlers:
             new_state = handler(self.flow, old_state, new_state)
 
-        # Set state if in prefect cloud
-        if config.get("prefect_cloud", None):
-            flow_run_id = prefect.context.get("flow_run_id", None)
-            version = prefect.context.get("flow_run_version")
-
-            res = self.client.set_flow_run_state(
-                flow_run_id=flow_run_id,
-                version=version,
-                state=new_state,
-                result_handler=self.flow.result_handler,
-            )
-            prefect.context.update(flow_run_version=res.version)  # type: ignore
-
         return new_state
-
-    def initialize_run(
-        self, state: Optional[State], context: Dict[str, Any]
-    ) -> Tuple[State, Dict[str, Any]]:
-        """
-        Initializes the Flow run by initializing state and context appropriately.
-
-        Args:
-            - state (State): the proposed initial state of the flow run; can be `None`
-            - context (dict): the context to be updated with relevant information
-
-        Returns:
-            - tuple: a tuple of the updated state and context objects
-        """
-
-        if config.get("prefect_cloud", None):
-            flow_run_info = self.client.get_flow_run_info(
-                flow_run_id=prefect.context.get("flow_run_id", ""),
-                result_handler=self.flow.result_handler,
-            )
-            context.update(flow_run_version=flow_run_info.version)  # type: ignore
-            # if state is set, keep it; otherwise load from db
-            state = state or flow_run_info.state  # type: ignore
-
-            ## update parameters, prioritizing kwarg-provided params
-            parameters = flow_run_info.parameters or {}  # type: ignore
-            parameters.update(context.get("parameters", {}))
-            context.update(parameters=parameters)
-
-        return super().initialize_run(state=state, context=context)
 
     def run(
         self,
@@ -193,7 +144,13 @@ class FlowRunner(Runner):
         parameters = parameters or {}
 
         context.update(parameters=parameters, flow_name=self.flow.name)
-        state, context = self.initialize_run(state, context)
+
+        # if run fails to initialize, end the run
+        try:
+            state, context = self.initialize_run(state, context)
+        except ENDRUN as exc:
+            state = exc.state
+            return state
 
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")

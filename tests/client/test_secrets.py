@@ -19,14 +19,16 @@ def test_create_secret():
 
 def test_secret_get_none():
     secret = Secret(name="test")
-    assert secret.get() is None
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        assert secret.get() is None
 
 
 def test_secret_value_pulled_from_context():
     secret = Secret(name="test")
-    with prefect.context(secrets=dict(test=42)):
-        assert secret.get() == 42
-    assert secret.get() is None
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(test=42)):
+            assert secret.get() == 42
+        assert secret.get() is None
 
 
 def test_secret_value_depends_on_use_local_secrets():
