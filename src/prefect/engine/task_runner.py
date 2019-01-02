@@ -120,7 +120,7 @@ class TaskRunner(Runner):
         state: State = None,
         upstream_states: Dict[Edge, Union[State, List[State]]] = None,
         inputs: Dict[str, Any] = None,
-        ignore_trigger: bool = False,
+        check_upstream: bool = True,
         context: Dict[str, Any] = None,
         mapped: bool = False,
         map_index: int = None,
@@ -140,8 +140,9 @@ class TaskRunner(Runner):
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments. Any keys that are provided will override the
                 `State`-based inputs provided in upstream_states.
-            - ignore_trigger (bool): boolean specifying whether to ignore the
-                Task trigger and certain other dependency checks; defaults to `False`
+            - check_upstream (bool): boolean specifying whether to check upstream states
+                when deciding if the task should run. Defaults to `True`, but could be set to
+                `False` to force the task to run.
             - context (dict, optional): prefect Context to use for execution
             - mapped (bool, optional): whether this task is mapped; if `True`,
                 the task will _not_ be run, but a `Mapped` state will be returned indicating
@@ -201,31 +202,32 @@ class TaskRunner(Runner):
                 # or put resume in context if needed
                 state = self.update_context_from_state(state=state)
 
-                # check if all upstream tasks have finished
-                state = self.check_upstream_finished(
-                    state, upstream_states_set=upstream_states_set
-                )
+                # the upstream checks are only performed if `check_upstream is True` and
+                # the task is not `mapped`. Mapped tasks do not actually do work, but spawn
+                # dynamic tasks to map work across inputs. Therefore we defer upstream
+                # checks to the dynamic tasks.
+                if check_upstream and not mapped:
 
-                # check if any upstream tasks skipped (and if we need to skip)
-                state = self.check_upstream_skipped(
-                    state, upstream_states_set=upstream_states_set, mapped=mapped
-                )
+                    # check if all upstream tasks have finished
+                    state = self.check_upstream_finished(
+                        state, upstream_states_set=upstream_states_set
+                    )
 
-                # check if the task's trigger passes
-                state = self.check_task_trigger(
-                    state,
-                    upstream_states_set=upstream_states_set,
-                    ignore_trigger=ignore_trigger
-                    | mapped,  # the children of a mapped task are responsible for checking their triggers
-                )
+                    # check if any upstream tasks skipped (and if we need to skip)
+                    state = self.check_upstream_skipped(
+                        state, upstream_states_set=upstream_states_set
+                    )
+
+                    # check if the task's trigger passes
+                    state = self.check_task_trigger(
+                        state, upstream_states_set=upstream_states_set
+                    )
 
                 # check to make sure the task is in a pending state
                 state = self.check_task_is_pending(state)
 
                 # check if the task has reached its scheduled time
-                state = self.check_task_reached_start_time(
-                    state, ignore_trigger=ignore_trigger
-                )
+                state = self.check_task_reached_start_time(state)
 
                 # check to see if the task has a cached result
                 state = self.check_task_is_cached(state, inputs=task_inputs)
@@ -247,6 +249,7 @@ class TaskRunner(Runner):
                     # check if the task needs to be retried
                     state = self.check_for_retry(state, inputs=task_inputs)
 
+                # or, if the task is mapped, run the mapped tasks!
                 else:
                     state = self.check_upstreams_for_mapping(
                         state=state, upstream_states=upstream_states
@@ -255,7 +258,7 @@ class TaskRunner(Runner):
                         state=state,
                         upstream_states=upstream_states,
                         inputs=inputs,
-                        ignore_trigger=ignore_trigger,
+                        check_upstream=check_upstream,
                         context=context,
                         executor=executor,
                     )
@@ -328,7 +331,7 @@ class TaskRunner(Runner):
 
     @call_state_handlers
     def check_upstream_skipped(
-        self, state: State, upstream_states_set: Set[State], mapped: bool = False
+        self, state: State, upstream_states_set: Set[State]
     ) -> State:
         """
         Checks if any of the upstream tasks have skipped.
@@ -336,16 +339,12 @@ class TaskRunner(Runner):
         Args:
             - state (State): the current state of this task
             - upstream_states_set: a set containing the states of any upstream tasks.
-            - mapped (bool): whether this task represents a parent mapped task,
-                in which case this check will be skipped
 
         Returns:
             - State: the state of the task after running the check
         """
-        if (
-            not mapped
-            and self.task.skip_on_upstream_skip
-            and any(s.is_skipped() for s in upstream_states_set)
+        if self.task.skip_on_upstream_skip and any(
+            s.is_skipped() for s in upstream_states_set
         ):
             raise ENDRUN(
                 state=Skipped(
@@ -360,10 +359,7 @@ class TaskRunner(Runner):
 
     @call_state_handlers
     def check_task_trigger(
-        self,
-        state: State,
-        upstream_states_set: Set[State],
-        ignore_trigger: bool = False,
+        self, state: State, upstream_states_set: Set[State]
     ) -> State:
         """
         Checks if the task's trigger function passes. If the upstream_states_set is empty,
@@ -372,8 +368,6 @@ class TaskRunner(Runner):
         Args:
             - state (State): the current state of this task
             - upstream_states_set (Set[State]): a set containing the states of any upstream tasks.
-            - ignore_trigger (bool): if True, skips the trigger check because the task is a
-                start task.
 
         Returns:
             - State: the state of the task after running the check
@@ -387,7 +381,7 @@ class TaskRunner(Runner):
         try:
             if not upstream_states_set:
                 return state
-            elif not ignore_trigger and not self.task.trigger(upstream_states_set):
+            elif not self.task.trigger(upstream_states_set):
                 raise signals.TRIGGERFAIL(message="Trigger failed")
 
         except signals.PAUSE:
@@ -456,17 +450,13 @@ class TaskRunner(Runner):
             raise ENDRUN(state)
 
     @call_state_handlers
-    def check_task_reached_start_time(
-        self, state: State, ignore_trigger: bool = False
-    ) -> State:
+    def check_task_reached_start_time(self, state: State) -> State:
         """
         Checks if a task is in a Scheduled state and, if it is, ensures that the scheduled
         time has been reached. Note: Scheduled states include Retry states.
 
         Args:
             - state (State): the current state of this task
-            - ignore_trigger (bool): if True, the task is treated as a start task and the
-                scheduled check is not run
 
         Returns:
             - State: the state of the task after running the task
@@ -476,11 +466,7 @@ class TaskRunner(Runner):
                 scheduled time
         """
         if isinstance(state, Scheduled):
-            if (
-                not ignore_trigger
-                and state.start_time
-                and state.start_time > pendulum.now("utc")
-            ):
+            if state.start_time and state.start_time > pendulum.now("utc"):
                 raise ENDRUN(state)
         return state
 
@@ -559,7 +545,7 @@ class TaskRunner(Runner):
         state: State,
         upstream_states: Dict[Edge, Union[State, List[State]]],
         inputs: Dict[str, Any],
-        ignore_trigger: bool,
+        check_upstream: bool,
         context: Dict[str, Any],
         executor: "prefect.engine.executors.Executor",
     ) -> State:
@@ -573,8 +559,9 @@ class TaskRunner(Runner):
                 dictionary should correspond to the edges leading to the task.
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
-            - ignore_trigger (bool): boolean specifying whether to ignore the
-                Task trigger and certain other dependency checks; defaults to `False`
+            - check_upstream (bool): boolean specifying whether to check upstream states
+                when deciding if the task should run. Defaults to `True`, but could be set to
+                `False` to force the task to run.
             - context (dict, optional): prefect Context to use for execution
             - executor (Executor): executor to use when performing computation
 
@@ -586,7 +573,7 @@ class TaskRunner(Runner):
             upstream_states=upstream_states,
             state=None,  # will need to revisit this
             inputs=inputs,
-            ignore_trigger=ignore_trigger,
+            check_upstream=check_upstream,
             context=context,
             executor=executor,
         )
