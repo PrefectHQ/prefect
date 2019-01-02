@@ -219,7 +219,7 @@ class FlowRunner(Runner):
 
             # All other exceptions are trapped and turned into Failed states
             except Exception as exc:
-                self.logger.debug("Unexpected error while running task.")
+                self.logger.info("Unexpected error while running task.")
                 if raise_on_exception:
                     raise exc
                 return Failed(
@@ -246,12 +246,12 @@ class FlowRunner(Runner):
 
         # the flow run is already finished
         if state.is_finished() is True:
-            self.logger.debug("Flow run has already finished.")
+            self.logger.info("Flow run has already finished.")
             raise ENDRUN(state)
 
         # the flow run must be either pending or running (possibly redundant with above)
         elif not (state.is_pending() or state.is_running()):
-            self.logger.debug("Flow is not ready to run.")
+            self.logger.info("Flow is not ready to run.")
             raise ENDRUN(state)
 
         return state
@@ -271,7 +271,7 @@ class FlowRunner(Runner):
             - ENDRUN: if the flow is not pending or running
         """
         if state.is_pending():
-            self.logger.debug("Starting flow run.")
+            self.logger.info("Starting flow run.")
             return Running(message="Running flow.")
         elif state.is_running():
             return state
@@ -314,7 +314,7 @@ class FlowRunner(Runner):
         """
 
         if not state.is_running():
-            self.logger.debug("Flow is not in a Running state.")
+            self.logger.info("Flow is not in a Running state.")
             raise ENDRUN(state)
 
         task_states = defaultdict(
