@@ -126,26 +126,6 @@ def test_flow_runner_with_invalid_return_tasks():
         flow_runner.run(return_tasks=[1])
 
 
-def test_flow_runner_prevents_bad_throttle_values():
-    runner = FlowRunner(flow=prefect.Flow())
-    with pytest.raises(ValueError):
-        runner.run(throttle=dict(x=5, y=0))
-
-    with pytest.raises(ValueError):
-        runner.run(throttle=dict(x=-5, y=6))
-
-    with pytest.raises(ValueError) as exc:
-        runner.run(throttle=dict(x=-5, y=0))
-
-    base_msg = (
-        'Cannot throttle tags "{0}", "{1}" - an invalid value less than 1 was provided.'
-    )
-    assert str(exc.value) in [
-        base_msg.format("x", "y"),
-        base_msg.format("y", "x"),
-    ]  # for py34
-
-
 def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
     flow = prefect.Flow()
     task1 = SuccessTask()
@@ -733,46 +713,6 @@ class TestRunCount:
         assert state3.is_failed()
         assert isinstance(state3.result[t1], Failed)
         assert isinstance(state3.result[t2], Failed)
-
-
-@pytest.mark.skipif(
-    sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
-)
-class TestTagThrottling:
-    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
-    def test_throttle_via_time(self, executor):
-        import distributed
-
-        if executor.processes is False and LooseVersion(
-            distributed.__version__
-        ) < LooseVersion("1.23.0"):
-            pytest.skip("https://github.com/dask/distributed/issues/2220")
-
-        @prefect.task(tags=["io"])
-        def record_times():
-            res = []
-            pause = random.randint(0, 75)
-            for i in range(75):
-                if i == pause:
-                    time.sleep(0.1)
-                res.append(time.time())
-            return res
-
-        with Flow() as flow:
-            a, b = record_times(), record_times()
-
-        state = flow.run(throttle=dict(io=1), executor=executor, return_tasks=[a, b])
-        assert state.is_successful()
-
-        times = [("alice", t) for t in state.result[a].result] + [
-            ("bob", t) for t in state.result[b].result
-        ]
-        names = [name for name, time in sorted(times, key=lambda x: x[1])]
-
-        alice_first = ["alice"] * 75 + ["bob"] * 75
-        bob_first = ["bob"] * 75 + ["alice"] * 75
-
-        assert (names == alice_first) or (names == bob_first)
 
 
 def test_flow_runner_uses_user_provided_executor():
