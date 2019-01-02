@@ -133,7 +133,7 @@ class CloudTaskRunner(TaskRunner):
         )
         self.task_run_id = task_run_info.id  # type: ignore
 
-        ## update inputs, prioritizing kwarg-provided inputs
+        # update inputs, prioritizing kwarg-provided inputs
         if hasattr(state, "cached_inputs") and isinstance(
             state.cached_inputs, dict  # type: ignore
         ):
