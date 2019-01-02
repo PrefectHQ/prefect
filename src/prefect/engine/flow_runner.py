@@ -274,7 +274,8 @@ class FlowRunner(Runner):
             self.logger.info("Flow is not in a Running state.")
             raise ENDRUN(state)
 
-        task_states = task_states or {}
+        # make a copy to avoid modifying the user-supplied task_states dict
+        task_states = dict(task_states or {})
         start_tasks = start_tasks or []
         return_tasks = set(return_tasks or [])
 
