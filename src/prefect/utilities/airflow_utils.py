@@ -208,10 +208,8 @@ class AirFlow(prefect.core.flow.Flow):
             warnings.warn(
                 "Use of Airflow parameters detected; consider converting these to Prefect Parameters."
             )
-        if task.pool:
-            warnings.warn(
-                "Use of Airflow pools detected; consider converting these to Prefect tags and using throttling."
-            )
+        # if task.pool:
+        #     warnings.warn("Use of Airflow pools detected.")
 
     def _populate_tasks(self) -> None:
         task_dict = {}  # type: Dict[str, Any]
