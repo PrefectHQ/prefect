@@ -122,7 +122,6 @@ class TaskRunner(Runner):
         inputs: Dict[str, Any] = None,
         ignore_trigger: bool = False,
         context: Dict[str, Any] = None,
-        queues: List = None,
         mapped: bool = False,
         map_index: int = None,
         executor: "prefect.engine.executors.Executor" = None,
@@ -144,9 +143,6 @@ class TaskRunner(Runner):
             - ignore_trigger (bool): boolean specifying whether to ignore the
                 Task trigger and certain other dependency checks; defaults to `False`
             - context (dict, optional): prefect Context to use for execution
-            - queues ([queue], optional): list of queues of tickets to use when deciding
-                whether it's safe for the Task to run based on resource limitations. The
-                Task will only begin running when a ticket from each queue is available.
             - mapped (bool, optional): whether this task is mapped; if `True`,
                 the task will _not_ be run, but a `Mapped` state will be returned indicating
                 it is ready to. Defaults to `False`
@@ -160,7 +156,6 @@ class TaskRunner(Runner):
         """
 
         self.logger.info("Beginning task run for task '{}'".format(self.task.name))
-        queues = queues or []
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
@@ -196,18 +191,6 @@ class TaskRunner(Runner):
         upstream_states_set.difference_update(
             [s for s in upstream_states_set if not isinstance(s, State)]
         )
-
-        # apply throttling
-        while True:
-            tickets = []
-            for q in queues:
-                try:
-                    tickets.append(q.get(timeout=2))  # timeout after 2 seconds
-                except Exception:
-                    for ticket, q in zip(tickets, queues):
-                        q.put(ticket)
-            if len(tickets) == len(queues):
-                break
 
         # run state transformation pipeline
         with prefect.context(context):
@@ -274,7 +257,6 @@ class TaskRunner(Runner):
                         inputs=inputs,
                         ignore_trigger=ignore_trigger,
                         context=context,
-                        queues=queues,
                         executor=executor,
                     )
 
@@ -294,10 +276,6 @@ class TaskRunner(Runner):
                 raise_on_exception = prefect.context.get("raise_on_exception", False)
                 if raise_on_exception:
                     raise exc
-
-            finally:  # resource is now available
-                for ticket, q in zip(tickets, queues):
-                    q.put(ticket)
 
         return state
 
@@ -583,7 +561,6 @@ class TaskRunner(Runner):
         inputs: Dict[str, Any],
         ignore_trigger: bool,
         context: Dict[str, Any],
-        queues: Iterable,
         executor: "prefect.engine.executors.Executor",
     ) -> State:
         """
@@ -599,9 +576,6 @@ class TaskRunner(Runner):
             - ignore_trigger (bool): boolean specifying whether to ignore the
                 Task trigger and certain other dependency checks; defaults to `False`
             - context (dict, optional): prefect Context to use for execution
-            - queues ([queue], optional): list of queues of tickets to use when deciding
-                whether it's safe for the Task to run based on resource limitations. The
-                Task will only begin running when a ticket from each queue is available.
             - executor (Executor): executor to use when performing computation
 
         Returns:
@@ -614,7 +588,6 @@ class TaskRunner(Runner):
             inputs=inputs,
             ignore_trigger=ignore_trigger,
             context=context,
-            queues=queues,
             executor=executor,
         )
 

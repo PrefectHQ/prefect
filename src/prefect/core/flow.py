@@ -106,9 +106,6 @@ class Flow:
         - edges ([Edge], optional): A list of edges between tasks
         - reference_tasks ([Task], optional): A list of tasks which determine the final
             state of a flow
-        - throttle (dict, optional): dictionary of tags -> int specifying
-            how many tasks with a given tag should be allowed to run simultaneously. Used
-            for throttling resource usage.
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the flow changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -124,8 +121,6 @@ class Flow:
         - result_handler (ResultHandler, optional): the handler to use for
             retrieving and storing state results during execution; defaults to `CloudResultHandler`
 
-    Raises:
-        - ValueError: if any throttle values are `<= 0`
     """
 
     def __init__(
@@ -136,7 +131,6 @@ class Flow:
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
         reference_tasks: Iterable[Task] = None,
-        throttle: Dict[str, int] = None,
         state_handlers: Iterable[Callable] = None,
         validate: bool = None,
         result_handler: ResultHandler = None,
@@ -172,17 +166,6 @@ class Flow:
             )
 
         self._prefect_version = prefect.__version__
-
-        self.throttle = throttle or {}
-        if min(self.throttle.values(), default=1) <= 0:
-            bad_tags = ", ".join(
-                ['"' + tag + '"' for tag, num in self.throttle.items() if num <= 0]
-            )
-            raise ValueError(
-                "Cannot throttle tags {0} - an invalid value less than 1 was provided.".format(
-                    bad_tags
-                )
-            )
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")
