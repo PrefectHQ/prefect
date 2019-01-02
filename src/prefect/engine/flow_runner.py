@@ -274,9 +274,7 @@ class FlowRunner(Runner):
             self.logger.info("Flow is not in a Running state.")
             raise ENDRUN(state)
 
-        task_states = defaultdict(
-            lambda: Failed(message="Task state not available."), task_states or {}
-        )
+        task_states = task_states or {}
         start_tasks = start_tasks or []
         return_tasks = set(return_tasks or [])
 
@@ -295,7 +293,9 @@ class FlowRunner(Runner):
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
-                    upstream_states[edge] = task_states[edge.upstream_task]
+                    upstream_states[edge] = task_states.get(
+                        edge.upstream_task, Pending(message="Task state not available.")
+                    )
                     if edge.mapped:
                         mapped_tasks.add(task)
 
