@@ -365,6 +365,20 @@ def test_flow_with_multiple_retry_tasks_doesnt_run_them_early():
     assert isinstance(state2.result[t3], Failed)  # this task ran
 
 
+def test_flow_runner_makes_copy_of_task_results_dict():
+    """
+    Ensure the flow runner copies the task_results dict rather than modifying it inplace
+    """
+    flow = prefect.Flow()
+    t1, t2 = prefect.Task(), prefect.Task()
+    flow.add_edge(t1, t2)
+
+    task_states = {t1: Pending()}
+    state = flow.run(task_states=task_states, return_tasks=[t1])
+    assert state.result[t1] == Success()
+    assert task_states == {t1: Pending()}
+
+
 class TestCheckFlowPendingOrRunning:
     @pytest.mark.parametrize("state", [Pending(), Running(), Retrying(), Scheduled()])
     def test_pending_or_running_are_ok(self, state):
