@@ -107,7 +107,6 @@ class FlowRunner(Runner):
         parameters: Dict[str, Any] = None,
         executor: "prefect.engine.executors.Executor" = None,
         context: Dict[str, Any] = None,
-        throttle: Dict[str, int] = None,
     ) -> State:
         """
         The main endpoint for FlowRunners.  Calling this method will perform all
@@ -132,15 +131,10 @@ class FlowRunner(Runner):
                 computation; defaults to the executor specified in your prefect configuration
             - context (dict, optional): prefect.Context to use for execution
                 to use for each Task run
-            - throttle (dict, optional): dictionary of tags -> int specifying
-                how many tasks with a given tag should be allowed to run simultaneously. Used
-                for throttling resource usage.
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
 
-        Raises:
-            - ValueError: if any throttle values are `<= 0`
         """
 
         self.logger.info("Beginning Flow run for '{}'".format(self.flow.name))
@@ -148,16 +142,6 @@ class FlowRunner(Runner):
         return_tasks = set(return_tasks or [])
         executor = executor or DEFAULT_EXECUTOR
         parameters = parameters or {}
-        throttle = throttle or self.flow.throttle
-        if min(throttle.values(), default=1) <= 0:
-            bad_tags = ", ".join(
-                ['"' + tag + '"' for tag, num in throttle.items() if num <= 0]
-            )
-            raise ValueError(
-                "Cannot throttle tags {0} - an invalid value less than 1 was provided.".format(
-                    bad_tags
-                )
-            )
 
         context.update(parameters=parameters, flow_name=self.flow.name)
 
@@ -185,7 +169,6 @@ class FlowRunner(Runner):
                     return_tasks=return_tasks,
                     return_failed=return_failed,
                     executor=executor,
-                    throttle=throttle,
                 )
 
             except ENDRUN as exc:
@@ -262,7 +245,6 @@ class FlowRunner(Runner):
         return_tasks: Set[Task],
         executor: "prefect.engine.executors.base.Executor",
         return_failed: bool = False,
-        throttle: Dict[str, int] = None,
     ) -> State:
         """
         Runs the flow.
@@ -282,15 +264,10 @@ class FlowRunner(Runner):
             - return_failed (bool, optional): whether to return all tasks
                 which fail, regardless of whether they are terminal tasks or in `return_tasks`.
                 Defaults to `False`
-            - throttle (dict, optional): dictionary of tags -> int specifying
-                how many tasks with a given tag should be allowed to run simultaneously. Used
-                for throttling resource usage.
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
 
-        Raises:
-            - ValueError: if any throttle values are `<= 0`
         """
 
         if not state.is_running():
@@ -302,7 +279,6 @@ class FlowRunner(Runner):
         )
         start_tasks = start_tasks or []
         return_tasks = set(return_tasks or [])
-        throttle = throttle or {}
 
         # this set keeps track of any tasks that are mapped over - meaning they are the
         # downstream task of at least one mapped edge
@@ -311,13 +287,6 @@ class FlowRunner(Runner):
         # -- process each task in order
 
         with executor.start():
-
-            queues = {}
-            for tag, size in throttle.items():
-                q = executor.queue(size)
-                for i in range(size):
-                    q.put(i)  # populate the queue with resource "tickets"
-                queues[tag] = q
 
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
@@ -345,11 +314,8 @@ class FlowRunner(Runner):
                 task_runner = self.task_runner_cls(
                     task=task, result_handler=self.flow.result_handler
                 )
-                task_queues = [
-                    queues.get(tag) for tag in sorted(task.tags) if queues.get(tag)
-                ]
 
-                if not task in mapped_tasks:
+                if task not in mapped_tasks:
                     upstream_mapped = {
                         e: executor.wait(f)  # type: ignore
                         for e, f in upstream_states.items()
@@ -364,7 +330,6 @@ class FlowRunner(Runner):
                     inputs=task_inputs,
                     ignore_trigger=(task in start_tasks),
                     context=dict(prefect.context, task_id=task.id),
-                    queues=task_queues,
                     mapped=task in mapped_tasks,
                     executor=executor,
                 )

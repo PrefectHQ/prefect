@@ -263,47 +263,6 @@ def test_task_runner_raise_on_exception_when_task_signals():
             TaskRunner(RaiseFailTask()).run()
 
 
-def test_throttled_task_runner_takes_ticket_and_puts_it_back():
-    q = MagicMock()
-    q.get = lambda *args, **kwargs: "ticket"
-    runner = TaskRunner(SuccessTask(tags=["db"]))
-    state = runner.run(queues=[q])
-    assert q.put.called
-    assert q.put.call_args[0][0] == "ticket"
-
-
-def test_throttled_task_runner_returns_ticket_even_with_error():
-    q = MagicMock()
-    q.get = lambda *args, **kwargs: "ticket"
-    runner = TaskRunner(ErrorTask(tags=["db"]))
-    state = runner.run(queues=[q])
-    assert q.put.called
-    assert q.put.call_args[0][0] == "ticket"
-
-
-def test_task_runner_returns_tickets_to_the_right_place():
-    class BadQueue:
-        def __init__(self, *args, **kwargs):
-            self.called = 0
-
-        def get(self, *args, **kwargs):
-            if self.called <= 2:
-                self.called += 1
-                raise Exception
-            else:
-                return "bad_ticket"
-
-    bq = BadQueue()
-    bq.put = MagicMock()
-    q = MagicMock()
-    q.get = lambda *args, **kwargs: "ticket"
-    runner = TaskRunner(SuccessTask())
-    state = runner.run(queues=[q, bq])
-    assert bq.put.call_count == 1
-    assert bq.put.call_args[0][0] == "bad_ticket"
-    assert all([args[0][0] == "ticket" for args in q.put.call_args_list])
-
-
 def test_task_runner_accepts_dictionary_of_edges():
     add = AddTask()
     ex = Edge(SuccessTask(), add, key="x")
