@@ -10,7 +10,7 @@ from prefect.engine.state import State
 class FlowRunnerTask(prefect.Task):
     def __init__(
         self, executor: prefect.engine.executors.Executor = None, **kwargs: Any
-    ) -> None:
+    ):
         self.executor = executor
         super().__init__(**kwargs)
 
