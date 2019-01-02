@@ -51,7 +51,7 @@ class Client:
         self.logger.addHandler(handler)
         self.logger.setLevel(prefect.config.logging.level)
 
-    def __init__(self, api_server: str = None, graphql_server: str = None) -> None:
+    def __init__(self, api_server: str = None, graphql_server: str = None):
         self._initialize_logger()
         if not api_server:
             api_server = prefect.config.cloud.get("api", None)

@@ -136,7 +136,7 @@ class Task(metaclass=SignatureValidator):
         cache_for: timedelta = None,
         cache_validator: Callable = None,
         state_handlers: Iterable[Callable] = None,
-    ) -> None:
+    ):
 
         self.name = name or type(self).__name__
         self.slug = slug
@@ -842,7 +842,7 @@ class Parameter(Task):
         default: Any = None,
         required: bool = True,
         tags: Iterable[str] = None,
-    ) -> None:
+    ):
         if default is not None:
             required = False
 
