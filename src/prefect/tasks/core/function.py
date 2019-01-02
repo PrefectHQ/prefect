@@ -30,7 +30,7 @@ class FunctionTask(prefect.Task):
     ```
     """
 
-    def __init__(self, fn: Callable, name: str = None, **kwargs: Any) -> None:
+    def __init__(self, fn: Callable, name: str = None, **kwargs: Any):
         if not callable(fn):
             raise TypeError("fn must be callable.")
 

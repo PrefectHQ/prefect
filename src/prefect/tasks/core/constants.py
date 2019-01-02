@@ -6,7 +6,7 @@ import prefect
 
 
 class Constant(prefect.Task):
-    def __init__(self, value: Any, name: str = None, **kwargs: Any) -> None:
+    def __init__(self, value: Any, name: str = None, **kwargs: Any):
 
         self.value = value
 

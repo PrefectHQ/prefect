@@ -97,7 +97,7 @@ def get_versioned_schema(schema: "VersionedSchema", version: str) -> "VersionedS
 
 
 class VersionedSchemaOptions(SchemaOpts):
-    def __init__(self, meta, **kwargs):
+    def __init__(self, meta, **kwargs) -> None:
         super().__init__(meta, **kwargs)
         self.object_class = getattr(meta, "object_class", None)
         self.object_class_exclude = getattr(meta, "object_class_exclude", None) or []
@@ -208,7 +208,7 @@ class Nested(fields.Nested):
     object.
     """
 
-    def __init__(self, nested: type, value_selection_fn: Callable, **kwargs) -> None:
+    def __init__(self, nested: type, value_selection_fn: Callable, **kwargs):
         super().__init__(nested=nested, **kwargs)
         self.value_selection_fn = value_selection_fn
 
@@ -275,7 +275,7 @@ class FunctionReference(fields.Field):
 
     """
 
-    def __init__(self, valid_functions, reject_invalid=True, **kwargs):
+    def __init__(self, valid_functions: list, reject_invalid: bool = True, **kwargs):
         self.valid_functions = {to_qualified_name(f): f for f in valid_functions}
         self.reject_invalid = reject_invalid
         super().__init__(**kwargs)

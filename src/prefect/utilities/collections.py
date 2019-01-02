@@ -56,10 +56,24 @@ class DotDict(MutableMapping):
 
     __protect_critical_keys__ = True
 
-    def __init__(self, init_dict: DictLike = None, **kwargs: Any) -> None:
+    def __init__(self, init_dict: DictLike = None, **kwargs: Any):
         if init_dict:
             self.update(init_dict)
         self.update(kwargs)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        This method is defined for MyPy, which otherwise tries to type
+        the inherited `.get()` method incorrectly.
+
+        Args:
+            - key (str): the key to retrieve
+            - default (Any): a default value to return if the key is not found
+
+        Returns:
+            - Any: the value of the key, or the default value if the key is not found
+        """
+        return super().get(key, default)
 
     def __getitem__(self, key: str) -> Any:
         return self.__dict__[key]  # __dict__ expects string keys
