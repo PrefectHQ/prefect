@@ -43,6 +43,7 @@
 - Fixed issue where `SKIP` signals were preventing multiple layers of mapping - [#455](https://github.com/PrefectHQ/prefect/issues/455)
 - Fixed issue with multi-layer mapping in `flow.visualize()` - [#454](https://github.com/PrefectHQ/prefect/issues/454)
 - Fixed issue where database `cached_inputs` weren't being used locally - [#434](https://github.com/PrefectHQ/prefect/issues/434)
+- Fixed issue where `Config.set_nested` would have an error if the provided key was nested deeper than an existing terminal key - [#479](https://github.com/PrefectHQ/prefect/pull/479)
 
 ### Breaking Changes
 
