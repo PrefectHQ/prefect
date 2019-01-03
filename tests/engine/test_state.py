@@ -92,6 +92,21 @@ def test_scheduled_states_have_default_times():
     assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
 
 
+@pytest.mark.parametrize("cls", all_states)
+def test_only_scheduled_states_have_start_times(cls):
+    """
+    the start_time attribute of a scheduled state is important and used (outside Python)
+    to identify when a state is scheduled
+    """
+    state = cls()
+    if hasattr(state, "start_time"):
+        assert isinstance(state, Scheduled)
+        assert state.is_scheduled()
+    else:
+        assert not isinstance(state, Scheduled)
+        assert not state.is_scheduled()
+
+
 def test_retry_stores_run_count():
     state = Retrying(run_count=2)
     assert state.run_count == 2

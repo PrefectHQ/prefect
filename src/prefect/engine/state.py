@@ -262,6 +262,10 @@ class Scheduled(Pending):
     """
     Pending state indicating the object has been scheduled to run.
 
+    Scheduled states have a `start_time` which indicates when they are scheduled to run.
+    Only scheduled states have this property; this is important because non-Python systems
+    identify scheduled states by the presence of this property.
+
     Args:
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
