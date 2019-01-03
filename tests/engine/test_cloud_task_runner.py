@@ -26,7 +26,8 @@ def cloud_settings():
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "prefect_cloud": True,
+            "engine.flow_runner": "prefect.engine.cloud_runners.CloudFlowRunner",
+            "engine.task_runner": "prefect.engine.cloud_runners.CloudTaskRunner",
             "cloud.auth_token": "token",
         }
     ):
@@ -236,8 +237,7 @@ class TestHeartBeats:
             "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
         )
         task = prefect.Task(name="test")
-        with set_temporary_config({"prefect_cloud": True}):
-            res = CloudTaskRunner(task=task).run(executor=executor)
+        res = CloudTaskRunner(task=task).run(executor=executor)
 
         assert res.is_successful()
         assert client.update_task_run_heartbeat.call_args[0][0] == "1234"
