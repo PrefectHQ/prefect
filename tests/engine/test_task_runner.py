@@ -409,14 +409,6 @@ class TestCheckUpstreamSkipped:
 
 
 class TestCheckTaskTrigger:
-    def test_ignore_trigger(self):
-        task = Task(trigger=prefect.triggers.all_successful)
-        state = Pending()
-        new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={Success(), Failed()}, ignore_trigger=True
-        )
-        assert new_state is state
-
     def test_all_successful_pass(self):
         task = Task(trigger=prefect.triggers.all_successful)
         state = Pending()
@@ -875,19 +867,6 @@ class TestCheckScheduledStep:
             TaskRunner(task=Task()).check_task_reached_start_time(state=state) is state
         )
 
-    @pytest.mark.parametrize(
-        "state",
-        [
-            Scheduled(start_time=pendulum.now("utc") + timedelta(minutes=10)),
-            Retrying(start_time=pendulum.now("utc") + timedelta(minutes=10)),
-        ],
-    )
-    def test_scheduled_stategnore_trigger_with_future_start_time(self, state):
-        result = TaskRunner(task=Task()).check_task_reached_start_time(
-            state=state, ignore_trigger=True
-        )
-        assert result is state
-
 
 class TestTaskStateHandlers:
     def test_task_handlers_are_called(self):
@@ -1123,7 +1102,9 @@ class TestCheckUpstreamsforMapping:
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
-def test_task_runner_ignores_trigger_for_parent_mapped_task_but_not_children(executor):
+def test_task_runner_skips_upstream_check_for_parent_mapped_task_but_not_children(
+    executor
+):
     add = AddTask(trigger=prefect.triggers.all_failed)
     ex = Edge(SuccessTask(), add, key="x")
     ey = Edge(ListTask(), add, key="y", mapped=True)
@@ -1188,39 +1169,48 @@ def test_improperly_mapped_edge_fails_gracefully(mapped):
 
 
 @pytest.mark.parametrize("mapped", [False, True])
-def test_all_pipeline_method_steps_are_called(mapped):
+@pytest.mark.parametrize("check_upstream", [False, True])
+def test_all_pipeline_method_steps_are_called(mapped, check_upstream):
 
     pipeline = [
         "initialize_run",
         "update_context_from_state",
-        "check_upstream_finished",
-        "check_upstream_skipped",
-        "check_task_trigger",
         "check_task_is_pending",
         "check_task_reached_start_time",
         "check_task_is_cached",
         "set_task_to_running",
+    ]
+    check_upstream_pipeline = [
+        "check_upstream_finished",
+        "check_upstream_skipped",
+        "check_task_trigger",
     ]
     unmapped_pipeline = ["get_task_run_state", "cache_result", "check_for_retry"]
     mapped_pipeline = ["check_upstreams_for_mapping", "get_task_mapped_state"]
 
     runner = TaskRunner(Task())
 
-    for method in pipeline + mapped_pipeline + unmapped_pipeline:
+    for method in (
+        pipeline + mapped_pipeline + unmapped_pipeline + check_upstream_pipeline
+    ):
         setattr(runner, method, MagicMock())
 
     # initialize run is unpacked, which MagicMocks dont support
     runner.initialize_run = MagicMock(return_value=(MagicMock(), MagicMock()))
 
-    runner.run(mapped=mapped)
+    runner.run(mapped=mapped, check_upstream=check_upstream)
 
     for method in pipeline:
         assert getattr(runner, method).call_count == 1
+
     if mapped:
         for method in mapped_pipeline:
             assert getattr(runner, method).call_count == 1
     else:
         for method in unmapped_pipeline:
+            assert getattr(runner, method).call_count == 1
+    if check_upstream and not mapped:
+        for method in check_upstream_pipeline:
             assert getattr(runner, method).call_count == 1
 
 
