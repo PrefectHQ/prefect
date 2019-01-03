@@ -24,11 +24,17 @@ def cloud_settings():
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "prefect_cloud": True,
             "cloud.auth_token": "token",
+            "engine.flow_runner": "prefect.engine.cloud_runners.CloudFlowRunner",
+            "engine.task_runner": "prefect.engine.cloud_runners.CloudTaskRunner",
         }
     ):
         yield
+
+
+def test_task_runner_cls_is_cloud_task_runner():
+    fr = CloudFlowRunner(flow=None)
+    assert fr.task_runner_cls is CloudTaskRunner
 
 
 def test_flow_runner_calls_client_the_approriate_number_of_times(monkeypatch):

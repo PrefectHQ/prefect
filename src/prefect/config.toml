@@ -1,12 +1,8 @@
 # the location of the user's config file
 user_config_path = "$HOME/.prefect/config.toml"
 
-# turns out debug mode
+# debug mode
 debug = false
-
-# running in prefect cloud
-prefect_cloud = false
-
 
 
 [cloud]
@@ -26,6 +22,8 @@ level = "INFO"
 # The log format
 format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
 
+# Send logs to Prefect Cloud
+log_to_cloud = false
 
 
 [flows]
@@ -54,5 +52,9 @@ timeout = false
 
 
 [engine]
-# the default executor for all Flow runs, specified using a full path
+# the default executor, specified using a full path
 executor = "prefect.engine.executors.SynchronousExecutor"
+# the default flow runner, specified using a full path
+flow_runner = "prefect.engine.flow_runner.FlowRunner"
+# the default task runner, specified using a full path
+task_runner = "prefect.engine.task_runner.TaskRunner"

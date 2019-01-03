@@ -30,7 +30,6 @@ of task execution.
 """
 import sys
 
-from warnings import warn as _warn
 
 import prefect
 from prefect.engine.executors.base import Executor
@@ -39,16 +38,3 @@ from prefect.engine.executors.sync import SynchronousExecutor
 
 if sys.version_info >= (3, 5):
     from prefect.engine.executors.dask import DaskExecutor
-
-try:
-    cfg_exec = prefect.utilities.serialization.from_qualified_name(
-        prefect.config.engine.executor
-    )
-    DEFAULT_EXECUTOR = cfg_exec()  # type: Executor
-except:
-    _warn(
-        "Could not import {}, using prefect.engine.executors.LocalExecutor instead.".format(
-            prefect.config.engine.executor
-        )
-    )
-    DEFAULT_EXECUTOR = LocalExecutor()

@@ -1196,7 +1196,9 @@ def test_all_pipeline_method_steps_are_called(mapped, check_upstream):
         setattr(runner, method, MagicMock())
 
     # initialize run is unpacked, which MagicMocks dont support
-    runner.initialize_run = MagicMock(return_value=(MagicMock(), MagicMock()))
+    runner.initialize_run = MagicMock(
+        return_value=(MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    )
 
     runner.run(mapped=mapped, check_upstream=check_upstream)
 
