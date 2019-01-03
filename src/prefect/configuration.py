@@ -83,7 +83,16 @@ class Config(collections.DotDict):
         config = self
         keys = key.split(".")
         for k in keys[:-1]:
-            config = config.setdefault(k, Config())
+            # get the value of the config under the provided key
+            new_config = config.setdefault(k, Config())
+            # if the value is not a config, then we are overwriting an existing config setting
+            if not isinstance(new_config, Config):
+                # assign a new config to the key
+                new_config = Config()
+                config[k] = new_config
+            # get the new config so we can continue into the nested keys
+            config = new_config
+
         config[keys[-1]] = value
 
     def setdefault_nested(self, key: str, value: Any) -> Any:
