@@ -8,7 +8,6 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Flow, Task
 from prefect.engine import signals
-from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Failed,
@@ -77,7 +76,9 @@ class FlowRunner(Runner):
         state_handlers: Iterable[Callable] = None,
     ):
         self.flow = flow
-        self.task_runner_cls = task_runner_cls or TaskRunner
+        if task_runner_cls is None:
+            task_runner_cls = prefect.engine.get_default_task_runner_class()
+        self.task_runner_cls = task_runner_cls
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -140,7 +141,9 @@ class FlowRunner(Runner):
         self.logger.info("Beginning Flow run for '{}'".format(self.flow.name))
         context = context or {}
         return_tasks = set(return_tasks or [])
-        executor = executor or DEFAULT_EXECUTOR
+        if executor is None:
+            executor = prefect.engine.get_default_executor_class()()
+        self.executor = executor
         parameters = parameters or {}
 
         context.update(parameters=parameters, flow_name=self.flow.name)

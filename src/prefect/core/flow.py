@@ -34,6 +34,7 @@ from prefect.utilities import logging
 from prefect.utilities.serialization import to_qualified_name
 from prefect.utilities.tasks import as_task, unmapped
 
+
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
 
@@ -843,6 +844,7 @@ class Flow:
         self,
         parameters: Dict[str, Any] = None,
         return_tasks: Iterable[Task] = None,
+        runner_cls: type = None,
         **kwargs: Any
     ) -> "prefect.engine.state.State":
         """
@@ -851,6 +853,7 @@ class Flow:
         Args:
             - parameters (Dict[str, Any], optional): values to pass into the runner
             - return_tasks ([Task], optional): list of tasks which return state
+            - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
             - **kwargs: additional keyword arguments; if any provided keywords
                 match known parameter names, they will be used as such. Otherwise they will be passed to the
                 `FlowRunner.run()` method
@@ -858,10 +861,8 @@ class Flow:
         Returns:
             - State of the flow after it is run resulting from it's return tasks
         """
-        if prefect.config.get("prefect_cloud", False) is True:
-            runner_cls = prefect.engine.cloud_runners.CloudFlowRunner  # type: ignore
-        else:
-            runner_cls = prefect.engine.flow_runner.FlowRunner  # type: ignore
+        if runner_cls is None:
+            runner_cls = prefect.engine.get_default_flow_runner_class()
 
         runner = runner_cls(flow=self)
         parameters = parameters or {}
