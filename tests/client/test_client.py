@@ -130,15 +130,22 @@ def test_client_doesnt_login_if_no_tokens_available(monkeypatch, cloud):
     mock_file = mock_open()
     monkeypatch.setattr("builtins.open", mock_file)
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {
-            "cloud.api": "http://my-cloud.foo",
-            "prefect_cloud": cloud,
-            "cloud.auth_token": None,
-            "cloud.email": "test@example.com",
-            "cloud.password": "1234",
-        }
-    ):
+
+    config = {
+        "cloud.api": "http://my-cloud.foo",
+        "cloud.auth_token": None,
+        "cloud.email": "test@example.com",
+        "cloud.password": "1234",
+    }
+
+    if cloud:
+        config.update(
+            {
+                "engine.flow_runner": "prefect.engine.cloud_runners.CloudFlowRunner",
+                "engine.task_runner": "prefect.engine.cloud_runners.CloudTaskRunner",
+            }
+        )
+    with set_temporary_config(config):
         client = Client()
     assert not post.called
     assert client.token is None

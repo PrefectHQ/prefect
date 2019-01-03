@@ -36,13 +36,16 @@ def from_qualified_name(obj_str: str) -> Any:
     """
 
     path_components = obj_str.split(".")
-    for i in range(len(path_components), 0, -1):
-        module_path = ".".join(path_components[:i])
-        if module_path in sys.modules:
-            obj = sys.modules[module_path]
-            for p in path_components[i:]:
-                obj = getattr(obj, p)
-            return obj
+    try:
+        for i in range(len(path_components), 0, -1):
+            module_path = ".".join(path_components[:i])
+            if module_path in sys.modules:
+                obj = sys.modules[module_path]
+                for p in path_components[i:]:
+                    obj = getattr(obj, p)
+                return obj
+    except Exception:
+        pass  # exceptions are raised by the catch-all at the end
     raise ValueError(
         "Couldn't load \"{}\"; maybe it hasn't been imported yet?".format(obj_str)
     )

@@ -22,7 +22,6 @@ from prefect import config
 from prefect.client.result_handlers import ResultHandler
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.executors import DEFAULT_EXECUTOR
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -159,7 +158,9 @@ class TaskRunner(Runner):
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
-        executor = executor or DEFAULT_EXECUTOR
+        if executor is None:
+            executor = prefect.engine.get_default_executor_class()()
+        self.executor = executor
 
         context.update(inputs=inputs, map_index=map_index)
 
