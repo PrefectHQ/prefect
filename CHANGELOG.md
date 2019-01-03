@@ -70,6 +70,7 @@
 - Remove the `task_contexts` argument from `FlowRunner.run()` - [#440](https://github.com/PrefectHQ/prefect/pull/440)
 - Remove the leading underscore from Prefect-set context keys - [#446](https://github.com/PrefectHQ/prefect/pull/446)
 - Removed throttling tasks within the local cluster - [#470](https://github.com/PrefectHQ/prefect/pull/470)
+- Even `start_tasks` will not run before their state's `start_time` (if the state is `Scheduled`) - [#474](https://github.com/PrefectHQ/prefect/pull/474)
 
 ## 0.3.3 <Badge text="alpha" type="warn"/>
 
