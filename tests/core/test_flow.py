@@ -659,17 +659,6 @@ def test_sorted_tasks_with_start_task():
     assert set(f.sorted_tasks(root_tasks=[t3])) == set([t3, t4, t5])
 
 
-def test_flow_run_uses_cloud_runner_if_config_is_cloud(monkeypatch):
-    monkeypatch.setattr(
-        "prefect.engine.cloud_runners.CloudFlowRunner",
-        MagicMock(side_effect=SyntaxError),
-    )
-    f = Flow()
-    with pytest.raises(SyntaxError):
-        with set_temporary_config({"prefect_cloud": True}):
-            f.run()
-
-
 def test_flow_raises_for_irrelevant_user_provided_parameters():
     class ParameterTask(Task):
         def run(self):
