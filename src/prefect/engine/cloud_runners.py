@@ -50,9 +50,7 @@ class CloudTaskRunner(TaskRunner):
         result_handler: ResultHandler = None,
         state_handlers: Iterable[Callable] = None,
     ) -> None:
-        self.task = task
         self.client = Client()
-        self.result_handler = result_handler
         super().__init__(
             task=task, result_handler=result_handler, state_handlers=state_handlers
         )
@@ -207,19 +205,10 @@ class CloudFlowRunner(FlowRunner):
     ```
     """
 
-    def __init__(
-        self,
-        flow: Flow,
-        task_runner_cls: type = None,
-        state_handlers: Iterable[Callable] = None,
-    ) -> None:
-        self.flow = flow
-        self.task_runner_cls = task_runner_cls or CloudTaskRunner
+    def __init__(self, flow: Flow, state_handlers: Iterable[Callable] = None) -> None:
         self.client = Client()
         super().__init__(
-            flow=flow,
-            task_runner_cls=self.task_runner_cls,
-            state_handlers=state_handlers,
+            flow=flow, task_runner_cls=CloudTaskRunner, state_handlers=state_handlers
         )
 
     def _heartbeat(self) -> None:
