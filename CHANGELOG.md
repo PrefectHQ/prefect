@@ -43,6 +43,7 @@
 - Fixed issue where `SKIP` signals were preventing multiple layers of mapping - [#455](https://github.com/PrefectHQ/prefect/issues/455)
 - Fixed issue with multi-layer mapping in `flow.visualize()` - [#454](https://github.com/PrefectHQ/prefect/issues/454)
 - Fixed issue where database `cached_inputs` weren't being used locally - [#434](https://github.com/PrefectHQ/prefect/issues/434)
+- Fixed issue where `Config.set_nested` would have an error if the provided key was nested deeper than an existing terminal key - [#479](https://github.com/PrefectHQ/prefect/pull/479)
 
 ### Breaking Changes
 
@@ -69,6 +70,7 @@
 - Remove the `task_contexts` argument from `FlowRunner.run()` - [#440](https://github.com/PrefectHQ/prefect/pull/440)
 - Remove the leading underscore from Prefect-set context keys - [#446](https://github.com/PrefectHQ/prefect/pull/446)
 - Removed throttling tasks within the local cluster - [#470](https://github.com/PrefectHQ/prefect/pull/470)
+- Even `start_tasks` will not run before their state's `start_time` (if the state is `Scheduled`) - [#474](https://github.com/PrefectHQ/prefect/pull/474)
 
 ## 0.3.3 <Badge text="alpha" type="warn"/>
 
