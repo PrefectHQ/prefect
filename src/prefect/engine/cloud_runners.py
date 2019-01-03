@@ -1,13 +1,13 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import warnings
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union, List
 
 import prefect
 from prefect import config
 from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
-from prefect.core import Flow, Task
+from prefect.core import Flow, Task, Edge
 from prefect.engine import signals
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, State
@@ -96,18 +96,28 @@ class CloudTaskRunner(TaskRunner):
 
         return new_state
 
-    def initialize_run(
-        self, state: Optional[State], context: Dict[str, Any]
-    ) -> Tuple[State, Dict[str, Any]]:
+    def initialize_run(  # type: ignore
+        self,
+        state: Optional[State],
+        context: Dict[str, Any],
+        upstream_states: Dict[Edge, Union[State, List[State]]],
+        inputs: Dict[str, Any],
+    ) -> Tuple[
+        State, Dict[str, Any], Dict[Edge, Union[State, List[State]]], Dict[str, Any]
+    ]:
         """
         Initializes the Task run by initializing state and context appropriately.
 
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
-            - context (dict): the context to be updated with relevant information
+            - context (Dict[str, Any]): the context to be updated with relevant information
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): a dictionary
+                representing the states of tasks upstream of this one
+            - inputs (Dict[str, Any]): a dictionary of inputs to the task that should override
+                the inputs taken from upstream states
 
         Returns:
-            - tuple: a tuple of the updated state and context objects
+            - tuple: a tuple of the updated state, context, upstream_states, and inputs objects
         """
         flow_run_id = context.get("flow_run_id", None)
         try:
@@ -136,12 +146,17 @@ class CloudTaskRunner(TaskRunner):
         if hasattr(state, "cached_inputs") and isinstance(
             state.cached_inputs, dict  # type: ignore
         ):
-            inputs = state.cached_inputs  # type: ignore
-            inputs.update(context.get("inputs", {}))
-            context.update(inputs=inputs)
+            updated_inputs = state.cached_inputs.copy()  # type: ignore
+        else:
+            updated_inputs = {}
+        updated_inputs.update(inputs)
 
-        context.update(task_name=self.task.name)
-        return super().initialize_run(state=state, context=context)
+        return super().initialize_run(
+            state=state,
+            context=context,
+            upstream_states=upstream_states,
+            inputs=updated_inputs,
+        )
 
 
 class CloudFlowRunner(FlowRunner):
@@ -236,15 +251,21 @@ class CloudFlowRunner(FlowRunner):
 
         return new_state
 
-    def initialize_run(
-        self, state: Optional[State], context: Dict[str, Any]
+    def initialize_run(  # type: ignore
+        self,
+        state: Optional[State],
+        context: Dict[str, Any],
+        parameters: Dict[str, Any],
     ) -> Tuple[State, Dict[str, Any]]:
         """
-        Initializes the Flow run by initializing state and context appropriately.
+        Initializes the Task run by initializing state and context appropriately.
+
+        If the provided state is a Submitted state, the state it wraps is extracted.
 
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
             - context (dict): the context to be updated with relevant information
+            - parameters(dict): the parameter values for the run
 
         Returns:
             - tuple: a tuple of the updated state and context objects
@@ -267,8 +288,9 @@ class CloudFlowRunner(FlowRunner):
         state = state or flow_run_info.state  # type: ignore
 
         # update parameters, prioritizing kwarg-provided params
-        parameters = flow_run_info.parameters or {}  # type: ignore
-        parameters.update(context.get("parameters", {}))
-        context.update(parameters=parameters)
+        updated_parameters = flow_run_info.parameters or {}  # type: ignore
+        updated_parameters.update(parameters)
 
-        return super().initialize_run(state=state, context=context)
+        return super().initialize_run(
+            state=state, context=context, parameters=updated_parameters
+        )

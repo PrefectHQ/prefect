@@ -98,6 +98,28 @@ class FlowRunner(Runner):
 
         return new_state
 
+    def initialize_run(  # type: ignore
+        self,
+        state: Optional[State],
+        context: Dict[str, Any],
+        parameters: Dict[str, Any],
+    ) -> Tuple[State, Dict[str, Any]]:
+        """
+        Initializes the Task run by initializing state and context appropriately.
+
+        If the provided state is a Submitted state, the state it wraps is extracted.
+
+        Args:
+            - state (State): the proposed initial state of the flow run; can be `None`
+            - context (dict): the context to be updated with relevant information
+            - parameters(dict): the parameter values for the run
+
+        Returns:
+            - tuple: a tuple of the updated state and context objects
+        """
+        context.update(parameters=parameters)
+        return super().initialize_run(state=state, context=context)
+
     def run(
         self,
         state: State = None,
@@ -146,11 +168,11 @@ class FlowRunner(Runner):
         self.executor = executor
         parameters = parameters or {}
 
-        context.update(parameters=parameters, flow_name=self.flow.name)
+        context.update(flow_name=self.flow.name)
 
         # if run fails to initialize, end the run
         try:
-            state, context = self.initialize_run(state, context)
+            state, context = self.initialize_run(state, context, parameters)
         except ENDRUN as exc:
             state = exc.state
             return state
