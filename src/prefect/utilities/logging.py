@@ -48,7 +48,7 @@ def configure_logging() -> logging.Logger:
     logger.setLevel(config.logging.level)
 
     # send logs to server
-    if config.prefect_cloud is True:
+    if config.logging.log_to_cloud:
         logging.setLogRecordFactory(cloud_record_factory)
         log_queue = queue.Queue(-1)  # unlimited size queue
         queue_handler = QueueHandler(log_queue)

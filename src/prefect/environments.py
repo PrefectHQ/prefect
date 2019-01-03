@@ -198,7 +198,8 @@ class LocalEnvironment(Environment):
                 "No serialized flow found! Has this environment been built?"
             )
         flow = self.deserialize_flow_from_bytes(self.serialized_flow)
-        runner = prefect.engine.FlowRunner(flow=flow)
+        runner_cls = prefect.engine.get_default_flow_runner_class()
+        runner = runner_cls(flow=flow)
         return runner.run(**(runner_kwargs or {}))
 
 

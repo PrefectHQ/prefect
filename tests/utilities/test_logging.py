@@ -25,7 +25,7 @@ def test_remote_handler_is_configured_for_cloud(monkeypatch):
     monkeypatch.setattr("prefect.utilities.logging.QueueListener", listener)
     try:
         with utilities.configuration.set_temporary_config(
-            {"prefect_cloud": True, "cloud.log": "http://foo.bar:1800/log"}
+            {"logging.log_to_cloud": True, "cloud.log": "http://foo.bar:1800/log"}
         ):
             logger = utilities.logging.configure_logging()
             assert listener.called
