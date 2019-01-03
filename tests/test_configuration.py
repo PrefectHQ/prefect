@@ -65,6 +65,13 @@ class TestConfig:
         assert config.a.b.c == 2
         assert config.a.b.d == 10
 
+    def test_set_nested_overwrites_values_with_more_configs(self):
+        config = Config()
+        config.set_nested("a.b", 1)
+        config.set_nested("a.b.c", 2)
+        config.set_nested("a.b.c.d", 3)
+        assert config.a.b.c.d == 3
+
     def test_setdefault_nested_creates_configs(self):
         config = Config()
         config.setdefault_nested("a.b.c", 1)
