@@ -29,7 +29,7 @@ jobs:
   # Run unit tests in Python 3.4-3.7
   # ----------------------------------
 
-  test-3.4:
+  python-3.4:
     docker:
       - image: python:3.4
 
@@ -42,31 +42,26 @@ jobs:
           command: apt-get update && apt-get install -y zsh
 
       - run:
-          name: Install prefect
+          name: Install Prefect
           command: pip install ".[all_extras]"
 
       - run:
           name: Run tests
           command: pytest -vv
 
-  test-3.5:
+  python-3.5:
     docker:
       - image: python:3.5
     steps: *run_test_steps
 
-  test-3.6:
+  python-3.6:
     docker:
       - image: python:3.6
     steps: *run_test_steps
 
-  test-3.7:
+  python-3.7:
     docker:
       - image: python:3.7
-    steps: *run_test_steps
-
-  test-airflow:
-    docker:
-      - image: python:3.6
     steps:
       - checkout
       - setup_remote_docker
@@ -75,11 +70,17 @@ jobs:
           command: apt-get update && apt-get install -y zsh
 
       - run:
-          name: Install prefect and airflow
-          command: pip install ".[all_extras]" && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow
+          name: Install Prefect and Airflow (for Airflow compatibility tests)
+          command: |
+            pip install ".[all_extras]"
+            SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow
 
       - run:
-          name: Run tests w/ airflow
+          name: Run tests
+          command: pytest -vv
+
+      - run:
+          name: Run Airflow compatibility tests
           command: pytest -vv --airflow
 
 workflows:
@@ -88,22 +89,18 @@ workflows:
     jobs:
       - check_formatting
 
-      - test-3.4:
+      - python-3.4:
           requires:
             - check_formatting
 
-      - test-3.5:
+      - python-3.5:
           requires:
             - check_formatting
 
-      - test-3.6:
+      - python-3.6:
           requires:
             - check_formatting
 
-      - test-3.7:
+      - python-3.7:
           requires:
             - check_formatting
-
-      - test-airflow:
-          requires:
-            - test-3.6
