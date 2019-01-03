@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 import base64
 import json
 import os
@@ -241,6 +242,19 @@ class TestLocalEnvironment:
         env = LocalEnvironment()
         state = env.build(error_flow()).run()
         assert state.is_failed()
+
+    def test_run_uses_default_flow_runner(self, monkeypatch):
+        x = MagicMock()
+        monkeypatch.setattr("prefect.engine.flow_runner.FlowRunner", x)
+
+        env = LocalEnvironment()
+        built_env = env.build(prefect.Flow())
+        with prefect.utilities.configuration.set_temporary_config(
+            {"engine.flow_runner": "prefect.engine.x"}
+        ):
+
+            built_env.run()
+        assert x.call_count == 1
 
     def test_run_without_build(self):
         env = LocalEnvironment()
