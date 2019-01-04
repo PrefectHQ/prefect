@@ -8,7 +8,7 @@ examples_dir = str(Path(__file__).parents[1] / "examples")
 
 
 def test_examples_exist():
-    assert examples_dir.exists()
+    assert os.path.exists(examples_dir)
     assert len(os.listdir(examples_dir)) > 0
 
 
