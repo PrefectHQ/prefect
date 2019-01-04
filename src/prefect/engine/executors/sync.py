@@ -42,10 +42,12 @@ class SynchronousExecutor(Executor):
 
             futures = []
             for map_index, elem in enumerate(states):
+                # copy kwargs to avoid mutations
+                map_kwargs = kwargs.copy()
+                map_kwargs["context"] = map_kwargs.pop("context", {}).copy()
+                map_kwargs["context"]["map_index"] = map_index
                 futures.append(
-                    dask.delayed(fn)(
-                        *args, upstream_states=elem, map_index=map_index, **kwargs
-                    )
+                    dask.delayed(fn)(*args, upstream_states=elem, **map_kwargs)
                 )
             return futures
 

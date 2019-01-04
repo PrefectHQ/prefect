@@ -133,7 +133,6 @@ class TaskRunner(Runner):
         check_upstream: bool = True,
         context: Dict[str, Any] = None,
         mapped: bool = False,
-        map_index: int = None,
         executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
         """
@@ -157,8 +156,6 @@ class TaskRunner(Runner):
             - mapped (bool, optional): whether this task is mapped; if `True`,
                 the task will _not_ be run, but a `Mapped` state will be returned indicating
                 it is ready to. Defaults to `False`
-            - map_index (int, optional): if this task run represents a spawned
-                mapped task, the `map_index` represents its mapped position
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
 
@@ -175,11 +172,13 @@ class TaskRunner(Runner):
         self.logger.info(
             "Starting task run for task '{name}{index}'".format(
                 name=self.task.name,
-                index="" if map_index is None else "[{}]".format(map_index),
+                index=(
+                    ""
+                    if context.get("map_index") is None
+                    else "[{}]".format(context.get("map_index"))
+                ),
             )
         )
-
-        context.update(map_index=map_index)
 
         # if run fails to initialize, end the run
         try:
@@ -301,7 +300,11 @@ class TaskRunner(Runner):
             self.logger.info(
                 "Finished task run for task '{name}{index}' with final state: '{state}'".format(
                     name=self.task.name,
-                    index="" if map_index is None else "[{}]".format(map_index),
+                    index=(
+                        ""
+                        if context.get("map_index") is None
+                        else "[{}]".format(context.get("map_index"))
+                    ),
                     state=type(state).__name__,
                 )
             )
