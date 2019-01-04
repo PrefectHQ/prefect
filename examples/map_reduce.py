@@ -4,6 +4,7 @@ from prefect import Flow, task
 # ------------------------------------
 # define some tasks
 
+
 @task
 def numbers_task():
     return [1, 2, 3]
