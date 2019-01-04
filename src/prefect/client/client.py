@@ -279,7 +279,7 @@ class Client:
 
     def deploy(
         self, flow: "Flow", project_id: str, set_schedule_active: bool = False
-    ) -> None:
+    ) -> str:
         """
         Push a new Flow to Prefect Cloud
 
@@ -317,7 +317,7 @@ class Client:
         res = self.graphql(
             parse_graphql(create_mutation),
             input=dict(projectId=project_id, serializedFlow=flow.serialize(build=True)),
-        )
+        )  # type: Any
 
         if res.createFlow.error:
             raise ClientError(res.createFlow.error)
@@ -326,7 +326,7 @@ class Client:
             scheduled_res = self.graphql(
                 parse_graphql(schedule_mutation),
                 input=dict(flowId=res.createFlow.id, setActive=True),  # type: ignore
-            )
+            )  # type: Any
             if scheduled_res.setFlowScheduleState.error:
                 raise ClientError(scheduled_res.setFlowScheduleState.error)
 
@@ -402,7 +402,7 @@ class Client:
         result.state = state
         return result
 
-    def update_flow_run_heartbeat(self, flow_run_id: str) -> GraphQLResult:
+    def update_flow_run_heartbeat(self, flow_run_id: str) -> None:
         """
         Convenience method for heartbeating a flow run.
 
@@ -421,7 +421,7 @@ class Client:
         }
         self.graphql(parse_graphql(mutation))
 
-    def update_task_run_heartbeat(self, task_run_id: str) -> GraphQLResult:
+    def update_task_run_heartbeat(self, task_run_id: str) -> None:
         """
         Convenience method for heartbeating a task run.
 
@@ -477,9 +477,9 @@ class Client:
 
         serialized_state = state.serialize(result_handler=result_handler)
 
-        result = self.graphql(  # type: ignore
+        result = self.graphql(
             parse_graphql(mutation), state=serialized_state
-        )
+        )  # type: Any
         if result.setFlowRunState.error:
             raise ClientError(result.setFlowRunState.error)
 
@@ -522,7 +522,7 @@ class Client:
                 ): {"task_run": {"id", "version", "serialized_state"}, "error": True}
             }
         }
-        result = self.graphql(parse_graphql(mutation))  # type: ignore
+        result = self.graphql(parse_graphql(mutation))  # type: Any
 
         if result.getOrCreateTaskRun.error:
             raise ClientError(result.getOrCreateTaskRun.error)
@@ -575,9 +575,9 @@ class Client:
 
         serialized_state = state.serialize(result_handler=result_handler)
 
-        result = self.graphql(  # type: ignore
+        result = self.graphql(
             parse_graphql(mutation), state=serialized_state
-        )
+        )  # type: Any
         if result.setTaskRunState.error:
             raise ClientError(result.setTaskRunState.error)
 
@@ -599,7 +599,7 @@ class Client:
             }
         }
 
-        result = self.graphql(parse_graphql(mutation))
+        result = self.graphql(parse_graphql(mutation))  # type: Any
 
         if result.setSecret.error:
             raise ClientError(result.setSecret.error)
