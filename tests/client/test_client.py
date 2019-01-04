@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, mock_open
 import prefect
 from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
+from prefect.utilities.exceptions import AuthorizationError, ClientError
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -174,7 +175,7 @@ def test_client_raises_if_login_fails(monkeypatch):
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         client = Client()
-    with pytest.raises(ValueError):
+    with pytest.raises(AuthorizationError):
         client.login("test@example.com", "1234")
     assert post.called
     assert post.call_args[0][0] == "http://my-cloud.foo/login_email"
@@ -185,7 +186,7 @@ def test_client_posts_raises_with_no_token(monkeypatch):
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         client = Client()
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(AuthorizationError) as exc:
         result = client.post("/foo/bar")
     assert "Client.login" in str(exc.value)
 
@@ -286,20 +287,19 @@ def test_graphql_errors_get_raised(monkeypatch):
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ClientError) as exc:
         res = client.graphql("query: {}")
     assert "GraphQL issue!" in str(exc.value)
 
 
 def test_client_deploy(monkeypatch):
     response = """
-{
-    "createFlow": {
-        "flow": {
-            "id": "long-id"
+    {
+        "createFlow": {
+            "id": "long-id",
+            "error": null
         }
     }
-}
     """
     post = MagicMock(
         return_value=MagicMock(
@@ -312,9 +312,8 @@ def test_client_deploy(monkeypatch):
     ):
         client = Client()
     flow = prefect.Flow(name="test")
-    result = client.deploy(flow, project_id="my-default-0000")
-    assert isinstance(result, GraphQLResult)
-    assert result.id == "long-id"
+    flow_id = client.deploy(flow, project_id="my-default-0000")
+    assert flow_id == "long-id"
 
 
 @pytest.mark.parametrize("active", [False, True])
@@ -331,7 +330,7 @@ def test_client_deploy_rejects_setting_active_schedules_for_flows_with_req_param
     flow = prefect.Flow(name="test", schedule=prefect.schedules.Schedule())
     flow.add_task(prefect.Parameter("x", required=True))
 
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ClientError) as exc:
         result = client.deploy(
             flow, project_id="my-default-0000", set_schedule_active=active
         )
@@ -392,20 +391,18 @@ def test_get_flow_run_info_raises_informative_error(monkeypatch):
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ClientError) as exc:
         result = client.get_flow_run_info(flow_run_id="74-salt")
     assert "not found" in str(exc.value)
 
 
 def test_set_flow_run_state(monkeypatch):
     response = """
-{
-    "setFlowRunState": {
-        "flow_run": {
-            "version": 1
+    {
+        "setFlowRunState": {
+            "error": null
         }
     }
-}
     """
     post = MagicMock(
         return_value=MagicMock(
@@ -420,27 +417,50 @@ def test_set_flow_run_state(monkeypatch):
     result = client.set_flow_run_state(
         flow_run_id="74-salt", version=0, state=Pending()
     )
-    assert isinstance(result, GraphQLResult)
-    assert result.version == 1
+    assert result is None
+
+
+def test_set_flow_run_state_with_error(monkeypatch):
+    response = """
+    {
+        "setFlowRunState": {
+            "error": "something went wrong"
+        }
+    }
+    """
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=json.loads(response)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    with pytest.raises(ClientError) as exc:
+        client.set_flow_run_state(flow_run_id="74-salt", version=0, state=Pending())
+    assert "something went wrong" in str(exc.value)
 
 
 def test_get_task_run_info(monkeypatch):
     response = """
-{
-    "getOrCreateTaskRun": {
-        "task_run": {
-            "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
-            "version": 0,
-            "serialized_state": {
-                "type": "Pending",
-                "result": "42",
-                "message": null,
-                "__version__": "0.3.3+310.gd19b9b7.dirty",
-                "cached_inputs": "null"
+    {
+        "getOrCreateTaskRun": {
+            "error": null,
+            "task_run": {
+                "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
+                "version": 0,
+                "serialized_state": {
+                    "type": "Pending",
+                    "result": "42",
+                    "message": null,
+                    "__version__": "0.3.3+310.gd19b9b7.dirty",
+                    "cached_inputs": "null"
+                }
             }
         }
     }
-}
     """
     post = MagicMock(
         return_value=MagicMock(
@@ -463,15 +483,41 @@ def test_get_task_run_info(monkeypatch):
     assert result.version == 0
 
 
-def test_set_task_run_state(monkeypatch):
+def test_get_task_run_info_with_error(monkeypatch):
     response = """
-{
-    "setTaskRunState": {
-        "task_run": {
-            "version": 1
+    {
+        "getOrCreateTaskRun": {
+            "error": "something went wrong",
+            "task_run": null
         }
     }
-}
+    """
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=json.loads(response)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+
+    with pytest.raises(ClientError) as exc:
+        client.get_task_run_info(
+            flow_run_id="74-salt", task_id="72-salt", map_index=None
+        )
+
+    assert "something went wrong" in str(exc.value)
+
+
+def test_set_task_run_state(monkeypatch):
+    response = """
+    {
+        "setTaskRunState": {
+            "error": null
+        }
+    }
     """
     post = MagicMock(
         return_value=MagicMock(
@@ -486,8 +532,32 @@ def test_set_task_run_state(monkeypatch):
     result = client.set_task_run_state(
         task_run_id="76-salt", version=0, state=Pending()
     )
-    assert isinstance(result, GraphQLResult)
-    assert result.version == 1
+
+    assert result is None
+
+
+def test_set_task_run_state_with_error(monkeypatch):
+    response = """
+    {
+        "setTaskRunState": {
+            "error": "something went wrong"
+        }
+    }
+    """
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=json.loads(response)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+
+    with pytest.raises(ClientError) as exc:
+        client.set_task_run_state(task_run_id="76-salt", version=0, state=Pending())
+    assert "something went wrong" in str(exc.value)
 
 
 class TestResultHandlerSerialization:
@@ -501,12 +571,17 @@ class TestResultHandlerSerialization:
             client = Client()
 
         serializer = MagicMock(return_value="empty")
-        result = client.set_flow_run_state(
-            flow_run_id="74-salt",
-            version=0,
-            state=Pending(result=2),
-            result_handler=MagicMock(serialize=serializer),
-        )
+
+        # this will raise an error because the Mock appears to have an error
+        try:
+            result = client.set_flow_run_state(
+                flow_run_id="74-salt",
+                version=0,
+                state=Pending(result=2),
+                result_handler=MagicMock(serialize=serializer),
+            )
+        except:
+            pass
         assert serializer.call_count == 1
         assert serializer.call_args[0] == (2,)
 
@@ -520,12 +595,16 @@ class TestResultHandlerSerialization:
             client = Client()
 
         serializer = MagicMock(return_value="empty")
-        result = client.set_task_run_state(
-            task_run_id="76-salt",
-            version=0,
-            state=Pending(result=2),
-            result_handler=MagicMock(serialize=serializer),
-        )
+        # this will raise an error because the Mock appears to have an error
+        try:
+            result = client.set_task_run_state(
+                task_run_id="76-salt",
+                version=0,
+                state=Pending(result=2),
+                result_handler=MagicMock(serialize=serializer),
+            )
+        except:
+            pass
         assert serializer.call_count == 1
         assert serializer.call_args[0] == (2,)
 
@@ -570,21 +649,22 @@ class TestResultHandlerDeserialization:
         self, monkeypatch
     ):
         response = """
-    {
-        "getOrCreateTaskRun": {
-            "task_run": {
-                "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
-                "version": 0,
-                "serialized_state": {
-                    "type": "Pending",
-                    "result": null,
-                    "message": null,
-                    "__version__": "0.3.3+310.gd19b9b7.dirty",
-                    "cached_inputs": "null"
+        {
+            "getOrCreateTaskRun": {
+                "error": null,
+                "task_run": {
+                    "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
+                    "version": 0,
+                    "serialized_state": {
+                        "type": "Pending",
+                        "result": null,
+                        "message": null,
+                        "__version__": "0.3.3+310.gd19b9b7.dirty",
+                        "cached_inputs": "null"
+                    }
                 }
             }
         }
-    }
         """
         post = MagicMock(
             return_value=MagicMock(
@@ -609,18 +689,18 @@ class TestResultHandlerDeserialization:
 
     def test_get_flow_run_info_calls_result_handler(self, monkeypatch):
         response = """
-    {
-        "flow_run_by_pk": {
-            "version": 0,
-            "serialized_state": {
-                "type": "Pending",
-                "result": 42,
-                "message": null,
-                "__version__": "0.3.3+309.gf1db024",
-                "cached_inputs": "null"
+        {
+            "flow_run_by_pk": {
+                "version": 0,
+                "serialized_state": {
+                    "type": "Pending",
+                    "result": 42,
+                    "message": null,
+                    "__version__": "0.3.3+309.gf1db024",
+                    "cached_inputs": "null"
+                }
             }
         }
-    }
         """
         post = MagicMock(
             return_value=MagicMock(
@@ -642,21 +722,22 @@ class TestResultHandlerDeserialization:
 
     def test_get_task_run_info_calls_result_handler(self, monkeypatch):
         response = """
-    {
-        "getOrCreateTaskRun": {
-            "task_run": {
-                "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
-                "version": 0,
-                "serialized_state": {
-                    "type": "Pending",
-                    "result": 42,
-                    "message": null,
-                    "__version__": "0.3.3+310.gd19b9b7.dirty",
-                    "cached_inputs": "null"
+        {
+            "getOrCreateTaskRun": {
+                "error": null,
+                "task_run": {
+                    "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
+                    "version": 0,
+                    "serialized_state": {
+                        "type": "Pending",
+                        "result": 42,
+                        "message": null,
+                        "__version__": "0.3.3+310.gd19b9b7.dirty",
+                        "cached_inputs": "null"
+                    }
                 }
             }
         }
-    }
         """
         post = MagicMock(
             return_value=MagicMock(
