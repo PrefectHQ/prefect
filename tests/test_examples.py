@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import prefect
 
-examples_dir = Path(__file__).parents[1] / "examples"
+examples_dir = str(Path(__file__).parents[1] / "examples")
 
 
 def test_examples_exist():
@@ -14,4 +14,4 @@ def test_examples_exist():
 
 @pytest.mark.parametrize("f", os.listdir(examples_dir))
 def test_all_examples_run_without_error(f):
-    subprocess.check_call(["python", str(examples_dir / f)])
+    subprocess.check_call(["python", os.path.join(examples_dir, f)])
