@@ -22,11 +22,11 @@ class LocalExecutor(Executor):
         states = dict_to_list(upstream_states)
         results = []
         for map_index, elem in enumerate(states):
-            results.append(
-                self.submit(
-                    fn, *args, upstream_states=elem, map_index=map_index, **kwargs
-                )
-            )
+            # copy kwargs to avoid mutations
+            map_kwargs = kwargs.copy()
+            map_kwargs["context"] = map_kwargs.pop("context", {}).copy()
+            map_kwargs["context"]["map_index"] = map_index
+            results.append(self.submit(fn, *args, upstream_states=elem, **map_kwargs))
 
         return results
 

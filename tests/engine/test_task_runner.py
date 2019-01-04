@@ -1009,24 +1009,6 @@ def test_task_runner_performs_mapping(executor):
     assert [s.result for s in res] == [2, 3, 4]
 
 
-@pytest.mark.parametrize(
-    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-)
-def test_task_runner_receives_map_index_from_executor(executor):
-    mapped = MapTask()
-    edge = Edge(ListTask(), mapped, mapped=True)
-    runner = TaskRunner(mapped)
-    with executor.start():
-        lazy_list = runner.run(
-            upstream_states={edge: Success(result=[1, 2, 3])},
-            executor=executor,
-            mapped=True,
-        )
-        res = executor.wait(lazy_list)
-    assert isinstance(res, list)
-    assert [s.result for s in res] == [0, 1, 2]
-
-
 class TestCheckUpstreamsforMapping:
     def test_ends_if_non_running_state_passed(self):
         add = AddTask()
