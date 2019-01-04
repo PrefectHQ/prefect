@@ -30,12 +30,9 @@ def test_default_flow_runner():
 
 def test_default_flow_runner_responds_to_config():
     with utilities.configuration.set_temporary_config(
-        {"engine.flow_runner": "prefect.engine.cloud_runners.CloudFlowRunner"}
+        {"engine.flow_runner": "prefect.engine.cloud.CloudFlowRunner"}
     ):
-        assert (
-            engine.get_default_flow_runner_class()
-            is engine.cloud_runners.CloudFlowRunner
-        )
+        assert engine.get_default_flow_runner_class() is engine.cloud.CloudFlowRunner
 
 
 def test_default_flow_runner_with_bad_config():
@@ -54,12 +51,9 @@ def test_default_task_runner():
 
 def test_default_task_runner_responds_to_config():
     with utilities.configuration.set_temporary_config(
-        {"engine.task_runner": "prefect.engine.cloud_runners.CloudTaskRunner"}
+        {"engine.task_runner": "prefect.engine.cloud.CloudTaskRunner"}
     ):
-        assert (
-            engine.get_default_task_runner_class()
-            is engine.cloud_runners.CloudTaskRunner
-        )
+        assert engine.get_default_task_runner_class() is engine.cloud.CloudTaskRunner
 
 
 def test_default_task_runner_with_bad_config():

@@ -1044,7 +1044,7 @@ def test_task_runner_cls_uses_default_function_if_none():
     assert fr.task_runner_cls is prefect.engine.get_default_task_runner_class()
 
     with prefect.utilities.configuration.set_temporary_config(
-        {"engine.task_runner": "prefect.engine.cloud_runners.CloudTaskRunner"}
+        {"engine.task_runner": "prefect.engine.cloud.CloudTaskRunner"}
     ):
         fr = FlowRunner(flow=None, task_runner_cls=None)
         assert fr.task_runner_cls is prefect.engine.get_default_task_runner_class()
