@@ -13,6 +13,13 @@ def test_default_executor_responds_to_config():
         assert engine.get_default_executor_class() is engine.executors.LocalExecutor
 
 
+def test_default_executor_responds_to_config_object():
+    with utilities.configuration.set_temporary_config(
+        {"engine.executor": engine.executors.LocalExecutor}
+    ):
+        assert engine.get_default_executor_class() is engine.executors.LocalExecutor
+
+
 def test_default_executor_with_bad_config():
     with utilities.configuration.set_temporary_config(
         {"engine.executor": "prefect.engine.bad import path"}
@@ -35,6 +42,13 @@ def test_default_flow_runner_responds_to_config():
         assert engine.get_default_flow_runner_class() is engine.cloud.CloudFlowRunner
 
 
+def test_default_flow_runner_responds_to_config_object():
+    with utilities.configuration.set_temporary_config(
+        {"engine.flow_runner": engine.cloud.CloudFlowRunner}
+    ):
+        assert engine.get_default_flow_runner_class() is engine.cloud.CloudFlowRunner
+
+
 def test_default_flow_runner_with_bad_config():
     with utilities.configuration.set_temporary_config(
         {"engine.flow_runner": "prefect.engine. bad import path"}
@@ -52,6 +66,13 @@ def test_default_task_runner():
 def test_default_task_runner_responds_to_config():
     with utilities.configuration.set_temporary_config(
         {"engine.task_runner": "prefect.engine.cloud.CloudTaskRunner"}
+    ):
+        assert engine.get_default_task_runner_class() is engine.cloud.CloudTaskRunner
+
+
+def test_default_task_runner_responds_to_config_object():
+    with utilities.configuration.set_temporary_config(
+        {"engine.task_runner": engine.cloud.CloudTaskRunner}
     ):
         assert engine.get_default_task_runner_class() is engine.cloud.CloudTaskRunner
 
