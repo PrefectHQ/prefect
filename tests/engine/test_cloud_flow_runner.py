@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import prefect
 from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
-from prefect.engine.cloud_runners import CloudFlowRunner, CloudTaskRunner
+from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 from prefect.engine.state import (
     Failed,
     Running,
@@ -25,8 +25,8 @@ def cloud_settings():
         {
             "cloud.api": "http://my-cloud.foo",
             "cloud.auth_token": "token",
-            "engine.flow_runner": "prefect.engine.cloud_runners.CloudFlowRunner",
-            "engine.task_runner": "prefect.engine.cloud_runners.CloudTaskRunner",
+            "engine.flow_runner": "prefect.engine.cloud.CloudFlowRunner",
+            "engine.task_runner": "prefect.engine.cloud.CloudTaskRunner",
         }
     ):
         yield
@@ -45,7 +45,7 @@ def test_flow_runner_calls_client_the_approriate_number_of_times(monkeypatch):
         get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
     )
     monkeypatch.setattr(
-        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
     res = CloudFlowRunner(flow=flow).run()
 
@@ -65,7 +65,7 @@ def test_flow_runner_raises_endrun_if_client_cant_update_state(monkeypatch):
         get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
     )
     monkeypatch.setattr(
-        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
 
     ## if ENDRUN is raised, res will be last state seen
@@ -82,7 +82,7 @@ def test_flow_runner_raises_endrun_if_client_cant_retrieve_state(monkeypatch):
         get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
     )
     monkeypatch.setattr(
-        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
 
     ## if ENDRUN is raised, res will be last state seen
@@ -102,7 +102,7 @@ def test_flow_runner_raises_endrun_with_correct_state_if_client_cant_retrieve_st
         get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
     )
     monkeypatch.setattr(
-        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
 
     ## if ENDRUN is raised, res will be last state seen
@@ -124,7 +124,7 @@ def test_flow_runner_respects_the_db_state(monkeypatch, state):
         get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
     )
     monkeypatch.setattr(
-        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
     res = CloudFlowRunner(flow=flow).run()
 
@@ -146,7 +146,7 @@ def test_flow_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
         get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
     )
     monkeypatch.setattr(
-        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
     res = CloudFlowRunner(flow=flow).run(state=Pending("let's do this"))
 
@@ -180,7 +180,10 @@ def test_client_is_always_called_even_during_failures(monkeypatch):
         set_task_run_state=set_task_run_state,
     )
     monkeypatch.setattr(
-        "prefect.engine.cloud_runners.Client", MagicMock(return_value=cloud_client)
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=cloud_client)
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=cloud_client)
     )
     res = flow.run(state=Pending())
 
@@ -203,7 +206,7 @@ def test_client_is_always_called_even_during_failures(monkeypatch):
 def test_heartbeat_traps_errors_caused_by_client(monkeypatch):
     client = MagicMock(update_flow_run_heartbeat=MagicMock(side_effect=SyntaxError))
     monkeypatch.setattr(
-        "prefect.engine.cloud_runners.Client", MagicMock(return_value=client)
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
     runner = CloudFlowRunner(flow=prefect.Flow(name="bad"))
     with pytest.warns(UserWarning) as warning:
