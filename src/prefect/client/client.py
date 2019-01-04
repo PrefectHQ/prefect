@@ -7,6 +7,7 @@ import os
 from typing import Any, TYPE_CHECKING, Optional, Union
 
 import prefect
+from prefect.utilities.exceptions import ClientError, AuthorizationError
 from prefect.utilities.graphql import (
     EnumValue,
     parse_graphql,
@@ -22,10 +23,6 @@ if TYPE_CHECKING:
 
 
 BuiltIn = Union[bool, dict, list, str, set, tuple]
-
-
-class AuthorizationError(Exception):
-    pass
 
 
 class Client:
@@ -56,7 +53,7 @@ class Client:
         if not api_server:
             api_server = prefect.config.cloud.get("api", None)
             if not api_server:
-                raise ValueError("Could not determine API server.")
+                raise ClientError("Could not determine API server.")
         self.api_server = api_server
 
         if not graphql_server:
@@ -138,7 +135,7 @@ class Client:
             - dict: Data returned from the GraphQL query
 
         Raises:
-            - ValueError if there are errors raised in the graphql query
+            - ClientError if there are errors raised by the GraphQL mutation
         """
         result = self.post(
             path="",
@@ -148,7 +145,7 @@ class Client:
         )
 
         if "errors" in result:
-            raise ValueError(result["errors"])
+            raise ClientError(result["errors"])
         else:
             return as_nested_dict(result, GraphQLResult).data  # type: ignore
 
@@ -169,9 +166,9 @@ class Client:
             - requests.models.Response: The response returned from the request
 
         Raises:
-            - ValueError if the client token is not in the context (due to not being logged in)
-            - ValueError if a method is specified outside of the accepted GET, POST, DELETE
-            - requests.HTTPError if a status code is returned that is not `200` or `401`
+            - ClientError: if the client token is not in the context (due to not being logged in)
+            - ValueError: if a method is specified outside of the accepted GET, POST, DELETE
+            - requests.HTTPError: if a status code is returned that is not `200` or `401`
         """
         # lazy import for performance
         import requests
@@ -181,7 +178,7 @@ class Client:
         assert isinstance(server, str)  # mypy assert
 
         if self.token is None:
-            raise ValueError("Call Client.login() to set the client token.")
+            raise AuthorizationError("Call Client.login() to set the client token.")
 
         url = os.path.join(server, path.lstrip("/")).rstrip("/")
 
@@ -234,7 +231,7 @@ class Client:
             - account_id (str, optional): Specific Account ID for this user to use
 
         Raises:
-            - ValueError if unable to login to the server (request does not return `200`)
+            - AuthorizationError if unable to login to the server (request does not return `200`)
         """
 
         # lazy import for performance
@@ -249,7 +246,7 @@ class Client:
 
         # Load the current auth token if able to login
         if not response.ok:
-            raise ValueError("Could not log in.")
+            raise AuthorizationError("Could not log in.")
         self.token = response.json().get("token")
         if self.token:
             creds_path = os.path.expanduser("~/.prefect/.credentials")
@@ -282,7 +279,7 @@ class Client:
 
     def deploy(
         self, flow: "Flow", project_id: str, set_schedule_active: bool = False
-    ) -> GraphQLResult:
+    ) -> str:
         """
         Push a new Flow to Prefect Cloud
 
@@ -295,36 +292,45 @@ class Client:
                 Defaults to `False`
 
         Returns:
-            - GraphQLResult: information about the newly created flow (e.g., its "id")
+            - str: the ID of the newly-deployed flow
+
+        Raises:
+            - ClientError: if the deploy failed
+
         """
         required_parameters = flow.parameters(only_required=True)
         if flow.schedule is not None and required_parameters:
-            raise ValueError(
+            raise ClientError(
                 "Flows with required parameters can not be scheduled automatically."
             )
 
         create_mutation = {
             "mutation($input: createFlowInput!)": {
-                "createFlow(input: $input)": {"flow": {"id"}}
+                "createFlow(input: $input)": {"id", "error"}
             }
         }
         schedule_mutation = {
             "mutation($input: setFlowScheduleStateInput!)": {
-                "setFlowScheduleState(input: $input)": {"flow": {"id"}}
+                "setFlowScheduleState(input: $input)": {"error"}
             }
         }
         res = self.graphql(
             parse_graphql(create_mutation),
             input=dict(projectId=project_id, serializedFlow=flow.serialize(build=True)),
-        )
+        )  # type: Any
+
+        if res.createFlow.error:
+            raise ClientError(res.createFlow.error)
+
         if set_schedule_active:
             scheduled_res = self.graphql(
                 parse_graphql(schedule_mutation),
-                input=dict(
-                    flowId=res.createFlow.flow.id, setActive=True  # type: ignore
-                ),
-            )
-        return res.createFlow.flow  # type: ignore
+                input=dict(flowId=res.createFlow.id, setActive=True),  # type: ignore
+            )  # type: Any
+            if scheduled_res.setFlowScheduleState.error:
+                raise ClientError(scheduled_res.setFlowScheduleState.error)
+
+        return res.createFlow.id
 
     def create_flow_run(
         self,
@@ -344,7 +350,7 @@ class Client:
             - GraphQLResult: a `DotDict` with an `"id"` key representing the id of the newly created flow run
 
         Raises:
-            - ValueError: if the GraphQL query is bad for any reason
+            - ClientError: if the GraphQL query is bad for any reason
         """
         create_mutation = {
             "mutation($input: createFlowRunInput!)": {
@@ -377,7 +383,7 @@ class Client:
                 representing the version and most recent state for this flow run
 
         Raises:
-            - ValueError: if the GraphQL query is bad for any reason
+            - ClientError: if the GraphQL mutation is bad for any reason
         """
         query = {
             "query": {
@@ -390,53 +396,49 @@ class Client:
         }
         result = self.graphql(parse_graphql(query)).flow_run_by_pk  # type: ignore
         if result is None:
-            raise ValueError('Flow run id "{}" not found.'.format(flow_run_id))
+            raise ClientError('Flow run ID not found: "{}"'.format(flow_run_id))
         serialized_state = result.serialized_state
         state = prefect.engine.state.State.deserialize(serialized_state, result_handler)
         result.state = state
         return result
 
-    def update_flow_run_heartbeat(self, flow_run_id: str) -> GraphQLResult:
+    def update_flow_run_heartbeat(self, flow_run_id: str) -> None:
         """
         Convenience method for heartbeating a flow run.
+
+        Does NOT raise an error if the update fails.
 
         Args:
             - flow_run_id (str): the flow run ID to heartbeat
 
-        Returns:
-            - GraphQLResult: a GraphQL result containing the flow run ID for
-                validation
         """
         mutation = {
             "mutation": {
                 with_args(
                     "updateFlowRunHeartbeat", {"input": {"flowRunId": flow_run_id}}
-                ): {"flow_run": {"id"}}
+                ): {"error"}
             }
         }
-        res = self.graphql(parse_graphql(mutation))
-        return res.updateFlowRunHeartbeat.flow_run.id  # type: ignore
+        self.graphql(parse_graphql(mutation))
 
-    def update_task_run_heartbeat(self, task_run_id: str) -> GraphQLResult:
+    def update_task_run_heartbeat(self, task_run_id: str) -> None:
         """
         Convenience method for heartbeating a task run.
+
+        Does NOT raise an error if the update fails.
 
         Args:
             - task_run_id (str): the task run ID to heartbeat
 
-        Returns:
-            - GraphQLResult: a GraphQL result containing the task run ID for
-                validation
         """
         mutation = {
             "mutation": {
                 with_args(
                     "updateTaskRunHeartbeat", {"input": {"taskRunId": task_run_id}}
-                ): {"task_run": {"id"}}
+                ): {"error"}
             }
         }
-        res = self.graphql(parse_graphql(mutation))
-        return res.updateTaskRunHeartbeat.task_run.id  # type: ignore
+        self.graphql(parse_graphql(mutation))
 
     def set_flow_run_state(
         self,
@@ -444,7 +446,7 @@ class Client:
         version: int,
         state: "prefect.engine.state.State",
         result_handler: "ResultHandler" = None,
-    ) -> GraphQLResult:
+    ) -> None:
         """
         Sets new state for a flow run in the database.
 
@@ -455,12 +457,8 @@ class Client:
             - result_handler (ResultHandler, optional): the handler to use for
                 retrieving and storing state results during execution
 
-        Returns:
-            - GraphQLResult: a `DotDict` with a single `"version"` key for the
-                new flow run version
-
         Raises:
-            - ValueError: if the GraphQL query is bad for any reason
+            - ClientError: if the GraphQL mutation is bad for any reason
         """
         mutation = {
             "mutation($state: JSON!)": {
@@ -473,15 +471,17 @@ class Client:
                             "state": EnumValue("$state"),
                         }
                     },
-                ): {"flow_run": {"version"}}
+                ): {"error"}
             }
         }
 
         serialized_state = state.serialize(result_handler=result_handler)
 
-        return self.graphql(  # type: ignore
+        result = self.graphql(
             parse_graphql(mutation), state=serialized_state
-        ).setFlowRunState.flow_run
+        )  # type: Any
+        if result.setFlowRunState.error:
+            raise ClientError(result.setFlowRunState.error)
 
     def get_task_run_info(
         self,
@@ -506,7 +506,7 @@ class Client:
                 representing the version and most recent state for this task run
 
         Raises:
-            - ValueError: if the GraphQL query is bad for any reason
+            - ClientError: if the GraphQL mutation is bad for any reason
         """
         mutation = {
             "mutation": {
@@ -516,15 +516,18 @@ class Client:
                         "input": {
                             "flowRunId": flow_run_id,
                             "taskId": task_id,
-                            "mapIndex": map_index,
+                            "mapIndex": -1 if map_index is None else map_index,
                         }
                     },
-                ): {"task_run": {"id", "version", "serialized_state"}}
+                ): {"task_run": {"id", "version", "serialized_state"}, "error": True}
             }
         }
-        result = self.graphql(  # type: ignore
-            parse_graphql(mutation)
-        ).getOrCreateTaskRun.task_run
+        result = self.graphql(parse_graphql(mutation))  # type: Any
+
+        if result.getOrCreateTaskRun.error:
+            raise ClientError(result.getOrCreateTaskRun.error)
+        else:
+            result = result.getOrCreateTaskRun.task_run
 
         state = prefect.engine.state.State.deserialize(
             result.serialized_state, result_handler=result_handler
@@ -539,7 +542,7 @@ class Client:
         state: "prefect.engine.state.State",
         cache_for: datetime.timedelta = None,
         result_handler: "ResultHandler" = None,
-    ) -> GraphQLResult:
+    ) -> None:
         """
         Sets new state for a task run.
 
@@ -552,12 +555,8 @@ class Client:
             - result_handler (ResultHandler, optional): the handler to use for
                 retrieving and storing state results during execution
 
-        Returns:
-            - GraphQLResult: a `DotDict` with a single `"version"` key for the
-                new task run version
-
         Raises:
-            - ValueError: if the GraphQL query is bad for any reason
+            - ClientError: if the GraphQL mutation is bad for any reason
         """
         mutation = {
             "mutation($state: JSON!)": {
@@ -570,17 +569,19 @@ class Client:
                             "state": EnumValue("$state"),
                         }
                     },
-                ): {"task_run": {"version"}}
+                ): {"error"}
             }
         }
 
         serialized_state = state.serialize(result_handler=result_handler)
 
-        return self.graphql(  # type: ignore
+        result = self.graphql(
             parse_graphql(mutation), state=serialized_state
-        ).setTaskRunState.task_run
+        )  # type: Any
+        if result.setTaskRunState.error:
+            raise ClientError(result.setTaskRunState.error)
 
-    def set_secret(self, name: str, value: Any) -> GraphQLResult:
+    def set_secret(self, name: str, value: Any) -> None:
         """
         Set a secret with the given name and value.
 
@@ -589,14 +590,16 @@ class Client:
                 during task runs
             - value (Any): the value of the secret
 
-        Returns:
-            - GraphQLResult: the resulting GraphQL result from the mutation
+        Raises:
+            - ClientError: if the GraphQL mutation is bad for any reason
         """
         mutation = {
             "mutation": {
-                with_args(
-                    "setSecret", {"input": dict(name=name, value=value)}
-                ): "success"
+                with_args("setSecret", {"input": dict(name=name, value=value)}): "error"
             }
         }
-        return self.graphql(parse_graphql(mutation))
+
+        result = self.graphql(parse_graphql(mutation))  # type: Any
+
+        if result.setSecret.error:
+            raise ClientError(result.setSecret.error)

@@ -15,3 +15,11 @@ class SerializationError(PrefectError):
 
 class PrefectWarning(UserWarning):
     pass
+
+
+class ClientError(PrefectError):
+    pass
+
+
+class AuthorizationError(PrefectError):
+    pass

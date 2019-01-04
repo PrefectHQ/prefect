@@ -82,7 +82,7 @@ class CloudTaskRunner(TaskRunner):
         version = prefect.context.get("task_run_version")
 
         try:
-            res = self.client.set_task_run_state(
+            self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
                 state=new_state,
@@ -238,7 +238,7 @@ class CloudFlowRunner(FlowRunner):
         version = prefect.context.get("flow_run_version")
 
         try:
-            res = self.client.set_flow_run_state(
+            self.client.set_flow_run_state(
                 flow_run_id=flow_run_id,
                 version=version,
                 state=new_state,
