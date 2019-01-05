@@ -11,11 +11,6 @@ if sys.version_info >= (3, 5):
     from prefect.engine.executors import DaskExecutor
     from distributed import Client, LocalCluster
 
-# @pytest.fixture(scope='session')
-# def local_cluster_processes():
-#     with LocalCluster(processes=True) as cluster:
-#         yield cluster
-
 
 # ----------------
 # set up executor fixtures

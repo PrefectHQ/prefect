@@ -45,6 +45,10 @@ jobs:
           command: pip install ".[all_extras]"
 
       - run:
+          name: Install distributed
+          command: pip install "git+https://github.com/dask/distributed@0f06178"
+
+      - run:
           name: Run tests
           command: pytest -vv
 
