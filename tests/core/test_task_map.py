@@ -636,4 +636,3 @@ def test_map_over_map_and_static(executor):
     state = f.run(executor=executor, return_tasks=[res])
     assert state.is_successful()
     assert [r.result for r in state.result[res].result] == [3, 5, 7]
-
