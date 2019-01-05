@@ -46,7 +46,8 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests/engine/executors/test_executors.py -vv
+          command: pytest tests/engine tests/core
+
   test-3.4:
     docker:
       - image: python:3.4
