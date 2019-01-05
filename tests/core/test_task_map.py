@@ -7,6 +7,7 @@ import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.utilities.tasks import task, unmapped
 from prefect.utilities.tests import raise_on_exception
+from prefect.engine.state import Mapped, Success
 
 
 class AddTask(Task):
@@ -60,11 +61,13 @@ def test_map_spawns_new_tasks(executor):
         res = a.map(ll)
 
     s = f.run(return_tasks=f.tasks, executor=executor)
-    slist = s.result[res]
+    m = s.result[res]
     assert s.is_successful()
-    assert isinstance(slist, list)
-    assert len(slist) == 3
-    assert [r.result for r in slist] == [2, 3, 4]
+    assert m.is_mapped()
+    assert isinstance(m.result, list)
+    assert len(m.result) == 3
+    assert all([isinstance(ms, Success) for ms in m.result])
+    assert [r.result for r in m.result] == [2, 3, 4]
 
 
 @pytest.mark.parametrize(

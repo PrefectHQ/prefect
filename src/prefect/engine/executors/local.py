@@ -1,10 +1,10 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import datetime
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, List, Iterable
 
 from prefect.engine.executors.base import Executor
-from prefect.utilities.executors import dict_to_list, main_thread_timeout
+from prefect.utilities.executors import main_thread_timeout
 
 
 class LocalExecutor(Executor):
@@ -15,27 +15,12 @@ class LocalExecutor(Executor):
 
     timeout_handler = staticmethod(main_thread_timeout)
 
-    def map(
-        self, fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
-    ) -> Iterable[Any]:
-
-        states = dict_to_list(upstream_states)
-        results = []
-        for map_index, elem in enumerate(states):
-            # copy kwargs to avoid mutations
-            map_kwargs = kwargs.copy()
-            map_kwargs["context"] = map_kwargs.pop("context", {}).copy()
-            map_kwargs["context"]["map_index"] = map_index
-            results.append(self.submit(fn, *args, upstream_states=elem, **map_kwargs))
-
-        return results
-
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         """
         Submit a function to the executor for execution. Returns the result of the computation.
 
         Args:
-            - fn (Callable): function which is being submitted for execution
+            - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
@@ -43,6 +28,23 @@ class LocalExecutor(Executor):
             - Any: the result of `fn(*args, **kwargs)`
         """
         return fn(*args, **kwargs)
+
+    def map(self, fn: Callable, *args: Any) -> List[Any]:
+        """
+        Submit a function to be mapped over its iterable arguments.
+
+        Args:
+            - fn (Callable): function that is being submitted for execution
+            - *args (Any): arguments that the function will be mapped over
+
+        Returns:
+            - List[Any]: the result of computating the function over the arguments
+
+        """
+        results = []
+        for args_i in zip(*args):
+            results.append(fn(*args_i))
+        return results
 
     def wait(self, futures: Any, timeout: datetime.timedelta = None) -> Any:
         """
