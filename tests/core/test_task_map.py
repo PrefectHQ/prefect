@@ -602,11 +602,11 @@ def test_map_reduce(executor):
         return x + 1
 
     @prefect.task
-    def sum(x):
+    def reduce_sum(x):
         return sum(x)
 
     with Flow() as f:
-        res = sum(add.map(add.map(numbers())))
+        res = reduce_sum(add.map(add.map(numbers())))
 
     state = f.run(executor=executor, return_tasks=[res])
     assert state.is_successful()
