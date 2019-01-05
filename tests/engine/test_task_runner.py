@@ -218,7 +218,8 @@ def test_task_that_raises_skip_gets_skipped():
 def test_task_that_has_upstream_skip_gets_skipped_with_informative_message():
     task_runner = TaskRunner(task=SuccessTask())
     edge = Edge(RaiseSkipTask(), SuccessTask(skip_on_upstream_skip=True))
-    state = task_runner.run(upstream_states={edge: Skipped()})
+    with raise_on_exception():
+        state = task_runner.run(upstream_states={edge: Skipped()})
     assert isinstance(state, Skipped)
     assert "skip_on_upstream_skip" in state.message
 
@@ -354,17 +355,17 @@ class TestUpdateContextFromState:
 
 
 class TestCheckUpstreamFinished:
-    def test_with_empty_set(self):
+    def test_with_empty(self):
         state = Pending()
         new_state = TaskRunner(Task()).check_upstream_finished(
-            state=state, upstream_states_set=set()
+            state=state, upstream_states={}
         )
         assert new_state is state
 
     def test_with_two_finished(self):
         state = Pending()
         new_state = TaskRunner(Task()).check_upstream_finished(
-            state=state, upstream_states_set={Success(), Failed()}
+            state=state, upstream_states={1:Success(), 2:Failed()}
         )
         assert new_state is state
 
@@ -372,22 +373,22 @@ class TestCheckUpstreamFinished:
         state = Pending()
         with pytest.raises(ENDRUN):
             TaskRunner(Task()).check_upstream_finished(
-                state=state, upstream_states_set={Success(), Running()}
+                state=state, upstream_states={1:Success(), 2:Running()}
             )
 
 
 class TestCheckUpstreamSkipped:
-    def test_empty_set(self):
+    def test_empty(self):
         state = Pending()
         new_state = TaskRunner(Task()).check_upstream_skipped(
-            state=state, upstream_states_set=set()
+            state=state, upstream_states={}
         )
         assert new_state is state
 
     def test_unskipped_states(self):
         state = Pending()
         new_state = TaskRunner(Task()).check_upstream_skipped(
-            state=state, upstream_states_set={Success(), Failed()}
+            state=state, upstream_states={1:Success(), 2:Failed()}
         )
         assert new_state is state
 
@@ -395,7 +396,7 @@ class TestCheckUpstreamSkipped:
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(Task()).check_upstream_skipped(
-                state=state, upstream_states_set={Skipped()}
+                state=state, upstream_states={1:Skipped()}
             )
         assert isinstance(exc.value.state, Skipped)
 
@@ -403,7 +404,7 @@ class TestCheckUpstreamSkipped:
         state = Pending()
         task = Task(skip_on_upstream_skip=False)
         new_state = TaskRunner(task).check_upstream_skipped(
-            state=state, upstream_states_set={Skipped()}
+            state=state, upstream_states={1:Skipped()}
         )
         assert new_state is state
 
@@ -413,7 +414,7 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.all_successful)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={Success(), Success()}
+            state=state, upstream_states={1:Success(), 2:Success()}
         )
         assert new_state is state
 
@@ -422,16 +423,16 @@ class TestCheckTaskTrigger:
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task).check_task_trigger(
-                state=state, upstream_states_set={Success(), Failed()}
+                state=state, upstream_states={1:Success(), 2:Failed()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
         assert 'Trigger was "all_successful"' in str(exc.value.state)
 
-    def test_all_successful_empty_set(self):
+    def test_all_successful_empty(self):
         task = Task(trigger=prefect.triggers.all_successful)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={}
+            state=state, upstream_states={}
         )
         assert new_state is state
 
@@ -439,7 +440,7 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.all_failed)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={Failed(), Failed()}
+            state=state, upstream_states={1:Failed(), 2:Failed()}
         )
         assert new_state is state
 
@@ -448,16 +449,16 @@ class TestCheckTaskTrigger:
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task).check_task_trigger(
-                state=state, upstream_states_set={Success(), Failed()}
+                state=state, upstream_states={1:Success(), 2:Failed()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
         assert 'Trigger was "all_failed"' in str(exc.value.state)
 
-    def test_all_failed_empty_set(self):
+    def test_all_failed_empty(self):
         task = Task(trigger=prefect.triggers.all_failed)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={}
+            state=state, upstream_states={}
         )
         assert new_state is state
 
@@ -465,7 +466,7 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.any_successful)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={Success(), Failed()}
+            state=state, upstream_states={1:Success(), 2:Failed()}
         )
         assert new_state is state
 
@@ -474,16 +475,16 @@ class TestCheckTaskTrigger:
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task).check_task_trigger(
-                state=state, upstream_states_set={Failed(), Failed()}
+                state=state, upstream_states={1:Failed(), 2:Failed()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
         assert 'Trigger was "any_successful"' in str(exc.value.state)
 
-    def test_any_successful_empty_set(self):
+    def test_any_successful_empty(self):
         task = Task(trigger=prefect.triggers.any_successful)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={}
+            state=state, upstream_states={}
         )
         assert new_state is state
 
@@ -491,7 +492,7 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.any_failed)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={Success(), Failed()}
+            state=state, upstream_states={1:Success(), 2:Failed()}
         )
         assert new_state is state
 
@@ -500,16 +501,16 @@ class TestCheckTaskTrigger:
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task).check_task_trigger(
-                state=state, upstream_states_set={Success(), Success()}
+                state=state, upstream_states={1:Success(), 2:Success()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
         assert 'Trigger was "any_failed"' in str(exc.value.state)
 
-    def test_any_failed_empty_set(self):
+    def test_any_failed_empty(self):
         task = Task(trigger=prefect.triggers.any_failed)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={}
+            state=state, upstream_states={}
         )
         assert new_state is state
 
@@ -517,7 +518,7 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.all_finished)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={Success(), Failed()}
+            state=state, upstream_states={1:Success(), 2:Failed()}
         )
         assert new_state is state
 
@@ -526,16 +527,16 @@ class TestCheckTaskTrigger:
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task).check_task_trigger(
-                state=state, upstream_states_set={Success(), Pending()}
+                state=state, upstream_states={1:Success(), 2:Pending()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
         assert 'Trigger was "all_finished"' in str(exc.value.state)
 
-    def test_all_finished_empty_set(self):
+    def test_all_finished_empty(self):
         task = Task(trigger=prefect.triggers.all_finished)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={}
+            state=state, upstream_states={}
         )
         assert new_state is state
 
@@ -544,14 +545,14 @@ class TestCheckTaskTrigger:
         state = Pending()
         with pytest.raises(signals.PAUSE) as exc:
             TaskRunner(task).check_task_trigger(
-                state=state, upstream_states_set={Success(), Pending()}
+                state=state, upstream_states={1:Success(), 2:Pending()}
             )
 
-    def test_manual_only_empty_set(self):
+    def test_manual_only_empty(self):
         task = Task(trigger=prefect.triggers.manual_only)
         state = Pending()
         new_state = TaskRunner(task).check_task_trigger(
-            state=state, upstream_states_set={}
+            state=state, upstream_states={}
         )
         assert new_state is state
 
@@ -563,7 +564,7 @@ class TestCheckTaskTrigger:
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task).check_task_trigger(
-                state=state, upstream_states_set={Success()}
+                state=state, upstream_states={1:Success()}
             )
         assert isinstance(exc.value.state, TriggerFailed)
         assert isinstance(exc.value.state.result, ZeroDivisionError)

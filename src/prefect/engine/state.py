@@ -14,7 +14,7 @@ execution. During execution a run will enter a `Running` state. Finally, runs be
 import copy
 import datetime
 import pendulum
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, List
 
 import prefect
 from prefect.client.result_handlers import ResultHandler
@@ -441,7 +441,20 @@ class Mapped(Success):
         - cached (CachedState): a `CachedState` which can be used for future
             runs of this task (if the cache is still valid); this attribute should only be set
             by the task runner.
+        - children (List): A list containing the states of any "children" of this task. When
+            a task enters a Mapped state, it indicates that it has dynamically created copies
+            of itself to map its operation over its inputs. Those copies are the children.
     """
+
+    def __init__(
+        self,
+        message: str = None,
+        result: Any = None,
+        cached: CachedState = None,
+        map_states: List = None,
+    ):
+        self.map_states = map_states or []
+        super().__init__(message=message, result=result, cached=cached)
 
     color = "#97FFFF"
 
