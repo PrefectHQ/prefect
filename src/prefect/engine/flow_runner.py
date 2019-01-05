@@ -357,7 +357,7 @@ class FlowRunner(Runner):
             reference_tasks = self.flow.reference_tasks()
 
             if return_failed:
-                final_states = {t: executor.wait(s) for t, s in task_states.items()}
+                final_states = executor.wait(task_states)
                 all_final_states = final_states.copy()
                 failed_tasks = []
                 for t, s in final_states.items():
@@ -373,7 +373,7 @@ class FlowRunner(Runner):
             else:
                 # wait until all terminal tasks are finished
                 final_tasks = terminal_tasks.union(reference_tasks).union(return_tasks)
-                final_states = {t: executor.wait(task_states[t]) for t in final_tasks}
+                final_states = executor.wait({t: task_states[t] for t in final_tasks})
 
                 # also wait for any children of Mapped tasks to finish, and add them
                 # to the dictionary to determine flow state
