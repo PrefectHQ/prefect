@@ -15,8 +15,6 @@ from prefect.engine.executors import Executor, LocalExecutor, SynchronousExecuto
 if sys.version_info >= (3, 5):
     from prefect.engine.executors import DaskExecutor
 
-pytestmark = pytest.mark.skip("skip this file to see if it's to blame")
-
 
 class TestBaseExecutor:
     def test_submit_raises_notimplemented(self):
