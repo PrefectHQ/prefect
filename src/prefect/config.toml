@@ -52,9 +52,23 @@ timeout = false
 
 
 [engine]
-# the default executor, specified using a full path
-executor = "prefect.engine.executors.SynchronousExecutor"
-# the default flow runner, specified using a full path
-flow_runner = "prefect.engine.flow_runner.FlowRunner"
-# the default task runner, specified using a full path
-task_runner = "prefect.engine.task_runner.TaskRunner"
+
+    [engine.executor]
+
+    # the default executor, specified using a full path
+    default_class = "prefect.engine.executors.SynchronousExecutor"
+
+        [engine.executor.dask]
+        # the default scheduler address for the DaskExecutor. Set to "local" to configure
+        # a LocalCluster
+        address = "local"
+        # whether to use multiprocessing or not (only applied if address is "local")
+        local_processes = false
+
+    [engine.flow_runner]
+    # the default flow runner, specified using a full path
+    default_class = "prefect.engine.flow_runner.FlowRunner"
+
+    [engine.task_runner]
+    # the default task runner, specified using a full path
+    default_class = "prefect.engine.task_runner.TaskRunner"
