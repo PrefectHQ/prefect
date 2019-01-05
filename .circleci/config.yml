@@ -86,24 +86,22 @@ workflows:
   version: 2
   run_all:
     jobs:
-      - check_formatting
+      # - check_formatting
 
-      - test-3.4:
-          requires:
-            - check_formatting
+      # - test-3.4:
+      #     requires:
+      #       - check_formatting
 
-      - test-3.5:
-          requires:
-            - check_formatting
+      # - test-3.5:
+      #     requires:
+      #       - check_formatting
 
-      - test-3.6:
-          requires:
-            - check_formatting
-
-      - test-3.7:
-          requires:
-            - check_formatting
-
-      - test-airflow:
-          requires:
-            - test-3.6
+      - test-3.6
+      #     requires:
+      #       - check_formatting
+      # - test-3.7:
+      #     requires:
+      #       - check_formatting
+      # - test-airflow:
+      #     requires:
+      #       - test-3.6
