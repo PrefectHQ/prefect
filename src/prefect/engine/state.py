@@ -2,22 +2,16 @@
 
 """
 State is the main currency in the Prefect platform. It is used to represent the current
-status of a task.
+status of a flow or task.
 
 This module contains all Prefect state classes, all ultimately inheriting from the base State class as follows:
 
 ![](/state_inheritance_diagram.svg) {style="text-align: center;"}
 
-Every task is initialized with the `Pending` state, meaning that it is waiting for
-execution. The other types of `Pending` states are `CachedState`, `Paused`, `Scheduled`, and
-`Retrying`.
-
-When a task is running it will enter a `Running` state which means that the task is
-currently being executed.
-
-The six types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, `TimedOut`, `Mapped` and
-`Skipped`.
+Every run is initialized with the `Pending` state, meaning that it is waiting for
+execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
 """
+import copy
 import datetime
 import pendulum
 from typing import Any, Dict, Union
@@ -138,6 +132,15 @@ class State:
             - bool: `True` if the state is failed, `False` otherwise
         """
         return isinstance(self, Failed)
+
+    def is_mapped(self) -> bool:
+        """
+        Checks if the object is currently in a mapped state
+
+        Returns:
+            - bool: `True` if the state is mapped, `False` otherwise
+        """
+        return isinstance(self, Mapped)
 
     @staticmethod
     def deserialize(json_blob: dict, result_handler: ResultHandler = None) -> "State":
