@@ -485,7 +485,7 @@ class TestStartTasks:
         final_state = FlowRunner(flow=f).run(
             return_tasks=[final], start_tasks=[final], task_states=state.result
         )
-        assert [s.result for s in final_state.result[final]] == [2, 3, 4]
+        assert [s.result for s in final_state.result[final].result] == [2, 3, 4]
 
 
 class TestInputCaching:
@@ -653,7 +653,7 @@ class TestReturnFailed:
         state = FlowRunner(flow=f).run(return_failed=True)
         assert state.is_failed()
         assert len(state.result) == 2
-        assert all([len(v) == 3 for v in state.result.values()])
+        assert all([len(v.result) == 3 for v in state.result.values()])
 
     def test_return_failed_doesnt_duplicate(self):
         with Flow() as f:
@@ -811,7 +811,9 @@ def test_flow_runner_allows_for_parallelism_with_times(executor):
     assert names != bob_first
 
 
-@pytest.mark.parametrize("executor", ["mproc", "mthread", "sync"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "mproc", "mthread", "sync"], indirect=True
+)
 def test_flow_runner_properly_provides_context_to_task_runners(executor):
     @prefect.task
     def my_name():
@@ -835,7 +837,7 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
         res = f.run(executor=executor, return_tasks=f.tasks)
 
     assert res.result[my_name].result == "mapped-marvin"
-    assert res.result[tt][0].result == "test-map"
+    assert res.result[tt].result[0].result == "test-map"
 
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
@@ -877,8 +879,8 @@ def test_flow_runner_handles_mapped_timeouts(executor):
     assert state.is_failed()
 
     mapped_states = state.result[res]
-    assert mapped_states[0].is_successful()
-    for fstate in mapped_states[1:]:
+    assert mapped_states.result[0].is_successful()
+    for fstate in mapped_states.result[1:]:
         assert fstate.is_failed()
         assert isinstance(fstate.result, TimeoutError)
 

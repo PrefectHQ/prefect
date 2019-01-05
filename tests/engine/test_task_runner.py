@@ -999,14 +999,14 @@ def test_task_runner_performs_mapping(executor):
     ey = Edge(ListTask(), add, key="y", mapped=True)
     runner = TaskRunner(add)
     with executor.start():
-        lazy_list = runner.run(
+        res = runner.run(
             upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
             executor=executor,
             mapped=True,
         )
-        res = executor.wait(lazy_list)
-    assert isinstance(res, list)
-    assert [s.result for s in res] == [2, 3, 4]
+        res.result = executor.wait(res.result)
+    assert isinstance(res, Mapped)
+    assert [s.result for s in res.result] == [2, 3, 4]
 
 
 class TestCheckUpstreamsforMapping:
@@ -1092,15 +1092,14 @@ def test_task_runner_skips_upstream_check_for_parent_mapped_task_but_not_childre
     ey = Edge(ListTask(), add, key="y", mapped=True)
     runner = TaskRunner(add)
     with executor.start():
-        res = executor.wait(
-            runner.run(
-                upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
-                executor=executor,
-                mapped=True,
-            )
+        res = runner.run(
+            upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
+            executor=executor,
+            mapped=True,
         )
-    assert isinstance(res, list)
-    assert all([isinstance(s, TriggerFailed) for s in res])
+        res.result = executor.wait(res.result)
+    assert isinstance(res, Mapped)
+    assert all([isinstance(s, TriggerFailed) for s in res.result])
 
 
 def test_task_runner_converts_pause_signal_to_paused_state_for_manual_only_triggers():

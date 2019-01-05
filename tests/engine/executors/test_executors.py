@@ -24,7 +24,7 @@ class TestBaseExecutor:
 
     def test_map_raises_notimplemented(self):
         with pytest.raises(NotImplementedError):
-            Executor().map(lambda: 1, upstream_states={})
+            Executor().map(lambda: 1)
 
     def test_wait_raises_notimplemented(self):
         with pytest.raises(NotImplementedError):
@@ -86,76 +86,23 @@ class TestSyncExecutor:
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, SynchronousExecutor)
 
+    def test_map_iterates_over_multiple_args(self):
+        def map_fn(x, y):
+            return x + y
+
+        e = SynchronousExecutor()
+        with e.start():
+            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
+        assert res == [2, 5]
+
     def test_map_doesnt_do_anything_for_empty_list_input(self):
-        def map_fn(*args, **kwargs):
+        def map_fn(*args):
             raise ValueError("map_fn was called")
 
         e = SynchronousExecutor()
         with e.start():
-            res = e.wait(e.map(map_fn, x=1, upstream_states={}, key="foo"))
+            res = e.wait(e.map(map_fn))
         assert res == []
-
-    def test_map_passes_things_along(self, monkeypatch):
-        monkeypatch.setattr(
-            prefect.engine.executors.sync, "dict_to_list", lambda *args: ["a", "b", "c"]
-        )
-
-        def map_fn(*args, **kwargs):
-            return (args, kwargs)
-
-        e = SynchronousExecutor()
-        with e.start():
-            res = e.wait(e.map(map_fn, x=1, upstream_states={}, key="foo"))
-        assert res == [
-            (
-                (),
-                {
-                    "upstream_states": "a",
-                    "x": 1,
-                    "key": "foo",
-                    "context": {"map_index": 0},
-                },
-            ),
-            (
-                (),
-                {
-                    "upstream_states": "b",
-                    "x": 1,
-                    "key": "foo",
-                    "context": {"map_index": 1},
-                },
-            ),
-            (
-                (),
-                {
-                    "upstream_states": "c",
-                    "x": 1,
-                    "key": "foo",
-                    "context": {"map_index": 2},
-                },
-            ),
-        ]
-
-    def test_map_passes_things_along_with_context(self, monkeypatch):
-        monkeypatch.setattr(
-            prefect.engine.executors.sync, "dict_to_list", lambda *args: ["a", "b", "c"]
-        )
-
-        def map_fn(*args, **kwargs):
-            return (args, kwargs)
-
-        e = SynchronousExecutor()
-        with e.start():
-            res = e.wait(
-                e.map(
-                    map_fn, x=1, upstream_states={}, context={"a": 1, "map_index": 100}
-                )
-            )
-        assert res == [
-            ((), {"upstream_states": "a", "x": 1, "context": {"a": 1, "map_index": 0}}),
-            ((), {"upstream_states": "b", "x": 1, "context": {"a": 1, "map_index": 1}}),
-            ((), {"upstream_states": "c", "x": 1, "context": {"a": 1, "map_index": 2}}),
-        ]
 
 
 class TestLocalExecutor:
@@ -182,80 +129,23 @@ class TestLocalExecutor:
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, LocalExecutor)
 
+    def test_map_iterates_over_multiple_args(self):
+        def map_fn(x, y):
+            return x + y
+
+        e = LocalExecutor()
+        with e.start():
+            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
+        assert res == [2, 5]
+
     def test_map_doesnt_do_anything_for_empty_list_input(self):
-        def map_fn(*args, **kwargs):
+        def map_fn(*args):
             raise ValueError("map_fn was called")
 
         e = LocalExecutor()
         with e.start():
-            res = e.wait(e.map(map_fn, x=1, upstream_states={}, key="foo"))
+            res = e.wait(e.map(map_fn))
         assert res == []
-
-    def test_map_passes_things_along(self, monkeypatch):
-        monkeypatch.setattr(
-            prefect.engine.executors.local,
-            "dict_to_list",
-            lambda *args: ["a", "b", "c"],
-        )
-
-        def map_fn(*args, **kwargs):
-            return (args, kwargs)
-
-        e = LocalExecutor()
-        with e.start():
-            res = e.wait(e.map(map_fn, x=1, upstream_states={}, key="foo"))
-        assert res == [
-            (
-                (),
-                {
-                    "upstream_states": "a",
-                    "x": 1,
-                    "key": "foo",
-                    "context": {"map_index": 0},
-                },
-            ),
-            (
-                (),
-                {
-                    "upstream_states": "b",
-                    "x": 1,
-                    "key": "foo",
-                    "context": {"map_index": 1},
-                },
-            ),
-            (
-                (),
-                {
-                    "upstream_states": "c",
-                    "x": 1,
-                    "key": "foo",
-                    "context": {"map_index": 2},
-                },
-            ),
-        ]
-
-    def test_map_passes_things_along_with_context(self, monkeypatch):
-        monkeypatch.setattr(
-            prefect.engine.executors.local,
-            "dict_to_list",
-            lambda *args: ["a", "b", "c"],
-        )
-
-        def map_fn(*args, **kwargs):
-            return (args, kwargs)
-
-        e = LocalExecutor()
-        with e.start():
-            res = e.wait(
-                e.map(
-                    map_fn, x=1, upstream_states={}, context={"a": 1, "map_index": 100}
-                )
-            )
-        assert res == [
-            ((), {"upstream_states": "a", "x": 1, "context": {"a": 1, "map_index": 0}}),
-            ((), {"upstream_states": "b", "x": 1, "context": {"a": 1, "map_index": 1}}),
-            ((), {"upstream_states": "c", "x": 1, "context": {"a": 1, "map_index": 2}}),
-        ]
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 5), reason="Only raised in Python 3.4")
@@ -320,11 +210,10 @@ class TestDaskExecutor:
         with executor.start():
             to_compute["x"] = executor.submit(lambda: 3)
             to_compute["y"] = executor.submit(lambda x: x + 1, to_compute["x"])
-            computed = executor.wait(to_compute)
-        assert "x" in computed
-        assert "y" in computed
-        assert computed["x"] == 3
-        assert computed["y"] == 4
+            x = executor.wait(to_compute["x"])
+            y = executor.wait(to_compute["y"])
+        assert x == 3
+        assert y == 4
 
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_runs_in_parallel(self, executor):
@@ -396,78 +285,21 @@ class TestDaskExecutor:
             assert isinstance(post, DaskExecutor)
 
     @pytest.mark.parametrize("processes", [True, False])
+    def test_map_iterates_over_multiple_args(self, processes):
+        def map_fn(x, y):
+            return x + y
+
+        e = DaskExecutor(processes=processes)
+        with e.start():
+            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
+        assert res == [2, 5]
+
+    @pytest.mark.parametrize("processes", [True, False])
     def test_map_doesnt_do_anything_for_empty_list_input(self, processes):
-        def map_fn(*args, **kwargs):
+        def map_fn(*args):
             raise ValueError("map_fn was called")
 
         e = DaskExecutor(processes=processes)
         with e.start():
-            res = e.wait(e.map(map_fn, x=1, upstream_states={}, key="foo"))
+            res = e.wait(e.map(map_fn))
         assert res == []
-
-    def test_map_passes_things_along(self, monkeypatch):
-        monkeypatch.setattr(
-            prefect.engine.executors.dask, "dict_to_list", lambda *args: ["a", "b", "c"]
-        )
-
-        def map_fn(*args, **kwargs):
-            return (args, kwargs)
-
-        # only need to test processes=False because the passing is the same;
-        # can't easily unit test processes=True because of the monkeypatch
-        e = DaskExecutor(processes=False)
-        with e.start():
-            # cant pass `key="foo"` because `key` is swallowed by client.submit
-            res = e.wait(e.map(map_fn, x=1, upstream_states={}, _key="foo"))
-        assert res == [
-            (
-                (),
-                {
-                    "upstream_states": "a",
-                    "x": 1,
-                    "_key": "foo",
-                    "context": {"map_index": 0},
-                },
-            ),
-            (
-                (),
-                {
-                    "upstream_states": "b",
-                    "x": 1,
-                    "_key": "foo",
-                    "context": {"map_index": 1},
-                },
-            ),
-            (
-                (),
-                {
-                    "upstream_states": "c",
-                    "x": 1,
-                    "_key": "foo",
-                    "context": {"map_index": 2},
-                },
-            ),
-        ]
-
-    def test_map_passes_things_along_with_context(self, monkeypatch):
-        monkeypatch.setattr(
-            prefect.engine.executors.dask, "dict_to_list", lambda *args: ["a", "b", "c"]
-        )
-
-        def map_fn(*args, **kwargs):
-            return (args, kwargs)
-
-        # only need to test processes=False because the passing is the same;
-        # can't easily unit test processes=True because of the monkeypatch
-        e = DaskExecutor(processes=False)
-        with e.start():
-            res = e.wait(
-                e.map(
-                    map_fn, x=1, upstream_states={}, context={"a": 1, "map_index": 100}
-                )
-            )
-        assert res == [
-            ((), {"upstream_states": "a", "x": 1, "context": {"a": 1, "map_index": 0}}),
-            ((), {"upstream_states": "b", "x": 1, "context": {"a": 1, "map_index": 1}}),
-            ((), {"upstream_states": "c", "x": 1, "context": {"a": 1, "map_index": 2}}),
-        ]
