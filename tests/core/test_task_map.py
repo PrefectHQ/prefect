@@ -587,3 +587,53 @@ def test_task_map_doesnt_assume_purity_of_functions(executor):
     assert state.is_successful()
     outputs = [s.result for s in state.result[res].result]
     assert len(set(outputs)) == 3
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_map_reduce(executor):
+    @prefect.task
+    def numbers():
+        return [1, 2, 3]
+
+    @prefect.task
+    def add(x):
+        return x + 1
+
+    @prefect.task
+    def sum(x):
+        return sum(x)
+
+    with Flow() as f:
+        res = sum(add.map(add.map(numbers())))
+
+    state = f.run(executor=executor, return_tasks=[res])
+    assert state.is_successful()
+    assert state.result[res].result == 12
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_map_over_map_and_static(executor):
+    @prefect.task
+    def numbers():
+        return [1, 2, 3]
+
+    @prefect.task
+    def add(x):
+        return x + 1
+
+    @prefect.task
+    def add_two(x, y):
+        return x + y
+
+    with Flow() as f:
+        n = numbers()
+        res = add_two.map(x=n, y=add.map(n))
+
+    state = f.run(executor=executor, return_tasks=[res])
+    assert state.is_successful()
+    assert [r.result for r in state.result[res].result] == [3, 5, 7]
+
