@@ -160,6 +160,10 @@ class DaskExecutor(Executor):
             return futures.result(timeout=timeout)
         elif isinstance(futures, str):
             return futures
+        elif isinstance(futures, dict):
+            return dict(
+                zip(futures.keys(), self.wait(futures.values(), timeout=timeout))
+            )
         else:
             try:
                 results = []  # type: ignore
