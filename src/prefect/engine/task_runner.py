@@ -1,7 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
-
 import collections
-import pendulum
+import copy
 import threading
 from functools import partial, wraps
 from typing import (
@@ -10,36 +9,38 @@ from typing import (
     Dict,
     Iterable,
     List,
-    Union,
+    Optional,
     Set,
     Sized,
-    Optional,
     Tuple,
+    Union,
 )
+
+import pendulum
 
 import prefect
 from prefect import config
 from prefect.client.result_handlers import ResultHandler
 from prefect.core import Edge, Task
 from prefect.engine import signals
+from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     CachedState,
     Failed,
     Mapped,
     Pending,
-    Scheduled,
-    Submitted,
     Resume,
     Retrying,
     Running,
+    Scheduled,
     Skipped,
     State,
+    Submitted,
     Success,
     TimedOut,
     TriggerFailed,
 )
-from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
-from prefect.utilities.executors import run_with_heartbeat, main_thread_timeout
+from prefect.utilities.executors import main_thread_timeout, run_with_heartbeat
 
 
 class TaskRunner(Runner):
@@ -130,7 +131,6 @@ class TaskRunner(Runner):
         inputs: Dict[str, Any] = None,
         check_upstream: bool = True,
         context: Dict[str, Any] = None,
-        mapped: bool = False,
         executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
         """
@@ -151,11 +151,6 @@ class TaskRunner(Runner):
                 when deciding if the task should run. Defaults to `True`, but could be set to
                 `False` to force the task to run.
             - context (dict, optional): prefect Context to use for execution
-            - mapped (bool, optional): indicates if this task is mapped over its inputs. If
-                `True`, this run represents the "parent" task, which will generate "children"
-                tasks to carry out each mapping (and who will, in turn, have `mapped=False`).
-                Tasks which are `mapped` do not actually call their `run()` method (only the
-                children tasks run), and return a `Mapped` state.Defaults to `False`.
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
 
@@ -169,6 +164,17 @@ class TaskRunner(Runner):
             executor = prefect.engine.get_default_executor_class()()
         self.executor = executor
         task_inputs = {}  # type: Dict[str, Any]
+
+        # if mapped is true, this task run is going to generate a Mapped state. It won't
+        # actually run, but rather spawn children tasks to map over its inputs. We detect
+        # this case by checking for:
+        #   - upstream edges that are `mapped`
+        #   - no `map_index` in context (which indicates that this is the child task, not the
+        #       parent)
+        mapped = (
+            any([e.mapped for e in upstream_states])
+            and context.get("map_index") is None
+        )
 
         self.logger.info(
             "Starting task run for task '{name}{index}'".format(
@@ -648,7 +654,7 @@ class TaskRunner(Runner):
                 # over the result of a "vanilla" task. We create a copy of the parent state and
                 # set its result to the appropriately indexed parent result
                 elif edge.mapped:
-                    i_states[edge] = upstream_state.copy()
+                    i_states[edge] = copy.copy(upstream_state)
                     i_states[edge].result = upstream_state.result[i]  # type: ignore
 
                 # otherwise, we're not mapping over the task and we should just use its

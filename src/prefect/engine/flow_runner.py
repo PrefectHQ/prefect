@@ -304,10 +304,6 @@ class FlowRunner(Runner):
         start_tasks = start_tasks or []
         return_tasks = set(return_tasks or [])
 
-        # this set keeps track of any tasks that are mapped over - meaning they are the
-        # downstream task of at least one mapped edge
-        mapped_tasks = set()
-
         # -- process each task in order
 
         with executor.start():
@@ -322,8 +318,6 @@ class FlowRunner(Runner):
                     upstream_states[edge] = task_states.get(
                         edge.upstream_task, Pending(message="Task state not available.")
                     )
-                    if edge.mapped:
-                        mapped_tasks.add(task)
 
                 # if a task is provided as a start_task and its state is also
                 # provided, we assume that means it requires cached_inputs
@@ -349,7 +343,6 @@ class FlowRunner(Runner):
                     # if the task is a "start task", don't check its upstream dependencies
                     check_upstream=(task not in start_tasks),
                     context=dict(prefect.context, task_id=task.id),
-                    mapped=task in mapped_tasks,
                     executor=executor,
                 )
 

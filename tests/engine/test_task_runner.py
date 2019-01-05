@@ -1002,7 +1002,6 @@ def test_task_runner_performs_mapping(executor):
         res = runner.run(
             upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
             executor=executor,
-            mapped=True,
         )
         res.result = executor.wait(res.result)
     assert isinstance(res, Mapped)
@@ -1095,7 +1094,6 @@ def test_task_runner_skips_upstream_check_for_parent_mapped_task_but_not_childre
         res = runner.run(
             upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
             executor=executor,
-            mapped=True,
         )
         res.result = executor.wait(res.result)
     assert isinstance(res, Mapped)
@@ -1136,20 +1134,6 @@ def test_task_runner_bypasses_pause_when_requested():
 
 
 @pytest.mark.parametrize("mapped", [False, True])
-def test_improperly_mapped_edge_fails_gracefully(mapped):
-    add = AddTask()
-    x = Task()
-    e = Edge(x, add, mapped=True, key="x")
-    f = Edge(x, 8, mapped=True, key="y")
-
-    state = TaskRunner(add).run(
-        upstream_states={e: Success(result=[1, 2, 3]), f: Success(result=8)},
-        mapped=mapped,
-    )
-    assert state.is_failed()
-
-
-@pytest.mark.parametrize("mapped", [False, True])
 @pytest.mark.parametrize("check_upstream", [False, True])
 def test_all_pipeline_method_steps_are_called(mapped, check_upstream):
 
@@ -1166,7 +1150,12 @@ def test_all_pipeline_method_steps_are_called(mapped, check_upstream):
         "check_upstream_skipped",
         "check_task_trigger",
     ]
-    unmapped_pipeline = ["get_task_run_state", "cache_result", "check_for_retry"]
+    unmapped_pipeline = [
+        "wait_for_upstream_mapped",
+        "get_task_run_state",
+        "cache_result",
+        "check_for_retry",
+    ]
     mapped_pipeline = ["check_upstreams_for_mapping", "get_task_mapped_state"]
 
     runner = TaskRunner(Task())
@@ -1181,7 +1170,11 @@ def test_all_pipeline_method_steps_are_called(mapped, check_upstream):
         return_value=(MagicMock(), MagicMock(), MagicMock(), MagicMock())
     )
 
-    runner.run(mapped=mapped, check_upstream=check_upstream)
+    if mapped:
+        upstream_states = {Edge(1, 2, mapped=True): 3}
+    else:
+        upstream_states = {}
+    runner.run(check_upstream=check_upstream, upstream_states=upstream_states)
 
     for method in pipeline:
         assert getattr(runner, method).call_count == 1
