@@ -276,7 +276,6 @@ class TaskRunner(Runner):
                         state=state, upstream_states=upstream_states
                     )
                     state = self.get_task_mapped_state(
-                        state=state,
                         upstream_states=upstream_states,
                         inputs=inputs,
                         check_upstream=check_upstream,
@@ -590,7 +589,6 @@ class TaskRunner(Runner):
 
     def get_task_mapped_state(
         self,
-        state: State,
         upstream_states: Dict[Edge, State],
         inputs: Dict[str, Any],
         check_upstream: bool,
