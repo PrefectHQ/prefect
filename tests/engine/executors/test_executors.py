@@ -1,13 +1,14 @@
-import cloudpickle
 import datetime
 import logging
-import pytest
 import random
 import sys
 import tempfile
 import time
-
 from unittest.mock import MagicMock
+
+import cloudpickle
+import dask
+import pytest
 
 import prefect
 from prefect.engine.executors import Executor, LocalExecutor, SynchronousExecutor
@@ -59,6 +60,15 @@ class TestBaseExecutor:
 
 
 class TestSyncExecutor:
+    @pytest.fixture(autouse=True)
+    def set_dask_config(self):
+        """
+        Ensures that the config is properly set; otherwise it may be overriden by the
+        active LocalClusters
+        """
+        with dask.config.set(scheduler="synchronous"):
+            yield
+
     def test_submit(self):
         assert SynchronousExecutor().submit(lambda: 1).compute() == 1
         assert SynchronousExecutor().submit(lambda x: x, 1).compute() == 1
