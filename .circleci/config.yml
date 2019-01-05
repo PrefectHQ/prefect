@@ -29,6 +29,24 @@ jobs:
   # Run unit tests in Python 3.4-3.7
   # ----------------------------------
 
+  quick-tests:
+    docker:
+      - image: python:3.6
+
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Install prefect
+          command: pip install ".[all_extras]"
+
+      - run:
+          name: Run tests
+          command: pytest tests/engine/executors/test_executors.py -vv
   test-3.4:
     docker:
       - image: python:3.4
@@ -86,17 +104,15 @@ workflows:
   version: 2
   run_all:
     jobs:
+      - quick-tests
       # - check_formatting
-
       # - test-3.4:
       #     requires:
       #       - check_formatting
-
       # - test-3.5:
       #     requires:
       #       - check_formatting
-
-      - test-3.6
+      # - test-3.6
       #     requires:
       #       - check_formatting
       # - test-3.7:
