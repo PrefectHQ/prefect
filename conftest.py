@@ -43,7 +43,7 @@ def mproc():
     "Multi-processing executor"
     if sys.version_info >= (3, 5):
         with Client(processes=True) as client:
-            yield DaskExecutor(client.scheduler.address, processes=True)
+            yield DaskExecutor(client.scheduler.address, local_processes=True)
     else:
         yield
 
