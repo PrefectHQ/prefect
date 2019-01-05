@@ -112,8 +112,7 @@ class TaskRunner(Runner):
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
             - context (Dict[str, Any]): the context to be updated with relevant information
-            - upstream_states (Dict[Edge, State]): a dictionary
-                representing the states of tasks upstream of this one
+            - upstream_states (Dict[Edge, State]): the upstream states
             - inputs (Dict[str, Any]): a dictionary of inputs to the task that should override
                 the inputs taken from upstream states
 
@@ -196,15 +195,6 @@ class TaskRunner(Runner):
             state = exc.state
             return state
 
-        # gather upstream states
-        upstream_states_set = set(
-            prefect.utilities.collections.flatten_seq(upstream_states.values())
-        )
-
-        upstream_states_set.difference_update(
-            [s for s in upstream_states_set if not isinstance(s, State)]
-        )
-
         # run state transformation pipeline
         with prefect.context(context):
 
@@ -219,7 +209,7 @@ class TaskRunner(Runner):
                     # wait for mapped tasks to finish all sub-tasks, since we need their
                     # results
                     self.wait_for_upstream_mapped(
-                        upstream_states_set=upstream_states_set, executor=executor
+                        upstream_states=upstream_states, executor=executor
                     )
 
                     # construct task inputs
@@ -241,17 +231,17 @@ class TaskRunner(Runner):
                 if check_upstream and not mapped:
                     # check if all upstream tasks have finished
                     state = self.check_upstream_finished(
-                        state, upstream_states_set=upstream_states_set
+                        state, upstream_states=upstream_states
                     )
 
                     # check if any upstream tasks skipped (and if we need to skip)
                     state = self.check_upstream_skipped(
-                        state, upstream_states_set=upstream_states_set
+                        state, upstream_states=upstream_states
                     )
 
                     # check if the task's trigger passes
                     state = self.check_task_trigger(
-                        state, upstream_states_set=upstream_states_set
+                        state, upstream_states=upstream_states
                     )
                 # check to make sure the task is in a pending state
                 state = self.check_task_is_pending(state)
@@ -352,14 +342,14 @@ class TaskRunner(Runner):
 
     @call_state_handlers
     def check_upstream_finished(
-        self, state: State, upstream_states_set: Set[State]
+        self, state: State, upstream_states: Dict[Edge, State]
     ) -> State:
         """
         Checks if the upstream tasks have all finshed.
 
         Args:
             - state (State): the current state of this task
-            - upstream_states_set: a set containing the states of any upstream tasks.
+            - upstream_states (Dict[Edge, State]): the upstream states
 
         Returns:
             - State: the state of the task after running the check
@@ -367,13 +357,13 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if upstream tasks are not finished.
         """
-        if not all(s.is_finished() for s in upstream_states_set):
+        if not all(s.is_finished() for s in upstream_states.values()):
             raise ENDRUN(state)
         return state
 
     def wait_for_upstream_mapped(
         self,
-        upstream_states_set: Set[State],
+        upstream_states: Dict[Edge, State],
         executor: "prefect.engine.executors.Executor",
     ) -> None:
         """
@@ -381,31 +371,30 @@ class TaskRunner(Runner):
         to complete and update the Mapped.result arrays with their results.
 
         Args:
-            - upstream_states_set (Set[State]): the set of all upstream states
+            - upstream_states (Dict[Edge, State]): the upstream states
             - executor (Executor): the executor
         """
-        for upstream_state in list(upstream_states_set):
+        for upstream_state in upstream_states.values():
             if upstream_state.is_mapped():
-                upstream_states_set.remove(upstream_state)
-                upstream_state.result = executor.wait(upstream_state.result)
-                upstream_states_set.update(upstream_state.result)
+                upstream_state.map_states = executor.wait(upstream_state.map_states)
+                upstream_state.result = [s.result for s in upstream_state.map_states]
 
     @call_state_handlers
     def check_upstream_skipped(
-        self, state: State, upstream_states_set: Set[State]
+        self, state: State, upstream_states: Dict[Edge, State]
     ) -> State:
         """
         Checks if any of the upstream tasks have skipped.
 
         Args:
             - state (State): the current state of this task
-            - upstream_states_set: a set containing the states of any upstream tasks.
+            - upstream_states (Dict[Edge, State]): the upstream states
 
         Returns:
             - State: the state of the task after running the check
         """
         if self.task.skip_on_upstream_skip and any(
-            s.is_skipped() for s in upstream_states_set
+            s.is_skipped() for s in upstream_states.values()
         ):
             raise ENDRUN(
                 state=Skipped(
@@ -420,15 +409,15 @@ class TaskRunner(Runner):
 
     @call_state_handlers
     def check_task_trigger(
-        self, state: State, upstream_states_set: Set[State]
+        self, state: State, upstream_states: Dict[Edge, State]
     ) -> State:
         """
-        Checks if the task's trigger function passes. If the upstream_states_set is empty,
+        Checks if the task's trigger function passes. If the upstream_states is empty,
         then the trigger is not called.
 
         Args:
             - state (State): the current state of this task
-            - upstream_states_set (Set[State]): a set containing the states of any upstream tasks.
+            - upstream_states (Dict[Edge, State]): the upstream states
 
         Returns:
             - State: the state of the task after running the check
@@ -440,9 +429,9 @@ class TaskRunner(Runner):
         raise_on_exception = prefect.context.get("raise_on_exception", False)
 
         try:
-            if not upstream_states_set:
+            if not upstream_states:
                 return state
-            elif not self.task.trigger(upstream_states_set):
+            elif not self.task.trigger(upstream_states):
                 raise signals.TRIGGERFAIL(message="Trigger failed")
 
         except signals.PAUSE:
@@ -563,9 +552,7 @@ class TaskRunner(Runner):
 
         Args:
             - state (State): the current state of this task
-            - upstream_states (Dict[Edge, State]): a dictionary
-                representing the states of any tasks upstream of this one. The keys of the
-                dictionary should correspond to the edges leading to the task.
+            - upstream_states (Dict[Edge, State]): the upstream states
 
         Returns:
             - State: the state of the task after running the check
@@ -615,9 +602,7 @@ class TaskRunner(Runner):
 
         Args:
             - state (State): the current state of this task
-            - upstream_states (Dict[Edge, State]): a dictionary
-                representing the states of any tasks upstream of this one. The keys of the
-                dictionary should correspond to the edges leading to the task.
+            - upstream_states (Dict[Edge, State]): the upstream states
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
             - check_upstream (bool): boolean specifying whether to check upstream states
@@ -674,8 +659,10 @@ class TaskRunner(Runner):
                 executor=executor,
             )
 
-        result = executor.map(run_fn, range(n_maps), map_upstream_states)
-        return Mapped(message="Mapped tasks submitted for execution.", result=result)
+        map_states = executor.map(run_fn, range(n_maps), map_upstream_states)
+        return Mapped(
+            message="Mapped tasks submitted for execution.", map_states=map_states
+        )
 
     @call_state_handlers
     def set_task_to_running(self, state: State) -> State:
