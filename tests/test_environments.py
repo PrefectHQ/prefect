@@ -250,7 +250,7 @@ class TestLocalEnvironment:
         env = LocalEnvironment()
         built_env = env.build(prefect.Flow())
         with prefect.utilities.configuration.set_temporary_config(
-            {"engine.flow_runner": "prefect.engine.x"}
+            {"engine.flow_runner.default_class": "prefect.engine.x"}
         ):
 
             built_env.run()

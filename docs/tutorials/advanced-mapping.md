@@ -269,7 +269,7 @@ If you are following along and executing the code locally, it is recommended you
 ```python
 from prefect.engine.executors import DaskExecutor
 
-executor = DaskExecutor(processes=True)
+executor = DaskExecutor(local_processes=True)
 
 %%time
 scraped_state = flow.run(parameters={"url": "http://www.insidethex.co.uk/"},
