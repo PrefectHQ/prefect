@@ -9,14 +9,20 @@ from prefect.utilities import tests
 
 if sys.version_info >= (3, 5):
     from prefect.engine.executors import DaskExecutor
-    from distributed import Client
+    from distributed import Client, LocalCluster
+
+# @pytest.fixture(scope='session')
+# def local_cluster_processes():
+#     with LocalCluster(processes=True) as cluster:
+#         yield cluster
+
 
 # ----------------
 # set up executor fixtures
 # so that we don't have to spin up / tear down a dask cluster
 # for every test that needs a dask executor
 # ----------------
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def mthread():
     "Multi-threaded executor"
     if sys.version_info >= (3, 5):
@@ -26,19 +32,19 @@ def mthread():
         yield
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def local():
     "Local, immediate execution executor"
     yield LocalExecutor()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def sync():
     "Synchronous dask (not dask.distributed) executor"
     yield SynchronousExecutor()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def mproc():
     "Multi-processing executor"
     if sys.version_info >= (3, 5):
