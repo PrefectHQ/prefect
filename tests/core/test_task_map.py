@@ -64,10 +64,10 @@ def test_map_spawns_new_tasks(executor):
     m = s.result[res]
     assert s.is_successful()
     assert m.is_mapped()
-    assert isinstance(m.result, list)
-    assert len(m.result) == 3
-    assert all([isinstance(ms, Success) for ms in m.result])
-    assert [r.result for r in m.result] == [2, 3, 4]
+    assert isinstance(m.map_states, list)
+    assert len(m.map_states) == 3
+    assert all([isinstance(ms, Success) for ms in m.map_states])
+    assert m.result == [2, 3, 4]
 
 
 @pytest.mark.parametrize(
@@ -84,10 +84,10 @@ def test_map_over_parameters(executor):
     m = s.result[res]
     assert s.is_successful()
     assert m.is_mapped()
-    assert isinstance(m.result, list)
-    assert all(s.is_successful() for s in m.result)
-    assert len(m.result) == 3
-    assert [r.result for r in m.result] == [2, 3, 4]
+    assert isinstance(m.map_states, list)
+    assert all(s.is_successful() for s in m.map_states)
+    assert len(m.map_states) == 3
+    assert m.result == [2, 3, 4]
 
 
 @pytest.mark.parametrize(
@@ -109,15 +109,15 @@ def test_map_composition(executor):
     assert m1.is_mapped()
     assert m2.is_mapped()
 
-    assert isinstance(m1.result, list)
-    assert all(s.is_successful() for s in m1.result)
-    assert len(m1.result) == 3
-    assert [r.result for r in m1.result] == [2, 3, 4]
+    assert isinstance(m1.map_states, list)
+    assert all(s.is_successful() for s in m1.map_states)
+    assert len(m1.map_states) == 3
+    assert m1.result == [2, 3, 4]
 
-    assert isinstance(m2.result, list)
-    assert all(s.is_successful() for s in m2.result)
-    assert len(m2.result) == 3
-    assert [r.result for r in m2.result] == [3, 4, 5]
+    assert isinstance(m2.map_states, list)
+    assert all(s.is_successful() for s in m2.map_states)
+    assert len(m2.map_states) == 3
+    assert m2.result == [3, 4, 5]
 
 
 @pytest.mark.parametrize(
@@ -136,9 +136,9 @@ def test_deep_map_composition(executor):
     m = s.result[res]
     assert s.is_successful()
     assert m.is_mapped()
-    assert isinstance(m.result, list)
-    assert len(m.result) == 3
-    assert [r.result for r in m.result] == [12, 13, 14]
+    assert isinstance(m.map_states, list)
+    assert len(m.map_states) == 3
+    assert m.result == [12, 13, 14]
 
 
 @pytest.mark.parametrize(
@@ -154,9 +154,9 @@ def test_multiple_map_arguments(executor):
     s = f.run(return_tasks=f.tasks, executor=executor)
     m = s.result[res]
     assert s.is_successful()
-    assert isinstance(m.result, list)
+    assert isinstance(m.map_states, list)
     assert len(m.result) == 3
-    assert [r.result for r in m.result] == [2, 4, 6]
+    assert m.result == [2, 4, 6]
 
 
 @pytest.mark.parametrize(
@@ -174,10 +174,37 @@ def test_map_failures_dont_leak_out(executor):
     s = f.run(return_tasks=f.tasks, executor=executor)
     m = s.result[res]
     assert s.is_failed()
-    assert isinstance(m.result, list)
+    assert isinstance(m.map_states, list)
     assert len(m.result) == 3
-    assert [r.result for r in m.result][1:] == [1, 0.5]
-    assert isinstance(m.result[0], prefect.engine.state.TriggerFailed)
+    assert m.result[1:] == [1, 0.5]
+    assert isinstance(m.result[0], prefect.engine.signals.TRIGGERFAIL)
+    assert isinstance(m.map_states[0], prefect.engine.state.TriggerFailed)
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_map_skips_return_exception_as_result(executor):
+    ll = ListTask()
+
+    @task
+    def add(x):
+        if x == 1:
+            raise prefect.engine.signals.SKIP("One is no good")
+        else:
+            return x + 1
+
+    with Flow() as f:
+        res = add.map(ll)
+
+    s = f.run(return_tasks=f.tasks, executor=executor)
+    m = s.result[res]
+    assert s.is_successful()
+    assert isinstance(m.map_states, list)
+    assert len(m.result) == 3
+    assert m.result[1:] == [3, 4]
+    assert isinstance(m.result[0], Exception)
+    assert isinstance(m.map_states[0], prefect.engine.state.Skipped)
 
 
 @pytest.mark.parametrize(
@@ -199,16 +226,16 @@ def test_map_skips_dont_leak_out(executor):
     s = f.run(return_tasks=f.tasks, executor=executor)
     m = s.result[res]
     assert s.is_successful()
-    assert isinstance(m.result, list)
+    assert isinstance(m.map_states, list)
     assert len(m.result) == 3
-    assert [r.result for r in m.result][1:] == [4, 5]
-    assert isinstance(m.result[0], prefect.engine.state.Skipped)
+    assert m.result == [None, 4, 5]
+    assert isinstance(m.map_states[0], prefect.engine.state.Skipped)
 
 
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
-def test_map_skips_if_upstream_empty(executor):
+def test_map_handles_upstream_empty(executor):
     @task
     def make_list():
         return []
@@ -223,14 +250,16 @@ def test_map_skips_if_upstream_empty(executor):
     res_state = s.result[res]
     terminal_state = s.result[terminal]
     assert s.is_successful()
-    assert res_state.is_skipped()
-    assert terminal_state.is_skipped()
+    assert res_state.is_mapped()
+    assert res_state.result == []
+    assert terminal_state.is_mapped()
+    assert terminal_state.result == []
 
 
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
-def test_map_skips_if_non_keyed_upstream_empty(executor):
+def test_map_handles_non_keyed_upstream_empty(executor):
     @task
     def make_list():
         return []
@@ -245,7 +274,8 @@ def test_map_skips_if_non_keyed_upstream_empty(executor):
     s = f.run(return_tasks=f.tasks, executor=executor)
     res_state = s.result[res]
     assert s.is_successful()
-    assert res_state.is_skipped()
+    assert res_state.is_mapped()
+    assert res_state.result == []
 
 
 @pytest.mark.parametrize(
@@ -261,9 +291,9 @@ def test_map_can_handle_fixed_kwargs(executor):
     s = f.run(return_tasks=f.tasks, executor=executor)
     m = s.result[res]
     assert s.is_successful()
-    assert isinstance(m.result, list)
+    assert isinstance(m.map_states, list)
     assert len(m.result) == 3
-    assert [r.result for r in m.result] == [6, 7, 8]
+    assert m.result == [6, 7, 8]
 
 
 @pytest.mark.parametrize(
@@ -278,9 +308,9 @@ def test_map_can_handle_nonkeyed_upstreams(executor):
     s = f.run(return_tasks=f.tasks, executor=executor)
     m = s.result[res]
     assert s.is_successful()
-    assert isinstance(m.result, list)
+    assert isinstance(m.map_states, list)
     assert len(m.result) == 3
-    assert [r.result for r in m.result] == [[1, 2, 3] for _ in range(3)]
+    assert m.result == [[1, 2, 3] for _ in range(3)]
 
 
 @pytest.mark.parametrize(
@@ -297,9 +327,9 @@ def test_map_can_handle_nonkeyed_mapped_upstreams(executor):
     s = f.run(return_tasks=f.tasks, executor=executor)
     m = s.result[res]
     assert s.is_successful()
-    assert isinstance(m.result, list)
+    assert isinstance(m.map_states, list)
     assert len(m.result) == 3
-    assert [r.result for r in m.result] == [[1, 2, 3] for _ in range(3)]
+    assert m.result == [[1, 2, 3] for _ in range(3)]
 
 
 @pytest.mark.parametrize(
@@ -315,9 +345,9 @@ def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args(executor):
     s = f.run(return_tasks=f.tasks, executor=executor)
     m = s.result[res]
     assert s.is_successful()
-    assert isinstance(m.result, list)
+    assert isinstance(m.map_states, list)
     assert len(m.result) == 3
-    assert [r.result for r in m.result] == [[1 + i, 2 + i, 3 + i] for i in range(3)]
+    assert m.result == [[1 + i, 2 + i, 3 + i] for i in range(3)]
 
 
 @pytest.mark.parametrize(
@@ -339,11 +369,11 @@ def test_map_tracks_non_mapped_upstream_tasks(executor):
 
     s = f.run(return_tasks=f.tasks, executor=executor)
     assert s.is_failed()
-    assert all([sub.is_failed() for sub in s.result[res].result])
+    assert all([sub.is_failed() for sub in s.result[res].map_states])
     assert all(
         [
             isinstance(sub, prefect.engine.state.TriggerFailed)
-            for sub in s.result[res].result
+            for sub in s.result[res].map_states
         ]
     )
 
@@ -364,10 +394,11 @@ def test_map_allows_for_retries(executor):
     assert states.is_failed()  # division by zero
 
     old = states.result[divved]
-    assert [s.result for s in old.result][1:] == [1.0, 0.5]
-    assert isinstance(old.result[0].result, ZeroDivisionError)
+    assert old.result[1:] == [1.0, 0.5]
+    assert isinstance(old.result[0], ZeroDivisionError)
+    assert old.map_states[0].is_failed()
 
-    old.result[0] = prefect.engine.state.Success(result=100)
+    old.map_states[0] = prefect.engine.state.Success(result=100)
     states = f.run(
         return_tasks=[res],
         start_tasks=[res],
@@ -377,7 +408,7 @@ def test_map_allows_for_retries(executor):
     assert states.is_successful()  # no divison by 0
 
     new = states.result[res]
-    assert [s.result for s in new.result] == [100, 1.0, 0.5]
+    assert new.result == [100, 1.0, 0.5]
 
 
 @pytest.mark.parametrize(
@@ -394,9 +425,9 @@ def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args(executor):
     s = f.run(return_tasks=f.tasks, executor=executor)
     m = s.result[res]
     assert s.is_successful()
-    assert isinstance(m.result, list)
-    assert len(m.result) == 3
-    assert [r.result for r in m.result] == [[1 + i, 2 + i, 3 + i] for i in range(3)]
+    assert isinstance(m.map_states, list)
+    assert len(m.map_states) == 3
+    assert m.result == [[1 + i, 2 + i, 3 + i] for i in range(3)]
 
 
 @pytest.mark.parametrize("executor", ["local", "mproc", "mthread"], indirect=True)
@@ -416,9 +447,9 @@ def test_map_behaves_like_zip_with_differing_length_results(executor):
         s = f.run(return_tasks=[res], executor=executor)
     m = s.result[res]
     assert s.is_successful()
-    assert isinstance(m.result, list)
-    assert len(m.result) == 2
-    assert [r.result for r in m.result] == [0, 2]
+    assert isinstance(m.map_states, list)
+    assert len(m.map_states) == 2
+    assert m.result == [0, 2]
 
 
 @pytest.mark.xfail(
@@ -465,9 +496,9 @@ def test_map_works_with_retries_and_cached_states(executor):
     s = f.run(return_tasks=[ll, res], executor=executor)
     assert s.is_running()
     m = s.result[res]
-    assert m.result[0].is_pending()
-    assert m.result[1].is_successful()
-    assert m.result[2].is_successful()
+    assert m.map_states[0].is_pending()
+    assert m.map_states[1].is_successful()
+    assert m.map_states[2].is_successful()
 
     # this is the part that is non-standard
     # we create a list of _new_ states for the _upstream_ tasks of res
@@ -483,14 +514,22 @@ def test_map_works_with_retries_and_cached_states(executor):
         start_tasks=[res],
     )
     assert s.is_successful()
-    assert s.result[res].result[0].result == 1 / 10
+    assert s.result[res].result[0] == 1 / 10
 
 
 @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
 def test_task_map_doesnt_bottleneck(executor):
+    """
+    This flow maps a sleep function over two inputs: 0 seconds and 1 second.
+    It then maps a function over the results of that sleep function which records the
+    current time. If the "sleep" function bottlenecks, then the "record" function will receive
+    both of its outputs at the same time. If it does not bottleneck, then the
+    "record" function will print one time immediately, and one time a second later.
+    """
+
     @prefect.task
     def ll():
-        return [0.5, 0.5, 2]
+        return [0, 1]
 
     @prefect.task
     def zz(s):
@@ -505,8 +544,39 @@ def test_task_map_doesnt_bottleneck(executor):
         res = rec.map(zz.map(ll))
 
     state = f.run(executor=executor, return_tasks=[res])
-    times = [s.result for s in state.result[res].result]
-    assert times[-1] - times[0] > 1
+    times = state.result[res].result
+    assert times[1] - times[0] > 0.9
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_reduce_task_honors_trigger_across_all_mapped_states(executor):
+    """
+    The `take_sum` task reduces over the `div` task, which is going to return one Success
+    and one Failure. The `take_sum` should fail its trigger check.
+    """
+
+    @prefect.task
+    def ll():
+        return [0, 1]
+
+    @prefect.task
+    def div(x):
+        return 1 / x
+
+    @prefect.task
+    def take_sum(x):
+        return sum(x)
+
+    with Flow() as f:
+        d = div.map(ll)
+        s = take_sum(d)
+
+    state = f.run(executor=executor, return_tasks=f.tasks)
+    assert state.is_failed()
+    assert state.result[s].is_failed()
+    assert isinstance(state.result[s], prefect.engine.state.TriggerFailed)
 
 
 @pytest.mark.parametrize(
@@ -534,9 +604,9 @@ def test_task_map_downstreams_handle_single_failures(executor):
     assert state.is_failed()
     assert len(state.result[dived].result) == 3
     assert isinstance(state.result[big_list], prefect.engine.state.TriggerFailed)
-    assert [s.result for s in state.result[again].result][0::2] == [1, 3]
+    assert state.result[again].result[0::2] == [1, 3]
     assert isinstance(
-        [s for s in state.result[again].result][1], prefect.engine.state.TriggerFailed
+        state.result[again].map_states[1], prefect.engine.state.TriggerFailed
     )
 
 
@@ -562,10 +632,11 @@ def test_task_map_can_be_passed_to_upstream_with_and_without_map(executor):
         again = add.map(added)
 
     state = f.run(executor=executor, return_tasks=f.tasks)
+
     assert state.is_successful()
     assert len(state.result[added].result) == 3
     assert state.result[big_list].result == [2, 3, 4, 4]
-    assert [s.result for s in state.result[again].result] == [3, 4, 5]
+    assert state.result[again].result == [3, 4, 5]
 
 
 @pytest.mark.parametrize(
@@ -585,8 +656,7 @@ def test_task_map_doesnt_assume_purity_of_functions(executor):
 
     state = f.run(executor=executor, return_tasks=[res])
     assert state.is_successful()
-    outputs = [s.result for s in state.result[res].result]
-    assert len(set(outputs)) == 3
+    assert len(state.result[res].result) == 3
 
 
 @pytest.mark.parametrize(
@@ -616,7 +686,7 @@ def test_map_reduce(executor):
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
-def test_map_over_map_and_static(executor):
+def test_map_over_map_and_unmapped(executor):
     @prefect.task
     def numbers():
         return [1, 2, 3]
@@ -635,4 +705,4 @@ def test_map_over_map_and_static(executor):
 
     state = f.run(executor=executor, return_tasks=[res])
     assert state.is_successful()
-    assert [r.result for r in state.result[res].result] == [3, 5, 7]
+    assert state.result[res].result == [3, 5, 7]
