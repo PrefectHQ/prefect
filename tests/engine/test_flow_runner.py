@@ -485,7 +485,7 @@ class TestStartTasks:
         final_state = FlowRunner(flow=f).run(
             return_tasks=[final], start_tasks=[final], task_states=state.result
         )
-        assert [s.result for s in final_state.result[final].result] == [2, 3, 4]
+        assert final_state.result[final].result == [2, 3, 4]
 
 
 class TestInputCaching:
@@ -837,7 +837,7 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
         res = f.run(executor=executor, return_tasks=f.tasks)
 
     assert res.result[my_name].result == "mapped-marvin"
-    assert res.result[tt].result[0].result == "test-map"
+    assert res.result[tt].result[0] == "test-map"
 
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
@@ -879,8 +879,8 @@ def test_flow_runner_handles_mapped_timeouts(executor):
     assert state.is_failed()
 
     mapped_states = state.result[res]
-    assert mapped_states.result[0].is_successful()
-    for fstate in mapped_states.result[1:]:
+    assert mapped_states.map_states[0].is_successful()
+    for fstate in mapped_states.map_states[1:]:
         assert fstate.is_failed()
         assert isinstance(fstate.result, TimeoutError)
 

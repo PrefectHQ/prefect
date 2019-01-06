@@ -1,4 +1,5 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+import itertools
 import collections
 import copy
 import threading
@@ -109,6 +110,12 @@ class TaskRunner(Runner):
         """
         Initializes the Task run by initializing state and context appropriately.
 
+        If the task is being retried, then we retrieve the run count from the initial Retry
+        state. Otherwise, we assume the run count is 1. The run count is stored in context as
+        task_run_count.
+
+        Also, if the task is being resumed through a `Resume` state, updates context to have `resume=True`.
+
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
             - context (Dict[str, Any]): the context to be updated with relevant information
@@ -119,8 +126,18 @@ class TaskRunner(Runner):
         Returns:
             - tuple: a tuple of the updated state, context, upstream_states, and inputs objects
         """
-        context.update(task_name=self.task.name)
         state, context = super().initialize_run(state=state, context=context)
+
+        if isinstance(state, Retrying):
+            run_count = state.run_count + 1
+        else:
+            run_count = 1
+
+        if isinstance(state, Resume):
+            context.update(resume=True)
+
+        context.update(task_run_count=run_count, task_name=self.task.name)
+
         return state, context, upstream_states, inputs
 
     def run(
@@ -159,105 +176,103 @@ class TaskRunner(Runner):
         upstream_states = upstream_states or {}
         inputs = inputs or {}
         context = context or {}
+        map_index = context.setdefault("map_index", None)
+        task_name = "{name}{index}".format(
+            name=self.task.name,
+            index=("" if map_index is None else "[{}]".format(map_index)),
+        )
+
+        task_inputs = {}  # type: Dict[str, Any]
         if executor is None:
             executor = prefect.engine.get_default_executor_class()()
-        self.executor = executor
-        task_inputs = {}  # type: Dict[str, Any]
 
         # if mapped is true, this task run is going to generate a Mapped state. It won't
-        # actually run, but rather spawn children tasks to map over its inputs. We detect
-        # this case by checking for:
+        # actually run, but rather spawn children tasks to map over its inputs. We
+        # detect this case by checking for:
         #   - upstream edges that are `mapped`
-        #   - no `map_index` in context (which indicates that this is the child task, not the
-        #       parent)
-        mapped = (
-            any([e.mapped for e in upstream_states])
-            and context.get("map_index") is None
-        )
+        #   - no `map_index` (which indicates that this is the child task, not the parent)
+        mapped = any([e.mapped for e in upstream_states]) and map_index is None
 
-        self.logger.info(
-            "Starting task run for task '{name}{index}'".format(
-                name=self.task.name,
-                index=(
-                    ""
-                    if context.get("map_index") is None
-                    else "[{}]".format(context.get("map_index"))
-                ),
-            )
-        )
+        self.logger.info("Starting task run for task '{name}'".format(name=task_name))
 
-        # if run fails to initialize, end the run
         try:
+
+            # initialize the run
             state, context, upstream_states, inputs = self.initialize_run(
                 state, context, upstream_states, inputs
             )
-        except ENDRUN as exc:
-            state = exc.state
-            return state
 
-        # run state transformation pipeline
-        with prefect.context(context):
+            # run state transformation pipeline
+            with prefect.context(context):
 
-            try:
-
-                # retrieve the run number and place in context,
-                # or put resume in context if needed
-                state = self.update_context_from_state(state=state)
-
-                if not mapped:
-
-                    # wait for mapped tasks to finish all sub-tasks, since we need their
-                    # results
-                    self.wait_for_upstream_mapped(
-                        upstream_states=upstream_states, executor=executor
-                    )
-
-                    # construct task inputs
-                    for edge, upstream_state in upstream_states.items():
-                        if edge.key is not None:
-                            if upstream_state.is_mapped():
-                                task_inputs[edge.key] = [
-                                    s.result
-                                    for s in upstream_state.result  # type: ignore
-                                ]
-                            else:
-                                task_inputs[edge.key] = upstream_state.result
-                    task_inputs.update(inputs)
-
-                # the upstream checks are only performed if `check_upstream is True` and
-                # the task is not `mapped`. Mapped tasks do not actually do work, but spawn
-                # dynamic tasks to map work across inputs. Therefore we defer upstream
-                # checks to the dynamic tasks.
-                if check_upstream and not mapped:
-                    # check if all upstream tasks have finished
-                    state = self.check_upstream_finished(
-                        state, upstream_states=upstream_states
-                    )
-
-                    # check if any upstream tasks skipped (and if we need to skip)
-                    state = self.check_upstream_skipped(
-                        state, upstream_states=upstream_states
-                    )
-
-                    # check if the task's trigger passes
-                    state = self.check_task_trigger(
-                        state, upstream_states=upstream_states
-                    )
                 # check to make sure the task is in a pending state
                 state = self.check_task_is_pending(state)
 
                 # check if the task has reached its scheduled time
                 state = self.check_task_reached_start_time(state)
 
-                # check to see if the task has a cached result
-                state = self.check_task_is_cached(state, inputs=task_inputs)
+                # prepare this task to generate mapped children tasks
+                if mapped:
 
-                # set the task state to running
-                state = self.set_task_to_running(state)
+                    if check_upstream:
 
-                # run the task!
-                if not mapped:
+                        # check if upstream tasks have all finished
+                        state = self.check_upstream_finished(
+                            state, upstream_states=upstream_states
+                        )
 
+                    # set the task state to running
+                    state = self.set_task_to_running(state)
+
+                    # kick off the mapped run
+                    state = self.get_task_mapped_state(
+                        upstream_states=upstream_states,
+                        inputs=inputs,
+                        check_upstream=check_upstream,
+                        context=prefect.context.to_dict(),
+                        executor=executor,
+                    )
+
+                # run pipeline for a "normal" task
+                else:
+
+                    if check_upstream:
+
+                        # if necessary, wait for any mapped upstream states to finish running
+                        upstream_states = self.wait_for_mapped_upstream(
+                            upstream_states=upstream_states, executor=executor
+                        )
+
+                        # Tasks never run if the upstream tasks haven't finished
+                        state = self.check_upstream_finished(
+                            state, upstream_states=upstream_states
+                        )
+
+                        # check if any upstream tasks skipped (and if we need to skip)
+                        state = self.check_upstream_skipped(
+                            state, upstream_states=upstream_states
+                        )
+
+                    # retrieve task inputs from upstream and also explicitly passed inputs
+                    # this must be run after the `wait_for_mapped_upstream` step
+                    task_inputs = self.get_task_inputs(
+                        upstream_states=upstream_states, inputs=inputs
+                    )
+
+                    if check_upstream:
+
+                        # check if the task's trigger passes
+                        state = self.check_task_trigger(
+                            state, upstream_states=upstream_states
+                        )
+
+                    # check to see if the task has a cached result
+                    state = self.check_task_is_cached(state, inputs=task_inputs)
+
+                    # set the task state to running
+                    state = self.set_task_to_running(state)
+
+                    # run the task
                     state = self.get_task_run_state(
                         state,
                         inputs=task_inputs,
@@ -270,74 +285,55 @@ class TaskRunner(Runner):
                     # check if the task needs to be retried
                     state = self.check_for_retry(state, inputs=task_inputs)
 
-                # or, if the task is mapped, run the mapped tasks!
-                else:
-                    state = self.check_upstreams_for_mapping(
-                        state=state, upstream_states=upstream_states
-                    )
-                    state = self.get_task_mapped_state(
-                        upstream_states=upstream_states,
-                        inputs=inputs,
-                        check_upstream=check_upstream,
-                        context=context,
-                        executor=executor,
-                    )
+        # a ENDRUN signal at any point breaks the chain and we return
+        # the most recently computed state
+        except ENDRUN as exc:
+            state = exc.state
 
-            # a ENDRUN signal at any point breaks the chain and we return
-            # the most recently computed state
-            except ENDRUN as exc:
-                state = exc.state
+        except signals.PAUSE as exc:
+            state = exc.state
+            state.cached_inputs = task_inputs or {}  # type: ignore
 
-            except signals.PAUSE as exc:
-                state = exc.state
-                state.cached_inputs = task_inputs or {}  # type: ignore
+        except Exception as exc:
+            state = Failed(message="Unexpected error while running Task", result=exc)
+            raise_on_exception = prefect.context.get("raise_on_exception", False)
+            if raise_on_exception:
+                raise exc
 
-            except Exception as exc:
-                state = Failed(
-                    message="Unexpected error while running Task", result=exc
-                )
-                raise_on_exception = prefect.context.get("raise_on_exception", False)
-                if raise_on_exception:
-                    raise exc
-
-            self.logger.info(
-                "Finished task run for task '{name}{index}' with final state: '{state}'".format(
-                    name=self.task.name,
-                    index=(
-                        ""
-                        if context.get("map_index") is None
-                        else "[{}]".format(context.get("map_index"))
-                    ),
-                    state=type(state).__name__,
-                )
+        self.logger.info(
+            "Finished task run for task '{name}' with final state: '{state}'".format(
+                name=task_name, state=type(state).__name__
             )
+        )
         return state
 
-    @call_state_handlers
-    def update_context_from_state(self, state: State) -> State:
+    def wait_for_mapped_upstream(
+        self,
+        upstream_states: Dict[Edge, State],
+        executor: "prefect.engine.executors.Executor",
+    ) -> Dict[Edge, State]:
         """
-        Updates context with information contained in the task state:
-
-        If the task is being retried, then we retrieve the run count from the initial Retry
-        state. Otherwise, we assume the run count is 1. The run count is stored in context as
-        task_run_count.
-
-        Also, if the task is being resumed through a `Resume` state, updates context to have `resume=True`.
+        Waits until any upstream `Mapped` states have finished computing their results
 
         Args:
-            - state (State): the current state of the task
+            - upstream_states (Dict[Edge, State]): the upstream states
+            - executor (Executor): the executor
 
         Returns:
-            - State: the state of the task after running the check
+            - Dict[Edge, State]: the upstream states
         """
-        if isinstance(state, Retrying):
-            run_count = state.run_count + 1
-        else:
-            run_count = 1
-        if isinstance(state, Resume):
-            prefect.context.update(resume=True)
-        prefect.context.update(task_run_count=run_count)
-        return state
+
+        for upstream_state in upstream_states.values():
+
+            # if the upstream state is Mapped, wait until its results are all available
+            # note that this step is only called by tasks that are not Mapped themselves,
+            # so this will not block after every mapped task (unless its result is needed).
+            if upstream_state.is_mapped():
+                assert isinstance(upstream_state, Mapped)  # mypy assert
+                upstream_state.map_states = executor.wait(upstream_state.map_states)
+                upstream_state.result = [s.result for s in upstream_state.map_states]
+
+        return upstream_states
 
     @call_state_handlers
     def check_upstream_finished(
@@ -348,7 +344,7 @@ class TaskRunner(Runner):
 
         Args:
             - state (State): the current state of this task
-            - upstream_states (Dict[Edge, State]): the upstream states
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): the upstream states
 
         Returns:
             - State: the state of the task after running the check
@@ -359,24 +355,6 @@ class TaskRunner(Runner):
         if not all(s.is_finished() for s in upstream_states.values()):
             raise ENDRUN(state)
         return state
-
-    def wait_for_upstream_mapped(
-        self,
-        upstream_states: Dict[Edge, State],
-        executor: "prefect.engine.executors.Executor",
-    ) -> None:
-        """
-        If the upstream states contain any mapped futures, this method will wait for the futures
-        to complete and update the Mapped.result arrays with their results.
-
-        Args:
-            - upstream_states (Dict[Edge, State]): the upstream states
-            - executor (Executor): the executor
-        """
-        for upstream_state in upstream_states.values():
-            if upstream_state.is_mapped():
-                upstream_state.map_states = executor.wait(upstream_state.map_states)
-                upstream_state.result = [s.result for s in upstream_state.map_states]
 
     @call_state_handlers
     def check_upstream_skipped(
@@ -392,9 +370,15 @@ class TaskRunner(Runner):
         Returns:
             - State: the state of the task after running the check
         """
-        if self.task.skip_on_upstream_skip and any(
-            s.is_skipped() for s in upstream_states.values()
-        ):
+
+        all_states = set()  # type: Set[State]
+        for upstream_state in upstream_states.values():
+            if isinstance(upstream_state, Mapped):
+                all_states.update(upstream_state.map_states)
+            else:
+                all_states.add(upstream_state)
+
+        if self.task.skip_on_upstream_skip and any(s.is_skipped() for s in all_states):
             raise ENDRUN(
                 state=Skipped(
                     message=(
@@ -416,7 +400,7 @@ class TaskRunner(Runner):
 
         Args:
             - state (State): the current state of this task
-            - upstream_states (Dict[Edge, State]): the upstream states
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): the upstream states
 
         Returns:
             - State: the state of the task after running the check
@@ -427,10 +411,17 @@ class TaskRunner(Runner):
         # the trigger itself could raise a failure, but we raise TriggerFailed just in case
         raise_on_exception = prefect.context.get("raise_on_exception", False)
 
+        all_states = set()  # type: Set[State]
+        for upstream_state in upstream_states.values():
+            if isinstance(upstream_state, Mapped):
+                all_states.update(upstream_state.map_states)
+            else:
+                all_states.add(upstream_state)
+
         try:
             if not upstream_states:
                 return state
-            elif not self.task.trigger(upstream_states):
+            elif not self.task.trigger(all_states):
                 raise signals.TRIGGERFAIL(message="Trigger failed")
 
         except signals.PAUSE:
@@ -519,6 +510,31 @@ class TaskRunner(Runner):
                 raise ENDRUN(state)
         return state
 
+    def get_task_inputs(
+        self, upstream_states: Dict[Edge, State], inputs: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Given the upstream states and provided inputs, generates a task dictionary of
+        inputs to this task.
+
+        Args:
+            - upstream_states (Dict[Edge, State]): the upstream states
+            - inputs (Dict[str, Any]): any inputs that were explicitly provided to the task. These
+                will override any inputs inferred from upstream states.
+
+        Returns:
+            - Dict[str, Any]: the task inputs
+
+        """
+        task_inputs = {}
+        for edge, upstream_state in upstream_states.items():
+            # construct task inputs
+            if edge.key is not None:
+                task_inputs[edge.key] = upstream_state.result
+
+        task_inputs.update(inputs)
+        return task_inputs
+
     @call_state_handlers
     def check_task_is_cached(self, state: State, inputs: Dict[str, Any]) -> State:
         """
@@ -541,52 +557,6 @@ class TaskRunner(Runner):
             raise ENDRUN(Success(result=state.cached_result, cached=state))
         return state
 
-    @call_state_handlers
-    def check_upstreams_for_mapping(
-        self, state: State, upstream_states: Dict[Edge, State]
-    ) -> State:
-        """
-        If the task is being mapped, checks if the upstream states are in a state
-        to be mapped over.
-
-        Args:
-            - state (State): the current state of this task
-            - upstream_states (Dict[Edge, State]): the upstream states
-
-        Returns:
-            - State: the state of the task after running the check
-
-        Raises:
-            - ENDRUN: if the task is not ready to be mapped
-        """
-        if not state.is_running():
-            raise ENDRUN(state)
-
-        mapped_upstreams = [val for e, val in upstream_states.items() if e.mapped]
-
-        ## no inputs provided
-        if not mapped_upstreams:
-            raise ENDRUN(
-                state=Skipped(message="No inputs provided to map over.", result=[])
-            )
-
-        iterable_values = []
-        for value in mapped_upstreams:
-            underlying = value if not isinstance(value, State) else value.result
-            # if we are on the second stage of mapping, the upstream "states"
-            # are going to be non-iterable futures representing lists of states;
-            # this allows us to skip if any upstreams are known to be empty
-            if isinstance(underlying, collections.abc.Sized):
-                iterable_values.append(underlying)
-
-        ## check that no upstream values are empty
-        if any([len(v) == 0 for v in iterable_values]):
-            raise ENDRUN(
-                state=Skipped(message="Empty inputs provided to map over.", result=[])
-            )
-
-        return state
-
     def get_task_mapped_state(
         self,
         upstream_states: Dict[Edge, State],
@@ -596,10 +566,10 @@ class TaskRunner(Runner):
         executor: "prefect.engine.executors.Executor",
     ) -> State:
         """
-        If the task is being mapped, sets the task to `Mapped`
+        If the task is being mapped, sets the task to `Mapped` and submits children tasks
+        for execution
 
         Args:
-            - state (State): the current state of this task
             - upstream_states (Dict[Edge, State]): the upstream states
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
@@ -613,51 +583,58 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
         """
 
-        # we can only iterate over the SHORTEST available iterator (similar to how zip() works).
-        # we compute the number of maps as the minimum iterator length
-        state_lengths = [
-            len(s.result)  # type: ignore
-            for e, s in upstream_states.items()
-            if e.mapped
-        ]
-        n_maps = min(state_lengths or [0])
-
         map_upstream_states = []
-        for i in range(n_maps):
-            i_states = upstream_states.copy()
-            for edge, upstream_state in upstream_states.items():
 
-                # if the edge is mapped and the state is Mapped, then we are mapping
-                # over a task that was, itself, mapped. We simply grab the appropriately
-                # indexed state from the list.
-                if edge.mapped and upstream_state.is_mapped():
-                    i_states[edge] = upstream_state.result[i]  # type: ignore
+        # we don't know how long the iterables are, but we want to iterate until we reach
+        # the end of the shortest one
+        counter = itertools.count()
+        while True:
+            i = next(counter)
+            i_states = {}
 
-                # if the edge is mapped but the state is a single State, then we are mapping
-                # over the result of a "vanilla" task. We create a copy of the parent state and
-                # set its result to the appropriately indexed parent result
-                elif edge.mapped:
-                    i_states[edge] = copy.copy(upstream_state)
-                    i_states[edge].result = upstream_state.result[i]  # type: ignore
+            try:
 
-                # otherwise, we're not mapping over the task and we should just use its
-                # state as given.
-                else:
-                    i_states[edge] = upstream_state
-            map_upstream_states.append(i_states)
+                for edge, upstream_state in upstream_states.items():
+
+                    # if the edge is not mapped over, then we simply take its state
+                    if not edge.mapped:
+                        i_states[edge] = upstream_state
+
+                    # if the edge is mapped and the upstream state is Mapped, then we are mapping
+                    # over a mapped task. In this case, we take the appropriately-indexed upstream
+                    # state from the upstream tasks's `Mapped.map_states` array.
+                    # Note that these "states" might actually be futures at this time; we aren't
+                    # blocking until they finish.
+                    elif edge.mapped and upstream_state.is_mapped():
+                        i_states[edge] = upstream_state.map_states[i]  # type: ignore
+
+                    # Otherwise, we are mapping over the result of a "vanilla" task. In this
+                    # case, we create a copy of the upstream state but set the result to the
+                    # appropriately-indexed item from the upstream task's `State.result`
+                    # array.
+                    else:
+                        i_states[edge] = copy.copy(upstream_state)
+                        i_states[edge].result = upstream_state.result[i]  # type: ignore
+
+                # only add this iteration if we made it through all iterables
+                map_upstream_states.append(i_states)
+
+            # index error means we reached the end of the shortest iterable
+            except IndexError:
+                break
 
         def run_fn(map_index: int, upstream_states: Dict[Edge, State]) -> State:
             context.update(map_index=map_index)
             return self.run(
                 upstream_states=upstream_states,
-                state=None,  # Pending("Child task."),  # will need to revisit this
+                state=Pending("Child of mapped task."),
                 inputs=inputs,
                 check_upstream=check_upstream,
                 context=context,
                 executor=executor,
             )
 
-        map_states = executor.map(run_fn, range(n_maps), map_upstream_states)
+        map_states = executor.map(run_fn, *zip(*enumerate(map_upstream_states)))
         return Mapped(
             message="Mapped tasks submitted for execution.", map_states=map_states
         )

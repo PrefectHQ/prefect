@@ -364,9 +364,12 @@ class FlowRunner(Runner):
                     if isinstance(s, (Failed, Retrying)):
                         failed_tasks.append(t)
                     elif s.is_mapped():
-                        s.result = executor.wait(s.result)
-                        all_final_states[t] = s.result
-                        if any([isinstance(r, (Failed, Retrying)) for r in s.result]):
+                        s.map_states = executor.wait(s.map_states)
+                        s.result = [ms.result for ms in s.map_states]
+                        all_final_states[t] = s.map_states
+                        if any(
+                            [isinstance(r, (Failed, Retrying)) for r in s.map_states]
+                        ):
                             failed_tasks.append(t)
 
                 return_tasks.update(failed_tasks)
@@ -380,8 +383,9 @@ class FlowRunner(Runner):
                 all_final_states = final_states.copy()
                 for t, s in list(final_states.items()):
                     if s.is_mapped():
-                        s.result = executor.wait(s.result)
-                        all_final_states[t] = s.result
+                        s.map_states = executor.wait(s.map_states)
+                        s.result = [ms.result for ms in s.map_states]
+                        all_final_states[t] = s.map_states
 
                 assert isinstance(final_states, dict)
 
