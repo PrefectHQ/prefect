@@ -10,10 +10,15 @@ from prefect.engine import state
 from prefect.client.result_handlers import ResultHandler
 from prefect.serialization.state import ResultHandlerField, StateSchema
 
-all_states = set(
-    cls
-    for cls in state.__dict__.values()
-    if isinstance(cls, type) and issubclass(cls, state.State) and cls is not state.State
+all_states = sorted(
+    set(
+        cls
+        for cls in state.__dict__.values()
+        if isinstance(cls, type)
+        and issubclass(cls, state.State)
+        and cls is not state.State
+    ),
+    key=lambda c: c.__name__,
 )
 
 
@@ -67,7 +72,7 @@ def test_all_states_have_deserialization_schemas_in_stateschema():
     in prefect.serialization.state with that state assigned as the object class
     so it will be recreated at deserialization
     """
-    assert all_states == set(
+    assert set(all_states) == set(
         s.Meta.object_class for s in StateSchema.type_schemas.values()
     )
 
@@ -109,7 +114,7 @@ class TestResultHandlerField:
         assert deserialized["field"] == "49"
 
 
-@pytest.mark.parametrize("cls", all_states)
+@pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
 def test_serialize_state(cls):
     serialized = StateSchema().dump(cls(message="message", result=1))
     assert isinstance(serialized, dict)
@@ -119,13 +124,34 @@ def test_serialize_state(cls):
     assert serialized["__version__"] == prefect.__version__
 
 
-@pytest.mark.parametrize("cls", all_states)
+def test_serialize_mapped():
+    s = state.Success(message="1", result=1)
+    f = state.Failed(message="2", result=2)
+    serialized = StateSchema().dump(state.Mapped(message="message", map_states=[s, f]))
+    assert isinstance(serialized, dict)
+    assert serialized["type"] == "Mapped"
+    assert serialized["message"] is "message"
+    assert "result" not in serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["map_states"] == [s.serialize(), f.serialize()]
+
+
+@pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
 def test_deserialize_state(cls):
     s = cls(message="message", result=1)
     serialized = StateSchema().dump(s)
     deserialized = StateSchema().load(serialized)
     assert isinstance(deserialized, cls)
     assert deserialized == s
+
+
+def test_deserialize_mapped():
+    s = state.Success(message="1", result=1)
+    f = state.Failed(message="2", result=2)
+    serialized = StateSchema().dump(state.Mapped(message="message", map_states=[s, f]))
+    deserialized = StateSchema().load(serialized)
+    assert isinstance(deserialized, state.Mapped)
+    assert deserialized.map_states == [s, f]
 
 
 @pytest.mark.parametrize("cls", all_states)
