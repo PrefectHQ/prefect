@@ -116,6 +116,8 @@ class DaskExecutor(Executor):
         elif self.is_started:
             with worker_client(separate_thread=False) as client:
                 future = client.submit(fn, *args, pure=False, **kwargs)
+        else:
+            raise ValueError("This executor has not been started.")
 
         fire_and_forget(future)
         return future
@@ -141,6 +143,9 @@ class DaskExecutor(Executor):
         elif self.is_started:
             with worker_client(separate_thread=False) as client:
                 futures = client.map(fn, *args, pure=False)
+        else:
+            raise ValueError("This executor has not been started.")
+
         fire_and_forget(futures)
         return futures
 

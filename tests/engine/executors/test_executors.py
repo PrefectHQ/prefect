@@ -204,6 +204,13 @@ def test_dask_processes_executor_raises_if_timeout_attempted(mproc):
     sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
 )
 class TestDaskExecutor:
+    @pytest.fixture(scope="class")
+    def executors(self):
+        return {
+            "processes": DaskExecutor(local_processes=True),
+            "threads": DaskExecutor(local_processes=False),
+        }
+
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_submit_and_wait(self, executor):
         to_compute = {}
@@ -271,35 +278,30 @@ class TestDaskExecutor:
         assert client.called
         assert client.call_args[-1]["silence_logs"] == logging.WARNING
 
-    @pytest.mark.parametrize("processes", [True, False])
-    def test_is_pickleable(self, processes):
-        e = DaskExecutor(processes=processes)
-        post = cloudpickle.loads(cloudpickle.dumps(e))
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+    def test_is_pickleable(self, executor):
+        post = cloudpickle.loads(cloudpickle.dumps(executor))
         assert isinstance(post, DaskExecutor)
 
-    @pytest.mark.parametrize("processes", [True, False])
-    def test_is_pickleable_after_start(self, processes):
-        e = DaskExecutor(processes=processes)
-        with e.start():
-            post = cloudpickle.loads(cloudpickle.dumps(e))
-            assert isinstance(post, DaskExecutor)
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+    def test_is_pickleable_after_start(self, executor):
+        post = cloudpickle.loads(cloudpickle.dumps(executor))
+        assert isinstance(post, DaskExecutor)
 
-    @pytest.mark.parametrize("processes", [True, False])
-    def test_map_iterates_over_multiple_args(self, processes):
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+    def test_map_iterates_over_multiple_args(self, executor):
         def map_fn(x, y):
             return x + y
 
-        e = DaskExecutor(processes=processes)
-        with e.start():
-            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
-        assert res == [2, 5]
+        with executor.start():
+            res = executor.wait(executor.map(map_fn, [1, 2], [1, 3]))
+            assert res == [2, 5]
 
-    @pytest.mark.parametrize("processes", [True, False])
-    def test_map_doesnt_do_anything_for_empty_list_input(self, processes):
+    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+    def test_map_doesnt_do_anything_for_empty_list_input(self, executor):
         def map_fn(*args):
             raise ValueError("map_fn was called")
 
-        e = DaskExecutor(processes=processes)
-        with e.start():
-            res = e.wait(e.map(map_fn))
+        with executor.start():
+            res = executor.wait(executor.map(map_fn))
         assert res == []
