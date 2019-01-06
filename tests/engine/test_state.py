@@ -26,10 +26,13 @@ from prefect.engine.state import (
 )
 from prefect.serialization.state import StateSchema
 
-all_states = set(
-    cls
-    for cls in prefect.engine.state.__dict__.values()
-    if isinstance(cls, type) and issubclass(cls, prefect.engine.state.State)
+all_states = sorted(
+    set(
+        cls
+        for cls in prefect.engine.state.__dict__.values()
+        if isinstance(cls, type) and issubclass(cls, prefect.engine.state.State)
+    ),
+    key=lambda c: c.__name__,
 )
 
 
@@ -232,7 +235,7 @@ def test_serialize_method(cls):
     assert isinstance(prefect.serialization.state.StateSchema().load(serialized), cls)
 
 
-@pytest.mark.parametrize("cls", [s for s in all_states if s is not State])
+@pytest.mark.parametrize("cls", [s for s in all_states if s not in (State, Mapped)])
 def test_serialize_method_optionally_accepts_result_handler(cls):
     handler = DictHandler()
     serialized = cls(result=1).serialize(result_handler=handler)

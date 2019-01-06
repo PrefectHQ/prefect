@@ -434,6 +434,9 @@ class Mapped(Success):
     Note that this does _not_ imply the individual mapped tasks were successful, just that they
     have been submitted.
 
+    You can not set the `result` of a Mapped state; it is determined by the reuslts of its
+    children states.
+
     Args:
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
@@ -446,17 +449,17 @@ class Mapped(Success):
             of itself to map its operation over its inputs. Those copies are the children.
     """
 
+    color = "#97FFFF"
+
     def __init__(
         self,
         message: str = None,
         result: Any = None,
         cached: CachedState = None,
-        map_states: List = None,
+        map_states: List[State] = None,
     ):
-        self.map_states = map_states or []
         super().__init__(message=message, result=result, cached=cached)
-
-    color = "#97FFFF"
+        self.map_states = map_states or []  # type: List[State]
 
 
 class Failed(Finished):
