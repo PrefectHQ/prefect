@@ -430,7 +430,9 @@ def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args(executor):
     assert m.result == [[1 + i, 2 + i, 3 + i] for i in range(3)]
 
 
-@pytest.mark.parametrize("executor", ["local", "mproc", "mthread", "sync"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "mproc", "mthread", "sync"], indirect=True
+)
 def test_map_behaves_like_zip_with_differing_length_results(executor):
     "Tests that map stops combining elements after the smallest list is exhausted."
 
