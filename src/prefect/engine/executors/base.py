@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterable, Iterator
+from typing import Any, Callable, Dict, List, Iterator
 
 import prefect
 from prefect.utilities.executors import multiprocessing_timeout
@@ -27,7 +27,7 @@ class Executor:
         """
         yield
 
-    def map(self, fn: Callable, *args: Any) -> Iterable[Any]:
+    def map(self, fn: Callable, *args: Any) -> List[Any]:
         """
         Submit a function to be mapped over its iterable arguments.
 
