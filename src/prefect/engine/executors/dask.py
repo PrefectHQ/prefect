@@ -18,7 +18,6 @@ import warnings
 
 from prefect import config
 from prefect.engine.executors.base import Executor
-from prefect.utilities.executors import dict_to_list
 
 
 class DaskExecutor(Executor):
@@ -98,44 +97,6 @@ class DaskExecutor(Executor):
         q = Queue(maxsize=maxsize, client=client or self.client)
         return q
 
-    def map(
-        self, fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
-    ) -> Future:
-        def mapper(
-            fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
-        ) -> List[Future]:
-            states = dict_to_list(upstream_states)
-
-            with worker_client(separate_thread=False) as client:
-                futures = []
-                for map_index, elem in enumerate(states):
-                    futures.append(
-                        client.submit(
-                            fn,
-                            *args,
-                            upstream_states=elem,
-                            map_index=map_index,
-                            **kwargs
-                        )
-                    )
-                fire_and_forget(
-                    futures
-                )  # tells dask we dont expect worker_client to track these
-            return futures
-
-        if self.is_started and hasattr(self, "client"):
-            future_list = self.client.submit(
-                mapper, fn, *args, upstream_states=upstream_states, **kwargs
-            )
-        elif self.is_started:
-            with worker_client(separate_thread=False) as client:
-                future_list = client.submit(
-                    mapper, fn, *args, upstream_states=upstream_states, **kwargs
-                )
-        else:
-            raise ValueError("Executor must be started")
-        return future_list
-
     def __getstate__(self) -> dict:
         state = self.__dict__.copy()
         if "client" in state:
@@ -150,33 +111,84 @@ class DaskExecutor(Executor):
         Submit a function to the executor for execution. Returns a Future object.
 
         Args:
-            - fn (Callable): function which is being submitted for execution
+            - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
             - Future: a Future-like object which represents the computation of `fn(*args, **kwargs)`
         """
-
         if self.is_started and hasattr(self, "client"):
-            return self.client.submit(fn, *args, pure=False, **kwargs)
+
+            future = self.client.submit(fn, *args, pure=False, **kwargs)
         elif self.is_started:
             with worker_client(separate_thread=False) as client:
-                return client.submit(fn, *args, pure=False, **kwargs)
+                future = client.submit(fn, *args, pure=False, **kwargs)
+        else:
+            raise ValueError("This executor has not been started.")
 
-    def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
+        fire_and_forget(future)
+        return future
+
+    def map(self, fn: Callable, *args: Any) -> List[Future]:
+        """
+        Submit a function to be mapped over its iterable arguments.
+
+        Args:
+            - fn (Callable): function that is being submitted for execution
+            - *args (Any): arguments that the function will be mapped over
+
+        Returns:
+            - List[Future]: a list of Future-like objects that represent each computation of
+                fn(*a), where a = zip(*args)[i]
+
+        """
+        if not args:
+            return []
+
+        if self.is_started and hasattr(self, "client"):
+            futures = self.client.map(fn, *args, pure=False)
+        elif self.is_started:
+            with worker_client(separate_thread=False) as client:
+                futures = client.map(fn, *args, pure=False)
+        else:
+            raise ValueError("This executor has not been started.")
+
+        fire_and_forget(futures)
+        return futures
+
+    def wait(self, futures: Any, timeout: datetime.timedelta = None) -> Any:
         """
         Resolves the Future objects to their values. Blocks until the computation is complete.
 
         Args:
-            - futures (Iterable): iterable of future-like objects to compute
+            - futures (Any): single or iterable of future-like objects to compute
             - timeout (datetime.timedelta, optional): maximum length of time to allow for
                 execution
 
         Returns:
-            - Iterable: an iterable of resolved futures
+            - Any: an iterable of resolved futures with similar shape to the input
         """
-        res = self.client.gather(
-            self.client.gather(self.client.gather(self.client.gather(futures)))
-        )
-        return res
+        if isinstance(futures, Future):
+            return futures.result(timeout=timeout)
+        elif isinstance(futures, str):
+            return futures
+        elif isinstance(futures, dict):
+            return dict(
+                zip(futures.keys(), self.wait(futures.values(), timeout=timeout))
+            )
+        else:
+            try:
+                results = []  # type: ignore
+                for future in futures:
+                    if isinstance(future, Future):
+
+                        # this isn't ideal, since the timeout will scale with the number of futures
+                        # however, creating/reusing a client and calling client.gather() is raising
+                        # CancelledErrors in situations where this approach works
+                        results.append(future.result(timeout=timeout))
+                    else:
+                        results.append(future)
+                return results
+            except TypeError:
+                return futures

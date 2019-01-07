@@ -10,7 +10,6 @@ import dask.bag
 import warnings
 
 from prefect.engine.executors.base import Executor
-from prefect.utilities.executors import dict_to_list
 
 
 class SynchronousExecutor(Executor):
@@ -32,34 +31,12 @@ class SynchronousExecutor(Executor):
         q = Queue(maxsize=maxsize)  # type: Queue
         return q
 
-    def map(
-        self, fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
-    ) -> Iterable[Any]:
-        def mapper(
-            fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
-        ) -> List[dask.delayed]:
-            states = dict_to_list(upstream_states)
-
-            futures = []
-            for map_index, elem in enumerate(states):
-                futures.append(
-                    dask.delayed(fn)(
-                        *args, upstream_states=elem, map_index=map_index, **kwargs
-                    )
-                )
-            return futures
-
-        future_list = self.submit(
-            mapper, fn, *args, upstream_states=upstream_states, **kwargs
-        )
-        return self.wait(future_list)
-
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """
         Submit a function to the executor for execution. Returns a `dask.delayed` object.
 
         Args:
-            - fn (Callable): function which is being submitted for execution
+            - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
@@ -68,19 +45,33 @@ class SynchronousExecutor(Executor):
         """
         return dask.delayed(fn)(*args, **kwargs)
 
-    def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
+    def map(self, fn: Callable, *args: Any) -> List[dask.delayed]:
         """
-        Resolves the `dask.delayed` objects to their values. Blocks until the computation is complete.
+        Submit a function to be mapped over its iterable arguments.
 
         Args:
-            - futures (Iterable): iterable of `dask.delayed` objects to compute
+            - fn (Callable): function that is being submitted for execution
+            - *args (Any): arguments that the function will be mapped over
+
+        Returns:
+            - List[dask.delayed]: the result of computating the function over the arguments
+
+        """
+        results = []
+        for args_i in zip(*args):
+            results.append(self.submit(fn, *args_i))
+        return results
+
+    def wait(self, futures: Any, timeout: datetime.timedelta = None) -> Any:
+        """
+        Resolves a `dask.delayed` object to its values. Blocks until the computation is complete.
+
+        Args:
+            - futures (Any): iterable of `dask.delayed` objects to compute
             - timeout (datetime.timedelta): maximum length of time to allow for execution
 
         Returns:
-            - Iterable: an iterable of resolved futures
+            - Any: an iterable of resolved futures
         """
         with dask.config.set(scheduler="synchronous"):
-            computed = dask.compute(
-                dask.compute(dask.compute(dask.compute(futures)[0])[0])[0]
-            )
-        return computed[0]
+            return dask.compute(futures)[0]

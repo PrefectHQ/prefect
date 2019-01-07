@@ -220,13 +220,24 @@ def test_consistency_of_function_docs(fn):
         arg_list_index = doc.index("**Args**:")
         end = doc[arg_list_index:].find("</ul")
         arg_doc = doc[arg_list_index : (arg_list_index + end)]
-        num_args = arg_doc.count("<li")
+        num_doc_args = arg_doc.count("<li")
     except ValueError:
-        num_args = 0
+        num_doc_args = 0
 
-    assert num_args == len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(
-        varkwargs
-    ), "{fn.__name__} has undocumented arguments.".format(fn=fn)
+    num_actual_args = (
+        len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(varkwargs)
+    )
+
+    if num_doc_args < num_actual_args:
+        raise ValueError(
+            "{fn.__name__} has arguments without documentation.".format(fn=fn)
+        )
+    elif num_doc_args > num_actual_args:
+        raise ValueError(
+            "{fn.__name__} has documentation for arguments that aren't real.".format(
+                fn=fn
+            )
+        )
 
 
 @pytest.mark.parametrize(
@@ -239,13 +250,24 @@ def test_consistency_of_class_docs(obj):
         arg_list_index = doc.index("**Args**:")
         end = doc[arg_list_index:].find("</ul")
         arg_doc = doc[arg_list_index : (arg_list_index + end)]
-        num_args = arg_doc.count("<li")
+        num_doc_args = arg_doc.count("<li")
     except ValueError:
-        num_args = 0
+        num_doc_args = 0
 
-    assert num_args == len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(
-        varkwargs
-    ), "{obj.__module__}.{obj.__name__} has undocumented arguments.".format(obj=obj)
+    num_actual_args = (
+        len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(varkwargs)
+    )
+
+    if num_doc_args < num_actual_args:
+        raise ValueError(
+            "{obj.__module__}.{obj.__name__} "
+            "has arguments without documentation.".format(obj=obj)
+        )
+    elif num_doc_args > num_actual_args:
+        raise ValueError(
+            "{obj.__module__}.{obj.__name__} "
+            "has documentation for arguments that aren't real.".format(obj=obj)
+        )
 
 
 @pytest.mark.parametrize(
@@ -264,15 +286,25 @@ def test_consistency_of_class_method_docs(obj, fn):
         arg_list_index = doc.index("**Args**:")
         end = doc[arg_list_index:].find("</ul")
         arg_doc = doc[arg_list_index : (arg_list_index + end)]
-        num_args = arg_doc.count("<li")
+        num_doc_args = arg_doc.count("<li")
     except ValueError:
-        num_args = 0
+        num_doc_args = 0
 
-    assert num_args == len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(
-        varkwargs
-    ), "{obj.__module__}.{obj.__name__}.{fn.__name__} has undocumented arguments.".format(
-        obj=obj, fn=fn
+    num_actual_args = (
+        len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(varkwargs)
     )
+
+    if num_doc_args < num_actual_args:
+        raise ValueError(
+            "{obj.__module__}.{obj.__name__}.{fn.__name__} "
+            "has arguments without documentation.".format(obj=obj, fn=fn)
+        )
+
+    elif num_doc_args > num_actual_args:
+        raise ValueError(
+            "{obj.__module__}.{obj.__name__}.{fn.__name__} "
+            "has documentation for arguments that aren't real.".format(obj=obj, fn=fn)
+        )
 
 
 def test_format_doc_removes_unnecessary_newlines_when_appropriate_in_tables():

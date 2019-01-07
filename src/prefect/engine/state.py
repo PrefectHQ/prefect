@@ -2,25 +2,19 @@
 
 """
 State is the main currency in the Prefect platform. It is used to represent the current
-status of a task.
+status of a flow or task.
 
 This module contains all Prefect state classes, all ultimately inheriting from the base State class as follows:
 
 ![](/state_inheritance_diagram.svg) {style="text-align: center;"}
 
-Every task is initialized with the `Pending` state, meaning that it is waiting for
-execution. The other types of `Pending` states are `CachedState`, `Paused`, `Scheduled`, and
-`Retrying`.
-
-When a task is running it will enter a `Running` state which means that the task is
-currently being executed.
-
-The six types of `Finished` states are `Success`, `Failed`, `TriggerFailed`, `TimedOut`, `Mapped` and
-`Skipped`.
+Every run is initialized with the `Pending` state, meaning that it is waiting for
+execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
 """
+import copy
 import datetime
 import pendulum
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, List
 
 import prefect
 from prefect.client.result_handlers import ResultHandler
@@ -138,6 +132,15 @@ class State:
             - bool: `True` if the state is failed, `False` otherwise
         """
         return isinstance(self, Failed)
+
+    def is_mapped(self) -> bool:
+        """
+        Checks if the object is currently in a mapped state
+
+        Returns:
+            - bool: `True` if the state is mapped, `False` otherwise
+        """
+        return isinstance(self, Mapped)
 
     @staticmethod
     def deserialize(json_blob: dict, result_handler: ResultHandler = None) -> "State":
@@ -431,16 +434,32 @@ class Mapped(Success):
     Note that this does _not_ imply the individual mapped tasks were successful, just that they
     have been submitted.
 
+    You can not set the `result` of a Mapped state; it is determined by the results of its
+    children states.
+
     Args:
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - result (Any, optional): Defaults to `[]`. A data payload for the state.
         - cached (CachedState): a `CachedState` which can be used for future
             runs of this task (if the cache is still valid); this attribute should only be set
             by the task runner.
+        - children (List): A list containing the states of any "children" of this task. When
+            a task enters a Mapped state, it indicates that it has dynamically created copies
+            of itself to map its operation over its inputs. Those copies are the children.
     """
 
     color = "#97FFFF"
+
+    def __init__(
+        self,
+        message: str = None,
+        result: Any = None,
+        cached: CachedState = None,
+        map_states: List[State] = None,
+    ):
+        super().__init__(message=message, result=result, cached=cached)
+        self.map_states = map_states or []  # type: List[State]
 
 
 class Failed(Finished):

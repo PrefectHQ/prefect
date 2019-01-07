@@ -26,10 +26,13 @@ from prefect.engine.state import (
 )
 from prefect.serialization.state import StateSchema
 
-all_states = set(
-    cls
-    for cls in prefect.engine.state.__dict__.values()
-    if isinstance(cls, type) and issubclass(cls, prefect.engine.state.State)
+all_states = sorted(
+    set(
+        cls
+        for cls in prefect.engine.state.__dict__.values()
+        if isinstance(cls, type) and issubclass(cls, prefect.engine.state.State)
+    ),
+    key=lambda c: c.__name__,
 )
 
 
@@ -232,7 +235,7 @@ def test_serialize_method(cls):
     assert isinstance(prefect.serialization.state.StateSchema().load(serialized), cls)
 
 
-@pytest.mark.parametrize("cls", [s for s in all_states if s is not State])
+@pytest.mark.parametrize("cls", [s for s in all_states if s not in (State, Mapped)])
 def test_serialize_method_optionally_accepts_result_handler(cls):
     handler = DictHandler()
     serialized = cls(result=1).serialize(result_handler=handler)
@@ -298,6 +301,7 @@ class TestStateMethods:
         assert not state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_paused_state(self):
         state = Paused()
@@ -308,6 +312,7 @@ class TestStateMethods:
         assert not state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_scheduled_state(self):
         state = Scheduled()
@@ -318,6 +323,7 @@ class TestStateMethods:
         assert state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_resume_state(self):
         state = Resume()
@@ -328,6 +334,7 @@ class TestStateMethods:
         assert state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_retry_state(self):
         state = Retrying()
@@ -338,6 +345,7 @@ class TestStateMethods:
         assert state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_submitted_state(self):
         state = Submitted()
@@ -348,6 +356,7 @@ class TestStateMethods:
         assert not state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_running_state(self):
         state = Running()
@@ -358,6 +367,7 @@ class TestStateMethods:
         assert not state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_cached_state(self):
         state = CachedState()
@@ -368,6 +378,7 @@ class TestStateMethods:
         assert not state.is_scheduled()
         assert not state.is_successful()
         assert not state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_mapped_state(self):
         state = Mapped()
@@ -378,6 +389,7 @@ class TestStateMethods:
         assert not state.is_scheduled()
         assert state.is_successful()
         assert not state.is_failed()
+        assert state.is_mapped()
 
     def test_state_type_methods_with_success_state(self):
         state = Success()
@@ -388,6 +400,7 @@ class TestStateMethods:
         assert not state.is_scheduled()
         assert state.is_successful()
         assert not state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_failed_state(self):
         state = Failed(message="")
@@ -398,6 +411,7 @@ class TestStateMethods:
         assert not state.is_scheduled()
         assert not state.is_successful()
         assert state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_timedout_state(self):
         state = TimedOut(message="")
@@ -408,6 +422,7 @@ class TestStateMethods:
         assert not state.is_scheduled()
         assert not state.is_successful()
         assert state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_trigger_failed_state(self):
         state = TriggerFailed(message="")
@@ -418,6 +433,7 @@ class TestStateMethods:
         assert not state.is_scheduled()
         assert not state.is_successful()
         assert state.is_failed()
+        assert not state.is_mapped()
 
     def test_state_type_methods_with_skipped_state(self):
         state = Skipped()
@@ -428,3 +444,4 @@ class TestStateMethods:
         assert not state.is_scheduled()
         assert state.is_successful()
         assert not state.is_failed()
+        assert not state.is_mapped()

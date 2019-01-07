@@ -362,6 +362,13 @@ class Task(metaclass=SignatureValidator):
         Map the Task elementwise across one or more Tasks. Arguments which should _not_ be mapped over
         should be placed in the `prefect.utilities.tasks.unmapped` container.
 
+        For example:
+            ```
+            task.map(x=X, y=unmapped(Y))
+            ```
+        will map over the values of `X`, but not over the values of `Y`
+
+
         Args:
             - *args: arguments to map over, which will elementwise be bound to the Task's `run` method
             - upstream_tasks ([Task], optional): a list of upstream dependencies
