@@ -627,7 +627,8 @@ class TaskRunner(Runner):
             context.update(map_index=map_index)
             return self.run(
                 upstream_states=upstream_states,
-                state=Pending("Child of mapped task."),
+                # if we set the state here, then it will not be processed by `initialize_run()`
+                state=None,
                 inputs=inputs,
                 check_upstream=check_upstream,
                 context=context,
