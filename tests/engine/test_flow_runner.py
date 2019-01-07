@@ -502,6 +502,7 @@ class TestRunFlowStep:
             start_tasks=[],
             start_task_ids=[],
             return_tasks=set(),
+            task_runner_state_handlers=[],
             executor=LocalExecutor(),
         )
         assert new_state.is_successful()
@@ -518,6 +519,7 @@ class TestRunFlowStep:
                 start_tasks=[],
                 start_task_ids=[],
                 return_tasks=set(),
+                task_runner_state_handlers=[],
                 executor=Executor(),
             )
 
@@ -533,6 +535,7 @@ class TestRunFlowStep:
             start_tasks=[],
             start_task_ids=[],
             return_tasks=set(),
+            task_runner_state_handlers=[],
             executor=LocalExecutor(),
         )
         assert new_state.is_failed()

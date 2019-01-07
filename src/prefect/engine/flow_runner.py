@@ -41,18 +41,16 @@ class FlowRunner(Runner):
             opportunity to inspect or modify the new state. The handler
             will be passed the flow runner instance, the old (prior) state, and the new
             (current) state, with the following signature:
-            #FIXME: https://github.com/PrefectHQ/prefect/issues/495
+
             ```
                 state_handler(
                     flow_runner: FlowRunner,
                     old_state: State,
                     new_state: State) -> State
             ```
+
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - task_runner_state_handlers (Iterable[Callable], optional): A list of state change
-            handlers that will be provided to the task_runner, and called whenever a task changes
-            state.
 
     Note: new FlowRunners are initialized within the call to `Flow.run()` and in general,
     this is the endpoint through which FlowRunners will be interacted with most frequently.
@@ -76,13 +74,11 @@ class FlowRunner(Runner):
         flow: Flow,
         task_runner_cls: type = None,
         state_handlers: Iterable[Callable] = None,
-        task_runner_state_handlers: Iterable[Callable] = None,
     ):
         self.flow = flow
         if task_runner_cls is None:
             task_runner_cls = prefect.engine.get_default_task_runner_class()
         self.task_runner_cls = task_runner_cls
-        self.task_runner_state_handlers = task_runner_state_handlers
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -139,6 +135,7 @@ class FlowRunner(Runner):
         start_task_ids: Iterable[str] = None,
         return_tasks: Iterable[Task] = None,
         parameters: Dict[str, Any] = None,
+        task_runner_state_handlers: Iterable[Callable]=None,
         executor: "prefect.engine.executors.Executor" = None,
         context: Dict[str, Any] = None,
     ) -> State:
@@ -159,7 +156,11 @@ class FlowRunner(Runner):
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
             - parameters (dict, optional): dictionary of any needed Parameter
-                values, with keys being strings representing Parameter names and values being their corresponding values
+                values, with keys being strings representing Parameter names and values being
+                their corresponding values
+            - task_runner_state_handlers (Iterable[Callable], optional): A list of state change
+                handlers that will be provided to the task_runner, and called whenever a task changes
+                state.
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
             - context (dict, optional): prefect.Context to use for execution
@@ -192,6 +193,7 @@ class FlowRunner(Runner):
                     start_tasks=start_tasks,
                     start_task_ids=start_task_ids,
                     return_tasks=return_tasks,
+                    task_runner_state_handlers=task_runner_state_handlers,
                     executor=executor,
                 )
 
@@ -269,6 +271,7 @@ class FlowRunner(Runner):
         start_tasks: Iterable[Task],
         start_task_ids: Iterable[str],
         return_tasks: Set[Task],
+        task_runner_state_handlers:Iterable[Callable],
         executor: "prefect.engine.executors.base.Executor",
     ) -> State:
         """
@@ -286,6 +289,9 @@ class FlowRunner(Runner):
                 a list of task IDs. The two options may be used simultaneously.
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
+            - task_runner_state_handlers (Iterable[Callable], optional): A list of state change
+                handlers that will be provided to the task_runner, and called whenever a task changes
+                state.
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor provided in your prefect configuration
 
@@ -341,7 +347,7 @@ class FlowRunner(Runner):
                 task_runner = self.task_runner_cls(
                     task=task,
                     result_handler=self.flow.result_handler,
-                    state_handlers=self.task_runner_state_handlers,
+                    state_handlers=task_runner_state_handlers,
                 )
 
                 task_states[task] = executor.submit(
