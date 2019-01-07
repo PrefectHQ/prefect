@@ -41,16 +41,18 @@ class FlowRunner(Runner):
             opportunity to inspect or modify the new state. The handler
             will be passed the flow runner instance, the old (prior) state, and the new
             (current) state, with the following signature:
-
+            #FIXME: https://github.com/PrefectHQ/prefect/issues/495
             ```
                 state_handler(
                     flow_runner: FlowRunner,
                     old_state: State,
                     new_state: State) -> State
             ```
-
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
+        - task_runner_state_handlers (Iterable[Callable], optional): A list of state change
+            handlers that will be provided to the task_runner, and called whenever a task changes
+            state.
 
     Note: new FlowRunners are initialized within the call to `Flow.run()` and in general,
     this is the endpoint through which FlowRunners will be interacted with most frequently.
@@ -286,6 +288,7 @@ class FlowRunner(Runner):
                 final returned Flow state. Defaults to `None`
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor provided in your prefect configuration
+
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
 

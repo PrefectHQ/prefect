@@ -122,8 +122,8 @@ def test_flow_runner_with_invalid_return_tasks():
     task = SuccessTask()
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
-    with pytest.raises(ValueError):
-        flow_runner.run(return_tasks=[1])
+    state = flow_runner.run(return_tasks=[1])
+    assert state.is_failed()
 
 
 def test_flow_runner_with_return_tasks_that_arent_evaluated():
