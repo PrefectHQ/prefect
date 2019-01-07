@@ -1178,6 +1178,7 @@ def test_flow_run_uses_default_flow_runner(monkeypatch):
 
     assert x.call_count == 1
 
+<<<<<<< HEAD
 
 def test_parameters_can_be_set_in_context_if_none_passed():
     x = prefect.Parameter("x")
@@ -1204,5 +1205,24 @@ def test_parameters_overwrite_context_only_if_key_matches():
         context={"parameters": {"x": 5, "y": 6}},
         return_tasks=[x, y],
     )
+=======
+def test_parameters_can_be_set_in_context_if_none_passed():
+    x = prefect.Parameter('x')
+    f = FlowRunner(prefect.Flow(tasks=[x]))
+    state = f.run(parameters={}, context={'parameters': {'x': 5}}, return_tasks=[x])
+    assert state.result[x].result == 5
+
+def test_parameters_overwrite_context():
+    x = prefect.Parameter('x')
+    f = FlowRunner(prefect.Flow(tasks=[x]))
+    state = f.run(parameters={'x':2}, context={'parameters': {'x': 5}}, return_tasks=[x])
+    assert state.result[x].result == 2
+
+def test_parameters_overwrite_context_only_if_key_matches():
+    x = prefect.Parameter('x')
+    y = prefect.Parameter('y')
+    f = FlowRunner(prefect.Flow(tasks=[x, y]))
+    state = f.run(parameters={'x':2}, context={'parameters': {'x': 5, 'y':6}}, return_tasks=[x, y])
+>>>>>>> More fine-grained control over how parameters overwrite context values
     assert state.result[x].result == 2
     assert state.result[y].result == 6
