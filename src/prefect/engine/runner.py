@@ -53,11 +53,36 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
 
     @functools.wraps(method)
     def inner(self: "Runner", state: State, *args: Any, **kwargs: Any) -> State:
-        new_state = method(self, state, *args, **kwargs)
-        if new_state is state:
-            return new_state
-        else:
-            return self.handle_state_change(old_state=state, new_state=new_state)
+        raise_end_run = False
+        raise_on_exception = prefect.context.get("raise_on_exception", False)
+
+        try:
+            new_state = method(self, state, *args, **kwargs)
+        except ENDRUN as exc:
+            raise_end_run = True
+            new_state = exc.state
+
+        # PrefectStateSignals are trapped and turned into States
+        except signals.PrefectStateSignal as exc:
+            self.logger.info("{} signal raised.".format(type(exc).__name__))
+            if raise_on_exception:
+                raise exc
+            new_state = exc.state
+
+        except Exception as exc:
+            self.logger.info("Unexpected error.")
+            if raise_on_exception:
+                raise exc
+            new_state = Failed("Unexpected error.", result=exc)
+
+        if new_state is not state:
+            new_state = self.handle_state_change(old_state=state, new_state=new_state)
+
+        # if an ENDRUN was raised, reraise so it can be trapped
+        if raise_end_run:
+            raise ENDRUN(new_state)
+
+        return new_state
 
     return inner
 

@@ -226,6 +226,7 @@ class TaskRunner(Runner):
 
                     # kick off the mapped run
                     state = self.get_task_mapped_state(
+                        state=state,
                         upstream_states=upstream_states,
                         inputs=inputs,
                         check_upstream=check_upstream,
@@ -285,19 +286,18 @@ class TaskRunner(Runner):
                     # check if the task needs to be retried
                     state = self.check_for_retry(state, inputs=task_inputs)
 
-        # a ENDRUN signal at any point breaks the chain and we return
-        # the most recently computed state
-        except ENDRUN as exc:
+        # for pending signals, including retries and pauses we need to make sure the
+        # task_inputs are set
+        except (ENDRUN, signals.PrefectStateSignal) as exc:
+            if exc.state.is_pending():
+                exc.state.cached_inputs = task_inputs or {}  # type: ignore
             state = exc.state
-
-        except signals.PAUSE as exc:
-            state = exc.state
-            state.cached_inputs = task_inputs or {}  # type: ignore
+            if prefect.context.get("raise_on_exception"):
+                raise exc
 
         except Exception as exc:
             state = Failed(message="Unexpected error while running Task", result=exc)
-            raise_on_exception = prefect.context.get("raise_on_exception", False)
-            if raise_on_exception:
+            if prefect.context.get("raise_on_exception"):
                 raise exc
 
         self.logger.info(
@@ -408,8 +408,6 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the trigger raises an error
         """
-        # the trigger itself could raise a failure, but we raise TriggerFailed just in case
-        raise_on_exception = prefect.context.get("raise_on_exception", False)
 
         all_states = set()  # type: Set[State]
         for upstream_state in upstream_states.values():
@@ -424,16 +422,14 @@ class TaskRunner(Runner):
             elif not self.task.trigger(all_states):
                 raise signals.TRIGGERFAIL(message="Trigger failed")
 
-        except signals.PAUSE:
-            raise
-
         except signals.PrefectStateSignal as exc:
+
             self.logger.info(
                 "{0} signal raised during execution of task '{1}'.".format(
                     type(exc).__name__, self.task.name
                 )
             )
-            if raise_on_exception:
+            if prefect.context.get("raise_on_exception"):
                 raise exc
             raise ENDRUN(exc.state)
 
@@ -442,7 +438,7 @@ class TaskRunner(Runner):
             self.logger.info(
                 "Unexpected error while running task '{}'.".format(self.task.name)
             )
-            if raise_on_exception:
+            if prefect.context.get("raise_on_exception"):
                 raise exc
             raise ENDRUN(
                 TriggerFailed(
@@ -557,8 +553,10 @@ class TaskRunner(Runner):
             raise ENDRUN(Success(result=state.cached_result, cached=state))
         return state
 
+    @call_state_handlers
     def get_task_mapped_state(
         self,
+        state: State,
         upstream_states: Dict[Edge, State],
         inputs: Dict[str, Any],
         check_upstream: bool,
@@ -570,6 +568,7 @@ class TaskRunner(Runner):
         for execution
 
         Args:
+            - state (State): the current task state
             - upstream_states (Dict[Edge, State]): the upstream states
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
@@ -581,7 +580,13 @@ class TaskRunner(Runner):
 
         Returns:
             - State: the state of the task after running the check
+
+        Raises:
+            - ENDRUN: if the current state is not `Running`
         """
+
+        if not state.is_running():
+            raise ENDRUN(state)
 
         map_upstream_states = []
 
@@ -688,40 +693,22 @@ class TaskRunner(Runner):
         if not state.is_running():
             raise ENDRUN(state)
 
-        raise_on_exception = prefect.context.get("raise_on_exception", False)
-
         try:
             self.logger.info("Running task...")
             timeout_handler = timeout_handler or main_thread_timeout
             result = timeout_handler(self.task.run, timeout=self.task.timeout, **inputs)
 
-        except signals.PAUSE:
-            raise
-
-        # PrefectStateSignals are trapped and turned into States
-        except signals.PrefectStateSignal as exc:
-            self.logger.info("{} signal raised.".format(type(exc).__name__))
-            if raise_on_exception:
-                raise exc
-            return exc.state
-
         # inform user of timeout
         except TimeoutError as exc:
-            if raise_on_exception:
+            if prefect.context.get("raise_on_exception"):
                 raise exc
             return TimedOut(
                 "Task timed out during execution.", result=exc, cached_inputs=inputs
             )
 
-        # Exceptions are trapped and turned into Failed states
-        except Exception as exc:
-            self.logger.info("Unexpected error while running task.")
-            if raise_on_exception:
-                raise exc
-            return Failed("Unexpected error while running task.", result=exc)
-
         return Success(result=result, message="Task run succeeded.")
 
+    @call_state_handlers
     def cache_result(self, state: State, inputs: Dict[str, Any]) -> State:
         """
         Caches the result of a successful task, if appropriate.
