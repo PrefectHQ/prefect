@@ -430,7 +430,9 @@ def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args(executor):
     assert m.result == [[1 + i, 2 + i, 3 + i] for i in range(3)]
 
 
-@pytest.mark.parametrize("executor", ["local", "mproc", "mthread"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "mproc", "mthread", "sync"], indirect=True
+)
 def test_map_behaves_like_zip_with_differing_length_results(executor):
     "Tests that map stops combining elements after the smallest list is exhausted."
 
@@ -450,27 +452,6 @@ def test_map_behaves_like_zip_with_differing_length_results(executor):
     assert isinstance(m.map_states, list)
     assert len(m.map_states) == 2
     assert m.result == [0, 2]
-
-
-@pytest.mark.xfail(
-    reason="Is sensitive to how dask.bag partitions -- occasionally passes."
-)
-@pytest.mark.parametrize("executor", ["sync"], indirect=True)
-def test_synchronous_map_cannot_handle_mapping_different_length_results(executor):
-    @prefect.task
-    def ll(n):
-        return list(range(n))
-
-    add = AddTask()
-
-    with Flow() as f:
-        res = add.map(x=ll(3), y=ll(2))
-
-    s = f.run(return_tasks=[res], executor=executor)
-    assert s.is_failed()
-    assert "map called with multiple bags that aren't identically partitioned" in str(
-        s.message
-    )
 
 
 @pytest.mark.parametrize(
