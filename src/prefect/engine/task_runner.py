@@ -634,7 +634,10 @@ class TaskRunner(Runner):
                 executor=executor,
             )
 
-        map_states = executor.map(run_fn, *zip(*enumerate(map_upstream_states)))
+        # map over a counter representing the map_index and also the upstream states array
+        map_states = executor.map(
+            run_fn, range(len(map_upstream_states)), map_upstream_states
+        )
         return Mapped(
             message="Mapped tasks submitted for execution.", map_states=map_states
         )
