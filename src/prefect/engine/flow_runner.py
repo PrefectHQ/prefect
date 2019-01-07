@@ -135,7 +135,7 @@ class FlowRunner(Runner):
         start_task_ids: Iterable[str] = None,
         return_tasks: Iterable[Task] = None,
         parameters: Dict[str, Any] = None,
-        task_runner_state_handlers: Iterable[Callable]=None,
+        task_runner_state_handlers: Iterable[Callable] = None,
         executor: "prefect.engine.executors.Executor" = None,
         context: Dict[str, Any] = None,
     ) -> State:
@@ -271,7 +271,7 @@ class FlowRunner(Runner):
         start_tasks: Iterable[Task],
         start_task_ids: Iterable[str],
         return_tasks: Set[Task],
-        task_runner_state_handlers:Iterable[Callable],
+        task_runner_state_handlers: Iterable[Callable],
         executor: "prefect.engine.executors.base.Executor",
     ) -> State:
         """
