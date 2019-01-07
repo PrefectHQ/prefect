@@ -74,11 +74,13 @@ class FlowRunner(Runner):
         flow: Flow,
         task_runner_cls: type = None,
         state_handlers: Iterable[Callable] = None,
+        task_runner_state_handlers: Iterable[Callable] = None,
     ):
         self.flow = flow
         if task_runner_cls is None:
             task_runner_cls = prefect.engine.get_default_task_runner_class()
         self.task_runner_cls = task_runner_cls
+        self.task_runner_state_handlers = task_runner_state_handlers
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -333,7 +335,9 @@ class FlowRunner(Runner):
 
                 # -- run the task
                 task_runner = self.task_runner_cls(
-                    task=task, result_handler=self.flow.result_handler
+                    task=task,
+                    result_handler=self.flow.result_handler,
+                    state_handlers=self.task_runner_state_handlers,
                 )
 
                 task_states[task] = executor.submit(
