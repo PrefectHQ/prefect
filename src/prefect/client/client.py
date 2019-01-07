@@ -402,6 +402,9 @@ class Client:
             raise ClientError('Flow run ID not found: "{}"'.format(flow_run_id))
         serialized_state = result.serialized_state
         state = prefect.engine.state.State.deserialize(serialized_state, result_handler)
+        state._flow_run_id = flow_run_id
+        state._version = result.version
+
         result.state = state
         return result
 
@@ -480,9 +483,7 @@ class Client:
 
         serialized_state = state.serialize(result_handler=result_handler)
 
-        result = self.graphql(
-            mutation, state=serialized_state
-        )  # type: Any
+        result = self.graphql(mutation, state=serialized_state)  # type: Any
         if result.setFlowRunState.error:
             raise ClientError(result.setFlowRunState.error)
 
@@ -535,6 +536,8 @@ class Client:
         state = prefect.engine.state.State.deserialize(
             result.serialized_state, result_handler=result_handler
         )
+        state._task_run_id = result.id
+        state._version = result.version
         result.state = state
         return result
 
@@ -578,9 +581,7 @@ class Client:
 
         serialized_state = state.serialize(result_handler=result_handler)
 
-        result = self.graphql(
-            mutation, state=serialized_state
-        )  # type: Any
+        result = self.graphql(mutation, state=serialized_state)  # type: Any
         if result.setTaskRunState.error:
             raise ClientError(result.setTaskRunState.error)
 
