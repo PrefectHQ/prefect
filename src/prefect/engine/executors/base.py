@@ -86,25 +86,3 @@ class Executor:
             - Queue: an executor compatible queue which can be shared among tasks
         """
         raise NotImplementedError()
-
-    def submit_with_context(
-        self, fn: Callable, *args: Any, context: Dict, **kwargs: Any
-    ) -> Any:
-        """
-        Submit a function to the executor that will be run in a specific Prefect context.
-
-        Args:
-            - fn (Callable): function which is being submitted for execution
-            - *args (Any): arguments to be passed to `fn`
-            - context (dict): `prefect.utilities.Context` to be used in function execution
-            - **kwargs (Any): keyword arguments to be passed to `executor.submit`
-
-        Returns:
-            - Any: a future-like object
-        """
-
-        def run_fn_in_context(*args: Any, context: dict, **kwargs: Any) -> Any:
-            with prefect.context(context):
-                return fn(*args, **kwargs)
-
-        return self.submit(run_fn_in_context, *args, context=context, **kwargs)
