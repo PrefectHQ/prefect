@@ -134,7 +134,6 @@ class FlowRunner(Runner):
         start_tasks: Iterable[Task] = None,
         start_task_ids: Iterable[str] = None,
         return_tasks: Iterable[Task] = None,
-        return_failed: bool = False,
         parameters: Dict[str, Any] = None,
         executor: "prefect.engine.executors.Executor" = None,
         context: Dict[str, Any] = None,
@@ -155,9 +154,6 @@ class FlowRunner(Runner):
                 a list of task IDs. The two options may be used simultaneously.
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
-            - return_failed (bool, optional): whether to return all tasks
-                which fail, regardless of whether they are terminal tasks or in `return_tasks`.
-                Defaults to `False`
             - parameters (dict, optional): dictionary of any needed Parameter
                 values, with keys being strings representing Parameter names and values being their corresponding values
             - executor (Executor, optional): executor to use when performing
@@ -196,7 +192,6 @@ class FlowRunner(Runner):
                     start_tasks=start_tasks,
                     start_task_ids=start_task_ids,
                     return_tasks=return_tasks,
-                    return_failed=return_failed,
                     executor=executor,
                 )
 
@@ -275,7 +270,6 @@ class FlowRunner(Runner):
         start_task_ids: Iterable[str],
         return_tasks: Set[Task],
         executor: "prefect.engine.executors.base.Executor",
-        return_failed: bool = False,
     ) -> State:
         """
         Runs the flow.
@@ -294,10 +288,6 @@ class FlowRunner(Runner):
                 final returned Flow state. Defaults to `None`
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor provided in your prefect configuration
-            - return_failed (bool, optional): whether to return all tasks
-                which fail, regardless of whether they are terminal tasks or in `return_tasks`.
-                Defaults to `False`
-
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
 
@@ -367,45 +357,25 @@ class FlowRunner(Runner):
             # reference tasks determine flow state
             reference_tasks = self.flow.reference_tasks()
 
-            if return_failed:
-                final_states = executor.wait(task_states)
-                all_final_states = final_states.copy()
-                failed_tasks = []
-                for t, s in final_states.items():
-                    if isinstance(s, (Failed, Retrying)):
-                        failed_tasks.append(t)
-                    elif s.is_mapped():
-                        s.map_states = executor.wait(s.map_states)
-                        s.result = [ms.result for ms in s.map_states]
-                        all_final_states[t] = s.map_states
-                        if any(
-                            [isinstance(r, (Failed, Retrying)) for r in s.map_states]
-                        ):
-                            failed_tasks.append(t)
+            # wait until all terminal tasks are finished
+            final_tasks = terminal_tasks.union(reference_tasks).union(return_tasks)
+            final_states = executor.wait(
+                {
+                    t: task_states.get(t, Pending("Task not evaluated by FlowRunner."))
+                    for t in final_tasks
+                }
+            )
 
-                return_tasks.update(failed_tasks)
-            else:
-                # wait until all terminal tasks are finished
-                final_tasks = terminal_tasks.union(reference_tasks).union(return_tasks)
-                final_states = executor.wait(
-                    {
-                        t: task_states.get(
-                            t, Pending("Task not evaluated by FlowRunner.")
-                        )
-                        for t in final_tasks
-                    }
-                )
+            # also wait for any children of Mapped tasks to finish, and add them
+            # to the dictionary to determine flow state
+            all_final_states = final_states.copy()
+            for t, s in list(final_states.items()):
+                if s.is_mapped():
+                    s.map_states = executor.wait(s.map_states)
+                    s.result = [ms.result for ms in s.map_states]
+                    all_final_states[t] = s.map_states
 
-                # also wait for any children of Mapped tasks to finish, and add them
-                # to the dictionary to determine flow state
-                all_final_states = final_states.copy()
-                for t, s in list(final_states.items()):
-                    if s.is_mapped():
-                        s.map_states = executor.wait(s.map_states)
-                        s.result = [ms.result for ms in s.map_states]
-                        all_final_states[t] = s.map_states
-
-                assert isinstance(final_states, dict)
+            assert isinstance(final_states, dict)
 
         key_states = set(flatten_seq([all_final_states[t] for t in reference_tasks]))
         terminal_states = set(
