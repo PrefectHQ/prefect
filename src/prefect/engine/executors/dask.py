@@ -31,9 +31,9 @@ class DaskExecutor(Executor):
         - address (string, optional): address of a currently running dask
             scheduler; if one is not provided, a `distributed.LocalCluster()` will be created in `executor.start()`.
             Defaults to `None`
-        - processes (bool, optional): whether to use multiprocessing or not
+        - local_processes (bool, optional): whether to use multiprocessing or not
             (computations will still be multithreaded). Ignored if address is provided.
-            Defaults to `False`. Note that timeouts are not supported if `processes=True`
+            Defaults to `False`. Note that timeouts are not supported if `local_processes=True`
         - debug (bool, optional): whether to operate in debug mode; `debug=True`
             will produce many additional dask logs. Defaults to the `debug` value in your Prefect configuration
         - **kwargs (dict, optional): additional kwargs to be passed to the
@@ -43,12 +43,20 @@ class DaskExecutor(Executor):
     def __init__(
         self,
         address: str = None,
-        processes: bool = False,
-        debug: bool = config.debug,
+        local_processes: bool = None,
+        debug: bool = None,
         **kwargs: Any
     ):
+        if address is None:
+            address = config.engine.executor.dask.address
+        if address == "local":
+            address = None
+        if local_processes is None:
+            local_processes = config.engine.executor.dask.local_processes
+        if debug is None:
+            debug = config.debug
         self.address = address
-        self.processes = processes
+        self.local_processes = local_processes
         self.debug = debug
         self.is_started = False
         self.kwargs = kwargs
@@ -66,7 +74,7 @@ class DaskExecutor(Executor):
                 silence_logs=logging.CRITICAL if not self.debug else logging.WARNING
             )
             with Client(
-                self.address, processes=self.processes, **self.kwargs
+                self.address, processes=self.local_processes, **self.kwargs
             ) as client:
                 self.client = client
                 self.is_started = True
