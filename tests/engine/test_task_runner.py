@@ -693,8 +693,8 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-                state=state, inputs={}, timeout_handler=None
-            )
+            state=state, inputs={}, timeout_handler=None
+        )
         assert isinstance(new_state, Paused)
 
     def test_run_with_error(self):
@@ -942,6 +942,32 @@ class TestTaskRunnerStateHandlers:
         # the task changed state three times: Pending -> Running -> Failed -> Retry
         assert isinstance(state, Retrying)
         assert task_runner_handler.call_count == 3
+
+    def test_task_runner_handlers_are_called_on_triggerfailed(self):
+        task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
+
+        runner = TaskRunner(
+            task=Task(trigger=prefect.triggers.all_failed),
+            state_handlers=[task_runner_handler],
+        )
+        state = runner.run(upstream_states={Edge(Task(), Task()): Success()})
+        # the task changed state one time: Pending -> TriggerFailed
+        assert isinstance(state, TriggerFailed)
+        assert task_runner_handler.call_count == 1
+
+    def test_task_runner_handlers_are_called_on_mapped(self):
+        task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
+
+        runner = TaskRunner(
+            task=Task(trigger=prefect.triggers.all_failed),
+            state_handlers=[task_runner_handler],
+        )
+        state = runner.run(
+            upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
+        )
+        # the task changed state two times: Pending -> Running -> Mapped
+        assert isinstance(state, Mapped)
+        assert task_runner_handler.call_count == 2
 
     def test_multiple_task_runner_handlers_are_called(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
