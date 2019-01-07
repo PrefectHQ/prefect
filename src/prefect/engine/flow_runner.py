@@ -382,7 +382,14 @@ class FlowRunner(Runner):
             else:
                 # wait until all terminal tasks are finished
                 final_tasks = terminal_tasks.union(reference_tasks).union(return_tasks)
-                final_states = executor.wait({t: task_states[t] for t in final_tasks})
+                final_states = executor.wait(
+                    {
+                        t: task_states.get(
+                            t, Pending("Task not evaluated by FlowRunner.")
+                        )
+                        for t in final_tasks
+                    }
+                )
 
                 # also wait for any children of Mapped tasks to finish, and add them
                 # to the dictionary to determine flow state
@@ -396,10 +403,10 @@ class FlowRunner(Runner):
                 assert isinstance(final_states, dict)
 
         key_states = set(flatten_seq([all_final_states[t] for t in reference_tasks]))
-        return_states = {t: final_states[t] for t in return_tasks}
         terminal_states = set(
             flatten_seq([all_final_states[t] for t in terminal_tasks])
         )
+        return_states = {t: final_states[t] for t in return_tasks}
 
         state = self.determine_final_state(
             key_states=key_states,
