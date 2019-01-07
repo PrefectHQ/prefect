@@ -7,6 +7,7 @@ import prefect
 from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
 from prefect.core import Edge, Task
+from prefect.utilities.graphql import with_args
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, State
 from prefect.engine.task_runner import TaskRunner
@@ -91,6 +92,10 @@ class CloudTaskRunner(TaskRunner):
 
         prefect.context.update(task_run_version=version + 1)  # type: ignore
 
+        # assign task run id and version to make state lookups simpler in the future
+        new_state._task_run_id = task_run_id
+        new_state._version = version
+
         return new_state
 
     def initialize_run(  # type: ignore
@@ -114,12 +119,11 @@ class CloudTaskRunner(TaskRunner):
         Returns:
             - tuple: a tuple of the updated state, context, upstream_states, and inputs objects
         """
-        flow_run_id = context.get("flow_run_id", None)
         try:
             task_run_info = self.client.get_task_run_info(
-                flow_run_id,
-                context.get("task_id", ""),
-                map_index=context.get("map_index", None),
+                flow_run_id=context.get("flow_run_id", ""),
+                task_id=self.task.id,
+                map_index=context.get("map_index"),
                 result_handler=self.result_handler,
             )
         except Exception as exc:
@@ -129,13 +133,19 @@ class CloudTaskRunner(TaskRunner):
                 )
             raise ENDRUN(state=state)
 
-        # if state is set, keep it; otherwise load from db
+        # if state was provided, keep it; otherwise use the one from db
         state = state or task_run_info.state  # type: ignore
         context.update(
             task_run_version=task_run_info.version,  # type: ignore
             task_run_id=task_run_info.id,  # type: ignore
         )
+        # we assign this so it can be shared with heartbeat thread
         self.task_run_id = task_run_info.id  # type: ignore
+
+        # update upstream_states
+        upstream_states = self.get_latest_upstream_states(
+            context=context, upstream_states=upstream_states
+        )
 
         # update inputs, prioritizing kwarg-provided inputs
         if hasattr(state, "cached_inputs") and isinstance(
@@ -152,3 +162,80 @@ class CloudTaskRunner(TaskRunner):
             upstream_states=upstream_states,
             inputs=updated_inputs,
         )
+
+    def get_latest_upstream_states(
+        self, context: Dict[str, Any], upstream_states: Dict[Edge, State]
+    ) -> Dict[Edge, State]:
+        """
+        Reloads the latest upstream states from Prefect Cloud.
+
+        There are two possibilities:
+            - if we've already confirmed a state with Prefect Cloud, then it will have `_task_run_id`
+                and `_version` attributes. We query Cloud for any state with that id and NOT that version.
+                If a result comes back, it's more recent and we update our state. If nothing comes
+                back, then we're current.
+
+            - if we haven't loaded this state yet (for example, it was created as a stand-in by
+                a FlowRunner), then we get-or-create its task run info. If the resulting state
+                is `Mapped` and the edge in question is being mapped over, then we make one
+                more query to get the state at the appropriate `map_index`.
+
+        Args:
+            - context (Dict[str, Any]): the context
+            - upstream_states (Dict[Edge, State]): the upstream states.
+
+        Returns:
+            - Dict[Edge, State]: a dictionary of current upstream states
+        """
+        task_run_to_edge_map = {}
+        states_with_ids = {}
+        new_upstream_states = upstream_states.copy()
+
+        for edge, state in upstream_states.items():
+            if getattr(state, "_task_run_id", None):
+                task_run_to_edge_map[state._task_run_id] = edge
+                states_with_ids[edge] = {
+                    "_and": {
+                        "id": {"_eq": state._task_run_id},
+                        "version": {"_neq": getattr(state, "_version", None)},
+                    }
+                }
+
+            else:
+                task_run_info = self.client.get_task_run_info(
+                    flow_run_id=context.get("flow_run_id", ""),
+                    task_id=edge.upstream_task.id,
+                    map_index=None,
+                    result_handler=self.result_handler,
+                )
+                if edge.mapped and task_run_info.state.is_mapped():  # type: ignore
+                    task_run_info = self.client.get_task_run_info(
+                        flow_run_id=context.get("flow_run_id", ""),
+                        task_id=edge.upstream_task.id,
+                        map_index=context.get("map_index"),
+                        result_handler=self.result_handler,
+                    )
+                new_upstream_states[edge] = task_run_info.state  # type: ignore
+
+        if states_with_ids:
+            updated_states = self.client.graphql(
+                {
+                    "query": {
+                        with_args(
+                            "task_run",
+                            {"where": {"_or": list(states_with_ids.values())}},
+                        ): {"id", "version", "serialized_state"}
+                    }
+                }
+            )
+
+            for task_run in updated_states.task_run:  # type: ignore
+                state = prefect.engine.state.State.deserialize(
+                    task_run.serialized_state, result_handler=self.result_handler
+                )
+                state._task_run_id = task_run.id
+                state._version = task_run.version
+                edge = task_run_to_edge_map[task_run.id]
+                new_upstream_states[edge] = state
+
+        return new_upstream_states
