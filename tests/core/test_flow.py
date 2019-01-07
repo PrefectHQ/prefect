@@ -659,6 +659,22 @@ def test_sorted_tasks_with_start_task():
     assert set(f.sorted_tasks(root_tasks=[t3])) == set([t3, t4, t5])
 
 
+def test_sorted_tasks_with_invalid_start_task():
+    """
+    t1 -> t2 -> t3 -> t4
+                  t3 -> t5
+    """
+    f = Flow()
+    t1 = Task("1")
+    t2 = Task("2")
+    t3 = Task("3")
+    f.add_edge(t1, t2)
+
+    with pytest.raises(ValueError) as exc:
+        f.sorted_tasks(root_tasks=[t3])
+    assert "not found in Flow" in str(exc.value)
+
+
 def test_flow_raises_for_irrelevant_user_provided_parameters():
     class ParameterTask(Task):
         def run(self):
