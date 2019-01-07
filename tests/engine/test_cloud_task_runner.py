@@ -218,9 +218,9 @@ class TestHeartBeats:
 
         @prefect.task
         def sleeper():
-            time.sleep(2)
+            time.sleep(0.2)
 
-        with set_temporary_config({"cloud.heartbeat_interval": 1.0}):
+        with set_temporary_config({"cloud.heartbeat_interval": 0.05}):
             res = CloudTaskRunner(task=sleeper).run(executor=executor)
 
         assert res.is_successful()
