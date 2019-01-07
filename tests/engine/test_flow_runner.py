@@ -770,64 +770,6 @@ class TestOutputCaching:
         assert flow_state.result[y].result == 100
 
 
-class TestReturnFailed:
-    def test_return_failed_works_when_all_fail(self):
-        with Flow() as f:
-            s = SuccessTask()
-            e = ErrorTask()
-            s.set_upstream(e)
-        state = FlowRunner(flow=f).run(return_failed=True)
-        assert state.is_failed()
-        assert e in state.result
-        assert s in state.result
-
-    def test_return_failed_works_when_non_terminal_fails(self):
-        with Flow() as f:
-            s = SuccessTask(trigger=any_failed)
-            e = ErrorTask()
-            s.set_upstream(e)
-        state = FlowRunner(flow=f).run(return_failed=True)
-        assert state.is_successful()
-        assert e in state.result
-        assert s not in state.result
-
-    def test_return_failed_works_with_mapping(self):
-        @prefect.task
-        def div(x):
-            return 1 / x
-
-        @prefect.task
-        def gimme(x):
-            return x
-
-        with Flow() as f:
-            res = gimme.map(div.map(x=[1, 0, 42]))
-
-        state = FlowRunner(flow=f).run(return_failed=True)
-        assert state.is_failed()
-        assert len(state.result) == 2
-        assert all([len(v.result) == 3 for v in state.result.values()])
-
-    def test_return_failed_doesnt_duplicate(self):
-        with Flow() as f:
-            s = SuccessTask()
-            e = ErrorTask()
-            s.set_upstream(e)
-        state = FlowRunner(flow=f).run(return_tasks=f.tasks, return_failed=True)
-        assert state.is_failed()
-        assert len(state.result) == 2
-
-    def test_return_failed_includes_retries(self):
-        with Flow() as f:
-            s = SuccessTask()
-            e = ErrorTask(max_retries=1, retry_delay=datetime.timedelta(0))
-            s.set_upstream(e)
-        state = FlowRunner(flow=f).run(return_failed=True)
-        assert state.is_running()
-        assert e in state.result
-        assert isinstance(state.result[e], Retrying)
-
-
 class TestRunCount:
     def test_run_count_updates_after_each_retry(self):
         flow = Flow()
