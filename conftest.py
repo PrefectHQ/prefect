@@ -16,7 +16,7 @@ if sys.version_info >= (3, 5):
 # so that we don't have to spin up / tear down a dask cluster
 # for every test that needs a dask executor
 # ----------------
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def mthread():
     "Multi-threaded executor"
     if sys.version_info >= (3, 5):
@@ -26,19 +26,19 @@ def mthread():
         yield
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def local():
     "Local, immediate execution executor"
     yield LocalExecutor()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def sync():
     "Synchronous dask (not dask.distributed) executor"
     yield SynchronousExecutor()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def mproc():
     "Multi-processing executor"
     if sys.version_info >= (3, 5):
