@@ -189,14 +189,13 @@ def test_string_query_3():
 
 
 def test_dict_keys_query_1():
-    dict_keys = {"id": True, "name": True}
+    dict_keys = {"id": True}
     verify(
         query={"query": {"users": dict_keys.keys()}},
         expected="""
             query {
                 users {
                     id
-                    name
                 }
             }
         """,
@@ -204,14 +203,13 @@ def test_dict_keys_query_1():
 
 
 def test_dict_values_query_1():
-    dict_values = {1: "id", 2: "name"}
+    dict_values = {1: "id"}
     verify(
         query={"query": {"users": dict_values.values()}},
         expected="""
             query {
                 users {
                     id
-                    name
                 }
             }
         """,
