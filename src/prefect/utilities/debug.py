@@ -74,7 +74,7 @@ def raise_on_exception() -> Iterator:
     Example:
         ```python
         from prefect import Flow, task
-        from prefect.utilities.tests import raise_on_exception
+        from prefect.utilities.debug import raise_on_exception
 
         @task
         def div(x):
@@ -91,7 +91,7 @@ def raise_on_exception() -> Iterator:
         yield
 
 
-def make_return_failed_state_handler(failed_tasks_set: set):
+def make_return_failed_handler(failed_tasks_set: set):
     """
     This state handler can be used to automatically return any tasks that failed or retried
     from the FlowRunner.
@@ -103,8 +103,7 @@ def make_return_failed_state_handler(failed_tasks_set: set):
     ```
     flow = prefect.Flow(...)
     return_tasks = set()
-    return_failed_handler = make_return_failed_state_handler(return_tasks)
-    runner = FlowRunner(flow, task_runner_state_handlers=[return_failed_handler])
+    runner = FlowRunner(flow, task_runner_state_handlers=[make_return_failed_handler(return_tasks)])
     state = runner.run(return_tasks=return_tasks)
     ```
     """

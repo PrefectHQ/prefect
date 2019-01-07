@@ -40,7 +40,7 @@ from prefect.engine.state import (
 from prefect.engine.task_runner import ENDRUN, TaskRunner
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import pause_task
-from prefect.utilities.tests import raise_on_exception
+from prefect.utilities.debug import raise_on_exception
 
 
 class SuccessTask(Task):
@@ -913,14 +913,14 @@ class TestTaskStateHandlers:
         # previous result
         task = Task(state_handlers=[lambda *a: None, task_handler])
         with pytest.raises(AssertionError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 TaskRunner(task=task).run()
 
     def test_task_handler_that_doesnt_return_state(self):
         # this will raise an error because no state is returned
         task = Task(state_handlers=[lambda *a: None])
         with pytest.raises(AttributeError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 TaskRunner(task=task).run()
 
 
@@ -985,7 +985,7 @@ class TestTaskRunnerStateHandlers:
             assert isinstance(new_state, State)
 
         with pytest.raises(AssertionError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 TaskRunner(
                     task=Task(),
                     state_handlers=[lambda *a: Ellipsis, task_runner_handler],
@@ -994,7 +994,7 @@ class TestTaskRunnerStateHandlers:
     def test_task_runner_handler_that_doesnt_return_state(self):
         # raises an error because the state handler doesn't return a state
         with pytest.raises(AttributeError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 TaskRunner(task=Task(), state_handlers=[lambda *a: None]).run()
 
     def test_task_handler_that_raises_signal_is_trapped(self):

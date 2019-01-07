@@ -9,10 +9,10 @@ import prefect
 from prefect.core import Flow, Task
 from prefect.engine import FlowRunner, TaskRunner, state
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.tests import (
+from prefect.utilities.debug import (
     is_serializable,
     raise_on_exception,
-    make_return_failed_state_handler,
+    make_return_failed_handler,
 )
 
 
@@ -146,7 +146,7 @@ def test_is_serializable_returns_false_for_curried_functions_defined_in_main():
     script = textwrap.dedent(
         """
         from toolz import curry
-        from prefect.utilities.tests import is_serializable
+        from prefect.utilities.debug import is_serializable
 
         @curry
         def f(x, y):
@@ -164,7 +164,7 @@ def test_is_serializable_with_raise_is_informative():
         """
         import subprocess
         from toolz import curry
-        from prefect.utilities.tests import is_serializable
+        from prefect.utilities.debug import is_serializable
 
         @curry
         def f(x, y):
@@ -196,10 +196,28 @@ class TestReturnFailedStateHandler:
             s1.set_upstream(e)
             s2.set_upstream(s1)
         return_tasks = set()
-        state = FlowRunner(
-            flow=f,
-            task_runner_state_handlers=[make_return_failed_state_handler(return_tasks)],
-        ).run(return_tasks=return_tasks)
+        state = FlowRunner(flow=f).run(
+            return_tasks=return_tasks,
+            task_runner_state_handlers=[make_return_failed_handler(return_tasks)],
+        )
+        assert state.is_failed()
+        assert e in state.result
+        assert s1 in state.result
+        assert s2 in state.result
+        assert return_tasks == set([e, s1, s2])
+
+    def test_return_failed_works_when_all_fail_from_flow_run_method(self):
+        with Flow() as f:
+            e = ErrorTask()
+            s1 = Task()
+            s2 = Task()
+            s1.set_upstream(e)
+            s2.set_upstream(s1)
+        return_tasks = set()
+        state = f.run(
+            return_tasks=return_tasks,
+            task_runner_state_handlers=[make_return_failed_handler(return_tasks)],
+        )
         assert state.is_failed()
         assert e in state.result
         assert s1 in state.result
@@ -212,10 +230,10 @@ class TestReturnFailedStateHandler:
             t = Task(trigger=prefect.triggers.always_run)
             t.set_upstream(e)
         return_tasks = set()
-        state = FlowRunner(
-            flow=f,
-            task_runner_state_handlers=[make_return_failed_state_handler(return_tasks)],
-        ).run(return_tasks=return_tasks)
+        state = FlowRunner(flow=f).run(
+            return_tasks=return_tasks,
+            task_runner_state_handlers=[make_return_failed_handler(return_tasks)],
+        )
         assert state.is_successful()
         assert e in state.result
         assert t not in state.result
@@ -235,10 +253,10 @@ class TestReturnFailedStateHandler:
             res = gimme.map(d)
 
         return_tasks = set()
-        state = FlowRunner(
-            flow=f,
-            task_runner_state_handlers=[make_return_failed_state_handler(return_tasks)],
-        ).run(return_tasks=return_tasks)
+        state = FlowRunner(flow=f).run(
+            return_tasks=return_tasks,
+            task_runner_state_handlers=[make_return_failed_handler(return_tasks)],
+        )
         assert state.is_failed()
         assert res in state.result
         assert d in state.result
@@ -256,10 +274,10 @@ class TestReturnFailedStateHandler:
             s1 = Task(max_retries=1, retry_delay=timedelta(0))
             s1.set_upstream(e)
         return_tasks = set()
-        state = FlowRunner(
-            flow=f,
-            task_runner_state_handlers=[make_return_failed_state_handler(return_tasks)],
-        ).run(return_tasks=return_tasks)
+        state = FlowRunner(flow=f).run(
+            return_tasks=return_tasks,
+            task_runner_state_handlers=[make_return_failed_handler(return_tasks)],
+        )
         assert state.is_running()
         assert e in state.result
         assert s1 not in state.result

@@ -31,7 +31,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.triggers import manual_only, any_failed
-from prefect.utilities.tests import raise_on_exception
+from prefect.utilities.debug import raise_on_exception
 from unittest.mock import MagicMock
 
 
@@ -1027,7 +1027,7 @@ class TestFlowStateHandlers:
         # previous result
         flow = Flow(state_handlers=[lambda *a: None, flow_handler])
         with pytest.raises(AssertionError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 FlowRunner(flow=flow).run()
 
     def test_task_handler_that_doesnt_return_state(self):
@@ -1035,7 +1035,7 @@ class TestFlowStateHandlers:
         # raises an attribute error because it tries to access a property of the state that
         # doesn't exist on None
         with pytest.raises(AttributeError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 FlowRunner(flow=flow).run()
 
 
@@ -1057,7 +1057,7 @@ class TestFlowRunnerStateHandlers:
         # and raise an error, as long as the flow_handlers are called in sequence on the
         # previous result
         with pytest.raises(AssertionError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 FlowRunner(
                     flow=Flow(), state_handlers=[lambda *a: None, flow_runner_handler]
                 ).run()
@@ -1066,7 +1066,7 @@ class TestFlowRunnerStateHandlers:
         # raises an attribute error because it tries to access a property of the state that
         # doesn't exist on None
         with pytest.raises(AttributeError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 FlowRunner(flow=Flow(), state_handlers=[lambda *a: None]).run()
 
     def test_task_handler_that_raises_signal_is_trapped(self):
