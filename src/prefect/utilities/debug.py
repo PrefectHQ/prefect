@@ -103,8 +103,9 @@ def make_return_failed_handler(failed_tasks_set: set):
     ```
     flow = prefect.Flow(...)
     return_tasks = set()
-    runner = FlowRunner(flow, task_runner_state_handlers=[make_return_failed_handler(return_tasks)])
-    state = runner.run(return_tasks=return_tasks)
+    state = flow.run(
+        return_tasks=return_tasks,
+        task_runner_state_handlers=[make_return_failed_handler(return_tasks)])
     ```
     """
 

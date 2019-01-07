@@ -120,9 +120,10 @@ flow = Flow(tasks=[gotcha])
 
 # here, we use a special state_handler to automatically populate the `return_tasks` set.
 return_tasks = set()
-return_failed_handler = make_return_failed_handler(return_tasks)
-state = flow.run(return_failed=True)
-state.result # {<Task: gotcha>: Failed("")}
+state = flow.run(
+    return_tasks=return_tasks,
+    task_runner_state_handlers=[make_return_failed_handler(return_tasks)])
+state.result # {<Task: gotcha>: Failed("Unexpected error")}
 
 failed_state = state.result[gotcha]
 raise failed_state.result
@@ -136,29 +137,43 @@ TypeError                                 Traceback (most recent call last)
 ----> 8         tup[1] += ['c']
       9     except TypeError:
 
-
 TypeError: 'tuple' object does not support item assignment
-
 
 During handling of the above exception, another exception occurred:
 
-
 AssertionError                            Traceback (most recent call last)
+<ipython-input-1-f0f986d2f159> in <module>
+     22
+     23 failed_state = state.result[gotcha]
+---> 24 raise failed_state.result
 
-<ipython-input-50-8efcdf8dacda> in <module>()
-     16
-     17 failed_state = state.result[gotcha]
----> 18 raise failed_state.result
+~/Developer/prefect/src/prefect/engine/runner.py in inner(self, state, *args, **kwargs)
+     58
+     59         try:
+---> 60             new_state = method(self, state, *args, **kwargs)
+     61         except ENDRUN as exc:
+     62             raise_end_run = True
 
-...
+~/Developer/prefect/src/prefect/engine/task_runner.py in get_task_run_state(self, state, inputs, timeout_handler)
+    697             self.logger.info("Running task...")
+    698             timeout_handler = timeout_handler or main_thread_timeout
+--> 699             result = timeout_handler(self.task.run, timeout=self.task.timeout, **inputs)
+    700
+    701         # inform user of timeout
 
-<ipython-input-50-8efcdf8dacda> in gotcha()
-      8         tup[1] += ['c']
-      9     except TypeError:
----> 10         assert len(tup[1]) == 1
-     11
+~/Developer/prefect/src/prefect/utilities/executors.py in multiprocessing_timeout(fn, timeout, *args, **kwargs)
+     68
+     69     if timeout is None:
+---> 70         return fn(*args, **kwargs)
+     71     else:
+     72         timeout_length = timeout.total_seconds()
+
+<ipython-input-1-f0f986d2f159> in gotcha()
+      9         tup[1] += ['c']
+     10     except TypeError:
+---> 11         assert len(tup[1]) == 1
      12
-
+     13
 
 AssertionError:
 
