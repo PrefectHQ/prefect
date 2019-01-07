@@ -94,7 +94,7 @@ class SlowTask(Task):
 
 def test_flow_runner_has_logger():
     r = FlowRunner(Flow())
-    assert r.logger.name == "FlowRunner"
+    assert r.logger.name == "prefect.FlowRunner"
 
 
 def test_flow_runner_runs_basic_flow_with_1_task():
@@ -125,6 +125,7 @@ def test_flow_runner_with_invalid_return_tasks():
     with pytest.raises(ValueError):
         flow_runner.run(return_tasks=[1])
 
+
 def test_flow_runner_with_return_tasks_that_arent_evaluated():
     flow = Flow()
     t1, t2, t3 = Task(), Task(), Task()
@@ -135,7 +136,8 @@ def test_flow_runner_with_return_tasks_that_arent_evaluated():
     with raise_on_exception():
         state = flow_runner.run(start_tasks=[t3], return_tasks=[t1])
     assert state.result[t1].is_pending()
-    assert state.result[t1].message == 'Task not evaluated by FlowRunner.'
+    assert state.result[t1].message == "Task not evaluated by FlowRunner."
+
 
 def test_flow_runner_with_reference_tasks_that_arent_evaluated():
     flow = Flow()
@@ -148,7 +150,7 @@ def test_flow_runner_with_reference_tasks_that_arent_evaluated():
     with raise_on_exception():
         state = flow_runner.run(start_tasks=[t3], return_tasks=[t1])
     assert state.result[t1].is_pending()
-    assert state.result[t1].message == 'Task not evaluated by FlowRunner.'
+    assert state.result[t1].message == "Task not evaluated by FlowRunner."
 
 
 def test_flow_runner_with_terminal_tasks_that_arent_evaluated():
@@ -161,7 +163,7 @@ def test_flow_runner_with_terminal_tasks_that_arent_evaluated():
     with raise_on_exception():
         state = flow_runner.run(start_tasks=[t3], return_tasks=[t2])
     assert state.result[t2].is_pending()
-    assert state.result[t2].message == 'Task not evaluated by FlowRunner.'
+    assert state.result[t2].message == "Task not evaluated by FlowRunner."
 
 
 def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
@@ -458,6 +460,7 @@ class TestRunFlowStep:
             state=Running(),
             task_states={},
             start_tasks=[],
+            start_task_ids=[],
             return_tasks=set(),
             executor=LocalExecutor(),
         )
@@ -473,6 +476,7 @@ class TestRunFlowStep:
                 state=state,
                 task_states={},
                 start_tasks=[],
+                start_task_ids=[],
                 return_tasks=set(),
                 executor=Executor(),
             )
@@ -487,6 +491,7 @@ class TestRunFlowStep:
             state=Running(),
             task_states={},
             start_tasks=[],
+            start_task_ids=[],
             return_tasks=set(),
             executor=LocalExecutor(),
         )
@@ -495,6 +500,76 @@ class TestRunFlowStep:
 
 
 class TestStartTasks:
+    def test_start_tasks_are_respected(self):
+        f = Flow()
+        t1, t2, t3 = Task(), Task(), Task()
+        f.add_edge(t1, t2)
+        f.add_edge(t2, t3)
+        state = FlowRunner(flow=f).run(start_tasks=[t3], return_tasks=[t1, t2, t3])
+
+        assert "Task not evaluated" in state.result[t1].message
+        assert "Task not evaluated" in state.result[t2].message
+        assert "Task not evaluated" not in state.result[t3].message
+
+    def test_start_tasks_ids_are_respected(self):
+        f = Flow()
+        t1, t2, t3 = Task(), Task(), Task()
+        f.add_edge(t1, t2)
+        f.add_edge(t2, t3)
+        state = FlowRunner(flow=f).run(
+            start_task_ids=[t3.id], return_tasks=[t1, t2, t3]
+        )
+
+        assert "Task not evaluated" in state.result[t1].message
+        assert "Task not evaluated" in state.result[t2].message
+        assert "Task not evaluated" not in state.result[t3].message
+
+    def test_start_tasks_ids_can_be_combined_with_start_tasks(self):
+        f = Flow()
+        t1, t2, t3 = Task(), Task(), Task()
+        f.add_edge(t1, t2)
+        f.add_edge(t2, t3)
+        state = FlowRunner(flow=f).run(
+            start_tasks=[t2], start_task_ids=[t3.id], return_tasks=[t1, t2, t3]
+        )
+
+        assert "Task not evaluated" in state.result[t1].message
+        assert "Task not evaluated" not in state.result[t2].message
+        assert "Task not evaluated" not in state.result[t3].message
+
+    def test_start_tasks_ids_can_overlap_with_start_tasks(self):
+        f = Flow()
+        t1, t2, t3 = Task(), Task(), Task()
+        f.add_edge(t1, t2)
+        f.add_edge(t2, t3)
+        state = FlowRunner(flow=f).run(
+            start_tasks=[t2], start_task_ids=[t2.id], return_tasks=[t1, t2, t3]
+        )
+
+        assert "Task not evaluated" in state.result[t1].message
+        assert "Task not evaluated" not in state.result[t2].message
+        assert "Task not evaluated" not in state.result[t3].message
+
+    def test_invalid_start_task(self):
+        f = Flow()
+        t1 = Task()
+        f.add_task(t1)
+
+        state = FlowRunner(flow=f).run(start_tasks=["nope"])
+
+        assert state.is_failed()
+        assert "not found in Flow" in str(state.result)
+
+    def test_invalid_start_task_id(self):
+        f = Flow()
+        t1 = Task()
+        f.add_task(t1)
+
+        state = FlowRunner(flow=f).run(start_task_ids=["nope"])
+
+        assert state.is_failed()
+        assert "Invalid start_task_ids" in str(state.result)
+
     def test_start_tasks_ignores_triggers(self):
         f = Flow()
         t1, t2 = SuccessTask(), SuccessTask()
@@ -1103,22 +1178,31 @@ def test_flow_run_uses_default_flow_runner(monkeypatch):
 
     assert x.call_count == 1
 
+
 def test_parameters_can_be_set_in_context_if_none_passed():
-    x = prefect.Parameter('x')
+    x = prefect.Parameter("x")
     f = FlowRunner(Flow(tasks=[x]))
-    state = f.run(parameters={}, context={'parameters': {'x': 5}}, return_tasks=[x])
+    state = f.run(parameters={}, context={"parameters": {"x": 5}}, return_tasks=[x])
     assert state.result[x].result == 5
 
+
 def test_parameters_overwrite_context():
-    x = prefect.Parameter('x')
+    x = prefect.Parameter("x")
     f = FlowRunner(Flow(tasks=[x]))
-    state = f.run(parameters={'x':2}, context={'parameters': {'x': 5}}, return_tasks=[x])
+    state = f.run(
+        parameters={"x": 2}, context={"parameters": {"x": 5}}, return_tasks=[x]
+    )
     assert state.result[x].result == 2
 
+
 def test_parameters_overwrite_context_only_if_key_matches():
-    x = prefect.Parameter('x')
-    y = prefect.Parameter('y')
+    x = prefect.Parameter("x")
+    y = prefect.Parameter("y")
     f = FlowRunner(Flow(tasks=[x, y]))
-    state = f.run(parameters={'x':2}, context={'parameters': {'x': 5, 'y':6}}, return_tasks=[x, y])
+    state = f.run(
+        parameters={"x": 2},
+        context={"parameters": {"x": 5, "y": 6}},
+        return_tasks=[x, y],
+    )
     assert state.result[x].result == 2
     assert state.result[y].result == 6

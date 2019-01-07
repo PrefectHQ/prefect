@@ -124,6 +124,7 @@ class FlowRunner(Runner):
             for param, value in parameters.items():
                 context_params[param] = value
 
+        context.update(flow_name=self.flow.name)
         return super().initialize_run(state=state, context=context)
 
     def run(
@@ -131,6 +132,7 @@ class FlowRunner(Runner):
         state: State = None,
         task_states: Dict[Task, State] = None,
         start_tasks: Iterable[Task] = None,
+        start_task_ids: Iterable[str] = None,
         return_tasks: Iterable[Task] = None,
         return_failed: bool = False,
         parameters: Dict[str, Any] = None,
@@ -147,8 +149,10 @@ class FlowRunner(Runner):
             - task_states (dict, optional): dictionary of task states to begin
                 computation with, with keys being Tasks and values their corresponding state
             - start_tasks ([Task], optional): list of Tasks to begin computation
-                from; if any `start_tasks` have upstream dependencies, their states may need to be provided as well.
-                Defaults to `self.flow.root_tasks()`
+                from; if any `start_tasks` have upstream dependencies, their states may
+                need to be provided as well.
+            - start_task_ids ([str], optional): equivalent to `start_tasks`, but accepts
+                a list of task IDs. The two options may be used simultaneously.
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
             - return_failed (bool, optional): whether to return all tasks
@@ -167,54 +171,46 @@ class FlowRunner(Runner):
         """
 
         self.logger.info("Beginning Flow run for '{}'".format(self.flow.name))
+
         context = context or {}
         return_tasks = set(return_tasks or [])
+        parameters = parameters or {}
         if executor is None:
             executor = prefect.engine.get_default_executor_class()()
-        self.executor = executor
-        parameters = parameters or {}
-
-        context.update(flow_name=self.flow.name)
-
-        # if run fails to initialize, end the run
-        try:
-            state, context = self.initialize_run(state, context, parameters)
-        except ENDRUN as exc:
-            state = exc.state
-            return state
 
         if return_tasks.difference(self.flow.tasks):
             raise ValueError("Some tasks in return_tasks were not found in the flow.")
 
-        with prefect.context(context):
+        try:
+            state, context = self.initialize_run(state, context, parameters)
 
-            raise_on_exception = prefect.context.get("raise_on_exception", False)
+            with prefect.context(context):
 
-            try:
+                raise_on_exception = prefect.context.get("raise_on_exception", False)
+
                 state = self.check_flow_is_pending_or_running(state)
                 state = self.set_flow_to_running(state)
                 state = self.get_flow_run_state(
                     state,
                     task_states=task_states,
                     start_tasks=start_tasks,
+                    start_task_ids=start_task_ids,
                     return_tasks=return_tasks,
                     return_failed=return_failed,
                     executor=executor,
                 )
 
-            except ENDRUN as exc:
-                state = exc.state
+        except ENDRUN as exc:
+            state = exc.state
 
-            # All other exceptions are trapped and turned into Failed states
-            except Exception as exc:
-                self.logger.info("Unexpected error while running task.")
-                if raise_on_exception:
-                    raise exc
-                return Failed(
-                    message="Unexpected error while running task.", result=exc
-                )
+        # All other exceptions are trapped and turned into Failed states
+        except Exception as exc:
+            self.logger.info("Unexpected error while running flow.")
+            if raise_on_exception:
+                raise exc
+            return Failed(message="Unexpected error while running flow.", result=exc)
 
-            return state
+        return state
 
     @call_state_handlers
     def check_flow_is_pending_or_running(self, state: State) -> State:
@@ -273,6 +269,7 @@ class FlowRunner(Runner):
         state: State,
         task_states: Dict[Task, State],
         start_tasks: Iterable[Task],
+        start_task_ids: Iterable[str],
         return_tasks: Set[Task],
         executor: "prefect.engine.executors.base.Executor",
         return_failed: bool = False,
@@ -288,6 +285,8 @@ class FlowRunner(Runner):
             - start_tasks ([Task], optional): list of Tasks to begin computation
                 from; if any `start_tasks` have upstream dependencies, their states may need to be provided as well.
                 Defaults to `self.flow.root_tasks()`
+            - start_task_ids ([str], optional): equivalent to `start_tasks`, but accepts
+                a list of task IDs. The two options may be used simultaneously.
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
             - executor (Executor, optional): executor to use when performing
@@ -307,8 +306,11 @@ class FlowRunner(Runner):
 
         # make a copy to avoid modifying the user-supplied task_states dict
         task_states = dict(task_states or {})
-        start_tasks = start_tasks or []
         return_tasks = set(return_tasks or [])
+        start_tasks = list(start_tasks or [])
+        if any(i not in self.flow.task_ids for i in start_task_ids or []):
+            raise ValueError("Invalid start_task_ids.")
+        start_tasks.extend(self.flow.task_ids[i] for i in start_task_ids or [])
 
         # -- process each task in order
 
