@@ -25,8 +25,8 @@ def cloud_settings():
         {
             "cloud.api": "http://my-cloud.foo",
             "cloud.auth_token": "token",
-            "engine.flow_runner": "prefect.engine.cloud.CloudFlowRunner",
-            "engine.task_runner": "prefect.engine.cloud.CloudTaskRunner",
+            "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
+            "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
         }
     ):
         yield

@@ -8,21 +8,21 @@ def test_default_executor():
 
 def test_default_executor_responds_to_config():
     with utilities.configuration.set_temporary_config(
-        {"engine.executor": "prefect.engine.executors.LocalExecutor"}
+        {"engine.executor.default_class": "prefect.engine.executors.LocalExecutor"}
     ):
         assert engine.get_default_executor_class() is engine.executors.LocalExecutor
 
 
 def test_default_executor_responds_to_config_object():
     with utilities.configuration.set_temporary_config(
-        {"engine.executor": engine.executors.LocalExecutor}
+        {"engine.executor.default_class": engine.executors.LocalExecutor}
     ):
         assert engine.get_default_executor_class() is engine.executors.LocalExecutor
 
 
 def test_default_executor_with_bad_config():
     with utilities.configuration.set_temporary_config(
-        {"engine.executor": "prefect.engine.bad import path"}
+        {"engine.executor.default_class": "prefect.engine.bad import path"}
     ):
         with pytest.warns(UserWarning):
             assert (
@@ -37,21 +37,21 @@ def test_default_flow_runner():
 
 def test_default_flow_runner_responds_to_config():
     with utilities.configuration.set_temporary_config(
-        {"engine.flow_runner": "prefect.engine.cloud.CloudFlowRunner"}
+        {"engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner"}
     ):
         assert engine.get_default_flow_runner_class() is engine.cloud.CloudFlowRunner
 
 
 def test_default_flow_runner_responds_to_config_object():
     with utilities.configuration.set_temporary_config(
-        {"engine.flow_runner": engine.cloud.CloudFlowRunner}
+        {"engine.flow_runner.default_class": engine.cloud.CloudFlowRunner}
     ):
         assert engine.get_default_flow_runner_class() is engine.cloud.CloudFlowRunner
 
 
 def test_default_flow_runner_with_bad_config():
     with utilities.configuration.set_temporary_config(
-        {"engine.flow_runner": "prefect.engine. bad import path"}
+        {"engine.flow_runner.default_class": "prefect.engine. bad import path"}
     ):
         with pytest.warns(UserWarning):
             assert (
@@ -65,21 +65,21 @@ def test_default_task_runner():
 
 def test_default_task_runner_responds_to_config():
     with utilities.configuration.set_temporary_config(
-        {"engine.task_runner": "prefect.engine.cloud.CloudTaskRunner"}
+        {"engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner"}
     ):
         assert engine.get_default_task_runner_class() is engine.cloud.CloudTaskRunner
 
 
 def test_default_task_runner_responds_to_config_object():
     with utilities.configuration.set_temporary_config(
-        {"engine.task_runner": engine.cloud.CloudTaskRunner}
+        {"engine.task_runner.default_class": engine.cloud.CloudTaskRunner}
     ):
         assert engine.get_default_task_runner_class() is engine.cloud.CloudTaskRunner
 
 
 def test_default_task_runner_with_bad_config():
     with utilities.configuration.set_temporary_config(
-        {"engine.task_runner": "prefect.engine. bad import path"}
+        {"engine.task_runner.default_class": "prefect.engine. bad import path"}
     ):
         with pytest.warns(UserWarning):
             assert (
