@@ -171,13 +171,9 @@ class FlowRunner(Runner):
         self.logger.info("Beginning Flow run for '{}'".format(self.flow.name))
 
         context = context or {}
-        return_tasks = set(return_tasks or [])
         parameters = parameters or {}
         if executor is None:
             executor = prefect.engine.get_default_executor_class()()
-
-        if return_tasks.difference(self.flow.tasks):
-            raise ValueError("Some tasks in return_tasks were not found in the flow.")
 
         try:
             state, context = self.initialize_run(state, context, parameters)
@@ -299,13 +295,18 @@ class FlowRunner(Runner):
             self.logger.info("Flow is not in a Running state.")
             raise ENDRUN(state)
 
-        # make a copy to avoid modifying the user-supplied task_states dict
+        # make copies to avoid modifying the user-supplied values
         task_states = dict(task_states or {})
-        return_tasks = set(return_tasks or [])
         start_tasks = list(start_tasks or [])
         if any(i not in self.flow.task_ids for i in start_task_ids or []):
             raise ValueError("Invalid start_task_ids.")
         start_tasks.extend(self.flow.task_ids[i] for i in start_task_ids or [])
+
+        # don't make a copy to allow dynamic modification
+        if return_tasks is None:
+            return_tasks = set()
+        if set(return_tasks).difference(self.flow.tasks):
+            raise ValueError("Some tasks in return_tasks were not found in the flow.")
 
         # -- process each task in order
 
