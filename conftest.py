@@ -5,7 +5,7 @@ from cryptography.fernet import Fernet
 
 import prefect
 from prefect.engine.executors import LocalExecutor, SynchronousExecutor
-from prefect.utilities import tests
+from prefect.utilities import debug
 
 if sys.version_info >= (3, 5):
     from prefect.engine.executors import DaskExecutor

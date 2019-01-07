@@ -79,9 +79,6 @@ class BokehRunner(prefect.engine.flow_runner.FlowRunner):
 
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - task_runner_state_handlers (Iterable[Callable], optional): A list of state change
-            handlers that will be provided to the task_runner, and called whenever a task changes
-            state.
 
     Example:
         ```python
