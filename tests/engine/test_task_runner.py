@@ -218,8 +218,7 @@ def test_task_that_raises_skip_gets_skipped():
 def test_task_that_has_upstream_skip_gets_skipped_with_informative_message():
     task_runner = TaskRunner(task=SuccessTask())
     edge = Edge(RaiseSkipTask(), SuccessTask(skip_on_upstream_skip=True))
-    with raise_on_exception():
-        state = task_runner.run(upstream_states={edge: Skipped()})
+    state = task_runner.run(upstream_states={edge: Skipped()})
     assert isinstance(state, Skipped)
     assert "skip_on_upstream_skip" in state.message
 
@@ -288,12 +287,12 @@ def test_task_runner_prioritizes_inputs():
 
 
 def test_task_runner_can_handle_timeouts_by_default():
-    sleeper = SlowTask(timeout=timedelta(seconds=1))
-    state = TaskRunner(sleeper).run(inputs=dict(secs=2))
+    sleeper = SlowTask(timeout=timedelta(seconds=0.1))
+    state = TaskRunner(sleeper).run(inputs=dict(secs=0.2))
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
-    assert state.cached_inputs == dict(secs=2)
+    assert state.cached_inputs == dict(secs=0.2)
 
 
 def test_task_runner_handles_secrets():
@@ -541,10 +540,11 @@ class TestCheckTaskTrigger:
     def test_manual_only(self):
         task = Task(trigger=prefect.triggers.manual_only)
         state = Pending()
-        with pytest.raises(signals.PAUSE) as exc:
+        with pytest.raises(ENDRUN) as exc:
             TaskRunner(task).check_task_trigger(
                 state=state, upstream_states={1: Success(), 2: Pending()}
             )
+        assert isinstance(exc.value.state, Paused)
 
     def test_manual_only_empty(self):
         task = Task(trigger=prefect.triggers.manual_only)
@@ -692,10 +692,10 @@ class TestRunTaskStep:
             raise signals.PAUSE()
 
         state = Running()
-        with pytest.raises(signals.PAUSE):
-            TaskRunner(task=fn).get_task_run_state(
+        new_state = TaskRunner(task=fn).get_task_run_state(
                 state=state, inputs={}, timeout_handler=None
             )
+        assert isinstance(new_state, Paused)
 
     def test_run_with_error(self):
         @prefect.task
@@ -867,14 +867,14 @@ class TestCheckScheduledStep:
 
 class TestTaskStateHandlers:
     def test_task_handlers_are_called(self):
-        task_handler = MagicMock()
+        task_handler = MagicMock(side_effect=lambda t, o, n: n)
         task = Task(state_handlers=[task_handler])
         TaskRunner(task=task).run()
         # the task changed state twice: Pending -> Running -> Success
         assert task_handler.call_count == 2
 
     def test_task_handlers_are_called_on_retry(self):
-        task_handler = MagicMock()
+        task_handler = MagicMock(side_effect=lambda t, o, n: n)
 
         @prefect.task(
             state_handlers=[task_handler], max_retries=1, retry_delay=timedelta(0)
@@ -887,7 +887,7 @@ class TestTaskStateHandlers:
         assert task_handler.call_count == 3
 
     def test_task_handlers_are_called_on_failure(self):
-        task_handler = MagicMock()
+        task_handler = MagicMock(side_effect=lambda t, o, n: n)
 
         @prefect.task(state_handlers=[task_handler])
         def fn():
@@ -898,7 +898,7 @@ class TestTaskStateHandlers:
         assert task_handler.call_count == 2
 
     def test_multiple_task_handlers_are_called(self):
-        task_handler = MagicMock()
+        task_handler = MagicMock(side_effect=lambda t, o, n: n)
         task = Task(state_handlers=[task_handler, task_handler])
         TaskRunner(task=task).run()
         # each task changed state twice: Pending -> Running -> Success
@@ -926,24 +926,25 @@ class TestTaskStateHandlers:
 
 class TestTaskRunnerStateHandlers:
     def test_task_runner_handlers_are_called(self):
-        task_runner_handler = MagicMock()
+        task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
         TaskRunner(task=Task(), state_handlers=[task_runner_handler]).run()
         # the task changed state two times: Pending -> Running -> Success
         assert task_runner_handler.call_count == 2
 
     def test_task_runner_handlers_are_called_on_retry(self):
-        task_runner_handler = MagicMock()
+        task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
 
         @prefect.task(max_retries=1, retry_delay=timedelta(0))
         def fn():
             1 / 0
 
-        TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
+        state = TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
         # the task changed state three times: Pending -> Running -> Failed -> Retry
+        assert isinstance(state, Retrying)
         assert task_runner_handler.call_count == 3
 
     def test_multiple_task_runner_handlers_are_called(self):
-        task_runner_handler = MagicMock()
+        task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
         TaskRunner(
             task=Task(), state_handlers=[task_runner_handler, task_runner_handler]
         ).run()
