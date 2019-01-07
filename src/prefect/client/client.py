@@ -122,12 +122,15 @@ class Client:
         else:
             return {}
 
-    def graphql(self, query: str, **variables: Union[bool, dict, str]) -> GraphQLResult:
+    def graphql(
+        self, query: Any, **variables: Union[bool, dict, str, int]
+    ) -> GraphQLResult:
         """
         Convenience function for running queries against the Prefect GraphQL API
 
         Args:
-            - query (str): A string representation of a graphql query to be executed
+            - query (Any): A representation of a graphql query to be executed. It will be
+                parsed by prefect.utilities.graphql.parse_graphql().
             - **variables (kwarg): Variables to be filled into a query with the key being
                 equivalent to the variables that are accepted by the query
 
@@ -139,7 +142,7 @@ class Client:
         """
         result = self.post(
             path="",
-            query=query,
+            query=parse_graphql(query),
             variables=json.dumps(variables),
             server=self.graphql_server,
         )
@@ -315,7 +318,7 @@ class Client:
             }
         }
         res = self.graphql(
-            parse_graphql(create_mutation),
+            create_mutation,
             input=dict(projectId=project_id, serializedFlow=flow.serialize(build=True)),
         )  # type: Any
 
@@ -324,7 +327,7 @@ class Client:
 
         if set_schedule_active:
             scheduled_res = self.graphql(
-                parse_graphql(schedule_mutation),
+                schedule_mutation,
                 input=dict(flowId=res.createFlow.id, setActive=True),  # type: ignore
             )  # type: Any
             if scheduled_res.setFlowScheduleState.error:
@@ -364,7 +367,7 @@ class Client:
             inputs.update(
                 scheduledStartTime=scheduled_start_time.isoformat()
             )  # type: ignore
-        res = self.graphql(parse_graphql(create_mutation), input=inputs)
+        res = self.graphql(create_mutation, input=inputs)
         return res.createFlowRun.flow_run  # type: ignore
 
     def get_flow_run_info(
@@ -394,7 +397,7 @@ class Client:
                 }
             }
         }
-        result = self.graphql(parse_graphql(query)).flow_run_by_pk  # type: ignore
+        result = self.graphql(query).flow_run_by_pk  # type: ignore
         if result is None:
             raise ClientError('Flow run ID not found: "{}"'.format(flow_run_id))
         serialized_state = result.serialized_state
@@ -419,7 +422,7 @@ class Client:
                 ): {"error"}
             }
         }
-        self.graphql(parse_graphql(mutation))
+        self.graphql(mutation)
 
     def update_task_run_heartbeat(self, task_run_id: str) -> None:
         """
@@ -438,7 +441,7 @@ class Client:
                 ): {"error"}
             }
         }
-        self.graphql(parse_graphql(mutation))
+        self.graphql(mutation)
 
     def set_flow_run_state(
         self,
@@ -478,7 +481,7 @@ class Client:
         serialized_state = state.serialize(result_handler=result_handler)
 
         result = self.graphql(
-            parse_graphql(mutation), state=serialized_state
+            mutation, state=serialized_state
         )  # type: Any
         if result.setFlowRunState.error:
             raise ClientError(result.setFlowRunState.error)
@@ -522,7 +525,7 @@ class Client:
                 ): {"task_run": {"id", "version", "serialized_state"}, "error": True}
             }
         }
-        result = self.graphql(parse_graphql(mutation))  # type: Any
+        result = self.graphql(mutation)  # type: Any
 
         if result.getOrCreateTaskRun.error:
             raise ClientError(result.getOrCreateTaskRun.error)
@@ -576,7 +579,7 @@ class Client:
         serialized_state = state.serialize(result_handler=result_handler)
 
         result = self.graphql(
-            parse_graphql(mutation), state=serialized_state
+            mutation, state=serialized_state
         )  # type: Any
         if result.setTaskRunState.error:
             raise ClientError(result.setTaskRunState.error)
@@ -599,7 +602,7 @@ class Client:
             }
         }
 
-        result = self.graphql(parse_graphql(mutation))  # type: Any
+        result = self.graphql(mutation)  # type: Any
 
         if result.setSecret.error:
             raise ClientError(result.setSecret.error)
