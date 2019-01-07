@@ -117,7 +117,13 @@ class FlowRunner(Runner):
         Returns:
             - tuple: a tuple of the updated state and context objects
         """
-        context.update(parameters=parameters)
+
+        # overwrite context parameters one-by-one
+        if parameters:
+            context_params = context.setdefault("parameters", {})
+            for param, value in parameters.items():
+                context_params[param] = value
+
         return super().initialize_run(state=state, context=context)
 
     def run(
