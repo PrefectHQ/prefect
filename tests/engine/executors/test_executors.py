@@ -292,13 +292,13 @@ class TestDaskExecutor:
 
     @pytest.mark.parametrize("processes", [True, False])
     def test_is_pickleable(self, processes):
-        e = DaskExecutor(processes=processes)
+        e = DaskExecutor(local_processes=processes)
         post = cloudpickle.loads(cloudpickle.dumps(e))
         assert isinstance(post, DaskExecutor)
 
     @pytest.mark.parametrize("processes", [True, False])
     def test_is_pickleable_after_start(self, processes):
-        e = DaskExecutor(processes=processes)
+        e = DaskExecutor(local_processes=processes)
         with e.start():
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, DaskExecutor)
@@ -308,7 +308,7 @@ class TestDaskExecutor:
         def map_fn(*args, **kwargs):
             raise ValueError("map_fn was called")
 
-        e = DaskExecutor(processes=processes)
+        e = DaskExecutor(local_processes=processes)
         with e.start():
             res = e.wait(e.map(map_fn, x=1, upstream_states={}, key="foo"))
         assert res == []
@@ -323,7 +323,7 @@ class TestDaskExecutor:
 
         # only need to test processes=False because the passing is the same;
         # can't easily unit test processes=True because of the monkeypatch
-        e = DaskExecutor(processes=False)
+        e = DaskExecutor(local_processes=False)
         with e.start():
             # cant pass `key="foo"` because `key` is swallowed by client.submit
             res = e.wait(e.map(map_fn, x=1, upstream_states={}, _key="foo"))

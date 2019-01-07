@@ -142,8 +142,8 @@ def test_client_doesnt_login_if_no_tokens_available(monkeypatch, cloud):
     if cloud:
         config.update(
             {
-                "engine.flow_runner": "prefect.engine.cloud.CloudFlowRunner",
-                "engine.task_runner": "prefect.engine.cloud.CloudTaskRunner",
+                "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
+                "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
             }
         )
     with set_temporary_config(config):
