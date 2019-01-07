@@ -110,7 +110,11 @@ class SuccessSchema(FinishedSchema):
 @version("0.3.3")
 class MappedSchema(SuccessSchema):
     class Meta:
+        exclude = ["result", "map_states"]
         object_class = state.Mapped
+
+    # though this field is excluded from serialization, it must be present in the schema
+    map_states = fields.Nested("StateSchema", many=True)
 
 
 @version("0.3.3")

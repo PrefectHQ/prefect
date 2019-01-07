@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterable, Iterator
+from typing import Any, Callable, Dict, List, Iterator
 
 import prefect
 from prefect.utilities.executors import multiprocessing_timeout
@@ -27,24 +27,17 @@ class Executor:
         """
         yield
 
-    def map(
-        self, fn: Callable, *args: Any, upstream_states: dict, **kwargs: Any
-    ) -> Any:
+    def map(self, fn: Callable, *args: Any) -> List[Any]:
         """
-        Submit a function to be mapped over.
+        Submit a function to be mapped over its iterable arguments.
 
         Args:
-            - fn (Callable): function which is being submitted for execution
-            - *args (Any): arguments to be passed to `fn` with each call
-            - upstream_states ({Edge: State}): a dictionary of upstream
-                dependencies, keyed by Edge; the values are upstream states (or lists of states).
-                This dictionary is used to determine which upstream depdencies should be mapped over,
-                and under what keys (if any).
-            - **kwargs (Any): keyword arguments to be passed to `fn` with each
-                call
+            - fn (Callable): function that is being submitted for execution
+            - *args (Any): arguments that the function will be mapped over
 
         Returns:
-            - [Futures]: an iterable of future-like objects
+            - List[Any]: the result of computating the function over the arguments
+
         """
         raise NotImplementedError()
 
@@ -53,7 +46,7 @@ class Executor:
         Submit a function to the executor for execution. Returns a future-like object.
 
         Args:
-            - fn (Callable): function which is being submitted for execution
+            - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
@@ -62,16 +55,16 @@ class Executor:
         """
         raise NotImplementedError()
 
-    def wait(self, futures: Iterable, timeout: datetime.timedelta = None) -> Iterable:
+    def wait(self, futures: Any, timeout: datetime.timedelta = None) -> Any:
         """
         Resolves futures to their values. Blocks until the future is complete.
 
         Args:
-            - futures (Iterable): iterable of futures to compute
+            - futures (Any): iterable of futures to compute
             - timeout (datetime.timedelta): maximum length of time to allow for execution
 
         Returns:
-            - Iterable: an iterable of resolved futures
+            - Any: an iterable of resolved futures
         """
         raise NotImplementedError()
 

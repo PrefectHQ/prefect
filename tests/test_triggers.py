@@ -1,11 +1,12 @@
 import pytest
 
+from prefect.core.edge import Edge
 from prefect import triggers
 from prefect.engine import signals
 from prefect.engine.state import Failed, Pending, Retrying, Skipped, State, Success
 
 
-def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0):
+def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0) -> dict:
     state_counts = {
         Success: success,
         Failed: failed,
@@ -16,7 +17,7 @@ def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0):
 
     states = set()
     for state, count in state_counts.items():
-        for i in range(count):
+        for _ in range(count):
             states.add(state())
     return states
 

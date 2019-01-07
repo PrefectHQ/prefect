@@ -97,18 +97,16 @@ class CloudTaskRunner(TaskRunner):
         self,
         state: Optional[State],
         context: Dict[str, Any],
-        upstream_states: Dict[Edge, Union[State, List[State]]],
+        upstream_states: Dict[Edge, State],
         inputs: Dict[str, Any],
-    ) -> Tuple[
-        State, Dict[str, Any], Dict[Edge, Union[State, List[State]]], Dict[str, Any]
-    ]:
+    ) -> Tuple[State, Dict[str, Any], Dict[Edge, State], Dict[str, Any]]:
         """
         Initializes the Task run by initializing state and context appropriately.
 
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
             - context (Dict[str, Any]): the context to be updated with relevant information
-            - upstream_states (Dict[Edge, Union[State, List[State]]]): a dictionary
+            - upstream_states (Dict[Edge, State]): a dictionary
                 representing the states of tasks upstream of this one
             - inputs (Dict[str, Any]): a dictionary of inputs to the task that should override
                 the inputs taken from upstream states

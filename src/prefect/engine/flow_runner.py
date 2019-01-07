@@ -304,10 +304,6 @@ class FlowRunner(Runner):
         start_tasks = start_tasks or []
         return_tasks = set(return_tasks or [])
 
-        # this set keeps track of any tasks that are mapped over - meaning they are the
-        # downstream task of at least one mapped edge
-        mapped_tasks = set()
-
         # -- process each task in order
 
         with executor.start():
@@ -322,8 +318,6 @@ class FlowRunner(Runner):
                     upstream_states[edge] = task_states.get(
                         edge.upstream_task, Pending(message="Task state not available.")
                     )
-                    if edge.mapped:
-                        mapped_tasks.add(task)
 
                 # if a task is provided as a start_task and its state is also
                 # provided, we assume that means it requires cached_inputs
@@ -341,14 +335,6 @@ class FlowRunner(Runner):
                     task=task, result_handler=self.flow.result_handler
                 )
 
-                if task not in mapped_tasks:
-                    upstream_mapped = {
-                        e: executor.wait(f)  # type: ignore
-                        for e, f in upstream_states.items()
-                        if e.upstream_task in mapped_tasks
-                    }
-                    upstream_states.update(upstream_mapped)
-
                 task_states[task] = executor.submit(
                     task_runner.run,
                     state=task_states.get(task),
@@ -357,7 +343,6 @@ class FlowRunner(Runner):
                     # if the task is a "start task", don't check its upstream dependencies
                     check_upstream=(task not in start_tasks),
                     context=dict(prefect.context, task_id=task.id),
-                    mapped=task in mapped_tasks,
                     executor=executor,
                 )
 
@@ -372,34 +357,50 @@ class FlowRunner(Runner):
             reference_tasks = self.flow.reference_tasks()
 
             if return_failed:
-                final_states = executor.wait(dict(task_states))  # type: ignore
-                assert isinstance(final_states, dict)
-                failed_tasks = [
-                    t
-                    for t, state in final_states.items()
-                    if (isinstance(state, (Failed, Retrying)))
-                    or (
-                        isinstance(state, list)
-                        and any([isinstance(s, (Failed, Retrying)) for s in state])
-                    )
-                ]
+                final_states = executor.wait(task_states)
+                all_final_states = final_states.copy()
+                failed_tasks = []
+                for t, s in final_states.items():
+                    if isinstance(s, (Failed, Retrying)):
+                        failed_tasks.append(t)
+                    elif s.is_mapped():
+                        s.map_states = executor.wait(s.map_states)
+                        s.result = [ms.result for ms in s.map_states]
+                        all_final_states[t] = s.map_states
+                        if any(
+                            [isinstance(r, (Failed, Retrying)) for r in s.map_states]
+                        ):
+                            failed_tasks.append(t)
+
                 return_tasks.update(failed_tasks)
             else:
-                final_states = executor.wait(  # type: ignore
-                    {
-                        t: task_states[t]
-                        for t in terminal_tasks.union(reference_tasks).union(
-                            return_tasks
-                        )
-                    }
-                )
+                # wait until all terminal tasks are finished
+                final_tasks = terminal_tasks.union(reference_tasks).union(return_tasks)
+                final_states = executor.wait({t: task_states[t] for t in final_tasks})
+
+                # also wait for any children of Mapped tasks to finish, and add them
+                # to the dictionary to determine flow state
+                all_final_states = final_states.copy()
+                for t, s in list(final_states.items()):
+                    if s.is_mapped():
+                        s.map_states = executor.wait(s.map_states)
+                        s.result = [ms.result for ms in s.map_states]
+                        all_final_states[t] = s.map_states
+
                 assert isinstance(final_states, dict)
 
-        terminal_states = set(flatten_seq([final_states[t] for t in terminal_tasks]))
-        key_states = set(flatten_seq([final_states[t] for t in reference_tasks]))
+        key_states = set(flatten_seq([all_final_states[t] for t in reference_tasks]))
         return_states = {t: final_states[t] for t in return_tasks}
+        terminal_states = set(
+            flatten_seq([all_final_states[t] for t in terminal_tasks])
+        )
 
-        state = self.determine_final_state(key_states, return_states, terminal_states)
+        state = self.determine_final_state(
+            key_states=key_states,
+            return_states=return_states,
+            terminal_states=terminal_states,
+        )
+
         return state
 
     def determine_final_state(
