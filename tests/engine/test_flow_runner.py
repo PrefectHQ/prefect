@@ -94,11 +94,11 @@ class SlowTask(Task):
 
 def test_flow_runner_has_logger():
     r = FlowRunner(Flow())
-    assert r.logger.name == "prefect.FlowRunner"
+    assert r.logger.name == "FlowRunner"
 
 
 def test_flow_runner_runs_basic_flow_with_1_task():
-    flow = prefect.Flow()
+    flow = Flow()
     task = SuccessTask()
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
@@ -110,7 +110,7 @@ def test_flow_runner_with_no_return_tasks():
     """
     Make sure FlowRunner accepts return_tasks=None and doesn't raise early error
     """
-    flow = prefect.Flow()
+    flow = Flow()
     task = SuccessTask()
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
@@ -118,16 +118,54 @@ def test_flow_runner_with_no_return_tasks():
 
 
 def test_flow_runner_with_invalid_return_tasks():
-    flow = prefect.Flow()
+    flow = Flow()
     task = SuccessTask()
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
     with pytest.raises(ValueError):
         flow_runner.run(return_tasks=[1])
 
+def test_flow_runner_with_return_tasks_that_arent_evaluated():
+    flow = Flow()
+    t1, t2, t3 = Task(), Task(), Task()
+    flow.add_edge(t1, t2)
+    flow.add_edge(t1, t3)
+
+    flow_runner = FlowRunner(flow=flow)
+    with raise_on_exception():
+        state = flow_runner.run(start_tasks=[t3], return_tasks=[t1])
+    assert state.result[t1].is_pending()
+    assert state.result[t1].message == 'Task not evaluated by FlowRunner.'
+
+def test_flow_runner_with_reference_tasks_that_arent_evaluated():
+    flow = Flow()
+    t1, t2, t3 = Task(), Task(), Task()
+    flow.add_edge(t1, t2)
+    flow.add_edge(t1, t3)
+    flow.set_reference_tasks([t1])
+
+    flow_runner = FlowRunner(flow=flow)
+    with raise_on_exception():
+        state = flow_runner.run(start_tasks=[t3], return_tasks=[t1])
+    assert state.result[t1].is_pending()
+    assert state.result[t1].message == 'Task not evaluated by FlowRunner.'
+
+
+def test_flow_runner_with_terminal_tasks_that_arent_evaluated():
+    flow = Flow()
+    t1, t2, t3 = Task(), Task(), Task()
+    flow.add_edge(t1, t2)
+    flow.add_edge(t1, t3)
+
+    flow_runner = FlowRunner(flow=flow)
+    with raise_on_exception():
+        state = flow_runner.run(start_tasks=[t3], return_tasks=[t2])
+    assert state.result[t2].is_pending()
+    assert state.result[t2].message == 'Task not evaluated by FlowRunner.'
+
 
 def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = SuccessTask()
     task2 = SuccessTask()
 
@@ -141,7 +179,7 @@ def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks():
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = SuccessTask()
     task2 = SuccessTask()
 
@@ -154,7 +192,7 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks():
 
 
 def test_flow_runner_runs_base_task_class():
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = Task()
     task2 = Task()
     flow.add_edge(task1, task2)
@@ -165,7 +203,7 @@ def test_flow_runner_runs_base_task_class():
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails():
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = ErrorTask()
     task2 = SuccessTask()
 
@@ -178,7 +216,7 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails
 
 
 def test_flow_runner_runs_flow_with_2_dependent_tasks_and_first_task_fails_and_second_has_trigger():
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = ErrorTask()
     task2 = SuccessTask(trigger=prefect.triggers.all_failed)
 
@@ -193,7 +231,7 @@ def test_flow_runner_runs_flow_with_2_dependent_tasks_and_first_task_fails_and_s
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails_with_FAIL():
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = RaiseFailTask()
     task2 = SuccessTask()
 
@@ -207,7 +245,7 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fails():
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = SuccessTask()
     task2 = ErrorTask()
 
@@ -220,7 +258,7 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fail
 
 
 def test_flow_runner_does_not_return_task_states_when_it_doesnt_run():
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = SuccessTask()
     task2 = ErrorTask()
 
@@ -235,7 +273,7 @@ def test_flow_runner_does_not_return_task_states_when_it_doesnt_run():
 
 def test_flow_run_method_returns_task_states_even_if_it_doesnt_run():
     # https://github.com/PrefectHQ/prefect/issues/19
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = SuccessTask()
     task2 = ErrorTask()
 
@@ -249,7 +287,7 @@ def test_flow_run_method_returns_task_states_even_if_it_doesnt_run():
 
 def test_flow_runner_remains_running_if_tasks_are_retrying():
     # https://github.com/PrefectHQ/prefect/issues/19
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = SuccessTask()
     task2 = ErrorTask(max_retries=1, retry_delay=datetime.timedelta(0))
 
@@ -262,7 +300,7 @@ def test_flow_runner_remains_running_if_tasks_are_retrying():
 
 
 def test_flow_runner_doesnt_return_by_default():
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = SuccessTask()
     task2 = SuccessTask()
     flow.add_edge(task1, task2)
@@ -271,7 +309,7 @@ def test_flow_runner_doesnt_return_by_default():
 
 
 def test_flow_runner_does_return_tasks_when_requested():
-    flow = prefect.Flow()
+    flow = Flow()
     task1 = SuccessTask()
     task2 = SuccessTask()
     flow.add_edge(task1, task2)
@@ -281,7 +319,7 @@ def test_flow_runner_does_return_tasks_when_requested():
 
 
 def test_required_parameters_must_be_provided():
-    flow = prefect.Flow()
+    flow = Flow()
     y = prefect.Parameter("y")
     flow.add_task(y)
     flow_state = FlowRunner(flow=flow).run(return_tasks=[y])
@@ -291,7 +329,7 @@ def test_required_parameters_must_be_provided():
 
 
 def test_parameters_are_placed_into_context():
-    flow = prefect.Flow()
+    flow = Flow()
     y = prefect.Parameter("y", default=99)
     flow.add_task(y)
     flow_state = FlowRunner(flow=flow).run(return_tasks=[y], parameters=dict(y=42))
@@ -300,7 +338,7 @@ def test_parameters_are_placed_into_context():
 
 
 def test_parameters_are_placed_into_context_and_override_current_context():
-    flow = prefect.Flow()
+    flow = Flow()
     y = prefect.Parameter("y", default=99)
     flow.add_task(y)
     with prefect.context(parameters=dict(y=88, z=55)):
@@ -310,7 +348,7 @@ def test_parameters_are_placed_into_context_and_override_current_context():
 
 
 def test_flow_run_state_determined_by_reference_tasks():
-    flow = prefect.Flow()
+    flow = Flow()
     t1 = ErrorTask()
     t2 = SuccessTask(trigger=prefect.triggers.all_finished)
     flow.add_edge(t1, t2)
@@ -323,7 +361,7 @@ def test_flow_run_state_determined_by_reference_tasks():
 
 
 def test_flow_run_state_not_determined_by_reference_tasks_if_terminal_tasks_are_not_finished():
-    flow = prefect.Flow()
+    flow = Flow()
     t1 = ErrorTask()
     t2 = RaiseRetryTask(trigger=prefect.triggers.all_finished)
     flow.add_edge(t1, t2)
@@ -346,7 +384,7 @@ def test_flow_with_multiple_retry_tasks_doesnt_run_them_early():
 
     This tests a check on the TaskRunner, but which matters in Flows like this.
     """
-    flow = prefect.Flow()
+    flow = Flow()
     t1 = Task()
     t2 = ErrorTask(retry_delay=datetime.timedelta(minutes=10), max_retries=1)
     t3 = ErrorTask(retry_delay=datetime.timedelta(minutes=0), max_retries=1)
@@ -369,8 +407,8 @@ def test_flow_runner_makes_copy_of_task_results_dict():
     """
     Ensure the flow runner copies the task_results dict rather than modifying it inplace
     """
-    flow = prefect.Flow()
-    t1, t2 = prefect.Task(), prefect.Task()
+    flow = Flow()
+    t1, t2 = Task(), Task()
     flow.add_edge(t1, t2)
 
     task_states = {t1: Pending()}
@@ -382,13 +420,13 @@ def test_flow_runner_makes_copy_of_task_results_dict():
 class TestCheckFlowPendingOrRunning:
     @pytest.mark.parametrize("state", [Pending(), Running(), Retrying(), Scheduled()])
     def test_pending_or_running_are_ok(self, state):
-        flow = prefect.Flow(tasks=[prefect.Task()])
+        flow = Flow(tasks=[Task()])
         new_state = FlowRunner(flow=flow).check_flow_is_pending_or_running(state=state)
         assert new_state is state
 
     @pytest.mark.parametrize("state", [Finished(), Success(), Failed(), Skipped()])
     def test_not_pending_or_running_raise_endrun(self, state):
-        flow = prefect.Flow(tasks=[prefect.Task()])
+        flow = Flow(tasks=[Task()])
         with pytest.raises(ENDRUN):
             FlowRunner(flow=flow).check_flow_is_pending_or_running(state=state)
 
@@ -396,26 +434,26 @@ class TestCheckFlowPendingOrRunning:
 class TestSetFlowToRunning:
     @pytest.mark.parametrize("state", [Pending(), Retrying()])
     def test_pending_becomes_running(self, state):
-        flow = prefect.Flow(tasks=[prefect.Task()])
+        flow = Flow(tasks=[Task()])
         new_state = FlowRunner(flow=flow).set_flow_to_running(state=state)
         assert new_state.is_running()
 
     def test_running_stays_running(self):
         state = Running()
-        flow = prefect.Flow(tasks=[prefect.Task()])
+        flow = Flow(tasks=[Task()])
         new_state = FlowRunner(flow=flow).set_flow_to_running(state=state)
         assert new_state.is_running()
 
     @pytest.mark.parametrize("state", [Finished(), Success(), Failed(), Skipped()])
     def test_other_states_raise_endrun(self, state):
-        flow = prefect.Flow(tasks=[prefect.Task()])
+        flow = Flow(tasks=[Task()])
         with pytest.raises(ENDRUN):
             FlowRunner(flow=flow).set_flow_to_running(state=state)
 
 
 class TestRunFlowStep:
     def test_running_state_finishes(self):
-        flow = prefect.Flow(tasks=[prefect.Task()])
+        flow = Flow(tasks=[Task()])
         new_state = FlowRunner(flow=flow).get_flow_run_state(
             state=Running(),
             task_states={},
@@ -429,7 +467,7 @@ class TestRunFlowStep:
         "state", [Pending(), Retrying(), Finished(), Success(), Failed(), Skipped()]
     )
     def test_other_states_raise_endrun(self, state):
-        flow = prefect.Flow(tasks=[prefect.Task()])
+        flow = Flow(tasks=[Task()])
         with pytest.raises(ENDRUN):
             FlowRunner(flow=flow).get_flow_run_state(
                 state=state,
@@ -444,7 +482,7 @@ class TestRunFlowStep:
             def determine_final_state(self, *args, **kwargs):
                 return Failed("Very specific error message")
 
-        flow = prefect.Flow(tasks=[prefect.Task()])
+        flow = Flow(tasks=[Task()])
         new_state = MyFlowRunner(flow=flow).get_flow_run_state(
             state=Running(),
             task_states={},
@@ -1061,26 +1099,26 @@ def test_flow_run_uses_default_flow_runner(monkeypatch):
     with prefect.utilities.configuration.set_temporary_config(
         {"engine.flow_runner.default_class": "prefect.engine.x"}
     ):
-        prefect.Flow().run()
+        Flow().run()
 
     assert x.call_count == 1
 
 def test_parameters_can_be_set_in_context_if_none_passed():
     x = prefect.Parameter('x')
-    f = FlowRunner(prefect.Flow(tasks=[x]))
+    f = FlowRunner(Flow(tasks=[x]))
     state = f.run(parameters={}, context={'parameters': {'x': 5}}, return_tasks=[x])
     assert state.result[x].result == 5
 
 def test_parameters_overwrite_context():
     x = prefect.Parameter('x')
-    f = FlowRunner(prefect.Flow(tasks=[x]))
+    f = FlowRunner(Flow(tasks=[x]))
     state = f.run(parameters={'x':2}, context={'parameters': {'x': 5}}, return_tasks=[x])
     assert state.result[x].result == 2
 
 def test_parameters_overwrite_context_only_if_key_matches():
     x = prefect.Parameter('x')
     y = prefect.Parameter('y')
-    f = FlowRunner(prefect.Flow(tasks=[x, y]))
+    f = FlowRunner(Flow(tasks=[x, y]))
     state = f.run(parameters={'x':2}, context={'parameters': {'x': 5, 'y':6}}, return_tasks=[x, y])
     assert state.result[x].result == 2
     assert state.result[y].result == 6
