@@ -434,13 +434,13 @@ class Mapped(Success):
     Note that this does _not_ imply the individual mapped tasks were successful, just that they
     have been submitted.
 
-    You can not set the `result` of a Mapped state; it is determined by the reuslts of its
+    You can not set the `result` of a Mapped state; it is determined by the results of its
     children states.
 
     Args:
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - result (Any, optional): Defaults to `[]`. A data payload for the state.
         - cached (CachedState): a `CachedState` which can be used for future
             runs of this task (if the cache is still valid); this attribute should only be set
             by the task runner.

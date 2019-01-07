@@ -132,8 +132,8 @@ def test_serialize_mapped():
     assert serialized["type"] == "Mapped"
     assert serialized["message"] is "message"
     assert "result" not in serialized
+    assert "map_states" not in serialized
     assert serialized["__version__"] == prefect.__version__
-    assert serialized["map_states"] == [s.serialize(), f.serialize()]
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
@@ -151,7 +151,8 @@ def test_deserialize_mapped():
     serialized = StateSchema().dump(state.Mapped(message="message", map_states=[s, f]))
     deserialized = StateSchema().load(serialized)
     assert isinstance(deserialized, state.Mapped)
-    assert deserialized.map_states == [s, f]
+    assert deserialized.map_states == []
+    assert deserialized.result == None
 
 
 @pytest.mark.parametrize("cls", all_states)
