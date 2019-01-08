@@ -466,6 +466,10 @@ class Mapped(Success):
         super().__init__(message=message, result=result, cached=cached)
         self.map_states = map_states or []  # type: List[State]
 
+    @property
+    def n_map_states(self) -> int:
+        return len(self.map_states)
+
 
 class Failed(Finished):
     """
