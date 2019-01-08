@@ -13,6 +13,7 @@ from prefect.client.result_handlers import CloudResultHandler
 from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
+from prefect.client.result_handlers import LocalResultHandler
 from prefect.engine.signals import PrefectError
 from prefect.engine.state import Success, Failed, Skipped, TriggerFailed
 from prefect.tasks.core.function import FunctionTask
@@ -69,7 +70,7 @@ class TestCreateFlow:
 
     def test_create_flow_without_result_handler(self):
         flow = Flow()
-        assert flow.result_handler is None
+        assert isinstance(flow.result_handler, LocalResultHandler)
 
     @pytest.mark.parametrize("handlers", [[lambda *a: 1], [lambda *a: 1, lambda *a: 2]])
     def test_create_flow_with_state_handler(self, handlers):
