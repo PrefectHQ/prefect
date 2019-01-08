@@ -38,8 +38,6 @@ def run_with_heartbeat(
                 pass
             timer.start()
             return runner_method(self, *args, **kwargs)
-        except Exception as exc:
-            raise exc
         finally:
             timer.cancel()
 
