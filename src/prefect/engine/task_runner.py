@@ -196,7 +196,6 @@ class TaskRunner(Runner):
         self.logger.info("Starting task run for task '{name}'".format(name=task_name))
 
         try:
-
             # initialize the run
             state, context, upstream_states, inputs = self.initialize_run(
                 state, context, upstream_states, inputs
@@ -296,8 +295,11 @@ class TaskRunner(Runner):
                 raise exc
 
         except Exception as exc:
-            state = Failed(message="Unexpected error while running Task", result=exc)
-            if prefect.context.get("raise_on_exception"):
+            msg = "Unexpected error while running task: {}".format(str(exc))
+            self.logger.info(msg)
+            state = Failed(message=msg, result=exc)
+            raise_on_exception = prefect.context.get("raise_on_exception", False)
+            if raise_on_exception:
                 raise exc
 
         self.logger.info(
@@ -436,7 +438,9 @@ class TaskRunner(Runner):
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
             self.logger.info(
-                "Unexpected error while running task '{}'.".format(self.task.name)
+                "Unexpected error while evaluating task trigger '{}'.".format(
+                    self.task.name
+                )
             )
             if prefect.context.get("raise_on_exception"):
                 raise exc
