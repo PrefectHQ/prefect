@@ -208,7 +208,10 @@ class FlowRunner(Runner):
             self.logger.info("Unexpected error while running flow.")
             if raise_on_exception:
                 raise exc
-            return Failed(message="Unexpected error while running flow.", result=exc)
+            return Failed(
+                message="Unexpected error while running flow: {}".format(str(exc)),
+                result=exc,
+            )
 
         return state
 
