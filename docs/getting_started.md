@@ -153,4 +153,4 @@ Prefect has other mechanisms for storing state; do not use task classes to do so
 
 ## What's Next?
 
-Check out the [Prefect tutorials](/tutorials/) for more examples, or the [core concepts](/concepts.html) for a more detailed look at specific features.
+Check out the [Prefect tutorials](/tutorials/) for more examples, or the [core concepts](/concepts/) for a more detailed look at specific features.
