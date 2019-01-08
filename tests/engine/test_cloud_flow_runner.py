@@ -32,28 +32,41 @@ def cloud_settings():
         yield
 
 
+@pytest.fixture()
+def client(monkeypatch):
+    cloud_client = MagicMock(
+        get_flow_run_info=MagicMock(return_value=MagicMock(state=None)),
+        set_flow_run_state=MagicMock(),
+        get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
+        set_task_run_state=MagicMock(),
+        get_latest_task_run_states=MagicMock(
+            side_effect=lambda flow_run_id, states, result_handler: states
+        ),
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=cloud_client)
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=cloud_client)
+    )
+    yield cloud_client
+
+
 def test_task_runner_cls_is_cloud_task_runner():
     fr = CloudFlowRunner(flow=None)
     assert fr.task_runner_cls is CloudTaskRunner
 
 
-def test_flow_runner_calls_client_the_approriate_number_of_times(monkeypatch):
+def test_flow_runner_calls_client_the_approriate_number_of_times(client):
     flow = prefect.Flow(name="test")
-    get_flow_run_info = MagicMock(return_value=MagicMock(state=None))
-    set_flow_run_state = MagicMock()
-    client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
-    )
+
     res = CloudFlowRunner(flow=flow).run()
 
     ## assertions
-    assert get_flow_run_info.call_count == 1  # one time to pull latest state
-    assert set_flow_run_state.call_count == 2  # Pending -> Running -> Success
+    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert client.set_flow_run_state.call_count == 2  # Pending -> Running -> Success
 
-    states = [call[1]["state"] for call in set_flow_run_state.call_args_list]
+    states = [call[1]["state"] for call in client.set_flow_run_state.call_args_list]
     assert states == [Running(), Success(result=dict())]
 
 
@@ -158,7 +171,7 @@ def test_flow_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
     assert states == [Running(), Success(result=dict())]
 
 
-def test_client_is_always_called_even_during_failures(monkeypatch):
+def test_client_is_always_called_even_during_failures(client):
     @prefect.task
     def raise_me(x, y):
         raise SyntaxError("Aggressively weird error")
@@ -168,36 +181,25 @@ def test_client_is_always_called_even_during_failures(monkeypatch):
 
     assert len(flow.tasks) == 3
 
-    ## flow run setup
-    get_flow_run_info = MagicMock(return_value=MagicMock(state=None))
-    set_flow_run_state = MagicMock()
-    get_task_run_info = MagicMock(return_value=MagicMock(state=None))
-    set_task_run_state = MagicMock()
-    cloud_client = MagicMock(
-        get_flow_run_info=get_flow_run_info,
-        set_flow_run_state=set_flow_run_state,
-        get_task_run_info=get_task_run_info,
-        set_task_run_state=set_task_run_state,
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=cloud_client)
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=cloud_client)
-    )
     res = flow.run(state=Pending())
 
     ## assertions
-    assert get_flow_run_info.call_count == 1  # one time to pull latest state
-    assert set_flow_run_state.call_count == 2  # Pending -> Running -> Failed
+    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert client.set_flow_run_state.call_count == 2  # Pending -> Running -> Failed
 
-    flow_states = [call[1]["state"] for call in set_flow_run_state.call_args_list]
+    flow_states = [
+        call[1]["state"] for call in client.set_flow_run_state.call_args_list
+    ]
     assert flow_states == [Running(), Failed(result=dict())]
 
-    assert get_task_run_info.call_count == 3  # three time to pull latest states
-    assert set_task_run_state.call_count == 6  # (Pending -> Running -> Finished) * 3
+    assert client.get_task_run_info.call_count == 3  # three time to pull latest states
+    assert (
+        client.set_task_run_state.call_count == 6
+    )  # (Pending -> Running -> Finished) * 3
 
-    task_states = [call[1]["state"] for call in set_task_run_state.call_args_list]
+    task_states = [
+        call[1]["state"] for call in client.set_task_run_state.call_args_list
+    ]
     assert len([s for s in task_states if s.is_running()]) == 3
     assert len([s for s in task_states if s.is_successful()]) == 2
     assert len([s for s in task_states if s.is_failed()]) == 1

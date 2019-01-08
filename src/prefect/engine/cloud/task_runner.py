@@ -9,7 +9,7 @@ from prefect.client.result_handlers import ResultHandler
 from prefect.core import Edge, Task
 from prefect.utilities.graphql import with_args
 from prefect.engine.runner import ENDRUN
-from prefect.engine.state import Failed, State
+from prefect.engine.state import Failed, State, Mapped
 from prefect.engine.task_runner import TaskRunner
 
 
@@ -94,7 +94,7 @@ class CloudTaskRunner(TaskRunner):
 
         # assign task run id and version to make state lookups simpler in the future
         new_state._task_run_id = task_run_id
-        new_state._version = version
+        new_state._version = version + 1
 
         return new_state
 
@@ -187,55 +187,60 @@ class CloudTaskRunner(TaskRunner):
         Returns:
             - Dict[Edge, State]: a dictionary of current upstream states
         """
-        task_run_to_edge_map = {}
-        states_with_ids = {}
-        new_upstream_states = upstream_states.copy()
 
+        updated_states = self.client.get_latest_task_run_states(
+            flow_run_id=context.get("flow_run_id", ""),
+            states={e.upstream_task: s for e, s in upstream_states.items()},
+            result_handler=self.result_handler,
+        )
+
+        new_upstream_states = {}
         for edge, state in upstream_states.items():
-            if getattr(state, "_task_run_id", None):
-                task_run_to_edge_map[state._task_run_id] = edge
-                states_with_ids[edge] = {
-                    "_and": {
-                        "id": {"_eq": state._task_run_id},
-                        "version": {"_neq": getattr(state, "_version", None)},
-                    }
-                }
-
-            else:
-                task_run_info = self.client.get_task_run_info(
+            new_state = updated_states.get(edge.upstream_task, state)
+            if edge.mapped and new_state.is_mapped():
+                new_state = self.client.get_task_run_info(  # type: ignore
                     flow_run_id=context.get("flow_run_id", ""),
                     task_id=edge.upstream_task.id,
-                    map_index=None,
+                    map_index=context.get("map_index"),
                     result_handler=self.result_handler,
-                )
-                if edge.mapped and task_run_info.state.is_mapped():  # type: ignore
-                    task_run_info = self.client.get_task_run_info(
-                        flow_run_id=context.get("flow_run_id", ""),
-                        task_id=edge.upstream_task.id,
-                        map_index=context.get("map_index"),
-                        result_handler=self.result_handler,
-                    )
-                new_upstream_states[edge] = task_run_info.state  # type: ignore
-
-        if states_with_ids:
-            updated_states = self.client.graphql(
-                {
-                    "query": {
-                        with_args(
-                            "task_run",
-                            {"where": {"_or": list(states_with_ids.values())}},
-                        ): {"id", "version", "serialized_state"}
-                    }
-                }
-            )
-
-            for task_run in updated_states.task_run:  # type: ignore
-                state = prefect.engine.state.State.deserialize(
-                    task_run.serialized_state, result_handler=self.result_handler
-                )
-                state._task_run_id = task_run.id
-                state._version = task_run.version
-                edge = task_run_to_edge_map[task_run.id]
-                new_upstream_states[edge] = state
-
+                ).state
+            new_upstream_states[edge] = new_state
         return new_upstream_states
+
+    def wait_for_mapped_upstream(
+        self,
+        upstream_states: Dict[Edge, State],
+        executor: "prefect.engine.executors.Executor",
+    ) -> Dict[Edge, State]:
+        """
+        Loads the results of any mapped upstream tasks
+
+        Args:
+            - upstream_states (Dict[Edge, State]): the upstream states
+            - executor (Executor): the executor
+
+        Returns:
+            - Dict[Edge, State]: the upstream states
+        """
+        # first, block until any futures finish
+        upstream_states = super().wait_for_mapped_upstream(
+            upstream_states=upstream_states, executor=executor
+        )
+
+        # then
+
+        for edge, upstream_state in upstream_states.items():
+
+            if not upstream_state.is_mapped():
+                continue
+
+            assert isinstance(upstream_state, Mapped)  # mypy assert
+
+            upstream_state.map_states = self.client.get_mapped_children_states(
+                flow_run_id=prefect.context.get("flow_run_id", ""),
+                task_id=edge.upstream_task.id,
+                result_handler=self.result_handler,
+            )
+            upstream_state.result = [s.result for s in upstream_state.map_states]
+
+        return upstream_states

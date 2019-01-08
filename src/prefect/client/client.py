@@ -4,7 +4,7 @@ import datetime
 import json
 import logging
 import os
-from typing import Any, TYPE_CHECKING, Optional, Union
+from typing import Any, TYPE_CHECKING, Optional, Union, Dict, List
 
 import prefect
 from prefect.utilities.exceptions import ClientError, AuthorizationError
@@ -20,8 +20,6 @@ if TYPE_CHECKING:
     import requests
     from prefect.core import Flow
     from prefect.client.result_handlers import ResultHandler
-
-
 BuiltIn = Union[bool, dict, list, str, set, tuple]
 
 
@@ -484,6 +482,7 @@ class Client:
         serialized_state = state.serialize(result_handler=result_handler)
 
         result = self.graphql(mutation, state=serialized_state)  # type: Any
+
         if result.setFlowRunState.error:
             raise ClientError(result.setFlowRunState.error)
 
@@ -491,7 +490,7 @@ class Client:
         self,
         flow_run_id: str,
         task_id: str,
-        map_index: Optional[int],
+        map_index: Optional[int] = None,
         result_handler: "ResultHandler" = None,
     ) -> GraphQLResult:
         """
@@ -540,6 +539,126 @@ class Client:
         state._version = result.version
         result.state = state
         return result
+
+    def get_latest_task_run_states(
+        self,
+        flow_run_id: str,
+        states: Dict["prefect.core.Task", "prefect.engine.state.State"],
+        result_handler: "ResultHandler" = None,
+    ) -> Dict["prefect.core.Task", "prefect.engine.state.State"]:
+        """
+        Given a flow_run_id and a dictionary of {Task: State} pairs, this function
+        retrieves the most current states from Prefect Cloud and returns a new {Task:
+        State} dict.
+
+        Any Mapped states
+
+        The lookups are done as efficiently as possible. If the States have
+        `_task_run_id` and `_version` attributes (which will be True if they were
+        already retrieved by this Client), then a single query is made to retrieve all
+        states with matching IDs but different versions. Only states with new
+        information will be returned by that query.
+
+        If no `_task_run_id` is available, then the task run is looked up in a less efficient
+        loop.
+
+        Args:
+            - flow_run_id (str): the flow run id
+            - states (Dict[Task, State]): a dictionary of {Task: State} pairs indicating the
+                current state knowledge
+            - result_handler (ResultHandler): a result handler to deserialize newly queried
+                state results.
+        """
+
+        new_states = {}
+        task_run_id_to_task_map = {}
+
+        where_clause = []
+        for task, state in states.items():
+            # if we have a _task_run_id available, we can build up a single query
+            # for any updated states
+            if state._task_run_id is not None and state._version is not None:
+                task_run_id_to_task_map[state._task_run_id] = task
+                where_clause.append(
+                    {
+                        "_and": {
+                            "id": {"_eq": state._task_run_id},
+                            "version": {"_neq": getattr(state, "_version", None)},
+                        }
+                    }
+                )
+            else:
+                # if we don't have a _task_run_id attribute, look up the information explicitly
+                task_run_info = self.get_task_run_info(
+                    flow_run_id=flow_run_id,
+                    task_id=task.id,
+                    result_handler=result_handler,
+                )
+                new_states[task] = task_run_info.state
+
+        if where_clause:
+            # build efficient query for any updated states and retrieve them
+            updated_states = self.graphql(
+                {
+                    "query": {
+                        with_args("task_run", {"where": {"_or": where_clause}}): {
+                            "id",
+                            "version",
+                            "serialized_state",
+                        }
+                    }
+                }
+            )
+            for task_run in updated_states.task_run:  # type: ignore
+                state = prefect.engine.state.State.deserialize(
+                    task_run.serialized_state, result_handler=result_handler
+                )
+                state._task_run_id = task_run.id
+                state._version = task_run.version
+                task = task_run_id_to_task_map[task_run.id]
+                new_states[task] = state
+
+        return new_states
+
+    def get_mapped_children_states(
+        self, flow_run_id: str, task_id: str, result_handler: "ResultHandler" = None
+    ) -> List["prefect.engine.state.State"]:
+        """
+        Retrieves an array of mapped children states for a given flowrun / task combination.
+
+        Args:
+            - flow_run_id (str): the flow run id
+            - task_id (str): the task id
+            - result_handler (ResultHandler): a result handler for deserializing results
+
+        Returns:
+            - List[State]: a list of mapped children states
+        """
+        query = {
+            "query": {
+                with_args(
+                    "task_run",
+                    {
+                        "where": {
+                            "flow_run_id": {"_eq": flow_run_id},
+                            "task_id": {"_eq": task_id},
+                            "map_index": {"_neq": -1},
+                        },
+                        "order_by": {EnumValue("map_index"): EnumValue("asc")},
+                    },
+                ): {"id", "version", "map_index", "serialized_state"}
+            }
+        }
+        result = self.graphql(query)
+        states = []
+        for task_run in result.task_run:  # type: ignore
+            state = prefect.engine.state.State.deserialize(
+                task_run.serialized_state, result_handler=result_handler
+            )
+            state._task_run_id = task_run.id
+            state._version = task_run.version
+            states.append(state)
+        return states
 
     def set_task_run_state(
         self,
