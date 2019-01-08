@@ -227,20 +227,17 @@ class CloudTaskRunner(TaskRunner):
             upstream_states=upstream_states, executor=executor
         )
 
-        # then
-
+        # then load any required children map_states -- we need them if we are NOT mapping
+        # (meaning we are reducing) and if the upstream is mapped
         for edge, upstream_state in upstream_states.items():
 
-            if not upstream_state.is_mapped():
-                continue
-
-            assert isinstance(upstream_state, Mapped)  # mypy assert
-
-            upstream_state.map_states = self.client.get_mapped_children_states(
-                flow_run_id=prefect.context.get("flow_run_id", ""),
-                task_id=edge.upstream_task.id,
-                result_handler=self.result_handler,
-            )
-            upstream_state.result = [s.result for s in upstream_state.map_states]
+            if not edge.mapped and upstream_state.is_mapped():
+                assert isinstance(upstream_state, Mapped)  # mypy assert
+                upstream_state.map_states = self.client.get_mapped_children_states(
+                    flow_run_id=prefect.context.get("flow_run_id", ""),
+                    task_id=edge.upstream_task.id,
+                    result_handler=self.result_handler,
+                )
+                upstream_state.result = [s.result for s in upstream_state.map_states]
 
         return upstream_states
