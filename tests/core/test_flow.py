@@ -69,7 +69,7 @@ class TestCreateFlow:
 
     def test_create_flow_without_result_handler(self):
         flow = Flow()
-        assert isinstance(flow.result_handler, CloudResultHandler)
+        assert flow.result_handler is None
 
     @pytest.mark.parametrize("handlers", [[lambda *a: 1], [lambda *a: 1, lambda *a: 2]])
     def test_create_flow_with_state_handler(self, handlers):
