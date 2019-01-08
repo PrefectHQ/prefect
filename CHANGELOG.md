@@ -1,6 +1,26 @@
 # Prefect Changelog
 
-## Development <Badge text="alpha" type="warn"/>
+## Development <Badge text="beta" type="success"/>
+
+### Major Features
+
+- None
+
+### Minor Features
+
+- None
+
+### Fixes
+
+- None
+
+### Breaking Changes
+
+- None
+
+## Version 0.4.0 <Badge text="beta" type="success"/>
+
+Released January 8, 2019
 
 ### Major Features
 
@@ -82,6 +102,8 @@
 
 ## 0.3.3 <Badge text="alpha" type="warn"/>
 
+Released October 30, 2018
+
 ### Major Features
 
 - Refactor `FlowRunner` and `TaskRunner` into a modular `Runner` pipelines - [#260](https://github.com/PrefectHQ/prefect/pull/260), [#267](https://github.com/PrefectHQ/prefect/pull/267)
@@ -113,6 +135,8 @@
 - Swapped the position of `result` and `message` attributes in State initializations, and started storing caught exceptions as results - [#283](https://github.com/PrefectHQ/prefect/issues/283)
 
 ## 0.3.2 <Badge text="alpha" type="warn"/>
+
+Released October 2, 2018
 
 ### Major Features
 
@@ -151,6 +175,8 @@
 
 ## 0.3.1 <Badge text="alpha" type="warn"/>
 
+Released September 6, 2018
+
 ### Major Features
 
 - Support for user configuration files - [#195](https://github.com/PrefectHQ/prefect/pull/195)
@@ -161,13 +187,15 @@
 
 ### Fixes
 
-- Let DotDicts accept non-string keys - [#194](https://github.com/PrefectHQ/prefect/pull/194)
+- Let DotDicts accept non-string keys - [#193](https://github.com/PrefectHQ/prefect/pull/193), [#194](https://github.com/PrefectHQ/prefect/pull/194)
 
 ### Breaking Changes
 
 - None
 
 ## 0.3.0 <Badge text="alpha" type="warn"/>
+
+Released August 20, 2018
 
 ### Major Features
 
