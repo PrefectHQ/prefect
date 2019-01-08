@@ -43,6 +43,11 @@ class State:
 
     color = "#000000"
 
+    # private attributes
+    _flow_run_id = None  # type: str
+    _task_run_id = None  # type: str
+    _version = None  # type: int
+
     def __init__(self, message: str = None, result: Any = None):
         self.message = message
         self.result = result
@@ -460,6 +465,10 @@ class Mapped(Success):
     ):
         super().__init__(message=message, result=result, cached=cached)
         self.map_states = map_states or []  # type: List[State]
+
+    @property
+    def n_map_states(self) -> int:
+        return len(self.map_states)
 
 
 class Failed(Finished):

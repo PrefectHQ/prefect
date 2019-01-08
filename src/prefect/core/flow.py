@@ -26,7 +26,7 @@ from mypy_extensions import TypedDict
 
 import prefect
 import prefect.schedules
-from prefect.client.result_handlers import CloudResultHandler, ResultHandler
+from prefect.client.result_handlers import LocalResultHandler, ResultHandler
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.environments import Environment
@@ -120,7 +120,7 @@ class Flow:
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
         - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution; defaults to `CloudResultHandler`
+            retrieving and storing state results during execution
 
     """
 
@@ -146,9 +146,7 @@ class Flow:
         self.name = name or type(self).__name__
         self.schedule = schedule
         self.environment = environment or prefect.environments.LocalEnvironment()
-        self.result_handler = (
-            result_handler if result_handler is not None else CloudResultHandler()
-        )
+        self.result_handler = result_handler or LocalResultHandler()
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]

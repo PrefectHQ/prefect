@@ -115,6 +115,15 @@ class MappedSchema(SuccessSchema):
 
     # though this field is excluded from serialization, it must be present in the schema
     map_states = fields.Nested("StateSchema", many=True)
+    n_map_states = fields.Integer()
+
+    @post_load
+    def create_object(self, data):
+        n_map_states = data.pop("n_map_states", 0)
+        data["map_states"] = [
+            state.Pending("Generated map state") for _ in range(n_map_states)
+        ]
+        return super().create_object(data)
 
 
 @version("0.3.3")

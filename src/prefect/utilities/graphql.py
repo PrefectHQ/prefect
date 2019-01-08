@@ -2,6 +2,7 @@ import json
 import re
 import uuid
 import textwrap
+from collections.abc import KeysView, ValuesView
 from typing import Any, Union
 from prefect.utilities.collections import DotDict, as_nested_dict
 
@@ -152,7 +153,7 @@ def _parse_graphql_inner(document: Any, delimiter: str) -> str:
     """
     Inner loop function of for `parse_graphql`.
     """
-    if isinstance(document, (tuple, list, set)):
+    if isinstance(document, (tuple, list, set, KeysView, ValuesView)):
         return "\n".join(
             [_parse_graphql_inner(item, delimiter=delimiter) for item in document]
         )
@@ -213,7 +214,7 @@ def _parse_arguments_inner(arguments: Any) -> str:
                 "{key}: {value}".format(key=key, value=_parse_arguments_inner(value))
             )
         return "{ " + ", ".join(formatted) + " }"
-    elif isinstance(arguments, (list, tuple, set)):
+    elif isinstance(arguments, (list, tuple, set, KeysView, ValuesView)):
         return "[" + ", ".join([_parse_arguments_inner(a) for a in arguments]) + "]"
     elif isinstance(arguments, str):
         return json.dumps(arguments)
