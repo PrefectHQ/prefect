@@ -165,9 +165,9 @@ title = "Tasks"
 module = "prefect.utilities.tasks"
 functions = ["tags", "as_task", "pause_task", "task", "unmapped"]
 
-[pages.utilities.tests]
+[pages.utilities.debug]
 title = "Tests"
-module = "prefect.utilities.tests"
+module = "prefect.utilities.debug"
 functions = ["is_serializable", "raise_on_exception"]
 
 [pages.utilities.airflow]

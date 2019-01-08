@@ -3,12 +3,12 @@
 ## Serialization
 
 ### Task Results and Inputs
-Most of the underlying communication patterns within Prefect require that objects can be _serialized_ into some format (typically, JSON or binary).  For example, when a task returns a data payload, the result will be serialized using `cloudpickle` to communicate with other `dask` workers.  Thus you should try to ensure that all results and objects that you create and submit to Prefect can be serialized appropriately.  Oftentimes, (de)serialization errors can be incredibly cryptic.  
+Most of the underlying communication patterns within Prefect require that objects can be _serialized_ into some format (typically, JSON or binary).  For example, when a task returns a data payload, the result will be serialized using `cloudpickle` to communicate with other `dask` workers.  Thus you should try to ensure that all results and objects that you create and submit to Prefect can be serialized appropriately.  Oftentimes, (de)serialization errors can be incredibly cryptic.
 
 ### Entire Flows
 Moreover, when creating and submitting new flows for deployment, you should check to ensure your flow can be properly serialized and deserialized.  To help you with this, Prefect has a builtin `is_serializable` utility function for giving you some confidence that your Flow can be handled:
 ```python
-from prefect.utilities.tests import is_serializable
+from prefect.utilities.debug import is_serializable
 
 
 is_serializable(my_flow) # returns True / False

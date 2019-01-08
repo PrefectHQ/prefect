@@ -6,7 +6,7 @@ import tempfile
 from prefect import Flow
 from prefect.engine import signals
 from prefect.tasks.templates import StringFormatterTask, JinjaTemplateTask
-from prefect.utilities.tests import raise_on_exception
+from prefect.utilities.debug import raise_on_exception
 
 
 def test_string_formatter_simply_formats():

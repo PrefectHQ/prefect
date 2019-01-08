@@ -5,7 +5,7 @@ from contextlib import closing
 
 from prefect import Flow
 from prefect.tasks.database import SQLiteQueryTask, SQLiteScriptTask
-from prefect.utilities.tests import raise_on_exception
+from prefect.utilities.debug import raise_on_exception
 
 
 sql_script = """
