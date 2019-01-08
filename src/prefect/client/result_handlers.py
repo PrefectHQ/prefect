@@ -23,7 +23,7 @@ class ResultHandler:
 
 class CloudResultHandler(ResultHandler):
     """
-    Hook for storing and retrieving task results from Prefect cloud storage; the default result handler for Flows running on Cloud.
+    Hook for storing and retrieving task results from Prefect cloud storage.
     """
 
     def __init__(self) -> None:
