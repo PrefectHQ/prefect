@@ -38,7 +38,7 @@ To see this functionality at work, let's begin with a contrived DAG meant to hig
 - `join`: a final dummy operator which is downstream of the `push_xcom` tasks; will run as long as at least one of those is successful
 :::
 
-The following code is _pure Airflow_ which you should save in a `.py` file in your DAG folder and run before continuing.  
+The following code is _pure Airflow_ which you should save in a `.py` file in your DAG folder and run before continuing.
 
 <div class=comp-code>
 
@@ -89,8 +89,8 @@ def push_xcom(value, **kwargs):
 for option in options:
     t = DummyOperator(task_id=option, dag=dag)
     t.set_upstream(branching)
-    xcom_follow = PythonOperator(task_id='push_xcom_for_' + option, 
-                                 dag=dag, 
+    xcom_follow = PythonOperator(task_id='push_xcom_for_' + option,
+                                 dag=dag,
                                  python_callable=lambda value=option, **kwargs: push_xcom(value, **kwargs),
                                  provide_context=True)
     t.set_downstream(xcom_follow)
@@ -129,7 +129,7 @@ from prefect import task, triggers
 @task(trigger=triggers.always_run, skip_on_upstream_skip=False) # discuss triggers and default skip cascading
 def print_value(x):
     print(x)
-    
+
 
 xcom_a = flow.get_tasks(name='push_xcom_for_branch_a')[0]
 xcom_b = flow.get_tasks(name='push_xcom_for_branch_b')[0]
@@ -137,10 +137,10 @@ xcom_b = flow.get_tasks(name='push_xcom_for_branch_b')[0]
 
 with flow:
     # the value of the xcom that each push_xcom task created will be passed in as a function argument
-    print_value(xcom_a) 
+    print_value(xcom_a)
     print_value(xcom_b)
-    
-    
+
+
 flow.visualize()
 ```
 
@@ -150,12 +150,12 @@ flow.visualize()
 In Airflow, time is intimately tied with DAG and task execution; that is not always the case in Prefect.  In order to execute a Prefect `AirFlow` (apologies for the pun) you will also need to provide an `execution_date` to the `run()` method - this is only necessary for flows which have been converted from Airflow.
 
 When we execute this, we expect to see two print statements:
-1. a print of the branch name which was run by the `branching` operator 
+1. a print of the branch name which was run by the `branching` operator
 2. a print of `None` corresponding to the `print_value` task on the skipped branch
 
 
 ```python
-from prefect.utilities.tests import raise_on_exception
+from prefect.utilities.debug import raise_on_exception
 
 flow_state = flow.run(execution_date='2018-09-20', return_tasks=flow.tasks)
 #    branch_b

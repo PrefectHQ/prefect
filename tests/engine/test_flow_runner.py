@@ -31,7 +31,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.triggers import manual_only, any_failed
-from prefect.utilities.tests import raise_on_exception
+from prefect.utilities.debug import raise_on_exception
 from unittest.mock import MagicMock
 
 
@@ -122,8 +122,8 @@ def test_flow_runner_with_invalid_return_tasks():
     task = SuccessTask()
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
-    with pytest.raises(ValueError):
-        flow_runner.run(return_tasks=[1])
+    state = flow_runner.run(return_tasks=[1])
+    assert state.is_failed()
 
 
 def test_flow_runner_with_return_tasks_that_arent_evaluated():
@@ -502,6 +502,7 @@ class TestRunFlowStep:
             start_tasks=[],
             start_task_ids=[],
             return_tasks=set(),
+            task_runner_state_handlers=[],
             executor=LocalExecutor(),
         )
         assert new_state.is_successful()
@@ -518,6 +519,7 @@ class TestRunFlowStep:
                 start_tasks=[],
                 start_task_ids=[],
                 return_tasks=set(),
+                task_runner_state_handlers=[],
                 executor=Executor(),
             )
 
@@ -533,6 +535,7 @@ class TestRunFlowStep:
             start_tasks=[],
             start_task_ids=[],
             return_tasks=set(),
+            task_runner_state_handlers=[],
             executor=LocalExecutor(),
         )
         assert new_state.is_failed()
@@ -768,64 +771,6 @@ class TestOutputCaching:
         )
         assert isinstance(flow_state, Success)
         assert flow_state.result[y].result == 100
-
-
-class TestReturnFailed:
-    def test_return_failed_works_when_all_fail(self):
-        with Flow() as f:
-            s = SuccessTask()
-            e = ErrorTask()
-            s.set_upstream(e)
-        state = FlowRunner(flow=f).run(return_failed=True)
-        assert state.is_failed()
-        assert e in state.result
-        assert s in state.result
-
-    def test_return_failed_works_when_non_terminal_fails(self):
-        with Flow() as f:
-            s = SuccessTask(trigger=any_failed)
-            e = ErrorTask()
-            s.set_upstream(e)
-        state = FlowRunner(flow=f).run(return_failed=True)
-        assert state.is_successful()
-        assert e in state.result
-        assert s not in state.result
-
-    def test_return_failed_works_with_mapping(self):
-        @prefect.task
-        def div(x):
-            return 1 / x
-
-        @prefect.task
-        def gimme(x):
-            return x
-
-        with Flow() as f:
-            res = gimme.map(div.map(x=[1, 0, 42]))
-
-        state = FlowRunner(flow=f).run(return_failed=True)
-        assert state.is_failed()
-        assert len(state.result) == 2
-        assert all([len(v.result) == 3 for v in state.result.values()])
-
-    def test_return_failed_doesnt_duplicate(self):
-        with Flow() as f:
-            s = SuccessTask()
-            e = ErrorTask()
-            s.set_upstream(e)
-        state = FlowRunner(flow=f).run(return_tasks=f.tasks, return_failed=True)
-        assert state.is_failed()
-        assert len(state.result) == 2
-
-    def test_return_failed_includes_retries(self):
-        with Flow() as f:
-            s = SuccessTask()
-            e = ErrorTask(max_retries=1, retry_delay=datetime.timedelta(0))
-            s.set_upstream(e)
-        state = FlowRunner(flow=f).run(return_failed=True)
-        assert state.is_running()
-        assert e in state.result
-        assert isinstance(state.result[e], Retrying)
 
 
 class TestRunCount:
@@ -1085,7 +1030,7 @@ class TestFlowStateHandlers:
         # previous result
         flow = Flow(state_handlers=[lambda *a: None, flow_handler])
         with pytest.raises(AssertionError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 FlowRunner(flow=flow).run()
 
     def test_task_handler_that_doesnt_return_state(self):
@@ -1093,7 +1038,7 @@ class TestFlowStateHandlers:
         # raises an attribute error because it tries to access a property of the state that
         # doesn't exist on None
         with pytest.raises(AttributeError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 FlowRunner(flow=flow).run()
 
 
@@ -1115,7 +1060,7 @@ class TestFlowRunnerStateHandlers:
         # and raise an error, as long as the flow_handlers are called in sequence on the
         # previous result
         with pytest.raises(AssertionError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 FlowRunner(
                     flow=Flow(), state_handlers=[lambda *a: None, flow_runner_handler]
                 ).run()
@@ -1124,7 +1069,7 @@ class TestFlowRunnerStateHandlers:
         # raises an attribute error because it tries to access a property of the state that
         # doesn't exist on None
         with pytest.raises(AttributeError):
-            with prefect.utilities.tests.raise_on_exception():
+            with prefect.utilities.debug.raise_on_exception():
                 FlowRunner(flow=Flow(), state_handlers=[lambda *a: None]).run()
 
     def test_task_handler_that_raises_signal_is_trapped(self):
