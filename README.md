@@ -32,6 +32,10 @@ cd prefect
 pip install ".[viz]"
 ```
 
+## Documentation
+
+The full Prefect documentation including API references, tutorials, concept explinations, and more are available at https://docs.prefect.io
+
 ## Development
 
 ### Install `dev` package

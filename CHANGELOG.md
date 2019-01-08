@@ -18,7 +18,7 @@
 
 - None
 
-## Version 0.4.0 <Badge text="beta" type="success"/>
+## 0.4.0 <Badge text="beta" type="success"/>
 
 Released January 8, 2019
 
