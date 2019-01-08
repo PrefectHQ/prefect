@@ -26,7 +26,7 @@ from mypy_extensions import TypedDict
 
 import prefect
 import prefect.schedules
-from prefect.client.result_handlers import CloudResultHandler, ResultHandler
+from prefect.client.result_handlers import LocalResultHandler, ResultHandler
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.environments import Environment
@@ -146,7 +146,7 @@ class Flow:
         self.name = name or type(self).__name__
         self.schedule = schedule
         self.environment = environment or prefect.environments.LocalEnvironment()
-        self.result_handler = result_handler
+        self.result_handler = result_handler or LocalResultHandler()
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
