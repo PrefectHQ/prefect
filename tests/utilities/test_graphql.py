@@ -188,6 +188,34 @@ def test_string_query_3():
     )
 
 
+def test_dict_keys_query_1():
+    dict_keys = {"id": True}
+    verify(
+        query={"query": {"users": dict_keys.keys()}},
+        expected="""
+            query {
+                users {
+                    id
+                }
+            }
+        """,
+    )
+
+
+def test_dict_values_query_1():
+    dict_values = {1: "id"}
+    verify(
+        query={"query": {"users": dict_values.values()}},
+        expected="""
+            query {
+                users {
+                    id
+                }
+            }
+        """,
+    )
+
+
 def test_gqlo_1():
     verify(
         query={"query": {Query.accounts: [Account.id, Account.name]}},
@@ -336,6 +364,22 @@ def test_pass_dotdicts_as_args():
 
 def test_empty_dict_in_arguments():
     assert parse_graphql_arguments({"where": {}}) == "where: {}"
+
+
+def test_dict_keys_in_arguments():
+    x = {"a": 1, "b": 2}
+    assert parse_graphql_arguments({"checks": x.keys()}) in [
+        'checks: ["a", "b"]',
+        'checks: ["b", "a"]',
+    ]
+
+
+def test_dict_values_in_arguments():
+    x = {"a": 1, "b": 2}
+    assert parse_graphql_arguments({"checks": x.values()}) in [
+        "checks: [1, 2]",
+        "checks: [2, 1]",
+    ]
 
 
 def test_enum_value_in_arguments():

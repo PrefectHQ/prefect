@@ -13,6 +13,7 @@ from prefect.client.result_handlers import CloudResultHandler
 from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
+from prefect.client.result_handlers import LocalResultHandler
 from prefect.engine.signals import PrefectError
 from prefect.engine.state import Success, Failed, Skipped, TriggerFailed
 from prefect.tasks.core.function import FunctionTask
@@ -69,7 +70,7 @@ class TestCreateFlow:
 
     def test_create_flow_without_result_handler(self):
         flow = Flow()
-        assert isinstance(flow.result_handler, CloudResultHandler)
+        assert isinstance(flow.result_handler, LocalResultHandler)
 
     @pytest.mark.parametrize("handlers", [[lambda *a: 1], [lambda *a: 1, lambda *a: 2]])
     def test_create_flow_with_state_handler(self, handlers):
@@ -657,6 +658,22 @@ def test_sorted_tasks_with_start_task():
     f.add_edge(t3, t5)
     assert set(f.sorted_tasks(root_tasks=[])) == set([t1, t2, t3, t4, t5])
     assert set(f.sorted_tasks(root_tasks=[t3])) == set([t3, t4, t5])
+
+
+def test_sorted_tasks_with_invalid_start_task():
+    """
+    t1 -> t2 -> t3 -> t4
+                  t3 -> t5
+    """
+    f = Flow()
+    t1 = Task("1")
+    t2 = Task("2")
+    t3 = Task("3")
+    f.add_edge(t1, t2)
+
+    with pytest.raises(ValueError) as exc:
+        f.sorted_tasks(root_tasks=[t3])
+    assert "not found in Flow" in str(exc.value)
 
 
 def test_flow_raises_for_irrelevant_user_provided_parameters():

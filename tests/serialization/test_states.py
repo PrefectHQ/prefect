@@ -133,6 +133,7 @@ def test_serialize_mapped():
     assert serialized["message"] is "message"
     assert "result" not in serialized
     assert "map_states" not in serialized
+    assert serialized["n_map_states"] == 2
     assert serialized["__version__"] == prefect.__version__
 
 
@@ -151,7 +152,8 @@ def test_deserialize_mapped():
     serialized = StateSchema().dump(state.Mapped(message="message", map_states=[s, f]))
     deserialized = StateSchema().load(serialized)
     assert isinstance(deserialized, state.Mapped)
-    assert deserialized.map_states == []
+    assert len(deserialized.map_states) == 2
+    assert all([isinstance(s, state.Pending) for s in deserialized.map_states])
     assert deserialized.result == None
 
 

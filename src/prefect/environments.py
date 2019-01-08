@@ -84,7 +84,7 @@ class Environment:
         """
         raise NotImplementedError()
 
-    def run(self, runner_kwargs: dict) -> "prefect.engine.state.State":
+    def run(self, runner_kwargs: dict = None) -> "prefect.engine.state.State":
         """
         Runs the `Flow` represented by this environment.
 
@@ -312,7 +312,7 @@ class ContainerEnvironment(Environment):
                 python_dependencies=self.python_dependencies,
             )
 
-    def run(self, runner_kwargs: dict) -> None:
+    def run(self, runner_kwargs: dict = None) -> None:
         """
         Runs the `Flow` represented by this environment.
 

@@ -196,7 +196,6 @@ class TaskRunner(Runner):
         self.logger.info("Starting task run for task '{name}'".format(name=task_name))
 
         try:
-
             # initialize the run
             state, context, upstream_states, inputs = self.initialize_run(
                 state, context, upstream_states, inputs
@@ -237,12 +236,18 @@ class TaskRunner(Runner):
                 # run pipeline for a "normal" task
                 else:
 
-                    if check_upstream:
+                    # if necessary, wait for any mapped upstream states to finish running
+                    upstream_states = self.wait_for_mapped_upstream(
+                        upstream_states=upstream_states, executor=executor
+                    )
 
-                        # if necessary, wait for any mapped upstream states to finish running
-                        upstream_states = self.wait_for_mapped_upstream(
-                            upstream_states=upstream_states, executor=executor
-                        )
+                    # retrieve task inputs from upstream and also explicitly passed inputs
+                    # this must be run after the `wait_for_mapped_upstream` step
+                    task_inputs = self.get_task_inputs(
+                        upstream_states=upstream_states, inputs=inputs
+                    )
+
+                    if check_upstream:
 
                         # Tasks never run if the upstream tasks haven't finished
                         state = self.check_upstream_finished(
@@ -253,14 +258,6 @@ class TaskRunner(Runner):
                         state = self.check_upstream_skipped(
                             state, upstream_states=upstream_states
                         )
-
-                    # retrieve task inputs from upstream and also explicitly passed inputs
-                    # this must be run after the `wait_for_mapped_upstream` step
-                    task_inputs = self.get_task_inputs(
-                        upstream_states=upstream_states, inputs=inputs
-                    )
-
-                    if check_upstream:
 
                         # check if the task's trigger passes
                         state = self.check_task_trigger(
@@ -296,8 +293,11 @@ class TaskRunner(Runner):
                 raise exc
 
         except Exception as exc:
-            state = Failed(message="Unexpected error while running Task", result=exc)
-            if prefect.context.get("raise_on_exception"):
+            msg = "Unexpected error while running task: {}".format(str(exc))
+            self.logger.info(msg)
+            state = Failed(message=msg, result=exc)
+            raise_on_exception = prefect.context.get("raise_on_exception", False)
+            if raise_on_exception:
                 raise exc
 
         self.logger.info(
@@ -323,12 +323,12 @@ class TaskRunner(Runner):
             - Dict[Edge, State]: the upstream states
         """
 
-        for upstream_state in upstream_states.values():
+        for edge, upstream_state in upstream_states.items():
 
             # if the upstream state is Mapped, wait until its results are all available
             # note that this step is only called by tasks that are not Mapped themselves,
             # so this will not block after every mapped task (unless its result is needed).
-            if upstream_state.is_mapped():
+            if not edge.mapped and upstream_state.is_mapped():
                 assert isinstance(upstream_state, Mapped)  # mypy assert
                 upstream_state.map_states = executor.wait(upstream_state.map_states)
                 upstream_state.result = [s.result for s in upstream_state.map_states]
@@ -436,7 +436,9 @@ class TaskRunner(Runner):
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
             self.logger.info(
-                "Unexpected error while running task '{}'.".format(self.task.name)
+                "Unexpected error while evaluating task trigger '{}'.".format(
+                    self.task.name
+                )
             )
             if prefect.context.get("raise_on_exception"):
                 raise exc
