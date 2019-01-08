@@ -37,23 +37,36 @@ def cloud_settings():
         yield
 
 
-def test_task_runner_calls_client_the_approriate_number_of_times(monkeypatch):
-    task = Task(name="test")
-    get_task_run_info = MagicMock(return_value=MagicMock(state=None))
-    set_task_run_state = MagicMock()
-    client = MagicMock(
-        get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
+@pytest.fixture()
+def client(monkeypatch):
+    cloud_client = MagicMock(
+        get_flow_run_info=MagicMock(return_value=MagicMock(state=None)),
+        set_flow_run_state=MagicMock(),
+        get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
+        set_task_run_state=MagicMock(),
+        get_latest_task_run_states=MagicMock(
+            side_effect=lambda flow_run_id, states, result_handler: states
+        ),
     )
     monkeypatch.setattr(
-        "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
+        "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=cloud_client)
     )
+    monkeypatch.setattr(
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=cloud_client)
+    )
+    yield cloud_client
+
+
+def test_task_runner_calls_client_the_approriate_number_of_times(client):
+    task = Task(name="test")
+
     res = CloudTaskRunner(task=task).run()
 
     ## assertions
-    assert get_task_run_info.call_count == 1  # one time to pull latest state
-    assert set_task_run_state.call_count == 2  # Pending -> Running -> Success
+    assert client.get_task_run_info.call_count == 1  # one time to pull latest state
+    assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Success
 
-    states = [call[1]["state"] for call in set_task_run_state.call_args_list]
+    states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
     assert states == [Running(), Success()]
 
 
@@ -246,7 +259,7 @@ class TestHeartBeats:
         assert client.update_task_run_heartbeat.call_args[0][0] == "1234"
 
 
-def test_client_is_always_called_even_during_failures(monkeypatch):
+def test_client_is_always_called_even_during_failures(client):
     @prefect.task
     def raise_me(x, y):
         raise SyntaxError("Aggressively weird error")
@@ -257,35 +270,26 @@ def test_client_is_always_called_even_during_failures(monkeypatch):
     assert len(flow.tasks) == 3
 
     ## flow run setup
-    get_flow_run_info = MagicMock(return_value=MagicMock(state=None))
-    set_flow_run_state = MagicMock()
-    get_task_run_info = MagicMock(return_value=MagicMock(state=None))
-    set_task_run_state = MagicMock()
-    cloud_client = MagicMock(
-        get_flow_run_info=get_flow_run_info,
-        set_flow_run_state=set_flow_run_state,
-        get_task_run_info=get_task_run_info,
-        set_task_run_state=set_task_run_state,
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=cloud_client)
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=cloud_client)
-    )
+
     res = flow.run(state=Pending())
 
     ## assertions
-    assert get_flow_run_info.call_count == 1  # one time to pull latest state
-    assert set_flow_run_state.call_count == 2  # Pending -> Running -> Failed
+    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert client.set_flow_run_state.call_count == 2  # Pending -> Running -> Failed
 
-    flow_states = [call[1]["state"] for call in set_flow_run_state.call_args_list]
+    flow_states = [
+        call[1]["state"] for call in client.set_flow_run_state.call_args_list
+    ]
     assert flow_states == [Running(), Failed(result=dict())]
 
-    assert get_task_run_info.call_count == 3  # three time to pull latest states
-    assert set_task_run_state.call_count == 6  # (Pending -> Running -> Finished) * 3
+    assert client.get_task_run_info.call_count == 3  # three time to pull latest states
+    assert (
+        client.set_task_run_state.call_count == 6
+    )  # (Pending -> Running -> Finished) * 3
 
-    task_states = [call[1]["state"] for call in set_task_run_state.call_args_list]
+    task_states = [
+        call[1]["state"] for call in client.set_task_run_state.call_args_list
+    ]
     assert len([s for s in task_states if s.is_running()]) == 3
     assert len([s for s in task_states if s.is_successful()]) == 2
     assert len([s for s in task_states if s.is_failed()]) == 1
@@ -314,116 +318,3 @@ class TestUpdateUpstreamStates:
         )
         assert new_us == {}
         assert client.call_count == 0
-
-    def test_upstream_states_with_no_version_info_calls_get_task_run_info_with_client(
-        self, monkeypatch
-    ):
-        cloud_client = MagicMock(
-            get_task_run_info=MagicMock(
-                return_value=MagicMock(state=Running(message="test"))
-            )
-        )
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client",
-            MagicMock(return_value=cloud_client),
-        )
-        edge = Edge(Task(), Task())
-        new_us = CloudTaskRunner(Task()).get_latest_upstream_states(
-            context={}, upstream_states={edge: Pending()}
-        )
-        assert new_us == {edge: Running("test")}
-        assert cloud_client.get_task_run_info.call_count == 1
-
-    def test_upstream_states_with_no_version_info_call_client_once_for_mapped(
-        self, monkeypatch
-    ):
-        cloud_client = MagicMock(
-            get_task_run_info=MagicMock(
-                return_value=MagicMock(state=Mapped(message="test"))
-            )
-        )
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client",
-            MagicMock(return_value=cloud_client),
-        )
-        edge = Edge(Task(), Task())
-        new_us = CloudTaskRunner(Task()).get_latest_upstream_states(
-            context={}, upstream_states={edge: Pending()}
-        )
-        assert new_us == {edge: Mapped("test")}
-        assert cloud_client.get_task_run_info.call_count == 1
-
-    def test_upstream_states_with_no_version_info_call_client_twice_for_mapped_if_edge_is_mapped(
-        self, monkeypatch
-    ):
-        cloud_client = MagicMock(
-            get_task_run_info=MagicMock(
-                return_value=MagicMock(state=Mapped(message="test"))
-            )
-        )
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client",
-            MagicMock(return_value=cloud_client),
-        )
-        edge = Edge(Task(), Task(), mapped=True)
-        new_us = CloudTaskRunner(Task()).get_latest_upstream_states(
-            context={}, upstream_states={edge: Pending()}
-        )
-        assert new_us == {edge: Mapped("test")}
-        assert cloud_client.get_task_run_info.call_count == 2
-
-    def test_upstream_states_with_version_info_calls_graphql(self, monkeypatch):
-        cloud_client = MagicMock(
-            graphql=MagicMock(
-                return_value=MagicMock(
-                    task_run=[
-                        MagicMock(
-                            id=1,
-                            version=1,
-                            serialized_state=Mapped(message="test").serialize(),
-                        )
-                    ]
-                )
-            )
-        )
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client",
-            MagicMock(return_value=cloud_client),
-        )
-        edge = Edge(Task(), Task(), mapped=True)
-        state = Pending()
-        state._task_run_id = 1
-        state._version = 0
-        new_us = CloudTaskRunner(Task()).get_latest_upstream_states(
-            context={}, upstream_states={edge: state}
-        )
-        assert new_us == {edge: Mapped("test")}
-
-    def test_upstream_states_with_id_but_no_version_info_calls_graphql(
-        self, monkeypatch
-    ):
-        cloud_client = MagicMock(
-            graphql=MagicMock(
-                return_value=MagicMock(
-                    task_run=[
-                        MagicMock(
-                            id=1,
-                            version=1,
-                            serialized_state=Mapped(message="test").serialize(),
-                        )
-                    ]
-                )
-            )
-        )
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client",
-            MagicMock(return_value=cloud_client),
-        )
-        edge = Edge(Task(), Task(), mapped=True)
-        state = Pending()
-        state._task_run_id = 1
-        state._version = None
-        new_us = CloudTaskRunner(Task()).get_latest_upstream_states(
-            context={}, upstream_states={edge: state}
-        )
-        assert new_us == {edge: Mapped("test")}
