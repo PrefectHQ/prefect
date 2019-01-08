@@ -8,53 +8,27 @@ sidebarDepth: 0
 
 Thank you for being one of our early partners. Your feedback is critical to making sure Prefect does everything it's supposed to do. You can always reach us at [help@prefect.io](mailto:help@prefect.io).
 
-We're very excited to share what we've been working on. After our first preview release `0.3.0`, we received enough interest in the new features we were developing that we decided to cut a new release!  Where version `0.3.0` included all the tools for building, testing, and executing workflows locally, version `0.3.2` augments that with new bells and whistles, more powerful execution options, and a richer vocabulary for easily creating custom workflow logic.  
+## Core + Cloud
 
-[See the full change log for details on what's new](changelog.html).
+Prefect `0.4.0` is the biggest Prefect release yet -- just check out the [changelog](changelog.html#version-0-4-0)! Prefect Core was already the best tool for designing, testing, and running data workflows - and thanks to your feedback, it's even better now.
 
-### Overview
+The biggest new feature in Core is that it introduces support for **Prefect Cloud**. Cloud enables a variety of stateful interactions, including:
 
-Prefect is a new workflow management system designed for modern data infrastructures.
+- Scheduling
+- GraphQL API including arbitrary database queries
+- Building flows as containers
+- Runtime secrets
+- Remote execution clusters
+- Permissions and authorization
+- Projects and organization
 
-Users organize `Tasks` into `Flows`, and Prefect takes care of the rest! With a minimal but expressive API and intelligent defaults, it stays out of your way until you need it.
+If you don't have access to the Cloud preview yet, please [get in touch](mailto:help@prefect.io).
 
-### What works now 🚀
+Prefect is already starting to power Prefect HQ itself, and we can't wait to see what you build.
 
-Prefect `0.3.2` is a nearly-complete implementation of Prefect's core workflow logic. We're confident it can be used to design a wide variety of data workflows, and we're ready for you to kick the tires!
+Happy engineering!
 
-This release supports:
-
-- designing custom `Tasks`
-- composing tasks into `Flows` with either a functional or imperative API
-- `FlowRunners` and `TaskRunners` for complete management of the workflow execution process, including all possible state transitions
-- advanced execution patterns including automatic caching, triggers, pausing, dataflow, and retries
-- basic visualization (static GraphViz charts and animated Bokeh applications)
-
-### What's coming soon ⏰
-
-Prefect `0.3.2` does not include a few important features that will be available in future preview releases. Some of those features include:
-
-- our scheduler, server, database, UI, and GraphQL API
-- a standard library of tasks
-- building flows as containers for distribution
-- remote execution clusters
-
-Stay tuned for more...
-
-### What we'd love to hear 📢
-
-- Do you have a data engineering or data science use case that can't be expressed with Prefect's design tools?
-- Do you have a use case that **can** be expressed, but you think it could be easier?
-- Are any of our naming conventions or design choices confusing or non-obvious?
-- As we get closer to releasing the platform tools (including UI and API), what features are important to you? How do you want to interact with your data?
-
-Please note that Prefect is alpha software under active development by Prefect Technologies, Inc. This early preview is being provided to a limited number of partners to assist with development. By viewing or using the code or documentation, you are agreeing to the [alpha software end user license agreement](/license.html).
-
-## "...Prefect?"
-
-From the Latin _praefectus_, meaning "one who is in charge", a prefect is an official who oversees a domain and ensures that work is done correctly.
-
-It also happens to be the name of a roving researcher for that wholly remarkable book, _The Hitchhiker's Guide to the Galaxy_.
+~ The Prefect Team
 
 ## Installation
 
@@ -62,11 +36,14 @@ It also happens to be the name of a roving researcher for that wholly remarkable
 Please note Prefect requires Python 3.4 or higher.
 :::
 
+To install Prefect with visualization support:
+
 ```
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
 pip install -e ".[viz]"
 ```
+
 To install all development dependencies (for running unit tests): `pip install -e ".[dev]"`
 
 ## What's Next?
