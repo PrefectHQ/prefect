@@ -8,15 +8,15 @@ import warnings
 from contextlib import contextmanager
 from typing import Any, Callable, Iterable, Iterator, List
 
-from distributed import Client, Future, Queue, fire_and_forget, worker_client
-
-from prefect import config
-from prefect.engine.executors.base import Executor
-
 if sys.version_info < (3, 5):
     raise ImportError(
         """The DaskExecutor is only locally compatible with Python 3.5+"""
     )
+
+from distributed import Client, Future, Queue, fire_and_forget, worker_client
+
+from prefect import config
+from prefect.engine.executors.base import Executor
 
 
 class DaskExecutor(Executor):
