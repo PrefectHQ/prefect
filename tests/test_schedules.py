@@ -1,9 +1,9 @@
-import pendulum
 from datetime import time, timedelta
 
+import pendulum
 import pytest
 
-from prefect import schedules, __version__
+from prefect import __version__, schedules
 
 START_DATE = pendulum.datetime(2018, 1, 1)
 DATES = [

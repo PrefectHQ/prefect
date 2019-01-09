@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, List, Iterator
+from typing import Any, Callable, Dict, Iterator, List
 
 import prefect
 from prefect.utilities.executors import multiprocessing_timeout

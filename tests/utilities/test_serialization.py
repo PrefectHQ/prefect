@@ -1,16 +1,16 @@
-import uuid
 import json
+import uuid
 
 import marshmallow
 import pytest
 
 from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
-    Bytes,
-    JSONCompatible,
-    FunctionReference,
-    Nested,
     UUID,
+    Bytes,
+    FunctionReference,
+    JSONCompatible,
+    Nested,
 )
 
 json_test_values = [

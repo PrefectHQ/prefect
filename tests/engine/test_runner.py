@@ -1,10 +1,11 @@
-import pytest
 from time import sleep
 from unittest.mock import MagicMock
 
+import pytest
+
 from prefect import Task
-from prefect.engine.runner import Runner, ENDRUN
 from prefect.engine import signals, state
+from prefect.engine.runner import ENDRUN, Runner
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.executors import run_with_heartbeat
 

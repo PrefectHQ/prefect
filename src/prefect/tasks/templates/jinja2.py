@@ -1,7 +1,8 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-from jinja2 import Template
 from typing import Any
+
+from jinja2 import Template
 
 import prefect
 from prefect import Task

@@ -1,14 +1,15 @@
 import os
-import pytest
 import subprocess
 import tempfile
 
+import pytest
+
+from prefect import Task, task, triggers
+from prefect.engine.state import Failed, Skipped, Success, TriggerFailed
+from prefect.utilities.airflow_utils import AirFlow
+
 airflow = pytest.importorskip("airflow")
 pytestmark = pytest.mark.airflow
-
-from prefect import task, Task, triggers
-from prefect.engine.state import Success, Skipped, Failed, TriggerFailed
-from prefect.utilities.airflow_utils import AirFlow
 
 
 @pytest.fixture(scope="module")

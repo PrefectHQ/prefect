@@ -1,10 +1,10 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 import logging
 import os
-import prefect
 import queue
-
 from logging.handlers import QueueHandler, QueueListener
+
+import prefect
 from prefect.configuration import config
 
 

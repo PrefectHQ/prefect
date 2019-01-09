@@ -7,10 +7,10 @@ import prefect
 from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
 from prefect.core import Edge, Task
-from prefect.utilities.graphql import with_args
 from prefect.engine.runner import ENDRUN
-from prefect.engine.state import Failed, State, Mapped
+from prefect.engine.state import Failed, Mapped, State
 from prefect.engine.task_runner import TaskRunner
+from prefect.utilities.graphql import with_args
 
 
 class CloudTaskRunner(TaskRunner):

@@ -1,8 +1,9 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import pendulum
 import datetime
 from typing import Any, Callable
+
+import pendulum
 
 
 def retry_delay(

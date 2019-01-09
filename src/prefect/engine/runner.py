@@ -1,10 +1,10 @@
 import collections
 import functools
-from typing import Any, Callable, Iterable, Tuple, Dict, Optional
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import prefect
 from prefect.engine import signals
-from prefect.engine.state import State, Failed, Submitted, Pending
+from prefect.engine.state import Failed, Pending, State, Submitted
 from prefect.utilities import logging
 
 

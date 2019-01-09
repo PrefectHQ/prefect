@@ -1,17 +1,16 @@
 import datetime
 import json
 
+import marshmallow
 import pytest
 
-import marshmallow
 import prefect
 from prefect import environments
 from prefect.serialization.environment import (
-    EnvironmentSchema,
     ContainerEnvironmentSchema,
+    EnvironmentSchema,
     LocalEnvironmentSchema,
 )
-
 
 FERNET_KEY = b"1crderTHVJ7vvVJj79Zns81_1opaTID0HRZoOzqIpOA="
 

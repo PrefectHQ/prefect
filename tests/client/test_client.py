@@ -1,15 +1,15 @@
 import datetime
 import json
 import os
-import pytest
-import requests
 import uuid
 from unittest.mock import MagicMock, mock_open
+
+import pytest
+import requests
 
 import prefect
 from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
-from prefect.utilities.exceptions import AuthorizationError, ClientError
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -26,8 +26,9 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.utilities.graphql import GraphQLResult
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.exceptions import AuthorizationError, ClientError
+from prefect.utilities.graphql import GraphQLResult
 
 
 class AddOneHandler(ResultHandler):

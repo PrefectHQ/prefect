@@ -1,7 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
-import itertools
 import collections
 import copy
+import itertools
 import threading
 from functools import partial, wraps
 from typing import (

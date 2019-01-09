@@ -1,11 +1,12 @@
 import os
-import pytest
 import subprocess
 import tempfile
 
+import pytest
+
 from prefect import Flow
 from prefect.engine import signals
-from prefect.tasks.templates import StringFormatterTask, JinjaTemplateTask
+from prefect.tasks.templates import JinjaTemplateTask, StringFormatterTask
 from prefect.utilities.debug import raise_on_exception
 
 
