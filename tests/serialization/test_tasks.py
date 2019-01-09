@@ -1,11 +1,11 @@
 import datetime
 
+import marshmallow
 import pytest
 
-import marshmallow
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
-from prefect.serialization.task import TaskSchema, ParameterSchema
+from prefect.serialization.task import ParameterSchema, TaskSchema
 
 
 def test_serialize_empty_dict():

@@ -1,7 +1,5 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import dask
-import dask.bag
 import datetime
 import multiprocessing
 import signal
@@ -9,9 +7,11 @@ import threading
 from functools import wraps
 from typing import Any, Callable, Dict, List, Union
 
+import dask
+import dask.bag
+
 import prefect
 from prefect.core.edge import Edge
-
 
 StateList = Union["prefect.engine.state.State", List["prefect.engine.state.State"]]
 

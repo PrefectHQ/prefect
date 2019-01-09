@@ -15,9 +15,10 @@ Note that _all_ validators take into account cache expiration.
 
 A cache validator returns `True` if the cache is still valid, and `False` otherwise.
 """
+from typing import Any, Dict, Iterable
+
 import pendulum
 from toolz import curry
-from typing import Any, Dict, Iterable
 
 import prefect
 

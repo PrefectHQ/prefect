@@ -1,17 +1,18 @@
-import uuid
 import json
 import sys
+import uuid
 from collections import OrderedDict
 from textwrap import dedent
 
 import pytest
+
 from prefect.utilities.collections import DotDict
 from prefect.utilities.graphql import (
+    EnumValue,
     GQLObject,
     parse_graphql,
     parse_graphql_arguments,
     with_args,
-    EnumValue,
 )
 
 

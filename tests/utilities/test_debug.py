@@ -1,9 +1,10 @@
-from datetime import timedelta
 import os
-import pytest
 import subprocess
 import tempfile
 import textwrap
+from datetime import timedelta
+
+import pytest
 
 import prefect
 from prefect.core import Flow, Task
@@ -11,8 +12,8 @@ from prefect.engine import FlowRunner, TaskRunner, state
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.debug import (
     is_serializable,
-    raise_on_exception,
     make_return_failed_handler,
+    raise_on_exception,
 )
 
 

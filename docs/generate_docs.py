@@ -13,21 +13,20 @@ On a development installation of Prefect, simply run `python generate_docs.py` f
 """
 import importlib
 import inspect
-import nbformat as nbf
 import os
 import re
 import shutil
 import subprocess
 import textwrap
+import warnings
+from functools import partial
+
+import nbformat as nbf
 import toml
 import toolz
-import warnings
-
-from functools import partial
 
 import prefect
 from tokenizer import format_code
-
 
 OUTLINE_PATH = os.path.join(os.path.dirname(__file__), "outline.toml")
 outline_config = toml.load(OUTLINE_PATH)

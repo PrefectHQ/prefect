@@ -1,7 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import datetime
-from typing import Any, Callable, List, Iterable
+from typing import Any, Callable, Iterable, List
 
 from prefect.engine.executors.base import Executor
 from prefect.utilities.executors import main_thread_timeout

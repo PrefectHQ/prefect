@@ -1,7 +1,9 @@
-import pytest
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
+
+import pytest
+
 import prefect
 
 examples_dir = str(Path(__file__).parents[1] / "examples")

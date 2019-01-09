@@ -1,20 +1,19 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import datetime
 import logging
+import queue
 import sys
+import warnings
+from contextlib import contextmanager
+from typing import Any, Callable, Iterable, Iterator, List
 
 if sys.version_info < (3, 5):
     raise ImportError(
         """The DaskExecutor is only locally compatible with Python 3.5+"""
     )
 
-import datetime
-from contextlib import contextmanager
-from distributed import Client, fire_and_forget, Future, Queue, worker_client
-from typing import Any, Callable, Iterable, Iterator, List
-
-import queue
-import warnings
+from distributed import Client, Future, Queue, fire_and_forget, worker_client
 
 from prefect import config
 from prefect.engine.executors.base import Executor

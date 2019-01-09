@@ -1,6 +1,7 @@
-import pytest
 import time
 from unittest.mock import MagicMock
+
+import pytest
 
 import prefect
 from prefect.client import Client
@@ -8,13 +9,13 @@ from prefect.client.result_handlers import ResultHandler
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 from prefect.engine.state import (
     Failed,
-    Running,
-    Pending,
-    Success,
     Finished,
-    TriggerFailed,
-    TimedOut,
+    Pending,
+    Running,
     Skipped,
+    Success,
+    TimedOut,
+    TriggerFailed,
 )
 from prefect.utilities.configuration import set_temporary_config
 

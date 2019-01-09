@@ -1,21 +1,21 @@
 import collections
 import datetime
-import pendulum
 import queue
 import random
 import sys
 import time
-
-import pytest
-
 from distutils.version import LooseVersion
+from unittest.mock import MagicMock
+
+import pendulum
+import pytest
 
 import prefect
 from prefect.core import Flow, Parameter, Task
 from prefect.engine import signals
-from prefect.engine.flow_runner import ENDRUN, FlowRunner
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.executors import Executor, LocalExecutor
+from prefect.engine.flow_runner import ENDRUN, FlowRunner
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -30,9 +30,8 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.triggers import manual_only, any_failed
+from prefect.triggers import any_failed, manual_only
 from prefect.utilities.debug import raise_on_exception
-from unittest.mock import MagicMock
 
 
 class SuccessTask(Task):

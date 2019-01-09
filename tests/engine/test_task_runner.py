@@ -24,7 +24,6 @@ from prefect.engine.state import (
     Failed,
     Finished,
     Mapped,
-    Submitted,
     Paused,
     Pending,
     Resume,
@@ -33,14 +32,15 @@ from prefect.engine.state import (
     Scheduled,
     Skipped,
     State,
+    Submitted,
     Success,
     TimedOut,
     TriggerFailed,
 )
 from prefect.engine.task_runner import ENDRUN, TaskRunner
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.tasks import pause_task
 from prefect.utilities.debug import raise_on_exception
+from prefect.utilities.tasks import pause_task
 
 
 class SuccessTask(Task):
