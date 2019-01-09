@@ -1,9 +1,11 @@
-import pytest
-import types
 import json
+import types
+
+import pytest
+
 from prefect.engine.state import Pending
 from prefect.utilities import collections
-from prefect.utilities.collections import DotDict, merge_dicts, as_nested_dict
+from prefect.utilities.collections import DotDict, as_nested_dict, merge_dicts
 from prefect.utilities.graphql import GraphQLResult
 
 

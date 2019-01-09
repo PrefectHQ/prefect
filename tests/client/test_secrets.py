@@ -1,12 +1,12 @@
 import json
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 import prefect
 from prefect.client import Secret
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError
-
 
 #################################
 ##### Secret Tests

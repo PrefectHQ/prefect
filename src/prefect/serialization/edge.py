@@ -1,7 +1,8 @@
 from marshmallow import fields
+
 import prefect
-from prefect.utilities.serialization import VersionedSchema, version
 from prefect.serialization.task import TaskSchema
+from prefect.utilities.serialization import VersionedSchema, version
 
 
 @version("0.3.3")

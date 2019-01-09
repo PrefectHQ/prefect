@@ -1,9 +1,10 @@
 import json
 import re
-import uuid
 import textwrap
+import uuid
 from collections.abc import KeysView, ValuesView
 from typing import Any, Union
+
 from prefect.utilities.collections import DotDict, as_nested_dict
 
 

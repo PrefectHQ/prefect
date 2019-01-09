@@ -6,8 +6,8 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.engine import state
 from prefect.client.result_handlers import ResultHandler
+from prefect.engine import state
 from prefect.serialization.state import ResultHandlerField, StateSchema
 
 all_states = sorted(

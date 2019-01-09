@@ -1,12 +1,12 @@
-import pendulum
-import marshmallow
 import datetime
-import prefect
-import pytest
-import marshmallow
-from prefect import schedules, __version__
-from prefect.serialization import schedule as schemas
 
+import marshmallow
+import pendulum
+import pytest
+
+import prefect
+from prefect import __version__, schedules
+from prefect.serialization import schedule as schemas
 
 all_schedule_classes = set(
     cls

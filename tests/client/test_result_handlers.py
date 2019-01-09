@@ -1,8 +1,9 @@
 import json
 import os
-import pytest
 import tempfile
 from unittest.mock import MagicMock
+
+import pytest
 
 from prefect.client import Client
 from prefect.client.result_handlers import CloudResultHandler, LocalResultHandler

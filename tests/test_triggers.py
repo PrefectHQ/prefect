@@ -1,7 +1,7 @@
 import pytest
 
-from prefect.core.edge import Edge
 from prefect import triggers
+from prefect.core.edge import Edge
 from prefect.engine import signals
 from prefect.engine.state import Failed, Pending, Retrying, Skipped, State, Success
 

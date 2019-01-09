@@ -1,11 +1,12 @@
 import multiprocessing
-import pytest
 import time
 from datetime import timedelta
 from unittest.mock import MagicMock
 
+import pytest
+
 import prefect
-from prefect.utilities.executors import multiprocessing_timeout, main_thread_timeout
+from prefect.utilities.executors import main_thread_timeout, multiprocessing_timeout
 
 
 @pytest.mark.parametrize("handler", [multiprocessing_timeout, main_thread_timeout])

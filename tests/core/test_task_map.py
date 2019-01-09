@@ -1,13 +1,14 @@
 import datetime
-import pytest
 import random
 import time
 
+import pytest
+
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
-from prefect.utilities.tasks import task, unmapped
-from prefect.utilities.debug import raise_on_exception
 from prefect.engine.state import Mapped, Success
+from prefect.utilities.debug import raise_on_exception
+from prefect.utilities.tasks import task, unmapped
 
 
 class AddTask(Task):

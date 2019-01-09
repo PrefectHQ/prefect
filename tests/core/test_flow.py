@@ -1,24 +1,23 @@
-import uuid
 import datetime
 import logging
 import sys
 import tempfile
+import uuid
 from unittest.mock import MagicMock, patch
 
 import cloudpickle
 import pytest
 
 import prefect
-from prefect.client.result_handlers import CloudResultHandler
+from prefect.client.result_handlers import CloudResultHandler, LocalResultHandler
 from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
-from prefect.client.result_handlers import LocalResultHandler
 from prefect.engine.signals import PrefectError
-from prefect.engine.state import Success, Failed, Skipped, TriggerFailed
+from prefect.engine.state import Failed, Skipped, Success, TriggerFailed
 from prefect.tasks.core.function import FunctionTask
-from prefect.utilities.tasks import task, unmapped
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.tasks import task, unmapped
 
 
 class AddTask(Task):
