@@ -1,12 +1,12 @@
-import pytest
 import sqlite3
 import tempfile
 from contextlib import closing
 
+import pytest
+
 from prefect import Flow
 from prefect.tasks.database import SQLiteQueryTask, SQLiteScriptTask
 from prefect.utilities.debug import raise_on_exception
-
 
 sql_script = """
 CREATE TABLE TEST (NUMBER INTEGER, DATA TEXT);

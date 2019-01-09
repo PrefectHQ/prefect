@@ -1,13 +1,13 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 import datetime
+import warnings
 from contextlib import contextmanager
 from queue import Queue
 from typing import Any, Callable, Iterable, Iterator, List
 
 import dask
 import dask.bag
-import warnings
 
 from prefect.engine.executors.base import Executor
 

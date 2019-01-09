@@ -1,9 +1,9 @@
-from unittest.mock import MagicMock
 import base64
 import json
 import os
 import shutil
 import tempfile
+from unittest.mock import MagicMock
 
 import pytest
 from cryptography.fernet import Fernet, InvalidToken

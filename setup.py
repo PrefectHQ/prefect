@@ -1,9 +1,10 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-from setuptools import find_packages, setup
-
 import configparser
 import sys
+
+from setuptools import find_packages, setup
+
 import versioneer
 
 config = configparser.ConfigParser()

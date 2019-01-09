@@ -1,22 +1,23 @@
 import json
-import pytest
 import sys
 from unittest.mock import MagicMock
 
+import pytest
+
 import prefect
-from prefect import task, Task
+from prefect import Task, task
 from prefect.engine.state import (
-    State,
-    Running,
-    Pending,
-    Finished,
-    Failed,
-    TriggerFailed,
     CachedState,
-    Scheduled,
+    Failed,
+    Finished,
+    Pending,
     Retrying,
-    Success,
+    Running,
+    Scheduled,
     Skipped,
+    State,
+    Success,
+    TriggerFailed,
 )
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import (

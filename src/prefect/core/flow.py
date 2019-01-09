@@ -34,7 +34,6 @@ from prefect.utilities import logging
 from prefect.utilities.serialization import to_qualified_name
 from prefect.utilities.tasks import as_task, unmapped
 
-
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 
 

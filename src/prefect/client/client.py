@@ -4,16 +4,16 @@ import datetime
 import json
 import logging
 import os
-from typing import Any, TYPE_CHECKING, Optional, Union, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import prefect
-from prefect.utilities.exceptions import ClientError, AuthorizationError
+from prefect.utilities.exceptions import AuthorizationError, ClientError
 from prefect.utilities.graphql import (
     EnumValue,
-    parse_graphql,
-    with_args,
     GraphQLResult,
     as_nested_dict,
+    parse_graphql,
+    with_args,
 )
 
 if TYPE_CHECKING:

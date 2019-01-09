@@ -1,8 +1,9 @@
 import os
-import pytest
 import shlex
 import subprocess
 import sys
+
+import pytest
 
 pytestmark = pytest.mark.formatting
 

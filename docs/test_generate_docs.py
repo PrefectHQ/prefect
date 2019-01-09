@@ -1,13 +1,11 @@
-import pytest
 import sys
-
-pytest.mark.skipif(sys.version_info < (3, 6))
-pytestmark = pytest.mark.formatting
-
 from functools import partial, wraps
+
+import pytest
 from toolz import curry
 
 from generate_docs import (
+    OUTLINE,
     create_absolute_path,
     format_doc,
     format_lists,
@@ -16,10 +14,12 @@ from generate_docs import (
     get_call_signature,
     get_class_methods,
     get_source,
-    OUTLINE,
 )
 from prefect import task
 from prefect.engine.state import State
+
+pytest.mark.skipif(sys.version_info < (3, 6))
+pytestmark = pytest.mark.formatting
 
 
 def no_args():

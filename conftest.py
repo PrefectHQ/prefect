@@ -1,7 +1,7 @@
-import pytest
 import sys
-from cryptography.fernet import Fernet
 
+import pytest
+from cryptography.fernet import Fernet
 
 import prefect
 from prefect.engine.executors import LocalExecutor, SynchronousExecutor

@@ -1,6 +1,6 @@
 from collections import namedtuple
-from pygments.lexers import Python3Lexer
 
+from pygments.lexers import Python3Lexer
 from pygments.token import Comment, Keyword, Name, Number, Operator, Punctuation, String
 
 

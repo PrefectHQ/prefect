@@ -5,12 +5,17 @@ This module contains utilities for migrating Airflow workflows into Prefect. Usi
 For more details, see [the Airflow conversion tutorial](../../tutorials/airflow_migration.html).
 """
 
-import sqlite3
-import warnings
 import os
 import pickle
+import sqlite3
 import subprocess
 import tempfile
+import warnings
+from collections import defaultdict
+from contextlib import closing
+from typing import Any, Dict, List
+
+import prefect
 
 try:
     import airflow
@@ -19,12 +24,6 @@ except ImportError:
     warnings.warn(
         "The airflow_utils conversion tools require `airflow` to be installed."
     )
-
-from collections import defaultdict
-from contextlib import closing
-from typing import Dict, List, Any
-
-import prefect
 
 
 __all__ = ["AirFlow"]

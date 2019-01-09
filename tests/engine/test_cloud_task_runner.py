@@ -1,25 +1,26 @@
-import uuid
-import pytest
 import time
+import uuid
 from unittest.mock import MagicMock
 
+import pytest
+
 import prefect
-from prefect.core import Task, Edge
 from prefect.client import Client
 from prefect.client.result_handlers import ResultHandler
+from prefect.core import Edge, Task
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import (
     Failed,
-    Running,
-    Paused,
-    Pending,
-    Success,
     Finished,
     Mapped,
-    TriggerFailed,
-    TimedOut,
+    Paused,
+    Pending,
+    Running,
     Skipped,
+    Success,
+    TimedOut,
+    TriggerFailed,
 )
 from prefect.utilities.configuration import set_temporary_config
 
