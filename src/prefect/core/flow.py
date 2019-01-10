@@ -1262,7 +1262,7 @@ class Flow:
         deployed_flow = client.deploy(
             flow=self, project_id=project_id, set_schedule_active=set_schedule_active
         )
-        return deployed_flow.id  # type: ignore
+        return deployed_flow
 
 
 def _hash(value: str) -> bytes:
