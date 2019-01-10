@@ -12,7 +12,7 @@
 
 ### Fixes
 
-- None
+- Fixed `flow.deploy()` returning attribute of a string - [#503](https://github.com/PrefectHQ/prefect/pull/503)
 
 ### Breaking Changes
 
