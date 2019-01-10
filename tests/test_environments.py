@@ -75,7 +75,6 @@ class TestContainerEnvironment:
         assert " FROM python:3.6" not in dockerfile
         assert "RUN pip install ./prefect" in dockerfile
         assert "RUN mkdir /root/.prefect/" in dockerfile
-        assert "COPY config.toml /root/.prefect/config.toml" in dockerfile
 
     def test_create_dockerfile_with_environment_variables(self):
         container = ContainerEnvironment(
