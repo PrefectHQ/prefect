@@ -116,6 +116,7 @@ def test_config_file_path():
 @pytest.fixture
 def config(test_config_file_path):
     environ = {}
+    environ["PREFECT__CLOUD__USE_LOCAL_SECRETS"] = "false"
     environ["PREFECT__ENV_VARS__NEW_KEY"] = "TEST"
     environ["PREFECT__ENV_VARS__TWICE__NESTED__NEW_KEY"] = "TEST"
     environ["PREFECT__ENV_VARS__TRUE"] = "true"
@@ -158,6 +159,10 @@ def test_getattr_missing(config):
 
 def test_debug(config):
     assert config.debug is False
+
+
+def test_env_var_booleans_are_converted(config):
+    assert config.cloud.use_local_secrets is False
 
 
 def test_general(config):
