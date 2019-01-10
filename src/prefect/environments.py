@@ -276,17 +276,6 @@ class ContainerEnvironment(Environment):
 
             self.pull_image()
 
-            path = config.user_config_path
-
-            if Path(path).is_file():
-                config_data = toml.load(path)
-            else:
-                config_data = {}
-
-            # Make copy of config.toml in temporary directory
-            with open("{}/config.toml".format(tempdir), "w") as config_file:
-                toml.dump(config_data, config_file)
-
             self.create_dockerfile(flow=flow, directory=tempdir)
 
             client = docker.from_env()
@@ -433,7 +422,6 @@ class ContainerEnvironment(Environment):
 
                 RUN mkdir /root/.prefect/
                 COPY flow_env.prefect /root/.prefect/flow_env.prefect
-                COPY config.toml /root/.prefect/config.toml
                 {copy_files}
 
                 ENV PREFECT_ENVIRONMENT_FILE="/root/.prefect/flow_env.prefect"
