@@ -181,7 +181,7 @@ class VersionedSchema(Schema):
 
 class JSONCompatible(fields.Field):
     """
-    Field that ensures its values are JSON-compatible during serialization.
+    Field that ensures its values are JSON-compatible during serialization and deserialization
     """
 
     def __init__(self, *args, **kwargs) -> None:

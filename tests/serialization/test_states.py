@@ -1,6 +1,8 @@
+import base64
 import datetime
 import json
 
+import cloudpickle
 import marshmallow
 import pendulum
 import pytest
@@ -78,11 +80,19 @@ def test_all_states_have_deserialization_schemas_in_stateschema():
 
 
 class AddOneHandler(ResultHandler):
+    def serialize(self, result):
+        return str(result - 1)
+
     def deserialize(self, result):
         return int(result) + 1
 
+
+class PickleHandler(ResultHandler):
     def serialize(self, result):
-        return str(result - 1)
+        return base64.b64encode(cloudpickle.dumps(result)).decode()
+
+    def deserialize(self, result):
+        return cloudpickle.loads(base64.b64decode(result.encode()))
 
 
 class TestResultHandlerField:
@@ -112,6 +122,15 @@ class TestResultHandlerField:
         deserialized = schema.load({"field": "49"})
         assert "field" in deserialized
         assert deserialized["field"] == "49"
+
+    def test_non_json_compatible_result_handler(self):
+        schema = self.Schema(context={"result_handler": PickleHandler()})
+        serialized = schema.dump({"field": (lambda: 1)})
+        assert isinstance(serialized["field"], str)
+
+        deserialized = schema.load(serialized)
+        assert "field" in deserialized
+        assert deserialized["field"]() == 1
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
@@ -191,16 +210,8 @@ def test_result_must_be_valid_json():
 
 def test_result_raises_error_on_dump_if_not_valid_json():
     s = state.Success(result={"x": {"y": {"z": lambda: 1}}})
-    with pytest.raises(marshmallow.ValidationError):
+    with pytest.raises(TypeError):
         StateSchema().dump(s)
-
-
-def test_result_raises_error_on_load_if_not_valid_json():
-    s = state.Success(result={"x": {"y": {"z": 1}}})
-    serialized = StateSchema().dump(s)
-    serialized["result"]["x"]["y"]["z"] = lambda: 1
-    with pytest.raises(marshmallow.ValidationError):
-        StateSchema().load(serialized)
 
 
 def test_deserialize_json_without_version():
