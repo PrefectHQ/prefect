@@ -1,6 +1,7 @@
 import datetime
 import json
 
+import cloudpickle
 import marshmallow
 import pendulum
 import pytest
@@ -85,6 +86,14 @@ class AddOneHandler(ResultHandler):
         return str(result - 1)
 
 
+class PickleHandler(ResultHandler):
+    def deserialize(self, result):
+        return cloudpickle.loads(result)
+
+    def serialize(self, result):
+        return cloudpickle.dumps(result)
+
+
 class TestResultHandlerField:
     class Schema(marshmallow.Schema):
         field = ResultHandlerField()
@@ -112,6 +121,26 @@ class TestResultHandlerField:
         deserialized = schema.load({"field": "49"})
         assert "field" in deserialized
         assert deserialized["field"] == "49"
+
+    def test_non_json_compatible_result_handler(self):
+        schema = self.Schema(context={"result_handler": PickleHandler()})
+        serialized = schema.dump({"field": (lambda: 1)})
+        assert isinstance(serialized["field"], bytes)
+        assert cloudpickle.loads(serialized["field"])() == 1
+
+        deserialized = schema.load(serialized)
+        assert "field" in deserialized
+        assert deserialized["field"]() == 1
+
+    def test_non_json_compatible_result_handler(self):
+        schema = self.Schema(context={"result_handler": PickleHandler()})
+        serialized = schema.dump({"field": (lambda: 1)})
+        assert isinstance(serialized["field"], bytes)
+        assert cloudpickle.loads(serialized["field"])() == 1
+
+        deserialized = schema.load(serialized)
+        assert "field" in deserialized
+        assert deserialized["field"]() == 1
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
