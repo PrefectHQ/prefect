@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict
 
-from marshmallow import fields, post_load
+from marshmallow import fields, post_load, ValidationError
 
 from prefect.engine import state
 from prefect.utilities.serialization import (
@@ -13,21 +13,23 @@ from prefect.utilities.serialization import (
 )
 
 
-class ResultHandlerField(JSONCompatible):
+class ResultHandlerField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
         if self.context.get("result_handler") and value is not None:
-            uri = self.context["result_handler"].serialize(value)
-        else:
-            uri = value
-        return super()._serialize(uri, attr, obj, **kwargs)
+            value = self.context["result_handler"].serialize(value)
+        try:
+            json.dumps(value)
+        except TypeError:
+            raise TypeError(
+                "The serialized result of a ResultHandler must be JSON-compatible."
+            )
+        return super()._serialize(value, attr, obj, **kwargs)
 
     def _deserialize(self, value, attr, data, **kwargs):
         value = super()._deserialize(value, attr, data, **kwargs)
         if self.context.get("result_handler") and value not in [None, "null"]:
-            true_val = self.context["result_handler"].deserialize(value)
-        else:
-            true_val = value
-        return true_val
+            value = self.context["result_handler"].deserialize(value)
+        return value
 
 
 @version("0.3.3")
