@@ -1,3 +1,4 @@
+import base64
 import datetime
 import json
 
@@ -79,19 +80,19 @@ def test_all_states_have_deserialization_schemas_in_stateschema():
 
 
 class AddOneHandler(ResultHandler):
-    def deserialize(self, result):
-        return int(result) + 1
-
     def serialize(self, result):
         return str(result - 1)
 
+    def deserialize(self, result):
+        return int(result) + 1
+
 
 class PickleHandler(ResultHandler):
-    def deserialize(self, result):
-        return cloudpickle.loads(result)
-
     def serialize(self, result):
-        return cloudpickle.dumps(result)
+        return base64.b64encode(cloudpickle.dumps(result)).decode()
+
+    def deserialize(self, result):
+        return cloudpickle.loads(base64.b64decode(result.encode()))
 
 
 class TestResultHandlerField:
@@ -125,18 +126,7 @@ class TestResultHandlerField:
     def test_non_json_compatible_result_handler(self):
         schema = self.Schema(context={"result_handler": PickleHandler()})
         serialized = schema.dump({"field": (lambda: 1)})
-        assert isinstance(serialized["field"], bytes)
-        assert cloudpickle.loads(serialized["field"])() == 1
-
-        deserialized = schema.load(serialized)
-        assert "field" in deserialized
-        assert deserialized["field"]() == 1
-
-    def test_non_json_compatible_result_handler(self):
-        schema = self.Schema(context={"result_handler": PickleHandler()})
-        serialized = schema.dump({"field": (lambda: 1)})
-        assert isinstance(serialized["field"], bytes)
-        assert cloudpickle.loads(serialized["field"])() == 1
+        assert isinstance(serialized["field"], str)
 
         deserialized = schema.load(serialized)
         assert "field" in deserialized
