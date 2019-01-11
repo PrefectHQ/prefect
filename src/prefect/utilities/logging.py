@@ -1,4 +1,5 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+import atexit
 import logging
 import os
 import queue
@@ -56,6 +57,8 @@ def configure_logging() -> logging.Logger:
         remote_listener = QueueListener(log_queue, remote_handler)
         logger.addHandler(queue_handler)
         remote_listener.start()
+        stopper = lambda listener: listener.stop()
+        atexit.register(stopper, remote_listener)
 
     return logger
 
