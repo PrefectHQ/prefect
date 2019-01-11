@@ -17,6 +17,12 @@ class ResultHandlerField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
         if self.context.get("result_handler") and value is not None:
             value = self.context["result_handler"].serialize(value)
+        try:
+            json.dumps(value)
+        except TypeError:
+            raise TypeError(
+                "The serialized result of a ResultHandler must be JSON-compatible."
+            )
         return super()._serialize(value, attr, obj, **kwargs)
 
     def _deserialize(self, value, attr, data, **kwargs):
