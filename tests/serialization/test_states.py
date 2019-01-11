@@ -220,16 +220,8 @@ def test_result_must_be_valid_json():
 
 def test_result_raises_error_on_dump_if_not_valid_json():
     s = state.Success(result={"x": {"y": {"z": lambda: 1}}})
-    with pytest.raises(marshmallow.ValidationError):
+    with pytest.raises(TypeError):
         StateSchema().dump(s)
-
-
-def test_result_raises_error_on_load_if_not_valid_json():
-    s = state.Success(result={"x": {"y": {"z": 1}}})
-    serialized = StateSchema().dump(s)
-    serialized["result"]["x"]["y"]["z"] = lambda: 1
-    with pytest.raises(marshmallow.ValidationError):
-        StateSchema().load(serialized)
 
 
 def test_deserialize_json_without_version():
