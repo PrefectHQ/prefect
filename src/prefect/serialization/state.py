@@ -27,7 +27,7 @@ class ResultHandlerField(fields.Field):
 
     def _deserialize(self, value, attr, data, **kwargs):
         value = super()._deserialize(value, attr, data, **kwargs)
-        if self.context.get("result_handler") and value is not None:
+        if self.context.get("result_handler") and value not in [None, "null"]:
             value = self.context["result_handler"].deserialize(value)
         return value
 
