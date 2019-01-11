@@ -95,6 +95,13 @@ class TaskRunner(Runner):
         Returns:
             - State: the new state
         """
+        self.logger.debug(
+            "Handling state change for task '{name}' from {old} to {new}".format(
+                name=self.task.name,
+                old=type(old_state).__name__,
+                new=type(new_state).__name__,
+            )
+        )
         for handler in self.task.state_handlers:
             new_state = handler(self.task, old_state, new_state)
 
