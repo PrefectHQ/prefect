@@ -8,7 +8,7 @@ import prefect
 from prefect.client import Client
 from prefect.engine.result_handlers import ResultHandler
 from prefect.core import Edge, Task
-from prefect.engine.cloud import CloudTaskRunner
+from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import (
     Failed,
@@ -319,3 +319,13 @@ class TestUpdateUpstreamStates:
         )
         assert new_us == {}
         assert client.call_count == 0
+
+
+class TestCloudResultHandler:
+    def test_task_runner_defaults_to_cloud_result_handler(self):
+        runner = CloudTaskRunner(task=prefect.Task())
+        assert isinstance(runner.result_handler, CloudResultHandler)
+
+    def test_task_runner_result_handler_can_be_overridden(self):
+        runner = CloudTaskRunner(task=prefect.Task(), result_handler="test")
+        assert runner.result_handler == "test"
