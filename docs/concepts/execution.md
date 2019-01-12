@@ -1,83 +1,6 @@
 # Execution
 
-Prefect's execution model is built around a concept called `State`. Information is communicated between tasks and flows via `State` objects, and users have a variety of ways to affect and interact with the system's state.
-
-## States
-
-Tasks and Flows all operate on `State` objects. A `State` always has a `type`, and may also have a `message` and `result`. Some states carry additional inforamtion, as well.
-
-### State Types
-
-Prefect components reflect status by updating the `type` of their state. There are three basic types: `Pending`, `Running`, and `Finished`. Prefect exposes a rich state vocabulary by building on top of these three. The most common states are:
-
-- Scheduled
-- Pending
-- Running
-- Success
-- Failed
-- Retry
-- Skipped
-- Cached
-
-When flows or tasks are executed, the current `State` is evaluated to determine what actions are possible. For example, a `Pending` task can be put in a `Running` state, but a `Failed` task can not. `Failed` tasks can be put in `Retry` states, however, and because `Retry` is a type of `Pending`, that task can be run later.
-
-::: warning Common classes
-The same `State` objects are used for `Flows` and `Tasks`, though not all states are applicable to both. In addition, `Flows` and `Tasks` may respond to states in different ways.
-:::
-
-### State Messages
-
-State messages are purely informative. A message is usually used to explain _why_ a certain state was entered. For example, a flow might return
-
-```python
-Failed(message='Some tasks failed.')
-```
-
-or
-
-```python
-Success(message='All tasks succeeded.')
-```
-
-### State Results
-
-States may carry optional result values. Most often, this is the mechanism by which tasks exchange data.
-
-### Other Attributes
-
-States may have additional attributes. For example, `Retry` states may contain a `retry_time`; states that involve caching will contain relevant details; etc.
-
-## Running a flow
-
-Prefect provides `FlowRunner` for running flows and `TaskRunner` classes for running tasks. In general, users should prefer `flow.run()` as a convenience method that automatically creates a `FlowRunner` and submits the flow for execution.
-
-### Retrieving flow state
-
-When a flow is run, it returns a [`State`](#state) object indicating the result of the run.
-
-```python
-with Flow:
-    t = FunctionTask(lambda: 1)
-
-flow_state = flow.run()
-```
-
-### Retrieving task states
-
-By default, flows do not return the states of any tasks when run. If you would like to inspect task states, add a `return_tasks` argument to `flow.run()` containing a list of desired tasks. The `flow_state` will now have a `result` attribute that is a dictionary of `{Task: State}` pairs indicating the state of each requested task.
-
-```python
-with Flow():
-    t = FunctionTask(lambda: 1)
-
-flow_state = flow.run(return_tasks=[t])
-task_state = flow_state.result[t]
-assert task_state.result == 1
-```
-
-::: warning Limiting return_tasks
-For small flows, returning a state for every task is totally fine. However, retrieving the state of every task of a large flow could produce an enormous amount of data. As best practice, only retrieve task states you need.
-:::
+Prefect's execution model is built around [States](/states.html). Information is communicated between tasks and flows via `State` objects, and users have a variety of ways to affect and interact with the system's state.
 
 ## Caching
 
@@ -174,10 +97,12 @@ with prefect.context(key='abc'):
 ## State Handlers & Callbacks
 
 It is often desireable to take action when a certain event happens, for example when a task fails. Prefect provides `state_handlers` for this purpose. Flows and Tasks may have one or more state handler functions that are called whenever the task's state changes. The signature of a state handler is:
+
 ```python
     def state_handler(obj: Union[Flow, Task], old_state: State, new_state: State) -> State:
         return new_state
 ```
+
 Whenever the task's state changes, the handler will be called with the task itself, the old (previous) state, and then new (current) state. The handler must return a `State` object, which is used as the task's new state. This provides an opportunity to either react to certain states or even modify them. If multiple handlers are provided, then they are called in sequence with the state returned by one becoming the `new_state` value of the next.
 
 For example, to send a notification whenever a task is retried:

@@ -1,42 +1,10 @@
-# Core Concepts
+# Flows
 
-Prefect provides a number of core building blocks that can be combined to create sophisticated data applications.
-
-## Tasks
-
-A `Task` represents a discrete action in a Prefect workflow.
-
-A task is like a function: it optionally takes inputs, performs an action, and produces an optional result. In fact, the easiest way to create a task is simply by decorating a Python function:
-
-```python
-from prefect import task
-
-@task
-def plus_one(x):
-    return x + 1
-```
-
-For more sophisticated tasks that may require customization, you can subclass the `Task` class directly:
-
-```python
-from prefect import Task
-
-class HTTPGetTask(Task):
-
-    def __init__(self, username, password, **kwargs):
-        self.username = username
-        self.password = password
-        super().__init__(**kwargs)
-
-    def run(self, url):
-        return requests.get(url, auth=(self.username, self.password))
-```
-
-All `Task` subclasses must have a `run()` method.
-
-## Flows
+## Overview
 
 A `Flow` is a container for `Tasks`. It represents an entire workflow or application by describing the dependencies between tasks.
+
+## APIs
 
 ### Functional API
 
@@ -109,12 +77,13 @@ flow.visualize()
 `flow.set_dependencies()` and `task.set_dependencies()` (the latter is only available inside an active flow context) are the main entrypoints for the imperative API. Flows also provide some lower-level methods like `add_task()` and `add_edge()` that can be used to manipulate the graph directly.
 :::
 
-### Running a flow
+## Running a flow
 
 To run a flow, simply call `flow.run()`:
 
 ```python
 from prefect import task, Flow
+
 @task
 def say_hello():
     print('Hello, world!')
@@ -136,37 +105,68 @@ state.result[h] # the task state of the say_hello task
 Notice that we passed `return_tasks=[h]`, not `return_tasks=[say_hello]`. This is because `h` represents a specific instance of a task that is contained inside the flow, whereas `say_hello` is just a generator of such tasks. Similarly, with a custom subclass, we would pass the task instance rather than the subclass itself.
 :::
 
-### Key tasks
+## Key tasks
 
-When a flow runs, its state is determined by the state of its key tasks. By default, a flow's key tasks are its terminal tasks, which includes any task that has no downstream tasks. If the key tasks are all successful (including any skipped tasks), the flow is considered a `Success`. If any key tasks fail, the flow is considered `Failed`. No matter what state the key tasks are in, the flow is considered `Pending` if any of its tasks are unfinished.
+### Terminal tasks
 
-::: tip When should you change the key tasks?
+The terminal tasks of the flow are any tasks that have no downstream dependencies -- they are the last tasks to run.
 
-Generally, a flow's terminal tasks are appropriate key tasks. However, there are times when that isn't the case.
+Flows are not considered `Finished` until all of their terminal tasks finish, and will remain `Running` otherwise. By default, terminal tasks are also the flow's [reference tasks](#reference-tasks), and therefore determine its state.
+
+:::tip Run order
+Prefect does not guarantee the order in which tasks will run, other than that tasks will not run before their upstream dependencies are evaluated. Therefore, you might have a terminal task that actually runs before other tasks in your flow, as long as it does not depend on those tasks.
+:::
+
+### Reference tasks
+
+When a flow runs, its state is determined by the state of its reference tasks. By default, a flow's reference tasks are its terminal tasks, which includes any task that has no downstream tasks. If the reference tasks are all successful (including any skipped tasks), the flow is considered a `Success`. If any reference tasks fail, the flow is considered `Failed`. No matter what state the reference tasks are in, the flow is considered `Pending` if any of its tasks are unfinished.
+
+```python
+
+with Flow() as flow:
+    a, b, c = Task(), Task(), Task()
+    flow.add_edge(a, b)
+    flow.add_edge(b, c)
+
+# by default, the reference tasks are the terminal tasks
+assert flow.reference_tasks() == {c}
+```
+
+::: tip When should you change the reference tasks?
+
+Generally, a flow's terminal tasks are appropriate reference tasks. However, there are times when that isn't the case.
 
 Consider a flow that takes some action, and has a downstream task that only runs if the main action fails, in order to clean up the environment. If the main task fails and the clean up task is successful, was the flow as a whole successful? To some users, the answer is yes: the clean up operation worked as expected. To other users, the answer is no: the main purpose of the flow was not achieved.
 
-Custom key tasks allow you to alter this behavior to suit your needs.
+Custom reference tasks allow you to alter this behavior to suit your needs.
 
 :::
 
-## Parameters
+## Retrieving tasks
 
-Parameters are special tasks that receive inputs whenever a flow is run.
-
-The parameter task returns its input and can therefore be used to dynamically send information into the flow.
+Flows can contain many tasks, and it can be challenging to find the exact task you need. Fortunately, the `get_tasks()` method makes this simpler. Pass any of the various [task identification](tasks.html#identification) keys to the function, and it will retrieve any matching tasks.
 
 ```python
-from prefect import task, Flow, Parameter
+# any tasks with the name "my task"
+flow.get_tasks(name="my task")
 
-@task
-def plus_one(x):
-    print(x + 1)
+# any tasks with the name "my task" and the "blue" tag
+flow.get_tasks(name="my task", tags=["blue"])
 
-with Flow() as flow:
-    x = Parameter('x')
-    plus_one(x=x)
-
-flow.run(parameters=dict(x=1)) # prints 2
-flow.run(parameters=dict(x=100)) # prints 101
+# the task with the slug "x"
+flow.get_tasks(slug="x")
 ```
+
+## State Handlers
+
+State handlers allow users to provide custom logic that fires whenever a flow changes state. For example, you could send a Slack notification if the flow failed -- we actually think that's so useful we included it [here](/api/utilities/notifications.html#functions)!
+
+State handlers must have the following signature:
+
+```python
+state_handler(flow: Flow, old_state: State, new_state: State) -> State
+```
+
+The handler is called anytime the flow's state changes, and receives the flow itself, the old state, and the new state. The state that the handler returns is used as the flow's new state.
+
+If multiple handlers are provided, they are called in sequence. Each one will receive the "true" `old_state` and the `new_state` generated by the previous handler.
