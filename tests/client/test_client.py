@@ -9,7 +9,7 @@ import requests
 
 import prefect
 from prefect.client import Client
-from prefect.client.result_handlers import ResultHandler
+from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.state import (
     CachedState,
     Failed,

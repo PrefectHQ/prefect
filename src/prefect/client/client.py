@@ -19,7 +19,7 @@ from prefect.utilities.graphql import (
 if TYPE_CHECKING:
     import requests
     from prefect.core import Flow
-    from prefect.client.result_handlers import ResultHandler
+    from prefect.engine.result_handlers import ResultHandler
 BuiltIn = Union[bool, dict, list, str, set, tuple]
 
 

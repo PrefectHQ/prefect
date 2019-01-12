@@ -30,11 +30,6 @@ title = "Secrets"
 module = "prefect.client"
 classes = ["Secret"]
 
-[pages.client.result_handlers]
-title = "Result Handlers"
-module = "prefect.client.result_handlers"
-classes = ["CloudResultHandler", "LocalResultHandler"]
-
 [pages.schedules]
 title = "Schedules"
 module = "prefect.schedules"
@@ -113,6 +108,16 @@ classes = [
             "DaskExecutor",
             "LocalExecutor",
             "SynchronousExecutor"]
+
+[pages.engine.result_handlers]
+title = "Result Handlers"
+module = "prefect.engine.result_handlers"
+classes = ["LocalResultHandler"]
+
+[pages.engine.cloud]
+title = "Cloud"
+module = "prefect.engine.cloud"
+classes = ["CloudFlowRunner", "CloudTaskRunner", "CloudResultHandler"]
 
 [pages.tasks.control_flow]
 title = "Control Flow"

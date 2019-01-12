@@ -21,7 +21,7 @@ import pendulum
 
 import prefect
 from prefect import config
-from prefect.client.result_handlers import ResultHandler
+from prefect.engine.result_handlers import ResultHandler
 from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
