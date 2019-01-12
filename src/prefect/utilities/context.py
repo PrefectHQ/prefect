@@ -8,12 +8,12 @@ when the task is run.
 
 Example:
 
-    ```python
-    import prefect.context
-    with prefect.context(a=1, b=2):
-        print(prefect.context.a) # 1
-    print (prefect.context.a) # undefined
-    ```
+```python
+import prefect.context
+with prefect.context(a=1, b=2):
+    print(prefect.context.a) # 1
+print (prefect.context.a) # undefined
+```
 """
 
 import contextlib
@@ -27,6 +27,12 @@ from prefect.utilities.collections import DotDict
 class Context(DotDict, threading.local):
     """
     A thread safe context store for Prefect data.
+
+    The `Context` is a `DotDict` subclass, and can be instantiated the same way.
+
+    Args:
+        - *args (Any):
+        - *kwargs (Any):
     """
 
     def __init__(self, *args, **kwargs) -> None:
