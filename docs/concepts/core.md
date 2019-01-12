@@ -34,30 +34,6 @@ class HTTPGetTask(Task):
 
 All `Task` subclasses must have a `run()` method.
 
-::: danger
-
-State that is stored in a task's `run()` method will not be available to future runs.
-
-While this might work during local testing, Prefect tasks are ultimately run in distributed environments. Even if a task is run twice, it will not have access to local state that was set during a previous run.
-
-Do NOT do this:
-
-```python
-class BadCounterTask(Task):
-
-    def __init__(self, **kwargs):
-        self.counter = 0
-        super().__init__(**kwargs)
-
-    def run(self):
-        self.counter += 1 # this won't have the intended effect
-        return self.counter
-```
-
-:::
-
-Tasks usually won't exist as standalone objects; they will be organized or composed into Flows.
-
 ## Flows
 
 A `Flow` is a container for `Tasks`. It represents an entire workflow or application by describing the dependencies between tasks.
@@ -173,7 +149,6 @@ Consider a flow that takes some action, and has a downstream task that only runs
 Custom key tasks allow you to alter this behavior to suit your needs.
 
 :::
-
 
 ## Parameters
 
