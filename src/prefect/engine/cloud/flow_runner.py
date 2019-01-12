@@ -4,12 +4,12 @@ import warnings
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import prefect
-import prefect.engine.cloud
 from prefect.client import Client
 from prefect.core import Flow
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, State
+from prefect.engine.cloud import CloudTaskRunner
 
 
 class CloudFlowRunner(FlowRunner):
@@ -23,8 +23,6 @@ class CloudFlowRunner(FlowRunner):
 
     Args:
         - flow (Flow): the `Flow` to be run
-        - task_runner_cls (TaskRunner, optional): The class used for running
-            individual Tasks. Defaults to [TaskRunner](task_runner.html)
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the flow changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -61,9 +59,7 @@ class CloudFlowRunner(FlowRunner):
     def __init__(self, flow: Flow, state_handlers: Iterable[Callable] = None) -> None:
         self.client = Client()
         super().__init__(
-            flow=flow,
-            task_runner_cls=prefect.engine.cloud.CloudTaskRunner,
-            state_handlers=state_handlers,
+            flow=flow, task_runner_cls=CloudTaskRunner, state_handlers=state_handlers
         )
 
     def _heartbeat(self) -> None:

@@ -6,7 +6,7 @@ import pytest
 
 import prefect
 from prefect.client import Client
-from prefect.client.result_handlers import ResultHandler
+from prefect.engine.result_handlers import ResultHandler
 from prefect.core import Edge, Task
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.runner import ENDRUN

@@ -5,7 +5,7 @@ import pytest
 
 import prefect
 from prefect.client import Client
-from prefect.client.result_handlers import ResultHandler
+from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 from prefect.engine.state import (
     Failed,

@@ -5,12 +5,13 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import prefect
 from prefect.client import Client
-from prefect.client.result_handlers import ResultHandler
 from prefect.core import Edge, Task
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, Mapped, State
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.graphql import with_args
+from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.cloud import CloudResultHandler
 
 
 class CloudTaskRunner(TaskRunner):
@@ -49,6 +50,9 @@ class CloudTaskRunner(TaskRunner):
         state_handlers: Iterable[Callable] = None,
     ) -> None:
         self.client = Client()
+        if result_handler is None:
+            result_handler = CloudResultHandler()
+
         super().__init__(
             task=task, result_handler=result_handler, state_handlers=state_handlers
         )

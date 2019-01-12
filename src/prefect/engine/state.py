@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Union
 import pendulum
 
 import prefect
-from prefect.client.result_handlers import ResultHandler
+from prefect.engine.result_handlers import ResultHandler
 from prefect.utilities.datetimes import ensure_tz_aware
 
 
