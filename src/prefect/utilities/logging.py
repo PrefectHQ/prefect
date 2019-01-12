@@ -39,7 +39,7 @@ def configure_logging() -> logging.Logger:
     set from `prefect.config`.
 
     Returns:
-        logging.Logger
+        - logging.Logger
     """
     logger = logging.getLogger("prefect")
     handler = logging.StreamHandler()
@@ -76,7 +76,7 @@ def get_logger(name: str = None) -> logging.Logger:
             the root logger's settings.
 
     Returns:
-        logging.Logger
+        - logging.Logger
     """
     if name is None:
         return prefect_logger
