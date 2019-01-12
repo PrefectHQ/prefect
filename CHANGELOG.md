@@ -17,7 +17,7 @@
 
 ### Breaking Changes
 
-- None
+- Move `prefect.client.result_handlers` to `prefect.engine.result_handlers` - [#512](https://github.com/PrefectHQ/prefect/pull/512)
 
 ## 0.4.0 <Badge text="beta" type="success"/>
 
