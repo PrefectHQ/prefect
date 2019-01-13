@@ -42,35 +42,6 @@ Prefect encourages "small tasks" -- each one should represent a single logical s
 To be clear, there's nothing stopping you from putting all of your code in a single task -- Prefect will happily run it! However, if any line of code fails, the entire task will fail and need to be retried from the beginning. This can be trivially avoided by splitting the code into multiple dependent tasks.
 :::
 
-## Mapping
-
-Generally speaking, Prefect's [functional API](flows.html#functional-api) allows you to call a task like a function:
-
-```python
-@task
-def add(x, y):
-    return x + y
-
-add(x=1, y=2)
-```
-
-In addition, you can call `Task.map()` to automatically map a task over its inputs. Prefect will generate a dynamic copy of the task for each element of the input. If you don't want an input to be treated as iterable (for example, you want to provide it to every dynamic copy), just wrap it with Prefect's `unmapped` function.
-
-```python
-from prefect import unmapped
-
-add.map(x=[1, 2, 3], y=unmapped(1))
-```
-
-Maps can be composed, allowing the creation of powerful dynamic pipelines:
-
-```python
-z1 = add.map(x=[1, 2, 3], y=unmapped(1))
-z2 = add.map(x=z1, y=unmapped(100))
-```
-
-In addition, if the result of a mapped task is passed to an un-mapped task (or used as the `unmapped` input to a mapped task), then its results will be collected in a list. This allows transparent but totally flexible map/reduce functionality.
-
 ## Retries
 
 One of the most common reasons to put code in a Prefect task is to automatically retry it on failure. To enable retries, simply pass appropriate `max_retries` and `retry_delay` parameters to your task:
@@ -102,6 +73,37 @@ Users can also supply any function that has the following signature, though we e
 ```python
 trigger_fn(upstream_states: Set[State]) -> bool
 ```
+
+## Mapping
+
+_For more detail, see the [mapping concept docs](mapping.html)._
+
+Generally speaking, Prefect's [functional API](flows.html#functional-api) allows you to call a task like a function:
+
+```python
+@task
+def add(x, y):
+    return x + y
+
+add(x=1, y=2)
+```
+
+In addition, you can call `Task.map()` to automatically map a task over its inputs. Prefect will generate a dynamic copy of the task for each element of the input. If you don't want an input to be treated as iterable (for example, you want to provide it to every dynamic copy), just wrap it with Prefect's `unmapped` function.
+
+```python
+from prefect import unmapped
+
+add.map(x=[1, 2, 3], y=unmapped(1))
+```
+
+Maps can be composed, allowing the creation of powerful dynamic pipelines:
+
+```python
+z1 = add.map(x=[1, 2, 3], y=unmapped(1))
+z2 = add.map(x=z1, y=unmapped(100))
+```
+
+In addition, if the result of a mapped task is passed to an un-mapped task (or used as the `unmapped` input to a mapped task), then its results will be collected in a list. This allows transparent but totally flexible map/reduce functionality.
 
 ## Identification
 
