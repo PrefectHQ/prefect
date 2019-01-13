@@ -74,24 +74,116 @@ Users can also supply any function that has the following signature, though we e
 trigger_fn(upstream_states: Set[State]) -> bool
 ```
 
-## Mapping
+## Constants
 
-_For more detail, see the [mapping concept docs](mapping.html)._
-
-Generally speaking, Prefect's [functional API](flows.html#functional-api) allows you to call a task like a function:
+If a non-`Task` input is provided to a task, it is automatically converted to a `ConstantTask`.
 
 ```python
+from prefect import Flow, task
+
 @task
 def add(x, y):
     return x + y
 
-add(x=1, y=2)
+with Flow() as flow:
+    add(1, 2)
+
+assert len(flow) == 3
 ```
+
+This flow has three tasks, even though the user might think they only created one: the `add` task and two `Constants` representing the inputs `1` and `2`.
+
+## Operators
+
+When using the [functional API](flows.html#functional-api), Prefect tasks support basic mathematical and logical operators. For example:
+
+```python
+import random
+from prefect import Flow, task
+
+@task
+def a_number():
+    return random.randint(0, 100)
+
+with Flow() as flow:
+    a = a_number()
+    b = a_number()
+
+    add = a + b
+    sub = a - b
+    lt = a < b
+    # etc
+```
+
+These operators automatically add new tasks to the active flow context.
+
+::: warning Operator validation
+Because Prefect flows are not executed at runtime, Prefect can not validate that operators are being applied to compatible types. For example, you could subtract a task that produces a list from a task that produces an integer. This would create an error at runtime, but not during task definition.
+:::
+
+## Collections
+
+When using the [functional API](flows.html#functional-api), Prefect tasks can automatically be used in collections. For example:
+
+```python
+import random
+from prefect import Flow, task
+
+@task
+def a_number():
+    return random.randint(0, 100)
+
+@task
+def get_sum(x):
+    return sum(x)
+
+with Flow() as flow:
+    a = a_number()
+    b = a_number()
+    s = get_sum([a, b])
+```
+
+In this case, a `List` task will automatically be created to take the results of `a` and `b` and put them in a list. That automatically-created task becomes the sole upstream dependency of `s`.
+
+Prefect will perform automatic collection extraction for lists, tuples, sets, and dictionaries.
+
+## Indexing
+
+When using the [functional API](flows.html#functional-api), Prefect tasks can be indexed to retrieve specific results.
+
+```python
+from prefect import Flow, task
+
+@task
+def fn():
+    return {'a': 1, 'b': 2}
+
+
+with Flow() as flow:
+    x = fn()
+    y = x['a']
+```
+
+This will automatically add a `GetItem` task to the flow which receives `x` as its input and attempts to perform `x['a']`. The result of that task (`1`) is stored as `y`.
+
+::: warning Key validation
+Because Prefect flows are not executed at runtime, Prefect can not validate that the indexed key is available ahead of time. Therefore, Prefect will allow you to index any task by any value. If the key does not exist when the flow is actually run, a runtime error will be raised.
+:::
+
+## Mapping
+
+_For more detail, see the [mapping concept docs](mapping.html)._
+
+Generally speaking, Prefect's [functional API](flows.html#functional-api) allows you to call a task like a function.
 
 In addition, you can call `Task.map()` to automatically map a task over its inputs. Prefect will generate a dynamic copy of the task for each element of the input. If you don't want an input to be treated as iterable (for example, you want to provide it to every dynamic copy), just wrap it with Prefect's `unmapped` function.
 
 ```python
-from prefect import unmapped
+from prefect import task, unmapped
+
+@task
+def add(x, y):
+    return x + y
 
 add.map(x=[1, 2, 3], y=unmapped(1))
 ```
@@ -165,7 +257,7 @@ flow.get_tasks(name='my-task')
 flow.get_tasks(tags=['red'])
 ```
 
-## State Handlers
+## State handlers
 
 State handlers allow users to provide custom logic that fires whenever a task changes state. For example, you could send a Slack notification if the task failed -- we actually think that's so useful we included it [here](/api/utilities/notifications.html#functions)!
 
