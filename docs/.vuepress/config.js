@@ -81,19 +81,20 @@ module.exports = {
       '/license': [],
       '/': ['introduction', 'changelog', 'installation', 'getting_started',
         {
-          title: 'Concepts',
+          title: 'Core Concepts',
           collapsable: true,
           children: [
             // 'concepts/',
-            'concepts/tasks',
-            'concepts/flows',
-            'concepts/parameters',
-            'concepts/states',
-            'concepts/engine',
-            'concepts/execution',
-            'concepts/environments',
-            'concepts/best-practices',
-            'concepts/common-pitfalls'
+            'core_concepts/tasks',
+            'core_concepts/flows',
+            'core_concepts/parameters',
+            'core_concepts/states',
+            'core_concepts/mapping',
+            'core_concepts/engine',
+            'core_concepts/execution',
+            'core_concepts/environments',
+            'core_concepts/best-practices',
+            'core_concepts/common-pitfalls'
           ]
         },
         {
