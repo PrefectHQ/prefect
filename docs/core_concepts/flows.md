@@ -105,6 +105,14 @@ state.result[h] # the task state of the say_hello task
 Notice that we passed `return_tasks=[h]`, not `return_tasks=[say_hello]`. This is because `h` represents a specific instance of a task that is contained inside the flow, whereas `say_hello` is just a generator of such tasks. Similarly, with a custom subclass, we would pass the task instance rather than the subclass itself.
 :::
 
+## Schedules
+
+Prefect treats flows as functions, which means they can be run at any time, with any concurrency, for any reason.
+
+However, flows may also have schedules. In Prefect terms, a schedule is nothing more than a way to indicate that you want to start a new run at a specific time. Even if a flow has a schedule, you may still run it manually.
+
+For more information, see the [Schedules concept doc](schedules.html).
+
 ## Key tasks
 
 ### Terminal tasks
@@ -142,6 +150,16 @@ Custom reference tasks allow you to alter this behavior to suit your needs.
 
 :::
 
+## Environments
+
+Flows can have `Environment` objects attached, which describe how to serialize and execute the flow. For example, environment could be used to run a flow locally, or in a Docker container, or from a source code repository.
+
+For more information, see the [Environments concept doc](environments.html).
+
+## Serialization
+
+Flow metadata can be serialized by calling the flow's `serialize()` method. If the flow has an `Environment`, then `build=True` may be passed to build the environment and prepare the flow for remote execution.
+
 ## Retrieving tasks
 
 Flows can contain many tasks, and it can be challenging to find the exact task you need. Fortunately, the `get_tasks()` method makes this simpler. Pass any of the various [task identification](tasks.html#identification) keys to the function, and it will retrieve any matching tasks.
@@ -157,7 +175,7 @@ flow.get_tasks(name="my task", tags=["blue"])
 flow.get_tasks(slug="x")
 ```
 
-## State Handlers
+## State handlers
 
 State handlers allow users to provide custom logic that fires whenever a flow changes state. For example, you could send a Slack notification if the flow failed -- we actually think that's so useful we included it [here](/api/utilities/notifications.html#functions)!
 

@@ -93,6 +93,7 @@ module.exports = {
             'core_concepts/engine',
             'core_concepts/execution',
             'core_concepts/environments',
+            'core_concepts/schedules',
             'core_concepts/best-practices',
             'core_concepts/common-pitfalls'
           ]

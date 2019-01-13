@@ -51,7 +51,7 @@ To be clear: the default trigger will not run tasks that follow failed tasks, so
 
 There are three main states: `Pending`, `Running`, and `Finished`. Flows and tasks typically progress through these three states. At each stage of the execution pipeline, the current state determines what actions are taken. For example, if you attempt to run a task in a `Success` state (a type of `Finished`) it will simply exit the pipeline without changing. If you attempt to run a task in a `Retrying` state (a type of `Pending`), it will proceed as long as the state's scheduled retry time has already passed.
 
-## State Handlers & Callbacks
+## State handlers & callbacks
 
 It is often desireable to take action when a certain event happens, for example when a task fails. Prefect provides `state_handlers` for this purpose. Flows and Tasks may have one or more state handler functions that are called whenever the task's state changes. The signature of a state handler is:
 
