@@ -263,7 +263,7 @@ class ContainerEnvironment(Environment):
             for line in item.split("\n"):
                 if line:
                     output = json.loads(line).get("stream")
-                    if output != "\n":
+                    if output and output != "\n":
                         print(output.strip("\n"))
 
     def build(
@@ -295,15 +295,16 @@ class ContainerEnvironment(Environment):
             full_name = os.path.join(self.registry_url, image_name)
 
             logging.info("Building the flow's container environment...")
-            client.images.build(
+            output = client.build(
                 path=tempdir, tag="{}:{}".format(full_name, image_tag), forcerm=True
             )
+            self._parse_generator_output(output)
 
             if push:
                 self.push(full_name, image_tag)
 
             # Remove the image locally after being pushed
-            client.images.remove("{}:{}".format(full_name, image_tag))
+            client.remove_image(image="{}:{}".format(full_name, image_tag), force=True)
 
             return ContainerEnvironment(
                 base_image=self.base_image,
@@ -323,8 +324,8 @@ class ContainerEnvironment(Environment):
 
         client = docker.APIClient(base_url='unix://var/run/docker.sock')
 
-        running_container = client.containers.run(
-            "{}:{}".format(
+        running_container = client.create_container(
+            image="{}:{}".format(
                 os.path.join(self.registry_url, self.image_name), self.image_tag
             ),
             command='bash -c "prefect run $PREFECT_ENVIRONMENT_FILE"',
@@ -347,7 +348,9 @@ class ContainerEnvironment(Environment):
 
         logging.info("Pushing image to the registry...")
 
-        client.images.push(image_name, tag=image_tag)
+        # Push output is a loading bar so we need some way to handle this
+        # The standard build output does not work
+        output = client.push(image_name, tag=image_tag)
 
     def pull_image(self) -> None:
         """Pull the image specified so it can be built.
@@ -357,7 +360,10 @@ class ContainerEnvironment(Environment):
         the environment variables.
         """
         client = docker.APIClient(base_url='unix://var/run/docker.sock')
-        client.images.pull(self.base_image)
+
+        # Push output is a loading bar so we need some way to handle this
+        # The standard build output does not work
+        output = client.pull(self.base_image)
 
     def create_dockerfile(self, flow: "prefect.Flow", directory: str = None) -> None:
         """Creates a dockerfile to use as the container.
