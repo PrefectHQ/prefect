@@ -27,19 +27,27 @@ import json
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import textwrap
 import uuid
-from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable
 
 import cloudpickle
 import docker
-import toml
 from cryptography.fernet import Fernet
 
 import prefect
-from prefect import config
+
+
+# Logging for Docker output consistent with standard daemon output
+docker_logger = logging.getLogger()
+docker_logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter("%(message)s")
+handler.setFormatter(formatter)
+docker_logger.addHandler(handler)
 
 
 def from_file(path: str) -> "Environment":
@@ -264,7 +272,7 @@ class ContainerEnvironment(Environment):
                 if line:
                     output = json.loads(line).get("stream")
                     if output and output != "\n":
-                        print(output.strip("\n"))
+                        docker_logger.info(output.strip("\n"))
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
@@ -290,7 +298,7 @@ class ContainerEnvironment(Environment):
 
             self.create_dockerfile(flow=flow, directory=tempdir)
 
-            client = docker.APIClient(base_url='unix://var/run/docker.sock')
+            client = docker.APIClient(base_url="unix://var/run/docker.sock")
 
             full_name = os.path.join(self.registry_url, image_name)
 
@@ -322,7 +330,7 @@ class ContainerEnvironment(Environment):
             - runner_kwargs (dict): Any arguments for `FlowRunner.run()`
         """
 
-        client = docker.APIClient(base_url='unix://var/run/docker.sock')
+        client = docker.APIClient(base_url="unix://var/run/docker.sock")
 
         running_container = client.create_container(
             image="{}:{}".format(
@@ -344,14 +352,18 @@ class ContainerEnvironment(Environment):
         Returns:
             - None
         """
-        client = docker.APIClient(base_url='unix://var/run/docker.sock')
+        client = docker.APIClient(base_url="unix://var/run/docker.sock")
 
         logging.info("Pushing image to the registry...")
 
+        # This could be adjusted to use something like tqdm for progress bar output
         output = client.push(image_name, tag=image_tag, stream=True, decode=True)
         for line in output:
             if line.get("progress"):
-                print(line.get("status"), line.get("progress"))
+                docker_logger.info(
+                    "%(status)s %(progress)s",
+                    {"status": line.get("status"), "progress": line.get("progress")},
+                )
 
     def pull_image(self) -> None:
         """Pull the image specified so it can be built.
@@ -360,12 +372,15 @@ class ContainerEnvironment(Environment):
         from either the main docker registry or a separate registry that must be set in
         the environment variables.
         """
-        client = docker.APIClient(base_url='unix://var/run/docker.sock')
+        client = docker.APIClient(base_url="unix://var/run/docker.sock")
 
         output = client.pull(self.base_image, stream=True, decode=True)
         for line in output:
             if line.get("progress"):
-                print(line.get("status"), line.get("progress"))
+                docker_logger.info(
+                    "%(status)s %(progress)s",
+                    {"status": line.get("status"), "progress": line.get("progress")},
+                )
 
     def create_dockerfile(self, flow: "prefect.Flow", directory: str = None) -> None:
         """Creates a dockerfile to use as the container.
