@@ -30,16 +30,13 @@ import shutil
 import tempfile
 import textwrap
 import uuid
-from pathlib import Path
-from typing import Optional
+from typing import Iterable
 
 import cloudpickle
 import docker
-import toml
 from cryptography.fernet import Fernet
 
 import prefect
-from prefect import config
 
 
 def from_file(path: str) -> "Environment":
@@ -254,6 +251,18 @@ class ContainerEnvironment(Environment):
                 )
             )
 
+    def _parse_generator_output(self, generator: Iterable):
+        """
+        Parses and writes a Docker command's output to stdout
+        """
+        for item in generator:
+            item = item.decode("utf-8")
+            for line in item.split("\n"):
+                if line:
+                    output = json.loads(line).get("stream")
+                    if output and output != "\n":
+                        print(output.strip("\n"))
+
     def build(
         self, flow: "prefect.Flow", push: bool = True
     ) -> "prefect.environments.ContainerEnvironment":
@@ -278,20 +287,21 @@ class ContainerEnvironment(Environment):
 
             self.create_dockerfile(flow=flow, directory=tempdir)
 
-            client = docker.from_env()
+            client = docker.APIClient(base_url="unix://var/run/docker.sock")
 
             full_name = os.path.join(self.registry_url, image_name)
 
             logging.info("Building the flow's container environment...")
-            client.images.build(
+            output = client.build(
                 path=tempdir, tag="{}:{}".format(full_name, image_tag), forcerm=True
             )
+            self._parse_generator_output(output)
 
             if push:
                 self.push(full_name, image_tag)
 
             # Remove the image locally after being pushed
-            client.images.remove("{}:{}".format(full_name, image_tag))
+            client.remove_image(image="{}:{}".format(full_name, image_tag), force=True)
 
             return ContainerEnvironment(
                 base_image=self.base_image,
@@ -309,10 +319,10 @@ class ContainerEnvironment(Environment):
             - runner_kwargs (dict): Any arguments for `FlowRunner.run()`
         """
 
-        client = docker.from_env()
+        client = docker.APIClient(base_url="unix://var/run/docker.sock")
 
-        running_container = client.containers.run(
-            "{}:{}".format(
+        running_container = client.create_container(
+            image="{}:{}".format(
                 os.path.join(self.registry_url, self.image_name), self.image_tag
             ),
             command='bash -c "prefect run $PREFECT_ENVIRONMENT_FILE"',
@@ -331,11 +341,15 @@ class ContainerEnvironment(Environment):
         Returns:
             - None
         """
-        client = docker.from_env()
+        client = docker.APIClient(base_url="unix://var/run/docker.sock")
 
         logging.info("Pushing image to the registry...")
 
-        client.images.push(image_name, tag=image_tag)
+        # This could be adjusted to use something like tqdm for progress bar output
+        output = client.push(image_name, tag=image_tag, stream=True, decode=True)
+        for line in output:
+            if line.get("progress"):
+                print(line.get("status"), line.get("progress"))
 
     def pull_image(self) -> None:
         """Pull the image specified so it can be built.
@@ -344,8 +358,12 @@ class ContainerEnvironment(Environment):
         from either the main docker registry or a separate registry that must be set in
         the environment variables.
         """
-        client = docker.from_env()
-        client.images.pull(self.base_image)
+        client = docker.APIClient(base_url="unix://var/run/docker.sock")
+
+        output = client.pull(self.base_image, stream=True, decode=True)
+        for line in output:
+            if line.get("progress"):
+                print(line.get("status"), line.get("progress"))
 
     def create_dockerfile(self, flow: "prefect.Flow", directory: str = None) -> None:
         """Creates a dockerfile to use as the container.
