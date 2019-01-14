@@ -290,7 +290,7 @@ class ContainerEnvironment(Environment):
 
             self.create_dockerfile(flow=flow, directory=tempdir)
 
-            client = docker.from_env()
+            client = docker.APIClient(base_url='unix://var/run/docker.sock')
 
             full_name = os.path.join(self.registry_url, image_name)
 
@@ -321,7 +321,7 @@ class ContainerEnvironment(Environment):
             - runner_kwargs (dict): Any arguments for `FlowRunner.run()`
         """
 
-        client = docker.from_env()
+        client = docker.APIClient(base_url='unix://var/run/docker.sock')
 
         running_container = client.containers.run(
             "{}:{}".format(
@@ -343,7 +343,7 @@ class ContainerEnvironment(Environment):
         Returns:
             - None
         """
-        client = docker.from_env()
+        client = docker.APIClient(base_url='unix://var/run/docker.sock')
 
         logging.info("Pushing image to the registry...")
 
@@ -356,7 +356,7 @@ class ContainerEnvironment(Environment):
         from either the main docker registry or a separate registry that must be set in
         the environment variables.
         """
-        client = docker.from_env()
+        client = docker.APIClient(base_url='unix://var/run/docker.sock')
         client.images.pull(self.base_image)
 
     def create_dockerfile(self, flow: "prefect.Flow", directory: str = None) -> None:
