@@ -58,6 +58,10 @@ with prefect.context(key='abc'):
     flow.run() # this run is successful
 ```
 
+::: warning Modifying the context
+We strongly recommend that users treat the context as read-only. Modifications can have unintended consequences.
+:::
+
 ## Caching
 
 Prefect provides a few ways to work with cached data. Wherever possible, caching is handled automatically or with minimal user input.

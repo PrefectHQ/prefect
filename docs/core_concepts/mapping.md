@@ -32,6 +32,23 @@ If a "normal" (non-mapped) task depends on a mapped task, Prefect _automatically
 
 However, if a mapped task relies on another mapped task, Prefect does not reduce the upstream result. Instead, it connects the _nth_ upstream child to the _nth_ downstream child, creating independent parallel pipelines.
 
+Here's how the previous example would look as a Prefect flow:
+
+```python
+from prefect import Flow, task
+
+numbers = [1, 2, 3]
+map_fn = task(lambda x: x + 1)
+reduce_fn = task(lambda x: sum(x))
+
+with Flow() as flow:
+    mapped_result = map_fn.map(numbers)
+    reduced_result = reduce_fn(mapped_result)
+
+state = flow.run(return_tasks=[reduced_result])
+assert state.result[reduced_result].result == 9
+```
+
 ::: tip Dynamically-generated children tasks are first-class tasks
 Even though the user didn't create them explicitly, the children tasks of a mapped task are first-class Prefect tasks. They can do anything a "normal" task can do, including succeed, fail, retry, pause, or skip.
 :::
@@ -53,7 +70,7 @@ with Flow('simple map') as flow:
     mapped_result = add_ten.map([1, 2, 3])
 ```
 
-The value of the `mapped_result` task will be `[11, 12, 13]`.
+The result of the `mapped_result` task will be `[11, 12, 13]` when the flow is run.
 
 ## Iterated mapping
 
@@ -71,7 +88,7 @@ with Flow('iterated map') as flow:
     mapped_result_2 = add_ten.map(mapped_result)
 ```
 
-The value of `mapped_result_2` is `[21, 22, 23]`, which is the result of applying the mapped function twice.
+When this flow runs, the result of the `mapped_result_2` task will be `[21, 22, 23]`, which is the result of applying the mapped function twice.
 
 ::: tip No reduce required
 Even though we observed that the result of `mapped_result` was a list, Prefect won't apply a reduce step to gather that list unless the user requires it. In this example, we never needed the entire list (we only needed each of its elements), so no reduce took place. The two mapped tasks generated three completely-independent pipelines, each one containing two tasks.
