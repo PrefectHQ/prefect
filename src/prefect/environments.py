@@ -348,9 +348,10 @@ class ContainerEnvironment(Environment):
 
         logging.info("Pushing image to the registry...")
 
-        # Push output is a loading bar so we need some way to handle this
-        # The standard build output does not work
-        output = client.push(image_name, tag=image_tag)
+        output = client.push(image_name, tag=image_tag, stream=True, decode=True)
+        for line in output:
+            if line.get("progress"):
+                print(line.get("status"), line.get("progress"))
 
     def pull_image(self) -> None:
         """Pull the image specified so it can be built.
@@ -361,9 +362,10 @@ class ContainerEnvironment(Environment):
         """
         client = docker.APIClient(base_url='unix://var/run/docker.sock')
 
-        # Push output is a loading bar so we need some way to handle this
-        # The standard build output does not work
-        output = client.pull(self.base_image)
+        output = client.pull(self.base_image, stream=True, decode=True)
+        for line in output:
+            if line.get("progress"):
+                print(line.get("status"), line.get("progress"))
 
     def create_dockerfile(self, flow: "prefect.Flow", directory: str = None) -> None:
         """Creates a dockerfile to use as the container.
