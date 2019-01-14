@@ -10,7 +10,7 @@ Environment objects have a simple lifecycle.
 
 When they are instantiated, environments are given as much information as possible to describe how the flow will run.
 
-Later, the environment is `built` for a specific flow. At this time, any flow-specific information can be stored.
+Later, the environment is configured for a specific flow by calling its `build()` method. At this time, any flow-specific information can be stored.
 
 After being built, an environment must be able to produce a JSON description of itself that can be reused to recreate it at any time.
 

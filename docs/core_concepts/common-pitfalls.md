@@ -2,9 +2,9 @@
 
 ## Stateful tasks
 
-### Persisting state in a Task's run method
+### Persisting information in a Task's run method
 
-State that is stored in a task's `run()` method will _not_ be available to future runs.
+Information that is stored in a task's `run()` method will _not_ be available to future runs.
 
 While this might work during local testing, you should assume that each time a Prefect task runs, it does so in a completely new environment. Even if a task is run twice, it will not have access to local state that was set during a previous run.
 

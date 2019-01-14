@@ -12,7 +12,7 @@
 
 ### Fixes
 
-- Fixed `flow.deploy()` attempting to access a nonexistant string attribute - [#503](https://github.com/PrefectHQ/prefect/pull/503)
+- Fixed `flow.deploy()` attempting to access a nonexistent string attribute - [#503](https://github.com/PrefectHQ/prefect/pull/503)
 - Ensure all logs make it to the logger service in deployment - [#508](https://github.com/PrefectHQ/prefect/issues/508)
 
 ### Breaking Changes
