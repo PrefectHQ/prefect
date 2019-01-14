@@ -31,7 +31,7 @@ import tempfile
 import textwrap
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional
 
 import cloudpickle
 import docker
@@ -253,6 +253,18 @@ class ContainerEnvironment(Environment):
                     ", ".join(not_absolute)
                 )
             )
+
+    def _parse_generator_output(self, generator: Iterable):
+        """
+        Parses and writes a Docker command's output to stdout
+        """
+        for item in generator:
+            item = item.decode("utf-8")
+            for line in item.split("\n"):
+                if line:
+                    output = json.loads(line).get("stream")
+                    if output != "\n":
+                        print(output.strip("\n"))
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
