@@ -40,16 +40,6 @@ from cryptography.fernet import Fernet
 import prefect
 
 
-# Logging for Docker output consistent with standard daemon output
-docker_logger = logging.getLogger()
-docker_logger.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(message)s")
-handler.setFormatter(formatter)
-docker_logger.addHandler(handler)
-
-
 def from_file(path: str) -> "Environment":
     """
     Loads a serialized Environment class from a file
@@ -272,7 +262,7 @@ class ContainerEnvironment(Environment):
                 if line:
                     output = json.loads(line).get("stream")
                     if output and output != "\n":
-                        docker_logger.info(output.strip("\n"))
+                        print(output.strip("\n"))
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
@@ -360,10 +350,7 @@ class ContainerEnvironment(Environment):
         output = client.push(image_name, tag=image_tag, stream=True, decode=True)
         for line in output:
             if line.get("progress"):
-                docker_logger.info(
-                    "%(status)s %(progress)s",
-                    {"status": line.get("status"), "progress": line.get("progress")},
-                )
+                print(line.get("status"), line.get("progress"))
 
     def pull_image(self) -> None:
         """Pull the image specified so it can be built.
@@ -377,10 +364,7 @@ class ContainerEnvironment(Environment):
         output = client.pull(self.base_image, stream=True, decode=True)
         for line in output:
             if line.get("progress"):
-                docker_logger.info(
-                    "%(status)s %(progress)s",
-                    {"status": line.get("status"), "progress": line.get("progress")},
-                )
+                print(line.get("status"), line.get("progress"))
 
     def create_dockerfile(self, flow: "prefect.Flow", directory: str = None) -> None:
         """Creates a dockerfile to use as the container.
