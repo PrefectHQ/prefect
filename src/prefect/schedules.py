@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Iterable, List
 
 import pendulum
-from crontab import CronTab
+from croniter import croniter
 
 from prefect.utilities.datetimes import ensure_tz_aware
 
@@ -133,7 +133,8 @@ class CronSchedule(Schedule):
         self, cron: str, start_date: datetime = None, end_date: datetime = None
     ):
         # build cron object to check the cron string - will raise an error if it's invalid
-        CronTab(cron)
+        if not croniter.is_valid(cron):
+            raise ValueError("Invalid cron string: {}".format(cron))
         self.cron = cron
         super().__init__(start_date=start_date, end_date=end_date)
 
@@ -154,20 +155,20 @@ class CronSchedule(Schedule):
         # if there is a start date, advance to at least one second before the start (so that
         # the start date itself will be registered as a value schedule date)
         if self.start_date is not None:
-            after = max(after, self.start_date - timedelta(microseconds=1))
+            after = max(after, self.start_date - timedelta(seconds=1))
 
         assert isinstance(after, datetime)  # mypy assertion
         after = ensure_tz_aware(after)
 
-        cron = CronTab(self.cron)
-
-        next_date = after  # type: pendulum.DateTime
+        cron = croniter(self.cron, after.in_tz("utc"))
         dates = []
 
         for i in range(n):
-            next_date += timedelta(
-                seconds=cron.next(next_date.in_tz("utc"), default_utc=True)
-            )
+            next_date = pendulum.instance(cron.get_next(datetime))
+            # because of croniter's rounding behavior, we want to avoid
+            # issuing the after date
+            if next_date == after:
+                next_date = pendulum.instance(cron.get_next(datetime))
             if self.end_date and next_date > self.end_date:
                 break
             dates.append(next_date)
