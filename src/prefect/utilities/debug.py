@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import textwrap
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any, Iterator, Callable
 
 import cloudpickle
 
@@ -91,7 +91,7 @@ def raise_on_exception() -> Iterator:
         yield
 
 
-def make_return_failed_handler(failed_tasks_set: set):
+def make_return_failed_handler(failed_tasks_set: set) -> Callable:
     """
     This state handler can be used to automatically return any tasks that failed or retried
     from the FlowRunner.
@@ -107,6 +107,13 @@ def make_return_failed_handler(failed_tasks_set: set):
         return_tasks=return_tasks,
         task_runner_state_handlers=[make_return_failed_handler(return_tasks)])
     ```
+
+    Args:
+        - failed_tasks_set (set): a set that will also be passed to a `FlowRunner` as its
+            `return_tasks` argument. This set will be populated with any failed tasks.
+
+    Returns:
+        - Callable: a state handler function
     """
 
     def handler(
