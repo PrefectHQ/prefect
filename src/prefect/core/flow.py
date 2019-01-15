@@ -925,7 +925,7 @@ class Flow:
             assert isinstance(flow_state.result, dict)
 
             if map_index is not None:
-                state = flow_state.result.get(task, [])[map_index]
+                state = flow_state.result[task].map_states[map_index]
             else:
                 state = flow_state.result.get(task)
             if state is not None:
@@ -941,7 +941,7 @@ class Flow:
             name = "{} <map>".format(t.name) if is_mapped else t.name
             if is_mapped and flow_state:
                 assert isinstance(flow_state.result, dict)
-                for map_index, _ in enumerate(flow_state.result[t]):
+                for map_index, _ in enumerate(flow_state.result[t].map_states):
                     kwargs = dict(
                         color=get_color(t, map_index=map_index),
                         style="filled",
@@ -963,8 +963,9 @@ class Flow:
                 or any(edge.mapped for edge in self.edges_to(e.downstream_task))
             ) and flow_state:
                 assert isinstance(flow_state.result, dict)
-                assert isinstance(flow_state.result[e.downstream_task], list)
-                for map_index, _ in enumerate(flow_state.result[e.downstream_task]):
+                for map_index, _ in enumerate(
+                    flow_state.result[e.downstream_task].map_states
+                ):
                     upstream_id = str(id(e.upstream_task))
                     if any(edge.mapped for edge in self.edges_to(e.upstream_task)):
                         upstream_id += str(map_index)
