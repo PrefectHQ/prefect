@@ -26,6 +26,16 @@ VERSIONS = {}  # type: Dict[str, Dict[str, VersionedSchema]]
 
 
 def to_qualified_name(obj: Any) -> str:
+    """
+    Given an object, returns its fully-qualified name, meaning a string that represents its
+    Python import path
+
+    Args:
+        - obj (Any): an importable Python object
+
+    Returns:
+        - str: the qualified name
+    """
     return obj.__module__ + "." + obj.__qualname__
 
 
@@ -33,6 +43,16 @@ def from_qualified_name(obj_str: str) -> Any:
     """
     Retrives an object from a fully qualified string path. The object must be
     imported in advance.
+
+    Args:
+        - obj_str (str): the qualified path of the object
+
+    Returns:
+        - Any: the object retrieved from the qualified path
+
+    Raises:
+        - ValueError: if the object could not be loaded from the supplied path. Note that
+            this function will not import objects; they must be imported in advance.
     """
 
     path_components = obj_str.split(".")
@@ -54,6 +74,12 @@ def from_qualified_name(obj_str: str) -> Any:
 def version(version: str) -> Callable:
     """
     Decorator that registers a schema with a specific version of Prefect.
+
+    Args:
+        - version (str): the version to associated with the schema
+
+    Returns:
+        - Callable: the decorated VersionedSchema class
     """
     if not isinstance(version, str):
         raise TypeError("Version must be a string.")
@@ -119,6 +145,10 @@ class VersionedSchema(Schema):
     the `__version__` value.
 
     This allows object schemas to be migrated while maintaining compatibility with
+
+    Args:
+        - *args (Any): the arguments accepted by `marshmallow.Schema`
+        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Schema`
     """
 
     OPTIONS_CLASS = VersionedSchemaOptions
@@ -132,7 +162,28 @@ class VersionedSchema(Schema):
         self._kwargs = kwargs
         super().__init__(*args, **kwargs)
 
-    def load(self, data, create_object=True, check_version=True, **kwargs):
+    def load(
+        self,
+        data: dict,
+        create_object: bool = True,
+        check_version: bool = True,
+        **kwargs
+    ) -> Any:
+        """
+        Loads an object by first retrieving the appropate schema version (based on the data's
+        __version__ key).
+
+        Args:
+            - data (dict): the serialized data
+            - create_object (bool): if True, an instantiated object will be returned. Otherwise,
+                the deserialized data dict will be returned.
+            - check_version (bool): if True, the version will be checked and the appropriate schema
+                loaded.
+            - **kwargs (Any): additional keyword arguments for the load() method
+
+        Returns:
+            - Any: the deserialized object or data
+        """
         self.context.setdefault("create_object", create_object)
 
         if check_version and isinstance(data, dict):
@@ -151,20 +202,45 @@ class VersionedSchema(Schema):
             return super().load(data, **kwargs)
 
     @pre_load
-    def remove_version(self, data):
+    def _remove_version(self, data: dict) -> dict:
+        """
+        Removes a __version__ field from the data, if present.
+
+        Args:
+            - data (dict): the serialized data
+
+        Returns:
+            - dict: the data dict, without its __version__ field
+        """
         data.pop("__version__", None)
         return data
 
     @post_dump
-    def add_version(self, data):
+    def _add_version(self, data: dict) -> dict:
         """
-        Adds a __version__ field, if not already provided.
+        Adds a __version__ field to the data, if not already provided.
+
+        Args:
+            - data (dict): the serialized data
+
+        Returns:
+            - dict: the data dict, with an additional __version__ field
         """
         data.setdefault("__version__", prefect.__version__)
         return data
 
     @post_load
-    def create_object(self, data):
+    def create_object(self, data: dict) -> Any:
+        """
+        By default, returns an instantiated object using the VersionedSchema's `object_class`.
+        Otherwise, returns a data dict.
+
+        Args:
+            - data (dict): the deserialized data
+
+        Returns:
+            - Any: an instantiated object, if `create_object` is found in context; otherwise, the data dict
+        """
         if self.context.get("create_object", True):
             object_class = self.opts.object_class
             if object_class is not None:
@@ -182,17 +258,21 @@ class VersionedSchema(Schema):
 class JSONCompatible(fields.Field):
     """
     Field that ensures its values are JSON-compatible during serialization and deserialization
+
+    Args:
+        - *args (Any): the arguments accepted by `marshmallow.Field`
+        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
     """
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.validators.insert(0, self.validate_json)
+        self.validators.insert(0, self._validate_json)
 
     def _serialize(self, value, attr, obj, **kwargs):
-        self.validate_json(value)
+        self._validate_json(value)
         return super()._serialize(value, attr, obj, **kwargs)
 
-    def validate_json(self, value):
+    def _validate_json(self, value):
         # handle dict-like subclasses including DotDict and GraphQLResult
         value = as_nested_dict(value, dict)
         try:
@@ -209,6 +289,12 @@ class Nested(fields.Nested):
     Note that because the value_selection_fn is always called, users must return
     `marshmallow.missing` if they don't want this field included in the resulting serialized
     object.
+
+    Args:
+        - nested (type): the nested schema class
+        - value_selection_fn (Callable): a function that is called whenever the object is serialized,
+            to retrieve the object (if not available as a simple attribute of the parent schema)
+        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
     """
 
     def __init__(self, nested: type, value_selection_fn: Callable, **kwargs):
@@ -241,7 +327,14 @@ class Bytes(fields.Field):
     """
     A Marshmallow Field that serializes bytes to a base64-encoded string, and deserializes
     a base64-encoded string to bytes.
+
+    Args:
+        - *args (Any): the arguments accepted by `marshmallow.Field`
+        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def _serialize(self, value, attr, obj, **kwargs):
         if value is not None:
@@ -256,7 +349,14 @@ class UUID(fields.UUID):
     """
     Replacement for fields.UUID that performs validation but returns string objects,
     not UUIDs
+
+    Args:
+        - *args (Any): the arguments accepted by `marshmallow.Field`
+        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def _serialize(self, value, attr, obj, **kwargs):
         return super()._serialize(value, attr, obj, **kwargs)
@@ -273,8 +373,9 @@ class FunctionReference(fields.Field):
     Args:
         - valid_functions (List[Callable]): a list of functions that will be serialized as string
             references
-        - validate (bool): if True, functions not in `valid_functions` will be rejected. If False,
+        - reject_invalid (bool): if True, functions not in `valid_functions` will be rejected. If False,
             any value will be allowed, but only functions in `valid_functions` will be deserialized.
+        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
 
     """
 
