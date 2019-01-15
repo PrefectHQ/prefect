@@ -159,6 +159,7 @@ class CronSchedule(Schedule):
 
         assert isinstance(after, datetime)  # mypy assertion
         after = ensure_tz_aware(after)
+        assert isinstance(after, pendulum.DateTime)  # mypy assertion
 
         cron = croniter(self.cron, after.in_tz("utc"))
         dates = []
