@@ -13,7 +13,7 @@ from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
-from prefect.engine.state import Failed, Skipped, Success, TriggerFailed
+from prefect.engine.state import Failed, Mapped, Skipped, Success, TriggerFailed
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task, unmapped
@@ -828,13 +828,12 @@ class TestFlowVisualize:
         add = AddTask(name="a_nice_task")
         list_task = Task(name="a_list_task")
 
+        map_state = Mapped(map_states=[Success(), Failed()])
         with patch.dict("sys.modules", IPython=ipython):
             with Flow() as f:
                 res = add.map(x=list_task, y=8)
             graph = f.visualize(
-                flow_state=Success(
-                    result={res: [Success(), Failed()], list_task: Success()}
-                )
+                flow_state=Success(result={res: map_state, list_task: Success()})
             )
 
         # one colored node for each mapped result
@@ -855,6 +854,9 @@ class TestFlowVisualize:
         add = AddTask(name="a_nice_task")
         list_task = Task(name="a_list_task")
 
+        map_state1 = Mapped(map_states=[Success(), TriggerFailed()])
+        map_state2 = Mapped(map_states=[Success(), Failed()])
+
         with patch.dict("sys.modules", IPython=ipython):
             with Flow() as f:
                 first_res = add.map(x=list_task, y=8)
@@ -862,9 +864,9 @@ class TestFlowVisualize:
             graph = f.visualize(
                 flow_state=Success(
                     result={
-                        res: [Success(), TriggerFailed()],
+                        res: map_state1,
                         list_task: Success(),
-                        first_res: [Success(), Failed()],
+                        first_res: map_state2,
                     }
                 )
             )
