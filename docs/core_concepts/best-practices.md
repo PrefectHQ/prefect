@@ -8,7 +8,6 @@ To maximize the clarity of your Prefect code, we recommend organizing your scrip
 2. Define any custom task functions
 3. Instantiate any task classes
 4. Build your flow using the functional API if possible, and the imperative API where appropriate.
-5. Register the flow, if necessary.
 
 ### Example
 
