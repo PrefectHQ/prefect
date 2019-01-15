@@ -17,6 +17,7 @@ def flatten_seq(seq: Iterable) -> Generator:
         flatten_seq([1, 2, [3, 4], 5, [6, [7]]])
         >>> [1, 2, 3, 4, 5, 6, 7]
         ```
+
     Args:
         - seq (Iterable): the sequence to flatten
 
@@ -45,7 +46,7 @@ class DotDict(MutableMapping):
         - **kwargs (optional): key, value pairs with which to initialize the
         `DotDict`
 
-    **Example**:
+    Example:
         ```python
         dotdict = DotDict({'a': 34}, b=56, c=set())
         dotdict.a # 34
