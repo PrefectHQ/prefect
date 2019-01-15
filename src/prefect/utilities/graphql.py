@@ -31,6 +31,10 @@ class EnumValue:
     """
     When parsing GraphQL arguments, strings can be wrapped in this class to be rendered
     as enum values, without quotation marks.
+
+    Args:
+        - value (str): the value that should be represented as an enum value
+
     """
 
     def __init__(self, value: str):
@@ -192,6 +196,12 @@ def parse_graphql_arguments(arguments: Any) -> str:
         - spaces added around curly braces
         - leading and lagging braces are removed
         - `True` becomes `true`, `False` becomes `false`, and `None` becomes `null`
+
+    Args:
+        - arguments (Any): an object (usually a dictionary) representing the GraphQL arguments
+
+    Returns:
+        - str: a string representing the parsed GraphQL arguments
     """
     parsed = _parse_arguments_inner(arguments)
     # remove '{ ' and ' }' from front and end of parsed dict
@@ -230,10 +240,37 @@ def _parse_arguments_inner(arguments: Any) -> str:
     return str(arguments)
 
 
-def with_args(field, arguments) -> str:
+def with_args(field: Any, arguments: Any) -> str:
     """
     Given Python objects representing a field name and arguments, formats them as a single
     GraphQL compatible string.
+
+    Example:
+
+    ```
+    query = parse_graphql({
+        'query': {
+            with_args("task", {"where": {"id": 3}}): {
+                "id"
+            }
+        }
+    })
+
+    assert query == '''
+        query {
+            task(where: {id: 3}) {
+                id
+            }
+        }
+        '''
+    ```
+
+    Args:
+        - field (Any): the GraphQL field that will be supplied with arguments
+        - arguments (Any): the arguments to be parsed and  supplied to the field
+
+    Returns:
+        - str: the parsed field and arguments
     """
     parsed_field = parse_graphql(field)
     parsed_arguments = parse_graphql_arguments(arguments)
