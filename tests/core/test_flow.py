@@ -1239,3 +1239,10 @@ class TestSerialize:
             f.to_environment_file(tmp.name)
             with open(tmp.name, "r") as f:
                 assert f.read()
+
+
+def test_schedule_kwarg_raises_if_no_schedule():
+    f = Flow()
+    with pytest.raises(ValueError) as exc:
+        f.run(schedule=True)
+    assert "must have a schedule" in str(exc.value)
