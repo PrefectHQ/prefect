@@ -1251,9 +1251,11 @@ def test_schedule_kwarg_raises_if_no_schedule():
 
 def test_schedule_kwarg_runs_on_schedule():
     class MockSchedule(prefect.schedules.Schedule):
+        call_count = 0
+
         def next(self, n):
-            if not hasattr(self, "called"):
-                self.called = True
+            if self.call_count < 2:
+                self.call_count += 1
                 return [pendulum.now("utc")]
             else:
                 raise SyntaxError("Cease scheduling!")
@@ -1270,4 +1272,4 @@ def test_schedule_kwarg_runs_on_schedule():
     with pytest.raises(SyntaxError) as exc:
         f.run(schedule=True)
     assert "Cease" in str(exc.value)
-    assert t.call_count == 1
+    assert t.call_count == 2
