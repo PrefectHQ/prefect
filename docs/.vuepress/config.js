@@ -30,13 +30,13 @@ module.exports = {
         {
           title: 'prefect',
           collapsable: true,
-          children: ['environments', 'triggers']
+          children: ['environments', 'triggers', 'schedules']
         },
 
         {
           title: 'prefect.client',
           collapsable: true,
-          children: ['client/client', 'client/secrets', 'client/result_handlers']
+          children: ['client/client', 'client/secrets']
         },
 
         {

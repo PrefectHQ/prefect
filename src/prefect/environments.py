@@ -204,9 +204,6 @@ class ContainerEnvironment(Environment):
     """
     Container class used to represent a Docker container.
 
-    **Note:** this class is still experimental, does not fully support all functions,
-    and is subject to change.
-
     Args:
         - base_image (str): The image to pull that is used as a base for the Docker container
         *Note*: Images must include Python 3.4+ and `pip`.
