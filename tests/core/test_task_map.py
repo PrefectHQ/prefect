@@ -691,3 +691,20 @@ def test_map_over_map_and_unmapped(executor):
     state = f.run(executor=executor, return_tasks=[res])
     assert state.is_successful()
     assert state.result[res].result == [3, 5, 7]
+
+
+@pytest.mark.parametrize("x,y,out", [(1, 2, 3), ([0, 2], [1, 7], [0, 2, 1, 7])])
+def test_task_map_that_doesnt_actually_map(x, y, out):
+    print(out)
+
+    @prefect.task
+    def add(x, y):
+        return x + y
+
+    with Flow() as f:
+        res = add.map(unmapped(x), unmapped(y))
+
+    flow_state = f.run(return_tasks=f.tasks)
+    assert flow_state.is_successful()
+    assert flow_state.result[res].is_successful()
+    assert flow_state.result[res].result == out
