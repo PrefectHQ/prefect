@@ -8,7 +8,7 @@
 
 ### Minor Features
 
-- None
+- Allow for building `ContainerEnvironment`s locally without pushing to registry - [#514](https://github.com/PrefectHQ/prefect/issues/514)
 
 ### Fixes
 
