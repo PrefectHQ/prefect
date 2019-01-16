@@ -55,7 +55,6 @@ def test_secrets_use_client(monkeypatch):
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
         {
-            "cloud.api": "http://my-cloud.foo",
             "cloud.auth_token": "secret_token",
             "cloud.use_local_secrets": False,
         }
