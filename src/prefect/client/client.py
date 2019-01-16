@@ -230,7 +230,7 @@ class Client:
         import requests
 
         # TODO: This needs to call the main graphql server and be adjusted for auth0
-        url = os.path.join(self.graphql_server, "login_email")
+        url = os.path.join(self.graphql_server, "login_email")  # type: ignore
         response = requests.post(
             url,
             auth=(email, password),
@@ -265,7 +265,7 @@ class Client:
         import requests
 
         # TODO: This needs to call the main graphql server
-        url = os.path.join(self.graphql_server, "refresh_token")
+        url = os.path.join(self.graphql_server, "refresh_token")  # type: ignore
         response = requests.post(
             url, headers={"Authorization": "Bearer {}".format(self.token)}
         )
