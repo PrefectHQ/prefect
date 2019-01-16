@@ -5,7 +5,9 @@ import copy
 import functools
 import inspect
 import json
+import pendulum
 import tempfile
+import time
 import uuid
 from collections import Counter
 from typing import (
@@ -842,6 +844,7 @@ class Flow:
         parameters: Dict[str, Any] = None,
         return_tasks: Iterable[Task] = None,
         runner_cls: type = None,
+        schedule: bool = False,
         **kwargs: Any
     ) -> "prefect.engine.state.State":
         """
@@ -858,6 +861,26 @@ class Flow:
         Returns:
             - State of the flow after it is run resulting from it's return tasks
         """
+        if schedule is True:
+            if self.schedule is None:
+                raise ValueError(
+                    "Flow must have a schedule in order to run with `schedule=True`"
+                )
+            while True:  # run indefinitely
+                end = self.schedule.next(1)[0]
+                while True:
+                    now = pendulum.now("utc")
+                    dur = (end - now).total_seconds()
+                    if dur <= 0:
+                        break
+                    time.sleep(dur / 2)
+                self.run(
+                    parameters=parameters,
+                    runner_cls=runner_cls,
+                    schedule=False,
+                    **kwargs
+                )
+
         if runner_cls is None:
             runner_cls = prefect.engine.get_default_flow_runner_class()
 
