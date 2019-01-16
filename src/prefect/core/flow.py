@@ -854,6 +854,8 @@ class Flow:
             - parameters (Dict[str, Any], optional): values to pass into the runner
             - return_tasks ([Task], optional): list of tasks which return state
             - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
+            - schedule (bool, optional): if `True`, this command will block and
+                run this Flow on its schedule indefinitely; note that no states will be returned or stored by default
             - **kwargs: additional keyword arguments; if any provided keywords
                 match known parameter names, they will be used as such. Otherwise they will be passed to the
                 `FlowRunner.run()` method
