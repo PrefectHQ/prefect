@@ -36,11 +36,12 @@ class GCSResultHandler(ResultHandler):
         Returns:
             - str: the GCS URI
         """
-        uri = f"{pendulum.now('utc').format('Y/M/D')}/{uuid.uuid4()}.prefect_result"
-        self.logger.debug(f"Starting to upload result to {uri}...")
+        date = pendulum.now("utc").format("Y/M/D")
+        uri = "{date}/{uuid}.prefect_result".format(date=date, uuid=uuid.uuid4())
+        self.logger.debug("Starting to upload result to {}...".format(uri))
         binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()
-        self.bucket.blob(f"{uri}").upload_from_string(binary_data)
-        self.logger.debug(f"Finished uploading result to {uri}.")
+        self.bucket.blob(uri).upload_from_string(binary_data)
+        self.logger.debug("Finished uploading result to {}.".format(uri))
         return uri
 
     def deserialize(self, uri: str) -> Any:
@@ -54,13 +55,13 @@ class GCSResultHandler(ResultHandler):
             - Any: the deserialized result
         """
         try:
-            self.logger.debug(f"Starting to download result from {uri}...")
-            result = self.bucket.blob(f"{uri}").download_as_string()
+            self.logger.debug("Starting to download result from {}...".format(uri))
+            result = self.bucket.blob(uri).download_as_string()
             try:
                 return_val = cloudpickle.loads(base64.b64decode(result))
             except EOFError:
                 return_val = None
-            self.logger.debug(f"Finished downloading result from {uri}.")
+            self.logger.debug("Finished downloading result from {}.".format(uri))
         except Exception as exc:
             self.logger.error(exc)
             return_val = None
