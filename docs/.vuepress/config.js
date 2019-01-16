@@ -97,6 +97,17 @@ module.exports = {
             'core_concepts/best-practices',
             'core_concepts/common-pitfalls'
           ]
+        },{
+          title: 'Cloud Concepts',
+          collapsable: true,
+          children: [
+            // 'concepts/',
+            'cloud_concepts/graphql',
+            'cloud_concepts/projects',
+            'cloud_concepts/flows',
+            'cloud_concepts/schedules',
+            'cloud_concepts/flow_runs',
+          ]
         },
         {
           title: 'Tutorials',

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Prefect's execution model is built around two classes, `FlowRunner` and `TaskRunner`, which produce and operate on [State](/states.html) objects. The actual execution is handled by `Executor` classes, which can interface with external environments.
+Prefect's execution model is built around two classes, `FlowRunner` and `TaskRunner`, which produce and operate on [State](states.html) objects. The actual execution is handled by `Executor` classes, which can interface with external environments.
 
 ## Flow runners
 
