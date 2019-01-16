@@ -60,10 +60,7 @@ class DictHandler(ResultHandler):
 
 def test_client_initializes_from_config():
     with set_temporary_config(
-        {
-            "cloud.graphql": "graphql_server",
-            "cloud.auth_token": "token",
-        }
+        {"cloud.graphql": "graphql_server", "cloud.auth_token": "token"}
     ):
         client = Client()
     assert client.api_server == "api_server"
@@ -73,10 +70,7 @@ def test_client_initializes_from_config():
 
 def test_client_initializes_and_prioritizes_kwargs():
     with set_temporary_config(
-        {
-            "cloud.graphql": "graphql_server",
-            "cloud.auth_token": "token",
-        }
+        {"cloud.graphql": "graphql_server", "cloud.auth_token": "token"}
     ):
         client = Client(api_server="my-api", graphql_server="my-graphql")
     assert client.api_server == "my-api"
@@ -85,9 +79,7 @@ def test_client_initializes_and_prioritizes_kwargs():
 
 
 def test_client_graphql_server_falls_back_to_api_server():
-    with set_temporary_config(
-        {"cloud.graphql": None, "cloud.auth_token": "token"}
-    ):
+    with set_temporary_config({"cloud.graphql": None, "cloud.auth_token": "token"}):
         client = Client()
     assert client.api_server == "api_server"
     assert client.graphql_server == "api_server"
@@ -113,9 +105,7 @@ def test_client_doesnt_write_to_file_if_token_provided_from_config(monkeypatch):
     monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
     mock_file = mock_open()
     monkeypatch.setattr("builtins.open", mock_file)
-    with set_temporary_config(
-        {"cloud.auth_token": "token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "token"}):
         client = Client()
     assert not mock_file.called
 
@@ -194,9 +184,7 @@ def test_client_posts_to_api_server(monkeypatch):
         return_value=MagicMock(json=MagicMock(return_value=dict(success=True)))
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     result = client.post("/foo/bar")
     assert result == {"success": True}
@@ -214,9 +202,7 @@ def test_client_posts_retries_if_token_needs_refreshing(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     with pytest.raises(requests.HTTPError) as exc:
         result = client.post("/foo/bar")
@@ -234,10 +220,7 @@ def test_client_posts_graphql_to_graphql_server(monkeypatch):
     )
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
-        {
-            "cloud.auth_token": "secret_token",
-            "cloud.graphql": None,
-        }
+        {"cloud.auth_token": "secret_token", "cloud.graphql": None}
     ):
         client = Client()
     result = client.graphql("{projects{name}}")
@@ -257,10 +240,7 @@ def test_client_graphql_retries_if_token_needs_refreshing(monkeypatch):
     )
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
-        {
-            "cloud.auth_token": "secret_token",
-            "cloud.graphql": None,
-        }
+        {"cloud.auth_token": "secret_token", "cloud.graphql": None}
     ):
         client = Client()
     with pytest.raises(requests.HTTPError) as exc:
@@ -279,9 +259,7 @@ def test_graphql_errors_get_raised(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     with pytest.raises(ClientError) as exc:
         res = client.graphql("query: {}")
@@ -303,9 +281,7 @@ def test_client_deploy(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     flow = prefect.Flow(name="test")
     flow_id = client.deploy(flow, project_id="my-default-0000")
@@ -318,9 +294,7 @@ def test_client_deploy_rejects_setting_active_schedules_for_flows_with_req_param
 ):
     post = MagicMock()
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
 
     flow = prefect.Flow(name="test", schedule=prefect.schedules.Schedule())
@@ -358,9 +332,7 @@ def test_get_flow_run_info(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     result = client.get_flow_run_info(flow_run_id="74-salt")
     assert isinstance(result, GraphQLResult)
@@ -383,9 +355,7 @@ def test_get_flow_run_info_raises_informative_error(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     with pytest.raises(ClientError) as exc:
         result = client.get_flow_run_info(flow_run_id="74-salt")
@@ -406,9 +376,7 @@ def test_set_flow_run_state(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     result = client.set_flow_run_state(
         flow_run_id="74-salt", version=0, state=Pending()
@@ -430,9 +398,7 @@ def test_set_flow_run_state_with_error(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     with pytest.raises(ClientError) as exc:
         client.set_flow_run_state(flow_run_id="74-salt", version=0, state=Pending())
@@ -464,9 +430,7 @@ def test_get_task_run_info(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     result = client.get_task_run_info(
         flow_run_id="74-salt", task_id="72-salt", map_index=None
@@ -494,9 +458,7 @@ def test_get_task_run_info_with_error(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
 
     with pytest.raises(ClientError) as exc:
@@ -521,9 +483,7 @@ def test_set_task_run_state(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     result = client.set_task_run_state(
         task_run_id="76-salt", version=0, state=Pending()
@@ -546,9 +506,7 @@ def test_set_task_run_state_with_error(monkeypatch):
         )
     )
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
 
     with pytest.raises(ClientError) as exc:
@@ -561,9 +519,7 @@ class TestResultHandlerSerialization:
         monkeypatch.setattr("requests.post", MagicMock())
         monkeypatch.setattr(prefect.client.client, "json", MagicMock())
 
-        with set_temporary_config(
-            {"cloud.auth_token": "secret_token"}
-        ):
+        with set_temporary_config({"cloud.auth_token": "secret_token"}):
             client = Client()
 
         serializer = MagicMock(return_value="empty")
@@ -585,9 +541,7 @@ class TestResultHandlerSerialization:
         monkeypatch.setattr("requests.post", MagicMock())
         monkeypatch.setattr(prefect.client.client, "json", MagicMock())
 
-        with set_temporary_config(
-            {"cloud.auth_token": "secret_token"}
-        ):
+        with set_temporary_config({"cloud.auth_token": "secret_token"}):
             client = Client()
 
         serializer = MagicMock(return_value="empty")
@@ -629,9 +583,7 @@ class TestResultHandlerDeserialization:
             )
         )
         monkeypatch.setattr("requests.post", post)
-        with set_temporary_config(
-            {"cloud.auth_token": "secret_token"}
-        ):
+        with set_temporary_config({"cloud.auth_token": "secret_token"}):
             client = Client()
 
         result = client.get_flow_run_info(
@@ -668,9 +620,7 @@ class TestResultHandlerDeserialization:
             )
         )
         monkeypatch.setattr("requests.post", post)
-        with set_temporary_config(
-            {"cloud.auth_token": "secret_token"}
-        ):
+        with set_temporary_config({"cloud.auth_token": "secret_token"}):
             client = Client()
 
         result = client.get_task_run_info(
@@ -704,9 +654,7 @@ class TestResultHandlerDeserialization:
             )
         )
         monkeypatch.setattr("requests.post", post)
-        with set_temporary_config(
-            {"cloud.auth_token": "secret_token"}
-        ):
+        with set_temporary_config({"cloud.auth_token": "secret_token"}):
             client = Client()
 
         result = client.get_flow_run_info(
@@ -741,9 +689,7 @@ class TestResultHandlerDeserialization:
             )
         )
         monkeypatch.setattr("requests.post", post)
-        with set_temporary_config(
-            {"cloud.auth_token": "secret_token"}
-        ):
+        with set_temporary_config({"cloud.auth_token": "secret_token"}):
             client = Client()
 
         result = client.get_task_run_info(

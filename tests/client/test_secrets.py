@@ -54,10 +54,7 @@ def test_secrets_use_client(monkeypatch):
     )
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
-        {
-            "cloud.auth_token": "secret_token",
-            "cloud.use_local_secrets": False,
-        }
+        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
     ):
         my_secret = Secret(name="the-key")
         val = my_secret.get()

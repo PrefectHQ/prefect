@@ -51,9 +51,7 @@ class Client:
             graphql_server = prefect.config.cloud.get("graphql")
         self.graphql_server = graphql_server
         self.logger.debug(
-            "Client initialized graphql_server='{0}'".format(
-                self.graphql_server
-            )
+            "Client initialized graphql_server='{0}'".format(self.graphql_server)
         )
 
         token = prefect.config.cloud.get("auth_token", None)
