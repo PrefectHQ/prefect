@@ -30,6 +30,7 @@ import shutil
 import tempfile
 import textwrap
 import uuid
+import warnings
 from typing import Iterable
 
 import cloudpickle
@@ -207,7 +208,7 @@ class ContainerEnvironment(Environment):
     Args:
         - base_image (str): The image to pull that is used as a base for the Docker container
         *Note*: Images must include Python 3.4+ and `pip`.
-        - registry_url (str, optional): The registry to push the image to
+        - registry_url (str, optional): The registry to push the image to (if not provided, this environment cannot be pushed)
         - python_dependencies (list, optional): The list of pip installable python packages
         that will be installed on build of the Docker container
         - image_name (str, optional): A name for the image (usually provided by `build()`)
@@ -224,7 +225,7 @@ class ContainerEnvironment(Environment):
     def __init__(
         self,
         base_image: str,
-        registry_url: str,
+        registry_url: str = None,
         python_dependencies: list = None,
         image_name: str = None,
         image_tag: str = None,
@@ -286,7 +287,14 @@ class ContainerEnvironment(Environment):
 
             client = docker.APIClient(base_url="unix://var/run/docker.sock")
 
-            full_name = os.path.join(self.registry_url, image_name)
+            if self.registry_url:
+                full_name = os.path.join(self.registry_url, image_name)
+            elif push is True:
+                raise ValueError(
+                    "This environment has no `registry_url`, and cannot be pushed."
+                )
+            else:
+                full_name = image_name
 
             logging.info("Building the flow's container environment...")
             output = client.build(
@@ -297,8 +305,10 @@ class ContainerEnvironment(Environment):
             if push:
                 self.push(full_name, image_tag)
 
-            # Remove the image locally after being pushed
-            client.remove_image(image="{}:{}".format(full_name, image_tag), force=True)
+                # Remove the image locally after being pushed
+                client.remove_image(
+                    image="{}:{}".format(full_name, image_tag), force=True
+                )
 
             return ContainerEnvironment(
                 base_image=self.base_image,
