@@ -172,7 +172,7 @@ class TestCronSchedule:
         with pytest.raises(Exception):
             schedules.CronSchedule(1)
         with pytest.raises(Exception):
-            schedules.CronSchedule("* * 0 0 0")
+            schedules.CronSchedule("* * 32 1 1")
 
     def test_cron_schedule_next_n(self):
         every_day = "0 0 * * *"
