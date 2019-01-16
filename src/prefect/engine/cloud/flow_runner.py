@@ -58,6 +58,9 @@ class CloudFlowRunner(FlowRunner):
 
     def __init__(self, flow: Flow, state_handlers: Iterable[Callable] = None) -> None:
         self.client = Client()
+        self.result_handler = (
+            flow.result_handler or prefect.engine.get_default_result_handler_class()()
+        )
         super().__init__(
             flow=flow, task_runner_cls=CloudTaskRunner, state_handlers=state_handlers
         )
@@ -93,7 +96,7 @@ class CloudFlowRunner(FlowRunner):
                 flow_run_id=flow_run_id,
                 version=version,
                 state=new_state,
-                result_handler=self.flow.result_handler,
+                result_handler=self.result_handler,
             )
         except Exception as exc:
             raise ENDRUN(state=new_state)
@@ -125,7 +128,7 @@ class CloudFlowRunner(FlowRunner):
         try:
             flow_run_info = self.client.get_flow_run_info(
                 flow_run_id=prefect.context.get("flow_run_id", ""),
-                result_handler=self.flow.result_handler,
+                result_handler=self.result_handler,
             )
         except Exception as exc:
             if state is None:
