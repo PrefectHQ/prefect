@@ -30,7 +30,6 @@ import shutil
 import tempfile
 import textwrap
 import uuid
-import warnings
 from typing import Iterable
 
 import cloudpickle
