@@ -179,9 +179,12 @@ class State:
         from prefect.serialization.state import StateSchema
 
         if result_handler is not None:
-            json_blob = StateSchema(context=dict(result_handler=result_handler)).dump(
-                self
-            )
+            try:
+                json_blob = StateSchema(
+                    context=dict(result_handler=result_handler)
+                ).dump(self)
+            except:
+                json_blob = StateSchema().dump(self)
         else:
             json_blob = StateSchema().dump(self)
         return json_blob
