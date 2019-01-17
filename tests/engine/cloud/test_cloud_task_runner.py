@@ -247,7 +247,9 @@ class TestHeartBeats:
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
-    def test_task_runner_has_a_heartbeat_only_during_execution(self, executor, monkeypatch):
+    def test_task_runner_has_a_heartbeat_only_during_execution(
+        self, executor, monkeypatch
+    ):
         client = MagicMock()
         monkeypatch.setattr(
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)

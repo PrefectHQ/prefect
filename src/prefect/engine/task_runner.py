@@ -300,7 +300,7 @@ class TaskRunner(Runner):
                 raise exc
 
         except Exception as exc:
-            msg = "Unexpected error while running task: {}".format(str(exc))
+            msg = "Unexpected error while running task: {}".format(repr(exc))
             self.logger.info(msg)
             state = Failed(message=msg, result=exc)
             raise_on_exception = prefect.context.get("raise_on_exception", False)
@@ -443,15 +443,18 @@ class TaskRunner(Runner):
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
             self.logger.info(
-                "Unexpected error while evaluating task trigger '{}'.".format(
-                    self.task.name
+                "Unexpected error while evaluating task trigger for '{name}': {exc}".format(
+                    exc=repr(exc), name=self.task.name
                 )
             )
             if prefect.context.get("raise_on_exception"):
                 raise exc
             raise ENDRUN(
                 TriggerFailed(
-                    "Unexpected error while checking task trigger.", result=exc
+                    "Unexpected error while checking task trigger: {}".format(
+                        repr(exc)
+                    ),
+                    result=exc,
                 )
             )
 
