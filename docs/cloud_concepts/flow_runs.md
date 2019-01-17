@@ -22,7 +22,7 @@ By default, flow runs are scheduled to start immediately. To run the flow in the
 ```graphql
 mutation {
   createFlowRun(
-    input: { flowId: "<flow id>", scheduledStartTime: "<start time>" }
+    input: { flowId: "<flow id>", scheduledStartTime: "<YYYY-MM-DD HH:MM:SS>" }
   ) {
     id
     error
@@ -34,7 +34,7 @@ mutation {
 
 If you need to manually update the state of a flow run, you can do so by providing a new state at any time. You must also provide a "version" number. If the version number doesn't match the database, the update will fail.
 
-::: State versioning
+::: tip State versioning
 Prefect implements a form of optimistic locking for state updates. In order to update a state, you must provide a version number that matches the database. This proves to the system that you're working with the most up-to-date knowledge. If your version doesn't match, it means that someone or some process updated the state since the last time you checked it, and your knowledge is obsolete.
 :::
 

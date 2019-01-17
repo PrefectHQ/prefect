@@ -7,7 +7,7 @@
         "markdown-it-attrs": "^2.3.1",
         "markdown-it-checkbox": "^1.1.0",
         "netlify-identity-widget": "^1.4.14",
-        "vuepress": "^0.14.1"
+        "vuepress": "^0.14.8"
     },
     "scripts": {
         "docs:dev": "cd docs && python generate_docs.py && PREFECT_DOCS_DEV_MODE=1 vuepress dev .",
