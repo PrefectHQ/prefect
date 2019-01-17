@@ -54,7 +54,7 @@ def client(monkeypatch):
 
 
 def test_task_runner_cls_is_cloud_task_runner():
-    fr = CloudFlowRunner(flow=None)
+    fr = CloudFlowRunner(flow=prefect.Flow())
     assert fr.task_runner_cls is CloudTaskRunner
 
 

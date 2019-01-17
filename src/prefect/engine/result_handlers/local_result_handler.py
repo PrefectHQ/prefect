@@ -29,6 +29,7 @@ class LocalResultHandler(ResultHandler):
 
     def __init__(self, dir: str = None):
         self.dir = dir
+        super().__init__()
 
     def deserialize(self, fpath: str) -> Any:
         """
@@ -40,8 +41,11 @@ class LocalResultHandler(ResultHandler):
         Returns:
             - the deserialized result from the provided file
         """
+        self.logger.debug("Starting to read result from {}...".format(fpath))
         with open(fpath, "rb") as f:
-            return cloudpickle.loads(f.read())
+            val = cloudpickle.loads(f.read())
+        self.logger.debug("Finished reading result from {}...".format(fpath))
+        return val
 
     def serialize(self, result: Any) -> str:
         """
@@ -54,6 +58,8 @@ class LocalResultHandler(ResultHandler):
             - str: the _absolute_ path to the serialized result on disk
         """
         fd, loc = tempfile.mkstemp(prefix="prefect-", dir=self.dir)
+        self.logger.debug("Starting to upload result to {}...".format(loc))
         with open(fd, "wb") as f:
             f.write(cloudpickle.dumps(result))
+        self.logger.debug("Finished uploading result to {}...".format(loc))
         return loc

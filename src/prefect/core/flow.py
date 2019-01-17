@@ -5,7 +5,9 @@ import copy
 import functools
 import inspect
 import json
+import pendulum
 import tempfile
+import time
 import uuid
 from collections import Counter
 from typing import (
@@ -842,6 +844,7 @@ class Flow:
         parameters: Dict[str, Any] = None,
         return_tasks: Iterable[Task] = None,
         runner_cls: type = None,
+        on_schedule: bool = False,
         **kwargs: Any
     ) -> "prefect.engine.state.State":
         """
@@ -851,6 +854,8 @@ class Flow:
             - parameters (Dict[str, Any], optional): values to pass into the runner
             - return_tasks ([Task], optional): list of tasks which return state
             - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
+            - on_schedule (bool, optional): if `True`, this command will block and
+                run this Flow on its schedule indefinitely; note that no stateful execution occurs (e.g., retries)
             - **kwargs: additional keyword arguments; if any provided keywords
                 match known parameter names, they will be used as such. Otherwise they will be passed to the
                 `FlowRunner.run()` method
@@ -858,6 +863,26 @@ class Flow:
         Returns:
             - State of the flow after it is run resulting from it's return tasks
         """
+        if on_schedule is True:
+            if self.schedule is None:
+                raise ValueError(
+                    "Flow must have a schedule in order to run with `on_schedule=True`"
+                )
+            while True:  # run indefinitely
+                end = self.schedule.next(1)[0]
+                while True:
+                    now = pendulum.now("utc")
+                    dur = (end - now).total_seconds()
+                    if dur <= 0:
+                        break
+                    time.sleep(dur / 2)
+                self.run(
+                    parameters=parameters,
+                    runner_cls=runner_cls,
+                    on_schedule=False,
+                    **kwargs
+                )
+
         if runner_cls is None:
             runner_cls = prefect.engine.get_default_flow_runner_class()
 
