@@ -4,7 +4,7 @@
 
 ### Major Features
 
-- Add ability to run scheduled flows locally via `schedule` kwarg in `flow.run()` - [#519](https://github.com/PrefectHQ/prefect/issues/519)
+- Add ability to run scheduled flows locally via `on_schedule` kwarg in `flow.run()` - [#519](https://github.com/PrefectHQ/prefect/issues/519)
 
 ### Minor Features
 
