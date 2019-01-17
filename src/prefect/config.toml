@@ -45,10 +45,6 @@ max_retries = false
 # false indicates that tasks have no default value (users must specify one to set it)
 retry_delay = false
 
-# the amount of time tasks should wait before retrying, in seconds.
-# false indicates that tasks have no default value (users must specify one to set it)
-timeout = false
-
 
 [engine]
 
@@ -67,6 +63,10 @@ timeout = false
     [engine.flow_runner]
     # the default flow runner, specified using a full path
     default_class = "prefect.engine.flow_runner.FlowRunner"
+
+    [engine.result_handler]
+    # the default task runner, specified using a full path
+    default_class = "prefect.engine.cloud.CloudResultHandler"
 
     [engine.task_runner]
     # the default task runner, specified using a full path
