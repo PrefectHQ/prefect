@@ -32,8 +32,6 @@ class Client:
     token will only be present in the current context.
 
     Args:
-        - api_server (str, optional): the URL to send all basic POST requests
-            to; if not provided, will be pulled from `cloud.api` config var
         - graphql_server (str, optional): the URL to send all GraphQL requests
             to; if not provided, will be pulled from `cloud.graphql` config var
     """
@@ -46,21 +44,14 @@ class Client:
         self.logger.addHandler(handler)
         self.logger.setLevel(prefect.config.logging.level)
 
-    def __init__(self, api_server: str = None, graphql_server: str = None):
+    def __init__(self, graphql_server: str = None):
         self._initialize_logger()
-        if not api_server:
-            api_server = prefect.config.cloud.get("api", None)
-            if not api_server:
-                raise ClientError("Could not determine API server.")
-        self.api_server = api_server
 
         if not graphql_server:
-            graphql_server = prefect.config.cloud.get("graphql") or self.api_server
+            graphql_server = prefect.config.cloud.get("graphql")
         self.graphql_server = graphql_server
         self.logger.debug(
-            "Client initialized with api_server='{0}' and graphql_server='{1}'".format(
-                self.api_server, self.graphql_server
-            )
+            "Client initialized graphql_server='{0}'".format(self.graphql_server)
         )
 
         token = prefect.config.cloud.get("auth_token", None)
@@ -88,7 +79,7 @@ class Client:
             - path (str): the path of the API url. For example, to GET
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             - server (str, optional): the server to send the GET request to;
-                defaults to `self.api_server`
+                defaults to `self.graphql_server`
             - params (dict): GET parameters
 
         Returns:
@@ -108,7 +99,7 @@ class Client:
             - path (str): the path of the API url. For example, to POST
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             - server (str, optional): the server to send the POST request to;
-                defaults to `self.api_server`
+                defaults to `self.graphql_server`
             - params (dict): POST parameters
 
         Returns:
@@ -175,7 +166,7 @@ class Client:
         import requests
 
         if server is None:
-            server = self.api_server
+            server = self.graphql_server
         assert isinstance(server, str)  # mypy assert
 
         if self.token is None:
@@ -238,7 +229,8 @@ class Client:
         # lazy import for performance
         import requests
 
-        url = os.path.join(self.api_server, "login_email")
+        # TODO: This needs to call the main graphql server and be adjusted for auth0
+        url = os.path.join(self.graphql_server, "login_email")  # type: ignore
         response = requests.post(
             url,
             auth=(email, password),
@@ -272,7 +264,8 @@ class Client:
         # lazy import for performance
         import requests
 
-        url = os.path.join(self.api_server, "refresh_token")
+        # TODO: This needs to call the main graphql server
+        url = os.path.join(self.graphql_server, "refresh_token")  # type: ignore
         response = requests.post(
             url, headers={"Authorization": "Bearer {}".format(self.token)}
         )
