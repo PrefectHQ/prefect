@@ -1,0 +1,18 @@
+click >= 7.0, < 8.0
+cloudpickle >= 0.6.0, < 0.7
+crontab >= 0.22, < 0.23
+cryptography >= 2.2.2, < 3.0
+dask >= 0.18, < 2.0
+distributed >= 1.21.8, < 2.0
+docker >= 3.4.1, < 4.0
+marshmallow == 3.0.0b19
+marshmallow-oneofschema >= 2.0.0b2, < 3.0
+mypy >= 0.600, < 0.700
+mypy_extensions >= 0.4.0, < 0.5
+pendulum >= 2.0.4, < 3.0
+python-dateutil >2.7.3, < 3.0
+requests >= 2.20, < 3.0
+toml >= 0.9.4, < 1.0
+typing >= 3.6.4, < 4.0
+typing_extensions >= 3.6.4, < 4.0
+xxhash >= 1.2.0, < 2.0
