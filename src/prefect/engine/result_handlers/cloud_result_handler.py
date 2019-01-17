@@ -22,6 +22,7 @@ class CloudResultHandler(ResultHandler):
     def __init__(self) -> None:
         self.client = None
         self.result_handler_service = None
+        super().__init__()
 
     def _initialize_client(self) -> None:
         """
@@ -48,6 +49,7 @@ class CloudResultHandler(ResultHandler):
             - the deserialized result from the provided URI
         """
         self._initialize_client()
+        self.logger.debug("Starting to read result from {}...".format(uri))
         res = self.client.get(  # type: ignore
             "/", server=self.result_handler_service, **{"uri": uri}
         )
@@ -56,6 +58,7 @@ class CloudResultHandler(ResultHandler):
             return_val = cloudpickle.loads(base64.b64decode(res.get("result", "")))
         except EOFError:
             return_val = None
+        self.logger.debug("Finished reading result from {}...".format(uri))
 
         return return_val
 
@@ -71,7 +74,13 @@ class CloudResultHandler(ResultHandler):
         """
         self._initialize_client()
         binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()
+        self.logger.debug(
+            "Starting to upload result to {}...".format(self.result_handler_service)
+        )
         res = self.client.post(  # type: ignore
             "/", server=self.result_handler_service, **{"result": binary_data}
+        )
+        self.logger.debug(
+            "Finished uploading result to {}...".format(self.result_handler_service)
         )
         return res.get("uri", "")

@@ -50,8 +50,9 @@ class CloudTaskRunner(TaskRunner):
         state_handlers: Iterable[Callable] = None,
     ) -> None:
         self.client = Client()
-        if result_handler is None:
-            result_handler = CloudResultHandler()
+        result_handler = (
+            result_handler or prefect.engine.get_default_result_handler_class()()
+        )
 
         super().__init__(
             task=task, result_handler=result_handler, state_handlers=state_handlers
