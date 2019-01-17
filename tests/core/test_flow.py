@@ -1245,7 +1245,7 @@ class TestSerialize:
 def test_schedule_kwarg_raises_if_no_schedule():
     f = Flow()
     with pytest.raises(ValueError) as exc:
-        f.run(schedule=True)
+        f.run(on_schedule=True)
     assert "must have a schedule" in str(exc.value)
 
 
@@ -1270,6 +1270,6 @@ def test_schedule_kwarg_runs_on_schedule():
     schedule = MockSchedule()
     f = Flow(tasks=[t], schedule=schedule)
     with pytest.raises(SyntaxError) as exc:
-        f.run(schedule=True)
+        f.run(on_schedule=True)
     assert "Cease" in str(exc.value)
     assert t.call_count == 2
