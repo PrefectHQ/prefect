@@ -13,9 +13,13 @@ import cloudpickle
 
 from prefect import config
 from prefect.client.client import Client
+from prefect.utilities import logging
 
 
 class ResultHandler:
+    def __init__(self) -> None:
+        self.logger = logging.get_logger(type(self).__name__)
+
     def serialize(self, result: Any) -> str:
         raise NotImplementedError()
 
