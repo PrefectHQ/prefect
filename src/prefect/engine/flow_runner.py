@@ -202,11 +202,13 @@ class FlowRunner(Runner):
 
         # All other exceptions are trapped and turned into Failed states
         except Exception as exc:
-            self.logger.info("Unexpected error while running flow.")
+            self.logger.info(
+                "Unexpected error while running flow: {}".format(repr(exc))
+            )
             if raise_on_exception:
                 raise exc
             return Failed(
-                message="Unexpected error while running flow: {}".format(str(exc)),
+                message="Unexpected error while running flow: {}".format(repr(exc)),
                 result=exc,
             )
 
