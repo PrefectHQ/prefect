@@ -29,7 +29,6 @@ from prefect.utilities.configuration import set_temporary_config
 def cloud_settings():
     with set_temporary_config(
         {
-            "cloud.api": "http://my-cloud.foo",
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
             "cloud.auth_token": "token",
@@ -243,6 +242,25 @@ class TestHeartBeats:
         assert res.is_successful()
         assert client.update_task_run_heartbeat.called
         assert client.update_task_run_heartbeat.call_count >= 2
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_task_runner_has_a_heartbeat_only_during_execution(
+        self, executor, monkeypatch
+    ):
+        client = MagicMock()
+        monkeypatch.setattr(
+            "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
+        )
+
+        with set_temporary_config({"cloud.heartbeat_interval": 0.05}):
+            runner = CloudTaskRunner(task=Task())
+            runner.cache_result = lambda *args, **kwargs: time.sleep(0.2)
+            res = runner.run(executor=executor)
+
+        assert client.update_task_run_heartbeat.called
+        assert client.update_task_run_heartbeat.call_count == 1
 
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
