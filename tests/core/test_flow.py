@@ -1,5 +1,6 @@
 import datetime
 import logging
+import pendulum
 import sys
 import tempfile
 import uuid
@@ -1239,3 +1240,36 @@ class TestSerialize:
             f.to_environment_file(tmp.name)
             with open(tmp.name, "r") as f:
                 assert f.read()
+
+
+def test_schedule_kwarg_raises_if_no_schedule():
+    f = Flow()
+    with pytest.raises(ValueError) as exc:
+        f.run(on_schedule=True)
+    assert "must have a schedule" in str(exc.value)
+
+
+def test_schedule_kwarg_runs_on_schedule():
+    class MockSchedule(prefect.schedules.Schedule):
+        call_count = 0
+
+        def next(self, n):
+            if self.call_count < 2:
+                self.call_count += 1
+                return [pendulum.now("utc")]
+            else:
+                raise SyntaxError("Cease scheduling!")
+
+    class StatefulTask(Task):
+        call_count = 0
+
+        def run(self):
+            self.call_count += 1
+
+    t = StatefulTask()
+    schedule = MockSchedule()
+    f = Flow(tasks=[t], schedule=schedule)
+    with pytest.raises(SyntaxError) as exc:
+        f.run(on_schedule=True)
+    assert "Cease" in str(exc.value)
+    assert t.call_count == 2
