@@ -1,34 +1,20 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import configparser
 import sys
 
 from setuptools import find_packages, setup
 
 import versioneer
 
-config = configparser.ConfigParser()
-config.read("requirements.ini")
-
 ## base requirements
-install_requires = ["".join(req) for req in config["base"].items()]
-
-## section dependencies
-includes = {}
-for section in config.sections():
-    includes[section] = config[section].pop("include", "").split(",")
+install_requires = open("requirements.txt").read().strip().split("\n")
+dev_requires = open("dev-requirements.txt").read().strip().split("\n")
 
 extras = {
-    "dev": ["".join(req) for req in config["dev"].items()],
-    "viz": ["".join(req) for req in config["viz"].items()],
-    "templates": ["".join(req) for req in config["templates"].items()],
+    "dev": dev_requires,
+    "viz": ["bokeh >= 0.13.0, < 0.14", "graphviz >= 0.8.3"],
+    "templates": ["jinja2 >= 2.0, < 3.0"],
 }
-
-## process include keyword for related sections
-for section in extras:
-    for other in includes[section]:
-        extras[section] += extras.get(other.strip(), [])
-
 
 if sys.version_info >= (3, 6):
     extras["dev"] += ["black"]
