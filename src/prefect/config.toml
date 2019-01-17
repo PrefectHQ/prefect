@@ -7,7 +7,6 @@ debug = false
 
 [cloud]
 # the Prefect Server address
-api = "http://localhost:4202"
 graphql = "http://localhost:4200"
 log = "http://localhost:4202/log"
 result_handler = "http://localhost:4204"
