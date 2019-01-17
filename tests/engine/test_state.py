@@ -188,20 +188,6 @@ def test_serialization_calls_result_handler():
     )
 
 
-def test_serialization_proceeds_if_result_handler_fails():
-    handler = DictHandler()
-    handler.serialize = lambda: 5  # no args
-    now = pendulum.now("utc")
-    cached = CachedState(
-        cached_inputs=dict(x=99, p="p"),
-        cached_result=dict(hi=5, bye=6),
-        cached_result_expiration=now,
-    )
-    state = Success(result=dict(hi=5, bye=6), cached=cached)
-    serialized = state.serialize(result_handler=handler)
-    assert serialized["result"] == state.result
-
-
 def test_serialization_of_cached_inputs():
     state = Pending(cached_inputs=dict(hi=5, bye=6))
     serialized = state.serialize()
