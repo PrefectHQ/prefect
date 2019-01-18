@@ -44,3 +44,5 @@ Note that this is _not_ a guarantee, but merely a helper to catch issues early o
 ::: tip
 A good rule of thumb is that every object / function you rely on should either be explicitly attached to some attribute of the flow (e.g., a task) or importable via some library that is included in your `ContainerEnvironment` requirements.
 :::
+
+A more robust (albeit longer) process to check that your Flow makes it through the serialization and deployment is to build its `ContainerEnvironment` locally and check that the Flow can be deserialized within the container.  For details on how to do this, see the corresponding section in the [local debugging](../tutorials/local-debugging.html#locally-check-your-flow-s-environment) tutorial.
