@@ -244,7 +244,7 @@ def whoami():
 env = ContainerEnvironment(base_image="python:3.6", registry_url="http://my.personal.registry")
 flow = Flow("reddit-flow", environment=env, tasks=[whoami])
 ```
-If you were to deploy this Flow to cloud, you wouldn't hear from it again.  Why?  Let's find out - first, build the `ContainerEnvironment` locally _without_ pushing to a registry:
+If you were to deploy this Flow to Cloud, you wouldn't hear from it again.  Why?  Let's find out - first, build the `ContainerEnvironment` locally _without_ pushing to a registry:
 ```python
 # note that this will require either a valid registry_url, or no registry_url
 # push=False is important here; otherwise your local image will be deleted
