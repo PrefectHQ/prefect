@@ -218,3 +218,65 @@ If we have a complex dependency graph, `flow.replace` can be a real timesaver fo
 ::: warning Call Signatures
 Note that `flow.replace` preserves edges - this means the old and new tasks need to have the exact same call signature.
 :::
+
+### Locally check your Flow's environment
+
+Another reason a Flow might unexpectedly break in production (or fail to run at all) is if its environment is broken (e.g., if you forget a Python dependency in defining your `ContainerEnvironment` for the Flow).  Luckily, checking `ContainerEnvironment`s locally is easy!  Let's walk through an example:
+```python
+from prefect import task, Flow
+from prefect.environments import ContainerEnvironment
+
+# import a non-prefect package used for scraping reddit
+import praw
+
+
+@task
+def whoami():
+    reddit = praw.Reddit(client_id='SI8pN3DSbt0zor',
+                         client_secret='xaxkj7HNh8kwg8e5t4m6KvSrbTI',
+                         password='1guiwevlfo00esyy',
+                         user_agent='testscript by /u/fakebot3',
+                         username='fakebot3')
+    return reddit.user.me()
+
+
+env = ContainerEnvironment(base_image="python:3.6", registry_url="http://my.personal.registry")
+flow = Flow("reddit-flow", environment=env, tasks=[whoami])
+```
+If you were to deploy this Flow to Cloud, you wouldn't hear from it again.  Why?  Let's find out - first, build the `ContainerEnvironment` locally _without_ pushing to a registry:
+```python
+# note that this will require either a valid registry_url, or no registry_url
+# push=False is important here; otherwise your local image will be deleted
+built_env = env.build(flow, push=False)
+```
+
+Note the Image ID contained in the second to last line of Docker output:
+```
+Successfully built 0f3b0851148b # your ID will be different
+```
+
+Now we have a Docker container on our local machine which contains a `LocalEnvironment` containing our flow. To access it, we simply connect to the container via:
+```
+# connect to an interactive python session running in the container
+docker run -it 0f3b0851148b python
+```
+and then load the environment from a file:
+```python
+from prefect.environments import from_file
+
+local_env = from_file('/root/.prefect/flow_env.prefect')
+flow = local_env.deserialize_flow_from_bytes(local_env.serialized_flow)
+```
+
+Which will result in a very explicit traceback!
+```
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/usr/local/lib/python3.6/site-packages/prefect/environments.py", line 167, in deserialize_flow_from_bytes
+    flow = cloudpickle.loads(decrypted_pickle)
+  File "/usr/local/lib/python3.6/site-packages/cloudpickle/cloudpickle.py", line 944, in subimport
+    __import__(name)
+ModuleNotFoundError: No module named 'praw'
+```
+
+In this particular case, we forgot to include `praw` in our `python_dependencies` for the `ContainerEnvironment`; in general, this is one way to ensure your Flow makes it through the deployment process uncorrupted.
