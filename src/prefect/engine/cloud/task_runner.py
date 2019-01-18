@@ -93,6 +93,9 @@ class CloudTaskRunner(TaskRunner):
                 result_handler=self.result_handler,
             )
         except Exception as exc:
+            self.logger.debug(
+                "Failed to set task state with error: {}".format(repr(exc))
+            )
             raise ENDRUN(state=new_state)
 
         prefect.context.update(task_run_version=version + 1)  # type: ignore
