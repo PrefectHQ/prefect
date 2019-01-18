@@ -240,7 +240,6 @@ def whoami():
     return reddit.user.me()
 
 
-## notice anything missing?
 env = ContainerEnvironment(base_image="python:3.6", registry_url="http://my.personal.registry")
 flow = Flow("reddit-flow", environment=env, tasks=[whoami])
 ```
