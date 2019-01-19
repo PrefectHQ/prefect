@@ -17,13 +17,14 @@ query {
 
 Getting the id of a project with a specific name:
 
-````graphql
+```graphql
 query {
     project(where: { name: { _eq: "a name" } }) {
         id
         name
     }
 }
+```
 
 ## Creating a new project
 
@@ -34,4 +35,4 @@ mutation {
     error
   }
 }
-````
+```
