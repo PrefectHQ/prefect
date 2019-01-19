@@ -37,6 +37,8 @@ class Client:
     """
 
     def _initialize_logger(self) -> None:
+        # The Client requires its own logging setup because the RemoteLogger actually
+        # uses a Client to ship its logs; we currently don't send Client logs to Cloud.
         self.logger = logging.getLogger("Client")
         handler = logging.StreamHandler()
         formatter = logging.Formatter(prefect.config.logging.format)
@@ -50,9 +52,6 @@ class Client:
         if not graphql_server:
             graphql_server = prefect.config.cloud.get("graphql")
         self.graphql_server = graphql_server
-        self.logger.debug(
-            "Client initialized graphql_server='{0}'".format(self.graphql_server)
-        )
 
         token = prefect.config.cloud.get("auth_token", None)
 
@@ -62,9 +61,9 @@ class Client:
                 with open(token_path, "r") as f:
                     token = f.read() or None
             if token is not None:
+                # this is a rare event and we don't expect it to happen
+                # leaving this log in case it ever happens we'll know
                 self.logger.debug("Client token set from file {}".format(token_path))
-        else:
-            self.logger.debug("Client token set from $PREFECT__CLOUD__AUTH_TOKEN")
 
         self.token = token
 
