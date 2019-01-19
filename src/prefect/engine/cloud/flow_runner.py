@@ -99,6 +99,9 @@ class CloudFlowRunner(FlowRunner):
                 result_handler=self.result_handler,
             )
         except Exception as exc:
+            self.logger.debug(
+                "Failed to set flow state with error: {}".format(repr(exc))
+            )
             raise ENDRUN(state=new_state)
 
         prefect.context.update(flow_run_version=version + 1)  # type: ignore
@@ -131,6 +134,9 @@ class CloudFlowRunner(FlowRunner):
                 result_handler=self.result_handler,
             )
         except Exception as exc:
+            self.logger.debug(
+                "Failed to retrieve flow state with error: {}".format(repr(exc))
+            )
             if state is None:
                 state = Failed(
                     message="Could not retrieve state from Prefect Cloud", result=exc
