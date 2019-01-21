@@ -6,12 +6,12 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
+from prefect.engine.cloud import CloudResultHandler
+from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, Mapped, State
-from prefect.engine.task_runner import TaskRunner
+from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
 from prefect.utilities.graphql import with_args
-from prefect.engine.result_handlers import ResultHandler
-from prefect.engine.cloud import CloudResultHandler
 
 
 class CloudTaskRunner(TaskRunner):
@@ -111,7 +111,7 @@ class CloudTaskRunner(TaskRunner):
         state: Optional[State],
         context: Dict[str, Any],
         upstream_states: Dict[Edge, State],
-    ) -> Tuple[State, Dict[str, Any], Dict[Edge, State]]:
+    ) -> TaskRunnerInitializeResult:
         """
         Initializes the Task run by initializing state and context appropriately.
 
