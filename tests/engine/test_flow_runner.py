@@ -15,7 +15,7 @@ from prefect.core import Flow, Parameter, Task
 from prefect.engine import signals
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.executors import Executor, LocalExecutor
-from prefect.engine.flow_runner import ENDRUN, FlowRunner
+from prefect.engine.flow_runner import ENDRUN, FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -499,6 +499,7 @@ class TestRunFlowStep:
         new_state = FlowRunner(flow=flow).get_flow_run_state(
             state=Running(),
             task_states={},
+            task_contexts={},
             start_tasks=[],
             start_task_ids=[],
             return_tasks=set(),
@@ -516,6 +517,7 @@ class TestRunFlowStep:
             FlowRunner(flow=flow).get_flow_run_state(
                 state=state,
                 task_states={},
+                task_contexts={},
                 start_tasks=[],
                 start_task_ids=[],
                 return_tasks=set(),
@@ -532,6 +534,7 @@ class TestRunFlowStep:
         new_state = MyFlowRunner(flow=flow).get_flow_run_state(
             state=Running(),
             task_states={},
+            task_contexts={},
             start_tasks=[],
             start_task_ids=[],
             return_tasks=set(),
@@ -771,6 +774,60 @@ class TestOutputCaching:
         )
         assert isinstance(flow_state, Success)
         assert flow_state.result[y].result == 100
+
+
+class TestInitializeRun:
+    def test_initialize_sets_none_to_pending(self):
+        result = FlowRunner(Flow()).initialize_run(
+            state=None, task_states={}, context={}, task_contexts={}, parameters={}
+        )
+        assert result.state.is_pending()
+
+    @pytest.mark.parametrize("state", [Pending(), Running()])
+    def test_initialize_returns_state_if_provided(self, state):
+        result = FlowRunner(Flow()).initialize_run(
+            state=state, task_states={}, context={}, task_contexts={}, parameters={}
+        )
+        assert result.state is state
+
+    def test_initialize_sets_task_contexts(self):
+        t1 = Task(name="t1")
+        t2 = Parameter(name="x")
+        flow = Flow(tasks=[t1, t2])
+
+        result = FlowRunner(flow).initialize_run(
+            state=Pending(), task_states={}, context={}, task_contexts={}, parameters={}
+        )
+        assert result.task_contexts == {
+            t: dict(task_id=t.id, task_name=t.name, task_slug=t.slug)
+            for t in flow.tasks
+        }
+
+    def test_initialize_puts_parameters_in_context(self):
+        x = Parameter(name="x")
+        flow = Flow(tasks=[x])
+
+        result = FlowRunner(flow).initialize_run(
+            state=Pending(),
+            task_states={},
+            context={},
+            task_contexts={},
+            parameters={"x": 1},
+        )
+        assert result.context["parameters"] == {"x": 1}
+
+    def test_parameter_precedance(self):
+        x = Parameter(name="x")
+        flow = Flow(tasks=[x])
+
+        result = FlowRunner(flow).initialize_run(
+            state=Pending(),
+            task_states={},
+            context={"parameters": {"x": 2, "y": 1}},
+            task_contexts={},
+            parameters={"x": 1},
+        )
+        assert result.context["parameters"] == {"x": 1, "y": 1}
 
 
 class TestRunCount:
@@ -1124,7 +1181,11 @@ def test_all_pipeline_method_steps_are_called():
         setattr(runner, method, MagicMock())
 
     # initialize run is unpacked, which MagicMocks dont support
-    runner.initialize_run = MagicMock(return_value=(MagicMock(), MagicMock()))
+    runner.initialize_run = MagicMock(
+        return_value=FlowRunnerInitializeResult(
+            MagicMock(), MagicMock(), MagicMock(), MagicMock()
+        )
+    )
 
     runner.run()
 
@@ -1354,3 +1415,18 @@ class TestMapping:
         )
         assert state.is_running()
         assert isinstance(state.result[res], Scheduled)
+
+
+def test_task_contexts_are_provided_to_tasks():
+    @prefect.task(name="rc", slug="rc")
+    def return_context():
+        return prefect.context.to_dict()
+
+    with Flow() as flow:
+        rc = return_context()
+    state = FlowRunner(flow=flow).run(return_tasks=[rc])
+    ctx = state.result[rc].result
+
+    assert ctx["task_id"] == rc.id
+    assert ctx["task_name"] == rc.name
+    assert ctx["task_slug"] == rc.slug
