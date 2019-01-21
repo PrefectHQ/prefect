@@ -11,6 +11,7 @@
 - Allow for building `ContainerEnvironment`s locally without pushing to registry - [#514](https://github.com/PrefectHQ/prefect/issues/514)
 - Make mapping more robust when running children tasks multiple times - [#541](https://github.com/PrefectHQ/prefect/pull/541)
 - Always prefer `cached_inputs` over upstream states, if available - [#546](https://github.com/PrefectHQ/prefect/pull/546)
+- Add hooks to `FlowRunner.initialize_run()` for manipulating task states and contexts - [#548](https://github.com/PrefectHQ/prefect/pull/548)
 
 ### Fixes
 
