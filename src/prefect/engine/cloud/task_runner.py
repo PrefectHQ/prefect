@@ -20,7 +20,7 @@ class CloudTaskRunner(TaskRunner):
     before, during and after the Task is run.
 
     In particular, through the TaskRunner you can specify the states of any upstream dependencies,
-    any inputs required for this Task to run, and what state the Task should be initialized with.
+    and what state the Task should be initialized with.
 
     Args:
         - task (Task): the Task to be run / executed
@@ -111,8 +111,7 @@ class CloudTaskRunner(TaskRunner):
         state: Optional[State],
         context: Dict[str, Any],
         upstream_states: Dict[Edge, State],
-        inputs: Dict[str, Any],
-    ) -> Tuple[State, Dict[str, Any], Dict[Edge, State], Dict[str, Any]]:
+    ) -> Tuple[State, Dict[str, Any], Dict[Edge, State]]:
         """
         Initializes the Task run by initializing state and context appropriately.
 
@@ -121,11 +120,9 @@ class CloudTaskRunner(TaskRunner):
             - context (Dict[str, Any]): the context to be updated with relevant information
             - upstream_states (Dict[Edge, State]): a dictionary
                 representing the states of tasks upstream of this one
-            - inputs (Dict[str, Any]): a dictionary of inputs to the task that should override
-                the inputs taken from upstream states
 
         Returns:
-            - tuple: a tuple of the updated state, context, upstream_states, and inputs objects
+            - tuple: a tuple of the updated state, context, and upstream_states objects
         """
         try:
             task_run_info = self.client.get_task_run_info(
@@ -158,20 +155,8 @@ class CloudTaskRunner(TaskRunner):
             context=context, upstream_states=upstream_states
         )
 
-        # update inputs, prioritizing kwarg-provided inputs
-        if hasattr(state, "cached_inputs") and isinstance(
-            state.cached_inputs, dict  # type: ignore
-        ):
-            updated_inputs = state.cached_inputs.copy()  # type: ignore
-        else:
-            updated_inputs = {}
-        updated_inputs.update(inputs)
-
         return super().initialize_run(
-            state=state,
-            context=context,
-            upstream_states=upstream_states,
-            inputs=updated_inputs,
+            state=state, context=context, upstream_states=upstream_states
         )
 
     def get_latest_upstream_states(

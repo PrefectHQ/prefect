@@ -49,8 +49,8 @@ class TaskRunner(Runner):
     TaskRunners handle the execution of Tasks and determine the State of a Task
     before, during and after the Task is run.
 
-    In particular, through the TaskRunner you can specify the states of any upstream dependencies,
-    any inputs required for this Task to run, and what state the Task should be initialized with.
+    In particular, through the TaskRunner you can specify the states of any upstream dependencies
+    and what state the Task should be initialized with.
 
     Args:
         - task (Task): the Task to be run / executed
@@ -112,8 +112,7 @@ class TaskRunner(Runner):
         state: Optional[State],
         context: Dict[str, Any],
         upstream_states: Dict[Edge, State],
-        inputs: Dict[str, Any],
-    ) -> Tuple[State, Dict[str, Any], Dict[Edge, State], Dict[str, Any]]:
+    ) -> Tuple[State, Dict[str, Any], Dict[Edge, State]]:
         """
         Initializes the Task run by initializing state and context appropriately.
 
@@ -127,8 +126,6 @@ class TaskRunner(Runner):
             - state (State): the proposed initial state of the flow run; can be `None`
             - context (Dict[str, Any]): the context to be updated with relevant information
             - upstream_states (Dict[Edge, State]): the upstream states
-            - inputs (Dict[str, Any]): a dictionary of inputs to the task that should override
-                the inputs taken from upstream states
 
         Returns:
             - tuple: a tuple of the updated state, context, upstream_states, and inputs objects
@@ -145,13 +142,12 @@ class TaskRunner(Runner):
 
         context.update(task_run_count=run_count, task_name=self.task.name)
 
-        return state, context, upstream_states, inputs
+        return state, context, upstream_states
 
     def run(
         self,
         state: State = None,
         upstream_states: Dict[Edge, State] = None,
-        inputs: Dict[str, Any] = None,
         check_upstream: bool = True,
         context: Dict[str, Any] = None,
         executor: "prefect.engine.executors.Executor" = None,
@@ -167,9 +163,6 @@ class TaskRunner(Runner):
             - upstream_states (Dict[Edge, State]): a dictionary
                 representing the states of any tasks upstream of this one. The keys of the
                 dictionary should correspond to the edges leading to the task.
-            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
-                to the task's `run()` arguments. Any keys that are provided will override the
-                `State`-based inputs provided in upstream_states.
             - check_upstream (bool): boolean specifying whether to check upstream states
                 when deciding if the task should run. Defaults to `True`, but could be set to
                 `False` to force the task to run.
@@ -181,7 +174,6 @@ class TaskRunner(Runner):
             - `State` object representing the final post-run state of the Task
         """
         upstream_states = upstream_states or {}
-        inputs = inputs or {}
         context = context or {}
         map_index = context.setdefault("map_index", None)
         task_name = "{name}{index}".format(
@@ -189,7 +181,6 @@ class TaskRunner(Runner):
             index=("" if map_index is None else "[{}]".format(map_index)),
         )
 
-        task_inputs = {}  # type: Dict[str, Any]
         if executor is None:
             executor = prefect.engine.get_default_executor_class()()
 
@@ -199,13 +190,14 @@ class TaskRunner(Runner):
         #   - upstream edges that are `mapped`
         #   - no `map_index` (which indicates that this is the child task, not the parent)
         mapped = any([e.mapped for e in upstream_states]) and map_index is None
+        task_inputs = {}  # type: Dict[str, Any]
 
         self.logger.info("Starting task run for task '{name}'".format(name=task_name))
 
         try:
             # initialize the run
-            state, context, upstream_states, inputs = self.initialize_run(
-                state, context, upstream_states, inputs
+            state, context, upstream_states = self.initialize_run(
+                state, context, upstream_states
             )
 
             # run state transformation pipeline
@@ -229,7 +221,6 @@ class TaskRunner(Runner):
                     state = self.run_mapped_task(
                         state=state,
                         upstream_states=upstream_states,
-                        inputs=inputs,
                         check_upstream=check_upstream,
                         context=context,
                         executor=executor,
@@ -246,7 +237,7 @@ class TaskRunner(Runner):
 
                 # retrieve task inputs from upstream and also explicitly passed inputs
                 task_inputs = self.get_task_inputs(
-                    upstream_states=upstream_states, inputs=inputs
+                    state=state, upstream_states=upstream_states
                 )
 
                 # triggers can raise Pauses, which require task_inputs to be available for caching
@@ -482,28 +473,32 @@ class TaskRunner(Runner):
         return state
 
     def get_task_inputs(
-        self, upstream_states: Dict[Edge, State], inputs: Dict[str, Any]
+        self, state: State, upstream_states: Dict[Edge, State]
     ) -> Dict[str, Any]:
         """
-        Given the upstream states and provided inputs, generates a task dictionary of
-        inputs to this task.
+        Given the task's current state and upstream states, generates the inputs for this task.
+        If the current state has `cached_inputs`, they are used. Upstream states supplement
+        any missing keys.
 
         Args:
-            - upstream_states (Dict[Edge, State]): the upstream states
-            - inputs (Dict[str, Any]): any inputs that were explicitly provided to the task. These
-                will override any inputs inferred from upstream states.
+            - state (State): the task's current state.
+            - upstream_states (Dict[Edge, State]): the upstream state_handlers
 
         Returns:
             - Dict[str, Any]: the task inputs
 
         """
         task_inputs = {}
+
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
             if edge.key is not None:
                 task_inputs[edge.key] = upstream_state.result
 
-        task_inputs.update(inputs)
+        if state.is_pending():
+            assert isinstance(state, Pending)  # mypy assert
+            task_inputs.update(state.cached_inputs or {})
+
         return task_inputs
 
     @call_state_handlers
@@ -533,7 +528,6 @@ class TaskRunner(Runner):
         self,
         state: State,
         upstream_states: Dict[Edge, State],
-        inputs: Dict[str, Any],
         check_upstream: bool,
         context: Dict[str, Any],
         executor: "prefect.engine.executors.Executor",
@@ -544,8 +538,6 @@ class TaskRunner(Runner):
         Args:
             - state (State): the current task state
             - upstream_states (Dict[Edge, State]): the upstream states
-            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
-                to the task's `run()` arguments.
             - check_upstream (bool): boolean specifying whether to check upstream states
                 when deciding if the task should run. Defaults to `True`, but could be set to
                 `False` to force the task to run.
@@ -610,7 +602,6 @@ class TaskRunner(Runner):
                 upstream_states=upstream_states,
                 # if we set the state here, then it will not be processed by `initialize_run()`
                 state=state,
-                inputs=inputs,
                 check_upstream=check_upstream,
                 context=map_context,
                 executor=executor,
