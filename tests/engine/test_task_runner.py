@@ -571,6 +571,73 @@ class TestCheckTaskReady:
         assert exc.value.state is state
 
 
+class TestGetTaskInputs:
+    def test_get_empty_inputs(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(), upstream_states={}
+        )
+        assert inputs == {}
+
+    def test_get_unkeyed_inputs(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(), upstream_states={Edge(1, 2): Success(result=1)}
+        )
+        assert inputs == {}
+
+    def test_get_inputs_from_upstream(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(), upstream_states={Edge(1, 2, key="x"): Success(result=1)}
+        )
+        assert inputs == {"x": 1}
+
+    def test_get_inputs_from_upstream_with_non_key_edges(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(),
+            upstream_states={
+                Edge(1, 2, key="x"): Success(result=1),
+                Edge(1, 2): Success(result=2),
+            },
+        )
+        assert inputs == {"x": 1}
+
+    def test_get_inputs_from_upstream_failed(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(),
+            upstream_states={Edge(1, 2, key="x"): Failed(result=ValueError())},
+        )
+        assert isinstance(inputs["x"], ValueError)
+
+    def test_get_inputs_from_upstream_mapped(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(),
+            upstream_states={Edge(1, 2, key="x", mapped=True): Success(result=[1, 2])},
+        )
+        assert inputs == {"x": [1, 2]}
+
+    def test_get_inputs_from_cached_inputs(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(cached_inputs={"x": 1}), upstream_states={}
+        )
+        assert inputs == {"x": 1}
+
+    def test_get_inputs_from_cached_inputs_and_upstream_states(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(cached_inputs={"x": 1}),
+            upstream_states={Edge(1, 2, key="y"): Success(result=2)},
+        )
+        assert inputs == {"x": 1, "y": 2}
+
+    def test_get_inputs_from_cached_inputs_overwrites_upstream_states(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(cached_inputs={"x": 1}),
+            upstream_states={
+                Edge(1, 2, key="x"): Success(result=2),
+                Edge(1, 2, key="y"): Success(result=2),
+            },
+        )
+        assert inputs == {"x": 1, "y": 2}
+
+
 class TestCheckTaskCached:
     def test_not_cached(self):
         state = Pending()
