@@ -324,24 +324,12 @@ class FlowRunner(Runner):
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
                 upstream_states = {}  # type: Dict[Edge, Union[State, Iterable]]
-                inputs = {}  # type: Dict[str, Any]
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
                     upstream_states[edge] = task_states.get(
                         edge.upstream_task, Pending(message="Task state not available.")
                     )
-
-                # if a task is provided as a start_task and its state is also
-                # provided, we assume that means it requires cached_inputs
-                if task in start_tasks and task in task_states:
-                    passed_state = task_states[task]
-                    if not isinstance(passed_state, list):
-                        assert isinstance(passed_state, Pending)  # mypy assertion
-                        assert isinstance(
-                            passed_state.cached_inputs, dict
-                        )  # mypy assertion
-                        inputs.update(passed_state.cached_inputs)
 
                 # -- run the task
 
@@ -350,7 +338,6 @@ class FlowRunner(Runner):
                     task=task,
                     state=task_states.get(task),
                     upstream_states=upstream_states,
-                    inputs=inputs,
                     # if the task is a "start task", don't check its upstream dependencies
                     check_upstream=(task not in start_tasks),
                     context=dict(prefect.context, task_id=task.id),
@@ -450,7 +437,6 @@ class FlowRunner(Runner):
         task: Task,
         state: State,
         upstream_states: Dict[Edge, State],
-        inputs: Dict[str, Any],
         check_upstream: bool,
         context: Dict[str, Any],
         task_runner_state_handlers: Iterable[Callable],
@@ -466,7 +452,6 @@ class FlowRunner(Runner):
             - state (State): starting state for the Flow. Defaults to
                 `Pending`
             - upstream_states (Dict[Edge, State]): dictionary of upstream states
-            - inputs (Dict[str, Any]): any known inputs to the task
             - check_upstream (bool): if False, the task will skip its upstream checks
             - context (Dict[str, Any]): a context dictionary for the task run
             - task_runner_state_handlers (Iterable[Callable]): A list of state change
@@ -497,7 +482,6 @@ class FlowRunner(Runner):
         return task_runner.run(
             state=state,
             upstream_states=upstream_states,
-            inputs=inputs,
             # if the task is a "start task", don't check its upstream dependencies
             check_upstream=check_upstream,
             context=context,
