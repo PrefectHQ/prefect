@@ -22,6 +22,7 @@ from prefect.engine.state import (
     Finished,
     Pending,
     Retrying,
+    Mapped,
     Running,
     Scheduled,
     Skipped,
@@ -1217,3 +1218,139 @@ def test_parameters_overwrite_context_only_if_key_matches():
     )
     assert state.result[x].result == 2
     assert state.result[y].result == 6
+
+
+class TestMapping:
+    @pytest.mark.parametrize(
+        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
+    )
+    def test_terminal_mapped_states_are_used_for_flow_state(self, executor):
+
+        with Flow() as flow:
+            res = ReturnTask().map([0, 1])
+        state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
+        assert state.is_failed()
+        assert state.result[res].map_states[0].is_successful()
+        assert state.result[res].map_states[1].is_failed()
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
+    )
+    def test_mapped_will_use_existing_map_states_if_available(self, executor):
+
+        with Flow() as flow:
+            res = ReturnTask().map([0, 1])
+
+        state = FlowRunner(flow=flow).run(
+            return_tasks=[res],
+            executor=executor,
+            task_states={res: Mapped(map_states=[Success(), Success(result=100)])},
+        )
+        assert state.is_successful()
+        assert state.result[res].map_states[1].is_successful()
+        assert state.result[res].map_states[1].result == 100
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
+    )
+    def test_mapped_will_use_partial_existing_map_states_if_available(self, executor):
+
+        with Flow() as flow:
+            res = ReturnTask().map([1, 1])
+
+        state = FlowRunner(flow=flow).run(
+            return_tasks=[res],
+            executor=executor,
+            task_states={res: Mapped(map_states=[None, Success(result=100)])},
+        )
+        assert state.is_failed()
+        assert state.result[res].map_states[0].is_failed()
+        assert state.result[res].map_states[1].is_successful()
+        assert state.result[res].map_states[1].result == 100
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
+    )
+    def test_mapped_will_use_partial_existing_map_states_if_incomplete(self, executor):
+
+        with Flow() as flow:
+            res = ReturnTask().map([1, 1])
+
+        state = FlowRunner(flow=flow).run(
+            return_tasks=[res],
+            executor=executor,
+            task_states={res: Mapped(map_states=[Success(result=100)])},
+        )
+        assert state.is_failed()
+        assert state.result[res].map_states[0].is_successful()
+        assert state.result[res].map_states[0].result == 100
+        assert state.result[res].map_states[1].is_failed()
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
+    )
+    def test_mapped_tasks_dont_run_if_upstream_pending(self, executor):
+
+        with Flow() as flow:
+            ups = SuccessTask()
+            res = ReturnTask().map([ups])
+
+        state = FlowRunner(flow=flow).run(
+            return_tasks=flow.tasks,
+            executor=executor,
+            task_states={ups: Retrying(start_time=pendulum.now().add(hours=1))},
+        )
+        assert state.is_running()
+        assert state.result[ups].is_pending()
+        assert state.result[res].is_pending()
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
+    )
+    def test_mapped_tasks_do_run_if_upstream_pending_and_they_are_start_tasks(
+        self, executor
+    ):
+
+        with Flow() as flow:
+            ups = SuccessTask()
+            res = ReturnTask().map([ups])
+
+        state = FlowRunner(flow=flow).run(
+            return_tasks=flow.tasks,
+            executor=executor,
+            start_tasks=[res],
+            task_states={ups: Retrying(start_time=pendulum.now().add(hours=1))},
+        )
+        assert state.is_failed()
+        assert "object is not subscriptable" in state.result[res].message
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
+    )
+    def test_mapped_task_can_be_scheduled(self, executor):
+
+        with Flow() as flow:
+            res = ReturnTask().map([0, 0])
+
+        state = FlowRunner(flow=flow).run(
+            return_tasks=[res],
+            executor=executor,
+            task_states={res: Scheduled(start_time=pendulum.now().subtract(minutes=1))},
+        )
+        assert state.is_successful()
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
+    )
+    def test_mapped_task_can_be_scheduled_for_future(self, executor):
+
+        with Flow() as flow:
+            res = ReturnTask().map([0, 0])
+
+        state = FlowRunner(flow=flow).run(
+            return_tasks=[res],
+            executor=executor,
+            task_states={res: Scheduled(start_time=pendulum.now().add(hours=1))},
+        )
+        assert state.is_running()
+        assert isinstance(state.result[res], Scheduled)

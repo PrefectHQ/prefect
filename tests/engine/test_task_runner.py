@@ -566,10 +566,10 @@ class TestCheckTaskTrigger:
         assert isinstance(exc.value.state.result, ZeroDivisionError)
 
 
-class TestCheckTaskPending:
-    @pytest.mark.parametrize("state", [Pending(), CachedState()])
+class TestCheckTaskReady:
+    @pytest.mark.parametrize("state", [Pending(), CachedState(), Mapped()])
     def test_pending(self, state):
-        new_state = TaskRunner(task=Task()).check_task_is_pending(state=state)
+        new_state = TaskRunner(task=Task()).check_task_is_ready(state=state)
         assert new_state is state
 
     @pytest.mark.parametrize(
@@ -578,7 +578,7 @@ class TestCheckTaskPending:
     def test_not_pending(self, state):
 
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task=Task()).check_task_is_pending(state=state)
+            TaskRunner(task=Task()).check_task_is_ready(state=state)
         assert exc.value.state is state
 
 
@@ -965,9 +965,9 @@ class TestTaskRunnerStateHandlers:
         state = runner.run(
             upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
         )
-        # the task changed state two times: Pending -> Running -> Mapped
+        # the task changed state one time: Pending -> Mapped
         assert isinstance(state, Mapped)
-        assert task_runner_handler.call_count == 2
+        assert task_runner_handler.call_count == 1
 
     def test_multiple_task_runner_handlers_are_called(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
@@ -1012,6 +1012,33 @@ class TestTaskRunnerStateHandlers:
         task = Task(state_handlers=[handler])
         state = TaskRunner(task=task).run()
         assert state.is_failed()
+
+
+class TestRunMappedStep:
+    def test_run_mapped_with_empty_upstream_states(self):
+        """
+        Ensure infinite loop is avoided
+        """
+        state = TaskRunner(task=Task()).run_mapped_task(
+            state=Pending(),
+            upstream_states={},
+            inputs={},
+            check_upstream=True,
+            context={},
+            executor=prefect.engine.executors.LocalExecutor(),
+        )
+
+    @pytest.mark.parametrize("state", [Pending(), Mapped(), Scheduled()])
+    def test_run_mapped_returns_mapped(self, state):
+        state = TaskRunner(task=Task()).run_mapped_task(
+            state=Pending(),
+            upstream_states={},
+            inputs={},
+            check_upstream=True,
+            context={},
+            executor=prefect.engine.executors.LocalExecutor(),
+        )
+        assert state.is_mapped()
 
 
 @pytest.mark.parametrize(

@@ -601,7 +601,9 @@ class TaskRunner(Runner):
             except IndexError:
                 break
 
-        def run_fn(state, map_index: int, upstream_states: Dict[Edge, State]) -> State:
+        def run_fn(
+            state: State, map_index: int, upstream_states: Dict[Edge, State]
+        ) -> State:
             map_context = context.copy()
             map_context.update(map_index=map_index)
             return self.run(
