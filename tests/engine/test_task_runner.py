@@ -304,11 +304,11 @@ class TestInitializeRun:
     def test_states_without_run_count(self, state):
         with prefect.context() as ctx:
             assert "task_run_count" not in ctx
-            new_state, _, _ = TaskRunner(Task()).initialize_run(
+            result = TaskRunner(Task()).initialize_run(
                 state=state, context=ctx, upstream_states={}
             )
             assert ctx.task_run_count == 1
-            assert new_state is state
+            assert result.state is state
 
     @pytest.mark.parametrize(
         "state",
@@ -322,19 +322,19 @@ class TestInitializeRun:
     def test_states_with_run_count(self, state):
         with prefect.context() as ctx:
             assert "task_run_count" not in ctx
-            new_state, _, _ = TaskRunner(Task()).initialize_run(
+            result = TaskRunner(Task()).initialize_run(
                 state=state, context=ctx, upstream_states={}
             )
             assert ctx.task_run_count == state.run_count + 1
-            assert new_state is state
+            assert result.state is state
 
     def test_task_runner_puts_resume_in_context_if_state_is_resume(self):
         with prefect.context() as ctx:
             assert "resume" not in ctx
-            state, _, _ = TaskRunner(Task()).initialize_run(
+            result = TaskRunner(Task()).initialize_run(
                 state=Resume(), context=ctx, upstream_states={}
             )
-            assert ctx.resume is True
+            assert result.context.resume is True
 
     @pytest.mark.parametrize(
         "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), CachedState()]
@@ -344,10 +344,17 @@ class TestInitializeRun:
     ):
         with prefect.context() as ctx:
             assert "resume" not in ctx
-            state, _, _ = TaskRunner(Task()).initialize_run(
+            result = TaskRunner(Task()).initialize_run(
                 state=state, context=ctx, upstream_states={}
             )
-            assert "resume" not in ctx
+            assert "resume" not in result.context
+
+    def test_unwrap_submitted_states(self):
+        state = Scheduled()
+        result = TaskRunner(Task()).initialize_run(
+            state=Submitted(state=state), context={}, upstream_states={}
+        )
+        assert result.state is state
 
 
 class TestCheckUpstreamFinished:
