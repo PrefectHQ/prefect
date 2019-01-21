@@ -496,8 +496,7 @@ class TaskRunner(Runner):
                 task_inputs[edge.key] = upstream_state.result
 
         if state.is_pending():
-            assert isinstance(state, Pending)  # mypy assert
-            task_inputs.update(state.cached_inputs or {})
+            task_inputs.update(state.cached_inputs or {})  # type: ignore
 
         return task_inputs
 
