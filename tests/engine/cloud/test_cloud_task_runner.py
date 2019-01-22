@@ -17,6 +17,7 @@ from prefect.engine.state import (
     Paused,
     Pending,
     Running,
+    Retrying,
     Skipped,
     Success,
     TimedOut,
@@ -157,7 +158,7 @@ def test_task_runner_uses_cached_inputs_from_db_state(monkeypatch):
     def add_one(x):
         return x + 1
 
-    db_state = Paused(cached_inputs=dict(x=41))
+    db_state = Retrying(cached_inputs=dict(x=41))
     get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
     set_task_run_state = MagicMock()
     client = MagicMock(
