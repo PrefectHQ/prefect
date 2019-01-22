@@ -274,7 +274,7 @@ def test_task_runner_accepts_dictionary_of_edges():
 
 
 def test_task_runner_can_handle_timeouts_by_default():
-    sleeper = SlowTask(timeout=timedelta(seconds=0.1))
+    sleeper = SlowTask(timeout=1)
     state = TaskRunner(sleeper).run(
         upstream_states={Edge(None, sleeper, key="secs"): Success(result=0.2)}
     )
