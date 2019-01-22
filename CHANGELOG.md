@@ -9,6 +9,7 @@
 ### Minor Features
 
 - Allow for building `ContainerEnvironment`s locally without pushing to registry - [#514](https://github.com/PrefectHQ/prefect/issues/514)
+- Make mapping more robust when running children tasks multiple times - [#541](https://github.com/PrefectHQ/prefect/pull/541)
 
 ### Fixes
 

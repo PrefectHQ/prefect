@@ -217,38 +217,3 @@ class CloudTaskRunner(TaskRunner):
                 ).state
             new_upstream_states[edge] = new_state
         return new_upstream_states
-
-    def wait_for_mapped_upstream(
-        self,
-        upstream_states: Dict[Edge, State],
-        executor: "prefect.engine.executors.Executor",
-    ) -> Dict[Edge, State]:
-        """
-        Loads the results of any mapped upstream tasks
-
-        Args:
-            - upstream_states (Dict[Edge, State]): the upstream states
-            - executor (Executor): the executor
-
-        Returns:
-            - Dict[Edge, State]: the upstream states
-        """
-        # first, block until any futures finish
-        upstream_states = super().wait_for_mapped_upstream(
-            upstream_states=upstream_states, executor=executor
-        )
-
-        # then load any required children map_states -- we need them if we are NOT mapping
-        # (meaning we are reducing) and if the upstream is mapped
-        for edge, upstream_state in upstream_states.items():
-
-            if not edge.mapped and upstream_state.is_mapped():
-                assert isinstance(upstream_state, Mapped)  # mypy assert
-                upstream_state.map_states = self.client.get_mapped_children_states(
-                    flow_run_id=prefect.context.get("flow_run_id", ""),
-                    task_id=edge.upstream_task.id,
-                    result_handler=self.result_handler,
-                )
-                upstream_state.result = [s.result for s in upstream_state.map_states]
-
-        return upstream_states
