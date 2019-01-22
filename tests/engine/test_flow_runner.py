@@ -502,7 +502,6 @@ class TestRunFlowStep:
             state=Running(),
             task_states={},
             start_tasks=[],
-            start_task_ids=[],
             return_tasks=set(),
             task_runner_state_handlers=[],
             executor=LocalExecutor(),
@@ -519,7 +518,6 @@ class TestRunFlowStep:
                 state=state,
                 task_states={},
                 start_tasks=[],
-                start_task_ids=[],
                 return_tasks=set(),
                 task_runner_state_handlers=[],
                 executor=Executor(),
@@ -535,7 +533,6 @@ class TestRunFlowStep:
             state=Running(),
             task_states={},
             start_tasks=[],
-            start_task_ids=[],
             return_tasks=set(),
             task_runner_state_handlers=[],
             executor=LocalExecutor(),
@@ -556,45 +553,6 @@ class TestStartTasks:
         assert "Task not evaluated" in state.result[t2].message
         assert "Task not evaluated" not in state.result[t3].message
 
-    def test_start_tasks_ids_are_respected(self):
-        f = Flow()
-        t1, t2, t3 = Task(), Task(), Task()
-        f.add_edge(t1, t2)
-        f.add_edge(t2, t3)
-        state = FlowRunner(flow=f).run(
-            start_task_ids=[t3.id], return_tasks=[t1, t2, t3]
-        )
-
-        assert "Task not evaluated" in state.result[t1].message
-        assert "Task not evaluated" in state.result[t2].message
-        assert "Task not evaluated" not in state.result[t3].message
-
-    def test_start_tasks_ids_can_be_combined_with_start_tasks(self):
-        f = Flow()
-        t1, t2, t3 = Task(), Task(), Task()
-        f.add_edge(t1, t2)
-        f.add_edge(t2, t3)
-        state = FlowRunner(flow=f).run(
-            start_tasks=[t2], start_task_ids=[t3.id], return_tasks=[t1, t2, t3]
-        )
-
-        assert "Task not evaluated" in state.result[t1].message
-        assert "Task not evaluated" not in state.result[t2].message
-        assert "Task not evaluated" not in state.result[t3].message
-
-    def test_start_tasks_ids_can_overlap_with_start_tasks(self):
-        f = Flow()
-        t1, t2, t3 = Task(), Task(), Task()
-        f.add_edge(t1, t2)
-        f.add_edge(t2, t3)
-        state = FlowRunner(flow=f).run(
-            start_tasks=[t2], start_task_ids=[t2.id], return_tasks=[t1, t2, t3]
-        )
-
-        assert "Task not evaluated" in state.result[t1].message
-        assert "Task not evaluated" not in state.result[t2].message
-        assert "Task not evaluated" not in state.result[t3].message
-
     def test_invalid_start_task(self):
         f = Flow()
         t1 = Task()
@@ -604,16 +562,6 @@ class TestStartTasks:
 
         assert state.is_failed()
         assert "not found in Flow" in str(state.result)
-
-    def test_invalid_start_task_id(self):
-        f = Flow()
-        t1 = Task()
-        f.add_task(t1)
-
-        state = FlowRunner(flow=f).run(start_task_ids=["nope"])
-
-        assert state.is_failed()
-        assert "Invalid start_task_ids" in str(state.result)
 
     def test_start_tasks_ignores_triggers(self):
         f = Flow()
@@ -946,7 +894,7 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
 def test_flow_runner_handles_timeouts(executor):
-    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    sleeper = SlowTask(timeout=1)
 
     with Flow() as flow:
         res = sleeper(3)
@@ -962,7 +910,7 @@ def test_flow_runner_handles_timeouts(executor):
     sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
 )
 def test_flow_runner_handles_timeout_error_with_mproc(mproc):
-    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    sleeper = SlowTask(timeout=1)
 
     with Flow() as flow:
         res = sleeper(3)
@@ -974,7 +922,7 @@ def test_flow_runner_handles_timeout_error_with_mproc(mproc):
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
 def test_flow_runner_handles_mapped_timeouts(executor):
-    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    sleeper = SlowTask(timeout=1)
 
     with Flow() as flow:
         res = sleeper.map([0, 2, 3])

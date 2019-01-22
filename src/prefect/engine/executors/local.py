@@ -46,14 +46,13 @@ class LocalExecutor(Executor):
             results.append(fn(*args_i))
         return results
 
-    def wait(self, futures: Any, timeout: datetime.timedelta = None) -> Any:
+    def wait(self, futures: Any, timeout: int = None) -> Any:
         """
         Returns the results of the provided futures.
 
         Args:
             - futures (Any): objects to wait on
-            - timeout (datetime.timedelta): timeout to allow for execution; in
-            this case, this kwarg is ignored
+            - timeout (int, optional): maximum length of time to allow for execution; this kwarg is ignored for this executor
 
         Returns:
             - Any: whatever `futures` were provided

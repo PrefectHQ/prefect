@@ -69,7 +69,7 @@ class TaskSchema(TaskMethodsMixin, VersionedSchema):
     tags = fields.List(fields.String())
     max_retries = fields.Integer(allow_none=True)
     retry_delay = fields.TimeDelta(allow_none=True)
-    timeout = fields.TimeDelta(allow_none=True)
+    timeout = fields.Integer(allow_none=True)
     trigger = FunctionReference(
         valid_functions=[
             prefect.triggers.all_finished,

@@ -169,17 +169,25 @@ def test_submit_does_not_assume_pure_functions(executor):
     assert one != two
 
 
+@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
+def test_wait_correctly_uses_timeout_kwarg(executor):
+    from tornado.util import TimeoutError as TornadoTimeout
+
+    def sleeper():
+        return time.sleep(2)
+
+    with executor.start():
+        with pytest.raises(TornadoTimeout):
+            res = executor.wait(executor.submit(sleeper), timeout=1)
+
+
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
 def test_executor_has_compatible_timeout_handler(executor):
     slow_fn = lambda: time.sleep(3)
     with executor.start():
         with pytest.raises(TimeoutError):
             res = executor.wait(
-                executor.submit(
-                    executor.timeout_handler,
-                    slow_fn,
-                    timeout=datetime.timedelta(seconds=1),
-                )
+                executor.submit(executor.timeout_handler, slow_fn, timeout=1)
             )
 
 
@@ -190,13 +198,7 @@ def test_dask_processes_executor_raises_if_timeout_attempted(mproc):
     slow_fn = lambda: time.sleep(3)
     with mproc.start():
         with pytest.raises(AssertionError) as exc:
-            res = mproc.wait(
-                mproc.submit(
-                    mproc.timeout_handler,
-                    slow_fn,
-                    timeout=datetime.timedelta(seconds=1),
-                )
-            )
+            res = mproc.wait(mproc.submit(mproc.timeout_handler, slow_fn, timeout=1))
     assert "daemonic" in str(exc)
 
 

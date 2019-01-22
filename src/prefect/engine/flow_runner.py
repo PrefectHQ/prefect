@@ -130,7 +130,6 @@ class FlowRunner(Runner):
         state: State = None,
         task_states: Dict[Task, State] = None,
         start_tasks: Iterable[Task] = None,
-        start_task_ids: Iterable[str] = None,
         return_tasks: Iterable[Task] = None,
         parameters: Dict[str, Any] = None,
         task_runner_state_handlers: Iterable[Callable] = None,
@@ -149,8 +148,6 @@ class FlowRunner(Runner):
             - start_tasks ([Task], optional): list of Tasks to begin computation
                 from; if any `start_tasks` have upstream dependencies, their states may
                 need to be provided as well.
-            - start_task_ids ([str], optional): equivalent to `start_tasks`, but accepts
-                a list of task IDs. The two options may be used simultaneously.
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
             - parameters (dict, optional): dictionary of any needed Parameter
@@ -189,7 +186,6 @@ class FlowRunner(Runner):
                     state,
                     task_states=task_states,
                     start_tasks=start_tasks,
-                    start_task_ids=start_task_ids,
                     return_tasks=return_tasks,
                     task_runner_state_handlers=task_runner_state_handlers,
                     executor=executor,
@@ -269,7 +265,6 @@ class FlowRunner(Runner):
         state: State,
         task_states: Dict[Task, State],
         start_tasks: Iterable[Task],
-        start_task_ids: Iterable[str],
         return_tasks: Set[Task],
         task_runner_state_handlers: Iterable[Callable],
         executor: "prefect.engine.executors.base.Executor",
@@ -285,8 +280,6 @@ class FlowRunner(Runner):
             - start_tasks ([Task], optional): list of Tasks to begin computation
                 from; if any `start_tasks` have upstream dependencies, their states may need to be provided as well.
                 Defaults to `self.flow.root_tasks()`
-            - start_task_ids ([str], optional): equivalent to `start_tasks`, but accepts
-                a list of task IDs. The two options may be used simultaneously.
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
             - task_runner_state_handlers (Iterable[Callable], optional): A list of state change
@@ -307,9 +300,6 @@ class FlowRunner(Runner):
         # make copies to avoid modifying the user-supplied values
         task_states = dict(task_states or {})
         start_tasks = list(start_tasks or [])
-        if any(i not in self.flow.task_ids for i in start_task_ids or []):
-            raise ValueError("Invalid start_task_ids.")
-        start_tasks.extend(self.flow.task_ids[i] for i in start_task_ids or [])
 
         # don't make a copy to allow dynamic modification
         if return_tasks is None:
