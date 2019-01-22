@@ -276,12 +276,12 @@ def test_task_runner_accepts_dictionary_of_edges():
 def test_task_runner_can_handle_timeouts_by_default():
     sleeper = SlowTask(timeout=1)
     state = TaskRunner(sleeper).run(
-        upstream_states={Edge(None, sleeper, key="secs"): Success(result=0.2)}
+        upstream_states={Edge(None, sleeper, key="secs"): Success(result=2)}
     )
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
-    assert state.cached_inputs == dict(secs=1.1)
+    assert state.cached_inputs == dict(secs=2)
 
 
 def test_task_runner_handles_secrets():
