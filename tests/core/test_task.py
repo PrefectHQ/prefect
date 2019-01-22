@@ -8,6 +8,7 @@ import pytest
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.cache_validators import all_inputs, duration_only, never_use
+from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task
 
 
@@ -54,10 +55,17 @@ class TestCreateTask:
 
     def test_create_task_with_timeout(self):
         t1 = Task()
-        assert t1.timeout is None
+        assert t1.timeout == None
 
-        t2 = Task(timeout=timedelta(seconds=30))
-        assert t2.timeout == timedelta(seconds=30)
+        with pytest.raises(TypeError):
+            Task(timeout=0.5)
+
+        t3 = Task(timeout=1)
+        assert t3.timeout == 1
+
+        with set_temporary_config({"tasks.defaults.timeout": 3}):
+            t4 = Task()
+            assert t4.timeout == 3
 
     def test_create_task_with_trigger(self):
         t1 = Task()

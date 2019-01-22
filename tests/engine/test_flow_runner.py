@@ -20,9 +20,11 @@ from prefect.engine.state import (
     CachedState,
     Failed,
     Finished,
-    Pending,
-    Retrying,
     Mapped,
+    Paused,
+    Pending,
+    Resume,
+    Retrying,
     Running,
     Scheduled,
     Skipped,
@@ -501,7 +503,6 @@ class TestRunFlowStep:
             task_states={},
             task_contexts={},
             start_tasks=[],
-            start_task_ids=[],
             return_tasks=set(),
             task_runner_state_handlers=[],
             executor=LocalExecutor(),
@@ -519,7 +520,6 @@ class TestRunFlowStep:
                 task_states={},
                 task_contexts={},
                 start_tasks=[],
-                start_task_ids=[],
                 return_tasks=set(),
                 task_runner_state_handlers=[],
                 executor=Executor(),
@@ -536,7 +536,6 @@ class TestRunFlowStep:
             task_states={},
             task_contexts={},
             start_tasks=[],
-            start_task_ids=[],
             return_tasks=set(),
             task_runner_state_handlers=[],
             executor=LocalExecutor(),
@@ -557,45 +556,6 @@ class TestStartTasks:
         assert "Task not evaluated" in state.result[t2].message
         assert "Task not evaluated" not in state.result[t3].message
 
-    def test_start_tasks_ids_are_respected(self):
-        f = Flow()
-        t1, t2, t3 = Task(), Task(), Task()
-        f.add_edge(t1, t2)
-        f.add_edge(t2, t3)
-        state = FlowRunner(flow=f).run(
-            start_task_ids=[t3.id], return_tasks=[t1, t2, t3]
-        )
-
-        assert "Task not evaluated" in state.result[t1].message
-        assert "Task not evaluated" in state.result[t2].message
-        assert "Task not evaluated" not in state.result[t3].message
-
-    def test_start_tasks_ids_can_be_combined_with_start_tasks(self):
-        f = Flow()
-        t1, t2, t3 = Task(), Task(), Task()
-        f.add_edge(t1, t2)
-        f.add_edge(t2, t3)
-        state = FlowRunner(flow=f).run(
-            start_tasks=[t2], start_task_ids=[t3.id], return_tasks=[t1, t2, t3]
-        )
-
-        assert "Task not evaluated" in state.result[t1].message
-        assert "Task not evaluated" not in state.result[t2].message
-        assert "Task not evaluated" not in state.result[t3].message
-
-    def test_start_tasks_ids_can_overlap_with_start_tasks(self):
-        f = Flow()
-        t1, t2, t3 = Task(), Task(), Task()
-        f.add_edge(t1, t2)
-        f.add_edge(t2, t3)
-        state = FlowRunner(flow=f).run(
-            start_tasks=[t2], start_task_ids=[t2.id], return_tasks=[t1, t2, t3]
-        )
-
-        assert "Task not evaluated" in state.result[t1].message
-        assert "Task not evaluated" not in state.result[t2].message
-        assert "Task not evaluated" not in state.result[t3].message
-
     def test_invalid_start_task(self):
         f = Flow()
         t1 = Task()
@@ -605,16 +565,6 @@ class TestStartTasks:
 
         assert state.is_failed()
         assert "not found in Flow" in str(state.result)
-
-    def test_invalid_start_task_id(self):
-        f = Flow()
-        t1 = Task()
-        f.add_task(t1)
-
-        state = FlowRunner(flow=f).run(start_task_ids=["nope"])
-
-        assert state.is_failed()
-        assert "Invalid start_task_ids" in str(state.result)
 
     def test_start_tasks_ignores_triggers(self):
         f = Flow()
@@ -735,7 +685,9 @@ class TestInputCaching:
             parameters=dict(x=1),
             return_tasks=[res],
             start_tasks=[res],
-            task_states={res: first_state.result[res]},
+            task_states={
+                res: Resume(cached_inputs=first_state.result[res].cached_inputs)
+            },
         )
         assert isinstance(second_state, Success)
         assert second_state.result[res].result == 12
@@ -999,7 +951,7 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
 def test_flow_runner_handles_timeouts(executor):
-    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    sleeper = SlowTask(timeout=1)
 
     with Flow() as flow:
         res = sleeper(3)
@@ -1015,7 +967,7 @@ def test_flow_runner_handles_timeouts(executor):
     sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
 )
 def test_flow_runner_handles_timeout_error_with_mproc(mproc):
-    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    sleeper = SlowTask(timeout=1)
 
     with Flow() as flow:
         res = sleeper(3)
@@ -1027,7 +979,7 @@ def test_flow_runner_handles_timeout_error_with_mproc(mproc):
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
 def test_flow_runner_handles_mapped_timeouts(executor):
-    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    sleeper = SlowTask(timeout=1)
 
     with Flow() as flow:
         res = sleeper.map([0, 2, 3])
@@ -1430,3 +1382,12 @@ def test_task_contexts_are_provided_to_tasks():
     assert ctx["task_id"] == rc.id
     assert ctx["task_name"] == rc.name
     assert ctx["task_slug"] == rc.slug
+
+
+def test_paused_tasks_stay_paused_when_run():
+    t = Task()
+    f = Flow(tasks=[t])
+
+    state = f.run(task_states={t: Paused()}, return_tasks=[t])
+    assert state.is_running()
+    assert isinstance(state.result[t], Paused)

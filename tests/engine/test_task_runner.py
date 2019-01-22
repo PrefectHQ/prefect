@@ -274,14 +274,14 @@ def test_task_runner_accepts_dictionary_of_edges():
 
 
 def test_task_runner_can_handle_timeouts_by_default():
-    sleeper = SlowTask(timeout=timedelta(seconds=0.1))
+    sleeper = SlowTask(timeout=1)
     state = TaskRunner(sleeper).run(
-        upstream_states={Edge(None, sleeper, key="secs"): Success(result=0.2)}
+        upstream_states={Edge(None, sleeper, key="secs"): Success(result=2)}
     )
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
-    assert state.cached_inputs == dict(secs=0.2)
+    assert state.cached_inputs == dict(secs=2)
 
 
 def test_task_runner_handles_secrets():
@@ -564,14 +564,14 @@ class TestCheckTaskTrigger:
 
 class TestCheckTaskReady:
     @pytest.mark.parametrize("state", [Pending(), CachedState(), Mapped()])
-    def test_pending(self, state):
+    def test_ready_states(self, state):
         new_state = TaskRunner(task=Task()).check_task_is_ready(state=state)
         assert new_state is state
 
     @pytest.mark.parametrize(
-        "state", [Running(), Finished(), TriggerFailed(), Skipped()]
+        "state", [Running(), Finished(), TriggerFailed(), Skipped(), Paused()]
     )
-    def test_not_pending(self, state):
+    def test_not_ready_doesnt_run(self, state):
 
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task=Task()).check_task_is_ready(state=state)
