@@ -281,7 +281,7 @@ def test_task_runner_can_handle_timeouts_by_default():
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
-    assert state.cached_inputs == dict(secs=0.2)
+    assert state.cached_inputs == dict(secs=1.1)
 
 
 def test_task_runner_handles_secrets():
