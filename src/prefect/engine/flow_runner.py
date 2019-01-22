@@ -1,8 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-import functools
-from collections import defaultdict
-from typing import Any, Callable, Dict, Iterable, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Set, Tuple, Union, List
 
 import prefect
 from prefect import config
@@ -316,7 +314,7 @@ class FlowRunner(Runner):
             for task in self.flow.sorted_tasks(root_tasks=start_tasks):
 
                 upstream_states = {}  # type: Dict[Edge, Union[State, Iterable]]
-                task_inputs = {}  # type: Dict[str, Any]
+                inputs = {}  # type: Dict[str, Any]
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
@@ -333,23 +331,20 @@ class FlowRunner(Runner):
                         assert isinstance(
                             passed_state.cached_inputs, dict
                         )  # mypy assertion
-                        task_inputs.update(passed_state.cached_inputs)
+                        inputs.update(passed_state.cached_inputs)
 
                 # -- run the task
-                task_runner = self.task_runner_cls(
-                    task=task,
-                    result_handler=self.flow.result_handler,
-                    state_handlers=task_runner_state_handlers,
-                )
 
                 task_states[task] = executor.submit(
-                    task_runner.run,
+                    self.run_task,
+                    task=task,
                     state=task_states.get(task),
                     upstream_states=upstream_states,
-                    inputs=task_inputs,
+                    inputs=inputs,
                     # if the task is a "start task", don't check its upstream dependencies
                     check_upstream=(task not in start_tasks),
                     context=dict(prefect.context, task_id=task.id),
+                    task_runner_state_handlers=task_runner_state_handlers,
                     executor=executor,
                 )
 
@@ -439,3 +434,62 @@ class FlowRunner(Runner):
             state = Success(message="No reference tasks failed.", result=return_states)
 
         return state
+
+    def run_task(
+        self,
+        task: Task,
+        state: State,
+        upstream_states: Dict[Edge, State],
+        inputs: Dict[str, Any],
+        check_upstream: bool,
+        context: Dict[str, Any],
+        task_runner_state_handlers: Iterable[Callable],
+        executor: "prefect.engine.executors.Executor",
+    ) -> State:
+        """
+
+        Runs a specific task. This method is intended to be called by submitting it to
+        an executor.
+
+        Args:
+            - task (Task): the task to run
+            - state (State): starting state for the Flow. Defaults to
+                `Pending`
+            - upstream_states (Dict[Edge, State]): dictionary of upstream states
+            - inputs (Dict[str, Any]): any known inputs to the task
+            - check_upstream (bool): if False, the task will skip its upstream checks
+            - context (Dict[str, Any]): a context dictionary for the task run
+            - task_runner_state_handlers (Iterable[Callable]): A list of state change
+                handlers that will be provided to the task_runner, and called whenever a task changes
+                state.
+            - executor (Executor): executor to use when performing
+                computation; defaults to the executor provided in your prefect configuration
+
+        Returns:
+            - State: `State` representing the final post-run state of the `Flow`.
+
+        """
+        task_runner = self.task_runner_cls(
+            task=task,
+            result_handler=self.flow.result_handler,
+            state_handlers=task_runner_state_handlers,
+        )
+
+        # if this task reduces over a mapped state, make sure its children have finished
+        for edge, upstream_state in upstream_states.items():
+
+            # if the upstream state is Mapped, wait until its results are all available
+            if not edge.mapped and upstream_state.is_mapped():
+                assert isinstance(upstream_state, Mapped)  # mypy assert
+                upstream_state.map_states = executor.wait(upstream_state.map_states)
+                upstream_state.result = [s.result for s in upstream_state.map_states]
+
+        return task_runner.run(
+            state=state,
+            upstream_states=upstream_states,
+            inputs=inputs,
+            # if the task is a "start task", don't check its upstream dependencies
+            check_upstream=check_upstream,
+            context=context,
+            executor=executor,
+        )
