@@ -557,14 +557,14 @@ class TestCheckTaskTrigger:
 
 class TestCheckTaskReady:
     @pytest.mark.parametrize("state", [Pending(), CachedState(), Mapped()])
-    def test_pending(self, state):
+    def test_ready_states(self, state):
         new_state = TaskRunner(task=Task()).check_task_is_ready(state=state)
         assert new_state is state
 
     @pytest.mark.parametrize(
-        "state", [Running(), Finished(), TriggerFailed(), Skipped()]
+        "state", [Running(), Finished(), TriggerFailed(), Skipped(), Paused()]
     )
-    def test_not_pending(self, state):
+    def test_not_ready_doesnt_run(self, state):
 
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task=Task()).check_task_is_ready(state=state)
