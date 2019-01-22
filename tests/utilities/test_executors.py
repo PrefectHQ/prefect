@@ -13,7 +13,7 @@ from prefect.utilities.executors import main_thread_timeout, multiprocessing_tim
 def test_timeout_handler_times_out(handler):
     slow_fn = lambda: time.sleep(2)
     with pytest.raises(TimeoutError):
-        handler(slow_fn, timeout=timedelta(seconds=1))
+        handler(slow_fn, timeout=1)
 
 
 @pytest.mark.parametrize("handler", [multiprocessing_timeout, main_thread_timeout])
@@ -21,10 +21,7 @@ def test_timeout_handler_passes_args_and_kwargs_and_returns(handler):
     def do_nothing(x, y=None):
         return x, y
 
-    assert handler(do_nothing, 5, timeout=timedelta(seconds=1), y="yellow") == (
-        5,
-        "yellow",
-    )
+    assert handler(do_nothing, 5, timeout=1, y="yellow") == (5, "yellow")
 
 
 @pytest.mark.parametrize("handler", [multiprocessing_timeout, main_thread_timeout])
@@ -33,13 +30,13 @@ def test_timeout_handler_doesnt_swallow_bad_args(handler):
         return x, y
 
     with pytest.raises(TypeError):
-        handler(do_nothing, timeout=timedelta(seconds=1))
+        handler(do_nothing, timeout=1)
 
     with pytest.raises(TypeError):
-        handler(do_nothing, 5, timeout=timedelta(seconds=1), z=10)
+        handler(do_nothing, 5, timeout=1, z=10)
 
     with pytest.raises(TypeError):
-        handler(do_nothing, 5, timeout=timedelta(seconds=1), y="s", z=10)
+        handler(do_nothing, 5, timeout=1, y="s", z=10)
 
 
 @pytest.mark.parametrize("handler", [multiprocessing_timeout, main_thread_timeout])
@@ -48,7 +45,7 @@ def test_timeout_handler_reraises(handler):
         raise ValueError("test")
 
     with pytest.raises(ValueError) as exc:
-        handler(do_something, timeout=timedelta(seconds=1))
+        handler(do_something, timeout=1)
         assert "test" in exc
 
 
@@ -60,18 +57,18 @@ def test_timeout_handler_allows_function_to_spawn_new_process(handler):
         p.join()
         p.terminate()
 
-    assert handler(my_process, timeout=timedelta(seconds=1)) is None
+    assert handler(my_process, timeout=1) is None
 
 
 def test_main_thread_timeout_doesnt_do_anything_if_no_timeout(monkeypatch):
     monkeypatch.delattr(prefect.utilities.executors.signal, "signal")
     with pytest.raises(AttributeError):  # to test the test's usefulness...
-        main_thread_timeout(lambda: 4, timeout=timedelta(seconds=1))
+        main_thread_timeout(lambda: 4, timeout=1)
     assert main_thread_timeout(lambda: 4) == 4
 
 
 def test_multiprocessing_timeout_doesnt_do_anything_if_no_timeout(monkeypatch):
     monkeypatch.delattr(prefect.utilities.executors.multiprocessing, "Process")
     with pytest.raises(AttributeError):  # to test the test's usefulness...
-        multiprocessing_timeout(lambda: 4, timeout=timedelta(seconds=1))
+        multiprocessing_timeout(lambda: 4, timeout=1)
     assert multiprocessing_timeout(lambda: 4) == 4
