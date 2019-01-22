@@ -55,10 +55,17 @@ class TestCreateTask:
 
     def test_create_task_with_timeout(self):
         t1 = Task()
-        assert t1.timeout is None
+        assert t1.timeout == None
 
-        t2 = Task(timeout=timedelta(seconds=30))
-        assert t2.timeout == timedelta(seconds=30)
+        with pytest.raises(TypeError):
+            Task(timeout=0.5)
+
+        t3 = Task(timeout=1)
+        assert t3.timeout == 1
+
+        with set_temporary_config({"tasks.defaults.timeout": 3}):
+            t4 = Task()
+            assert t4.timeout == 3
 
     def test_create_task_with_trigger(self):
         t1 = Task()
@@ -171,21 +178,6 @@ def test_tags():
     with prefect.context(tags=["test1", "test2"]):
         t5 = Task(tags=["test3"])
         assert t5.tags == set(["test1", "test2", "test3"])
-
-
-def test_timeout():
-    t1 = Task()
-    assert t1.timeout == None
-
-    with pytest.raises(TypeError):
-        Task(timeout=0.5)
-
-    t3 = Task(timeout=1)
-    assert t3.timeout == 1
-
-    with set_temporary_config({"tasks.defaults.timeout": 3}):
-        t4 = Task()
-        assert t4.timeout == 3
 
 
 def test_inputs():

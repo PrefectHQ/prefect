@@ -175,11 +175,7 @@ def test_executor_has_compatible_timeout_handler(executor):
     with executor.start():
         with pytest.raises(TimeoutError):
             res = executor.wait(
-                executor.submit(
-                    executor.timeout_handler,
-                    slow_fn,
-                    timeout=datetime.timedelta(seconds=1),
-                )
+                executor.submit(executor.timeout_handler, slow_fn, timeout=1)
             )
 
 
@@ -190,13 +186,7 @@ def test_dask_processes_executor_raises_if_timeout_attempted(mproc):
     slow_fn = lambda: time.sleep(3)
     with mproc.start():
         with pytest.raises(AssertionError) as exc:
-            res = mproc.wait(
-                mproc.submit(
-                    mproc.timeout_handler,
-                    slow_fn,
-                    timeout=datetime.timedelta(seconds=1),
-                )
-            )
+            res = mproc.wait(mproc.submit(mproc.timeout_handler, slow_fn, timeout=1))
     assert "daemonic" in str(exc)
 
 
