@@ -45,7 +45,7 @@ def run_with_heartbeat(
 
 
 def multiprocessing_timeout(
-    fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any
+    fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
 ) -> Any:
     """
     Helper function for implementing timeouts on function executions.
@@ -54,8 +54,8 @@ def multiprocessing_timeout(
     Args:
         - fn (callable): the function to execute
         - *args (Any): arguments to pass to the function
-        - timeout (datetime.timedelta): the length of time to allow for
-            execution before raising a `TimeoutError`
+        - timeout (int): the length of time to allow for
+            execution before raising a `TimeoutError`, represented as an integer in seconds
         - **kwargs (Any): keyword arguments to pass to the function
 
     Returns:
@@ -68,8 +68,6 @@ def multiprocessing_timeout(
 
     if timeout is None:
         return fn(*args, **kwargs)
-    else:
-        timeout_length = timeout.total_seconds()
 
     def retrieve_value(
         *args: Any, _container: multiprocessing.Queue, **kwargs: Any
@@ -84,7 +82,7 @@ def multiprocessing_timeout(
     kwargs["_container"] = q
     p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
     p.start()
-    p.join(timeout_length)
+    p.join(timeout)
     p.terminate()
     if not q.empty():
         res = q.get()
@@ -96,7 +94,7 @@ def multiprocessing_timeout(
 
 
 def main_thread_timeout(
-    fn: Callable, *args: Any, timeout: datetime.timedelta = None, **kwargs: Any
+    fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
 ) -> Any:
     """
     Helper function for implementing timeouts on function executions.
@@ -105,8 +103,8 @@ def main_thread_timeout(
     Args:
         - fn (callable): the function to execute
         - *args (Any): arguments to pass to the function
-        - timeout (datetime.timedelta): the length of time to allow for
-            execution before raising a `TimeoutError`
+        - timeout (int): the length of time to allow for
+            execution before raising a `TimeoutError`, represented as an integer in seconds
         - **kwargs (Any): keyword arguments to pass to the function
 
     Returns:
@@ -119,15 +117,13 @@ def main_thread_timeout(
 
     if timeout is None:
         return fn(*args, **kwargs)
-    else:
-        timeout_length = round(timeout.total_seconds())
 
     def error_handler(signum, frame):  # type: ignore
         raise TimeoutError("Execution timed out.")
 
     try:
         signal.signal(signal.SIGALRM, error_handler)
-        signal.alarm(timeout_length)
+        signal.alarm(timeout)
         return fn(*args, **kwargs)
     finally:
         signal.alarm(0)

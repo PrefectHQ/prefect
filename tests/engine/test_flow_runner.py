@@ -894,7 +894,7 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
 def test_flow_runner_handles_timeouts(executor):
-    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    sleeper = SlowTask(timeout=1)
 
     with Flow() as flow:
         res = sleeper(3)
@@ -910,7 +910,7 @@ def test_flow_runner_handles_timeouts(executor):
     sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
 )
 def test_flow_runner_handles_timeout_error_with_mproc(mproc):
-    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    sleeper = SlowTask(timeout=1)
 
     with Flow() as flow:
         res = sleeper(3)
@@ -922,7 +922,7 @@ def test_flow_runner_handles_timeout_error_with_mproc(mproc):
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
 def test_flow_runner_handles_mapped_timeouts(executor):
-    sleeper = SlowTask(timeout=datetime.timedelta(seconds=1))
+    sleeper = SlowTask(timeout=1)
 
     with Flow() as flow:
         res = sleeper.map([0, 2, 3])

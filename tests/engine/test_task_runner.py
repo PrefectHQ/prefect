@@ -287,12 +287,12 @@ def test_task_runner_prioritizes_inputs():
 
 
 def test_task_runner_can_handle_timeouts_by_default():
-    sleeper = SlowTask(timeout=timedelta(seconds=0.1))
-    state = TaskRunner(sleeper).run(inputs=dict(secs=0.2))
+    sleeper = SlowTask(timeout=1)
+    state = TaskRunner(sleeper).run(inputs=dict(secs=1.1))
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
-    assert state.cached_inputs == dict(secs=0.2)
+    assert state.cached_inputs == dict(secs=1.1)
 
 
 def test_task_runner_handles_secrets():

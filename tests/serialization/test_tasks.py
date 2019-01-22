@@ -27,7 +27,7 @@ def test_deserialize_task():
         slug="hi-1",
         max_retries=5,
         retry_delay=datetime.timedelta(seconds=5),
-        timeout=datetime.timedelta(minutes=1),
+        timeout=60,
         trigger=prefect.triggers.all_failed,
         skip_on_upstream_skip=False,
         cache_for=datetime.timedelta(hours=1),
