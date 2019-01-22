@@ -263,14 +263,6 @@ def test_task_runner_raise_on_exception_when_task_signals():
             TaskRunner(RaiseFailTask()).run()
 
 
-def test_task_runner_does_not_raise_on_exception_when_endrun_raised():
-    with raise_on_exception():
-        state = TaskRunner(Task()).run(
-            upstream_states={Edge(1, 2, mapped=True): Success(result=[1])}
-        )
-    assert state.is_mapped()
-
-
 def test_task_runner_does_not_raise_on_exception_when_endrun_raised_by_mapping():
     """after mapping, an ENDRUN is raised"""
     with raise_on_exception():
