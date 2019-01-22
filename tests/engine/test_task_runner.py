@@ -263,6 +263,31 @@ def test_task_runner_raise_on_exception_when_task_signals():
             TaskRunner(RaiseFailTask()).run()
 
 
+def test_task_runner_does_not_raise_on_exception_when_endrun_raised():
+    with raise_on_exception():
+        state = TaskRunner(Task()).run(
+            upstream_states={Edge(1, 2, mapped=True): Success(result=[1])}
+        )
+    assert state.is_mapped()
+
+
+def test_task_runner_does_not_raise_on_exception_when_endrun_raised_by_mapping():
+    """after mapping, an ENDRUN is raised"""
+    with raise_on_exception():
+        state = TaskRunner(Task()).run(
+            upstream_states={Edge(1, 2, mapped=True): Success(result=[1])}
+        )
+    assert state.is_mapped()
+
+
+@pytest.mark.parametrize("state", [Success(), Running()])
+def test_task_runner_does_not_raise_on_exception_when_endrun_raised_by_state(state):
+    """an ENDRUN is raised if the task can't be run, for example if it is in a SUCCESS or RUNNING state"""
+    with raise_on_exception():
+        new_state = TaskRunner(Task()).run(state=state)
+    assert new_state is state
+
+
 def test_task_runner_accepts_dictionary_of_edges():
     add = AddTask()
     ex = Edge(SuccessTask(), add, key="x")
