@@ -20,9 +20,11 @@ from prefect.engine.state import (
     CachedState,
     Failed,
     Finished,
-    Pending,
-    Retrying,
     Mapped,
+    Paused,
+    Pending,
+    Resume,
+    Retrying,
     Running,
     Scheduled,
     Skipped,
@@ -680,7 +682,9 @@ class TestInputCaching:
             parameters=dict(x=1),
             return_tasks=[res],
             start_tasks=[res],
-            task_states={res: first_state.result[res]},
+            task_states={
+                res: Resume(cached_inputs=first_state.result[res].cached_inputs)
+            },
         )
         assert isinstance(second_state, Success)
         assert second_state.result[res].result == 12
@@ -1302,3 +1306,12 @@ class TestMapping:
         )
         assert state.is_running()
         assert isinstance(state.result[res], Scheduled)
+
+
+def test_paused_tasks_stay_paused_when_run():
+    t = Task()
+    f = Flow(tasks=[t])
+
+    state = f.run(task_states={t: Paused()}, return_tasks=[t])
+    assert state.is_running()
+    assert isinstance(state.result[t], Paused)
