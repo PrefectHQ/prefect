@@ -22,14 +22,15 @@ import pendulum
 
 import prefect
 from prefect import config
-from prefect.engine.result_handlers import ResultHandler
 from prefect.core import Edge, Task
 from prefect.engine import signals
+from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     CachedState,
     Failed,
     Mapped,
+    Paused,
     Pending,
     Resume,
     Retrying,
@@ -426,6 +427,8 @@ class TaskRunner(Runner):
         """
         Checks to make sure the task is ready to run (Pending or Mapped).
 
+        If the state is Paused, an ENDRUN is raised.
+
         Args:
             - state (State): the current state of this task
 
@@ -435,8 +438,14 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
+
+        # the task is paused
+        if isinstance(state, Paused):
+            self.logger.info("Task '{}' is paused.".format(self.task.name))
+            raise ENDRUN(state)
+
         # the task is ready
-        if state.is_pending():
+        elif state.is_pending():
             return state
 
         # the task is mapped, in which case we still proceed so that the children tasks
