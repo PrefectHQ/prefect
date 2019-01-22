@@ -30,7 +30,7 @@ import shutil
 import tempfile
 import textwrap
 import uuid
-from typing import Iterable
+from typing import Iterable, List
 
 import cloudpickle
 import docker
@@ -81,12 +81,16 @@ class Environment:
         """
         raise NotImplementedError()
 
-    def run(self, runner_kwargs: dict = None) -> "prefect.engine.state.State":
+    def run(
+        self, start_task_ids: List[str] = None, runner_kwargs: dict = None
+    ) -> "prefect.engine.state.State":
         """
         Runs the `Flow` represented by this environment.
 
         Args:
-            - runner_kwargs (dict): Any arguments for `FlowRunner.run()`
+            - start_task_ids (List[str]): A list of Task ids that will be converted to the
+                `start_tasks` argument of the `FlowRunner`
+            - runner_kwargs (dict): Any arguments for `FlowRunner.run()`.
         """
         raise NotImplementedError()
 
@@ -182,22 +186,32 @@ class LocalEnvironment(Environment):
             serialized_flow=self.serialize_flow_to_bytes(flow),
         )
 
-    def run(self, runner_kwargs: dict = None) -> "prefect.engine.state.State":
+    def run(
+        self, start_task_ids: List[str] = None, runner_kwargs: dict = None
+    ) -> "prefect.engine.state.State":
         """
         Runs the `Flow` represented by this environment.
 
         Args:
-            - runner_kwargs (dict): Any arguments for `FlowRunner.run()`
+            - start_task_ids (List[str]): A list of Task ids that will be converted to the
+                `start_tasks` argument of the `FlowRunner`
+            - runner_kwargs (dict): Any arguments for `FlowRunner.run()`.
         """
+
+        runner_kwargs = runner_kwargs or {}
 
         if not self.serialized_flow:
             raise ValueError(
                 "No serialized flow found! Has this environment been built?"
             )
         flow = self.deserialize_flow_from_bytes(self.serialized_flow)
+        if start_task_ids is not None:
+            if set(start_task_ids).difference(flow.task_ids):
+                raise ValueError("Invalid start_task_ids.")
+            runner_kwargs["start_tasks"] = [flow.task_ids[i] for i in start_task_ids]
         runner_cls = prefect.engine.get_default_flow_runner_class()
         runner = runner_cls(flow=flow)
-        return runner.run(**(runner_kwargs or {}))
+        return runner.run(**runner_kwargs)
 
 
 class ContainerEnvironment(Environment):
@@ -317,12 +331,16 @@ class ContainerEnvironment(Environment):
                 python_dependencies=self.python_dependencies,
             )
 
-    def run(self, runner_kwargs: dict = None) -> None:
+    def run(
+        self, start_task_ids: List[str] = None, runner_kwargs: dict = None
+    ) -> "prefect.engine.state.State":
         """
         Runs the `Flow` represented by this environment.
 
         Args:
-            - runner_kwargs (dict): Any arguments for `FlowRunner.run()`
+            - start_task_ids (List[str]): A list of Task ids that will be converted to the
+                `start_tasks` argument of the `FlowRunner`
+            - runner_kwargs (dict): Any arguments for `FlowRunner.run()`.
         """
 
         client = docker.APIClient(base_url="unix://var/run/docker.sock")
