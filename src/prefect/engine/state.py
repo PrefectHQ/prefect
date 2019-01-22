@@ -83,6 +83,7 @@ class State:
         Returns:
             - bool: `True` if the state is pending, `False` otherwise
         """
+
         return isinstance(self, Pending)
 
     def is_running(self) -> bool:

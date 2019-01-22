@@ -273,26 +273,15 @@ def test_task_runner_accepts_dictionary_of_edges():
     assert state.result == 2
 
 
-def test_task_runner_prioritizes_inputs():
-    add = AddTask()
-    ex = Edge(SuccessTask(), add, key="x")
-    ey = Edge(SuccessTask(), add, key="y")
-    runner = TaskRunner(add)
-    state = runner.run(
-        upstream_states={ex: Success(result=1), ey: Success(result=1)},
-        inputs=dict(x=10, y=20),
-    )
-    assert state.is_successful()
-    assert state.result == 30
-
-
 def test_task_runner_can_handle_timeouts_by_default():
     sleeper = SlowTask(timeout=1)
-    state = TaskRunner(sleeper).run(inputs=dict(secs=1.1))
+    state = TaskRunner(sleeper).run(
+        upstream_states={Edge(None, sleeper, key="secs"): Success(result=2)}
+    )
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
-    assert state.cached_inputs == dict(secs=1.1)
+    assert state.cached_inputs == dict(secs=2)
 
 
 def test_task_runner_handles_secrets():
@@ -315,8 +304,8 @@ class TestInitializeRun:
     def test_states_without_run_count(self, state):
         with prefect.context() as ctx:
             assert "task_run_count" not in ctx
-            new_state, _, _, _ = TaskRunner(Task()).initialize_run(
-                state=state, context=ctx, upstream_states={}, inputs={}
+            new_state, _, _ = TaskRunner(Task()).initialize_run(
+                state=state, context=ctx, upstream_states={}
             )
             assert ctx.task_run_count == 1
             assert new_state is state
@@ -333,8 +322,8 @@ class TestInitializeRun:
     def test_states_with_run_count(self, state):
         with prefect.context() as ctx:
             assert "task_run_count" not in ctx
-            new_state, _, _, _ = TaskRunner(Task()).initialize_run(
-                state=state, context=ctx, upstream_states={}, inputs={}
+            new_state, _, _ = TaskRunner(Task()).initialize_run(
+                state=state, context=ctx, upstream_states={}
             )
             assert ctx.task_run_count == state.run_count + 1
             assert new_state is state
@@ -342,8 +331,8 @@ class TestInitializeRun:
     def test_task_runner_puts_resume_in_context_if_state_is_resume(self):
         with prefect.context() as ctx:
             assert "resume" not in ctx
-            state, _, _, _ = TaskRunner(Task()).initialize_run(
-                state=Resume(), context=ctx, upstream_states={}, inputs={}
+            state, _, _ = TaskRunner(Task()).initialize_run(
+                state=Resume(), context=ctx, upstream_states={}
             )
             assert ctx.resume is True
 
@@ -355,8 +344,8 @@ class TestInitializeRun:
     ):
         with prefect.context() as ctx:
             assert "resume" not in ctx
-            state, _, _, _ = TaskRunner(Task()).initialize_run(
-                state=state, context=ctx, upstream_states={}, inputs={}
+            state, _, _ = TaskRunner(Task()).initialize_run(
+                state=state, context=ctx, upstream_states={}
             )
             assert "resume" not in ctx
 
@@ -580,6 +569,73 @@ class TestCheckTaskReady:
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task=Task()).check_task_is_ready(state=state)
         assert exc.value.state is state
+
+
+class TestGetTaskInputs:
+    def test_get_empty_inputs(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(), upstream_states={}
+        )
+        assert inputs == {}
+
+    def test_get_unkeyed_inputs(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(), upstream_states={Edge(1, 2): Success(result=1)}
+        )
+        assert inputs == {}
+
+    def test_get_inputs_from_upstream(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(), upstream_states={Edge(1, 2, key="x"): Success(result=1)}
+        )
+        assert inputs == {"x": 1}
+
+    def test_get_inputs_from_upstream_with_non_key_edges(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(),
+            upstream_states={
+                Edge(1, 2, key="x"): Success(result=1),
+                Edge(1, 2): Success(result=2),
+            },
+        )
+        assert inputs == {"x": 1}
+
+    def test_get_inputs_from_upstream_failed(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(),
+            upstream_states={Edge(1, 2, key="x"): Failed(result=ValueError())},
+        )
+        assert isinstance(inputs["x"], ValueError)
+
+    def test_get_inputs_from_upstream_mapped(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(),
+            upstream_states={Edge(1, 2, key="x", mapped=True): Success(result=[1, 2])},
+        )
+        assert inputs == {"x": [1, 2]}
+
+    def test_get_inputs_from_cached_inputs(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(cached_inputs={"x": 1}), upstream_states={}
+        )
+        assert inputs == {"x": 1}
+
+    def test_get_inputs_from_cached_inputs_and_upstream_states(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(cached_inputs={"x": 1}),
+            upstream_states={Edge(1, 2, key="y"): Success(result=2)},
+        )
+        assert inputs == {"x": 1, "y": 2}
+
+    def test_get_inputs_from_cached_inputs_overwrites_upstream_states(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(cached_inputs={"x": 1}),
+            upstream_states={
+                Edge(1, 2, key="x"): Success(result=2),
+                Edge(1, 2, key="y"): Success(result=2),
+            },
+        )
+        assert inputs == {"x": 1, "y": 2}
 
 
 class TestCheckTaskCached:
@@ -1011,6 +1067,7 @@ class TestTaskRunnerStateHandlers:
 
         task = Task(state_handlers=[handler])
         state = TaskRunner(task=task).run()
+
         assert state.is_failed()
 
 
@@ -1022,7 +1079,6 @@ class TestRunMappedStep:
         state = TaskRunner(task=Task()).run_mapped_task(
             state=Pending(),
             upstream_states={},
-            inputs={},
             check_upstream=True,
             context={},
             executor=prefect.engine.executors.LocalExecutor(),
@@ -1033,7 +1089,6 @@ class TestRunMappedStep:
         state = TaskRunner(task=Task()).run_mapped_task(
             state=Pending(),
             upstream_states={},
-            inputs={},
             check_upstream=True,
             context={},
             executor=prefect.engine.executors.LocalExecutor(),
