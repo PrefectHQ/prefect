@@ -93,7 +93,8 @@ class Task(metaclass=SignatureValidator):
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
-        - timeout (timedelta, optional): The amount of time to wait while running before a timeout occurs
+        - timeout (int, optional): The amount of time (in seconds) to wait while
+            running this task before a timeout occurs; note that sub-second resolution is not supported
         - trigger (callable, optional): a function that determines whether the task should run, based
                 on the states of any upstream tasks.
         - skip_on_upstream_skip (bool, optional): if `True`, if any immediately
@@ -118,6 +119,7 @@ class Task(metaclass=SignatureValidator):
 
     Raises:
         - TypeError: if `tags` is of type `str`
+        - TypeError: if `timeout` is not of type `int`
     """
 
     # Tasks are not iterable, though they do have a __getitem__ method
@@ -130,7 +132,7 @@ class Task(metaclass=SignatureValidator):
         tags: Iterable[str] = None,
         max_retries: int = None,
         retry_delay: timedelta = None,
-        timeout: timedelta = prefect.config.tasks.defaults.timeout,
+        timeout: int = None,
         trigger: Callable[[Set["State"]], bool] = None,
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
@@ -160,10 +162,17 @@ class Task(metaclass=SignatureValidator):
             if retry_delay is not None
             else prefect.config.tasks.defaults.retry_delay
         )
+        timeout = (
+            timeout if timeout is not None else prefect.config.tasks.defaults.timeout
+        )
 
         if max_retries > 0 and retry_delay is None:
             raise ValueError(
                 "A datetime.timedelta `retry_delay` must be provided if max_retries > 0"
+            )
+        if timeout is not None and not isinstance(timeout, int):
+            raise TypeError(
+                "Only integer timeouts (representing seconds) are supported."
             )
         self.max_retries = max_retries
         self.retry_delay = retry_delay
