@@ -15,13 +15,19 @@ class RemoteHandler(logging.StreamHandler):
         super().__init__()
         self.logger_server = config.cloud.log
         self.client = None
+        self.errored_out = False
 
     def emit(self, record):
-        if self.client is None:
-            from prefect.client import Client
+        try:
+            if self.errored_out is True:
+                return
+            if self.client is None:
+                from prefect.client import Client
 
-            self.client = Client()
-        r = self.client.post(path="", server=self.logger_server, **record.__dict__)
+                self.client = Client()
+            r = self.client.post(path="", server=self.logger_server, **record.__dict__)
+        except:
+            self.errored_out = True
 
 
 old_factory = logging.getLogRecordFactory()
