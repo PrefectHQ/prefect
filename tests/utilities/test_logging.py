@@ -7,13 +7,18 @@ from prefect import utilities
 def test_root_logger_level_responds_to_config():
     try:
         with utilities.configuration.set_temporary_config({"logging.level": "DEBUG"}):
-            utilities.logging.configure_logging().level == logging.DEBUG
+            assert (
+                utilities.logging.configure_logging(testing=True).level == logging.DEBUG
+            )
 
         with utilities.configuration.set_temporary_config({"logging.level": "WARNING"}):
-            utilities.logging.configure_logging().level == logging.WARNING
+            assert (
+                utilities.logging.configure_logging(testing=True).level
+                == logging.WARNING
+            )
     finally:
         # reset root_logger
-        logger = utilities.logging.get_logger()
+        logger = utilities.logging.configure_logging(testing=True)
         for h in logger.handlers:
             logger.removeHandler(h)
         utilities.logging.configure_logging()
@@ -24,12 +29,12 @@ def test_remote_handler_is_configured_for_cloud(monkeypatch):
         with utilities.configuration.set_temporary_config(
             {"logging.log_to_cloud": True, "cloud.log": "http://foo.bar:1800/log"}
         ):
-            logger = utilities.logging.configure_logging()
+            logger = utilities.logging.configure_logging(testing=True)
             assert hasattr(logger.handlers[-1], "client")
             assert logger.handlers[-1].logger_server == "http://foo.bar:1800/log"
     finally:
         # reset root_logger
-        logger = utilities.logging.get_logger()
+        logger = utilities.logging.configure_logging(testing=True)
         for h in logger.handlers:
             logger.removeHandler(h)
         utilities.logging.configure_logging()
