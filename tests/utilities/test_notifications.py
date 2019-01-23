@@ -1,3 +1,4 @@
+import cloudpickle
 import json
 import sys
 from unittest.mock import MagicMock
@@ -21,10 +22,22 @@ from prefect.engine.state import (
 )
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import (
+    callback_factory,
     gmail_notifier,
     slack_message_formatter,
     slack_notifier,
 )
+
+
+def test_callback_factory_generates_pickleable_objs():
+    fn = lambda state: None
+    check = lambda state: True
+    handler = callback_factory(fn, check)
+    bits = cloudpickle.dumps(handler)
+    del fn
+    del check
+    new = cloudpickle.loads(bits)
+    new(1, 2, 3)
 
 
 @pytest.mark.parametrize(
