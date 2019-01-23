@@ -315,6 +315,36 @@ def test_client_is_always_called_even_during_failures(client):
     assert len([s for s in task_states if s.is_failed()]) == 1
 
 
+def test_client_is_always_called_even_during_state_handler_failures(client):
+    def handler(task, old, new):
+        1 / 0
+
+    flow = prefect.Flow(tasks=[Task(state_handlers=[handler])])
+
+    ## flow run setup
+    res = flow.run(state=Pending())
+
+    ## assertions
+    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert client.set_flow_run_state.call_count == 2  # Pending -> Running -> Failed
+
+    flow_states = [
+        call[1]["state"] for call in client.set_flow_run_state.call_args_list
+    ]
+    assert flow_states == [Running(), Failed(result=dict())]
+
+    assert client.get_task_run_info.call_count == 1  # one time for initial pull
+    assert client.set_task_run_state.call_count == 1  # (Pending -> Failed)
+
+    task_states = [
+        call[1]["state"] for call in client.set_task_run_state.call_args_list
+    ]
+    state = task_states.pop()
+    assert state.is_failed()
+    assert "state handlers" in state.message
+    assert isinstance(state.result, ZeroDivisionError)
+
+
 class TestUpdateUpstreamStates:
     @pytest.fixture(autouse=True)
     def client(self, monkeypatch):
