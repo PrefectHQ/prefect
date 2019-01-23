@@ -124,7 +124,7 @@ class CloudFlowRunner(FlowRunner):
             - parameters(dict): the parameter values for the run
 
         Returns:
-            - FlowRunnerInitializeResult: a tuple of the objects:
+            - NamedTuple: a tuple of initialized objects:
                 `(state, task_states, context, task_contexts)`
         """
         try:
