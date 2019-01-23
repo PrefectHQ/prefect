@@ -8,7 +8,7 @@ import pytest
 import requests
 
 import prefect
-from prefect.client import Client
+from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.state import (
     CachedState,
@@ -325,7 +325,21 @@ def test_get_flow_run_info(monkeypatch):
             "message": null,
             "__version__": "0.3.3+309.gf1db024",
             "cached_inputs": "null"
-        }
+        },
+        "task_runs":[
+            {
+                "id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                "task_id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                "version": 0,
+                "serialized_state": {
+                    "type": "Pending",
+                    "result": null,
+                    "message": null,
+                    "__version__": "0.3.3+309.gf1db024",
+                    "cached_inputs": "null"
+                }
+            }
+        ]
     }
 }
     """
@@ -340,7 +354,7 @@ def test_get_flow_run_info(monkeypatch):
     ):
         client = Client()
     result = client.get_flow_run_info(flow_run_id="74-salt")
-    assert isinstance(result, GraphQLResult)
+    assert isinstance(result, FlowRunInfoResult)
     assert isinstance(result.state, Pending)
     assert result.state.result == 42
     assert result.state.message is None
@@ -448,7 +462,7 @@ def test_get_task_run_info(monkeypatch):
     result = client.get_task_run_info(
         flow_run_id="74-salt", task_id="72-salt", map_index=None
     )
-    assert isinstance(result, GraphQLResult)
+    assert isinstance(result, TaskRunInfoResult)
     assert isinstance(result.state, Pending)
     assert result.state.result == "42"
     assert result.state.message is None
@@ -590,13 +604,15 @@ class TestResultHandlerDeserialization:
     {
         "flow_run_by_pk": {
             "version": 0,
+            "parameters": null,
             "serialized_state": {
                 "type": "Pending",
                 "result": null,
                 "message": null,
                 "__version__": "0.3.3+309.gf1db024",
                 "cached_inputs": "null"
-            }
+            },
+            "task_runs": []
         }
     }
         """
@@ -614,7 +630,7 @@ class TestResultHandlerDeserialization:
         result = client.get_flow_run_info(
             flow_run_id="74-salt", result_handler=AddOneHandler()
         )
-        assert isinstance(result, GraphQLResult)
+        assert isinstance(result, FlowRunInfoResult)
         assert isinstance(result.state, Pending)
         assert result.state.result == None
 
@@ -656,42 +672,9 @@ class TestResultHandlerDeserialization:
             map_index=None,
             result_handler=AddOneHandler(),
         )
-        assert isinstance(result, GraphQLResult)
+        assert isinstance(result, TaskRunInfoResult)
         assert isinstance(result.state, Pending)
         assert result.state.result == None
-
-    def test_get_flow_run_info_calls_result_handler(self, monkeypatch):
-        response = """
-        {
-            "flow_run_by_pk": {
-                "version": 0,
-                "serialized_state": {
-                    "type": "Pending",
-                    "result": 42,
-                    "message": null,
-                    "__version__": "0.3.3+309.gf1db024",
-                    "cached_inputs": "null"
-                }
-            }
-        }
-        """
-        post = MagicMock(
-            return_value=MagicMock(
-                json=MagicMock(return_value=dict(data=json.loads(response)))
-            )
-        )
-        monkeypatch.setattr("requests.post", post)
-        with set_temporary_config(
-            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-        ):
-            client = Client()
-
-        result = client.get_flow_run_info(
-            flow_run_id="74-salt", result_handler=AddOneHandler()
-        )
-        assert isinstance(result, GraphQLResult)
-        assert isinstance(result.state, Pending)
-        assert result.state.result == 43
 
     def test_get_task_run_info_calls_result_handler(self, monkeypatch):
         response = """
@@ -729,6 +712,6 @@ class TestResultHandlerDeserialization:
             map_index=None,
             result_handler=AddOneHandler(),
         )
-        assert isinstance(result, GraphQLResult)
+        assert isinstance(result, TaskRunInfoResult)
         assert isinstance(result.state, Pending)
         assert result.state.result == 43
