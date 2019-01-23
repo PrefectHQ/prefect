@@ -19,12 +19,10 @@ def test_root_logger_level_responds_to_config():
     finally:
         # reset root_logger
         logger = utilities.logging.configure_logging(testing=True)
-        for h in logger.handlers:
-            logger.removeHandler(h)
-        utilities.logging.configure_logging()
+        logger.handlers = []
 
 
-def test_remote_handler_is_configured_for_cloud(monkeypatch):
+def test_remote_handler_is_configured_for_cloud():
     try:
         with utilities.configuration.set_temporary_config(
             {"logging.log_to_cloud": True, "cloud.log": "http://foo.bar:1800/log"}
@@ -35,9 +33,23 @@ def test_remote_handler_is_configured_for_cloud(monkeypatch):
     finally:
         # reset root_logger
         logger = utilities.logging.configure_logging(testing=True)
-        for h in logger.handlers:
-            logger.removeHandler(h)
-        utilities.logging.configure_logging()
+        logger.handlers = []
+
+
+def test_remote_handler_captures_errors_then_passes():
+    try:
+        with utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": True, "cloud.log": "http://foo.bar:1800/log"}
+        ):
+            logger = utilities.logging.configure_logging(testing=True)
+            assert hasattr(logger.handlers[-1], "client")
+            child_logger = logger.getChild("sub-test")
+            child_logger.critical("this should raise an error in the handler")
+            assert logger.handlers[-1].errored_out == True
+    finally:
+        # reset root_logger
+        logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
 
 
 def test_get_logger_returns_root_logger():
