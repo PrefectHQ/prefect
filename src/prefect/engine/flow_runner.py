@@ -1,6 +1,17 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
-from typing import Any, Callable, Dict, Iterable, Optional, Set, Tuple, Union, List
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    List,
+    NamedTuple,
+)
 
 import prefect
 from prefect import config
@@ -19,6 +30,16 @@ from prefect.engine.state import (
 from prefect.engine.task_runner import TaskRunner
 from prefect.utilities.collections import flatten_seq
 from prefect.utilities.executors import run_with_heartbeat
+
+FlowRunnerInitializeResult = NamedTuple(
+    "FlowRunnerInitializeResult",
+    [
+        ("state", State),
+        ("task_states", Dict[Task, State]),
+        ("context", Dict[str, Any]),
+        ("task_contexts", Dict[Task, Dict[str, Any]]),
+    ],
+)
 
 
 class FlowRunner(Runner):
@@ -99,9 +120,11 @@ class FlowRunner(Runner):
     def initialize_run(  # type: ignore
         self,
         state: Optional[State],
+        task_states: Dict[Task, State],
         context: Dict[str, Any],
+        task_contexts: Dict[Task, Dict[str, Any]],
         parameters: Dict[str, Any],
-    ) -> Tuple[State, Dict[str, Any]]:
+    ) -> FlowRunnerInitializeResult:
         """
         Initializes the Task run by initializing state and context appropriately.
 
@@ -109,11 +132,15 @@ class FlowRunner(Runner):
 
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
-            - context (dict): the context to be updated with relevant information
+            - task_states (Dict[Task, State]): a dictionary of any initial task states
+            - context (Dict[str, Any], optional): prefect.Context to use for execution
+                to use for each Task run
+            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be provided to each task
             - parameters(dict): the parameter values for the run
 
         Returns:
-            - tuple: a tuple of the updated state and context objects
+            - NamedTuple: a tuple of initialized objects:
+                `(state, task_states, context, task_contexts)`
         """
 
         # overwrite context parameters one-by-one
@@ -123,7 +150,18 @@ class FlowRunner(Runner):
                 context_params[param] = value
 
         context.update(flow_name=self.flow.name)
-        return super().initialize_run(state=state, context=context)
+
+        for task in self.flow.tasks:
+            task_contexts.setdefault(task, {}).update(
+                task_id=task.id, task_name=task.name, task_slug=task.slug
+            )
+        state, context = super().initialize_run(state=state, context=context)
+        return FlowRunnerInitializeResult(
+            state=state,
+            task_states=task_states,
+            context=context,
+            task_contexts=task_contexts,
+        )
 
     def run(
         self,
@@ -135,6 +173,7 @@ class FlowRunner(Runner):
         task_runner_state_handlers: Iterable[Callable] = None,
         executor: "prefect.engine.executors.Executor" = None,
         context: Dict[str, Any] = None,
+        task_contexts: Dict[Task, Dict[str, Any]] = None,
     ) -> State:
         """
         The main endpoint for FlowRunners.  Calling this method will perform all
@@ -158,8 +197,9 @@ class FlowRunner(Runner):
                 state.
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
-            - context (dict, optional): prefect.Context to use for execution
+            - context (Dict[str, Any], optional): prefect.Context to use for execution
                 to use for each Task run
+            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be provided to each task
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
@@ -168,13 +208,22 @@ class FlowRunner(Runner):
 
         self.logger.info("Beginning Flow run for '{}'".format(self.flow.name))
 
-        context = context or {}
-        parameters = parameters or {}
+        # make copies to avoid modifying user inputs
+        task_states = dict(task_states or {})
+        context = dict(context or {})
+        task_contexts = dict(task_contexts or {})
+        parameters = dict(parameters or {})
         if executor is None:
             executor = prefect.engine.get_default_executor_class()()
 
         try:
-            state, context = self.initialize_run(state, context, parameters)
+            state, task_states, context, task_contexts = self.initialize_run(
+                state=state,
+                task_states=task_states,
+                context=context,
+                task_contexts=task_contexts,
+                parameters=parameters,
+            )
 
             with prefect.context(context):
 
@@ -185,6 +234,7 @@ class FlowRunner(Runner):
                 state = self.get_flow_run_state(
                     state,
                     task_states=task_states,
+                    task_contexts=task_contexts,
                     start_tasks=start_tasks,
                     return_tasks=return_tasks,
                     task_runner_state_handlers=task_runner_state_handlers,
@@ -264,6 +314,7 @@ class FlowRunner(Runner):
         self,
         state: State,
         task_states: Dict[Task, State],
+        task_contexts: Dict[Task, Dict[str, Any]],
         start_tasks: Iterable[Task],
         return_tasks: Set[Task],
         task_runner_state_handlers: Iterable[Callable],
@@ -273,19 +324,20 @@ class FlowRunner(Runner):
         Runs the flow.
 
         Args:
-            - state (State, optional): starting state for the Flow. Defaults to
+            - state (State): starting state for the Flow. Defaults to
                 `Pending`
-            - task_states (dict, optional): dictionary of task states to begin
+            - task_states (dict): dictionary of task states to begin
                 computation with, with keys being Tasks and values their corresponding state
-            - start_tasks ([Task], optional): list of Tasks to begin computation
+            - task_contexts (Dict[Task, Dict[str, Any]]): contexts that will be provided to each task
+            - start_tasks ([Task]): list of Tasks to begin computation
                 from; if any `start_tasks` have upstream dependencies, their states may need to be provided as well.
                 Defaults to `self.flow.root_tasks()`
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
-            - task_runner_state_handlers (Iterable[Callable], optional): A list of state change
+            - task_runner_state_handlers (Iterable[Callable]): A list of state change
                 handlers that will be provided to the task_runner, and called whenever a task changes
                 state.
-            - executor (Executor, optional): executor to use when performing
+            - executor (Executor): executor to use when performing
                 computation; defaults to the executor provided in your prefect configuration
 
         Returns:
@@ -298,7 +350,6 @@ class FlowRunner(Runner):
             raise ENDRUN(state)
 
         # make copies to avoid modifying the user-supplied values
-        task_states = dict(task_states or {})
         start_tasks = list(start_tasks or [])
 
         # don't make a copy to allow dynamic modification
@@ -330,7 +381,7 @@ class FlowRunner(Runner):
                     upstream_states=upstream_states,
                     # if the task is a "start task", don't check its upstream dependencies
                     check_upstream=(task not in start_tasks),
-                    context=dict(prefect.context, task_id=task.id),
+                    context=dict(prefect.context, **task_contexts.get(task, {})),
                     task_runner_state_handlers=task_runner_state_handlers,
                     executor=executor,
                 )
