@@ -2,9 +2,9 @@
 
 Please describe your work and make sure your PR:
 
-- [ ] adds tests for any new or changed functionality
-- [ ] updates `CHANGELOG.md` if appropriate
 - [x] is ready for review
+- [ ] updates `CHANGELOG.md` if appropriate
+- [ ] adds new tests or doesn't require tests (for reasons explained below)
 
 
 ## What does this PR change?
