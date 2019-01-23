@@ -3,6 +3,7 @@ import atexit
 import logging
 import os
 import queue
+import time
 from logging.handlers import QueueHandler, QueueListener
 
 import prefect
@@ -14,13 +15,19 @@ class RemoteHandler(logging.StreamHandler):
         super().__init__()
         self.logger_server = config.cloud.log
         self.client = None
+        self.errored_out = False
 
     def emit(self, record):
-        if self.client is None:
-            from prefect.client import Client
+        try:
+            if self.errored_out is True:
+                return
+            if self.client is None:
+                from prefect.client import Client
 
-            self.client = Client()
-        r = self.client.post(path="", server=self.logger_server, **record.__dict__)
+                self.client = Client()
+            r = self.client.post(path="", server=self.logger_server, **record.__dict__)
+        except:
+            self.errored_out = True
 
 
 old_factory = logging.getLogRecordFactory()
@@ -33,17 +40,24 @@ def cloud_record_factory(*args, **kwargs):
     return record
 
 
-def configure_logging() -> logging.Logger:
+def configure_logging(testing=False) -> logging.Logger:
     """
     Creates a "prefect" root logger with a `StreamHandler` that has level and formatting
     set from `prefect.config`.
 
+    Args:
+        - testing (bool, optional): a boolean specifying whether this configuration
+            is for testing purposes only; this helps us isolate any global state during testing
+            by configuring a "prefect-test-logger" instead of the standard "prefect" logger
+
     Returns:
         - logging.Logger
     """
-    logger = logging.getLogger("prefect")
+    name = "prefect-test-logger" if testing else "prefect"
+    logger = logging.getLogger(name)
     handler = logging.StreamHandler()
     formatter = logging.Formatter(config.logging.format)
+    formatter.converter = time.gmtime
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(config.logging.level)
@@ -51,14 +65,8 @@ def configure_logging() -> logging.Logger:
     # send logs to server
     if config.logging.log_to_cloud:
         logging.setLogRecordFactory(cloud_record_factory)
-        log_queue = queue.Queue(-1)  # unlimited size queue
-        queue_handler = QueueHandler(log_queue)
         remote_handler = RemoteHandler()
-        remote_listener = QueueListener(log_queue, remote_handler)
-        logger.addHandler(queue_handler)
-        remote_listener.start()
-        stopper = lambda listener: listener.stop()
-        atexit.register(stopper, remote_listener)
+        logger.addHandler(remote_handler)
 
     return logger
 
