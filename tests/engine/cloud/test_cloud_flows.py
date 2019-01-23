@@ -435,13 +435,13 @@ def test_deep_map_with_a_failure(monkeypatch, executor):
     assert t3_0.state.is_failed()
 
 
-@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+@pytest.mark.parametrize("executor", ["local"], indirect=True)
 def test_deep_map_with_a_retry(monkeypatch, executor):
     """
     Creates a situation in which a deeply-mapped Flow encounters a one-time error in one
     of the middle layers. Running the flow a second time should resolve the error.
 
-    DOES NOT WORK WITH DASK EXECUTORS because of the need for shared state
+    DOES NOT WORK WITH DASK EXECUTORS because of the need for shared state on second run
     """
 
     flow_run_id = str(uuid.uuid4())
