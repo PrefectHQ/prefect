@@ -150,7 +150,8 @@ class MockedCloudClient(MagicMock):
             raise ValueError("Invalid task run update")
 
 
-def test_simple_two_task_flow(monkeypatch):
+@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+def test_simple_two_task_flow(monkeypatch, executor):
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
     task_run_id_2 = str(uuid.uuid4())
@@ -170,7 +171,9 @@ def test_simple_two_task_flow(monkeypatch):
     )
 
     with prefect.context(flow_run_id=flow_run_id):
-        state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
+        state = CloudFlowRunner(flow=flow).run(
+            return_tasks=flow.tasks, executor=executor
+        )
 
     assert state.is_successful()
     assert client.flow_runs[flow_run_id].state.is_successful()
@@ -179,7 +182,8 @@ def test_simple_two_task_flow(monkeypatch):
     assert client.task_runs[task_run_id_2].state.is_successful()
 
 
-def test_simple_two_task_flow_with_final_task_set_to_fail(monkeypatch):
+@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+def test_simple_two_task_flow_with_final_task_set_to_fail(monkeypatch, executor):
 
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
@@ -202,7 +206,9 @@ def test_simple_two_task_flow_with_final_task_set_to_fail(monkeypatch):
     )
 
     with prefect.context(flow_run_id=flow_run_id):
-        state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
+        state = CloudFlowRunner(flow=flow).run(
+            return_tasks=flow.tasks, executor=executor
+        )
 
     assert state.is_failed()
     assert client.flow_runs[flow_run_id].state.is_failed()
@@ -212,7 +218,8 @@ def test_simple_two_task_flow_with_final_task_set_to_fail(monkeypatch):
     assert client.task_runs[task_run_id_2].version == 0
 
 
-def test_simple_two_task_flow_with_final_task_already_running(monkeypatch):
+@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+def test_simple_two_task_flow_with_final_task_already_running(monkeypatch, executor):
 
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
@@ -239,7 +246,9 @@ def test_simple_two_task_flow_with_final_task_already_running(monkeypatch):
     )
 
     with prefect.context(flow_run_id=flow_run_id):
-        state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
+        state = CloudFlowRunner(flow=flow).run(
+            return_tasks=flow.tasks, executor=executor
+        )
 
     assert state.is_running()
     assert client.flow_runs[flow_run_id].state.is_running()
@@ -249,7 +258,8 @@ def test_simple_two_task_flow_with_final_task_already_running(monkeypatch):
     assert client.task_runs[task_run_id_2].version == 1
 
 
-def test_simple_three_task_flow_with_one_failing_task(monkeypatch):
+@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+def test_simple_three_task_flow_with_one_failing_task(monkeypatch, executor):
     @prefect.task
     def error():
         1 / 0
@@ -277,7 +287,9 @@ def test_simple_three_task_flow_with_one_failing_task(monkeypatch):
     )
 
     with prefect.context(flow_run_id=flow_run_id):
-        state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
+        state = CloudFlowRunner(flow=flow).run(
+            return_tasks=flow.tasks, executor=executor
+        )
 
     assert state.is_failed()
     assert client.flow_runs[flow_run_id].state.is_failed()
@@ -289,7 +301,8 @@ def test_simple_three_task_flow_with_one_failing_task(monkeypatch):
     assert client.task_runs[task_run_id_2].version == 2
 
 
-def test_simple_map(monkeypatch):
+@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+def test_simple_map(monkeypatch, executor):
 
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
@@ -309,7 +322,9 @@ def test_simple_map(monkeypatch):
     )
 
     with prefect.context(flow_run_id=flow_run_id):
-        state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
+        state = CloudFlowRunner(flow=flow).run(
+            return_tasks=flow.tasks, executor=executor
+        )
 
     assert state.is_successful()
     assert client.flow_runs[flow_run_id].state.is_successful()
@@ -318,7 +333,8 @@ def test_simple_map(monkeypatch):
     assert len([tr for tr in client.task_runs.values() if tr.task_id == t1.id]) == 4
 
 
-def test_deep_map(monkeypatch):
+@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+def test_deep_map(monkeypatch, executor):
 
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
@@ -346,7 +362,9 @@ def test_deep_map(monkeypatch):
     )
 
     with prefect.context(flow_run_id=flow_run_id):
-        state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
+        state = CloudFlowRunner(flow=flow).run(
+            return_tasks=flow.tasks, executor=executor
+        )
 
     assert state.is_successful()
     assert client.flow_runs[flow_run_id].state.is_successful()
@@ -359,7 +377,8 @@ def test_deep_map(monkeypatch):
         assert len([tr for tr in client.task_runs.values() if tr.task_id == t.id]) == 4
 
 
-def test_deep_map_with_a_failure(monkeypatch):
+@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+def test_deep_map_with_a_failure(monkeypatch, executor):
 
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
@@ -416,8 +435,14 @@ def test_deep_map_with_a_failure(monkeypatch):
     assert t3_0.state.is_failed()
 
 
-@pytest.mark.xfail(reason="statefulness errors on second run with dask executors")
-def test_deep_map_with_a_retry(monkeypatch):
+@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+def test_deep_map_with_a_retry(monkeypatch, executor):
+    """
+    Creates a situation in which a deeply-mapped Flow encounters a one-time error in one
+    of the middle layers. Running the flow a second time should resolve the error.
+
+    DOES NOT WORK WITH DASK EXECUTORS because of the need for shared state
+    """
 
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
@@ -448,7 +473,7 @@ def test_deep_map_with_a_retry(monkeypatch):
     )
 
     with prefect.context(flow_run_id=flow_run_id):
-        CloudFlowRunner(flow=flow).run()
+        CloudFlowRunner(flow=flow).run(executor=executor)
 
     assert client.flow_runs[flow_run_id].state.is_running()
     assert client.task_runs[task_run_id_1].state.is_mapped()
@@ -477,7 +502,7 @@ def test_deep_map_with_a_retry(monkeypatch):
 
     # RUN A SECOND TIME
     with prefect.context(flow_run_id=flow_run_id):
-        CloudFlowRunner(flow=flow).run()
+        CloudFlowRunner(flow=flow).run(executor=executor)
 
     # t2's first child task should be successful
     t2_0 = next(
