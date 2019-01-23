@@ -1,6 +1,5 @@
-import inspect
+import datetime
 import uuid
-import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,6 +15,7 @@ from prefect.engine.state import (
     Pending,
     Running,
     Skipped,
+    Retrying,
     Success,
     TimedOut,
     TriggerFailed,
@@ -47,6 +47,17 @@ class TaskRun:
 @prefect.task
 def plus_one(x):
     return x + 1
+
+
+@prefect.task
+def invert_fail_once(x):
+    try:
+        return 1 / x
+    except:
+        if prefect.context.get("task_run_count", 0) < 2:
+            raise
+        else:
+            return 100
 
 
 @pytest.fixture(autouse=True)
@@ -303,4 +314,182 @@ def test_simple_map(monkeypatch):
     assert state.is_successful()
     assert client.flow_runs[flow_run_id].state.is_successful()
     assert client.task_runs[task_run_id_1].state.is_mapped()
-    # assert len(client.task_runs) =.
+    # there should be a total of 4 task runs corresponding to the mapped task
+    assert len([tr for tr in client.task_runs.values() if tr.task_id == t1.id]) == 4
+
+
+def test_deep_map(monkeypatch):
+
+    flow_run_id = str(uuid.uuid4())
+    task_run_id_1 = str(uuid.uuid4())
+    task_run_id_2 = str(uuid.uuid4())
+    task_run_id_3 = str(uuid.uuid4())
+
+    with prefect.Flow() as flow:
+        t1 = plus_one.map([0, 1, 2])
+        t2 = plus_one.map(t1)
+        t3 = plus_one.map(t2)
+
+    client = MockedCloudClient(
+        flow_runs=[FlowRun(id=flow_run_id)],
+        task_runs=[
+            TaskRun(id=task_run_id_1, task_id=t1.id, flow_run_id=flow_run_id),
+            TaskRun(id=task_run_id_2, task_id=t2.id, flow_run_id=flow_run_id),
+            TaskRun(id=task_run_id_3, task_id=t3.id, flow_run_id=flow_run_id),
+        ]
+        + [
+            TaskRun(id=t.id, task_id=t.id, flow_run_id=flow_run_id)
+            for t in flow.tasks
+            if t not in [t1, t2, t3]
+        ],
+        monkeypatch=monkeypatch,
+    )
+
+    with prefect.context(flow_run_id=flow_run_id):
+        state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
+
+    assert state.is_successful()
+    assert client.flow_runs[flow_run_id].state.is_successful()
+    assert client.task_runs[task_run_id_1].state.is_mapped()
+    assert client.task_runs[task_run_id_2].state.is_mapped()
+    assert client.task_runs[task_run_id_3].state.is_mapped()
+
+    # there should be a total of 4 task runs corresponding to each mapped task
+    for t in [t1, t2, t3]:
+        assert len([tr for tr in client.task_runs.values() if tr.task_id == t.id]) == 4
+
+
+def test_deep_map_with_a_failure(monkeypatch):
+
+    flow_run_id = str(uuid.uuid4())
+    task_run_id_1 = str(uuid.uuid4())
+    task_run_id_2 = str(uuid.uuid4())
+    task_run_id_3 = str(uuid.uuid4())
+
+    with prefect.Flow() as flow:
+        t1 = plus_one.map([-1, 0, 1])
+        t2 = invert_fail_once.map(t1)
+        t3 = plus_one.map(t2)
+
+    client = MockedCloudClient(
+        flow_runs=[FlowRun(id=flow_run_id)],
+        task_runs=[
+            TaskRun(id=task_run_id_1, task_id=t1.id, flow_run_id=flow_run_id),
+            TaskRun(id=task_run_id_2, task_id=t2.id, flow_run_id=flow_run_id),
+            TaskRun(id=task_run_id_3, task_id=t3.id, flow_run_id=flow_run_id),
+        ]
+        + [
+            TaskRun(id=t.id, task_id=t.id, flow_run_id=flow_run_id)
+            for t in flow.tasks
+            if t not in [t1, t2, t3]
+        ],
+        monkeypatch=monkeypatch,
+    )
+
+    with prefect.context(flow_run_id=flow_run_id):
+        state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
+
+    assert state.is_failed()
+    assert client.flow_runs[flow_run_id].state.is_failed()
+    assert client.task_runs[task_run_id_1].state.is_mapped()
+    assert client.task_runs[task_run_id_2].state.is_mapped()
+    assert client.task_runs[task_run_id_3].state.is_mapped()
+
+    # there should be a total of 4 task runs corresponding to each mapped task
+    for t in [t1, t2, t3]:
+        assert len([tr for tr in client.task_runs.values() if tr.task_id == t.id]) == 4
+
+    # t2's first child task should have failed
+    t2_0 = next(
+        tr
+        for tr in client.task_runs.values()
+        if tr.task_id == t2.id and tr.map_index == 0
+    )
+    assert t2_0.state.is_failed()
+
+    # t3's first child task should have failed
+    t3_0 = next(
+        tr
+        for tr in client.task_runs.values()
+        if tr.task_id == t3.id and tr.map_index == 0
+    )
+    assert t3_0.state.is_failed()
+
+
+def test_deep_map_with_a_retry(monkeypatch):
+
+    flow_run_id = str(uuid.uuid4())
+    task_run_id_1 = str(uuid.uuid4())
+    task_run_id_2 = str(uuid.uuid4())
+    task_run_id_3 = str(uuid.uuid4())
+
+    with prefect.Flow() as flow:
+        t1 = plus_one.map([-1, 0, 1])
+        t2 = invert_fail_once.map(t1)
+        t3 = plus_one.map(t2)
+
+    t2.max_retries = 1
+    t2.retry_delay = datetime.timedelta(seconds=0)
+
+    client = MockedCloudClient(
+        flow_runs=[FlowRun(id=flow_run_id)],
+        task_runs=[
+            TaskRun(id=task_run_id_1, task_id=t1.id, flow_run_id=flow_run_id),
+            TaskRun(id=task_run_id_2, task_id=t2.id, flow_run_id=flow_run_id),
+            TaskRun(id=task_run_id_3, task_id=t3.id, flow_run_id=flow_run_id),
+        ]
+        + [
+            TaskRun(id=t.id, task_id=t.id, flow_run_id=flow_run_id)
+            for t in flow.tasks
+            if t not in [t1, t2, t3]
+        ],
+        monkeypatch=monkeypatch,
+    )
+
+    with prefect.context(flow_run_id=flow_run_id):
+        CloudFlowRunner(flow=flow).run()
+
+    assert client.flow_runs[flow_run_id].state.is_running()
+    assert client.task_runs[task_run_id_1].state.is_mapped()
+    assert client.task_runs[task_run_id_2].state.is_mapped()
+    assert client.task_runs[task_run_id_3].state.is_mapped()
+
+    # there should be a total of 4 task runs corresponding to each mapped task
+    for t in [t1, t2, t3]:
+        assert len([tr for tr in client.task_runs.values() if tr.task_id == t.id]) == 4
+
+    # t2's first child task should be retrying
+    t2_0 = next(
+        tr
+        for tr in client.task_runs.values()
+        if tr.task_id == t2.id and tr.map_index == 0
+    )
+    assert isinstance(t2_0.state, Retrying)
+
+    # t3's first child task should be pending
+    t3_0 = next(
+        tr
+        for tr in client.task_runs.values()
+        if tr.task_id == t3.id and tr.map_index == 0
+    )
+    assert t3_0.state.is_pending()
+
+    # RUN A SECOND TIME
+    with prefect.context(flow_run_id=flow_run_id):
+        CloudFlowRunner(flow=flow).run()
+
+    # t2's first child task should be successful
+    t2_0 = next(
+        tr
+        for tr in client.task_runs.values()
+        if tr.task_id == t2.id and tr.map_index == 0
+    )
+    assert t2_0.state.is_successful()
+
+    # t3's first child task should be successful
+    t3_0 = next(
+        tr
+        for tr in client.task_runs.values()
+        if tr.task_id == t3.id and tr.map_index == 0
+    )
+    assert t3_0.state.is_successful()
