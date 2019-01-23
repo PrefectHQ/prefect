@@ -128,6 +128,29 @@ def test_flow_runner_raises_endrun_with_correct_state_if_client_cant_retrieve_st
     assert res is state
 
 
+def test_client_is_always_called_even_during_state_handler_failures(client):
+    def handler(task, old, new):
+        1 / 0
+
+    flow = prefect.Flow(tasks=[prefect.Task()], state_handlers=[handler])
+
+    ## flow run setup
+    res = flow.run(state=Pending())
+
+    ## assertions
+    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert client.set_flow_run_state.call_count == 1  # Failed
+
+    flow_states = [
+        call[1]["state"] for call in client.set_flow_run_state.call_args_list
+    ]
+    state = flow_states.pop()
+    assert state.is_failed()
+    assert "state handlers" in state.message
+    assert isinstance(state.result, ZeroDivisionError)
+    assert client.get_task_run_info.call_count == 0
+
+
 @pytest.mark.parametrize(
     "state", [Finished, Success, Skipped, Failed, TimedOut, TriggerFailed]
 )
