@@ -34,15 +34,21 @@ def cloud_record_factory(*args, **kwargs):
     return record
 
 
-def configure_logging() -> logging.Logger:
+def configure_logging(testing=False) -> logging.Logger:
     """
     Creates a "prefect" root logger with a `StreamHandler` that has level and formatting
     set from `prefect.config`.
 
+    Args:
+        - testing (bool, optional): a boolean specifying whether this configuration
+            is for testing purposes only; this helps us isolate any global state during testing
+            by configuring a "prefect-test-logger" instead of the standard "prefect" logger
+
     Returns:
         - logging.Logger
     """
-    logger = logging.getLogger("prefect")
+    name = "prefect-test-logger" if testing else "prefect"
+    logger = logging.getLogger(name)
     handler = logging.StreamHandler()
     formatter = logging.Formatter(config.logging.format)
     formatter.converter = time.gmtime
