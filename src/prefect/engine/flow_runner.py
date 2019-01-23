@@ -226,9 +226,6 @@ class FlowRunner(Runner):
             )
 
             with prefect.context(context):
-
-                raise_on_exception = prefect.context.get("raise_on_exception", False)
-
                 state = self.check_flow_is_pending_or_running(state)
                 state = self.set_flow_to_running(state)
                 state = self.get_flow_run_state(
@@ -249,7 +246,7 @@ class FlowRunner(Runner):
             self.logger.info(
                 "Unexpected error while running flow: {}".format(repr(exc))
             )
-            if raise_on_exception:
+            if prefect.context.get("raise_on_exception"):
                 raise exc
             return Failed(
                 message="Unexpected error while running flow: {}".format(repr(exc)),
