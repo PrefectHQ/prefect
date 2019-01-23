@@ -140,8 +140,13 @@ class CloudFlowRunner(FlowRunner):
                 `(state, task_states, context, task_contexts)`
         """
         try:
+            result_handler = (
+                self.flow.result_handler
+                or prefect.engine.get_default_result_handler_class()()
+            )
             flow_run_info = self.client.get_flow_run_info(
-                flow_run_id=prefect.context.get("flow_run_id", "")
+                flow_run_id=prefect.context.get("flow_run_id", ""),
+                result_handler=result_handler,
             )
         except Exception as exc:
             self.logger.debug(
@@ -154,7 +159,16 @@ class CloudFlowRunner(FlowRunner):
             raise ENDRUN(state=state)
 
         context.update(flow_run_version=flow_run_info.version)  # type: ignore
-        # if state is set, keep it; otherwise load from db
+
+        # update task states and contexts
+        for task_run in flow_run_info.task_runs:
+            task = self.flow.task_ids[task_run.task_id]
+            task_states.setdefault(task, task_run.state)
+            task_contexts.setdefault(task, {}).update(
+                task_run_version=task_run.version, task_run_id=task_run.id
+            )
+
+        # if state is set, keep it; otherwise load from Cloud
         state = state or flow_run_info.state  # type: ignore
 
         # update parameters, prioritizing kwarg-provided params

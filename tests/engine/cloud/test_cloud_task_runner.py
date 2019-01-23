@@ -58,13 +58,26 @@ def client(monkeypatch):
     yield cloud_client
 
 
-def test_task_runner_calls_client_the_approriate_number_of_times(client):
+def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     task = Task(name="test")
 
     res = CloudTaskRunner(task=task).run()
 
     ## assertions
-    assert client.get_task_run_info.call_count == 1  # one time to pull latest state
+    assert client.get_task_run_info.call_count == 0  # never called
+    assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Success
+
+    states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+    assert states == [Running(), Success()]
+
+
+def test_task_runner_calls_get_task_run_info_if_map_index_is_not_none(client):
+    task = Task(name="test")
+
+    res = CloudTaskRunner(task=task).run(context={"map_index": 1})
+
+    ## assertions
+    assert client.get_task_run_info.call_count == 1  # never called
     assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Success
 
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
@@ -88,7 +101,7 @@ def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updat
     )
 
     ## an ENDRUN will cause the TaskRunner to return the most recently computed state
-    res = CloudTaskRunner(task=raise_error).run()
+    res = CloudTaskRunner(task=raise_error).run(context={"map_index": 1})
     assert set_task_run_state.called
     assert res.is_running()
 
@@ -105,7 +118,7 @@ def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypa
     )
 
     ## an ENDRUN will cause the TaskRunner to return the most recently computed state
-    res = CloudTaskRunner(task=task).run()
+    res = CloudTaskRunner(task=task).run(context={"map_index": 1})
     assert get_task_run_info.called
     assert res.is_failed()
     assert isinstance(res.result, SyntaxError)
@@ -126,7 +139,7 @@ def test_task_runner_raises_endrun_with_correct_state_if_client_cant_receive_sta
 
     ## an ENDRUN will cause the TaskRunner to return the most recently computed state
     state = Pending(message="unique message", result=42)
-    res = CloudTaskRunner(task=task).run(state=state)
+    res = CloudTaskRunner(task=task).run(state=state, context={"map_index": 1})
     assert get_task_run_info.called
     assert res is state
 
@@ -145,7 +158,7 @@ def test_task_runner_respects_the_db_state(monkeypatch, state):
     monkeypatch.setattr(
         "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
     )
-    res = CloudTaskRunner(task=task).run()
+    res = CloudTaskRunner(task=task).run(context={"map_index": 1})
 
     ## assertions
     assert get_task_run_info.call_count == 1  # one time to pull latest state
@@ -167,7 +180,7 @@ def test_task_runner_uses_cached_inputs_from_db_state(monkeypatch):
     monkeypatch.setattr(
         "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
     )
-    res = CloudTaskRunner(task=add_one).run()
+    res = CloudTaskRunner(task=add_one).run(context={"map_index": 1})
 
     ## assertions
     assert get_task_run_info.call_count == 1  # one time to pull latest state
@@ -190,7 +203,9 @@ def test_task_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
     monkeypatch.setattr(
         "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
     )
-    res = CloudTaskRunner(task=task).run(state=Pending("let's do this"))
+    res = CloudTaskRunner(task=task).run(
+        state=Pending("let's do this"), context={"map_index": 1}
+    )
 
     ## assertions
     assert get_task_run_info.call_count == 1  # one time to pull latest state
@@ -267,107 +282,17 @@ class TestHeartBeats:
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_task_runner_has_a_heartbeat_with_task_run_id(self, executor, monkeypatch):
-        get_task_run_info = MagicMock(return_value=MagicMock(id="1234", version=0))
-        client = MagicMock(get_task_run_info=get_task_run_info)
+        client = MagicMock()
         monkeypatch.setattr(
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
         )
         task = Task(name="test")
-        res = CloudTaskRunner(task=task).run(executor=executor)
+        res = CloudTaskRunner(task=task).run(
+            executor=executor, context={"task_run_id": 1234}
+        )
 
         assert res.is_successful()
-        assert client.update_task_run_heartbeat.call_args[0][0] == "1234"
-
-
-def test_client_is_always_called_even_during_failures(client):
-    @prefect.task
-    def raise_me(x, y):
-        raise SyntaxError("Aggressively weird error")
-
-    with prefect.Flow() as flow:
-        final = raise_me(4, 7)
-
-    assert len(flow.tasks) == 3
-
-    ## flow run setup
-
-    res = flow.run(state=Pending())
-
-    ## assertions
-    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
-    assert client.set_flow_run_state.call_count == 2  # Pending -> Running -> Failed
-
-    flow_states = [
-        call[1]["state"] for call in client.set_flow_run_state.call_args_list
-    ]
-    assert flow_states == [Running(), Failed(result=dict())]
-
-    assert client.get_task_run_info.call_count == 3  # three time to pull latest states
-    assert (
-        client.set_task_run_state.call_count == 6
-    )  # (Pending -> Running -> Finished) * 3
-
-    task_states = [
-        call[1]["state"] for call in client.set_task_run_state.call_args_list
-    ]
-    assert len([s for s in task_states if s.is_running()]) == 3
-    assert len([s for s in task_states if s.is_successful()]) == 2
-    assert len([s for s in task_states if s.is_failed()]) == 1
-
-
-def test_client_is_always_called_even_during_state_handler_failures(client):
-    def handler(task, old, new):
-        1 / 0
-
-    flow = prefect.Flow(tasks=[Task(state_handlers=[handler])])
-
-    ## flow run setup
-    res = flow.run(state=Pending())
-
-    ## assertions
-    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
-    assert client.set_flow_run_state.call_count == 2  # Pending -> Running -> Failed
-
-    flow_states = [
-        call[1]["state"] for call in client.set_flow_run_state.call_args_list
-    ]
-    assert flow_states == [Running(), Failed(result=dict())]
-
-    assert client.get_task_run_info.call_count == 1  # one time for initial pull
-    assert client.set_task_run_state.call_count == 1  # (Pending -> Failed)
-
-    task_states = [
-        call[1]["state"] for call in client.set_task_run_state.call_args_list
-    ]
-    state = task_states.pop()
-    assert state.is_failed()
-    assert "state handlers" in state.message
-    assert isinstance(state.result, ZeroDivisionError)
-
-
-class TestUpdateUpstreamStates:
-    @pytest.fixture(autouse=True)
-    def client(self, monkeypatch):
-
-        get_task_run_info = MagicMock(
-            return_value=MagicMock(state=Running(message="test"))
-        )
-        set_task_run_state = MagicMock()
-        cloud_client = MagicMock(
-            get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
-        )
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client",
-            MagicMock(return_value=cloud_client),
-        )
-        yield cloud_client
-
-    def test_empty_upstream_states_doesnt_use_client(self, client):
-        new_us = CloudTaskRunner(Task()).get_latest_upstream_states(
-            context={}, upstream_states={}
-        )
-        assert new_us == {}
-        assert client.call_count == 0
+        assert client.update_task_run_heartbeat.call_args[0][0] == 1234
 
 
 class TestCloudResultHandler:

@@ -107,8 +107,8 @@ class TaskRunner(Runner):
             - State: the new state
         """
         self.logger.debug(
-            "Handling state change for task '{name}' from {old} to {new}".format(
-                name=self.task.name,
+            "Task '{name}': Handling state change from {old} to {new}".format(
+                name=prefect.context.get("task_full_name", self.task.name),
                 old=type(old_state).__name__,
                 new=type(new_state).__name__,
             )
@@ -189,7 +189,7 @@ class TaskRunner(Runner):
         upstream_states = upstream_states or {}
         context = context or {}
         map_index = context.setdefault("map_index", None)
-        task_name = "{name}{index}".format(
+        context["task_full_name"] = "{name}{index}".format(
             name=self.task.name,
             index=("" if map_index is None else "[{}]".format(map_index)),
         )
@@ -205,9 +205,12 @@ class TaskRunner(Runner):
         mapped = any([e.mapped for e in upstream_states]) and map_index is None
         task_inputs = {}  # type: Dict[str, Any]
 
-        self.logger.info("Starting task run for task '{name}'".format(name=task_name))
+        self.logger.debug(
+            "Task '{name}': Starting task run...".format(name=context["task_full_name"])
+        )
 
         try:
+
             # initialize the run
             state, context, upstream_states = self.initialize_run(
                 state, context, upstream_states
@@ -238,7 +241,12 @@ class TaskRunner(Runner):
                         context=context,
                         executor=executor,
                     )
-
+                    if not state.is_mapped():
+                        self.logger.debug(
+                            "Task '{name}': Error encountered during mapping.".format(
+                                name=context["task_full_name"]
+                            )
+                        )
                     raise ENDRUN(state)
 
                 if check_upstream:
@@ -291,15 +299,17 @@ class TaskRunner(Runner):
                 raise exc
 
         except Exception as exc:
-            msg = "Unexpected error while running task: {}".format(repr(exc))
-            self.logger.info(msg)
+            msg = "Task '{name}': unexpected error while running task: {exc}".format(
+                name=context["task_full_name"], exc=repr(exc)
+            )
+            self.logger.error(msg)
             state = Failed(message=msg, result=exc)
             if prefect.context.get("raise_on_exception"):
                 raise exc
 
-        self.logger.info(
-            "Finished task run for task '{name}' with final state: '{state}'".format(
-                name=task_name, state=type(state).__name__
+        self.logger.debug(
+            "Task '{name}': finished task run for task with final state: '{state}'".format(
+                name=context["task_full_name"], state=type(state).__name__
             )
         )
         return state
@@ -322,6 +332,11 @@ class TaskRunner(Runner):
             - ENDRUN: if upstream tasks are not finished.
         """
         if not all(s.is_finished() for s in upstream_states.values()):
+            self.logger.debug(
+                "Task '{name}': not all upstream states are finished; ending run.".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
+            )
             raise ENDRUN(state)
         return state
 
@@ -348,6 +363,11 @@ class TaskRunner(Runner):
                 all_states.add(upstream_state)
 
         if self.task.skip_on_upstream_skip and any(s.is_skipped() for s in all_states):
+            self.logger.debug(
+                "Task '{name}': Upstream states were skipped; ending run.".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
+            )
             raise ENDRUN(
                 state=Skipped(
                     message=(
@@ -393,9 +413,10 @@ class TaskRunner(Runner):
 
         except signals.PrefectStateSignal as exc:
 
-            self.logger.info(
-                "{0} signal raised during execution of task '{1}'.".format(
-                    type(exc).__name__, self.task.name
+            self.logger.debug(
+                "Task '{name}': {signal} signal raised during execution.".format(
+                    name=prefect.context.get("task_full_name", self.task.name),
+                    signal=type(exc).__name__,
                 )
             )
             if prefect.context.get("raise_on_exception"):
@@ -404,9 +425,10 @@ class TaskRunner(Runner):
 
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
-            self.logger.info(
-                "Unexpected error while evaluating task trigger for '{name}': {exc}".format(
-                    exc=repr(exc), name=self.task.name
+            self.logger.debug(
+                "Task '{name}': unexpected error while evaluating task trigger: {exc}".format(
+                    exc=repr(exc),
+                    name=prefect.context.get("task_full_name", self.task.name),
                 )
             )
             if prefect.context.get("raise_on_exception"):
@@ -441,7 +463,11 @@ class TaskRunner(Runner):
 
         # the task is paused
         if isinstance(state, Paused):
-            self.logger.info("Task '{}' is paused.".format(self.task.name))
+            self.logger.debug(
+                "Task '{name}': task is paused; ending run.".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
+            )
             raise ENDRUN(state)
 
         # the task is ready
@@ -451,23 +477,37 @@ class TaskRunner(Runner):
         # the task is mapped, in which case we still proceed so that the children tasks
         # are generated (note that if the children tasks)
         elif state.is_mapped():
+            self.logger.debug(
+                "Task '{name}': task is mapped, but run will proceed so children are generated.".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
+            )
             return state
 
         # this task is already running
         elif state.is_running():
-            self.logger.info("Task '{}' is already running.".format(self.task.name))
+            self.logger.debug(
+                "Task '{name}': task is already running.".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
+            )
             raise ENDRUN(state)
 
         # this task is already finished
         elif state.is_finished():
-            self.logger.info("Task '{}' is already finished.".format(self.task.name))
+            self.logger.debug(
+                "Task '{name}': task is already finished.".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
+            )
             raise ENDRUN(state)
 
         # this task is not pending
         else:
-            self.logger.info(
-                "Task '{0}' is not ready to run or state was unrecognized ({1}).".format(
-                    self.task.name, state
+            self.logger.debug(
+                "Task '{name}' is not ready to run or state was unrecognized ({state}).".format(
+                    name=prefect.context.get("task_full_name", self.task.name),
+                    state=state,
                 )
             )
             raise ENDRUN(state)
@@ -490,6 +530,11 @@ class TaskRunner(Runner):
         """
         if isinstance(state, Scheduled):
             if state.start_time and state.start_time > pendulum.now("utc"):
+                self.logger.debug(
+                    "Task '{name}': start_time has not been reached; ending run.".format(
+                        name=prefect.context.get("task_full_name", self.task.name)
+                    )
+                )
                 raise ENDRUN(state)
         return state
 
@@ -516,8 +561,8 @@ class TaskRunner(Runner):
             if edge.key is not None:
                 task_inputs[edge.key] = upstream_state.result
 
-        if state.is_pending():
-            task_inputs.update(state.cached_inputs or {})  # type: ignore
+        if state.is_pending() and state.cached_inputs is not None:  # type: ignore
+            task_inputs.update(state.cached_inputs)  # type: ignore
 
         return task_inputs
 
@@ -540,6 +585,11 @@ class TaskRunner(Runner):
         if isinstance(state, CachedState) and self.task.cache_validator(
             state, inputs, prefect.context.get("parameters")
         ):
+            self.logger.debug(
+                "Task '{name}': cached result; ending run.".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
+            )
             raise ENDRUN(Success(result=state.cached_result, cached=state))
         return state
 
@@ -629,7 +679,6 @@ class TaskRunner(Runner):
 
         # generate initial states, if available
         if isinstance(state, Mapped):
-
             initial_states = list(state.map_states)  # type: List[Optional[State]]
         else:
             initial_states = []
@@ -641,6 +690,11 @@ class TaskRunner(Runner):
         )
 
         # else enter a new Mapped state
+        self.logger.debug(
+            "Task '{name}': task has been mapped; ending run.".format(
+                name=prefect.context.get("task_full_name", self.task.name)
+            )
+        )
         return Mapped(
             message="Mapped tasks submitted for execution.", map_states=map_states
         )
@@ -660,6 +714,12 @@ class TaskRunner(Runner):
             - ENDRUN: if the task is not ready to run
         """
         if not state.is_pending():
+            self.logger.debug(
+                "Task '{name}': can't set state to Running because it "
+                "isn't Pending; ending run.".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
+            )
             raise ENDRUN(state)
 
         return Running(message="Starting task run.")
@@ -688,10 +748,21 @@ class TaskRunner(Runner):
             - ENDRUN: if the task is not ready to run
         """
         if not state.is_running():
+            self.logger.debug(
+                "Task '{name}': can't run task because it's not in a "
+                "Running state; ending run.".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
+            )
+
             raise ENDRUN(state)
 
         try:
-            self.logger.info("Running task...")
+            self.logger.debug(
+                "Task '{name}': Calling task.run() method...".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
+            )
             timeout_handler = timeout_handler or main_thread_timeout
             result = timeout_handler(self.task.run, timeout=self.task.timeout, **inputs)
 
