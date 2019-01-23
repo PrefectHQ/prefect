@@ -60,8 +60,8 @@ class CloudTaskRunner(TaskRunner):
 
     def _heartbeat(self) -> None:
         try:
-            task_run_id = self.task_run_id
-            self.client.update_task_run_heartbeat(task_run_id)
+            task_run_id = self.task_run_id  # type: ignore
+            self.client.update_task_run_heartbeat(task_run_id)  # type: ignore
         except:
             warnings.warn("Heartbeat failed for Task '{}'".format(self.task.name))
 
@@ -110,11 +110,8 @@ class CloudTaskRunner(TaskRunner):
             )
             raise ENDRUN(state=new_state)
 
-        prefect.context.update(task_run_version=version + 1)  # type: ignore
-
-        # assign task run id and version to make state lookups simpler in the future
-        new_state._task_run_id = task_run_id
-        new_state._version = version + 1
+        if version is not None:
+            prefect.context.update(task_run_version=version + 1)  # type: ignore
 
         return new_state
 
@@ -136,81 +133,39 @@ class CloudTaskRunner(TaskRunner):
         Returns:
             - tuple: a tuple of the updated state, context, and upstream_states objects
         """
-        try:
-            task_run_info = self.client.get_task_run_info(
-                flow_run_id=context.get("flow_run_id", ""),
-                task_id=self.task.id,
-                map_index=context.get("map_index"),
-                result_handler=self.result_handler,
-            )
-        except Exception as exc:
-            self.logger.debug(
-                "Failed to retrieve task state with error: {}".format(repr(exc))
-            )
-            if state is None:
-                state = Failed(
-                    message="Could not retrieve state from Prefect Cloud", result=exc
+
+        # if the map_index is not None, this is a dynamic task and we need to load
+        # task run info for it
+        map_index = context.get("map_index")
+        if map_index not in [-1, None]:
+            try:
+                task_run_info = self.client.get_task_run_info(
+                    flow_run_id=context.get("flow_run_id", ""),
+                    task_id=self.task.id,
+                    map_index=map_index,
+                    result_handler=self.result_handler,
                 )
-            raise ENDRUN(state=state)
 
-        # if state was provided, keep it; otherwise use the one from db
-        state = state or task_run_info.state  # type: ignore
-        context.update(
-            task_run_version=task_run_info.version,  # type: ignore
-            task_run_id=task_run_info.id,  # type: ignore
-        )
+                # if state was provided, keep it; otherwise use the one from db
+                state = state or task_run_info.state  # type: ignore
+                context.update(
+                    task_run_version=task_run_info.version,  # type: ignore
+                    task_run_id=task_run_info.id,  # type: ignore
+                )
+            except Exception as exc:
+                self.logger.debug(
+                    "Failed to retrieve task state with error: {}".format(repr(exc))
+                )
+                if state is None:
+                    state = Failed(
+                        message="Could not retrieve state from Prefect Cloud",
+                        result=exc,
+                    )
+                raise ENDRUN(state=state)
+
         # we assign this so it can be shared with heartbeat thread
-        self.task_run_id = task_run_info.id  # type: ignore
-
-        # update upstream_states
-        upstream_states = self.get_latest_upstream_states(
-            context=context, upstream_states=upstream_states
-        )
+        self.task_run_id = context.get("task_run_id")  # type: ignore
 
         return super().initialize_run(
             state=state, context=context, upstream_states=upstream_states
         )
-
-    def get_latest_upstream_states(
-        self, context: Dict[str, Any], upstream_states: Dict[Edge, State]
-    ) -> Dict[Edge, State]:
-        """
-        Reloads the latest upstream states from Prefect Cloud.
-
-        There are two possibilities:
-            - if we've already confirmed a state with Prefect Cloud, then it will have `_task_run_id`
-                and `_version` attributes. We query Cloud for any state with that id and NOT that version.
-                If a result comes back, it's more recent and we update our state. If nothing comes
-                back, then we're current.
-
-            - if we haven't loaded this state yet (for example, it was created as a stand-in by
-                a FlowRunner), then we get-or-create its task run info. If the resulting state
-                is `Mapped` and the edge in question is being mapped over, then we make one
-                more query to get the state at the appropriate `map_index`.
-
-        Args:
-            - context (Dict[str, Any]): the context
-            - upstream_states (Dict[Edge, State]): the upstream states.
-
-        Returns:
-            - Dict[Edge, State]: a dictionary of current upstream states
-        """
-
-        updated_states = self.client.get_latest_task_run_states(
-            flow_run_id=context.get("flow_run_id", ""),
-            states={e.upstream_task: s for e, s in upstream_states.items()},
-            result_handler=self.result_handler,
-        )
-
-        new_upstream_states = {}
-        for edge, state in upstream_states.items():
-            new_state = updated_states.get(edge.upstream_task, state)
-            if edge.mapped and new_state.is_mapped():
-                new_state = self.client.get_task_run_info(  # type: ignore
-                    flow_run_id=context.get("flow_run_id", ""),
-                    task_id=edge.upstream_task.id,
-                    map_index=context.get("map_index"),
-                    result_handler=self.result_handler,
-                ).state
-            new_upstream_states[edge] = new_state
-        return new_upstream_states

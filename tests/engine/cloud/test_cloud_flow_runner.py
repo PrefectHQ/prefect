@@ -1,3 +1,4 @@
+import uuid
 import time
 from unittest.mock import MagicMock
 
@@ -7,6 +8,7 @@ import prefect
 from prefect.client import Client
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
+
 from prefect.engine.state import (
     Failed,
     Finished,
@@ -216,7 +218,6 @@ def test_client_is_always_called_even_during_failures(client):
     ]
     assert flow_states == [Running(), Failed(result=dict())]
 
-    assert client.get_task_run_info.call_count == 3  # three time to pull latest states
     assert (
         client.set_task_run_state.call_count == 6
     )  # (Pending -> Running -> Finished) * 3
