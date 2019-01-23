@@ -234,13 +234,20 @@ class TaskRunner(Runner):
 
                 # if the task is mapped, process the mapped children and exit
                 if mapped:
-                    self.run_mapped_task(
+                    state = self.run_mapped_task(
                         state=state,
                         upstream_states=upstream_states,
                         check_upstream=check_upstream,
                         context=context,
                         executor=executor,
                     )
+                    if not state.is_mapped():
+                        self.logger.debug(
+                            "Task '{name}': Error encountered during mapping.".format(
+                                name=context["task_full_name"]
+                            )
+                        )
+                    raise ENDRUN(state)
 
                 if check_upstream:
 
@@ -554,7 +561,7 @@ class TaskRunner(Runner):
             if edge.key is not None:
                 task_inputs[edge.key] = upstream_state.result
 
-        if state.is_pending() and state.cached_inputs is not None:
+        if state.is_pending() and state.cached_inputs is not None:  # type: ignore
             task_inputs.update(state.cached_inputs)  # type: ignore
 
         return task_inputs
@@ -672,7 +679,6 @@ class TaskRunner(Runner):
 
         # generate initial states, if available
         if isinstance(state, Mapped):
-
             initial_states = list(state.map_states)  # type: List[Optional[State]]
         else:
             initial_states = []
@@ -689,10 +695,8 @@ class TaskRunner(Runner):
                 name=prefect.context.get("task_full_name", self.task.name)
             )
         )
-        raise ENDRUN(
-            Mapped(
-                message="Mapped tasks submitted for execution.", map_states=map_states
-            )
+        return Mapped(
+            message="Mapped tasks submitted for execution.", map_states=map_states
         )
 
     @call_state_handlers
