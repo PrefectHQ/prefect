@@ -12,6 +12,7 @@ from typing import (
     List,
     Optional,
     Set,
+    NamedTuple,
     Sized,
     Tuple,
     Union,
@@ -43,6 +44,15 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.executors import main_thread_timeout, run_with_heartbeat
+
+TaskRunnerInitializeResult = NamedTuple(
+    "TaskRunnerInitializeResult",
+    [
+        ("state", State),
+        ("context", Dict[str, Any]),
+        ("upstream_states", Dict[Edge, State]),
+    ],
+)
 
 
 class TaskRunner(Runner):
@@ -113,7 +123,7 @@ class TaskRunner(Runner):
         state: Optional[State],
         context: Dict[str, Any],
         upstream_states: Dict[Edge, State],
-    ) -> Tuple[State, Dict[str, Any], Dict[Edge, State]]:
+    ) -> TaskRunnerInitializeResult:
         """
         Initializes the Task run by initializing state and context appropriately.
 
@@ -143,7 +153,9 @@ class TaskRunner(Runner):
 
         context.update(task_run_count=run_count, task_name=self.task.name)
 
-        return state, context, upstream_states
+        return TaskRunnerInitializeResult(
+            state=state, context=context, upstream_states=upstream_states
+        )
 
     def run(
         self,
