@@ -33,8 +33,9 @@ from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.environments import Environment
 from prefect.utilities import logging
+from prefect.utilities.notifications import callback_factory
 from prefect.utilities.serialization import to_qualified_name
-from prefect.utilities.tasks import as_task, callback_factory, unmapped
+from prefect.utilities.tasks import as_task, unmapped
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
 

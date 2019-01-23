@@ -8,23 +8,7 @@ from toolz import curry
 
 import prefect
 
-__all__ = ["tags", "as_task", "pause_task", "task", "unmapped", "callback_factory"]
-
-
-def callback_factory(
-    fn: Callable[["prefect.engine.state.State"], Any],
-    check: Callable[["prefect.engine.state.State"], bool],
-) -> Callable:
-    def state_handler(
-        obj: Any,
-        old_state: "prefect.engine.state.State",
-        new_state: "prefect.engine.state.State",
-    ) -> "prefect.engine.state.State":
-        if check(new_state) is True:
-            fn(new_state)
-        return new_state
-
-    return state_handler
+__all__ = ["tags", "as_task", "pause_task", "task", "unmapped"]
 
 
 @contextmanager
