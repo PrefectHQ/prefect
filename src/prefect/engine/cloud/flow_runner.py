@@ -5,8 +5,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import prefect
 from prefect.client import Client
-from prefect.core import Flow
-from prefect.engine.flow_runner import FlowRunner
+from prefect.core import Flow, Task
+from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, State
 from prefect.engine.cloud import CloudTaskRunner
@@ -105,9 +105,11 @@ class CloudFlowRunner(FlowRunner):
     def initialize_run(  # type: ignore
         self,
         state: Optional[State],
+        task_states: Dict[Task, State],
         context: Dict[str, Any],
+        task_contexts: Dict[Task, Dict[str, Any]],
         parameters: Dict[str, Any],
-    ) -> Tuple[State, Dict[str, Any]]:
+    ) -> FlowRunnerInitializeResult:
         """
         Initializes the Task run by initializing state and context appropriately.
 
@@ -115,13 +117,16 @@ class CloudFlowRunner(FlowRunner):
 
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
-            - context (dict): the context to be updated with relevant information
+            - task_states (Dict[Task, State]): a dictionary of any initial task states
+            - context (Dict[str, Any], optional): prefect.Context to use for execution
+                to use for each Task run
+            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be provided to each task
             - parameters(dict): the parameter values for the run
 
         Returns:
-            - tuple: a tuple of the updated state and context objects
+            - NamedTuple: a tuple of initialized objects:
+                `(state, task_states, context, task_contexts)`
         """
-
         try:
             flow_run_info = self.client.get_flow_run_info(
                 flow_run_id=prefect.context.get("flow_run_id", "")
@@ -145,5 +150,9 @@ class CloudFlowRunner(FlowRunner):
         updated_parameters.update(parameters)
 
         return super().initialize_run(
-            state=state, context=context, parameters=updated_parameters
+            state=state,
+            task_states=task_states,
+            context=context,
+            task_contexts=task_contexts,
+            parameters=updated_parameters,
         )
