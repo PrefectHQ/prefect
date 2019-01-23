@@ -1,4 +1,5 @@
 import logging
+from multiprocessing.pool import ThreadPool
 from unittest.mock import MagicMock
 
 from prefect import utilities
@@ -50,3 +51,29 @@ def test_get_logger_with_name_returns_child_logger():
 
     assert prefect_logger is child_logger
     assert prefect_logger is logging.getLogger("prefect").getChild("test")
+
+
+def test_loggers_can_be_pickled_and_still_ship_to_cloud(monkeypatch):
+    client = MagicMock()
+    monkeypatch.setattr("prefect.client.Client", MagicMock(return_value=client))
+
+    def can_i_speak(logger):
+        logger.critical("this is important")
+        was_called = logger.handlers[-1].client.post.called
+        return was_called
+
+    try:
+        with utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": True, "cloud.log": "http://foo.bar:1800/log"}
+        ):
+            logger = utilities.logging.configure_logging()
+            pool = ThreadPool(processes=1)
+            result = pool.apply_async(can_i_speak, args=(logger,))
+            value = result.get()
+            assert value is True
+    finally:
+        # reset root_logger
+        logger = utilities.logging.get_logger()
+        for h in logger.handlers:
+            logger.removeHandler(h)
+        utilities.logging.configure_logging()

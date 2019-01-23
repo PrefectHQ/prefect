@@ -53,14 +53,8 @@ def configure_logging() -> logging.Logger:
     # send logs to server
     if config.logging.log_to_cloud:
         logging.setLogRecordFactory(cloud_record_factory)
-        log_queue = queue.Queue(-1)  # unlimited size queue
-        queue_handler = QueueHandler(log_queue)
         remote_handler = RemoteHandler()
-        remote_listener = QueueListener(log_queue, remote_handler)
-        logger.addHandler(queue_handler)
-        remote_listener.start()
-        stopper = lambda listener: listener.stop()
-        atexit.register(stopper, remote_listener)
+        logger.addHandler(remote_handler)
 
     return logger
 
