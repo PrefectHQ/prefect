@@ -3,6 +3,7 @@ import atexit
 import logging
 import os
 import queue
+import time
 from logging.handlers import QueueHandler, QueueListener
 
 import prefect
@@ -44,6 +45,7 @@ def configure_logging() -> logging.Logger:
     logger = logging.getLogger("prefect")
     handler = logging.StreamHandler()
     formatter = logging.Formatter(config.logging.format)
+    formatter.converter = time.gmtime
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(config.logging.level)
