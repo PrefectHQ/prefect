@@ -7,37 +7,49 @@ from prefect import utilities
 def test_root_logger_level_responds_to_config():
     try:
         with utilities.configuration.set_temporary_config({"logging.level": "DEBUG"}):
-            utilities.logging.configure_logging().level == logging.DEBUG
+            assert (
+                utilities.logging.configure_logging(testing=True).level == logging.DEBUG
+            )
 
         with utilities.configuration.set_temporary_config({"logging.level": "WARNING"}):
-            utilities.logging.configure_logging().level == logging.WARNING
+            assert (
+                utilities.logging.configure_logging(testing=True).level
+                == logging.WARNING
+            )
     finally:
         # reset root_logger
-        logger = utilities.logging.get_logger()
-        for h in logger.handlers:
-            logger.removeHandler(h)
-        utilities.logging.configure_logging()
+        logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
 
 
-def test_remote_handler_is_configured_for_cloud(monkeypatch):
-    starter = MagicMock()
-    listener = MagicMock(return_value=starter)
-    monkeypatch.setattr("prefect.utilities.logging.QueueListener", listener)
+def test_remote_handler_is_configured_for_cloud():
     try:
         with utilities.configuration.set_temporary_config(
             {"logging.log_to_cloud": True, "cloud.log": "http://foo.bar:1800/log"}
         ):
-            logger = utilities.logging.configure_logging()
-            assert listener.called
-            remote_handler = listener.call_args[0][1]
-            assert remote_handler.logger_server == "http://foo.bar:1800/log"
-            assert starter.start.called
+            logger = utilities.logging.configure_logging(testing=True)
+            assert hasattr(logger.handlers[-1], "client")
+            assert logger.handlers[-1].logger_server == "http://foo.bar:1800/log"
     finally:
         # reset root_logger
-        logger = utilities.logging.get_logger()
-        for h in logger.handlers:
-            logger.removeHandler(h)
-        utilities.logging.configure_logging()
+        logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
+
+
+def test_remote_handler_captures_errors_then_passes():
+    try:
+        with utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": True, "cloud.log": "http://foo.bar:1800/log"}
+        ):
+            logger = utilities.logging.configure_logging(testing=True)
+            assert hasattr(logger.handlers[-1], "client")
+            child_logger = logger.getChild("sub-test")
+            child_logger.critical("this should raise an error in the handler")
+            assert logger.handlers[-1].errored_out == True
+    finally:
+        # reset root_logger
+        logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
 
 
 def test_get_logger_returns_root_logger():
