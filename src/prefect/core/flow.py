@@ -33,6 +33,7 @@ from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.environments import Environment
 from prefect.utilities import logging
+from prefect.utilities.notifications import callback_factory
 from prefect.utilities.serialization import to_qualified_name
 from prefect.utilities.tasks import as_task, unmapped
 
@@ -116,6 +117,8 @@ class Flow:
                 `state_handler(flow: Flow, old_state: State, new_state: State) -> State`
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
+        - on_failure (Callable, optional): A function with signature `fn(flow: Flow, state: State) -> None`
+            which will be called anytime this Flow enters a failure state
         - validate (bool, optional): Whether or not to check the validity of
             the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
@@ -133,7 +136,8 @@ class Flow:
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
         reference_tasks: Iterable[Task] = None,
-        state_handlers: Iterable[Callable] = None,
+        state_handlers: List[Callable] = None,
+        on_failure: Callable = None,
         validate: bool = None,
         result_handler: ResultHandler = None,
     ):
@@ -170,6 +174,10 @@ class Flow:
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
+        if on_failure is not None:
+            self.state_handlers.append(
+                callback_factory(on_failure, check=lambda s: s.is_failed())
+            )
 
         super().__init__()
 

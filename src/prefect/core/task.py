@@ -6,13 +6,14 @@ import inspect
 import uuid
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Set, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Set, Tuple
 
 import prefect
 import prefect.engine.cache_validators
 import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities import logging
+from prefect.utilities.notifications import callback_factory
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
@@ -116,6 +117,8 @@ class Task(metaclass=SignatureValidator):
                 `state_handler(task: Task, old_state: State, new_state: State) -> State`
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
+        - on_failure (Callable, optional): A function with signature `fn(task: Task, state: State) -> None`
+            with will be called anytime this Task enters a failure state
 
     Raises:
         - TypeError: if `tags` is of type `str`
@@ -137,7 +140,8 @@ class Task(metaclass=SignatureValidator):
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
-        state_handlers: Iterable[Callable] = None,
+        state_handlers: List[Callable] = None,
+        on_failure: Callable = None,
     ):
 
         self.name = name or type(self).__name__
@@ -200,6 +204,10 @@ class Task(metaclass=SignatureValidator):
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
+        if on_failure is not None:
+            self.state_handlers.append(
+                callback_factory(on_failure, check=lambda s: s.is_failed())
+            )
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
