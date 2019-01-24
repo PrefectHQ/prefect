@@ -1027,6 +1027,20 @@ class TestFlowStateHandlers:
         # the flow changed state twice: Pending -> Running -> Success
         assert handler_results["Flow"] == 2
 
+    def test_flow_on_failure_is_not_called(self):
+        on_failure = MagicMock()
+        flow = Flow(on_failure=on_failure, tasks=[Task()])
+        FlowRunner(flow=flow).run()
+        assert not on_failure.called
+
+    def test_task_on_failure_is_called(self):
+        on_failure = MagicMock()
+        flow = Flow(tasks=[ErrorTask()], on_failure=on_failure)
+        FlowRunner(flow=flow).run()
+        assert on_failure.call_count == 1
+        assert on_failure.call_args[0][0] is flow
+        assert on_failure.call_args[0][1].is_failed()
+
     def test_multiple_flow_handlers_are_called(self):
         flow = Flow(state_handlers=[flow_handler, flow_handler])
         FlowRunner(flow=flow).run()
