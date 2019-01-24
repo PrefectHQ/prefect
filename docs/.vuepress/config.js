@@ -117,6 +117,11 @@ module.exports = {
           ]
         },
         {
+          title: 'PINs',
+          collapsable: true,
+          children: ['PINs/', 'PINs/1-record-architecture-decisions']
+        },
+        {
           title: 'Comparisons',
           collapsable: true,
           children: ['comparisons/', 'comparisons/airflow']
