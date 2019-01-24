@@ -1,5 +1,9 @@
+import cloudpickle
 import json
+import os
 import sys
+import tempfile
+from multiprocessing.pool import ThreadPool
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,10 +25,48 @@ from prefect.engine.state import (
 )
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import (
+    callback_factory,
     gmail_notifier,
     slack_message_formatter,
     slack_notifier,
 )
+
+
+def test_callback_factory_generates_pickleable_objs():
+    """
+    This test does some heavy lifting to create two lambda functions,
+    and then passes them through callback_factory to generate a state-handler.
+    We then pickle the state handler to a temporary file, delete the functions,
+    and try to unpickle the file in a new Process, asserting that the result is what we
+    think it should be.
+    """
+
+    def load_bytes(fname):
+        import cloudpickle
+
+        with open(fname, "rb") as f:
+            obj = cloudpickle.load(f)
+        return obj(1, 2, 3)
+
+    fn = lambda obj, state: None
+    check = lambda state: True
+    handler = callback_factory(fn, check)
+
+    sd, tmp_file = tempfile.mkstemp()
+    os.close(sd)
+    try:
+        with open(tmp_file, "wb") as bit_file:
+            cloudpickle.dump(handler, bit_file)
+        del fn
+        del check
+        pool = ThreadPool(processes=1)
+        result = pool.apply_async(load_bytes, (tmp_file,))
+        value = result.get()
+        assert value == 3
+    except Exception as exc:
+        raise exc
+    finally:
+        os.unlink(tmp_file)
 
 
 @pytest.mark.parametrize(
