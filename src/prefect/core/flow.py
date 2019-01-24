@@ -118,7 +118,7 @@ class Flow:
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - on_failure (Callable, optional): A function with signature `fn(flow: Flow, state: State) -> None`
-            with will be called anytime this Flow enters a failure state
+            which will be called anytime this Flow enters a failure state
         - validate (bool, optional): Whether or not to check the validity of
             the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
