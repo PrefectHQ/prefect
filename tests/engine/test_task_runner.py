@@ -953,6 +953,29 @@ class TestTaskStateHandlers:
         # the task changed state twice: Pending -> Running -> Success
         assert task_handler.call_count == 2
 
+    def test_task_on_failure_is_not_called(self):
+        on_failure = MagicMock()
+        task = Task(on_failure=on_failure)
+        TaskRunner(task=task).run()
+        assert not on_failure.called
+
+    def test_task_on_failure_is_called(self):
+        on_failure = MagicMock()
+        task = ErrorTask(on_failure=on_failure)
+        TaskRunner(task=task).run()
+        assert on_failure.call_count == 1
+        assert on_failure.call_args[0][0] is task
+        assert on_failure.call_args[0][1].is_failed()
+
+    def test_task_on_trigger_failure_is_called(self):
+        on_failure = MagicMock()
+        task = Task(on_failure=on_failure)
+        edge = Edge(Task(), task)
+        TaskRunner(task=task).run(upstream_states={edge: Failed()})
+        assert on_failure.call_count == 1
+        assert on_failure.call_args[0][0] is task
+        assert isinstance(on_failure.call_args[0][1], TriggerFailed)
+
     def test_task_handlers_are_called_on_retry(self):
         task_handler = MagicMock(side_effect=lambda t, o, n: n)
 
