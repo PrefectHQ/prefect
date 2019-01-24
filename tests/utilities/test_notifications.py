@@ -48,7 +48,7 @@ def test_callback_factory_generates_pickleable_objs():
             obj = cloudpickle.load(f)
         return obj(1, 2, 3)
 
-    fn = lambda state: None
+    fn = lambda obj, state: None
     check = lambda state: True
     handler = callback_factory(fn, check)
 

@@ -18,7 +18,7 @@ __all__ = ["callback_factory", "gmail_notifier", "slack_notifier"]
 
 
 def callback_factory(
-    fn: Callable[["prefect.engine.state.State"], Any],
+    fn: Callable[[Any, "prefect.engine.state.State"], Any],
     check: Callable[["prefect.engine.state.State"], bool],
 ) -> Callable:
     """
@@ -26,9 +26,10 @@ def callback_factory(
     state-based checks.
 
     Args:
-        - fn (Callable): a function with signature `fn(state: State) -> None`
+        - fn (Callable): a function with signature `fn(obj, state: State) -> None`
             which will be called anytime the associated state-check passes; in general,
-            it is expected that this function will have side effects (e.g., sends an email)
+            it is expected that this function will have side effects (e.g., sends an email).  The first
+            argument to this function is the `Task` or `Flow` it is attached to.
         - check (Callable): a function with signature `check(state: State) -> bool`
             which is used for determining when the callback function should be called
 
@@ -40,7 +41,7 @@ def callback_factory(
         from prefect import Task, Flow
         from prefect.utilities.notifications import callback_factory
 
-        fn = lambda state: print(state)
+        fn = lambda obj, state: print(state)
         check = lambda state: state.is_successful()
         callback = callback_factory(fn, check)
 
@@ -59,7 +60,7 @@ def callback_factory(
         new_state: "prefect.engine.state.State",
     ) -> "prefect.engine.state.State":
         if check(new_state) is True:
-            fn(new_state)
+            fn(obj, new_state)
         return new_state
 
     return state_handler
