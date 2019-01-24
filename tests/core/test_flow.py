@@ -67,6 +67,10 @@ class TestCreateFlow:
     def test_create_flow_without_state_handler(self):
         assert Flow().state_handlers == []
 
+    def test_create_flow_with_on_failure(self):
+        f = Flow(on_failure=lambda *args: None)
+        assert len(f.state_handlers) == 1
+
     @pytest.mark.parametrize("handlers", [[lambda *a: 1], [lambda *a: 1, lambda *a: 2]])
     def test_create_flow_with_state_handler(self, handlers):
         assert Flow(state_handlers=handlers).state_handlers == handlers

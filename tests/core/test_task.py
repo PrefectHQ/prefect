@@ -81,6 +81,10 @@ class TestCreateTask:
     def test_create_task_with_state_handler(self, handlers):
         assert Task(state_handlers=handlers).state_handlers == handlers
 
+    def test_create_task_with_on_failure(self):
+        t = Task(on_failure=lambda *args: None)
+        assert len(t.state_handlers) == 1
+
     def test_create_task_illegal_handler(self):
         with pytest.raises(TypeError):
             Task(state_handlers=lambda *a: 1)
