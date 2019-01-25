@@ -121,7 +121,7 @@ class DaskExecutor(Executor):
 
             future = self.client.submit(fn, *args, pure=False, **kwargs)
         elif self.is_started:
-            with worker_client(separate_thread=False) as client:
+            with worker_client(separate_thread=True) as client:
                 future = client.submit(fn, *args, pure=False, **kwargs)
         else:
             raise ValueError("This executor has not been started.")
@@ -148,7 +148,7 @@ class DaskExecutor(Executor):
         if self.is_started and hasattr(self, "client"):
             futures = self.client.map(fn, *args, pure=False)
         elif self.is_started:
-            with worker_client(separate_thread=False) as client:
+            with worker_client(separate_thread=True) as client:
                 futures = client.map(fn, *args, pure=False)
         else:
             raise ValueError("This executor has not been started.")
