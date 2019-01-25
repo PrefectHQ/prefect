@@ -19,10 +19,10 @@ Getting the id of a project with a specific name:
 
 ```graphql
 query {
-    project(where: { name: { _eq: "a name" } }) {
-        id
-        name
-    }
+  project(where: { name: { _eq: "a name" } }) {
+    id
+    name
+  }
 }
 ```
 

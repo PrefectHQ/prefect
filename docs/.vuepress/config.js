@@ -117,6 +117,11 @@ module.exports = {
           ]
         },
         {
+          title: 'PINs',
+          collapsable: true,
+          children: ['PINs/', 'PINs/PIN-1-Introduce-PINs']
+        },
+        {
           title: 'Comparisons',
           collapsable: true,
           children: ['comparisons/', 'comparisons/airflow']
