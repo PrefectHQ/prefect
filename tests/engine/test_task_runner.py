@@ -669,7 +669,8 @@ class TestCheckTaskCached:
         assert new_state is state
 
     def test_cached_same_inputs(self):
-        task = Task(cache_validator=cache_validators.all_inputs)
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=cache_validators.all_inputs)
         state = CachedState(cached_inputs={"a": 1}, cached_result=2)
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
@@ -678,13 +679,15 @@ class TestCheckTaskCached:
         assert exc.value.state.cached is state
 
     def test_cached_different_inputs(self):
-        task = Task(cache_validator=cache_validators.all_inputs)
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=cache_validators.all_inputs)
         state = CachedState(cached_inputs={"a": 1}, cached_result=2)
         new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 2})
         assert new_state is state
 
     def test_cached_duration(self):
-        task = Task(cache_validator=cache_validators.duration_only)
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=cache_validators.duration_only)
         state = CachedState(
             cached_result=2,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
@@ -697,7 +700,8 @@ class TestCheckTaskCached:
         assert exc.value.state.cached is state
 
     def test_cached_duration_fail(self):
-        task = Task(cache_validator=cache_validators.duration_only)
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=cache_validators.duration_only)
         state = CachedState(
             cached_result=2,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=-1),
@@ -882,9 +886,21 @@ class TestCacheResultStep:
         new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
         assert new_state is state
 
-    def test_success_state_with_no_cache_for(self):
+    @pytest.mark.parametrize(
+        "validator",
+        [
+            all_inputs,
+            all_parameters,
+            duration_only,
+            partial_inputs_only,
+            partial_parameters_only,
+        ],
+    )
+    def test_success_state_with_no_cache_for(self, validator):
         state = Success()
-        new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
+        with pytest.warns(UserWarning):
+            t = Task(cache_validator=validator)
+        new_state = TaskRunner(task=t).cache_result(state=state, inputs={})
         assert new_state is state
 
     def test_success_state(self):
