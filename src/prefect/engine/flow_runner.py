@@ -112,6 +112,13 @@ class FlowRunner(Runner):
         Returns:
             - State: the new state
         """
+        self.logger.debug(
+            "Flow '{name}': Handling state change from {old} to {new}".format(
+                name=self.flow.name,
+                old=type(old_state).__name__,
+                new=type(new_state).__name__,
+            )
+        )
         for handler in self.flow.state_handlers:
             new_state = handler(self.flow, old_state, new_state)
 
