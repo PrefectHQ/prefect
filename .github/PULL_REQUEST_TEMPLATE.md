@@ -4,7 +4,7 @@ Please describe your work and make sure your PR:
 
 - [ ] adds new tests (if appropriate)
 - [ ] updates `CHANGELOG.md` (if appropriate)
-- [ ] updates `docs/outline.toml` to include API docs for any new functions (if appropriate)
+- [ ] updates docstrings for any new functions or function arguments, including `docs/outline.toml` for API reference docs (if appropriate)
 
 
 
