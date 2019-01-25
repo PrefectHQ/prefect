@@ -1,28 +1,27 @@
 import datetime
 import uuid
+from collections import Counter, namedtuple
 from unittest.mock import MagicMock
 
+import pendulum
 import pytest
 
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
-from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
-
+from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.state import (
     Failed,
     Finished,
     Pending,
+    Retrying,
     Running,
     Skipped,
-    Retrying,
     Success,
     TimedOut,
     TriggerFailed,
 )
 from prefect.utilities.configuration import set_temporary_config
-
-from collections import namedtuple
 
 
 class FlowRun:
@@ -78,6 +77,7 @@ class MockedCloudClient(MagicMock):
         super().__init__()
         self.flow_runs = {fr.id: fr for fr in flow_runs}
         self.task_runs = {tr.id: tr for tr in task_runs}
+        self.call_count = Counter()
 
         monkeypatch.setattr(
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=self)
@@ -87,6 +87,8 @@ class MockedCloudClient(MagicMock):
         )
 
     def get_flow_run_info(self, flow_run_id, *args, **kwargs):
+        self.call_count["get_flow_run_info"] += 1
+
         flow_run = self.flow_runs[flow_run_id]
         task_runs = [t for t in self.task_runs.values() if t.flow_run_id == flow_run_id]
 
@@ -104,8 +106,10 @@ class MockedCloudClient(MagicMock):
 
     def get_task_run_info(self, flow_run_id, task_id, map_index, *args, **kwargs):
         """
-        Return task run if found, otherwise
+        Return task run if found, otherwise create it
         """
+        self.call_count["get_task_run_info"] += 1
+
         task_run = next(
             (
                 t
@@ -134,6 +138,9 @@ class MockedCloudClient(MagicMock):
         )
 
     def set_flow_run_state(self, flow_run_id, version, state, **kwargs):
+        self.call_count["set_flow_run_state"] += 1
+        self.call_count[flow_run_id] += 1
+
         fr = self.flow_runs[flow_run_id]
         if fr.version == version:
             fr.state = state
@@ -142,6 +149,9 @@ class MockedCloudClient(MagicMock):
             raise ValueError("Invalid flow run update")
 
     def set_task_run_state(self, task_run_id, version, state, **kwargs):
+        self.call_count["set_task_run_state"] += 1
+        self.call_count[task_run_id] += 1
+
         tr = self.task_runs[task_run_id]
         if tr.version == version:
             tr.state = state
@@ -299,6 +309,55 @@ def test_simple_three_task_flow_with_one_failing_task(monkeypatch, executor):
     assert client.task_runs[task_run_id_2].version == 2
     assert client.task_runs[task_run_id_3].state.is_failed()
     assert client.task_runs[task_run_id_2].version == 2
+
+
+@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+def test_simple_three_task_flow_with_first_task_retrying(monkeypatch, executor):
+    """
+    If the first task retries, then the next two tasks shouldn't even make calls to Cloud
+    because they won't pass their upstream checks
+    """
+
+    @prefect.task(max_retries=1, retry_delay=datetime.timedelta(minutes=1))
+    def error():
+        1 / 0
+
+    flow_run_id = str(uuid.uuid4())
+    task_run_id_1 = str(uuid.uuid4())
+    task_run_id_2 = str(uuid.uuid4())
+    task_run_id_3 = str(uuid.uuid4())
+
+    with prefect.Flow() as flow:
+        t1 = error()
+        t2 = prefect.Task()
+        t3 = prefect.Task()
+        t2.set_upstream(t1)
+        t3.set_upstream(t2)
+
+    client = MockedCloudClient(
+        flow_runs=[FlowRun(id=flow_run_id)],
+        task_runs=[
+            TaskRun(id=task_run_id_1, task_id=t1.id, flow_run_id=flow_run_id),
+            TaskRun(id=task_run_id_2, task_id=t2.id, flow_run_id=flow_run_id),
+            TaskRun(id=task_run_id_3, task_id=t3.id, flow_run_id=flow_run_id),
+        ],
+        monkeypatch=monkeypatch,
+    )
+
+    with prefect.context(flow_run_id=flow_run_id):
+        state = CloudFlowRunner(flow=flow).run(
+            return_tasks=flow.tasks, executor=executor
+        )
+
+    assert state.is_running()
+    assert client.flow_runs[flow_run_id].state.is_running()
+    assert isinstance(client.task_runs[task_run_id_1].state, Retrying)
+    assert client.task_runs[task_run_id_1].version == 3
+    assert client.task_runs[task_run_id_2].state.is_pending()
+    assert client.task_runs[task_run_id_2].version == 0
+    assert client.task_runs[task_run_id_3].state.is_pending()
+    assert client.task_runs[task_run_id_2].version == 0
+    assert client.call_count["set_task_run_state"] == 3
 
 
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
