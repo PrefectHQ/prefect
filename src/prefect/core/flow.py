@@ -922,6 +922,14 @@ class Flow:
         # interrupted before any tasks were executed), we set the dict manually.
         if state.result is None:
             state.result = {}
+        elif isinstance(state.result, Exception):
+            self.logger.error(
+                "Unexpected error occured in {runner}: {exc}".format(
+                    runner=runner_cls.__name__, exc=repr(state.result)
+                )
+            )
+            return state
+
         for task in return_tasks or []:
             if task not in state.result:
                 state.result[task] = prefect.engine.state.Pending(
