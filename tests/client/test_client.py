@@ -357,6 +357,9 @@ def test_get_flow_run_info(monkeypatch):
         client = Client()
     result = client.get_flow_run_info(flow_run_id="74-salt")
     assert isinstance(result, FlowRunInfoResult)
+    assert isinstance(result.scheduled_start_time, datetime.datetime)
+    assert result.scheduled_start_time.minute == 15
+    assert result.scheduled_start_time.year == 2019
     assert isinstance(result.state, Pending)
     assert result.state.result == 42
     assert result.state.message is None

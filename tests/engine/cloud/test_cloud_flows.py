@@ -44,6 +44,11 @@ class TaskRun:
 
 
 @prefect.task
+def whats_the_time():
+    return prefect.context.get("scheduled_start_time")
+
+
+@prefect.task
 def plus_one(x):
     return x + 1
 
@@ -95,7 +100,7 @@ class MockedCloudClient(MagicMock):
         return FlowRunInfoResult(
             parameters={},
             version=flow_run.version,
-            scheduled_start_time="2019-01-25T19:15:58.632412+00:00",
+            scheduled_start_time=pendulum.parse("2019-01-25T19:15:58.632412+00:00"),
             state=flow_run.state,
             task_runs=[
                 TaskRunInfoResult(
@@ -191,6 +196,34 @@ def test_simple_two_task_flow(monkeypatch, executor):
     assert client.task_runs[task_run_id_1].state.is_successful()
     assert client.task_runs[task_run_id_1].version == 2
     assert client.task_runs[task_run_id_2].state.is_successful()
+
+
+@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
+def test_scheduled_start_time_is_in_context(monkeypatch, executor):
+    flow_run_id = str(uuid.uuid4())
+    task_run_id_1 = str(uuid.uuid4())
+
+    flow = prefect.Flow(tasks=[whats_the_time])
+
+    client = MockedCloudClient(
+        flow_runs=[FlowRun(id=flow_run_id)],
+        task_runs=[
+            TaskRun(
+                id=task_run_id_1, task_id=whats_the_time.id, flow_run_id=flow_run_id
+            )
+        ],
+        monkeypatch=monkeypatch,
+    )
+
+    with prefect.context(flow_run_id=flow_run_id):
+        state = CloudFlowRunner(flow=flow).run(
+            return_tasks=flow.tasks, executor=executor
+        )
+
+    assert state.is_successful()
+    assert client.flow_runs[flow_run_id].state.is_successful()
+    assert client.task_runs[task_run_id_1].state.is_successful()
+    assert isinstance(state.result[whats_the_time].result, datetime.datetime)
 
 
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
