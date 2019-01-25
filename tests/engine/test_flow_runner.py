@@ -1405,3 +1405,29 @@ def test_paused_tasks_stay_paused_when_run():
     state = f.run(task_states={t: Paused()}, return_tasks=[t])
     assert state.is_running()
     assert isinstance(state.result[t], Paused)
+
+
+def test_flow_runner_provides_scheduled_start_time():
+    @prefect.task
+    def return_scheduled_start_time():
+        return prefect.context.get("scheduled_start_time")
+
+    f = Flow(tasks=[return_scheduled_start_time])
+    res = f.run(return_tasks=f.tasks)
+
+    assert res.is_successful()
+    assert res.result[return_scheduled_start_time].is_successful()
+    assert isinstance(res.result[return_scheduled_start_time].result, datetime.datetime)
+
+
+def test_flow_runner_doesnt_override_scheduled_start_time():
+    @prefect.task
+    def return_scheduled_start_time():
+        return prefect.context.get("scheduled_start_time")
+
+    f = Flow(tasks=[return_scheduled_start_time])
+    res = f.run(return_tasks=f.tasks, context=dict(scheduled_start_time=42))
+
+    assert res.is_successful()
+    assert res.result[return_scheduled_start_time].is_successful()
+    assert res.result[return_scheduled_start_time].result == 42

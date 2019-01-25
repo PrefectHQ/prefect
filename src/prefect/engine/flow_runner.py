@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import pendulum
 from typing import (
     Any,
     Callable,
@@ -157,6 +158,7 @@ class FlowRunner(Runner):
                 context_params[param] = value
 
         context.update(flow_name=self.flow.name)
+        context.setdefault("scheduled_start_time", pendulum.now("utc"))
 
         for task in self.flow.tasks:
             task_contexts.setdefault(task, {}).update(
