@@ -159,9 +159,9 @@ class CloudFlowRunner(FlowRunner):
             raise ENDRUN(state=state)
 
         context.update(
-            scheduled_start_time=flow_run_info.scheduled_start_time
-        )  # type: ignore
-        context.update(flow_run_version=flow_run_info.version)  # type: ignore
+            scheduled_start_time=flow_run_info.scheduled_start_time,
+            flow_run_version=flow_run_info.version,
+        )
 
         # update task states and contexts
         for task_run in flow_run_info.task_runs:
