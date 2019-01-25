@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import pendulum
 import uuid
 from unittest.mock import MagicMock, mock_open
 
@@ -319,6 +320,7 @@ def test_get_flow_run_info(monkeypatch):
     "flow_run_by_pk": {
         "version": 0,
         "parameters": {},
+        "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
         "serialized_state": {
             "type": "Pending",
             "result": 42,
@@ -605,6 +607,7 @@ class TestResultHandlerDeserialization:
         "flow_run_by_pk": {
             "version": 0,
             "parameters": null,
+            "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
             "serialized_state": {
                 "type": "Pending",
                 "result": null,

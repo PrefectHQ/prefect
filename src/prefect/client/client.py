@@ -4,6 +4,7 @@ import datetime
 import json
 import logging
 import os
+import pendulum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, NamedTuple
 
 import prefect
@@ -39,6 +40,7 @@ FlowRunInfoResult = NamedTuple(
     [
         ("parameters", Dict[str, Any]),
         ("version", int),
+        ("scheduled_start_time", datetime.datetime),
         ("state", "prefect.engine.state.State"),
         ("task_runs", List[TaskRunInfoResult]),
     ],
@@ -404,6 +406,7 @@ class Client:
                 with_args("flow_run_by_pk", {"id": flow_run_id}): {
                     "parameters": True,
                     "version": True,
+                    "scheduled_start_time": True,
                     "serialized_state": True,
                     # load all task runs except dynamic task runs
                     with_args("task_runs", {"where": {"map_index": {"_eq": -1}}}): {
@@ -418,6 +421,9 @@ class Client:
         result = self.graphql(query).flow_run_by_pk  # type: ignore
         if result is None:
             raise ClientError('Flow run ID not found: "{}"'.format(flow_run_id))
+
+        # convert scheduled_start_time from string to datetime
+        result.scheduled_start_time = pendulum.parse(result.scheduled_start_time)
 
         # create "state" attribute from serialized_state
         result.state = prefect.engine.state.State.deserialize(
