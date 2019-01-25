@@ -14,6 +14,7 @@
 - Add hooks to `FlowRunner.initialize_run()` for manipulating task states and contexts - [#548](https://github.com/PrefectHQ/prefect/pull/548)
 - Improve state-loading strategy for Prefect Cloud - [#555](https://github.com/PrefectHQ/prefect/issues/555)
 - Introduce `on_failure` kwarg to Tasks and Flows for user-friendly failure callbacks - [#551](https://github.com/PrefectHQ/prefect/issues/551)
+- Include `scheduled_start_time` in context for Flow runs - [#524](https://github.com/PrefectHQ/prefect/issues/524)
 - Add PR template - [#542](https://github.com/PrefectHQ/prefect/pull/542)
 
 ### Fixes
@@ -22,6 +23,7 @@
 - Ensure all logs make it to the logger service in deployment - [#508](https://github.com/PrefectHQ/prefect/issues/508), [#552](https://github.com/PrefectHQ/prefect/issues/552)
 - Fix a situation where `Paused` tasks would be treated as `Pending` and run - [#535](https://github.com/PrefectHQ/prefect/pull/535)
 - Ensure errors raised in state handlers are trapped appropriately in Cloud Runners - [#554](https://github.com/PrefectHQ/prefect/pull/554)
+- Ensure unexpected errors raised in FlowRunners are robustly handled - [#568](https://github.com/PrefectHQ/prefect/pull/568)
 
 ### Breaking Changes
 
