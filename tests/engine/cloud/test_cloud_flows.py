@@ -166,6 +166,7 @@ class MockedCloudClient(MagicMock):
             raise ValueError("Invalid task run update")
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
 def test_simple_two_task_flow(monkeypatch, executor):
     flow_run_id = str(uuid.uuid4())
@@ -198,6 +199,7 @@ def test_simple_two_task_flow(monkeypatch, executor):
     assert client.task_runs[task_run_id_2].state.is_successful()
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
 def test_scheduled_start_time_is_in_context(monkeypatch, executor):
     flow_run_id = str(uuid.uuid4())
@@ -226,6 +228,7 @@ def test_scheduled_start_time_is_in_context(monkeypatch, executor):
     assert isinstance(state.result[whats_the_time].result, datetime.datetime)
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
 def test_simple_two_task_flow_with_final_task_set_to_fail(monkeypatch, executor):
 
@@ -262,6 +265,7 @@ def test_simple_two_task_flow_with_final_task_set_to_fail(monkeypatch, executor)
     assert client.task_runs[task_run_id_2].version == 0
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
 def test_simple_two_task_flow_with_final_task_already_running(monkeypatch, executor):
 
@@ -302,6 +306,7 @@ def test_simple_two_task_flow_with_final_task_already_running(monkeypatch, execu
     assert client.task_runs[task_run_id_2].version == 1
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
 def test_simple_three_task_flow_with_one_failing_task(monkeypatch, executor):
     @prefect.task
@@ -345,6 +350,7 @@ def test_simple_three_task_flow_with_one_failing_task(monkeypatch, executor):
     assert client.task_runs[task_run_id_2].version == 2
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
 def test_simple_three_task_flow_with_first_task_retrying(monkeypatch, executor):
     """
@@ -394,6 +400,7 @@ def test_simple_three_task_flow_with_first_task_retrying(monkeypatch, executor):
     assert client.call_count["set_task_run_state"] == 3
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
 def test_simple_map(monkeypatch, executor):
 
@@ -426,6 +433,7 @@ def test_simple_map(monkeypatch, executor):
     assert len([tr for tr in client.task_runs.values() if tr.task_id == t1.id]) == 4
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
 def test_deep_map(monkeypatch, executor):
 
@@ -470,6 +478,7 @@ def test_deep_map(monkeypatch, executor):
         assert len([tr for tr in client.task_runs.values() if tr.task_id == t.id]) == 4
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
 def test_deep_map_with_a_failure(monkeypatch, executor):
 
@@ -528,6 +537,7 @@ def test_deep_map_with_a_failure(monkeypatch, executor):
     assert t3_0.state.is_failed()
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 @pytest.mark.xfail(reason="Sometimes fails due to some shared-state error")
 def test_deep_map_with_a_retry(monkeypatch):
     """

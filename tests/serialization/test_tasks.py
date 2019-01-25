@@ -141,7 +141,6 @@ def test_unknown_trigger():
 @pytest.mark.parametrize(
     "cache_validator",
     [
-        prefect.engine.cache_validators.never_use,
         prefect.engine.cache_validators.duration_only,
         prefect.engine.cache_validators.all_inputs,
         prefect.engine.cache_validators.all_parameters,
@@ -150,16 +149,26 @@ def test_unknown_trigger():
     ],
 )
 def test_cache_validator(cache_validator):
-    t = Task(cache_validator=cache_validator)
-    t2 = TaskSchema().load(TaskSchema().dump(t))
+    with pytest.warns(UserWarning):
+        t = Task(cache_validator=cache_validator)
+    with pytest.warns(UserWarning):
+        t2 = TaskSchema().load(TaskSchema().dump(t))
     assert t2.cache_validator is cache_validator
+
+
+def test_cache_validator_never_use():
+    t = Task(cache_validator=prefect.engine.cache_validators.never_use)
+    t2 = TaskSchema().load(TaskSchema().dump(t))
+    assert t2.cache_validator is prefect.engine.cache_validators.never_use
 
 
 def test_unknown_cache_validator():
     def hello():
         pass
 
-    t = Task(cache_validator=hello)
-    t2 = TaskSchema().load(TaskSchema().dump(t))
+    with pytest.warns(UserWarning):
+        t = Task(cache_validator=hello)
+    with pytest.warns(UserWarning):
+        t2 = TaskSchema().load(TaskSchema().dump(t))
     assert isinstance(t2.cache_validator, str)
     assert t2.cache_validator.endswith("hello")
