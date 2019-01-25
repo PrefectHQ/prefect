@@ -47,7 +47,7 @@ with Flow("tutorial", schedule=schedule) as flow:
     my_param = Parameter("my_param")
     t2(upstream_tasks=[t1])
     t3 = templated_command(
-        execution_time_7=add_7, my_param=my_param, upstream_tasks=[t1]
+        scheduled_start_time_7=add_7, my_param=my_param, upstream_tasks=[t1]
     )
 
 
