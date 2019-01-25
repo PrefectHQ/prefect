@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import pendulum
 import uuid
 from unittest.mock import MagicMock, mock_open
 
@@ -319,6 +320,7 @@ def test_get_flow_run_info(monkeypatch):
     "flow_run_by_pk": {
         "version": 0,
         "parameters": {},
+        "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
         "serialized_state": {
             "type": "Pending",
             "result": 42,
@@ -355,6 +357,9 @@ def test_get_flow_run_info(monkeypatch):
         client = Client()
     result = client.get_flow_run_info(flow_run_id="74-salt")
     assert isinstance(result, FlowRunInfoResult)
+    assert isinstance(result.scheduled_start_time, datetime.datetime)
+    assert result.scheduled_start_time.minute == 15
+    assert result.scheduled_start_time.year == 2019
     assert isinstance(result.state, Pending)
     assert result.state.result == 42
     assert result.state.message is None
@@ -605,6 +610,7 @@ class TestResultHandlerDeserialization:
         "flow_run_by_pk": {
             "version": 0,
             "parameters": null,
+            "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
             "serialized_state": {
                 "type": "Pending",
                 "result": null,

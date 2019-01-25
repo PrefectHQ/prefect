@@ -14,7 +14,7 @@ from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.signals import PrefectError
-from prefect.engine.state import Failed, Mapped, Skipped, Success, TriggerFailed
+from prefect.engine.state import Failed, Mapped, Skipped, State, Success, TriggerFailed
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task, unmapped
@@ -1277,3 +1277,16 @@ def test_schedule_kwarg_runs_on_schedule():
         f.run(on_schedule=True)
     assert "Cease" in str(exc.value)
     assert t.call_count == 2
+
+
+@pytest.mark.parametrize("return_tasks", [False, True])
+def test_bad_flow_runner_code_still_returns_state_obj(return_tasks):
+    class BadFlowRunner(prefect.engine.flow_runner.FlowRunner):
+        def initialize_run(self, *args, **kwargs):
+            import blig  # will raise ImportError
+
+    f = Flow(tasks=[Task()])
+    res = f.run(return_tasks=f.tasks if return_tasks else [], runner_cls=BadFlowRunner)
+    assert isinstance(res, State)
+    assert res.is_failed()
+    assert isinstance(res.result, ImportError)
