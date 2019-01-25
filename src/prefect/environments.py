@@ -373,7 +373,7 @@ class ContainerEnvironment(Environment):
         output = client.push(image_name, tag=image_tag, stream=True, decode=True)
         for line in output:
             if line.get("progress"):
-                print(line.get("status"), line.get("progress"))
+                print(line.get("status"), line.get("progress"), end="\r")
 
     def pull_image(self) -> None:
         """Pull the image specified so it can be built.
@@ -387,7 +387,7 @@ class ContainerEnvironment(Environment):
         output = client.pull(self.base_image, stream=True, decode=True)
         for line in output:
             if line.get("progress"):
-                print(line.get("status"), line.get("progress"))
+                print(line.get("status"), line.get("progress"), end="\r")
 
     def create_dockerfile(self, flow: "prefect.Flow", directory: str = None) -> None:
         """Creates a dockerfile to use as the container.
