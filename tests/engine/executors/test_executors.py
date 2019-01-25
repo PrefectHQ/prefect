@@ -169,18 +169,6 @@ def test_submit_does_not_assume_pure_functions(executor):
     assert one != two
 
 
-@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
-def test_wait_correctly_uses_timeout_kwarg(executor):
-    from tornado.util import TimeoutError as TornadoTimeout
-
-    def sleeper():
-        return time.sleep(2)
-
-    with executor.start():
-        with pytest.raises(TornadoTimeout):
-            res = executor.wait(executor.submit(sleeper), timeout=1)
-
-
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
 def test_executor_has_compatible_timeout_handler(executor):
     slow_fn = lambda: time.sleep(3)

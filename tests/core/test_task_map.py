@@ -499,40 +499,6 @@ def test_map_works_with_retries_and_cached_states(executor):
     assert s.result[res].result[0] == 1 / 10
 
 
-@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
-def test_task_map_doesnt_bottleneck(executor):
-    """
-    This flow consists of a map that passes two sleep signals: one for 0 seconds and one for
-    0.5 seconds. The signals are received by a first task which sleeps for the requested time,
-    then passes the signal to a second sleeping task. This creates one path that sleeps for
-    zero seconds and another that sleeps for 1 second. Both paths feed into a "recorder"
-    task that returns the time it received the result of each path. If either sleep task bottlenecks,
-    then the recorder should print two identical times. However, if the execution doesn't
-    bottleneck, then the first time should be recorded immediately, and the second a second later.
-    We detect this by ensuring the two times are at least 0.5 seconds apart.
-    """
-
-    @prefect.task
-    def ll():
-        return [0, 0.5]
-
-    @prefect.task
-    def zz(s):
-        time.sleep(s)
-        return s
-
-    @prefect.task
-    def rec(s):
-        return time.time()
-
-    with Flow() as f:
-        res = rec.map(zz.map(zz.map(ll)))
-
-    state = f.run(executor=executor, return_tasks=[res])
-    times = state.result[res].result
-    assert times[1] - times[0] > 0.5
-
-
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )

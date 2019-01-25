@@ -1068,9 +1068,10 @@ class TestTaskRunnerStateHandlers:
         state = runner.run(
             upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
         )
-        # the task changed state one time: Pending -> Mapped
+        # the parent task changed state one time: Pending -> Mapped
+        # the child task changed state one time: Pending -> Success
         assert isinstance(state, Mapped)
-        assert task_runner_handler.call_count == 1
+        assert task_runner_handler.call_count == 2
 
     def test_multiple_task_runner_handlers_are_called(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
