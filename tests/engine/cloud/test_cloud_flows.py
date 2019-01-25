@@ -63,7 +63,7 @@ def invert_fail_once(x):
 def cloud_settings():
     with set_temporary_config(
         {
-            "cloud.api": "http://my-cloud.foo",
+            "cloud.graphql": "http://my-cloud.foo",
             "cloud.auth_token": "token",
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
@@ -95,6 +95,7 @@ class MockedCloudClient(MagicMock):
         return FlowRunInfoResult(
             parameters={},
             version=flow_run.version,
+            scheduled_start_time="2019-01-25T19:15:58.632412+00:00",
             state=flow_run.state,
             task_runs=[
                 TaskRunInfoResult(
