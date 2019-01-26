@@ -9,3 +9,6 @@ sidebarDepth: 0
 ## [PIN-1: Introduce Prefect Improvement Notices](PIN-1-Introduce-PINs.md)
 
 Introducing PINs for recording Prefect decisions
+
+## [PIN-2: Proper Implementation of Result Handlers and State Metadata](PIN-2-Result-Handlers.md)
+
