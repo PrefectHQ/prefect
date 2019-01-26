@@ -119,7 +119,7 @@ module.exports = {
         {
           title: 'PINs',
           collapsable: true,
-          children: ['PINs/', 'PINs/PIN-1-Introduce-PINs']
+          children: ['PINs/', 'PINs/PIN-1-Introduce-PINs', 'PINs/PIN-2-Result-Handlers']
         },
         {
           title: 'Comparisons',
