@@ -29,6 +29,7 @@ We should implement result handlers (with a new name) by making the following ch
 
 Note that this allows for all kinds of interesting features: for example, we can implement a simple `JSONHandler` for storing tiny bits of data (strings, numbers) _directly in the DB_.  This will both allow for the convenience of storing such things to users, while also providing plenty of surface area for warning them that this means the Prefect backend will actually have their data.  In this case, the "URI" of a processed piece of data is simply its JSON representation.
 
+Additionally, note that this means that if handling of data fails for any reason, it will be treated as a Task failure.
 
 ## Consequences
 
