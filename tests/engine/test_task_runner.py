@@ -1085,7 +1085,7 @@ class TestTaskRunnerStateHandlers:
             upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
         )
         # the parent task changed state one time: Pending -> Mapped
-        # the child task changed state one time: Pending -> Success
+        # the child task changed state one time: Pending -> TriggerFailed
         assert isinstance(state, Mapped)
         assert task_runner_handler.call_count == 2
 
