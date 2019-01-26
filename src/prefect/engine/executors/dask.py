@@ -156,38 +156,20 @@ class DaskExecutor(Executor):
         fire_and_forget(futures)
         return futures
 
-    def wait(self, futures: Any, timeout: int = None) -> Any:
+    def wait(self, futures: Any) -> Any:
         """
         Resolves the Future objects to their values. Blocks until the computation is complete.
 
         Args:
             - futures (Any): single or iterable of future-like objects to compute
-            - timeout (int, optional): maximum length of time to allow for
-                execution, represented as seconds
 
         Returns:
             - Any: an iterable of resolved futures with similar shape to the input
         """
-        if isinstance(futures, Future):
-            return futures.result(timeout=timeout)
-        elif isinstance(futures, str):
-            return futures
-        elif isinstance(futures, dict):
-            return dict(
-                zip(futures.keys(), self.wait(futures.values(), timeout=timeout))
-            )
+        if self.is_started and hasattr(self, "client"):
+            return self.client.gather(futures)
+        elif self.is_started:
+            with worker_client(separate_thread=True) as client:
+                return client.gather(futures)
         else:
-            try:
-                results = []  # type: ignore
-                for future in futures:
-                    if isinstance(future, Future):
-
-                        # this isn't ideal, since the timeout will scale with the number of futures
-                        # however, creating/reusing a client and calling client.gather() is raising
-                        # CancelledErrors in situations where this approach works
-                        results.append(future.result(timeout=timeout))
-                    else:
-                        results.append(future)
-                return results
-            except TypeError:
-                return futures
+            raise ValueError("This executor has not been started.")

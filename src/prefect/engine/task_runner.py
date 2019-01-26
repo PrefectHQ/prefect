@@ -688,6 +688,7 @@ class TaskRunner(Runner):
         map_states = executor.map(
             run_fn, initial_states, range(len(map_upstream_states)), map_upstream_states
         )
+        map_states = executor.wait(map_states)
 
         # else enter a new Mapped state
         self.logger.debug(

@@ -252,7 +252,8 @@ class TestLocalEnvironment:
             {"engine.flow_runner.default_class": "prefect.engine.x"}
         ):
 
-            built_env.run()
+            with pytest.warns(UserWarning):
+                built_env.run()
         assert x.call_count == 1
 
     def test_run_without_build(self):
