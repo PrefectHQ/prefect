@@ -62,13 +62,12 @@ class SynchronousExecutor(Executor):
             results.append(self.submit(fn, *args_i))
         return results
 
-    def wait(self, futures: Any, timeout: int = None) -> Any:
+    def wait(self, futures: Any) -> Any:
         """
         Resolves a `dask.delayed` object to its values. Blocks until the computation is complete.
 
         Args:
             - futures (Any): iterable of `dask.delayed` objects to compute
-            - timeout (int, optional): maximum length of time to allow for execution; this kwarg is ignored for this executor
 
         Returns:
             - Any: an iterable of resolved futures

@@ -1186,7 +1186,8 @@ def test_flow_run_uses_default_flow_runner(monkeypatch):
     with prefect.utilities.configuration.set_temporary_config(
         {"engine.flow_runner.default_class": "prefect.engine.x"}
     ):
-        Flow().run()
+        with pytest.warns(UserWarning):
+            Flow().run()
 
     assert x.call_count == 1
 

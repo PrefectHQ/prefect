@@ -55,13 +55,12 @@ class Executor:
         """
         raise NotImplementedError()
 
-    def wait(self, futures: Any, timeout: int = None) -> Any:
+    def wait(self, futures: Any) -> Any:
         """
         Resolves futures to their values. Blocks until the future is complete.
 
         Args:
             - futures (Any): iterable of futures to compute
-            - timeout (int): maximum length of time to allow for execution, represented as seconds
 
         Returns:
             - Any: an iterable of resolved futures

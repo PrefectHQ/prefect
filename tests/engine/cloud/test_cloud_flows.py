@@ -24,6 +24,9 @@ from prefect.engine.state import (
 from prefect.utilities.configuration import set_temporary_config
 
 
+pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
+
+
 class FlowRun:
     def __init__(self, id, state=None, version=None):
         self.id = id

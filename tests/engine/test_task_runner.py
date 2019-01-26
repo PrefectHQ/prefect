@@ -669,7 +669,8 @@ class TestCheckTaskCached:
         assert new_state is state
 
     def test_cached_same_inputs(self):
-        task = Task(cache_validator=cache_validators.all_inputs)
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=cache_validators.all_inputs)
         state = CachedState(cached_inputs={"a": 1}, cached_result=2)
         with pytest.raises(ENDRUN) as exc:
             TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
@@ -678,13 +679,15 @@ class TestCheckTaskCached:
         assert exc.value.state.cached is state
 
     def test_cached_different_inputs(self):
-        task = Task(cache_validator=cache_validators.all_inputs)
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=cache_validators.all_inputs)
         state = CachedState(cached_inputs={"a": 1}, cached_result=2)
         new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 2})
         assert new_state is state
 
     def test_cached_duration(self):
-        task = Task(cache_validator=cache_validators.duration_only)
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=cache_validators.duration_only)
         state = CachedState(
             cached_result=2,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
@@ -697,7 +700,8 @@ class TestCheckTaskCached:
         assert exc.value.state.cached is state
 
     def test_cached_duration_fail(self):
-        task = Task(cache_validator=cache_validators.duration_only)
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=cache_validators.duration_only)
         state = CachedState(
             cached_result=2,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=-1),
@@ -882,9 +886,21 @@ class TestCacheResultStep:
         new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
         assert new_state is state
 
-    def test_success_state_with_no_cache_for(self):
+    @pytest.mark.parametrize(
+        "validator",
+        [
+            all_inputs,
+            all_parameters,
+            duration_only,
+            partial_inputs_only,
+            partial_parameters_only,
+        ],
+    )
+    def test_success_state_with_no_cache_for(self, validator):
         state = Success()
-        new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
+        with pytest.warns(UserWarning):
+            t = Task(cache_validator=validator)
+        new_state = TaskRunner(task=t).cache_result(state=state, inputs={})
         assert new_state is state
 
     def test_success_state(self):
@@ -1061,16 +1077,14 @@ class TestTaskRunnerStateHandlers:
     def test_task_runner_handlers_are_called_on_mapped(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
 
-        runner = TaskRunner(
-            task=Task(trigger=prefect.triggers.all_failed),
-            state_handlers=[task_runner_handler],
-        )
+        runner = TaskRunner(task=Task(), state_handlers=[task_runner_handler])
         state = runner.run(
             upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
         )
-        # the task changed state one time: Pending -> Mapped
+        # the parent task changed state one time: Pending -> Mapped
+        # the child task changed state one time: Pending -> Running -> Success
         assert isinstance(state, Mapped)
-        assert task_runner_handler.call_count == 1
+        assert task_runner_handler.call_count == 3
 
     def test_multiple_task_runner_handlers_are_called(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
@@ -1212,3 +1226,20 @@ def test_task_runner_bypasses_pause_when_requested():
     runner = TaskRunner(t2)
     out = runner.run(upstream_states={e: Success(result=1)}, context=dict(resume=True))
     assert out.is_successful()
+
+
+def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
+    task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
+
+    runner = TaskRunner(
+        task=Task(trigger=prefect.triggers.all_failed),
+        state_handlers=[task_runner_handler],
+    )
+    state = runner.run(
+        upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
+    )
+    # the parent task changed state one time: Pending -> Mapped
+    # the child task changed state one time: Pending -> TriggerFailed
+    assert isinstance(state, Mapped)
+    assert task_runner_handler.call_count == 2
+    assert isinstance(state.map_states[0], TriggerFailed)
