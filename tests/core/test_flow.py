@@ -865,7 +865,10 @@ class TestFlowVisualize:
         with patch.dict("sys.modules", IPython=ipython):
             with Flow() as f:
                 first_res = add.map(x=list_task, y=8)
-                res = first_res.map(x=first_res, y=9)
+                with pytest.warns(
+                    UserWarning
+                ):  # making a copy of a task with dependencies
+                    res = first_res.map(x=first_res, y=9)
             graph = f.visualize(
                 flow_state=Success(
                     result={
