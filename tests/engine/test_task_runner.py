@@ -1077,17 +1077,14 @@ class TestTaskRunnerStateHandlers:
     def test_task_runner_handlers_are_called_on_mapped(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
 
-        runner = TaskRunner(
-            task=Task(trigger=prefect.triggers.all_failed),
-            state_handlers=[task_runner_handler],
-        )
+        runner = TaskRunner(task=Task(), state_handlers=[task_runner_handler])
         state = runner.run(
             upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
         )
         # the parent task changed state one time: Pending -> Mapped
-        # the child task changed state one time: Pending -> TriggerFailed
+        # the child task changed state one time: Pending -> Running -> Success
         assert isinstance(state, Mapped)
-        assert task_runner_handler.call_count == 2
+        assert task_runner_handler.call_count == 3
 
     def test_multiple_task_runner_handlers_are_called(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
@@ -1229,3 +1226,20 @@ def test_task_runner_bypasses_pause_when_requested():
     runner = TaskRunner(t2)
     out = runner.run(upstream_states={e: Success(result=1)}, context=dict(resume=True))
     assert out.is_successful()
+
+
+def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
+    task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
+
+    runner = TaskRunner(
+        task=Task(trigger=prefect.triggers.all_failed),
+        state_handlers=[task_runner_handler],
+    )
+    state = runner.run(
+        upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
+    )
+    # the parent task changed state one time: Pending -> Mapped
+    # the child task changed state one time: Pending -> TriggerFailed
+    assert isinstance(state, Mapped)
+    assert task_runner_handler.call_count == 2
+    assert isinstance(state.map_states[0], TriggerFailed)
