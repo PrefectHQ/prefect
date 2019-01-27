@@ -51,9 +51,11 @@ Each PIN has four important sections: Status, Context, Decision, and Consequence
 
 PINs are often the reflection of offline work and discussions, but we will attempt to integrate them in our online processes when possible.
 
-PINs will be submitted as issues on the appropriate forum. Issues are an appropriate, archivable forum for discussing the content and nature of the PIN. In addition, as an issue the PIN's content can easily be modified. Once some consensus is reached, the PIN will be submitted as a PR.
+PINs will be submitted as issues on the appropriate repo. Issues are an appropriate, archivable forum for discussing the content and nature of the PIN. In addition, as an issue the PIN's content can easily be modified. Once some consensus is reached, the PIN will be submitted as a PR.
 
-When a PIN is submitted as a PR, its proposed decision does NOT need to be accepted in order for the PR to be merged. The code maintainers should accept PRs for PINs that have yet to be accepted or even ones that have been rejected. In this way, the acceptance of a PIN PR should be judged similar to documentation: it helps explain how the software evolved to its current state. However, the maintainers may use editorial judgement for non-accepted PRs. A polluted narrative can be worse than no narrative at all.
+When a PIN is submitted as a PR, its proposed decision does NOT need to be accepted in order for the PR to be merged. The repo's maintainers may merge PRs for PINs that have yet to be accepted or even ones that have been rejected. The acceptance of a PIN PR should be judged similarly to one for documentation: it helps explain how the software evolved to its current state.
+
+Any PIN that generated sufficient discussion to affect the course of Prefect's software is worthwhile to include permanently, even if it, itself, remained pending or was rejected. These "negative decisions" are just as important. However, the maintainers may use editorial judgement for non-accepted PINs. A polluted narrative can be worse than no narrative at all.
 
 ## Consequences
 
