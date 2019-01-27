@@ -19,9 +19,9 @@ class CloudResultHandler(ResultHandler):
     Hook for storing and retrieving task results from Prefect cloud storage.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, result_handler_service: str = None) -> None:
         self.client = None
-        self.result_handler_service = None
+        self.result_handler_service = result_handler_service
         super().__init__()
 
     def _initialize_client(self) -> None:
