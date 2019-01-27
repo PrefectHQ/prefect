@@ -38,7 +38,15 @@ class BaseStateSchema(VersionedSchema):
         object_class = state.State
 
     message = fields.String(allow_none=True)
+    metadata = fields.Dict(keys=fields.Str())
     result = ResultHandlerField(allow_none=True)
+
+    @post_load
+    def create_object(self, data):
+        metadata = data.pop("metadata", {})
+        base_obj = super().create_object(data)
+        base_obj.metadata = metadata
+        return base_obj
 
 
 @version("0.3.3")
