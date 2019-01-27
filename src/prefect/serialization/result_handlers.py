@@ -14,7 +14,7 @@ from prefect.utilities.serialization import (
 )
 
 
-@version("0.3.3")
+@version("0.4.0")
 class BaseResultHandlerSchema(VersionedSchema):
     class Meta:
         object_class = ResultHandler
