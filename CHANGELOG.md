@@ -17,6 +17,7 @@
 - Include `scheduled_start_time` in context for Flow runs - [#524](https://github.com/PrefectHQ/prefect/issues/524)
 - Add GitHub PR template - [#542](https://github.com/PrefectHQ/prefect/pull/542)
 - Allow flows to be deployed to Prefect Cloud without a project id - [#571](https://github.com/PrefectHQ/prefect/pull/571)
+- Introduce serialization schemas for ResultHandlers - [#572](https://github.com/PrefectHQ/prefect/issues/572)
 
 ### Fixes
 
