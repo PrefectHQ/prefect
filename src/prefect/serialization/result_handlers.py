@@ -28,7 +28,7 @@ class CloudResultHandlerSchema(BaseResultHandlerSchema):
     result_handler_service = fields.String(allow_none=True)
 
 
-@version("0.3.3")
+@version("0.4.0")
 class LocalResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
         object_class = LocalResultHandler
