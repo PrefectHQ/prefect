@@ -15,7 +15,8 @@
 - Improve state-loading strategy for Prefect Cloud - [#555](https://github.com/PrefectHQ/prefect/issues/555)
 - Introduce `on_failure` kwarg to Tasks and Flows for user-friendly failure callbacks - [#551](https://github.com/PrefectHQ/prefect/issues/551)
 - Include `scheduled_start_time` in context for Flow runs - [#524](https://github.com/PrefectHQ/prefect/issues/524)
-- Add PR template - [#542](https://github.com/PrefectHQ/prefect/pull/542)
+- Add GitHub PR template - [#542](https://github.com/PrefectHQ/prefect/pull/542)
+- Allow flows to be deployed to Prefect Cloud without a project id - [#571](https://github.com/PrefectHQ/prefect/pull/571)
 
 ### Fixes
 

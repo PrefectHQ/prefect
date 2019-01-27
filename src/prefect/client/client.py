@@ -295,18 +295,18 @@ class Client:
         self.token = response.json().get("token")
 
     def deploy(
-        self, flow: "Flow", project_id: str, set_schedule_active: bool = False
+        self, flow: "Flow", project_id: str = None, set_schedule_active: bool = False
     ) -> str:
         """
-        Push a new Flow to Prefect Cloud
+        Push a new flow to Prefect Cloud
 
         Args:
-            - flow (Flow): the prefect Flow to insert into the database
-            - project_id (str): the project ID to associate this Flow with (note
-                that this can be changed later)
+            - flow (Flow): a flow to deploy
+            - project_id (str, optional): the project that should contain this flow. If `None`, the
+                default project will be used ("Flows"). This can be changed later.
             - set_schedule_active (bool, optional): if `True`, will set the
                 schedule to active in the database and begin scheduling runs (if the Flow has a schedule).
-                Defaults to `False`
+                Defaults to `False`. This can be changed later.
 
         Returns:
             - str: the ID of the newly-deployed flow
