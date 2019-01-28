@@ -49,7 +49,13 @@ Each PIN has four important sections: Status, Context, Decision, and Consequence
 
 ### Process
 
-A PIN should be submitted to a code repository as a pull request. The PR is an appropriate, archivable forum for discussing the content and nature of the PIN. However, a PIN's proposed decision does NOT have to be accepted in order for its PR to be accepted. We want to include PINs that have not yet been accepted, or that have been rejected. Any discussion / modification to the PR that happens, either in the PR or after the PR is merged, should be reflected in the PIN, if appropriate.
+PINs are often the reflection of offline work and discussions, but we will attempt to integrate them in our online processes when possible.
+
+PINs will be submitted as issues on the appropriate repo. Issues are an appropriate, archivable forum for discussing the content and nature of the PIN. In addition, as an issue the PIN's content can easily be modified. Once some consensus is reached, the PIN will be submitted as a PR.
+
+When a PIN is submitted as a PR, its proposed decision does NOT need to be accepted in order for the PR to be merged. The repo's maintainers may merge PRs for PINs that have yet to be accepted or even ones that have been rejected. The acceptance of a PIN PR should be judged similarly to one for documentation: it helps explain how the software evolved to its current state.
+
+Any PIN that generated sufficient discussion to affect the course of Prefect's software is worthwhile to include permanently, even if it, itself, remained pending or was rejected. These "negative decisions" are just as important. However, the maintainers may use editorial judgement for non-accepted PINs. A polluted narrative can be worse than no narrative at all.
 
 ## Consequences
 

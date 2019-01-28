@@ -14,13 +14,13 @@ from prefect.utilities.serialization import (
 )
 
 
-@version("0.3.3")
+@version("0.4.0")
 class BaseResultHandlerSchema(VersionedSchema):
     class Meta:
         object_class = ResultHandler
 
 
-@version("0.3.3")
+@version("0.4.0")
 class CloudResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
         object_class = CloudResultHandler
@@ -28,7 +28,7 @@ class CloudResultHandlerSchema(BaseResultHandlerSchema):
     result_handler_service = fields.String(allow_none=True)
 
 
-@version("0.3.3")
+@version("0.4.0")
 class LocalResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
         object_class = LocalResultHandler
