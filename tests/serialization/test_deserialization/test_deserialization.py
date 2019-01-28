@@ -1,21 +1,23 @@
-import pytest
-from pathlib import Path
 import json
+import os
+
+import pytest
+
 import prefect
 from prefect import serialization as s
 
-file_dir = Path(__file__).parents[0]
+file_dir = os.path.dirname(__file__)
 
 
 @pytest.fixture
 def version_0_3_0():
-    with open(file_dir / "version_0_3_0.json") as f:
+    with open(os.path.join(file_dir, "version_0_3_0.json")) as f:
         return json.load(f)
 
 
 @pytest.fixture
 def version_0_4_0():
-    with open(file_dir / "version_0_4_0.json") as f:
+    with open(os.path.join(file_dir, "version_0_4_0.json")) as f:
         return json.load(f)
 
 
