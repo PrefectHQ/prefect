@@ -7,7 +7,6 @@ import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cloud import CloudResultHandler
-from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, Mapped, State
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
@@ -24,8 +23,6 @@ class CloudTaskRunner(TaskRunner):
 
     Args:
         - task (Task): the Task to be run / executed
-        - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -43,20 +40,9 @@ class CloudTaskRunner(TaskRunner):
             result of the previous handler.
     """
 
-    def __init__(
-        self,
-        task: Task,
-        result_handler: ResultHandler = None,
-        state_handlers: Iterable[Callable] = None,
-    ) -> None:
+    def __init__(self, task: Task, state_handlers: Iterable[Callable] = None) -> None:
         self.client = Client()
-        result_handler = (
-            result_handler or prefect.engine.get_default_result_handler_class()()
-        )
-
-        super().__init__(
-            task=task, result_handler=result_handler, state_handlers=state_handlers
-        )
+        super().__init__(task=task, state_handlers=state_handlers)
 
     def _heartbeat(self) -> None:
         try:

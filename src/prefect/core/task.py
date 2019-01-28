@@ -17,6 +17,7 @@ from prefect.utilities.notifications import callback_factory
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
+    from prefect.engine.result_handlers import ResultHandler
     from prefect.engine.state import State
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
@@ -109,6 +110,9 @@ class Task(metaclass=SignatureValidator):
         - cache_validator (Callable, optional): Validator which will determine
             whether the cache for this task is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
+        - result_handler (ResultHandler, optional): the handler to use for
+            retrieving and storing state results during execution; if not provided, will default to the
+            one attached to the Flow
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -140,6 +144,7 @@ class Task(metaclass=SignatureValidator):
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
+        result_handler: "ResultHandler" = None,
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
     ):
@@ -200,6 +205,7 @@ class Task(metaclass=SignatureValidator):
             else prefect.engine.cache_validators.duration_only
         )
         self.cache_validator = cache_validator or default_validator
+        self.result_handler = result_handler
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")
