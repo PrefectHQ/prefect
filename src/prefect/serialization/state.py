@@ -15,20 +15,22 @@ from prefect.utilities.serialization import (
 
 class ResultHandlerField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
-        if self.context.get("result_handler") and value is not None:
-            value = self.context["result_handler"].serialize(value)
-        try:
-            json.dumps(value)
-        except TypeError:
-            raise TypeError(
-                "The serialized result of a ResultHandler must be JSON-compatible."
-            )
+        if hasattr(obj, "metadata"):
+            is_raw = obj.metadata.get(attr, {}).get("raw", True)
+            # "raw" results are never serialized
+            if is_raw:
+                value = None
+            else:
+                try:
+                    json.dumps(value)
+                except TypeError:
+                    raise TypeError(
+                        "The serialized result of a ResultHandler must be JSON-compatible."
+                    )
         return super()._serialize(value, attr, obj, **kwargs)
 
     def _deserialize(self, value, attr, data, **kwargs):
         value = super()._deserialize(value, attr, data, **kwargs)
-        if self.context.get("result_handler") and value not in [None, "null"]:
-            value = self.context["result_handler"].deserialize(value)
         return value
 
 
@@ -38,7 +40,15 @@ class BaseStateSchema(VersionedSchema):
         object_class = state.State
 
     message = fields.String(allow_none=True)
+    metadata = fields.Dict(keys=fields.Str())
     result = ResultHandlerField(allow_none=True)
+
+    @post_load
+    def create_object(self, data):
+        metadata = data.pop("metadata", {})
+        base_obj = super().create_object(data)
+        base_obj.metadata = metadata
+        return base_obj
 
 
 @version("0.3.3")

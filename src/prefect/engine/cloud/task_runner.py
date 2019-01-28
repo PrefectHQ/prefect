@@ -102,7 +102,6 @@ class CloudTaskRunner(TaskRunner):
                 version=version,
                 state=new_state,
                 cache_for=self.task.cache_for,
-                result_handler=self.result_handler,
             )
         except Exception as exc:
             self.logger.debug(
@@ -143,7 +142,6 @@ class CloudTaskRunner(TaskRunner):
                     flow_run_id=context.get("flow_run_id", ""),
                     task_id=self.task.id,
                     map_index=map_index,
-                    result_handler=self.result_handler,
                 )
 
                 # if state was provided, keep it; otherwise use the one from db

@@ -20,7 +20,6 @@ from prefect.utilities.graphql import (
 if TYPE_CHECKING:
     import requests
     from prefect.core import Flow
-    from prefect.engine.result_handlers import ResultHandler
 BuiltIn = Union[bool, dict, list, str, set, tuple]
 
 # type definitions for GraphQL results
@@ -384,16 +383,12 @@ class Client:
         res = self.graphql(create_mutation, input=inputs)
         return res.createFlowRun.flow_run  # type: ignore
 
-    def get_flow_run_info(
-        self, flow_run_id: str, result_handler: "ResultHandler" = None
-    ) -> FlowRunInfoResult:
+    def get_flow_run_info(self, flow_run_id: str) -> FlowRunInfoResult:
         """
         Retrieves version and current state information for the given flow run.
 
         Args:
             - flow_run_id (str): the id of the flow run to get information for
-            - result_handler (ResultHandler, optional): the handler to use for
-                retrieving and storing state results during execution
 
         Returns:
             - GraphQLResult: a `DotDict` representing information about the flow run
@@ -433,9 +428,8 @@ class Client:
         # reformat task_runs
         task_runs = []
         for tr in result.task_runs:
-            # TODO defer result_handler deserialization until result is actually needed
             tr.state = prefect.engine.state.State.deserialize(
-                tr.pop("serialized_state"), result_handler
+                tr.pop("serialized_state")
             )
             task_runs.append(TaskRunInfoResult(**tr))
 
@@ -481,11 +475,7 @@ class Client:
         self.graphql(mutation)
 
     def set_flow_run_state(
-        self,
-        flow_run_id: str,
-        version: int,
-        state: "prefect.engine.state.State",
-        result_handler: "ResultHandler" = None,
+        self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
     ) -> None:
         """
         Sets new state for a flow run in the database.
@@ -494,8 +484,6 @@ class Client:
             - flow_run_id (str): the id of the flow run to set state for
             - version (int): the current version of the flow run state
             - state (State): the new state for this flow run
-            - result_handler (ResultHandler, optional): the handler to use for
-                retrieving and storing state results during execution
 
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason
@@ -515,7 +503,7 @@ class Client:
             }
         }
 
-        serialized_state = state.serialize(result_handler=result_handler)
+        serialized_state = state.serialize()
 
         result = self.graphql(mutation, state=serialized_state)  # type: Any
 
@@ -523,11 +511,7 @@ class Client:
             raise ClientError(result.setFlowRunState.error)
 
     def get_task_run_info(
-        self,
-        flow_run_id: str,
-        task_id: str,
-        map_index: Optional[int] = None,
-        result_handler: "ResultHandler" = None,
+        self, flow_run_id: str, task_id: str, map_index: Optional[int] = None
     ) -> TaskRunInfoResult:
         """
         Retrieves version and current state information for the given task run.
@@ -537,8 +521,6 @@ class Client:
             - task_id (str): the task id for this task run
             - map_index (int, optional): the mapping index for this task run; if
                 `None`, it is assumed this task is _not_ mapped
-            - result_handler (ResultHandler, optional): the handler to use for
-                retrieving and storing state results during execution
 
         Returns:
             - NamedTuple: a tuple containing `id, task_id, version, state`
@@ -567,9 +549,7 @@ class Client:
         else:
             result = result.getOrCreateTaskRun.task_run
 
-        state = prefect.engine.state.State.deserialize(
-            result.serialized_state, result_handler=result_handler
-        )
+        state = prefect.engine.state.State.deserialize(result.serialized_state)
         return TaskRunInfoResult(
             id=result.id, task_id=task_id, version=result.version, state=state
         )
@@ -580,7 +560,6 @@ class Client:
         version: int,
         state: "prefect.engine.state.State",
         cache_for: datetime.timedelta = None,
-        result_handler: "ResultHandler" = None,
     ) -> None:
         """
         Sets new state for a task run.
@@ -591,8 +570,6 @@ class Client:
             - state (State): the new state for this task run
             - cache_for (timedelta, optional): how long to store the result of this task for, using the
                 serializer set in config; if not provided, no caching occurs
-            - result_handler (ResultHandler, optional): the handler to use for
-                retrieving and storing state results during execution
 
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason
@@ -612,7 +589,7 @@ class Client:
             }
         }
 
-        serialized_state = state.serialize(result_handler=result_handler)
+        serialized_state = state.serialize()
 
         result = self.graphql(mutation, state=serialized_state)  # type: Any
         if result.setTaskRunState.error:
