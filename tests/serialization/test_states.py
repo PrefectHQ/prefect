@@ -99,42 +99,24 @@ class TestResultHandlerField:
     class Schema(marshmallow.Schema):
         field = ResultHandlerField()
 
-    def test_initializes_and_calls_result_handler_for_serialization(self):
-        schema = self.Schema(context={"result_handler": AddOneHandler()})
-        serialized = schema.dump({"field": 50})
-        assert "field" in serialized
-        assert serialized["field"] == "49"
-
-    def test_initializes_and_calls_result_handler_for_deserialization(self):
-        schema = self.Schema(context={"result_handler": AddOneHandler()})
-        deserialized = schema.load({"field": "49"})
-        assert "field" in deserialized
-        assert deserialized["field"] == 50
-
-    def test_doesnt_require_result_handler_for_serialization(self):
-        schema = self.Schema()
-        serialized = schema.dump({"field": 50})
-        assert "field" in serialized
-        assert serialized["field"] == 50
-
-    def test_doesnt_require_result_handler_for_deserialization(self):
-        schema = self.Schema()
-        deserialized = schema.load({"field": "49"})
-        assert "field" in deserialized
-        assert deserialized["field"] == "49"
-
-    def test_non_json_compatible_result_handler(self):
-        schema = self.Schema(context={"result_handler": PickleHandler()})
-        serialized = schema.dump({"field": (lambda: 1)})
-        assert isinstance(serialized["field"], str)
-
-        deserialized = schema.load(serialized)
-        assert "field" in deserialized
-        assert deserialized["field"]() == 1
+    def test_serializes_normally_for_objs_without_metadata(self):
+        pass
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
 def test_serialize_state(cls):
+    serialized = StateSchema().dump(cls(message="message", result=1))
+    assert isinstance(serialized, dict)
+    assert serialized["type"] == cls.__name__
+    assert serialized["message"] is "message"
+    assert serialized["result"] is None
+    assert serialized["__version__"] == prefect.__version__
+
+
+@pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
+def test_serialize_state_with_metadata(cls):
+    state = cls(message="message", result=1)
+    state.metadata.update(result=dict(raw=False))
     serialized = StateSchema().dump(cls(message="message", result=1))
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
@@ -146,6 +128,8 @@ def test_serialize_state(cls):
 def test_serialize_mapped():
     s = state.Success(message="1", result=1)
     f = state.Failed(message="2", result=2)
+    s.metadata.update(result=dict(raw=False))
+    f.metadata.update(result=dict(raw=False))
     serialized = StateSchema().dump(state.Mapped(message="message", map_states=[s, f]))
     assert isinstance(serialized, dict)
     assert serialized["type"] == "Mapped"

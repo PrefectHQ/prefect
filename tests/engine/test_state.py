@@ -116,7 +116,7 @@ def test_states_have_color(cls):
     assert cls.color.startswith("#")
 
 
-def test_serialize_and_deserialize():
+def test_serialize_and_deserialize_with_no_metadata():
     now = pendulum.now("utc")
     cached = CachedState(
         cached_inputs=dict(x=99, p="p"),
@@ -124,6 +124,27 @@ def test_serialize_and_deserialize():
         cached_result_expiration=now,
     )
     state = Success(result=dict(hi=5, bye=6), cached=cached)
+    serialized = state.serialize()
+    new_state = State.deserialize(serialized)
+    assert isinstance(new_state, Success)
+    assert new_state.color == state.color
+    assert new_state.result is None
+    assert isinstance(new_state.cached, CachedState)
+    assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
+    assert new_state.cached.cached_inputs is None
+    assert new_state.cached.cached_result is None
+
+
+def test_serialize_and_deserialize_with_metadata():
+    now = pendulum.now("utc")
+    cached = CachedState(
+        cached_inputs=dict(x=99, p="p"),
+        cached_result=dict(hi=5, bye=6),
+        cached_result_expiration=now,
+    )
+    cached.metadata.update(cached_inputs=dict(raw=False), cached_result=dict(raw=False))
+    state = Success(result=dict(hi=5, bye=6), cached=cached)
+    state.metadata.update(dict(result=dict(raw=False)))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Success)
@@ -137,10 +158,19 @@ def test_serialize_and_deserialize():
 
 def test_serialization_of_cached_inputs():
     state = Pending(cached_inputs=dict(hi=5, bye=6))
+    state.metadata.update(cached_inputs=dict(raw=False))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Pending)
     assert new_state.cached_inputs == state.cached_inputs
+
+
+def test_serialization_of_cached_inputs_with_no_metadata():
+    state = Pending(cached_inputs=dict(hi=5, bye=6))
+    serialized = state.serialize()
+    new_state = State.deserialize(serialized)
+    assert isinstance(new_state, Pending)
+    assert new_state.cached_inputs is None
 
 
 def test_state_equality():
