@@ -194,8 +194,8 @@ functions = ["callback_factory", "slack_notifier", "gmail_notifier"]
 [pages.utilities.serialization]
 title = "Serialization"
 module = "prefect.utilities.serialization"
-classes = ["VersionedSchema", "JSONCompatible", "Nested", "Bytes", "UUID", "FunctionReference"]
-functions = ["to_qualified_name", "from_qualified_name", "version"]
+classes = ["JSONCompatible", "Nested", "Bytes", "UUID", "FunctionReference"]
+functions = ["to_qualified_name", "from_qualified_name"]
 
 [pages.utilities.tasks]
 title = "Tasks"
