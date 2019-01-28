@@ -24,6 +24,7 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
+from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     CachedState,
@@ -69,20 +70,29 @@ class TaskRunner(Runner):
             opportunity to inspect or modify the new state. The handler
             will be passed the task runner instance, the old (prior) state, and the new
             (current) state, with the following signature:
-
-            ```
+            ```python
                 state_handler(
                     task_runner: TaskRunner,
                     old_state: State,
                     new_state: State) -> State
             ```
-
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
+        - result_handler (ResultHandler, optional): the handler to use for
+            retrieving and storing state results during execution; if not provided, will default
+            to the one specified in your config
     """
 
-    def __init__(self, task: Task, state_handlers: Iterable[Callable] = None):
+    def __init__(
+        self,
+        task: Task,
+        state_handlers: Iterable[Callable] = None,
+        result_handler: ResultHandler = None,
+    ):
         self.task = task
+        self.result_handler = (
+            result_handler or prefect.engine.get_default_result_handler_class()()
+        )
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -303,6 +313,8 @@ class TaskRunner(Runner):
                 name=context["task_full_name"], state=type(state).__name__
             )
         )
+
+        ## finally, update state metadata attribute with information about how to handle this state's data
         return state
 
     @call_state_handlers
