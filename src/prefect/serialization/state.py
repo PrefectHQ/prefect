@@ -19,6 +19,13 @@ class ResultHandlerField(fields.Field):
             is_raw = obj.metadata.get(attr, {}).get("raw", True)
             if is_raw:
                 value = None
+            else:
+                try:
+                    json.dumps(value)
+                except TypeError:
+                    raise TypeError(
+                        "The serialized result of a ResultHandler must be JSON-compatible."
+                    )
         return super()._serialize(value, attr, obj, **kwargs)
 
     def _deserialize(self, value, attr, data, **kwargs):

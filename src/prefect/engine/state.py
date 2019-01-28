@@ -47,7 +47,7 @@ class State:
     def __init__(self, message: str = None, result: Any = None):
         self.message = message
         self.result = result
-        self.metadata = {}
+        self.metadata = {}  # type: dict
 
     def __repr__(self) -> str:
         if self.message:
