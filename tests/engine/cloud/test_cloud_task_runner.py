@@ -6,7 +6,6 @@ import pytest
 
 import prefect
 from prefect.client import Client
-from prefect.engine.result_handlers import ResultHandler
 from prefect.core import Edge, Task
 from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
 from prefect.engine.runner import ENDRUN
@@ -46,7 +45,7 @@ def client(monkeypatch):
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
         set_task_run_state=MagicMock(),
         get_latest_task_run_states=MagicMock(
-            side_effect=lambda flow_run_id, states, result_handler: states
+            side_effect=lambda flow_run_id, states: states
         ),
     )
     monkeypatch.setattr(
@@ -293,13 +292,3 @@ class TestHeartBeats:
 
         assert res.is_successful()
         assert client.update_task_run_heartbeat.call_args[0][0] == 1234
-
-
-class TestCloudResultHandler:
-    def test_task_runner_defaults_to_cloud_result_handler(self):
-        runner = CloudTaskRunner(task=prefect.Task())
-        assert isinstance(runner.result_handler, CloudResultHandler)
-
-    def test_task_runner_result_handler_can_be_overridden(self):
-        runner = CloudTaskRunner(task=prefect.Task(), result_handler="test")
-        assert runner.result_handler == "test"

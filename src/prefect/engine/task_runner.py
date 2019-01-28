@@ -24,7 +24,6 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     CachedState,
@@ -65,8 +64,6 @@ class TaskRunner(Runner):
 
     Args:
         - task (Task): the Task to be run / executed
-        - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -84,14 +81,8 @@ class TaskRunner(Runner):
             result of the previous handler.
     """
 
-    def __init__(
-        self,
-        task: Task,
-        result_handler: ResultHandler = None,
-        state_handlers: Iterable[Callable] = None,
-    ):
+    def __init__(self, task: Task, state_handlers: Iterable[Callable] = None):
         self.task = task
-        self.result_handler = result_handler
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
