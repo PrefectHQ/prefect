@@ -17,6 +17,7 @@ class ResultHandlerField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
         if hasattr(obj, "metadata"):
             is_raw = obj.metadata.get(attr, {}).get("raw", True)
+            # "raw" results are never serialized
             if is_raw:
                 value = None
             else:
