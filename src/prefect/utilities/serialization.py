@@ -10,6 +10,7 @@ import marshmallow_oneofschema
 import pendulum
 from marshmallow import (
     Schema,
+    EXCLUDE,
     SchemaOpts,
     ValidationError,
     fields,
@@ -74,6 +75,7 @@ class ObjectSchemaOptions(SchemaOpts):
         super().__init__(meta, **kwargs)
         self.object_class = getattr(meta, "object_class", None)
         self.exclude_fields = getattr(meta, "exclude_fields", None) or []
+        self.unknown = getattr(meta, "unknown", EXCLUDE)
 
 
 class ObjectSchema(Schema):
@@ -88,6 +90,7 @@ class ObjectSchema(Schema):
     class Meta:
         object_class = None  # type: type
         exclude_fields = []  # type: List[str]
+        unknown = EXCLUDE
 
     @pre_load
     def _remove_version(self, data: dict) -> dict:
@@ -219,6 +222,9 @@ class OneOfSchema(marshmallow_oneofschema.OneOfSchema):
     """
     A subclass of marshmallow_oneofschema.OneOfSchema that can load DotDicts
     """
+
+    class Meta:
+        unknown = EXCLUDE
 
     def _load(self, data, partial=None, unknown=None):
         if isinstance(data, DotDict):
