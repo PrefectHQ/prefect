@@ -37,4 +37,3 @@ class Test_Version_0_4_0:
     def test_deserialize_retrying(self, version_0_4_0):
         state = s.state.StateSchema().load(version_0_4_0["states"]["retrying"])
         assert isinstance(state, prefect.engine.state.Retrying)
-
