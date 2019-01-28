@@ -15,6 +15,7 @@ from typing import (
     NamedTuple,
     Sized,
     Tuple,
+    TYPE_CHECKING,
     Union,
 )
 
@@ -24,7 +25,6 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     CachedState,
@@ -44,6 +44,10 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.executors import main_thread_timeout, run_with_heartbeat
+
+if TYPE_CHECKING:
+    from prefect.engine.result_handlers import ResultHandler
+
 
 TaskRunnerInitializeResult = NamedTuple(
     "TaskRunnerInitializeResult",
@@ -87,7 +91,7 @@ class TaskRunner(Runner):
         self,
         task: Task,
         state_handlers: Iterable[Callable] = None,
-        result_handler: ResultHandler = None,
+        result_handler: "ResultHandler" = None,
     ):
         self.task = task
         self.result_handler = (
@@ -314,7 +318,13 @@ class TaskRunner(Runner):
             )
         )
 
-        ## finally, update state metadata attribute with information about how to handle this state's data
+        ## finally, update state _metadata attribute with information about how to handle this state's data
+        from prefect.serialization.result_handlers import ResultHandlerSchema
+
+        state._metadata["result"].setdefault(
+            "result_handler", ResultHandlerSchema().dump(self.result_handler)
+        )
+
         return state
 
     @call_state_handlers

@@ -142,9 +142,11 @@ def test_serialize_and_deserialize_with_metadata():
         cached_result=dict(hi=5, bye=6),
         cached_result_expiration=now,
     )
-    cached.metadata.update(cached_inputs=dict(raw=False), cached_result=dict(raw=False))
+    cached._metadata.update(
+        cached_inputs=dict(raw=False), cached_result=dict(raw=False)
+    )
     state = Success(result=dict(hi=5, bye=6), cached=cached)
-    state.metadata.update(dict(result=dict(raw=False)))
+    state._metadata.update(dict(result=dict(raw=False)))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Success)
@@ -158,7 +160,7 @@ def test_serialize_and_deserialize_with_metadata():
 
 def test_serialization_of_cached_inputs():
     state = Pending(cached_inputs=dict(hi=5, bye=6))
-    state.metadata.update(cached_inputs=dict(raw=False))
+    state._metadata.update(cached_inputs=dict(raw=False))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Pending)

@@ -15,8 +15,8 @@ from prefect.utilities.serialization import (
 
 class ResultHandlerField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
-        if hasattr(obj, "metadata"):
-            is_raw = obj.metadata.get(attr, {}).get("raw", True)
+        if hasattr(obj, "_metadata"):
+            is_raw = obj._metadata.get(attr, {}).get("raw", True)
             # "raw" results are never serialized
             if is_raw:
                 value = None
@@ -40,14 +40,14 @@ class BaseStateSchema(VersionedSchema):
         object_class = state.State
 
     message = fields.String(allow_none=True)
-    metadata = fields.Dict(keys=fields.Str())
+    _metadata = fields.Dict(keys=fields.Str())
     result = ResultHandlerField(allow_none=True)
 
     @post_load
     def create_object(self, data):
-        metadata = data.pop("metadata", {})
+        _metadata = data.pop("_metadata", {})
         base_obj = super().create_object(data)
-        base_obj.metadata = metadata
+        base_obj._metadata = _metadata
         return base_obj
 
 
