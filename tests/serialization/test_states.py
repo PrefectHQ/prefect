@@ -7,6 +7,8 @@ import marshmallow
 import pendulum
 import pytest
 
+from collections import defaultdict
+
 import prefect
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine import state
@@ -117,7 +119,7 @@ def test_serialize_state(cls):
 def test_serialize_state_with_metadata(cls):
     state = cls(message="message", result=1)
     state.metadata.update(result=dict(raw=False))
-    serialized = StateSchema().dump(cls(message="message", result=1))
+    serialized = StateSchema().dump(state)
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
     assert serialized["message"] is "message"
@@ -143,6 +145,7 @@ def test_serialize_mapped():
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
 def test_deserialize_state(cls):
     s = cls(message="message", result=1)
+    s.metadata.update(result=dict(raw=False))
     serialized = StateSchema().dump(s)
     deserialized = StateSchema().load(serialized)
     assert isinstance(deserialized, cls)
@@ -181,6 +184,12 @@ def test_deserialize_state_with_unknown_type_fails():
 
 @pytest.mark.parametrize("state", complex_states())
 def test_complex_state_attributes_are_handled(state):
+    state.metadata.update(
+        result=dict(raw=False),
+        cached_result=dict(raw=False),
+        cached_parameters=dict(raw=False),
+        cached_inputs=dict(raw=False),
+    )
     serialized = StateSchema().dump(state)
     deserialized = StateSchema().load(serialized)
     assert state == deserialized
@@ -188,12 +197,21 @@ def test_complex_state_attributes_are_handled(state):
 
 def test_result_must_be_valid_json():
     s = state.Success(result={"x": {"y": {"z": 1}}})
+    s.metadata.update(result=dict(raw=False))
     serialized = StateSchema().dump(s)
     assert serialized["result"] == s.result
 
 
+def test_result_doesnt_raise_error_on_dump_if_raw():
+    s = state.Success(result={"x": {"y": {"z": lambda: 1}}})
+    s.metadata.update(result=dict(raw=True))
+    serialized = StateSchema().dump(s)
+    assert serialized["result"] is None
+
+
 def test_result_raises_error_on_dump_if_not_valid_json():
     s = state.Success(result={"x": {"y": {"z": lambda: 1}}})
+    s.metadata.update(result=dict(raw=False))
     with pytest.raises(TypeError):
         StateSchema().dump(s)
 
