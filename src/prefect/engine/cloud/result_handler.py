@@ -17,11 +17,16 @@ from prefect.engine.result_handlers import ResultHandler
 class CloudResultHandler(ResultHandler):
     """
     Hook for storing and retrieving task results from Prefect cloud storage.
+
+    Args:
+        - result_handler_service (str, optional): the location of the service
+            which will further process and store the results; if not provided, will default to
+            the value of `cloud.result_handler` in your config file
     """
 
-    def __init__(self) -> None:
+    def __init__(self, result_handler_service: str = None) -> None:
         self.client = None
-        self.result_handler_service = None
+        self.result_handler_service = result_handler_service
         super().__init__()
 
     def _initialize_client(self) -> None:
