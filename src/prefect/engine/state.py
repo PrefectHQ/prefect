@@ -47,6 +47,7 @@ class State:
     def __init__(self, message: str = None, result: Any = None):
         self.message = message
         self.result = result
+        self.metadata = {}  # type: dict
 
     def __repr__(self) -> str:
         if self.message:
@@ -145,41 +146,28 @@ class State:
         return isinstance(self, Mapped)
 
     @staticmethod
-    def deserialize(json_blob: dict, result_handler: ResultHandler = None) -> "State":
+    def deserialize(json_blob: dict) -> "State":
         """
         Deserializes the state from a dict.
 
         Args:
             - json_blob (dict): the JSON representing the serialized state
-            - result_handler (ResultHandler, optional): if provided, used to
-                handle private attributes of state classes (e.g., results)
         """
         from prefect.serialization.state import StateSchema
 
-        if result_handler is not None:
-            state = StateSchema(context=dict(result_handler=result_handler)).load(
-                json_blob
-            )
-        else:
-            state = StateSchema().load(json_blob)
+        state = StateSchema().load(json_blob)
         return state
 
-    def serialize(self, result_handler: ResultHandler = None) -> dict:
+    def serialize(self) -> dict:
         """
         Serializes the state to a dict.
 
-        Args:
-            - result_handler (ResultHandler, optional): if provided, used to
-                handle private attributes of state classes (e.g., results)
+        Returns:
+            - dict: a JSON representation of the state
         """
         from prefect.serialization.state import StateSchema
 
-        if result_handler is not None:
-            json_blob = StateSchema(context=dict(result_handler=result_handler)).dump(
-                self
-            )
-        else:
-            json_blob = StateSchema().dump(self)
+        json_blob = StateSchema().dump(self)
         return json_blob
 
 

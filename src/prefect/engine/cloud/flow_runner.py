@@ -145,8 +145,7 @@ class CloudFlowRunner(FlowRunner):
                 or prefect.engine.get_default_result_handler_class()()
             )
             flow_run_info = self.client.get_flow_run_info(
-                flow_run_id=prefect.context.get("flow_run_id", ""),
-                result_handler=result_handler,
+                flow_run_id=prefect.context.get("flow_run_id", "")
             )
         except Exception as exc:
             self.logger.debug(
