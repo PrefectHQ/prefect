@@ -267,6 +267,21 @@ class TestObjectSchema:
         assert isinstance(deserialized, TestObject)
         assert deserialized.x == 1
 
+    def test_schema_handles_unknown_fields(self):
+        class TestObject:
+            def __init__(self, x):
+                self.x = x
+
+        class Schema(ObjectSchema):
+            class Meta:
+                object_class = TestObject
+
+            x = marshmallow.fields.Int()
+
+        deserialized = Schema().load({"x": "1", "y": "2"})
+        assert isinstance(deserialized, TestObject)
+        assert not hasattr(deserialized, "y")
+
 
 class TestOneOfSchema:
     def test_oneofschema_load_dotdict(self):
@@ -282,3 +297,14 @@ class TestOneOfSchema:
 
         child = ParentSchema().load(DotDict(type="Child", x="5"))
         assert child["x"] == 5
+
+    def test_oneofschema_handles_unknown_fields(self):
+        class ChildSchema(marshmallow.Schema):
+            x = marshmallow.fields.Integer()
+
+        class ParentSchema(OneOfSchema):
+            type_schemas = {"Child": ChildSchema}
+
+        child = ParentSchema().load(DotDict(type="Child", x="5", y="6"))
+        assert child["x"] == 5
+        assert not hasattr(child, "y")
