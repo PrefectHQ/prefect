@@ -5,7 +5,6 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -34,20 +33,6 @@ all_states = sorted(
     ),
     key=lambda c: c.__name__,
 )
-
-
-class DictHandler(ResultHandler):
-    def __init__(self, *args, **kwargs):
-        self.data = {}
-        super().__init__(*args, **kwargs)
-
-    def deserialize(self, key):
-        return self.data[key]
-
-    def serialize(self, result):
-        key = str(uuid.uuid4())
-        self.data[key] = result
-        return key
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -131,7 +116,7 @@ def test_states_have_color(cls):
     assert cls.color.startswith("#")
 
 
-def test_serialize_and_deserialize():
+def test_serialize_and_deserialize_with_no_metadata():
     now = pendulum.now("utc")
     cached = CachedState(
         cached_inputs=dict(x=99, p="p"),
@@ -143,6 +128,27 @@ def test_serialize_and_deserialize():
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Success)
     assert new_state.color == state.color
+    assert new_state.result is None
+    assert isinstance(new_state.cached, CachedState)
+    assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
+    assert new_state.cached.cached_inputs is None
+    assert new_state.cached.cached_result is None
+
+
+def test_serialize_and_deserialize_with_metadata():
+    now = pendulum.now("utc")
+    cached = CachedState(
+        cached_inputs=dict(x=99, p="p"),
+        cached_result=dict(hi=5, bye=6),
+        cached_result_expiration=now,
+    )
+    cached.metadata.update(cached_inputs=dict(raw=False), cached_result=dict(raw=False))
+    state = Success(result=dict(hi=5, bye=6), cached=cached)
+    state.metadata.update(dict(result=dict(raw=False)))
+    serialized = state.serialize()
+    new_state = State.deserialize(serialized)
+    assert isinstance(new_state, Success)
+    assert new_state.color == state.color
     assert new_state.result == state.result
     assert isinstance(new_state.cached, CachedState)
     assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
@@ -150,50 +156,21 @@ def test_serialize_and_deserialize():
     assert new_state.cached.cached_result == cached.cached_result
 
 
-def test_lifecycle_of_state_serialization_with_handler():
-    handler = DictHandler()
-    now = pendulum.now("utc")
-    cached = CachedState(
-        cached_inputs=dict(x=99, p="p"),
-        cached_result=dict(hi=5, bye=6),
-        cached_result_expiration=now,
-    )
-    state = Success(result=dict(hi=5, bye=6), cached=cached)
-    serialized = state.serialize(result_handler=handler)
-    new_state = State.deserialize(serialized, result_handler=handler)
-    assert isinstance(new_state, Success)
-    assert isinstance(new_state.cached, CachedState)
-    assert new_state == state
-    assert new_state.cached == cached
-    assert len(handler.data) == 3
-
-
-def test_serialization_calls_result_handler():
-    handler = DictHandler()
-    now = pendulum.now("utc")
-    cached = CachedState(
-        cached_inputs=dict(x=99, p="p"),
-        cached_result=dict(hi=5, bye=6),
-        cached_result_expiration=now,
-    )
-    state = Success(result=dict(hi=5, bye=6), cached=cached)
-    serialized = state.serialize(result_handler=handler)
-    assert len(handler.data) == 3
-    assert serialized["result"] in handler.data
-    assert handler.data[serialized["result"]] == state.result
-    assert serialized["cached"]["cached_result"] in handler.data
-    assert (
-        handler.data[serialized["cached"]["cached_result"]]
-        == state.cached.cached_result
-    )
-
-
 def test_serialization_of_cached_inputs():
     state = Pending(cached_inputs=dict(hi=5, bye=6))
+    state.metadata.update(cached_inputs=dict(raw=False))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Pending)
     assert new_state.cached_inputs == state.cached_inputs
+
+
+def test_serialization_of_cached_inputs_with_no_metadata():
+    state = Pending(cached_inputs=dict(hi=5, bye=6))
+    serialized = state.serialize()
+    new_state = State.deserialize(serialized)
+    assert isinstance(new_state, Pending)
+    assert new_state.cached_inputs is None
 
 
 def test_state_equality():
@@ -233,18 +210,6 @@ def test_serialize_method(cls):
     serialized = cls().serialize()
     assert isinstance(serialized, dict)
     assert isinstance(prefect.serialization.state.StateSchema().load(serialized), cls)
-
-
-@pytest.mark.parametrize("cls", [s for s in all_states if s not in (State, Mapped)])
-def test_serialize_method_optionally_accepts_result_handler(cls):
-    handler = DictHandler()
-    serialized = cls(result=1).serialize(result_handler=handler)
-    assert isinstance(serialized, dict)
-    assert serialized["result"] in handler.data
-    deserialized = prefect.serialization.state.StateSchema().load(serialized)
-    assert isinstance(deserialized, cls)
-    assert deserialized.result == list(handler.data.keys())[0]
-    assert handler.data[deserialized.result] == 1
 
 
 class TestStateHierarchy:
