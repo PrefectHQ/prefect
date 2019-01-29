@@ -15,7 +15,7 @@ from prefect.utilities.serialization import (
 class ResultHandlerField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
         if hasattr(obj, "_metadata"):
-            is_raw = obj._metadata.get(attr, {}).get("raw", True)
+            is_raw = obj._metadata[attr]["raw"]
             # "raw" results are never serialized
             if is_raw:
                 value = None

@@ -13,13 +13,25 @@ execution. During execution a run will enter a `Running` state. Finally, runs be
 """
 import copy
 import datetime
+from collections import defaultdict
 from typing import Any, Dict, List, Union
 
 import pendulum
 
 import prefect
 from prefect.engine.result_handlers import ResultHandler
+from prefect.utilities.collections import DotDict
 from prefect.utilities.datetimes import ensure_tz_aware
+
+
+class MetaData(DotDict):
+    def __init__(self) -> None:
+        init_dict = {
+            "result": {"raw": True},
+            "cached_result": {"raw": True},
+            "cached_inputs": defaultdict(lambda: {"raw": True}),
+        }
+        super().__init__(init_dict)
 
 
 class State:
@@ -47,11 +59,7 @@ class State:
     def __init__(self, message: str = None, result: Any = None):
         self.message = message
         self.result = result
-        self._metadata = {
-            "result": {},
-            "cached_result": {},
-            "cached_inputs": {},
-        }  # type: dict
+        self._metadata = MetaData()
 
     def __repr__(self) -> str:
         if self.message:
@@ -76,29 +84,6 @@ class State:
     def __hash__(self) -> int:
         return id(self)
 
-    def _populate_metadata(self) -> None:
-        ## populate result
-        if "result" not in self._metadata:
-            self._metadata["result"] = dict(raw=True)
-        elif "raw" not in self._metadata["result"]:
-            self._metadata["result"].update(raw=True)
-
-        ## populate cached_result
-        if "cached_result" not in self._metadata:
-            self._metadata["cached_result"] = dict(raw=True)
-        elif "raw" not in self._metadata["cached_result"]:
-            self._metadata["cached_result"].update(raw=True)
-
-        ## populate cached_inputs
-        if "cached_inputs" not in self._metadata:
-            self._metadata["cached_inputs"] = dict()
-        if getattr(self, "cached_inputs", None) is not None:
-            for variable in self.cached_inputs:
-                if variable not in self._metadata["cached_inputs"]:
-                    self._metadata["cached_inputs"][variable] = dict(raw=True)
-                elif "raw" not in self._metadata["cached_inputs"][variable]:
-                    self._metadata["cached_inputs"][variable].update(raw=True)
-
     def handle_inputs(self, input_handlers: dict) -> None:
         """
         Handles the `cached_inputs` attribute of this state (if it has one).
@@ -112,10 +97,9 @@ class State:
         from prefect.serialization.result_handlers import ResultHandlerSchema
 
         schema = ResultHandlerSchema()
-        self._populate_metadata()
         for variable in self.cached_inputs:  # type: ignore
-            var_info = self._metadata["cached_inputs"].get(variable)
-            if var_info.get("raw") is True:
+            var_info = self._metadata["cached_inputs"][variable]
+            if var_info["raw"] is True:
                 handler = ResultHandlerSchema().load(input_handlers[variable])
                 packed_value = handler.serialize(
                     self.cached_inputs[variable]  # type: ignore
@@ -136,8 +120,7 @@ class State:
         from prefect.serialization.result_handlers import ResultHandlerSchema
 
         schema = ResultHandlerSchema()
-        self._populate_metadata()
-        if self._metadata.get("cached_result", {}).get("raw") is True:
+        if self._metadata["cached_result"]["raw"] is True:
             packed_value = result_handler.serialize(self.cached_result)  # type: ignore
             self.cached_result = packed_value  # type: ignore
             self._metadata["cached_result"]["raw"] = False
