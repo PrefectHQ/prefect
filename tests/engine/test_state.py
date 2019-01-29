@@ -164,9 +164,11 @@ def test_states_with_non_raw_cached_inputs_are_handled_correctly(cls):
             cached_inputs=dict(x=tmp.name, y=tmp.name, z=23),
             result=55,
         )
-        state._metadata["cached_inputs"] = dict(
-            x=dict(raw=False, result_handler=serialized_handler),
-            y=dict(raw=False, result_handler=serialized_handler),
+        state._metadata["cached_inputs"].update(
+            dict(
+                x=dict(raw=False, result_handler=serialized_handler),
+                y=dict(raw=False, result_handler=serialized_handler),
+            )
         )
         state.ensure_raw()
 
@@ -211,9 +213,11 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
             cached_inputs=dict(x=tmp.name, y=tmp.name, z=23),
             cached_result=tmp.name,
         )
-        cached_state._metadata["cached_inputs"] = dict(
-            x=dict(raw=False, result_handler=serialized_handler),
-            y=dict(raw=False, result_handler=serialized_handler),
+        cached_state._metadata["cached_inputs"].update(
+            dict(
+                x=dict(raw=False, result_handler=serialized_handler),
+                y=dict(raw=False, result_handler=serialized_handler),
+            )
         )
         cached_state._metadata["cached_result"] = dict(
             raw=False, result_handler=serialized_handler
