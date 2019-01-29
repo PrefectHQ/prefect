@@ -12,3 +12,4 @@ Introducing PINs for recording Prefect decisions
 
 ## [PIN-2: Proper Implementation of Result Handlers and State Metadata](PIN-2-Result-Handlers.md)
 
+## [PIN-3: New Agent-Environment Model for Hybrid Execution of Flows](PIN-3-Agent-Environment.md)
