@@ -83,8 +83,8 @@ class TaskRunner(Runner):
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution; if not provided, will default
-            to the one specified in your config
+            retrieving and storing state results during execution (if the Task doesn't already have one);
+            if not provided here or by the Task, will default to the one specified in your config
     """
 
     def __init__(
@@ -95,7 +95,9 @@ class TaskRunner(Runner):
     ):
         self.task = task
         self.result_handler = (
-            result_handler or prefect.engine.get_default_result_handler_class()()
+            task.result_handler
+            or result_handler
+            or prefect.engine.get_default_result_handler_class()()
         )
         super().__init__(state_handlers=state_handlers)
 
@@ -320,6 +322,7 @@ class TaskRunner(Runner):
 
         return self.finalize_run(state, upstream_states)
 
+    @call_state_handlers
     def finalize_run(self, state: State, upstream_states: Dict[Edge, State]) -> State:
         """
         Does any additional processing on the _final_ state of this task run.
