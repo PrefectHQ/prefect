@@ -113,6 +113,7 @@ def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
 
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
     assert states == [Running(), Success()]
+    assert res.is_successful()
 
 
 def test_task_runner_calls_get_task_run_info_if_map_index_is_not_none(client):
