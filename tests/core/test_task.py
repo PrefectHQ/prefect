@@ -8,6 +8,7 @@ import pytest
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.cache_validators import all_inputs, duration_only, never_use
+from prefect.engine.result_handlers import ResultHandler
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task
 
@@ -133,6 +134,12 @@ class TestCreateTask:
     def test_bad_cache_kwarg_combo(self):
         with pytest.warns(UserWarning, match=".*Task will not be cached.*"):
             Task(cache_validator=all_inputs)
+
+    def test_create_task_with_and_without_result_handler(self):
+        t1 = Task()
+        assert t1.result_handler is None
+        t2 = Task(result_handler=ResultHandler())
+        assert isinstance(t2.result_handler, ResultHandler)
 
 
 def test_task_has_logger():
