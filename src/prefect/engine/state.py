@@ -24,7 +24,7 @@ from prefect.utilities.collections import DotDict
 from prefect.utilities.datetimes import ensure_tz_aware
 
 
-class MetaData(DotDict):
+class StateMetaData(DotDict):
     def __init__(self) -> None:
         init_dict = {
             "result": {"raw": True},
@@ -59,7 +59,7 @@ class State:
     def __init__(self, message: str = None, result: Any = None):
         self.message = message
         self.result = result
-        self._metadata = MetaData()
+        self._metadata = StateMetaData()
 
     def __repr__(self) -> str:
         if self.message:
@@ -107,7 +107,7 @@ class State:
                 self.cached_inputs[variable] = packed_value  # type: ignore
                 self._metadata["cached_inputs"][variable]["raw"] = False
 
-    def handle_result(self, result_handler: ResultHandler) -> None:
+    def handle_outputs(self, result_handler: ResultHandler) -> None:
         """
         Handles the `cached_result` attribute of this state (if it has one).
 

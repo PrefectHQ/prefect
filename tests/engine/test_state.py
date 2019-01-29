@@ -230,7 +230,7 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
     assert state.cached._metadata["cached_result"]["raw"] is True
 
 
-def test_cached_states_are_handled_correctly_with_handle_result():
+def test_cached_states_are_handled_correctly_with_handle_outputs():
     handler = JSONResultHandler()
 
     cached_state = CachedState(
@@ -240,7 +240,7 @@ def test_cached_states_are_handled_correctly_with_handle_result():
         result=lambda: None,
     )
     cached_state._metadata["cached_result"] = dict(raw=True)
-    cached_state.handle_result(handler)
+    cached_state.handle_outputs(handler)
 
     assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
     assert cached_state.cached_result == '{"qq": 42}'

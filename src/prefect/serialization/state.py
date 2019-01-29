@@ -4,6 +4,7 @@ from typing import Any, Dict
 from marshmallow import fields, post_load, ValidationError
 
 from prefect.engine import state
+from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
     JSONCompatible,
     OneOfSchema,
@@ -41,7 +42,7 @@ class BaseStateSchema(ObjectSchema):
     def create_object(self, data):
         _metadata = data.pop("_metadata", {})
         base_obj = super().create_object(data)
-        base_obj._metadata = _metadata
+        base_obj._metadata = DotDict(_metadata)
         return base_obj
 
 

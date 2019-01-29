@@ -195,8 +195,8 @@ class TestResultHandlerField:
         s._metadata["cached_inputs"]["x"]["raw"] = False
         schema = StateSchema()
         new = schema.load(schema.dump(s))
-        assert "y" not in new._metadata["cached_inputs"]
-        assert new._metadata["cached_inputs"]["y"]["raw"] is True
+        assert "y" not in new._metadata.cached_inputs
+        assert new._metadata.cached_inputs["y"]["raw"] is True
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
