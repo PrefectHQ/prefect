@@ -64,7 +64,11 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
 
         # PrefectStateSignals are trapped and turned into States
         except signals.PrefectStateSignal as exc:
-            self.logger.info("{} signal raised.".format(type(exc).__name__))
+            self.logger.info(
+                "{name} signal raised: {rep}".format(
+                    name=type(exc).__name__, rep=repr(exc)
+                )
+            )
             if raise_on_exception:
                 raise exc
             new_state = exc.state
