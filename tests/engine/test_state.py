@@ -197,6 +197,9 @@ def test_states_with_raw_cached_inputs_are_handled_correctly(cls):
     assert state.cached_inputs == dict(x='{"key": "value"}', y="[]", z="23")
     for v in ["x", "y", "z"]:
         assert state._metadata["cached_inputs"][v]["raw"] is False
+        assert (
+            state._metadata["cached_inputs"][v]["result_handler"] == serialized_handler
+        )
 
 
 def test_cached_states_are_handled_correctly_with_ensure_raw():
@@ -232,6 +235,7 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
 
 def test_cached_states_are_handled_correctly_with_handle_outputs():
     handler = JSONResultHandler()
+    serialized_handler = ResultHandlerSchema().dump(handler)
 
     cached_state = CachedState(
         message="hi mom",
@@ -245,6 +249,9 @@ def test_cached_states_are_handled_correctly_with_handle_outputs():
     assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
     assert cached_state.cached_result == '{"qq": 42}'
     assert cached_state._metadata["cached_result"]["raw"] is False
+    assert (
+        cached_state._metadata["cached_result"]["result_handler"] == serialized_handler
+    )
 
 
 def test_serialize_and_deserialize_with_no_metadata():
