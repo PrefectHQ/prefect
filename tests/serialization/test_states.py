@@ -309,3 +309,15 @@ def test_deserialize_json_without_version():
     assert deserialized.is_running()
     assert deserialized.message == "test"
     assert deserialized.result == 1
+
+
+def test_deserialize_handles_unknown_fields():
+    """ensure that deserialization can happen even if a newer version of prefect created unknown fields"""
+    deserialized = StateSchema().load(
+        {
+            "type": "Success",
+            "success_message_that_definitely_wont_exist_on_a_real_state!": 1,
+        }
+    )
+
+    assert deserialized.is_successful()
