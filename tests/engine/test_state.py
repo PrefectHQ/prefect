@@ -7,7 +7,7 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.engine.result_handlers import LocalResultHandler
+from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -177,6 +177,28 @@ def test_states_with_non_raw_cached_inputs_are_handled_correctly(cls):
         assert state._metadata["cached_inputs"][v]["raw"] is True
 
 
+@pytest.mark.parametrize("cls", cached_input_states)
+def test_states_with_raw_cached_inputs_are_handled_correctly(cls):
+    schema = ResultHandlerSchema()
+    serialized_handler = schema.dump(JSONResultHandler())
+
+    state = cls(
+        message="hi mom", cached_inputs=dict(x=dict(key="value"), y=[], z=23), result=55
+    )
+    state._metadata["cached_inputs"] = dict(
+        x=dict(raw=True), y=dict(raw=True), z=dict(raw=True)
+    )
+    state.handle_inputs(
+        dict(x=serialized_handler, y=serialized_handler, z=serialized_handler)
+    )
+
+    assert state.message == "hi mom"
+    assert state.result == 55
+    assert state.cached_inputs == dict(x='{"key": "value"}', y="[]", z="23")
+    for v in ["x", "y", "z"]:
+        assert state._metadata["cached_inputs"][v]["raw"] is False
+
+
 def test_cached_states_are_handled_correctly_with_ensure_raw():
     serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
 
@@ -206,6 +228,23 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
         assert state.cached._metadata["cached_inputs"][v]["raw"] is True
     assert state.cached.cached_result == 42
     assert state.cached._metadata["cached_result"]["raw"] is True
+
+
+def test_cached_states_are_handled_correctly_with_handle_result():
+    handler = JSONResultHandler()
+
+    cached_state = CachedState(
+        message="hi mom",
+        cached_inputs=dict(x=42, y=42, z=23),
+        cached_result=dict(qq=42),
+        result=lambda: None,
+    )
+    cached_state._metadata["cached_result"] = dict(raw=True)
+    cached_state.handle_result(handler)
+
+    assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
+    assert cached_state.cached_result == '{"qq": 42}'
+    assert cached_state._metadata["cached_result"]["raw"] is False
 
 
 def test_serialize_and_deserialize_with_no_metadata():
