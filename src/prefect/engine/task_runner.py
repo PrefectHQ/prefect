@@ -15,6 +15,7 @@ from typing import (
     NamedTuple,
     Sized,
     Tuple,
+    TYPE_CHECKING,
     Union,
 )
 
@@ -24,7 +25,6 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     CachedState,
@@ -44,6 +44,10 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.executors import main_thread_timeout, run_with_heartbeat
+
+if TYPE_CHECKING:
+    from prefect.engine.result_handlers import ResultHandler
+
 
 TaskRunnerInitializeResult = NamedTuple(
     "TaskRunnerInitializeResult",
@@ -65,33 +69,36 @@ class TaskRunner(Runner):
 
     Args:
         - task (Task): the Task to be run / executed
-        - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
             will be passed the task runner instance, the old (prior) state, and the new
             (current) state, with the following signature:
-
-            ```
+            ```python
                 state_handler(
                     task_runner: TaskRunner,
                     old_state: State,
                     new_state: State) -> State
             ```
-
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
+        - result_handler (ResultHandler, optional): the handler to use for
+            retrieving and storing state results during execution (if the Task doesn't already have one);
+            if not provided here or by the Task, will default to the one specified in your config
     """
 
     def __init__(
         self,
         task: Task,
-        result_handler: ResultHandler = None,
         state_handlers: Iterable[Callable] = None,
+        result_handler: "ResultHandler" = None,
     ):
         self.task = task
-        self.result_handler = result_handler
+        self.result_handler = (
+            task.result_handler
+            or result_handler
+            or prefect.engine.get_default_result_handler_class()()
+        )
         super().__init__(state_handlers=state_handlers)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
@@ -312,6 +319,21 @@ class TaskRunner(Runner):
                 name=context["task_full_name"], state=type(state).__name__
             )
         )
+
+        return self.finalize_run(state, upstream_states)
+
+    @call_state_handlers
+    def finalize_run(self, state: State, upstream_states: Dict[Edge, State]) -> State:
+        """
+        Does any additional processing on the _final_ state of this task run.
+
+        Args:
+            - state (State): the final state of this task
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): the upstream states
+
+        Returns:
+            - State: the state of the task after running the check
+        """
         return state
 
     @call_state_handlers
