@@ -1,0 +1,16 @@
+{
+    "states": {
+        "success": {
+            "type": "Success",
+            "message": "Success",
+            "result": 1,
+            "__version__": "0.3.0"
+        },
+        "retrying": {
+            "type": "Retrying",
+            "message": "Retrying",
+            "result": 1,
+            "__version__": "0.3.0"
+        }
+    }
+}

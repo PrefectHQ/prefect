@@ -2,11 +2,10 @@ from marshmallow import fields
 
 import prefect
 from prefect.serialization.task import TaskSchema
-from prefect.utilities.serialization import VersionedSchema, version
+from prefect.utilities.serialization import ObjectSchema
 
 
-@version("0.3.3")
-class EdgeSchema(VersionedSchema):
+class EdgeSchema(ObjectSchema):
     class Meta:
         object_class = lambda: prefect.core.Edge
 
