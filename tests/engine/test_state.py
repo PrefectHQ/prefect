@@ -1,10 +1,13 @@
+import cloudpickle
 import datetime
+import tempfile
 import uuid
 
 import pendulum
 import pytest
 
 import prefect
+from prefect.engine.result_handlers import LocalResultHandler
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -23,6 +26,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
+from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.serialization.state import StateSchema
 
 all_states = sorted(
@@ -31,6 +35,11 @@ all_states = sorted(
         for cls in prefect.engine.state.__dict__.values()
         if isinstance(cls, type) and issubclass(cls, prefect.engine.state.State)
     ),
+    key=lambda c: c.__name__,
+)
+
+cached_input_states = sorted(
+    set(cls for cls in all_states if hasattr(cls(), "cached_inputs")),
     key=lambda c: c.__name__,
 )
 
@@ -114,6 +123,89 @@ def test_retry_stores_default_run_count_in_context():
 @pytest.mark.parametrize("cls", all_states)
 def test_states_have_color(cls):
     assert cls.color.startswith("#")
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_states_by_default_are_considered_raw(cls):
+    state = cls(message="hi mom", result=42)
+    state.ensure_raw()
+    assert state.message == "hi mom"
+    assert state.result == 42
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_states_with_non_raw_results_are_handled_correctly(cls):
+    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
+
+    with tempfile.NamedTemporaryFile() as tmp:
+        with open(tmp.name, "wb") as f:
+            cloudpickle.dump(42, f)
+
+        state = cls(message="hi mom", result=tmp.name)
+        state._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
+        assert state.result == tmp.name
+        state.ensure_raw()
+
+    assert state.message == "hi mom"
+    assert state.result == 42
+    assert state._metadata["result"]["raw"] is True
+
+
+@pytest.mark.parametrize("cls", cached_input_states)
+def test_states_with_non_raw_cached_inputs_are_handled_correctly(cls):
+    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
+
+    with tempfile.NamedTemporaryFile() as tmp:
+        with open(tmp.name, "wb") as f:
+            cloudpickle.dump(42, f)
+
+        state = cls(
+            message="hi mom",
+            cached_inputs=dict(x=tmp.name, y=tmp.name, z=23),
+            result=55,
+        )
+        state._metadata["cached_inputs"] = dict(
+            x=dict(raw=False, result_handler=serialized_handler),
+            y=dict(raw=False, result_handler=serialized_handler),
+        )
+        state.ensure_raw()
+
+    assert state.message == "hi mom"
+    assert state.result == 55
+    assert state.cached_inputs == dict(x=42, y=42, z=23)
+    for v in ["x", "y"]:
+        assert state._metadata["cached_inputs"][v]["raw"] is True
+
+
+def test_cached_states_are_handled_correctly_with_ensure_raw():
+    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
+
+    with tempfile.NamedTemporaryFile() as tmp:
+        with open(tmp.name, "wb") as f:
+            cloudpickle.dump(42, f)
+
+        cached_state = CachedState(
+            message="hi mom",
+            cached_inputs=dict(x=tmp.name, y=tmp.name, z=23),
+            cached_result=tmp.name,
+        )
+        cached_state._metadata["cached_inputs"] = dict(
+            x=dict(raw=False, result_handler=serialized_handler),
+            y=dict(raw=False, result_handler=serialized_handler),
+        )
+        cached_state._metadata["cached_result"] = dict(
+            raw=False, result_handler=serialized_handler
+        )
+        state = Success(cached=cached_state, result=tmp.name)
+        state._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
+        state.ensure_raw()
+
+    assert state.result == 42
+    assert state.cached.cached_inputs == dict(x=42, y=42, z=23)
+    for v in ["x", "y"]:
+        assert state.cached._metadata["cached_inputs"][v]["raw"] is True
+    assert state.cached.cached_result == 42
+    assert state.cached._metadata["cached_result"]["raw"] is True
 
 
 def test_serialize_and_deserialize_with_no_metadata():

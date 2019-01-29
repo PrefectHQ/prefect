@@ -47,7 +47,11 @@ class State:
     def __init__(self, message: str = None, result: Any = None):
         self.message = message
         self.result = result
-        self._metadata = {"result": {}}  # type: dict
+        self._metadata = {
+            "result": {},
+            "cached_result": {},
+            "cached_inputs": {},
+        }  # type: dict
 
     def __repr__(self) -> str:
         if self.message:
@@ -71,6 +75,41 @@ class State:
 
     def __hash__(self) -> int:
         return id(self)
+
+    def ensure_raw(self) -> None:
+        """
+        Ensures that all attributes are _raw_ (as specified in `self._metadata`).
+
+        Modifies the state object in place.
+        """
+        from prefect.serialization.result_handlers import ResultHandlerSchema
+
+        schema = ResultHandlerSchema()
+
+        for attr in ["result", "cached_result"]:
+            if self._metadata[attr].get("raw") is False:
+                handler = ResultHandlerSchema().load(
+                    self._metadata[attr]["result_handler"]
+                )
+                unpacked_value = handler.deserialize(getattr(self, attr))
+                setattr(self, attr, unpacked_value)
+                self._metadata[attr].update(raw=True)
+
+        if hasattr(self, "cached_inputs"):
+            # each variable could presumably come from different tasks with
+            # different result handlers
+            for variable in self.cached_inputs:  # type: ignore
+                var_info = self._metadata["cached_inputs"].get(variable, {})
+                if var_info.get("raw") is False:
+                    handler = ResultHandlerSchema().load(var_info["result_handler"])
+                    unpacked_value = handler.deserialize(
+                        self.cached_inputs[variable]  # type: ignore
+                    )
+                    self.cached_inputs[variable] = unpacked_value  # type: ignore
+                    self._metadata["cached_inputs"][variable]["raw"] = True
+
+        if hasattr(self, "cached"):
+            self.cached.ensure_raw()  # type: ignore
 
     def is_pending(self) -> bool:
         """
