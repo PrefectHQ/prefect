@@ -76,6 +76,29 @@ class State:
     def __hash__(self) -> int:
         return id(self)
 
+    def _populate_metadata(self) -> None:
+        ## populate result
+        if "result" not in self._metadata:
+            self._metadata["result"] = dict(raw=True)
+        elif "raw" not in self._metadata["result"]:
+            self._metadata["result"].update(raw=True)
+
+        ## populate cached_result
+        if "cached_result" not in self._metadata:
+            self._metadata["cached_result"] = dict(raw=True)
+        elif "raw" not in self._metadata["cached_result"]:
+            self._metadata["cached_result"].update(raw=True)
+
+        ## populate cached_inputs
+        if "cached_inputs" not in self._metadata:
+            self._metadata["cached_inputs"] = dict()
+        if getattr(self, "cached_inputs", None) is not None:
+            for variable in self.cached_inputs:
+                if variable not in self._metadata["cached_inputs"]:
+                    self._metadata["cached_inputs"][variable] = dict(raw=True)
+                elif "raw" not in self._metadata["cached_inputs"][variable]:
+                    self._metadata["cached_inputs"][variable].update(raw=True)
+
     def handle_inputs(self, input_handlers: dict) -> None:
         """
         Handles the `cached_inputs` attribute of this state (if it has one).
@@ -89,8 +112,9 @@ class State:
         from prefect.serialization.result_handlers import ResultHandlerSchema
 
         schema = ResultHandlerSchema()
+        self._populate_metadata()
         for variable in self.cached_inputs:  # type: ignore
-            var_info = self._metadata["cached_inputs"].get(variable, {})
+            var_info = self._metadata["cached_inputs"].get(variable)
             if var_info.get("raw") is True:
                 handler = ResultHandlerSchema().load(input_handlers[variable])
                 packed_value = handler.serialize(
@@ -112,6 +136,7 @@ class State:
         from prefect.serialization.result_handlers import ResultHandlerSchema
 
         schema = ResultHandlerSchema()
+        self._populate_metadata()
         if self._metadata.get("cached_result", {}).get("raw") is True:
             packed_value = result_handler.serialize(self.cached_result)  # type: ignore
             self.cached_result = packed_value  # type: ignore

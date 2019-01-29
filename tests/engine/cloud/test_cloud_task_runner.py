@@ -10,9 +10,10 @@ import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
-from prefect.engine.result_handlers import LocalResultHandler
+from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import (
+    CachedState,
     Failed,
     Finished,
     Mapped,
@@ -100,6 +101,71 @@ class TestInitializeRun:
             )
 
         assert result.state.result == 42
+
+
+class TestFinalizeRun:
+    def test_finalize_run_adds_handler_metadata(self, client):
+        serialized_handler = ResultHandlerSchema().dump(JSONResultHandler())
+        t = Task(result_handler=JSONResultHandler())
+        state = Success(result=lambda: None)
+        result = CloudTaskRunner(t).finalize_run(state, {})
+        assert result is state
+        assert result._metadata["result"]["raw"] is True
+        assert result._metadata["result"]["result_handler"] == serialized_handler
+
+    def test_finalize_run_handles_cached_inputs(self, client):
+        serialized_handler = ResultHandlerSchema().dump(JSONResultHandler())
+        a, b = Success(result=42), Failed(result=dict(qq="value"))
+        a._metadata["result"] = {"result_handler": serialized_handler, "raw": True}
+        b._metadata["result"] = {"result_handler": serialized_handler, "raw": True}
+        upstream_states = {
+            Edge(Task(), Task(), key="x"): a,
+            Edge(Task(), Task(), key="y"): b,
+        }
+
+        state = Retrying(cached_inputs={"x": 44, "y": dict(zz="value")})
+        t = Task(result_handler=JSONResultHandler())
+        result = CloudTaskRunner(t).finalize_run(state, upstream_states)
+        assert result is state
+        assert result.cached_inputs == {"x": "44", "y": '{"zz": "value"}'}
+
+    def test_finalize_run_handles_cached_states(self, client):
+        serialized_handler = ResultHandlerSchema().dump(JSONResultHandler())
+        a, b = Success(result=42), Failed(result=dict(qq="value"))
+        a._metadata["result"] = {"result_handler": serialized_handler, "raw": True}
+        b._metadata["result"] = {"result_handler": serialized_handler, "raw": True}
+        upstream_states = {
+            Edge(Task(), Task(), key="x"): a,
+            Edge(Task(), Task(), key="y"): b,
+        }
+
+        cached_state = CachedState(
+            cached_inputs={"x": 44, "y": dict(zz="value")}, cached_result=["my_result"]
+        )
+        state = Success(cached=cached_state)
+        t = Task(result_handler=JSONResultHandler())
+        result = CloudTaskRunner(t).finalize_run(state, upstream_states)
+        assert result is state
+        assert result.cached.cached_inputs == {"x": "44", "y": '{"zz": "value"}'}
+        assert result.cached.cached_result == '["my_result"]'
+
+    def test_finalize_run_fails_gracefully_if_serialization_fails(self, client):
+        serialized_handler = ResultHandlerSchema().dump(JSONResultHandler())
+        a, b = Success(result=42), Failed(result=dict(qq="value"))
+        a._metadata["result"] = {"result_handler": serialized_handler, "raw": True}
+        b._metadata["result"] = {"result_handler": serialized_handler, "raw": True}
+        upstream_states = {
+            Edge(Task(), Task(), key="x"): a,
+            Edge(Task(), Task(), key="y"): b,
+        }
+
+        cached_state = CachedState(
+            cached_inputs={"x": 44, "y": dict(zz="value")}, cached_result=lambda: None
+        )
+        state = Success(cached=cached_state)
+        t = Task(result_handler=JSONResultHandler())
+        result = CloudTaskRunner(t).finalize_run(state, upstream_states)
+        assert result.is_failed()
 
 
 def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
