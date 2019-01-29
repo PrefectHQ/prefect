@@ -1,0 +1,22 @@
+{
+    "states": {
+        "success": {
+            "type": "Success",
+            "message": "Success",
+            "metadata": {},
+            "result": 1,
+            "__version__": "0.3.0"
+        },
+        "retrying": {
+            "type": "Retrying",
+            "message": "Retrying",
+            "metadata": {
+                "result": {
+                    "is_raw": true
+                }
+            },
+            "result": 1,
+            "__version__": "0.3.0"
+        }
+    }
+}
