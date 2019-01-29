@@ -231,13 +231,28 @@ button,
 	}
 }
 
-.action {
-	display: flex;
-	justify-content: center;
+// homepage specific
+.home {
 
-	> * {
-		margin: 0 1em;
+	.feature h2 {
+		font-weight: $bold;
 	}
+
+	p.note {
+		font-size: 0.875em;
+		font-style: italic;
+		max-width: 85%;
+		margin: 0 auto;
+	}	
+
+	.action {
+		display: flex;
+		justify-content: center;
+
+		> * {
+			margin: 0 1em;
+		}
+	}	
 }
 
 // custom tip and warning blocks
