@@ -76,6 +76,52 @@ class State:
     def __hash__(self) -> int:
         return id(self)
 
+    def handle_inputs(self, input_handlers: Dict[str, ResultHandler]) -> None:
+        """
+        Handles the `cached_inputs` attribute of this state (if it has one).
+
+        Args:
+            - input_handlers (Dict[str, ResultHandler]): the individual result handlers to use when
+                processing each variable in `cached_inputs`
+
+        Modifies the state object in place.
+        """
+        from prefect.serialization.result_handlers import ResultHandlerSchema
+
+        schema = ResultHandlerSchema()
+        for variable in self.cached_inputs:  # type: ignore
+            var_info = self._metadata["cached_inputs"].get(variable, {})
+            if var_info.get("raw") is True:
+                handler = ResultHandlerSchema().load(input_handlers[variable])
+                packed_value = handler.serialize(
+                    self.cached_inputs[variable]  # type: ignore
+                )
+                self.cached_inputs[variable] = packed_value  # type: ignore
+                self._metadata["cached_inputs"][variable]["raw"] = False
+
+    def handle_result(self, result_handler: ResultHandler) -> None:
+        """
+        Handles the `cached_result` attribute of this state (if it has one).
+
+        Args:
+            - result_handler (ResultHandler): the result handler to use when
+                processing the `cached_result`
+
+        Modifies the state object in place.
+        """
+        from prefect.serialization.result_handlers import ResultHandlerSchema
+
+        schema = ResultHandlerSchema()
+        if self._metadata.get("cached_result", {}).get("raw") is True:
+            packed_value = result_handler.serialize(
+                self.cached_inputs[variable]  # type: ignore
+            )
+            self.cached_result = packed_value  # type: ignore
+            self._metadata["cached_result"]["raw"] = False
+            self._metadata["cached_result"]["result_handler"] = schema.dump(
+                result_handler
+            )
+
     def ensure_raw(self) -> None:
         """
         Ensures that all attributes are _raw_ (as specified in `self._metadata`).
@@ -88,9 +134,7 @@ class State:
 
         for attr in ["result", "cached_result"]:
             if self._metadata[attr].get("raw") is False:
-                handler = ResultHandlerSchema().load(
-                    self._metadata[attr]["result_handler"]
-                )
+                handler = schema.load(self._metadata[attr]["result_handler"])
                 unpacked_value = handler.deserialize(getattr(self, attr))
                 setattr(self, attr, unpacked_value)
                 self._metadata[attr].update(raw=True)
@@ -101,7 +145,7 @@ class State:
             for variable in self.cached_inputs:  # type: ignore
                 var_info = self._metadata["cached_inputs"].get(variable, {})
                 if var_info.get("raw") is False:
-                    handler = ResultHandlerSchema().load(var_info["result_handler"])
+                    handler = schema.load(var_info["result_handler"])
                     unpacked_value = handler.deserialize(
                         self.cached_inputs[variable]  # type: ignore
                     )
@@ -283,7 +327,7 @@ class CachedState(Pending):
         cached_result_expiration: datetime.datetime = None,
     ):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
-        self.cached_result = cached_result
+        self.cached_result = cached_result  # type: ignore
         self.cached_parameters = cached_parameters
         if cached_result_expiration is not None:
             cached_result_expiration = ensure_tz_aware(cached_result_expiration)

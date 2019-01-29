@@ -170,3 +170,46 @@ class CloudTaskRunner(TaskRunner):
         return super().initialize_run(
             state=state, context=context, upstream_states=upstream_states
         )
+
+    def finalize_run(self, state: State, upstream_states: Dict[Edge, State]) -> State:
+        """
+        Ensures that all results are handled appropriately on the final state.
+
+        Args:
+            - state (State): the final state of this task
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): the upstream states
+
+        Returns:
+            - State: the state of the task after running the check
+        """
+        from prefect.serialization.result_handlers import ResultHandlerSchema
+
+        ## if a state has a "cached" attribute or a "cached_inputs" attribute, we need to handle it
+        if getattr(state, "cached_inputs", None) is not None:
+            input_handlers = {}
+
+            for edge, upstream_state in upstream_states.items():
+                if edge.key is not None:
+                    input_handlers[edge.key] = upstream_state._metadata["result"][
+                        "result_handler"
+                    ]
+
+            state.handle_inputs(input_handlers)
+
+        if getattr(state, "cached", None) is not None:
+            input_handlers = {}
+
+            for edge, upstream_state in upstream_states.items():
+                if edge.key is not None:
+                    input_handlers[edge.key] = upstream_state._metadata["result"][
+                        "result_handler"
+                    ]
+
+            state.cached.handle_inputs(input_handlers)  # type: ignore
+            state.cached.handle_result(self.result_handler)  # type: ignore
+
+        ## finally, update state _metadata attribute with information about how to handle this state's data
+        state._metadata["result"].setdefault(
+            "result_handler", ResultHandlerSchema().dump(self.result_handler)
+        )
+        return state

@@ -318,13 +318,19 @@ class TaskRunner(Runner):
             )
         )
 
-        ## finally, update state _metadata attribute with information about how to handle this state's data
-        from prefect.serialization.result_handlers import ResultHandlerSchema
+        return self.finalize_run(state, upstream_states)
 
-        state._metadata["result"].setdefault(
-            "result_handler", ResultHandlerSchema().dump(self.result_handler)
-        )
+    def finalize_run(self, state: State, upstream_states: Dict[Edge, State]) -> State:
+        """
+        Does any additional processing on the _final_ state of this task run.
 
+        Args:
+            - state (State): the final state of this task
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): the upstream states
+
+        Returns:
+            - State: the state of the task after running the check
+        """
         return state
 
     @call_state_handlers
