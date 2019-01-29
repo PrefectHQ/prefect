@@ -1,3 +1,5 @@
+import cloudpickle
+import tempfile
 import time
 import uuid
 from unittest.mock import MagicMock
@@ -8,6 +10,7 @@ import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
+from prefect.engine.result_handlers import LocalResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import (
     Failed,
@@ -22,6 +25,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
+from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -55,6 +59,47 @@ def client(monkeypatch):
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=cloud_client)
     )
     yield cloud_client
+
+
+class TestInitializeRun:
+    def test_ensures_all_upstream_states_are_raw(self, client):
+        serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
+
+        with tempfile.NamedTemporaryFile() as tmp:
+            with open(tmp.name, "wb") as f:
+                cloudpickle.dump(42, f)
+
+            a, b, c = (
+                Success(result=tmp.name),
+                Failed(result=55),
+                Pending(result=tmp.name),
+            )
+            a._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
+            c._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
+            result = CloudTaskRunner(Task()).initialize_run(
+                state=Success(), context={}, upstream_states={1: a, 2: b, 3: c}
+            )
+
+        assert result.upstream_states[1].result == 42
+        assert result.upstream_states[2].result == 55
+        assert result.upstream_states[3].result == 42
+
+    def test_ensures_provided_initial_state_is_raw(self, client):
+        serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
+
+        with tempfile.NamedTemporaryFile() as tmp:
+            with open(tmp.name, "wb") as f:
+                cloudpickle.dump(42, f)
+
+            state = Success(result=tmp.name)
+            state._metadata["result"] = dict(
+                raw=False, result_handler=serialized_handler
+            )
+            result = CloudTaskRunner(Task()).initialize_run(
+                state=state, context={}, upstream_states={}
+            )
+
+        assert result.state.result == 42
 
 
 def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
