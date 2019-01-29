@@ -106,6 +106,9 @@ class State:
                 )
                 self.cached_inputs[variable] = packed_value  # type: ignore
                 self._metadata["cached_inputs"][variable]["raw"] = False
+                self._metadata["cached_inputs"][variable][
+                    "result_handler"
+                ] = input_handlers[variable]
 
     def handle_outputs(self, result_handler: ResultHandler) -> None:
         """
