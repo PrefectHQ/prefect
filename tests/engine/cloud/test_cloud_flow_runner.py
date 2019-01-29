@@ -243,3 +243,8 @@ def test_heartbeat_traps_errors_caused_by_client(monkeypatch):
     assert client.update_flow_run_heartbeat.called
     w = warning.pop()
     assert "Heartbeat failed for Flow 'bad'" in repr(w.message)
+
+
+def test_task_failure_caches_inputs_automatically(client):
+    p = Parameter("p")
+

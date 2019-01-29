@@ -879,7 +879,11 @@ class Parameter(Task):
         self.required = required
         self.default = default
 
-        super().__init__(name=name, slug=name, tags=tags)
+        from prefect.engine.result_handlers import JSONResultHandler
+
+        super().__init__(
+            name=name, slug=name, tags=tags, result_handler=JSONResultHandler()
+        )
 
     def __repr__(self) -> str:
         return "<Parameter: {self.name}>".format(self=self)

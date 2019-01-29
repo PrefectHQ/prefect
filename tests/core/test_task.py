@@ -8,7 +8,7 @@ import pytest
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.cache_validators import all_inputs, duration_only, never_use
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task
 
@@ -140,6 +140,10 @@ class TestCreateTask:
         assert t1.result_handler is None
         t2 = Task(result_handler=ResultHandler())
         assert isinstance(t2.result_handler, ResultHandler)
+
+    def test_create_parameter_uses_json_result_handler(self):
+        p = Parameter("p")
+        assert isinstance(p.result_handler, JSONResultHandler)
 
 
 def test_task_has_logger():
