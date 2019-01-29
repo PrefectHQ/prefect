@@ -76,12 +76,12 @@ class State:
     def __hash__(self) -> int:
         return id(self)
 
-    def handle_inputs(self, input_handlers: Dict[str, ResultHandler]) -> None:
+    def handle_inputs(self, input_handlers: dict) -> None:
         """
         Handles the `cached_inputs` attribute of this state (if it has one).
 
         Args:
-            - input_handlers (Dict[str, ResultHandler]): the individual result handlers to use when
+            - input_handlers (dict): the individual serialized result handlers to use when
                 processing each variable in `cached_inputs`
 
         Modifies the state object in place.
@@ -113,9 +113,7 @@ class State:
 
         schema = ResultHandlerSchema()
         if self._metadata.get("cached_result", {}).get("raw") is True:
-            packed_value = result_handler.serialize(
-                self.cached_inputs[variable]  # type: ignore
-            )
+            packed_value = result_handler.serialize(self.cached_result)  # type: ignore
             self.cached_result = packed_value  # type: ignore
             self._metadata["cached_result"]["raw"] = False
             self._metadata["cached_result"]["result_handler"] = schema.dump(
