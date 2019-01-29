@@ -4,7 +4,11 @@ from typing import Any, Dict
 from marshmallow import fields, post_load, ValidationError
 
 from prefect.engine.cloud.result_handler import CloudResultHandler
-from prefect.engine.result_handlers import ResultHandler, LocalResultHandler
+from prefect.engine.result_handlers import (
+    ResultHandler,
+    JSONResultHandler,
+    LocalResultHandler,
+)
 from prefect.utilities.serialization import (
     JSONCompatible,
     OneOfSchema,
@@ -25,6 +29,11 @@ class CloudResultHandlerSchema(BaseResultHandlerSchema):
     result_handler_service = fields.String(allow_none=True)
 
 
+class JSONResultHandlerSchema(BaseResultHandlerSchema):
+    class Meta:
+        object_class = JSONResultHandler
+
+
 class LocalResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
         object_class = LocalResultHandler
@@ -41,5 +50,6 @@ class ResultHandlerSchema(OneOfSchema):
     type_schemas = {
         "ResultHandler": BaseResultHandlerSchema,
         "CloudResultHandler": CloudResultHandlerSchema,
+        "JSONResultHandler": JSONResultHandlerSchema,
         "LocalResultHandler": LocalResultHandlerSchema,
     }
