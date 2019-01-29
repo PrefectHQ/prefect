@@ -11,7 +11,10 @@ from prefect.utilities.serialization import (
     FunctionReference,
     JSONCompatible,
     Nested,
+    ObjectSchema,
+    OneOfSchema,
 )
+import prefect
 
 json_test_values = [
     1,
@@ -170,3 +173,138 @@ class TestFunctionReferenceField:
         with pytest.raises(marshmallow.ValidationError):
             self.Schema().load({"f": None})
         assert self.Schema().load({"f_none": None})["f_none"] is None
+
+
+class TestObjectSchema:
+    def test_schema_writes_version_to_serialized_object(self):
+        class TestObject:
+            def __init__(self, x):
+                self.x = x
+
+        class Schema(ObjectSchema):
+            class Meta:
+                object_class = TestObject
+
+            x = marshmallow.fields.Int()
+
+        serialized = Schema().dump(TestObject(x=5))
+        assert serialized == {"__version__": prefect.__version__, "x": 5}
+
+    def test_schema_creates_object(self):
+        class TestObject:
+            def __init__(self, x):
+                self.x = x
+
+        class Schema(ObjectSchema):
+            class Meta:
+                object_class = TestObject
+
+            x = marshmallow.fields.Int()
+
+        deserialized = Schema().load({"x": "1"})
+        assert isinstance(deserialized, TestObject)
+        assert deserialized.x == 1
+
+    def test_schema_does_not_create_object_if_arg_is_false(self):
+        class TestObject:
+            def __init__(self, x):
+                self.x = x
+
+        class Schema(ObjectSchema):
+            class Meta:
+                object_class = TestObject
+
+            x = marshmallow.fields.Int()
+
+        deserialized = Schema().load({"x": "1"}, create_object=False)
+        assert deserialized == {"x": 1}
+
+    def test_schema_has_error_if_fields_cant_be_supplied_to_init(self):
+        class TestObject:
+            def __init__(self, x):
+                self.x = x
+
+        class Schema(ObjectSchema):
+            class Meta:
+                object_class = TestObject
+
+            x = marshmallow.fields.Int()
+            y = marshmallow.fields.Int()
+
+        with pytest.raises(TypeError):
+            Schema().load({"x": "1", "y": "2"})
+
+    def test_schema_with_excluded_fields(self):
+        class TestObject:
+            def __init__(self, x):
+                self.x = x
+
+        class Schema(ObjectSchema):
+            class Meta:
+                object_class = TestObject
+                exclude_fields = ["y"]
+
+            x = marshmallow.fields.Int()
+            y = marshmallow.fields.Int()
+
+        deserialized = Schema().load({"x": "1", "y": "2"})
+        assert isinstance(deserialized, TestObject)
+        assert deserialized.x == 1
+        assert not hasattr(deserialized, "y")
+
+    def test_schema_creates_object_with_lambda(self):
+        class Schema(ObjectSchema):
+            class Meta:
+                object_class = lambda: TestObject
+
+            x = marshmallow.fields.Int()
+
+        class TestObject:
+            def __init__(self, x):
+                self.x = x
+
+        deserialized = Schema().load({"x": "1"})
+        assert isinstance(deserialized, TestObject)
+        assert deserialized.x == 1
+
+    def test_schema_handles_unknown_fields(self):
+        class TestObject:
+            def __init__(self, x):
+                self.x = x
+
+        class Schema(ObjectSchema):
+            class Meta:
+                object_class = TestObject
+
+            x = marshmallow.fields.Int()
+
+        deserialized = Schema().load({"x": "1", "y": "2"})
+        assert isinstance(deserialized, TestObject)
+        assert not hasattr(deserialized, "y")
+
+
+class TestOneOfSchema:
+    def test_oneofschema_load_dotdict(self):
+        """
+        Tests that modified OneOfSchema can load data from a DotDict (standard can not)
+        """
+
+        class ChildSchema(marshmallow.Schema):
+            x = marshmallow.fields.Integer()
+
+        class ParentSchema(OneOfSchema):
+            type_schemas = {"Child": ChildSchema}
+
+        child = ParentSchema().load(DotDict(type="Child", x="5"))
+        assert child["x"] == 5
+
+    def test_oneofschema_handles_unknown_fields(self):
+        class ChildSchema(marshmallow.Schema):
+            x = marshmallow.fields.Integer()
+
+        class ParentSchema(OneOfSchema):
+            type_schemas = {"Child": ChildSchema}
+
+        child = ParentSchema().load(DotDict(type="Child", x="5", y="6"))
+        assert child["x"] == 5
+        assert not hasattr(child, "y")

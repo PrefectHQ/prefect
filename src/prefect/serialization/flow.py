@@ -8,9 +8,8 @@ from prefect.serialization.task import ParameterSchema, TaskSchema
 from prefect.utilities.serialization import (
     JSONCompatible,
     Nested,
-    VersionedSchema,
+    ObjectSchema,
     to_qualified_name,
-    version,
 )
 
 
@@ -28,11 +27,10 @@ def get_reference_tasks(obj, context):
         return utils.get_value(obj, "reference_tasks")
 
 
-@version("0.3.3")
-class FlowSchema(VersionedSchema):
+class FlowSchema(ObjectSchema):
     class Meta:
         object_class = lambda: prefect.core.Flow
-        object_class_exclude = ["id", "type", "parameters"]
+        exclude_fields = ["id", "type", "parameters"]
         # ordered to make sure Task objects are loaded before Edge objects, due to Task caching
         ordered = True
 
