@@ -95,7 +95,7 @@ class State:
                 setattr(self, attr, unpacked_value)
                 self._metadata[attr].update(raw=True)
 
-        if hasattr(self, "cached_inputs"):
+        if getattr(self, "cached_inputs", None) is not None:
             # each variable could presumably come from different tasks with
             # different result handlers
             for variable in self.cached_inputs:  # type: ignore
@@ -108,7 +108,7 @@ class State:
                     self.cached_inputs[variable] = unpacked_value  # type: ignore
                     self._metadata["cached_inputs"][variable]["raw"] = True
 
-        if hasattr(self, "cached"):
+        if getattr(self, "cached", None) is not None:
             self.cached.ensure_raw()  # type: ignore
 
     def is_pending(self) -> bool:
