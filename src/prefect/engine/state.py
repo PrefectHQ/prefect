@@ -14,7 +14,7 @@ execution. During execution a run will enter a `Running` state. Finally, runs be
 import copy
 import datetime
 from collections import defaultdict
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pendulum
 
@@ -334,10 +334,12 @@ class CachedState(Pending):
     ):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.cached_result = cached_result  # type: ignore
-        self.cached_parameters = cached_parameters
+        self.cached_parameters = cached_parameters  # type: Optional[Dict[str, Any]]
         if cached_result_expiration is not None:
             cached_result_expiration = ensure_tz_aware(cached_result_expiration)
-        self.cached_result_expiration = cached_result_expiration
+        self.cached_result_expiration = (
+            cached_result_expiration
+        )  # type: Optional[datetime.datetime]
 
 
 class Scheduled(Pending):
