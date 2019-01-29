@@ -198,6 +198,15 @@ class TestResultHandlerField:
         assert "y" not in new._metadata.cached_inputs
         assert new._metadata.cached_inputs["y"]["raw"] is True
 
+    def test_metadata_is_repopulated_if_empty(self):
+        schema = StateSchema()
+        new = schema.load({"type": "Pending"})
+        assert "cached_inputs" in new._metadata
+        assert "result" in new._metadata
+        assert "cached_result" in new._metadata
+        assert new._metadata["result"]["raw"] is True
+        assert new._metadata["cached_inputs"]["_def_not_real"]["raw"] is True
+
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
 def test_serialize_state(cls):

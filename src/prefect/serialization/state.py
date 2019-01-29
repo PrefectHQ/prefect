@@ -42,7 +42,7 @@ class BaseStateSchema(ObjectSchema):
     def create_object(self, data):
         _metadata = data.pop("_metadata", {})
         base_obj = super().create_object(data)
-        base_obj._metadata = DotDict(_metadata)
+        base_obj._metadata.update(_metadata)
         return base_obj
 
 
