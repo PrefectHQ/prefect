@@ -12,19 +12,16 @@ from prefect.engine.result_handlers import (
 from prefect.utilities.serialization import (
     JSONCompatible,
     OneOfSchema,
-    VersionedSchema,
+    ObjectSchema,
     to_qualified_name,
-    version,
 )
 
 
-@version("0.4.0")
-class BaseResultHandlerSchema(VersionedSchema):
+class BaseResultHandlerSchema(ObjectSchema):
     class Meta:
         object_class = ResultHandler
 
 
-@version("0.4.0")
 class CloudResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
         object_class = CloudResultHandler
@@ -32,13 +29,11 @@ class CloudResultHandlerSchema(BaseResultHandlerSchema):
     result_handler_service = fields.String(allow_none=True)
 
 
-@version("0.4.0")
 class JSONResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
         object_class = JSONResultHandler
 
 
-@version("0.4.0")
 class LocalResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
         object_class = LocalResultHandler

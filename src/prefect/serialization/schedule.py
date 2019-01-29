@@ -4,16 +4,10 @@ import marshmallow
 from marshmallow import fields
 
 import prefect
-from prefect.utilities.serialization import (
-    OneOfSchema,
-    VersionedSchema,
-    to_qualified_name,
-    version,
-)
+from prefect.utilities.serialization import OneOfSchema, ObjectSchema, to_qualified_name
 
 
-@version("0.3.3")
-class IntervalScheduleSchema(VersionedSchema):
+class IntervalScheduleSchema(ObjectSchema):
     class Meta:
         object_class = prefect.schedules.IntervalSchedule
 
@@ -22,8 +16,7 @@ class IntervalScheduleSchema(VersionedSchema):
     interval = fields.TimeDelta(precision="microseconds", required=True)
 
 
-@version("0.3.3")
-class CronScheduleSchema(VersionedSchema):
+class CronScheduleSchema(ObjectSchema):
     class Meta:
         object_class = prefect.schedules.CronSchedule
 
