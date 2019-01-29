@@ -1,18 +1,19 @@
 ---
 home: true
-heroImage: /Logo.svg
+heroImage: /assets/logomark-color.svg
+
 footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
 <div class='hero'>
-    <div style="display: flex;">
-        <p class='action'>
-            <router-link to="introduction.html" class="nav-link action-button">Read the docs</router-link>
-        </p>
-        <p class='action'>
-            <router-link to="agreement.html" class="nav-link action-button">Get the code</router-link>
-        </p>
+    <div class='action'>
+        <button class="action-button">
+            <router-link to="introduction.html">Read the docs</router-link>
+        </button>
+        <button class="action-button">
+            <router-link to="agreement.html">Get the code</router-link>
+        </button>
     </div>
-    <p style="font-size: 13px; font-style: italic;">
+    <p class='note'>
         Prefect is alpha software under active development by Prefect Technologies, Inc. This early preview is being provided to a limited number of partners to assist with development. By viewing or using the code or documentation, you are agreeing to the <a href='license.html'>alpha software end user license agreement</a>.
     </p>
 </div>

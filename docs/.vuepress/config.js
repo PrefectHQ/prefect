@@ -3,6 +3,14 @@ const webpack = require('webpack')
 module.exports = {
   title: 'Prefect (Preview)',
   description: "Don't Panic.",
+  head: [
+    [
+      'link', { 
+        rel: 'icon',
+        href: '/favicon.ico'
+      }
+    ]
+  ], 
   ga: "UA-115585378-1",
   themeConfig: {
     repo: 'PrefectHQ/prefect/tree/master/docs',

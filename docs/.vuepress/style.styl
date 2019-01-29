@@ -1,0 +1,259 @@
+/* Prefect Custom Styles */
+
+// importing prefect fonts
+@import url('https://rsms.me/inter/inter-ui.css');
+@import url('https://use.typekit.net/cvp6pli.css');
+
+// prefect colors
+
+$bluePrimary = #27b1ff;
+$blueSecondary = #3b8dff;
+$blueTertiary = #1061d0;
+$pink = #fe5196;
+$orange = #ee9900;
+
+$greyLight = #f6f6fc; 
+$grey = #a5b4be;
+$greyDark = #4d606e;
+
+$greyBg = #fbfcfd;
+
+$white = #fff;
+$black = #000;
+
+// setting prefect fonts
+$fontPrimary = 'Inter UI', Helvetica, Arial, sans-serif;
+$fontSecondary = Arboria, Helvetica, Arial, sans-serif;
+$fontCode = source-code-pro, Menlo, Consolas, monospace;
+
+$bold = 700;
+$normal = 400;
+$light = 300;
+
+body,
+p {
+	color: $greyDark;
+	font-family: $fontPrimary;
+	font-size: 1em;
+	font-weight: $normal;
+}
+
+p,
+ul,
+ol {
+	line-height: 1.75em;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	color: $greyDark;
+	font-family: $fontSecondary;
+}
+
+a {
+	color: $bluePrimary;
+
+	&:hover,
+	&:focus {
+		color: $blueSecondary;
+	}
+}
+
+strong,
+b {
+	font-weight: $bold;
+}
+
+em,
+i {
+	font-style: $italic;
+}
+
+// prefect code syntax
+
+.content {
+	div[class*="language-"] {
+			background-color: $greyBg;
+
+			&::before {
+				color: $greyDark;
+			}
+
+			pre,
+			code {	
+				background: transparent;
+				color: $greyDark;
+				z-index: 1;
+			}
+		}	
+
+	pre, 
+	pre[class*="language-"] {
+		background-color: $greyBg;
+		border-radius: 0.5em;
+		border: solid 0.125em $greyLight;
+		color: $greyDark;
+		font-family: $fontCode;
+		line-height: 1.4;
+		margin: 0.85rem 0;
+		overflow: auto;
+		padding: 1.25rem 1.5rem;
+	}
+
+	code {
+		color: $greyDark;
+		font-family: $fontCode;
+		padding: 0.25em 0.5em;
+    border-radius: 0.25em;
+	}
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: $grey;
+	font-style: $italic;
+}
+
+.token.punctuation {
+    color: $blueTertiary;
+}
+
+.namespace {
+	opacity: .75;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted, {
+	color: $blueSecondary;
+}
+
+.token.selector,
+.token.attr-name,
+.token.decorator,
+.token.string,
+.token.char,
+.token.inserted {
+	color: $pink;
+}
+
+.token.builtin {
+    color: $bluePrimary;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string,
+.token.function,
+.token.class-name {
+	color: $blueSecondary;
+  font-weight: $bold;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+	color: $bluePrimary;
+	font-style: $italic;
+	font-weight: $bold;
+
+}
+
+.token.regex,
+.token.variable {
+	color: $orange;
+}
+
+.token.important,
+.token.bold {
+	font-weight: $bold;
+}
+.token.italic {
+	font-style: $italic;
+}
+
+.token.entity {
+	cursor: help;
+}
+
+// sidebar
+.sidebar-heading {
+	color: $greyDark;
+
+	&:hover,
+	&:focus {
+		color: $grey;
+	}
+}
+
+.arrow {
+	top: 0;
+
+	&.right {
+		border-left: 0.375em solid $greyDark;
+	}
+
+	&.left {
+		border-right: 0.375em solid $greyDark;
+	}
+}
+
+
+// buttons
+button,
+.action-button,
+.home .hero .action-button {
+	background-color: $bluePrimary;
+	border: 0;
+	border-bottom: 0.0625em solid $blueTertiary;
+	font-family: $fontPrimary;
+
+	&:hover,
+	&:focus {
+		background-color: $blueSecondary;
+		cursor: pointer;
+	}
+
+	a {
+		color: $white;
+	}
+}
+
+.action {
+	display: flex;
+	justify-content: center;
+
+	> * {
+		margin: 0 1em;
+	}
+}
+
+// custom tip and warning blocks
+.custom-block {
+	&.tip {
+		border-color: $blueSecondary;
+		background-color: $greyBg;		
+	}
+
+	&.warning {
+		background-color: lighten($orange, 90%);
+		border-color: $orange;
+		color: $greyDark;
+
+		.custom-block-title {
+			color: $greyDark;
+		}
+	}
+}
