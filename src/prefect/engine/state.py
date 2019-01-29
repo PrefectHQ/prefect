@@ -149,8 +149,8 @@ class State:
             # each variable could presumably come from different tasks with
             # different result handlers
             for variable in self.cached_inputs:  # type: ignore
-                var_info = self._metadata["cached_inputs"].get(variable, {})
-                if var_info.get("raw") is False:
+                var_info = self._metadata["cached_inputs"][variable]
+                if var_info["raw"] is False:
                     handler = schema.load(var_info["result_handler"])
                     unpacked_value = handler.deserialize(
                         self.cached_inputs[variable]  # type: ignore
