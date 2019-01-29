@@ -217,7 +217,7 @@ class CloudTaskRunner(TaskRunner):
                         ]
 
                 state.cached.handle_inputs(input_handlers)  # type: ignore
-                state.cached.handle_result(self.result_handler)  # type: ignore
+                state.cached.handle_outputs(self.result_handler)  # type: ignore
             except Exception as exc:
                 self.logger.debug(
                     "Exception raised while serializing cached data: {}".format(
