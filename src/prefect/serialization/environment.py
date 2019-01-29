@@ -9,14 +9,12 @@ from prefect.utilities.serialization import (
     Bytes,
     JSONCompatible,
     OneOfSchema,
-    VersionedSchema,
+    ObjectSchema,
     to_qualified_name,
-    version,
 )
 
 
-@version("0.3.3")
-class LocalEnvironmentSchema(VersionedSchema):
+class LocalEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = prefect.environments.LocalEnvironment
 
@@ -24,8 +22,7 @@ class LocalEnvironmentSchema(VersionedSchema):
     serialized_flow = Bytes(allow_none=True)
 
 
-@version("0.3.3")
-class ContainerEnvironmentSchema(VersionedSchema):
+class ContainerEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = prefect.environments.ContainerEnvironment
 
