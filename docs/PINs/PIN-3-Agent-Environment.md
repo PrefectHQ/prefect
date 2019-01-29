@@ -1,5 +1,5 @@
 ---
-title: 'PIN-3: Agent-Environment Hybrid Execution'
+title: 'PIN-3: Environment Execution'
 sidebarDepth: 0
 ---
 
