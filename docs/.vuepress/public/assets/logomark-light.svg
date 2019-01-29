@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="464px" height="745px" viewBox="0 0 464 745" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 52.5 (67469) - http://www.bohemiancoding.com/sketch -->
+    <title>logomark/primary-light</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <linearGradient x1="17.3333333%" y1="20%" x2="86.5674218%" y2="88.1234369%" id="linearGradient-1">
+            <stop stop-color="#CEDBE5" offset="0%"></stop>
+            <stop stop-color="#A7BECF" offset="100%"></stop>
+        </linearGradient>
+        <polygon id="path-2" points="232.25 115.966 0.5 0.006 0.5 235.916"></polygon>
+        <linearGradient x1="16.0016827%" y1="17.3332978%" x2="132.003088%" y2="40.4566875%" id="linearGradient-4">
+            <stop stop-color="#F6F9FB" offset="0%"></stop>
+            <stop stop-color="#D7DFE4" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="16%" y1="17.3333109%" x2="68.2660803%" y2="105.421286%" id="linearGradient-5">
+            <stop stop-color="#F6F9FB" offset="0%"></stop>
+            <stop stop-color="#D7DFE4" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="logomark/primary-light" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Light">
+            <g id="middle-triangle" transform="translate(231.000000, 231.000000)">
+                <mask id="mask-3" fill="white">
+                    <use xlink:href="#path-2"></use>
+                </mask>
+                <use id="triangle" fill="url(#linearGradient-1)" xlink:href="#path-2"></use>
+                <polygon id="left-shadow" fill-opacity="0.2" fill="#0D3958" mask="url(#mask-3)" points="30 220.646 0.5 45.166 0.5 235.916"></polygon>
+                <polygon id="right-shadow" fill-opacity="0.2" fill="#0D3958" mask="url(#mask-3)" points="202.5 101.085 0.5 0.006 0.5 25.666"></polygon>
+            </g>
+            <path d="M14,742.37 C14.5,742.11 226.76,639.2 227,639.07 C229.93,637.42 231.53,636.89 231.6,631.67 C231.61,631.17 231.5,231.015 231.5,231.015 C141.6,276.026 15,339.166 4,345.016 C0.5,346.877 1.13686838e-13,348.666 1.13686838e-13,351.166 L1.13686838e-13,732.17 C1.13686838e-13,740.67 0.5,749.17 14,742.37 Z" id="leg" fill="url(#linearGradient-4)"></path>
+            <path d="M463.25,119.997 L463.25,346.966 C463.25,346.966 31,130.79 16,122.916 C6,117.666 6,112.666 16,107.166 C25.23,102.088 200.56,14.607 227.5,1.166 C231,-0.334 232,-0.334 235.07,0.866 L458.85,112.916 C462,114.666 463,116.166 463.25,119.997 Z" id="top" fill="url(#linearGradient-5)"></path>
+        </g>
+    </g>
+</svg>

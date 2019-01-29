@@ -1,7 +1,7 @@
 <template>
   <div>
-      <Layout v-if="loggedIn"></Layout>
-      <Login v-else/>
+    <Layout v-if="loggedIn"></Layout>
+    <Login v-else/>
   </div>
 </template>
 

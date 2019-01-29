@@ -11,7 +11,9 @@ Prefect is alpha software under active development by Prefect Technologies, Inc.
 <div class='home' style='padding-top: 0px;'>
     <div class='hero'>
         <p class='action'>
-            <a href="https://github.com/PrefectHQ/prefect" class="nav-link action-button">Ok!</a>
+            <button class="action-button">
+                <a href="https://github.com/PrefectHQ/prefect">Ok!</a>
+            </button>
         </p>
     </div>
 </div>
