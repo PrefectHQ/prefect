@@ -1,6 +1,4 @@
-import cloudpickle
 import collections
-import tempfile
 from datetime import datetime, timedelta
 from time import sleep
 from unittest.mock import MagicMock
@@ -21,7 +19,6 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
-from prefect.engine.result_handlers import LocalResultHandler
 from prefect.engine.state import (
     CachedState,
     Failed,
@@ -41,7 +38,6 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.engine.task_runner import ENDRUN, TaskRunner
-from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.debug import raise_on_exception
 from prefect.utilities.tasks import pause_task
@@ -376,45 +372,6 @@ class TestInitializeRun:
             state=Submitted(state=state), context={}, upstream_states={}
         )
         assert result.state is state
-
-    def test_ensures_all_upstream_states_are_raw(self):
-        serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
-
-        with tempfile.NamedTemporaryFile() as tmp:
-            with open(tmp.name, "wb") as f:
-                cloudpickle.dump(42, f)
-
-            a, b, c = (
-                Success(result=tmp.name),
-                Failed(result=55),
-                Pending(result=tmp.name),
-            )
-            a._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
-            c._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
-            result = TaskRunner(Task()).initialize_run(
-                state=Success(), context={}, upstream_states={1: a, 2: b, 3: c}
-            )
-
-        assert result.upstream_states[1].result == 42
-        assert result.upstream_states[2].result == 55
-        assert result.upstream_states[3].result == 42
-
-    def test_ensures_provided_initial_state_is_raw(self):
-        serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
-
-        with tempfile.NamedTemporaryFile() as tmp:
-            with open(tmp.name, "wb") as f:
-                cloudpickle.dump(42, f)
-
-            state = Success(result=tmp.name)
-            state._metadata["result"] = dict(
-                raw=False, result_handler=serialized_handler
-            )
-            result = TaskRunner(Task()).initialize_run(
-                state=state, context={}, upstream_states={}
-            )
-
-        assert result.state.result == 42
 
 
 class TestCheckUpstreamFinished:

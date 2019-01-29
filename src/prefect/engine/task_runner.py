@@ -147,7 +147,6 @@ class TaskRunner(Runner):
             - tuple: a tuple of the updated state, context, upstream_states, and inputs objects
         """
         state, context = super().initialize_run(state=state, context=context)
-        state.ensure_raw()
 
         if isinstance(state, Retrying):
             run_count = state.run_count + 1
@@ -158,9 +157,6 @@ class TaskRunner(Runner):
             context.update(resume=True)
 
         context.update(task_run_count=run_count, task_name=self.task.name)
-
-        for up_state in upstream_states.values():
-            up_state.ensure_raw()  # ensures no inputs need handling from this point forward
 
         return TaskRunnerInitializeResult(
             state=state, context=context, upstream_states=upstream_states
