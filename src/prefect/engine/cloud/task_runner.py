@@ -206,7 +206,7 @@ class CloudTaskRunner(TaskRunner):
                 )
                 return new_state
 
-        if getattr(state, "cached", None) is not None:
+        if state.is_successful() and state.cached is not None:  # type: ignore
             try:
                 input_handlers = {}
 

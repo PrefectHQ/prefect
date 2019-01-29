@@ -189,6 +189,15 @@ class TestResultHandlerField:
         assert serialized["cached_result"] == {"x": {"y": {"z": 55}}}
         assert serialized["cached_parameters"] == dict(three=3)
 
+    def test_metadata_structure_is_preserved(self):
+        s = state.Success()
+        s._metadata["cached_result"]["raw"] = False
+        s._metadata["cached_inputs"]["x"]["raw"] = False
+        schema = StateSchema()
+        new = schema.load(schema.dump(s))
+        assert "y" not in new._metadata["cached_inputs"]
+        assert new._metadata["cached_inputs"]["y"]["raw"] is True
+
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
 def test_serialize_state(cls):
