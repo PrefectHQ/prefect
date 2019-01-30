@@ -292,13 +292,17 @@ def test_task_runner_accepts_dictionary_of_edges():
 
 def test_task_runner_can_handle_timeouts_by_default():
     sleeper = SlowTask(timeout=1)
+    upstream_state = Success(result=2)
+    upstream_state._metadata["result"]["result_handler"] = "json-blob"
     state = TaskRunner(sleeper).run(
-        upstream_states={Edge(None, sleeper, key="secs"): Success(result=2)}
+        upstream_states={Edge(None, sleeper, key="secs"): upstream_state}
     )
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
     assert state.cached_inputs == dict(secs=2)
+    assert "secs" in state._metadata["cached_inputs"]
+    assert state._metadata["cached_inputs"]["secs"]["result_handler"] == "json-blob"
 
 
 def test_task_runner_handles_secrets():
@@ -1243,6 +1247,27 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
     assert isinstance(state, Mapped)
     assert task_runner_handler.call_count == 2
     assert isinstance(state.map_states[0], TriggerFailed)
+
+
+def test_retry_has_updated_metadata():
+    a, b = Success(result=15), Success(result="abc")
+    a._metadata["result"]["result_handler"] = "json-blob-a"
+    b._metadata["result"]["result_handler"] = "json-blob-b"
+
+    runner = TaskRunner(task=AddTask(max_retries=1, retry_delay=timedelta(days=1)))
+    state = runner.run(
+        upstream_states={
+            Edge(Task(), runner.task, key="x"): a,
+            Edge(Task(), runner.task, key="y"): b,
+        }
+    )
+
+    assert isinstance(state, Retrying)
+    assert state.cached_inputs == dict(x=15, y="abc")
+    assert "x" in state._metadata["cached_inputs"]
+    assert "y" in state._metadata["cached_inputs"]
+    assert state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob-a"
+    assert state._metadata["cached_inputs"]["y"]["result_handler"] == "json-blob-b"
 
 
 def test_pending_raised_from_endrun_has_updated_metadata():
