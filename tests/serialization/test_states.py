@@ -110,7 +110,7 @@ class TestResultHandlerField:
         serialized = schema.dump(s)
         assert serialized["message"] == "hi"
         assert serialized["result"] is None
-        assert serialized["cached_inputs"] is None
+        assert serialized["cached_inputs"] == dict.fromkeys(["x", "y"])
         assert serialized["cached_result"] is None
         assert serialized["cached_parameters"] == dict(three=3)
 
@@ -130,7 +130,7 @@ class TestResultHandlerField:
         serialized = top_serialized["cached"]
         assert serialized["message"] == "hi"
         assert serialized["result"] is None
-        assert serialized["cached_inputs"] is None
+        assert serialized["cached_inputs"] == dict.fromkeys(["x", "y"])
         assert serialized["cached_result"] is None
         assert serialized["cached_parameters"] == dict(three=3)
 
@@ -154,7 +154,7 @@ class TestResultHandlerField:
         s._metadata.update(
             result=dict(raw=False),
             cached_result=dict(raw=True),
-            cached_inputs=dict(raw=False),
+            cached_inputs=dict(x=dict(raw=False), y=dict(raw=False)),
         )
         schema = StateSchema()
         serialized = schema.dump(s)
@@ -175,7 +175,7 @@ class TestResultHandlerField:
         s._metadata.update(
             result=dict(raw=False),
             cached_result=dict(raw=False),
-            cached_inputs=dict(raw=False),
+            cached_inputs=dict(x=dict(raw=False), y=dict(raw=False)),
         )
         top_state = state.Success(message="hello", cached=s)
         schema = StateSchema()
@@ -206,6 +206,14 @@ class TestResultHandlerField:
         assert "cached_result" in new._metadata
         assert new._metadata["result"]["raw"] is True
         assert new._metadata["cached_inputs"]["_def_not_real"]["raw"] is True
+
+    def test_cached_inputs_can_be_partially_serialized(self):
+        schema = StateSchema()
+        pending = state.Pending(cached_inputs=dict(x=1, y="str"))
+        pending._metadata.cached_inputs.update(x=dict(raw=False), y=dict(raw=True))
+        new = schema.load(schema.dump(pending))
+        assert new.cached_inputs["x"] == 1
+        assert new.cached_inputs["y"] is None
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
@@ -291,7 +299,7 @@ def test_complex_state_attributes_are_handled(state):
         result=dict(raw=False),
         cached_result=dict(raw=False),
         cached_parameters=dict(raw=False),
-        cached_inputs=dict(raw=False),
+        cached_inputs=defaultdict(lambda: {"raw": False}),
     )
     serialized = StateSchema().dump(state)
     deserialized = StateSchema().load(serialized)
