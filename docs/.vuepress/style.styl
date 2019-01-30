@@ -1,35 +1,48 @@
-/* Prefect Custom Styles */
+/* prefect custom styling overriding default vuepress theme */
 
 // importing prefect fonts
 @import url('https://rsms.me/inter/inter-ui.css');
 @import url('https://use.typekit.net/cvp6pli.css');
 
-// prefect colors
-
-$bluePrimary = #27b1ff;
+// prefect palette
+$bluePrimary 	= #27b1ff;
 $blueSecondary = #3b8dff;
 $blueTertiary = #1061d0;
 $pink = #fe5196;
-$orange = #ee9900;
+$orange = #e90;
 
-$greyLight = #f6f6fc; 
+// neutrals
 $grey = #a5b4be;
 $greyDark = #4d606e;
 
+$greyBorder = #f6f6fc; 
 $greyBg = #fbfcfd;
-
 $white = #fff;
 $black = #000;
 
-// setting prefect fonts
+// prefect fonts
 $fontPrimary = 'Inter UI', Helvetica, Arial, sans-serif;
 $fontSecondary = Arboria, Helvetica, Arial, sans-serif;
 $fontCode = source-code-pro, Menlo, Consolas, monospace;
 
+// font weights
 $bold = 700;
 $normal = 400;
 $light = 300;
 
+// link selectors
+$aLink = 'a, a:active, a:visited, a span';
+
+// button selector
+$button = 'button, .action-button, .home .hero .action-button';
+
+// hover & pocus states
+$onHover = '&:hover, &:focus';
+
+// breakpoints
+$mobile = 'max-width: 719px';
+
+// typography settings
 body,
 p {
 	color: $greyDark;
@@ -52,14 +65,15 @@ h5,
 h6 {
 	color: $greyDark;
 	font-family: $fontSecondary;
+	font-weight: $bold;
 }
 
-a {
+{$aLink} {
 	color: $bluePrimary;
 
-	&:hover,
-	&:focus {
+	{$onHover} {
 		color: $blueSecondary;
+		cursor: pointer;
 	}
 }
 
@@ -70,45 +84,202 @@ b {
 
 em,
 i {
-	font-style: $italic;
+	font-style: italic;
 }
 
-// prefect code syntax
+// nav bar
+.navbar {
+	{$aLink} {
+		color: $greyDark;
+
+		{$onHover} {
+			color: $bluePrimary;
+		}
+	}
+
+	@media screen and ({$mobile}) {
+		img,
+		.logo {
+			position: absolute;
+			left: 50%;
+		}
+	}	
+}
+
+// sidebar links
+.sidebar {
+	a,
+	^[0]-link,
+	^[0]-heading {
+		color: $greyDark;
+
+		{$onHover} {
+			color: $grey;
+		}
+	}
+	.arrow {
+		top: 0;
+
+		&.right {
+			border-left: 0.375em solid $greyDark;
+		}
+
+		&.left {
+			border-right: 0.375em solid $greyDark;
+		}
+	}	
+}
+
+//
+.home {
+	.features {
+		border-bottom: 0.0625em solid $grey;
+		border-top: 0.0625em solid $grey;
+		margin: 2.5em 0;
+
+		h2 {
+			font-weight: $bold;
+		}
+	}
+}
+
+// footer
+.footer {
+	margin-top: 2.5em;
+}
+
+// buttons
+{$button} {
+	background-color: $bluePrimary;
+	border: none;
+	border-bottom: 0.0625em solid $blueTertiary;
+	color: $white;
+	font-family: $fontPrimary;
+	margin: 1em;
+
+	{$onHover} {
+		background-color: $blueSecondary;
+		cursor: pointer;
+	}
+
+	{$aLink} {
+		color: $white;
+	}
+}
+
+// custom tip and warning blocks
+.custom-block {
+	&.tip {
+		border-color: $blueSecondary;
+		background-color: $greyBg;
+	}
+
+	&.warning {
+		background-color: lighten($orange, 90%);
+		border-color: $orange;
+		color: $greyDark;
+
+		 $title = 'p.custom-block-title';
+	 
+		{$title} {
+			color: $greyDark;
+		}
+	}
+}
+
+// tables
+tr {
+	background-color: $white;
+
+	&:nth-child(2n) {
+		background-color: lighten($greyBg, 75%);
+	}
+}
+
+// unique text styling
+.note {
+	font-size: 0.825em;
+	font-style: italic;
+}
+
+/* code syntax highlighting */
 
 .content {
 	div[class*="language-"] {
-			background-color: $greyBg;
+		background-color: $greyBg;
 
-			&::before {
-				color: $greyDark;
-			}
+		&::before {
+			color: $greyDark;
+		}
 
-			pre,
-			code {	
-				background: transparent;
-				color: $greyDark;
-				z-index: 1;
-			}
-		}	
+		pre,
+		code {	
+			background: transparent;
+			color: $greyDark;
+			z-index: 1;
+			white-space: pre;
+		}
+	}	
 
 	pre, 
 	pre[class*="language-"] {
 		background-color: $greyBg;
 		border-radius: 0.5em;
-		border: solid 0.125em $greyLight;
+		border: solid 0.125em $greyBorder;
 		color: $greyDark;
 		font-family: $fontCode;
 		line-height: 1.4;
 		margin: 0.85rem 0;
 		overflow: auto;
 		padding: 1.25rem 1.5rem;
+		white-space: pre;
 	}
 
 	code {
+    border-radius: 0.25em;		
 		color: $greyDark;
 		font-family: $fontCode;
+		font-size: 0.875em;
 		padding: 0.25em 0.5em;
-    border-radius: 0.25em;
+		white-space: pre;
+	}
+}
+
+.content {
+	div[class*="language-graphql"] {
+		&::before {
+			content: 'gql';
+			position: absolute;
+			z-index: 3;
+			top: 0.8em;
+			right: 1em;
+			font-size: 0.75rem;
+		}
+	}
+}
+
+// source docs
+.content {
+	div[class="sig"] {
+		background-color: lighten($bluePrimary, 95%);
+		border-top: 0.325em solid $blueSecondary;
+		font-family: $fontCode;
+		font-size: 0.875em;
+		line-height: 1.5em;
+		padding: 1.5em 2em 3.5em 5em;
+		text-indent: -2.5em;
+
+		span a {
+			clear: both;
+			color: $blueTertiary;
+			float: right;
+			font-size: 0.875em;
+			margin-top: 1em;
+
+			{$onHover} {
+				font-weight: $bold;
+			}
+		}
 	}
 }
 
@@ -116,17 +287,19 @@ i {
 .token.prolog,
 .token.doctype,
 .token.cdata {
-	color: $grey;
-	font-style: $italic;
+	color: darken($grey, 25%);
+	font-style: italic;
 }
 
 .token.punctuation {
-    color: $blueTertiary;
+  color: $blueTertiary;
 }
 
 .namespace {
 	opacity: .75;
 }
+
+$token = '.token';
 
 .token.property,
 .token.tag,
@@ -148,7 +321,7 @@ i {
 }
 
 .token.builtin {
-    color: $bluePrimary;
+  color: $bluePrimary;
 }
 
 .token.operator,
@@ -166,9 +339,8 @@ i {
 .token.attr-value,
 .token.keyword {
 	color: $bluePrimary;
-	font-style: $italic;
+	font-style: italic;
 	font-weight: $bold;
-
 }
 
 .token.regex,
@@ -181,94 +353,9 @@ i {
 	font-weight: $bold;
 }
 .token.italic {
-	font-style: $italic;
+	font-style: italic;
 }
 
 .token.entity {
 	cursor: help;
-}
-
-// sidebar
-.sidebar-heading {
-	color: $greyDark;
-
-	&:hover,
-	&:focus {
-		color: $grey;
-	}
-}
-
-.arrow {
-	top: 0;
-
-	&.right {
-		border-left: 0.375em solid $greyDark;
-	}
-
-	&.left {
-		border-right: 0.375em solid $greyDark;
-	}
-}
-
-
-// buttons
-button,
-.action-button,
-.home .hero .action-button {
-	background-color: $bluePrimary;
-	border: 0;
-	border-bottom: 0.0625em solid $blueTertiary;
-	font-family: $fontPrimary;
-
-	&:hover,
-	&:focus {
-		background-color: $blueSecondary;
-		cursor: pointer;
-	}
-
-	a {
-		color: $white;
-	}
-}
-
-// homepage specific
-.home {
-
-	.feature h2 {
-		font-weight: $bold;
-	}
-
-	p.note {
-		font-size: 0.875em;
-		font-style: italic;
-		max-width: 85%;
-		margin: 0 auto;
-	}	
-
-	.action {
-		display: flex;
-		justify-content: center;
-
-		> * {
-			margin: 0 1em;
-		}
-	}	
-}
-
-// custom tip and warning blocks
-.custom-block {
-	&.tip {
-		border-color: $blueSecondary;
-		background-color: $greyBg;		
-	}
-
-	&.warning {
-		background-color: lighten($orange, 90%);
-		border-color: $orange;
-		color: $greyDark;
-
-		.custom-block-title {
-			color: $greyDark;
-		}
-	}
 }
