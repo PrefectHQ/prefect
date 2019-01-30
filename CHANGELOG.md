@@ -5,6 +5,7 @@
 ### Major Features
 
 - Add ability to run scheduled flows locally via `on_schedule` kwarg in `flow.run()` - [#519](https://github.com/PrefectHQ/prefect/issues/519)
+- Allow tasks to specify their own result handlers, ensure inputs and outputs are stored only when necessary, and ensure no raw data is sent to the database - [#587](https://github.com/PrefectHQ/prefect/pull/587)
 
 ### Minor Features
 
@@ -19,6 +20,8 @@
 - Allow flows to be deployed to Prefect Cloud without a project id - [#571](https://github.com/PrefectHQ/prefect/pull/571)
 - Introduce serialization schemas for ResultHandlers - [#572](https://github.com/PrefectHQ/prefect/issues/572)
 - Add new `metadata` attribute to States for managing user-generated results - [#573](https://github.com/PrefectHQ/prefect/issues/573)
+- Add new 'JSONResultHandler' for serializing small bits of data without external storage - [#576](https://github.com/PrefectHQ/prefect/issues/576)
+- Use `JSONResultHandler` for all Parameter caching - [#590](https://github.com/PrefectHQ/prefect/pull/590)
 
 ### Fixes
 
@@ -29,6 +32,8 @@
 - Ensure unexpected errors raised in FlowRunners are robustly handled - [#568](https://github.com/PrefectHQ/prefect/pull/568)
 - Fixed non-deterministic errors in mapping caused by clients resolving futures of other clients - [#569](https://github.com/PrefectHQ/prefect/pull/569)
 - Older versions of Prefect will now ignore fields added by newer versions when deserializing objects - [#583](https://github.com/PrefectHQ/prefect/pull/583)
+- Result handler failures now result in clear task run failures - [#575](https://github.com/PrefectHQ/prefect/issues/575)
+- Fix issue deserializing old states with empty metadata - [#590](https://github.com/PrefectHQ/prefect/pull/590)
 
 ### Breaking Changes
 
