@@ -193,7 +193,6 @@ class CloudTaskRunner(TaskRunner):
                         input_handlers[edge.key] = upstream_state._metadata["result"][
                             "result_handler"
                         ]
-
                 state.handle_inputs(input_handlers)
             except Exception as exc:
                 self.logger.debug(
