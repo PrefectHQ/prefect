@@ -141,10 +141,6 @@ class State:
         """
         Handles the `cached_result` attribute of this state (if it has one).
 
-        Args:
-            - result_handler (ResultHandler): the result handler to use when
-                processing the `cached_result`
-
         Modifies the state object in place.
         """
         from prefect.serialization.result_handlers import ResultHandlerSchema
