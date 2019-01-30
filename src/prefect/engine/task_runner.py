@@ -300,27 +300,21 @@ class TaskRunner(Runner):
 
                 # run the task
                 state = self.get_task_run_state(
-                    state, inputs=task_inputs, timeout_handler=executor.timeout_handler
+                    state,
+                    inputs=task_inputs,
+                    timeout_handler=executor.timeout_handler,
+                    upstream_states=upstream_states,
                 )
-                if hasattr(state, "cached_inputs"):
-                    state.update_input_metadata(
-                        self._get_upstream_result_handlers(upstream_states)
-                    )
 
                 # cache the output, if appropriate
-                state = self.cache_result(state, inputs=task_inputs)
-                if hasattr(state, "cached") and hasattr(state.cached, "cached_inputs"):
-                    state.cached.update_input_metadata(
-                        self._get_upstream_result_handlers(upstream_states)
-                    )
-                    state.cached.update_output_metadata(self.result_handler)
+                state = self.cache_result(
+                    state, inputs=task_inputs, upstream_states=upstream_states
+                )
 
                 # check if the task needs to be retried
-                state = self.check_for_retry(state, inputs=task_inputs)
-                if hasattr(state, "cached_inputs"):
-                    state.update_input_metadata(
-                        self._get_upstream_result_handlers(upstream_states)
-                    )
+                state = self.check_for_retry(
+                    state, inputs=task_inputs, upstream_states=upstream_states
+                )
 
         # for pending signals, including retries and pauses we need to make sure the
         # task_inputs are set
@@ -799,7 +793,11 @@ class TaskRunner(Runner):
     @run_with_heartbeat
     @call_state_handlers
     def get_task_run_state(
-        self, state: State, inputs: Dict[str, Any], timeout_handler: Optional[Callable]
+        self,
+        state: State,
+        inputs: Dict[str, Any],
+        timeout_handler: Optional[Callable],
+        upstream_states: Dict[Edge, State],
     ) -> State:
         """
         Runs the task and traps any signals or errors it raises.
@@ -842,14 +840,20 @@ class TaskRunner(Runner):
         except TimeoutError as exc:
             if prefect.context.get("raise_on_exception"):
                 raise exc
-            return TimedOut(
+            state = TimedOut(
                 "Task timed out during execution.", result=exc, cached_inputs=inputs
             )
+            state.update_input_metadata(
+                self._get_upstream_result_handlers(upstream_states)
+            )
+            return state
 
         return Success(result=result, message="Task run succeeded.")
 
     @call_state_handlers
-    def cache_result(self, state: State, inputs: Dict[str, Any]) -> State:
+    def cache_result(
+        self, state: State, inputs: Dict[str, Any], upstream_states: Dict[Edge, State]
+    ) -> State:
         """
         Caches the result of a successful task, if appropriate.
 
@@ -879,6 +883,10 @@ class TaskRunner(Runner):
                 cached_parameters=prefect.context.get("parameters"),
                 cached_result=state.result,
             )
+            cached_state.update_input_metadata(
+                self._get_upstream_result_handlers(upstream_states)
+            )
+            cached_state.update_output_metadata(self.result_handler)
             return Success(
                 result=state.result, message=state.message, cached=cached_state
             )
@@ -886,7 +894,9 @@ class TaskRunner(Runner):
         return state
 
     @call_state_handlers
-    def check_for_retry(self, state: State, inputs: Dict[str, Any]) -> State:
+    def check_for_retry(
+        self, state: State, inputs: Dict[str, Any], upstream_states: Dict[Edge, State]
+    ) -> State:
         """
         Checks to see if a FAILED task should be retried.
 
@@ -905,11 +915,15 @@ class TaskRunner(Runner):
                 msg = "Retrying Task (after attempt {n} of {m})".format(
                     n=run_count, m=self.task.max_retries + 1
                 )
-                return Retrying(
+                retry_state = Retrying(
                     start_time=start_time,
                     cached_inputs=inputs,
                     message=msg,
                     run_count=run_count,
                 )
+                retry_state.update_input_metadata(
+                    self._get_upstream_result_handlers(upstream_states)
+                )
+                return retry_state
 
         return state
