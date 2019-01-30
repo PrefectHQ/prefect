@@ -231,7 +231,7 @@ def get_source(obj):
         line_no = inspect.getsourcelines(obj)[1]
         url_ending = "/".join(dir_struct[begins_at:]) + f"#L{line_no}"
         link = f'<a href="{base_url}{url_ending}">[source]</a>'
-    source_tag = f'<span>{link}</span>'
+    source_tag = f"<span>{link}</span>"
     return source_tag
 
 
