@@ -84,6 +84,21 @@ class State:
     def __hash__(self) -> int:
         return id(self)
 
+    def update_input_metadata(self, input_handlers) -> None:
+        """
+        Updates the `cached_inputs` metadata entry of this state with all appropriate result handlers.
+
+        Args:
+            - input_handlers (dict): the individual serialized result handlers to use when
+                processing each variable in `cached_inputs`
+
+        Modifies the state object in place.
+        """
+        for variable in self.cached_inputs or {}:  # type: ignore
+            self._metadata["cached_inputs"][variable][
+                "result_handler"
+            ] = input_handlers[variable]
+
     def handle_inputs(self, input_handlers: dict) -> None:
         """
         Handles the `cached_inputs` attribute of this state (if it has one).

@@ -1243,3 +1243,20 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
     assert isinstance(state, Mapped)
     assert task_runner_handler.call_count == 2
     assert isinstance(state.map_states[0], TriggerFailed)
+
+
+def test_pending_raised_from_endrun_has_updated_metadata():
+    class EndRunTask(Task):
+        def run(self, x):
+            raise ENDRUN(state=Pending("abc"))
+
+    upstream_state = Success(result=15)
+    upstream_state._metadata["result"]["result_handler"] = "json-blob"
+
+    runner = TaskRunner(task=EndRunTask())
+    state = runner.run(upstream_states={Edge(Task(), Task(), key="x"): upstream_state})
+
+    assert state.is_pending()
+    assert state.cached_inputs == dict(x=15)
+    assert "x" in state._metadata["cached_inputs"]
+    assert state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob"
