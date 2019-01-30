@@ -117,9 +117,7 @@ class MappedSchema(SuccessSchema):
     @post_load
     def create_object(self, data):
         n_map_states = data.pop("n_map_states", 0)
-        data["map_states"] = [
-            state.Pending("Generated map state") for _ in range(n_map_states)
-        ]
+        data["map_states"] = [None for _ in range(n_map_states)]
         return super().create_object(data)
 
 
