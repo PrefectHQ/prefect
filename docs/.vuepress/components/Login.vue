@@ -1,5 +1,5 @@
 <template>
-  <div class="home">
+  <div class="home login-screen">
     <div class="hero">
       <img class="logo" src='/assets/logomark-color.svg'>
       <h1>Prefect (Preview)</h1>
@@ -25,8 +25,10 @@ export default {
 </script>
 
 <style lang="stylus">
-.logo {
-  height: 18.75em;
-  margin: 6.25em 0 3em;
+.login-screen {
+  .logo {
+    height: 18.75em;
+    margin: 6.25em 0 3em;
+  }
 }
 </style>
