@@ -156,9 +156,8 @@ def test_create_absolute_path_on_nonprefect_object(obj, exp):
 def test_format_subheader_on_class():
     doc = format_subheader(A)
     assert doc == (
-        "  <div class='sig' style='padding-left:3.5em;text-indent:-3.5em;'>"
-        '<em><b>class </b></em><b>A</b>(attr, keep=True)<span style="text-align:right;'
-        ' float:right; font-size:0.8em; width: 50%; max-width: 6em; display: inline-block;">[source]</span></div>\n\n'
+        "  <div class='sig'>"
+        '<em><b>class </b></em><b>A</b>(attr, keep=True)<span>[source]</span></div>\n\n'
     )
 
 

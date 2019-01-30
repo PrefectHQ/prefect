@@ -10,9 +10,7 @@
 import Layout from '@default-theme/Layout.vue'
 
 export default {
-  components: {
-    Layout
-  },
+  components: { Layout },
   data() {
     var loggedIn = false
     if (process.env.PREFECT_DOCS_DEV_MODE === "1"){

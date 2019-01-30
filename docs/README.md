@@ -1,7 +1,6 @@
 ---
 home: true
 heroImage: /assets/logomark-color.svg
-
 footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
 <div class='hero'>
@@ -32,7 +31,6 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
         <p>Prefect's beautiful API is powered by Dask and Kubernetes, so it's ready for anything.</p>
     </div>
 </div>
-<div class='features' style="padding-bottom: 0px; margin-top: 1em;"></div>
 
 ### Prefect
 
