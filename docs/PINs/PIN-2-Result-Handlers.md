@@ -1,5 +1,5 @@
 ---
-title: 'PIN-2: Proper Implementation of Result Handlers and State Metadata'
+title: 'PIN-2: Result Handlers & Metadata'
 sidebarDepth: 0
 ---
 

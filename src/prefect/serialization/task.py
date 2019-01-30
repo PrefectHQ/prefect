@@ -16,10 +16,9 @@ from prefect.utilities.serialization import (
     UUID,
     FunctionReference,
     JSONCompatible,
-    VersionedSchema,
+    ObjectSchema,
     from_qualified_name,
     to_qualified_name,
-    version,
 )
 
 
@@ -55,11 +54,10 @@ class TaskMethodsMixin:
         return self.context["task_id_cache"][task_id]
 
 
-@version("0.3.3")
-class TaskSchema(TaskMethodsMixin, VersionedSchema):
+class TaskSchema(TaskMethodsMixin, ObjectSchema):
     class Meta:
         object_class = lambda: prefect.core.Task
-        object_class_exclude = ["id", "type"]
+        exclude_fields = ["id", "type"]
 
     id = UUID()
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
@@ -101,11 +99,10 @@ class TaskSchema(TaskMethodsMixin, VersionedSchema):
     )
 
 
-@version("0.3.3")
-class ParameterSchema(TaskMethodsMixin, VersionedSchema):
+class ParameterSchema(TaskMethodsMixin, ObjectSchema):
     class Meta:
         object_class = lambda: prefect.core.task.Parameter
-        object_class_exclude = ["id", "type"]
+        exclude_fields = ["id", "type"]
 
     id = UUID()
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
