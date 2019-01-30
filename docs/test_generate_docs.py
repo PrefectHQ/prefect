@@ -157,7 +157,7 @@ def test_format_subheader_on_class():
     doc = format_subheader(A)
     assert doc == (
         "  <div class='sig'>"
-        '<em><b>class </b></em><b>A</b>(attr, keep=True)<span>[source]</span></div>\n\n'
+        "<em><b>class </b></em><b>A</b>(attr, keep=True)<span>[source]</span></div>\n\n"
     )
 
 
