@@ -13,6 +13,7 @@ import prefect
 from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
+from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
 from prefect.engine.signals import PrefectError
 from prefect.engine.state import Failed, Mapped, Skipped, State, Success, TriggerFailed
 from prefect.tasks.core.function import FunctionTask
@@ -82,6 +83,19 @@ class TestCreateFlow:
     def test_flow_has_logger(self):
         f = Flow()
         assert isinstance(f.logger, logging.Logger)
+
+    def test_create_flow_with_result_handler(self):
+        f = Flow(result_handler=ResultHandler())
+        assert isinstance(f.result_handler, ResultHandler)
+
+    def test_create_flow_without_result_handler_uses_config(self):
+        with set_temporary_config(
+            {
+                "engine.result_handler.default_class": "prefect.engine.result_handlers.local_result_handler.LocalResultHandler"
+            }
+        ):
+            f = Flow()
+            assert isinstance(f.result_handler, LocalResultHandler)
 
 
 def test_add_task_to_flow():
