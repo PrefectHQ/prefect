@@ -251,19 +251,11 @@ class TaskRunner(Runner):
 
                     state = self.wait_for_mapped_task(state=state, executor=executor)
 
-                    if state.is_mapped():
-
-                        self.logger.debug(
-                            "Task '{name}': task has been mapped; ending run.".format(
-                                name=context["task_full_name"]
-                            )
+                    self.logger.debug(
+                        "Task '{name}': task has been mapped; ending run.".format(
+                            name=context["task_full_name"]
                         )
-                    else:
-                        self.logger.debug(
-                            "Task '{name}': Error encountered during mapping.".format(
-                                name=context["task_full_name"]
-                            )
-                        )
+                    )
                     raise ENDRUN(state)
 
                 if check_upstream:
