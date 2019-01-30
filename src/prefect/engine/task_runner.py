@@ -652,7 +652,7 @@ class TaskRunner(Runner):
         # infinite loop, if upstream_states has any entries
         while True and upstream_states:
             i = next(counter)
-            i_states = {}
+            states = {}
 
             try:
 
@@ -660,7 +660,7 @@ class TaskRunner(Runner):
 
                     # if the edge is not mapped over, then we simply take its state
                     if not edge.mapped:
-                        i_states[edge] = upstream_state
+                        states[edge] = upstream_state
 
                     # if the edge is mapped and the upstream state is Mapped, then we are mapping
                     # over a mapped task. In this case, we take the appropriately-indexed upstream
@@ -668,18 +668,31 @@ class TaskRunner(Runner):
                     # Note that these "states" might actually be futures at this time; we aren't
                     # blocking until they finish.
                     elif edge.mapped and upstream_state.is_mapped():
-                        i_states[edge] = upstream_state.map_states[i]  # type: ignore
+                        states[edge] = upstream_state.map_states[i]  # type: ignore
 
                     # Otherwise, we are mapping over the result of a "vanilla" task. In this
                     # case, we create a copy of the upstream state but set the result to the
                     # appropriately-indexed item from the upstream task's `State.result`
                     # array.
                     else:
-                        i_states[edge] = copy.copy(upstream_state)
-                        i_states[edge].result = upstream_state.result[i]  # type: ignore
+                        states[edge] = copy.copy(upstream_state)
+
+                        # if the current state is already Mapped, then we might be executing
+                        # a re-run of the mapping pipeline. In that case, the upstream states
+                        # might not have `result` attributes (as any required results could be
+                        # in the `cached_inputs` attribute of one of the child states).
+                        # Therefore, we only try to get a result if EITHER this task's
+                        # state is not already mapped OR the upstream result is not None.
+                        if not state.is_mapped() or upstream_state.result is not None:
+                            states[edge].result = upstream_state.result[ # type: ignore
+                                i
+                            ]
+                        elif state.is_mapped():
+                            if i >= len(state.map_states):  # type: ignore
+                                raise IndexError()
 
                 # only add this iteration if we made it through all iterables
-                map_upstream_states.append(i_states)
+                map_upstream_states.append(states)
 
             # index error means we reached the end of the shortest iterable
             except IndexError:
