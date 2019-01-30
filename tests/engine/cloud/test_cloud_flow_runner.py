@@ -1,24 +1,27 @@
 import uuid
 import time
+from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
 
 import prefect
 from prefect.client import Client
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 
 from prefect.engine.state import (
     Failed,
     Finished,
     Pending,
+    Retrying,
     Running,
     Skipped,
     Success,
     TimedOut,
     TriggerFailed,
 )
+from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -38,7 +41,7 @@ def cloud_settings():
 @pytest.fixture()
 def client(monkeypatch):
     cloud_client = MagicMock(
-        get_flow_run_info=MagicMock(return_value=MagicMock(state=None)),
+        get_flow_run_info=MagicMock(return_value=MagicMock(state=None, parameters={})),
         set_flow_run_state=MagicMock(),
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
         set_task_run_state=MagicMock(),
@@ -243,3 +246,26 @@ def test_heartbeat_traps_errors_caused_by_client(monkeypatch):
     assert client.update_flow_run_heartbeat.called
     w = warning.pop()
     assert "Heartbeat failed for Flow 'bad'" in repr(w.message)
+
+
+def test_task_failure_caches_inputs_automatically(client):
+    serialized_handler = ResultHandlerSchema().dump(JSONResultHandler())
+
+    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=10))
+    def is_p_three(p):
+        if p == 3:
+            raise ValueError("No thank you.")
+
+    with prefect.Flow("test") as f:
+        p = prefect.Parameter("p")
+        res = is_p_three(p)
+
+    state = CloudFlowRunner(flow=f).run(return_tasks=[res], parameters=dict(p=3))
+    assert state.is_running()
+    assert isinstance(state.result[res], Retrying)
+    assert state.result[res]._metadata["cached_inputs"]["p"]["raw"] is False
+    assert (
+        state.result[res]._metadata["cached_inputs"]["p"]["result_handler"]
+        == serialized_handler
+    )
+    assert state.result[res].cached_inputs["p"] == "3"
