@@ -6,6 +6,8 @@ import uuid
 import pendulum
 import pytest
 
+from collections import defaultdict
+
 import prefect
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
@@ -273,7 +275,7 @@ def test_serialize_and_deserialize_with_no_metadata():
     assert new_state.result is None
     assert isinstance(new_state.cached, CachedState)
     assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
-    assert new_state.cached.cached_inputs is None
+    assert new_state.cached.cached_inputs == dict.fromkeys(["x", "p"])
     assert new_state.cached.cached_result is None
 
 
@@ -285,7 +287,8 @@ def test_serialize_and_deserialize_with_metadata():
         cached_result_expiration=now,
     )
     cached._metadata.update(
-        cached_inputs=dict(raw=False), cached_result=dict(raw=False)
+        cached_inputs=defaultdict(lambda: dict(raw=False)),
+        cached_result=dict(raw=False),
     )
     state = Success(result=dict(hi=5, bye=6), cached=cached)
     state._metadata.update(dict(result=dict(raw=False)))
@@ -302,7 +305,7 @@ def test_serialize_and_deserialize_with_metadata():
 
 def test_serialization_of_cached_inputs():
     state = Pending(cached_inputs=dict(hi=5, bye=6))
-    state._metadata.update(cached_inputs=dict(raw=False))
+    state._metadata.update(cached_inputs=defaultdict(lambda: dict(raw=False)))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Pending)
@@ -314,7 +317,7 @@ def test_serialization_of_cached_inputs_with_no_metadata():
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Pending)
-    assert new_state.cached_inputs is None
+    assert new_state.cached_inputs == dict.fromkeys(["hi", "bye"])
 
 
 def test_state_equality():
