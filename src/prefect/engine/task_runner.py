@@ -809,6 +809,9 @@ class TaskRunner(Runner):
             - timeout_handler (Callable, optional): function for timing out
                 task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
                 `prefect.utilities.executors.main_thread_timeout`
+            - upstream_states (Dict[Edge, State]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the edges leading to the task.
 
         Returns:
             - State: the state of the task after running the check
@@ -866,6 +869,9 @@ class TaskRunner(Runner):
             - state (State): the current state of this task
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
+            - upstream_states (Dict[Edge, State]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the edges leading to the task.
 
         Returns:
             - State: the state of the task after running the check
@@ -904,6 +910,9 @@ class TaskRunner(Runner):
             - state (State): the current state of this task
             - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
+            - upstream_states (Dict[Edge, State]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the edges leading to the task.
 
         Returns:
             - State: the state of the task after running the check
