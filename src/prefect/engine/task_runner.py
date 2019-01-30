@@ -248,7 +248,17 @@ class TaskRunner(Runner):
                         context=context,
                         executor=executor,
                     )
-                    if not state.is_mapped():
+
+                    state = self.wait_for_mapped_task(state=state, executor=executor)
+
+                    if state.is_mapped():
+
+                        self.logger.debug(
+                            "Task '{name}': task has been mapped; ending run.".format(
+                                name=context["task_full_name"]
+                            )
+                        )
+                    else:
                         self.logger.debug(
                             "Task '{name}': Error encountered during mapping.".format(
                                 name=context["task_full_name"]
@@ -684,7 +694,7 @@ class TaskRunner(Runner):
                         # Therefore, we only try to get a result if EITHER this task's
                         # state is not already mapped OR the upstream result is not None.
                         if not state.is_mapped() or upstream_state.result is not None:
-                            states[edge].result = upstream_state.result[ # type: ignore
+                            states[edge].result = upstream_state.result[  # type: ignore
                                 i
                             ]
                         elif state.is_mapped():
@@ -723,17 +733,29 @@ class TaskRunner(Runner):
         map_states = executor.map(
             run_fn, initial_states, range(len(map_upstream_states)), map_upstream_states
         )
-        map_states = executor.wait(map_states)
 
-        # else enter a new Mapped state
-        self.logger.debug(
-            "Task '{name}': task has been mapped; ending run.".format(
-                name=prefect.context.get("task_full_name", self.task.name)
-            )
-        )
         return Mapped(
             message="Mapped tasks submitted for execution.", map_states=map_states
         )
+
+    @call_state_handlers
+    def wait_for_mapped_task(
+        self, state: State, executor: "prefect.engine.executors.Executor"
+    ) -> State:
+        """
+        Blocks until a mapped state's children have finished running.
+
+        Args:
+            - state (State): the current `Mapped` state
+            - executor (Executor): the run's executor
+
+        Returns:
+            - State: the new state
+        """
+        if state.is_mapped():
+            assert isinstance(state, Mapped)  # mypy assert
+            state.map_states = executor.wait(state.map_states)
+        return state
 
     @call_state_handlers
     def set_task_to_running(self, state: State) -> State:
