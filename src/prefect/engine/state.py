@@ -84,7 +84,7 @@ class State:
     def __hash__(self) -> int:
         return id(self)
 
-    def update_input_metadata(self, input_handlers) -> None:
+    def update_input_metadata(self, input_handlers: dict) -> None:
         """
         Updates the `cached_inputs` metadata entry of this state with all appropriate result handlers.
 
@@ -109,8 +109,8 @@ class State:
 
         schema = ResultHandlerSchema()
         input_handlers = {
-            var: schema.load(dd["result_handler"])
-            for var, dd in self._metadata["cached_inputs"].items()
+            var: schema.load(self._metadata["cached_inputs"][var]["result_handler"])
+            for var in (self.cached_inputs or {})  # type: ignore
         }
 
         for variable in self.cached_inputs:  # type: ignore

@@ -91,11 +91,14 @@ class CloudTaskRunner(TaskRunner):
         version = prefect.context.get("task_run_version")
 
         try:
-            if getattr(state, "cached_inputs", None) is not None:
-                state.handle_inputs()
-            if state.is_successful() and state.cached is not None:  # type: ignore
-                state.cached.handle_inputs()  # type: ignore
-                state.cached.handle_outputs()  # type: ignore
+            if getattr(new_state, "cached_inputs", None) is not None:
+                new_state.handle_inputs()
+            if (
+                new_state.is_successful()
+                and new_state.cached is not None  # type: ignore
+            ):
+                new_state.cached.handle_inputs()  # type: ignore
+                new_state.cached.handle_outputs()  # type: ignore
             self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
