@@ -262,7 +262,7 @@ def test_deserialize_mapped():
     deserialized = StateSchema().load(serialized)
     assert isinstance(deserialized, state.Mapped)
     assert len(deserialized.map_states) == 2
-    assert all([isinstance(s, state.Pending) for s in deserialized.map_states])
+    assert deserialized.map_states == [None, None]
     assert deserialized.result == None
 
 
