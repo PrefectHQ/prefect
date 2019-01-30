@@ -661,8 +661,6 @@ def test_map_over_map_and_unmapped(executor):
 
 @pytest.mark.parametrize("x,y,out", [(1, 2, 3), ([0, 2], [1, 7], [0, 2, 1, 7])])
 def test_task_map_with_all_inputs_unmapped(x, y, out):
-    print(out)
-
     @prefect.task
     def add(x, y):
         return x + y
