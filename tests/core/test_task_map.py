@@ -6,7 +6,7 @@ import pytest
 
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
-from prefect.engine.state import Mapped, Success
+from prefect.engine.state import Mapped, Success, Pending, Retrying
 from prefect.utilities.debug import raise_on_exception
 from prefect.utilities.tasks import task, unmapped
 
@@ -660,7 +660,7 @@ def test_map_over_map_and_unmapped(executor):
 
 
 @pytest.mark.parametrize("x,y,out", [(1, 2, 3), ([0, 2], [1, 7], [0, 2, 1, 7])])
-def test_task_map_that_doesnt_actually_map(x, y, out):
+def test_task_map_with_all_inputs_unmapped(x, y, out):
     print(out)
 
     @prefect.task
@@ -674,3 +674,84 @@ def test_task_map_that_doesnt_actually_map(x, y, out):
     assert flow_state.is_successful()
     assert flow_state.result[res].is_successful()
     assert flow_state.result[res].result == out
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
+    """
+    This test makes sure that mapped tasks properly generate children tasks even when
+    run multiple times and without available upstream results. In this test, we run the pipeline
+    from a variety of starting points, ensuring that some upstream results are unavailable and
+    checking that children pipelines are properly regenerated.
+    """
+
+    @prefect.task
+    def numbers():
+        return [1, 2, 3]
+
+    @prefect.task
+    def plus_one(x):
+        return x + 1
+
+    @prefect.task
+    def get_sum(x):
+        return sum(x)
+
+    with Flow() as f:
+        n = numbers()
+        x = plus_one.map(n)
+        y = plus_one.map(x)
+        s = get_sum(y)
+
+    # first run with a missing result from `n` but map_states for `x`
+    state = f.run(
+        executor=executor,
+        return_tasks=f.tasks,
+        task_states={
+            n: Success(),
+            x: Mapped(
+                map_states=[Pending(cached_inputs={"x": i}) for i in range(1, 4)]
+            ),
+        },
+    )
+
+    assert state.is_successful()
+    assert state.result[s].result == 12
+
+    # next run with missing results for n and x
+    state = f.run(
+        executor=executor,
+        return_tasks=f.tasks,
+        task_states={
+            n: Success(),
+            x: Mapped(map_states=[Success(), Success(), Success()]),
+            y: Mapped(
+                map_states=[
+                    Success(result=3),
+                    Success(result=4),
+                    Retrying(cached_inputs={"x": 4}),
+                ]
+            ),
+        },
+    )
+
+    assert state.is_successful()
+    assert state.result[s].result == 12
+
+    # next run with missing results for n, x, and y
+    state = f.run(
+        executor=executor,
+        return_tasks=f.tasks,
+        task_states={
+            n: Success(),
+            x: Mapped(map_states=[Success(), Success(), Success()]),
+            y: Mapped(
+                map_states=[Success(result=3), Success(result=4), Success(result=5)]
+            ),
+        },
+    )
+
+    assert state.is_successful()
+    assert state.result[s].result == 12
