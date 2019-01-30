@@ -248,12 +248,14 @@ class TaskRunner(Runner):
                         context=context,
                         executor=executor,
                     )
-                    if not state.is_mapped():
-                        self.logger.debug(
-                            "Task '{name}': Error encountered during mapping.".format(
-                                name=context["task_full_name"]
-                            )
+
+                    state = self.wait_for_mapped_task(state=state, executor=executor)
+
+                    self.logger.debug(
+                        "Task '{name}': task has been mapped; ending run.".format(
+                            name=context["task_full_name"]
                         )
+                    )
                     raise ENDRUN(state)
 
                 if check_upstream:
@@ -652,7 +654,7 @@ class TaskRunner(Runner):
         # infinite loop, if upstream_states has any entries
         while True and upstream_states:
             i = next(counter)
-            i_states = {}
+            states = {}
 
             try:
 
@@ -660,7 +662,7 @@ class TaskRunner(Runner):
 
                     # if the edge is not mapped over, then we simply take its state
                     if not edge.mapped:
-                        i_states[edge] = upstream_state
+                        states[edge] = upstream_state
 
                     # if the edge is mapped and the upstream state is Mapped, then we are mapping
                     # over a mapped task. In this case, we take the appropriately-indexed upstream
@@ -668,18 +670,31 @@ class TaskRunner(Runner):
                     # Note that these "states" might actually be futures at this time; we aren't
                     # blocking until they finish.
                     elif edge.mapped and upstream_state.is_mapped():
-                        i_states[edge] = upstream_state.map_states[i]  # type: ignore
+                        states[edge] = upstream_state.map_states[i]  # type: ignore
 
                     # Otherwise, we are mapping over the result of a "vanilla" task. In this
                     # case, we create a copy of the upstream state but set the result to the
                     # appropriately-indexed item from the upstream task's `State.result`
                     # array.
                     else:
-                        i_states[edge] = copy.copy(upstream_state)
-                        i_states[edge].result = upstream_state.result[i]  # type: ignore
+                        states[edge] = copy.copy(upstream_state)
+
+                        # if the current state is already Mapped, then we might be executing
+                        # a re-run of the mapping pipeline. In that case, the upstream states
+                        # might not have `result` attributes (as any required results could be
+                        # in the `cached_inputs` attribute of one of the child states).
+                        # Therefore, we only try to get a result if EITHER this task's
+                        # state is not already mapped OR the upstream result is not None.
+                        if not state.is_mapped() or upstream_state.result is not None:
+                            states[edge].result = upstream_state.result[  # type: ignore
+                                i
+                            ]
+                        elif state.is_mapped():
+                            if i >= len(state.map_states):  # type: ignore
+                                raise IndexError()
 
                 # only add this iteration if we made it through all iterables
-                map_upstream_states.append(i_states)
+                map_upstream_states.append(states)
 
             # index error means we reached the end of the shortest iterable
             except IndexError:
@@ -710,17 +725,29 @@ class TaskRunner(Runner):
         map_states = executor.map(
             run_fn, initial_states, range(len(map_upstream_states)), map_upstream_states
         )
-        map_states = executor.wait(map_states)
 
-        # else enter a new Mapped state
-        self.logger.debug(
-            "Task '{name}': task has been mapped; ending run.".format(
-                name=prefect.context.get("task_full_name", self.task.name)
-            )
-        )
         return Mapped(
             message="Mapped tasks submitted for execution.", map_states=map_states
         )
+
+    @call_state_handlers
+    def wait_for_mapped_task(
+        self, state: State, executor: "prefect.engine.executors.Executor"
+    ) -> State:
+        """
+        Blocks until a mapped state's children have finished running.
+
+        Args:
+            - state (State): the current `Mapped` state
+            - executor (Executor): the run's executor
+
+        Returns:
+            - State: the new state
+        """
+        if state.is_mapped():
+            assert isinstance(state, Mapped)  # mypy assert
+            state.map_states = executor.wait(state.map_states)
+        return state
 
     @call_state_handlers
     def set_task_to_running(self, state: State) -> State:
