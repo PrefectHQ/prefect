@@ -302,12 +302,24 @@ class TaskRunner(Runner):
                 state = self.get_task_run_state(
                     state, inputs=task_inputs, timeout_handler=executor.timeout_handler
                 )
+                if hasattr(state, "cached_inputs"):
+                    state.update_input_metadata(
+                        self._get_upstream_result_handlers(upstream_states)
+                    )
 
                 # cache the output, if appropriate
                 state = self.cache_result(state, inputs=task_inputs)
+                if hasattr(state, "cached") and hasattr(state.cached, "cached_inputs"):
+                    state.cached.update_input_metadata(
+                        self._get_upstream_result_handlers(upstream_states)
+                    )
 
                 # check if the task needs to be retried
                 state = self.check_for_retry(state, inputs=task_inputs)
+                if hasattr(state, "cached_inputs"):
+                    state.update_input_metadata(
+                        self._get_upstream_result_handlers(upstream_states)
+                    )
 
         # for pending signals, including retries and pauses we need to make sure the
         # task_inputs are set
