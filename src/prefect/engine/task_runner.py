@@ -313,6 +313,7 @@ class TaskRunner(Runner):
                     state.cached.update_input_metadata(
                         self._get_upstream_result_handlers(upstream_states)
                     )
+                    state.cached.update_output_metadata(self.result_handler)
 
                 # check if the task needs to be retried
                 state = self.check_for_retry(state, inputs=task_inputs)

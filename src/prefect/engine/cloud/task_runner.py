@@ -91,6 +91,11 @@ class CloudTaskRunner(TaskRunner):
         version = prefect.context.get("task_run_version")
 
         try:
+            if getattr(state, "cached_inputs", None) is not None:
+                state.handle_inputs()
+            if state.is_successful() and state.cached is not None:  # type: ignore
+                state.cached.handle_inputs()  # type: ignore
+                state.cached.handle_outputs()  # type: ignore
             self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
@@ -167,72 +172,3 @@ class CloudTaskRunner(TaskRunner):
         return super().initialize_run(
             state=state, context=context, upstream_states=upstream_states
         )
-
-    @call_state_handlers
-    def finalize_run(self, state: State, upstream_states: Dict[Edge, State]) -> State:
-        """
-        Ensures that all results are handled appropriately on the final state.
-
-        Args:
-            - state (State): the final state of this task
-            - upstream_states (Dict[Edge, Union[State, List[State]]]): the upstream states
-
-        Returns:
-            - State: the state of the task after running the check
-        """
-        raise_on_exception = prefect.context.get("raise_on_exception", False)
-        from prefect.serialization.result_handlers import ResultHandlerSchema
-
-        ## if a state has a "cached" attribute or a "cached_inputs" attribute, we need to handle it
-        if getattr(state, "cached_inputs", None) is not None:
-            try:
-                input_handlers = {}
-
-                for edge, upstream_state in upstream_states.items():
-                    if edge.key is not None:
-                        input_handlers[edge.key] = upstream_state._metadata["result"][
-                            "result_handler"
-                        ]
-                state.handle_inputs(input_handlers)
-            except Exception as exc:
-                self.logger.debug(
-                    "Exception raised while serializing inputs: {}".format(repr(exc))
-                )
-                if raise_on_exception:
-                    raise exc
-                new_state = Failed(
-                    "Exception raised while serializing inputs.", result=exc
-                )
-                return new_state
-
-        if state.is_successful() and state.cached is not None:  # type: ignore
-            try:
-                input_handlers = {}
-
-                for edge, upstream_state in upstream_states.items():
-                    if edge.key is not None:
-                        input_handlers[edge.key] = upstream_state._metadata["result"][
-                            "result_handler"
-                        ]
-
-                state.cached.handle_inputs(input_handlers)  # type: ignore
-                state.cached.handle_outputs(self.result_handler)  # type: ignore
-            except Exception as exc:
-                self.logger.debug(
-                    "Exception raised while serializing cached data: {}".format(
-                        repr(exc)
-                    )
-                )
-                if raise_on_exception:
-                    raise exc
-                new_state = Failed(
-                    "Exception raised while serializing cached data.", result=exc
-                )
-                return new_state
-
-        ## finally, update state _metadata attribute with information about how to handle this state's data
-        state._metadata["result"].setdefault("raw", True)
-        state._metadata["result"].setdefault(
-            "result_handler", ResultHandlerSchema().dump(self.result_handler)
-        )
-        return state
