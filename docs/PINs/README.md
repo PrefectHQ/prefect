@@ -20,4 +20,4 @@ A description of a more complex and executable `Environment` object.
 
 ## [PIN-4: Result Objects for Tracking and Serializing Task Outputs](PIN-4-Result-Objects.md)
 
-A new `Result` object that encapsulates the logic introduced by [PIN-2](PIN-2-Result-Handlers.md).
+A new `Result` object that clarifies the logic introduced by [PIN-2](PIN-2-Result-Handlers.md).
