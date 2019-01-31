@@ -10,17 +10,17 @@ Thank you for being one of our early partners. Your feedback is critical to maki
 
 ## Core + Cloud
 
-Prefect `0.4.0` is the biggest Prefect release yet -- just check out the [changelog](changelog.html#version-0-4-0)! Prefect Core was already the best tool for designing, testing, and running data workflows - and thanks to your feedback, it's even better now.
+Prefect 0.4 is the biggest Prefect release yet -- just check out the [changelog](changelog.html#version-0-4-1)! Prefect Core was already the best tool for designing, testing, and running data workflows - and thanks to your feedback, it's even better now.
 
 The biggest new feature in Core is that it introduces support for **Prefect Cloud**. Cloud enables a variety of stateful interactions, including:
 
+- GraphQL API
 - Scheduling
-- GraphQL API including arbitrary database queries
 - Building flows as containers
 - Runtime secrets
 - Remote execution clusters
 - Permissions and authorization
-- Projects and organization
+- Projects and flow organization
 
 If you don't have access to the Cloud preview yet, please [get in touch](mailto:help@prefect.io).
 
@@ -34,6 +34,8 @@ Happy engineering!
 
 :::tip Requirements
 Please note Prefect requires Python 3.4 or higher.
+
+We recommend Python 3.5+, as Dask does not support 3.4.
 :::
 
 To install Prefect with visualization support:
