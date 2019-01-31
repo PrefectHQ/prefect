@@ -27,13 +27,7 @@ class CloudTaskRunner(TaskRunner):
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
             will be passed the task runner instance, the old (prior) state, and the new
-            (current) state, with the following signature:
-            ```python
-                state_handler(
-                    task_runner: TaskRunner,
-                    old_state: State,
-                    new_state: State) -> State
-            ```
+            (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - result_handler (ResultHandler, optional): the handler to use for
