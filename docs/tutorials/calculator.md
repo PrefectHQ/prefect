@@ -3,6 +3,7 @@ sidebarDepth: 0
 ---
 
 # Using Prefect as a Calculator
+
 > Can your data engineering framework do this?
 
 ::: tip Practice Makes Prefect
@@ -50,12 +51,12 @@ Prefect added three tasks to this flow:
 :::
 
 Let's test it out:
+
 ```python
 assert run(flow, x=1) == 2
 assert run(flow, x=2) == 3
 assert run(flow, x=-100) == -99
 ```
-
 
 ## Adding two numbers
 
@@ -71,6 +72,7 @@ A flow can have as many parameters as you want, as long as they have unique name
 :::
 
 Our new calculator works like a charm:
+
 ```python
 assert run(flow, x=1, y=1) == 2
 assert run(flow, x=40, y=2) == 42
@@ -135,14 +137,17 @@ with Flow('Arithmetic') as flow:
     switch(condition=inputs['op'], cases=operations)
     result = merge(*operations.values())
 ```
+
 ::: tip The @task decorator
 The `@task` decorator is a simple way to turn any function into a task.
 :::
+
 ::: tip Indexing a task
 Just as we've shown that tasks can be added (or subtracted, or multipled, or divided), they can be indexed as well. Here, we index the result of the `inputs` task to get `x`, `y`, and `op`. Like every other Prefect operation, the indexing itself is recorded in the computational graph, but the execution is deferred until the flow is run and the indexed result is actually available.
 :::
 
 And now we can run our calculator on string expressions :tada::
+
 ```python
 assert run(flow, expression='1 + 2') == 3
 assert run(flow, expression='1 - 2') == -1
@@ -151,7 +156,9 @@ assert run(flow, expression='1 / 2') == 0.5
 ```
 
 For the curious and/or brave, here's a visualization of the computational graph Prefect automatically tracked and generated:
+
 ```python
 flow.visualize()
 ```
-![](/calculator.png)
+
+![calculator](/calculator.png) {.viz}
