@@ -667,8 +667,8 @@ class TestGetTaskInputs:
 
 
 class TestCheckTaskCached:
-    def test_not_cached(self):
-        state = Pending()
+    @pytest.mark.parametrize("state", [Pending(), Success(), Retrying()])
+    def test_not_cached(self, state):
         new_state = TaskRunner(task=Task()).check_task_is_cached(state=state, inputs={})
         assert new_state is state
 
