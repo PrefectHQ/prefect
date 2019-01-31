@@ -486,9 +486,6 @@ class Success(Finished):
 
     color = "#008000"
 
-    def __init__(self, message: str = None, result: Any = None):
-        super().__init__(message=message, result=result)
-
 
 class CachedState(Success):
     """
