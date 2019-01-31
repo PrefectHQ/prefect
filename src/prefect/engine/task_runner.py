@@ -628,7 +628,13 @@ class TaskRunner(Runner):
             ):
                 return state
             else:
-                return Pending("Cache was invalid.")
+                self.logger.debug(
+                    "Task '{name}': can't use cache because it "
+                    "is now invalid".format(
+                        name=prefect.context.get("task_full_name", self.task.name)
+                    )
+                )
+                return Pending("Cache was invalid; ready to run.")
         return state
 
     @call_state_handlers
