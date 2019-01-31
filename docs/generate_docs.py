@@ -99,8 +99,8 @@ def format_lists(doc):
     lists = re.findall(
         r"(Args\:|Returns\:|Raises\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL
     )  # find formatted lists
-    ul_tag = "<ul style='padding-left:3.5em;text-indent:-3.5em;'>"
-    li_tag = "<li style='padding-left:3.5em;text-indent:-3.5em;'>"
+    ul_tag = "<ul>"
+    li_tag = "<li>"
     for section, _, items, ending in lists:
         if section.startswith(("Returns:", "Raises:")) and ":" not in items:
             doc = doc.replace(
@@ -244,8 +244,8 @@ def format_subheader(obj, level=1, in_table=False):
         header = "##" + "#" * level
     else:
         header = "|"
-    is_class = "<em><b>class </b></em>" if inspect.isclass(obj) else ""
-    class_name = f"<b>{create_absolute_path(obj)}</b>"
+    is_class = "<strong><em>class </em></strong>" if inspect.isclass(obj) else ""
+    class_name = f"<strong>{create_absolute_path(obj)}</strong>"
     div_tag = f"<div class='sig'>"
 
     call_sig = f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>\n\n"

@@ -81,12 +81,17 @@ ol {
 	font-size: 1em;
 	line-height: 1.75;
 	margin-bottom: 1.25rem;
-}
-
-ul,
-ol {
 	li {
 		line-height: 2;
+	}
+}
+
+.content {
+	ul,
+	ol,
+	li {
+		padding-left: 3.5em;
+		text-indent: -3.5em;
 	}
 }
 
@@ -377,6 +382,7 @@ $token = '.token';
 
 		code,
 		{$codeLang} {
+			color: $greyDark;
 			background-color: transparent;
 			border-radius: 0;
 			padding: 0;
@@ -440,6 +446,13 @@ $token = '.token';
 		line-height: 1.5;
 		padding: 1.5rem 2rem 3.5rem 5rem;
 		text-indent: -2.5em;
+
+		pre,
+		{$preLang} {
+			code {
+				color: $greyDark;
+			}
+		}
 
 		span a {
 			clear: both;
