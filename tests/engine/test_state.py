@@ -192,9 +192,10 @@ def test_states_with_raw_cached_inputs_are_handled_correctly(cls):
     state._metadata["cached_inputs"] = dict(
         x=dict(raw=True), y=dict(raw=True), z=dict(raw=True)
     )
-    state.handle_inputs(
+    state.update_input_metadata(
         dict(x=serialized_handler, y=serialized_handler, z=serialized_handler)
     )
+    state.handle_inputs()
 
     assert state.message == "hi mom"
     assert state.result == 55
@@ -250,7 +251,8 @@ def test_cached_states_are_handled_correctly_with_handle_outputs():
         result=lambda: None,
     )
     cached_state._metadata["cached_result"] = dict(raw=True)
-    cached_state.handle_outputs(handler)
+    cached_state.update_output_metadata(handler)
+    cached_state.handle_outputs()
 
     assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
     assert cached_state.cached_result == '{"qq": 42}'
