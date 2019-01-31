@@ -239,6 +239,9 @@ class TaskRunner(Runner):
             # run state transformation pipeline
             with prefect.context(context):
 
+                # check to see if the task has a cached result
+                state = self.check_task_is_cached(state, inputs=task_inputs)
+
                 # check to make sure the task is in a pending state
                 state = self.check_task_is_ready(state)
 
@@ -291,9 +294,6 @@ class TaskRunner(Runner):
                     state = self.check_task_trigger(
                         state, upstream_states=upstream_states
                     )
-
-                # check to see if the task has a cached result
-                state = self.check_task_is_cached(state, inputs=task_inputs)
 
                 # set the task state to running
                 state = self.set_task_to_running(state)
@@ -622,15 +622,13 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
-        if isinstance(state, CachedState) and self.task.cache_validator(
-            state, inputs, prefect.context.get("parameters")
-        ):
-            self.logger.debug(
-                "Task '{name}': cached result; ending run.".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
-                )
-            )
-            raise ENDRUN(Success(result=state.cached_result, cached=state))
+        if isinstance(state, CachedState):
+            if self.task.cache_validator(
+                state, inputs, prefect.context.get("parameters")
+            ):
+                return state
+            else:
+                return Pending("Cache was invalid.")
         return state
 
     @call_state_handlers
@@ -888,14 +886,14 @@ class TaskRunner(Runner):
                 cached_result_expiration=expiration,
                 cached_parameters=prefect.context.get("parameters"),
                 cached_result=state.result,
+                result=state.result,
+                message=state.message,
             )
             cached_state.update_input_metadata(
                 self._get_upstream_result_handlers(upstream_states)
             )
             cached_state.update_output_metadata(self.result_handler)
-            return Success(
-                result=state.result, message=state.message, cached=cached_state
-            )
+            return cached_state
 
         return state
 
