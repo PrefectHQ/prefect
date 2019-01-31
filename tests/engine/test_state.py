@@ -11,7 +11,7 @@ from collections import defaultdict
 import prefect
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
-    CachedState,
+    Cached,
     Failed,
     Finished,
     Mapped,
@@ -214,10 +214,10 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
         with open(tmp.name, "wb") as f:
             cloudpickle.dump(42, f)
 
-        cached_state = CachedState(
+        cached_state = Cached(
             message="hi mom",
             cached_inputs=dict(x=tmp.name, y=tmp.name, z=23),
-            cached_result=tmp.name,
+            result=tmp.name,
         )
         cached_state._metadata["cached_inputs"].update(
             dict(
@@ -225,84 +225,68 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
                 y=dict(raw=False, result_handler=serialized_handler),
             )
         )
-        cached_state._metadata["cached_result"] = dict(
+        cached_state._metadata["result"] = dict(
             raw=False, result_handler=serialized_handler
         )
-        state = Success(cached=cached_state, result=tmp.name)
-        state._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
-        state.ensure_raw()
+        cached_state.ensure_raw()
 
-    assert state.result == 42
-    assert state.cached.cached_inputs == dict(x=42, y=42, z=23)
+    assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
     for v in ["x", "y"]:
-        assert state.cached._metadata["cached_inputs"][v]["raw"] is True
-    assert state.cached.cached_result == 42
-    assert state.cached._metadata["cached_result"]["raw"] is True
+        assert cached_state._metadata["cached_inputs"][v]["raw"] is True
+    assert cached_state.result == 42
+    assert cached_state._metadata["result"]["raw"] is True
 
 
 def test_cached_states_are_handled_correctly_with_handle_outputs():
     handler = JSONResultHandler()
     serialized_handler = ResultHandlerSchema().dump(handler)
 
-    cached_state = CachedState(
-        message="hi mom",
-        cached_inputs=dict(x=42, y=42, z=23),
-        cached_result=dict(qq=42),
-        result=lambda: None,
+    cached_state = Cached(
+        message="hi mom", cached_inputs=dict(x=42, y=42, z=23), result=dict(qq=42)
     )
-    cached_state._metadata["cached_result"] = dict(raw=True)
+    cached_state._metadata["result"] = dict(raw=True)
     cached_state.update_output_metadata(handler)
     cached_state.handle_outputs()
 
     assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
-    assert cached_state.cached_result == '{"qq": 42}'
-    assert cached_state._metadata["cached_result"]["raw"] is False
-    assert (
-        cached_state._metadata["cached_result"]["result_handler"] == serialized_handler
-    )
+    assert cached_state.result == '{"qq": 42}'
+    assert cached_state._metadata["result"]["raw"] is False
+    assert cached_state._metadata["result"]["result_handler"] == serialized_handler
 
 
 def test_serialize_and_deserialize_with_no_metadata():
     now = pendulum.now("utc")
-    cached = CachedState(
+    state = Cached(
         cached_inputs=dict(x=99, p="p"),
-        cached_result=dict(hi=5, bye=6),
+        result=dict(hi=5, bye=6),
         cached_result_expiration=now,
     )
-    state = Success(result=dict(hi=5, bye=6), cached=cached)
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
-    assert isinstance(new_state, Success)
+    assert isinstance(new_state, Cached)
     assert new_state.color == state.color
     assert new_state.result is None
-    assert isinstance(new_state.cached, CachedState)
-    assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
-    assert new_state.cached.cached_inputs == dict.fromkeys(["x", "p"])
-    assert new_state.cached.cached_result is None
+    assert new_state.cached_result_expiration == state.cached_result_expiration
+    assert new_state.cached_inputs == dict.fromkeys(["x", "p"])
 
 
 def test_serialize_and_deserialize_with_metadata():
     now = pendulum.now("utc")
-    cached = CachedState(
+    state = Cached(
         cached_inputs=dict(x=99, p="p"),
-        cached_result=dict(hi=5, bye=6),
+        result=dict(hi=5, bye=6),
         cached_result_expiration=now,
     )
-    cached._metadata.update(
-        cached_inputs=defaultdict(lambda: dict(raw=False)),
-        cached_result=dict(raw=False),
+    state._metadata.update(
+        cached_inputs=defaultdict(lambda: dict(raw=False)), result=dict(raw=False)
     )
-    state = Success(result=dict(hi=5, bye=6), cached=cached)
-    state._metadata.update(dict(result=dict(raw=False)))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
-    assert isinstance(new_state, Success)
+    assert isinstance(new_state, Cached)
     assert new_state.color == state.color
     assert new_state.result == state.result
-    assert isinstance(new_state.cached, CachedState)
-    assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
-    assert new_state.cached.cached_inputs == cached.cached_inputs
-    assert new_state.cached.cached_result == cached.cached_result
+    assert new_state.cached_result_expiration == state.cached_result_expiration
+    assert new_state.cached_inputs == state.cached_inputs
 
 
 def test_serialization_of_cached_inputs():
@@ -371,8 +355,8 @@ class TestStateHierarchy:
     def test_mapped_is_success(self):
         assert issubclass(Mapped, Success)
 
-    def test_cached_is_pending(self):
-        assert issubclass(CachedState, Pending)
+    def test_cached_is_successful(self):
+        assert issubclass(Cached, Success)
 
     def test_retrying_is_pending(self):
         assert issubclass(Retrying, Pending)
@@ -484,13 +468,13 @@ class TestStateMethods:
         assert not state.is_mapped()
 
     def test_state_type_methods_with_cached_state(self):
-        state = CachedState()
-        assert state.is_pending()
+        state = Cached()
+        assert not state.is_pending()
         assert not state.is_running()
-        assert not state.is_finished()
+        assert state.is_finished()
         assert not state.is_skipped()
         assert not state.is_scheduled()
-        assert not state.is_successful()
+        assert state.is_successful()
         assert not state.is_failed()
         assert not state.is_mapped()
 
