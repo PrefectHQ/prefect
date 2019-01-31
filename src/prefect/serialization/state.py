@@ -69,15 +69,6 @@ class SubmittedSchema(BaseStateSchema):
     state = fields.Nested("StateSchema", allow_none=True)
 
 
-class CachedStateSchema(PendingSchema):
-    class Meta:
-        object_class = state.CachedState
-
-    cached_result = ResultHandlerField(allow_none=True)
-    cached_parameters = JSONCompatible(allow_none=True)
-    cached_result_expiration = fields.DateTime(allow_none=True)
-
-
 class ScheduledSchema(PendingSchema):
     class Meta:
         object_class = state.Scheduled
@@ -111,7 +102,15 @@ class SuccessSchema(FinishedSchema):
     class Meta:
         object_class = state.Success
 
-    cached = fields.Nested(CachedStateSchema, allow_none=True)
+
+class CachedStateSchema(SuccessSchema):
+    class Meta:
+        object_class = state.CachedState
+
+    cached_inputs = ResultHandlerField(allow_none=True)
+    cached_result = ResultHandlerField(allow_none=True)
+    cached_parameters = JSONCompatible(allow_none=True)
+    cached_result_expiration = fields.DateTime(allow_none=True)
 
 
 class MappedSchema(SuccessSchema):
