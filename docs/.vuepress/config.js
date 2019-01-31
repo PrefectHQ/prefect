@@ -97,7 +97,7 @@ module.exports = {
             'core_concepts/best-practices',
             'core_concepts/common-pitfalls'
           ]
-        },{
+        }, {
           title: 'Cloud Concepts',
           collapsable: true,
           children: [
@@ -112,14 +112,29 @@ module.exports = {
         {
           title: 'Tutorials',
           collapsable: true,
-          children: ['tutorials/', 'tutorials/etl', 'tutorials/calculator', 'tutorials/local-debugging', 'tutorials/task-retries', 'tutorials/triggers-and-references',
-            'tutorials/visualization', 'tutorials/advanced-mapping', 'tutorials/airflow_migration', 'tutorials/slack-notifications'
+          children: [
+            'tutorials/',
+            'tutorials/etl',
+            'tutorials/calculator',
+            'tutorials/local-debugging',
+            'tutorials/task-retries',
+            'tutorials/triggers-and-references',
+            'tutorials/visualization',
+            'tutorials/advanced-mapping',
+            'tutorials/airflow_migration',
+            'tutorials/slack-notifications'
           ]
         },
         {
           title: 'PINs',
           collapsable: true,
-          children: ['PINs/', 'PINs/PIN-1-Introduce-PINs', 'PINs/PIN-2-Result-Handlers', 'PINs/PIN-3-Agent-Environment']
+          children: [
+            'PINs/',
+            'PINs/PIN-1-Introduce-PINs',
+            'PINs/PIN-2-Result-Handlers',
+            'PINs/PIN-3-Agent-Environment',
+            'PINs/PIN-4-Result-Objects'
+          ]
         },
         {
           title: 'Comparisons',
