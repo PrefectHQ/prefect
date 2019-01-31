@@ -110,7 +110,8 @@ def function(x: int, y: float, z: str = None):
     Args:
         - x (int): any information about `x`
         - y (float): additional info about `y`
-        - z (str, optional): defaults to `None`
+        - z (str, optional): defaults to `None`; note that codeblocks are not currently
+            supported within arg docs
 
     Additional information if desired; note that backticks for code formatting
     is encouraged within argument descriptions, but should *not* be used in
