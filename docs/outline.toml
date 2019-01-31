@@ -144,11 +144,6 @@ title = "String Templating Tasks"
 module = "prefect.tasks.templates"
 classes = ["StringFormatterTask", "JinjaTemplateTask"]
 
-[pages.utilities.bokeh]
-title = "BokehRunner"
-module = "prefect.utilities.bokeh_runner"
-classes = ["BokehRunner"]
-
 [pages.utilities.collections]
 title = "Collections"
 module = "prefect.utilities.collections"

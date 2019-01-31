@@ -26,7 +26,7 @@ Overview of different triggers, such as `manual_only`, which allows for manual a
 
 ## [Flow Visualization](visualization.md)
 
-Visualize your Prefect flows with `flow.visualize()` and their local execution with the `BokehRunner`
+Visualize your Prefect flows with `flow.visualize()`
 
 ## [Advanced Features](advanced-mapping.md)<Badge text="advanced" type="warn"/><Badge text="0.3.2+"/>
 
