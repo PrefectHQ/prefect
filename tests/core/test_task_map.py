@@ -753,3 +753,33 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
 
     assert state.is_successful()
     assert state.result[s].result == 12
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_all_tasks_only_called_once(capsys, executor):
+    """
+    See https://github.com/PrefectHQ/prefect/issues/556
+    """
+
+    @prefect.task
+    def my_list():
+        return list(range(5))
+
+    @prefect.task
+    def add_one(x):
+        print("adding one to {}".format(x))
+        return x + 1
+
+    with Flow() as f:
+        first_level = add_one.map(my_list)
+        split_one = add_one.map(first_level)
+        split_two = add_one.map(first_level)
+
+    state = f.run(return_tasks=f.tasks)
+
+    captured = capsys.readouterr()
+    printed_lines = [line for line in captured.out.split("\n") if line != ""]
+
+    assert len(printed_lines) == 15
