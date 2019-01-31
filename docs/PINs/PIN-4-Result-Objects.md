@@ -16,7 +16,7 @@ Proposed; furthers the objectives of [PIN-2](PIN-2-Result-Handlers.md)
 
 Task results are a key part of any data pipeline, and in Prefect they have special meaning. Because Prefect tasks do not merely return data, but rather `States`, we have a wide variety of possible actions beyond simply passing the output of one task to the next task.
 
-For example, we might allow a task to cache its output and return it in the future without repeating an expensive computation. We might detect that a state is going to be retried, and therefore cache all of its inputs so they'll be available in the future. We might greedily write every task's result to disc in order to pessimistically defend against node failures. We might even... simply pass the result to the next task.
+For example, we might allow a task to cache its output and return it in the future without repeating an expensive computation. We might detect that a state is going to be retried, and therefore cache all of its inputs so they'll be available in the future. We might greedily write every task's result to disk in order to pessimistically defend against node failures. We might even... simply pass the result to the next task.
 
 Because of all these possible actions and the need to apply them to completely arbitrary Python objects, Prefect requires a great deal of result handling logic. This largely comes down to three buckets:
 
