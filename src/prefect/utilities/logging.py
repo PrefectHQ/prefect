@@ -51,7 +51,7 @@ def configure_logging(testing=False) -> logging.Logger:
             by configuring a "prefect-test-logger" instead of the standard "prefect" logger
 
     Returns:
-        - logging.Logger
+        - logging.Logger: a configured logging object
     """
     name = "prefect-test-logger" if testing else "prefect"
     logger = logging.getLogger(name)
@@ -84,7 +84,7 @@ def get_logger(name: str = None) -> logging.Logger:
             the root logger's settings.
 
     Returns:
-        - logging.Logger
+        - logging.Logger: a configured logging object with the appropriate name
     """
     if name is None:
         return prefect_logger

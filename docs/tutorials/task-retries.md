@@ -10,7 +10,7 @@ A notebook containing all code presented in this tutorial can be downloaded [her
 
 When designing data workflows, it is to be expected that certain components might occasionally fail or need manual intervention. In these situations, to avoid re-running entire flows from scratch and still ensure the necessary data arrives at the paused / retrying task, Prefect will automatically detect that caching is required and will store the necessary inputs to be used in subsequent executions of the flow.
 
-![retry success]('/retry_success.png) {.viz}
+![retry success](/retry_success.png) {.viz}
 
 There are many reasons a given flow run might result in a task failure; for example, if a task pings an external service that is temporarily down, or queries a database that is currently locked, that task cannot proceed.
 
@@ -94,7 +94,7 @@ print("Flow results: {}".format(flow_state.result))
 
 No surprises here; the entire flow is `Pending` because its sole terminal task (`ping_external_service`) hasn't finished yet.
 
-![pending retry]('/retry.png') {.viz}
+![pending retry](/retry.png) {.viz}
 
 To trigger a retry / rerun, we need to run `f.run()` again, providing the retrying task state, and explicitly telling the flow which task to start with. Contained within the `Retrying` state are the necessary cached inputs that were provided to `ping_external_service` on the last run.
 
