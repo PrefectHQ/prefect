@@ -72,7 +72,7 @@ class TestInitializeRun:
             state.Pending(),
             state.Scheduled(),
             state.Skipped(),
-            state.CachedState(),
+            state.Cached(),
             state.Retrying(),
             state.Running(),
         ],

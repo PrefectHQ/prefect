@@ -16,7 +16,7 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
 <router-link to="agreement.html">Get the code</router-link>
 </button>
 
-Prefect is alpha software under active development by Prefect Technologies, Inc. This early preview is being provided to a limited number of partners to assist with development. By viewing or using the code or documentation, you are agreeing to the [alpha software end user license agreement](/license.html)\.
+Prefect is alpha software under active development by Prefect Technologies, Inc. This early preview is being provided to a limited number of partners to assist with development. By accessing or using the code or documentation, you are agreeing to the [alpha software end user license agreement](/license.html)\.
 {.disclaimer}
 
 </div>
@@ -45,11 +45,13 @@ Prefect's beautiful API is powered by Dask and Kubernetes, so it's ready for any
 </div>
 </div>
 
-***
+---
 
 ### Prefect
 
-We've reimagined data engineering for the data science era. Prefect is a new workflow management system, designed for modern infrastructure. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
+We've rebuilt data engineering for the data science era.
+
+Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
 Read the [docs](/introduction.html); get the [code](/agreement.html); ask us [anything](mailto:help@prefect.io)!
 

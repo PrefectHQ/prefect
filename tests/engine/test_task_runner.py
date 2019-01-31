@@ -20,7 +20,7 @@ from prefect.engine.cache_validators import (
     partial_parameters_only,
 )
 from prefect.engine.state import (
-    CachedState,
+    Cached,
     Failed,
     Finished,
     Mapped,
@@ -320,7 +320,7 @@ def test_task_that_starts_failed_doesnt_get_retried():
 
 class TestInitializeRun:
     @pytest.mark.parametrize(
-        "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), CachedState()]
+        "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), Cached()]
     )
     def test_states_without_run_count(self, state):
         with prefect.context() as ctx:
@@ -358,7 +358,7 @@ class TestInitializeRun:
             assert result.context.resume is True
 
     @pytest.mark.parametrize(
-        "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), CachedState()]
+        "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), Cached()]
     )
     def test_task_runner_doesnt_put_resume_in_context_if_state_is_not_resume(
         self, state
@@ -584,13 +584,22 @@ class TestCheckTaskTrigger:
 
 
 class TestCheckTaskReady:
-    @pytest.mark.parametrize("state", [Pending(), CachedState(), Mapped()])
+    @pytest.mark.parametrize("state", [Pending(), Mapped()])
     def test_ready_states(self, state):
         new_state = TaskRunner(task=Task()).check_task_is_ready(state=state)
         assert new_state is state
 
     @pytest.mark.parametrize(
-        "state", [Running(), Finished(), TriggerFailed(), Skipped(), Paused()]
+        "state",
+        [
+            Cached(),
+            Running(),
+            Finished(),
+            TriggerFailed(),
+            Skipped(),
+            Success(),
+            Paused(),
+        ],
     )
     def test_not_ready_doesnt_run(self, state):
 
@@ -667,60 +676,54 @@ class TestGetTaskInputs:
 
 
 class TestCheckTaskCached:
-    def test_not_cached(self):
-        state = Pending()
+    @pytest.mark.parametrize("state", [Pending(), Success(), Retrying()])
+    def test_not_cached(self, state):
         new_state = TaskRunner(task=Task()).check_task_is_cached(state=state, inputs={})
         assert new_state is state
 
     def test_cached_same_inputs(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
-        state = CachedState(cached_inputs={"a": 1}, cached_result=2)
-        with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
-        assert isinstance(exc.value.state, Success)
-        assert exc.value.state.result == 2
-        assert exc.value.state.cached is state
+        state = Cached(cached_inputs={"a": 1}, result=2)
+        new = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
+        assert new is state
 
     def test_cached_different_inputs(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
-        state = CachedState(cached_inputs={"a": 1}, cached_result=2)
+        state = Cached(cached_inputs={"a": 1}, result=2)
         new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 2})
-        assert new_state is state
+        assert new_state.is_pending()
 
     def test_cached_duration(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.duration_only)
-        state = CachedState(
-            cached_result=2,
+        state = Cached(
+            result=2,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
         )
 
-        with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
-        assert isinstance(exc.value.state, Success)
-        assert exc.value.state.result == 2
-        assert exc.value.state.cached is state
+        new = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
+        assert new is state
 
     def test_cached_duration_fail(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.duration_only)
-        state = CachedState(
-            cached_result=2,
+        state = Cached(
+            result=2,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=-1),
         )
         new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
-        assert new_state is state
+        assert new_state.is_pending()
 
 
 class TestSetTaskRunning:
-    @pytest.mark.parametrize("state", [Pending(), CachedState()])
+    @pytest.mark.parametrize("state", [Pending()])
     def test_pending(self, state):
         new_state = TaskRunner(task=Task()).set_task_to_running(state=state)
         assert new_state.is_running()
 
-    @pytest.mark.parametrize("state", [Running(), Success(), Skipped()])
+    @pytest.mark.parametrize("state", [Cached(), Running(), Success(), Skipped()])
     def test_not_pending(self, state):
         with pytest.raises(ENDRUN):
             TaskRunner(task=Task()).set_task_to_running(state=state)
@@ -734,7 +737,7 @@ class TestRunTaskStep:
         )
         assert new_state.is_successful()
 
-    @pytest.mark.parametrize("state", [Pending(), CachedState(), Success(), Skipped()])
+    @pytest.mark.parametrize("state", [Pending(), Cached(), Success(), Skipped()])
     def test_not_running_state(self, state):
         with pytest.raises(ENDRUN):
             TaskRunner(task=Task()).get_task_run_state(
@@ -942,14 +945,12 @@ class TestCacheResultStep:
         )
         assert new_state is not state
         assert new_state.is_successful()
-        assert new_state.result == 2
+        assert isinstance(new_state, Cached)
         assert new_state.message == "hello"
-        assert isinstance(new_state.cached, CachedState)
-        assert new_state.cached.cached_result == 2
-        assert new_state.cached.cached_inputs == {"x": 5}
+        assert new_state.result == 2
+        assert new_state.cached_inputs == {"x": 5}
         assert (
-            new_state.cached._metadata["cached_inputs"]["x"]["result_handler"]
-            == "json-blob"
+            new_state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob"
         )
 
 

@@ -3,38 +3,56 @@
 
 # Prefect
 
-## Welcome to Prefect!
+We've rebuilt data engineering for the data science era.
 
-We've reimagined data engineering for the data science era. Prefect is a new workflow management system, designed for modern infrastructure. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
+Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
+
+Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](mailto:help@prefect.io)!
+
+## Hello, world! 👋
+
+```python
+from prefect import task, Flow
+
+@task
+def say_hello():
+    print("Hello, world!")
+
+with Flow('My First Flow') as flow:
+    say_hello()
+
+flow.run() # "Hello, world!"
+```
 
 ## License
 
-Prefect is alpha software under active development by Prefect Technologies, Inc. This early preview is being provided to a limited number of partners to assist with development. By viewing or using the code or documentation, you are agreeing to the [alpha software end user license agreement](https://www.prefect.io/licenses/alpha-eula).
+Prefect is alpha software under active development by Prefect Technologies, Inc. This early preview is being provided to a limited number of partners to assist with development. By accessing or using the code or documentation, you are agreeing to the [alpha software end user license agreement](https://www.prefect.io/licenses/alpha-eula).
 
 ## "...Prefect?"
 
-From the Latin _praefectus_, meaning "one who is in charge", a prefect is an official who oversees a domain and ensures that the rules are followed.
+From the Latin _praefectus_, meaning "one who is in charge", a prefect is an official who oversees a domain and makes sure that the rules are followed.
 
 It also happens to be the name of a roving researcher for that wholly remarkable book, _The Hitchhiker's Guide to the Galaxy_.
+
+## Documentation
+
+Pefect's documentation -- including concepts, tutorials, and a full API reference -- is available at https://docs.prefect.io
 
 ## Installation
 
 ### Requirements
 
-Prefect requires Python 3.4+.
+Prefect requires Python 3.4+. Dask execution requires Python 3.5+.
 
 ### Install
 
 This will install optional visualization utilities:
+
 ```bash
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
 pip install ".[viz]"
 ```
-
-## Documentation
-
-The full Prefect documentation including API references, tutorials, concept explinations, and more are available at https://docs.prefect.io
 
 ## Development
 
@@ -56,13 +74,14 @@ pytest
 ### Black formatting
 
 Merging to master in Prefect requires that your code passes [black](https://github.com/ambv/black). This can be easy to forget when developing, and for that reason some developers may choose to install a pre-push hook for black, as follows:
+
 ```
 pip install pre-commit # installs pre-commit package
 cd prefect/ # make sure you are in the root directory of the prefect repo
 pre-commit install --hook-type pre-push # creates necessary git hook files
 ```
-There is already a pre-commit config file contained in the repo that creates the pre-push hook for black.  Now, you won't be allowed to `git push` without passing black.
 
+There is already a pre-commit config file contained in the repo that creates the pre-push hook for black. Now, you won't be allowed to `git push` without passing black.
 
 ### Build documentation
 
@@ -91,7 +110,8 @@ def function(x: int, y: float, z: str = None):
     Args:
         - x (int): any information about `x`
         - y (float): additional info about `y`
-        - z (str, optional): defaults to `None`
+        - z (str, optional): defaults to `None`; note that codeblocks are not currently
+            supported within arg docs
 
     Additional information if desired; note that backticks for code formatting
     is encouraged within argument descriptions, but should *not* be used in
@@ -115,6 +135,7 @@ def function(x: int, y: float, z: str = None):
   2. update `docs/.vuepress/config.js` to include your new page / section / etc. in the sidebar
 
 For example:
+
 ```
 [pages.utilities.collections]
 title = "Collections"
