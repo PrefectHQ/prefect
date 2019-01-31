@@ -40,7 +40,9 @@
 One of the most common use cases for a data engineering tool is designing an ETL pipeline.
 
 ### Prefect
+
 Prefect makes this easy with native support for dataflow between tasks.
+
 ```python
 from prefect import task, Flow
 
@@ -65,11 +67,11 @@ with Flow('ETL') as flow:
     l = load(t)
 ```
 
-
 ### Airflow
+
 Airflow must fall back on XComs, a way to serialize small data to the Airflow database. This Airflow pipeline would fail with objects of any practical size.
 
-<div class=comp-code>
+<div>
 
 ```python
 import datetime
@@ -138,6 +140,7 @@ l = LoadOperator(
 e.set_downstream(t)
 t.set_downstream(l)
 ```
+
 </div>
 
 ## File Transfer comparison
@@ -145,6 +148,7 @@ t.set_downstream(l)
 This is a real example of a data pipeline that moves a file from Dropbox to Google Cloud Storage, then copies the file to a GCS archive.
 
 ### Prefect
+
 The Prefect version is concise and looks like Python code, because Prefect allows each task to represent a discrete function. In this case, the library only requires a task that loads data from Dropbox; a task that loads data from Google Cloud Storage; and a task that saves data to Google Cloud Storage.
 
 ```python
@@ -198,14 +202,16 @@ with Flow("Transfer Example") as flow:
     save_to_gcs(data=gcs_file, bucket=GCS_BUCKET, path="archive/2018/file.txt")
 
 ```
+
 ### Airflow
+
 The Airflow version is extremely cumbersome. Because Airflow can not pass data between tasks, each task must perform an entire ETL cycle. As a result, internal Airflow libraries are full of operators representing every possible combination of data handoffs: `A_to_B_Operator`; `B_to_C_Operator`; `B_to_A_Operator`; `A_to_C_Operator`; `C_to_A_Operator`; etc.
 
 This particular pipeline relies on a `DropboxToGoogleCloudStorage` operator, followed by a `GoogleCloudStorageToGoogleCloudStorage` operator.
 
 *(This is actual sanitized Airflow code from one of Prefect's early partners)*
 
-<div class=comp-code>
+<div>
 
 ```python
 import datetime
@@ -396,4 +402,5 @@ gcs_to_gcs = GoogleCloudStorageToGoogleCloudStorageOperator(
 )
 dropbox_to_gcs.set_downstream(gcs_to_gcs)
 ```
+
 </div>

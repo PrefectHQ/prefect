@@ -8,7 +8,7 @@ from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
-from prefect.engine.state import Failed, Mapped, State
+from prefect.engine.state import Cached, Failed, Mapped, State
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
 from prefect.utilities.graphql import with_args
 
@@ -27,13 +27,7 @@ class CloudTaskRunner(TaskRunner):
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
             will be passed the task runner instance, the old (prior) state, and the new
-            (current) state, with the following signature:
-            ```python
-                state_handler(
-                    task_runner: TaskRunner,
-                    old_state: State,
-                    new_state: State) -> State
-            ```
+            (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - result_handler (ResultHandler, optional): the handler to use for
@@ -93,12 +87,8 @@ class CloudTaskRunner(TaskRunner):
         try:
             if getattr(new_state, "cached_inputs", None) is not None:
                 new_state.handle_inputs()
-            if (
-                new_state.is_successful()
-                and new_state.cached is not None  # type: ignore
-            ):
-                new_state.cached.handle_inputs()  # type: ignore
-                new_state.cached.handle_outputs()  # type: ignore
+            if isinstance(new_state, Cached):
+                new_state.handle_outputs()  # type: ignore
             self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,

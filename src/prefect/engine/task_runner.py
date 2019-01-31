@@ -27,7 +27,7 @@ from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
-    CachedState,
+    Cached,
     Failed,
     Mapped,
     Paused,
@@ -73,13 +73,7 @@ class TaskRunner(Runner):
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
             will be passed the task runner instance, the old (prior) state, and the new
-            (current) state, with the following signature:
-            ```python
-                state_handler(
-                    task_runner: TaskRunner,
-                    old_state: State,
-                    new_state: State) -> State
-            ```
+            (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - result_handler (ResultHandler, optional): the handler to use for
@@ -239,6 +233,9 @@ class TaskRunner(Runner):
             # run state transformation pipeline
             with prefect.context(context):
 
+                # check to see if the task has a cached result
+                state = self.check_task_is_cached(state, inputs=task_inputs)
+
                 # check to make sure the task is in a pending state
                 state = self.check_task_is_ready(state)
 
@@ -291,9 +288,6 @@ class TaskRunner(Runner):
                     state = self.check_task_trigger(
                         state, upstream_states=upstream_states
                     )
-
-                # check to see if the task has a cached result
-                state = self.check_task_is_cached(state, inputs=task_inputs)
 
                 # set the task state to running
                 state = self.set_task_to_running(state)
@@ -622,15 +616,19 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
-        if isinstance(state, CachedState) and self.task.cache_validator(
-            state, inputs, prefect.context.get("parameters")
-        ):
-            self.logger.debug(
-                "Task '{name}': cached result; ending run.".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
+        if isinstance(state, Cached):
+            if self.task.cache_validator(
+                state, inputs, prefect.context.get("parameters")
+            ):
+                return state
+            else:
+                self.logger.debug(
+                    "Task '{name}': can't use cache because it "
+                    "is now invalid".format(
+                        name=prefect.context.get("task_full_name", self.task.name)
+                    )
                 )
-            )
-            raise ENDRUN(Success(result=state.cached_result, cached=state))
+                return Pending("Cache was invalid; ready to run.")
         return state
 
     @call_state_handlers
@@ -883,19 +881,18 @@ class TaskRunner(Runner):
             and self.task.cache_for is not None
         ):
             expiration = pendulum.now("utc") + self.task.cache_for
-            cached_state = CachedState(
+            cached_state = Cached(
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
                 cached_parameters=prefect.context.get("parameters"),
-                cached_result=state.result,
+                result=state.result,
+                message=state.message,
             )
             cached_state.update_input_metadata(
                 self._get_upstream_result_handlers(upstream_states)
             )
             cached_state.update_output_metadata(self.result_handler)
-            return Success(
-                result=state.result, message=state.message, cached=cached_state
-            )
+            return cached_state
 
         return state
 
