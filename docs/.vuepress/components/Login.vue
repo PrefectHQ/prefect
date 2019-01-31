@@ -1,7 +1,7 @@
 <template>
-  <div class="home login-screen">
+  <div class="home">
     <div class="hero">
-      <img class="logo" src='/assets/logomark-color.svg'>
+      <img class="logo login" src='/assets/logomark-color.svg'>
       <h1>Prefect (Preview)</h1>
       <div class="action">
         <button v-on:click.prevent="login" class="action-button data-netlify-identity-button">
@@ -24,11 +24,9 @@ export default {
 }
 </script>
 
-<style lang="stylus">
-.login-screen {
-  .logo {
-    height: 18.75em;
-    margin: 6.25em 0 3em;
-  }
+<style lang="stylus" scoped>
+.logo .login {
+  height: 18.75em;
+  margin: 6.25em 0 3em;
 }
 </style>
