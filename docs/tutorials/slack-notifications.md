@@ -4,9 +4,7 @@ sidebarDepth: 1
 
 # Slack Notifications
 
-<center>
-<img src="https://uploads-ssl.webflow.com/5ba446b0e783e26d5a2f2382/5bc4f20bd534b99be66f24aa_slack.png">
-</center>
+![slack-banner](https://uploads-ssl.webflow.com/5ba446b0e783e26d5a2f2382/5bc4f20bd534b99be66f24aa_slack.png) {.viz}
 
 ::: tip Practice Makes Prefect
 A notebook containing all code presented in this tutorial can be downloaded [here](/notebooks/slack-notifications.ipynb).
