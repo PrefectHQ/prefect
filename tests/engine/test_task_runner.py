@@ -816,7 +816,7 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={"y": 1}, timeout_handler=None, usptream_states={}
+            state=state, inputs={"y": 1}, timeout_handler=None, upstream_states={}
         )
         assert new_state.is_failed()
 
