@@ -1,6 +1,28 @@
 # Changelog
 
-## Development <Badge text="beta" type="success"/>
+## Unreleased <Badge text="beta" type="success"/>
+
+These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
+
+### Major Features
+
+- None
+
+### Minor Features
+
+- None
+
+### Fixes
+
+- None
+
+### Breaking Changes
+
+- None
+
+## 0.4.1 <Badge text="beta" type="success"/>
+
+Released January 31, 2019
 
 ### Major Features
 
