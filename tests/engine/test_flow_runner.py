@@ -17,7 +17,7 @@ from prefect.engine.cache_validators import duration_only
 from prefect.engine.executors import Executor, LocalExecutor
 from prefect.engine.flow_runner import ENDRUN, FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.state import (
-    CachedState,
+    Cached,
     Failed,
     Finished,
     Mapped,
@@ -714,9 +714,9 @@ class TestOutputCaching:
             f.add_edge(x, y, key="x")
             f.add_edge(s, y, key="s")
 
-        state = CachedState(
+        state = Cached(
             cached_result_expiration=pendulum.now("utc") + datetime.timedelta(days=1),
-            cached_result=100,
+            result=100,
         )
         flow_state = FlowRunner(flow=f).run(
             executor=executor,
