@@ -716,7 +716,6 @@ class TestOutputCaching:
 
         state = Cached(
             cached_result_expiration=pendulum.now("utc") + datetime.timedelta(days=1),
-            cached_result=100,
             result=100,
         )
         flow_state = FlowRunner(flow=f).run(

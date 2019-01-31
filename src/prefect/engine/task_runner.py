@@ -885,7 +885,6 @@ class TaskRunner(Runner):
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
                 cached_parameters=prefect.context.get("parameters"),
-                cached_result=state.result,
                 result=state.result,
                 message=state.message,
             )
