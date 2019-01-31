@@ -11,7 +11,7 @@ from collections import defaultdict
 import prefect
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
-    CachedState,
+    Cached,
     Failed,
     Finished,
     Mapped,
@@ -214,7 +214,7 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
         with open(tmp.name, "wb") as f:
             cloudpickle.dump(42, f)
 
-        cached_state = CachedState(
+        cached_state = Cached(
             message="hi mom",
             cached_inputs=dict(x=tmp.name, y=tmp.name, z=23),
             cached_result=tmp.name,
@@ -241,7 +241,7 @@ def test_cached_states_are_handled_correctly_with_handle_outputs():
     handler = JSONResultHandler()
     serialized_handler = ResultHandlerSchema().dump(handler)
 
-    cached_state = CachedState(
+    cached_state = Cached(
         message="hi mom",
         cached_inputs=dict(x=42, y=42, z=23),
         cached_result=dict(qq=42),
@@ -261,7 +261,7 @@ def test_cached_states_are_handled_correctly_with_handle_outputs():
 
 def test_serialize_and_deserialize_with_no_metadata():
     now = pendulum.now("utc")
-    state = CachedState(
+    state = Cached(
         cached_inputs=dict(x=99, p="p"),
         cached_result=dict(hi=5, bye=6),
         cached_result_expiration=now,
@@ -269,7 +269,7 @@ def test_serialize_and_deserialize_with_no_metadata():
     )
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
-    assert isinstance(new_state, CachedState)
+    assert isinstance(new_state, Cached)
     assert new_state.color == state.color
     assert new_state.result is None
     assert new_state.cached_result_expiration == state.cached_result_expiration
@@ -279,7 +279,7 @@ def test_serialize_and_deserialize_with_no_metadata():
 
 def test_serialize_and_deserialize_with_metadata():
     now = pendulum.now("utc")
-    state = CachedState(
+    state = Cached(
         cached_inputs=dict(x=99, p="p"),
         cached_result=dict(hi=5, bye=6),
         cached_result_expiration=now,
@@ -292,7 +292,7 @@ def test_serialize_and_deserialize_with_metadata():
     state._metadata.update(dict(result=dict(raw=False)))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
-    assert isinstance(new_state, CachedState)
+    assert isinstance(new_state, Cached)
     assert new_state.color == state.color
     assert new_state.result == state.result
     assert new_state.cached_result_expiration == state.cached_result_expiration
@@ -367,7 +367,7 @@ class TestStateHierarchy:
         assert issubclass(Mapped, Success)
 
     def test_cached_is_successful(self):
-        assert issubclass(CachedState, Success)
+        assert issubclass(Cached, Success)
 
     def test_retrying_is_pending(self):
         assert issubclass(Retrying, Pending)
@@ -479,7 +479,7 @@ class TestStateMethods:
         assert not state.is_mapped()
 
     def test_state_type_methods_with_cached_state(self):
-        state = CachedState()
+        state = Cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()

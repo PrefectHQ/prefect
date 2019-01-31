@@ -27,7 +27,7 @@ from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
-    CachedState,
+    Cached,
     Failed,
     Mapped,
     Paused,
@@ -622,7 +622,7 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
-        if isinstance(state, CachedState):
+        if isinstance(state, Cached):
             if self.task.cache_validator(
                 state, inputs, prefect.context.get("parameters")
             ):
@@ -887,7 +887,7 @@ class TaskRunner(Runner):
             and self.task.cache_for is not None
         ):
             expiration = pendulum.now("utc") + self.task.cache_for
-            cached_state = CachedState(
+            cached_state = Cached(
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
                 cached_parameters=prefect.context.get("parameters"),

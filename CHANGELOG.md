@@ -45,7 +45,7 @@
 - Remove `timeout` kwarg from `executor.wait` - [#569](https://github.com/PrefectHQ/prefect/pull/569)
 - Serialization of States will _ignore_ any result data that hasn't been processed - [#581](https://github.com/PrefectHQ/prefect/pull/581)
 - Removes `VersionedSchema` in favor of implicit versioning: serializers will ignore unknown fields and the `create_object` method is responsible for recreating missing ones - [#583](https://github.com/PrefectHQ/prefect/pull/583)
-- Convert `CachedState` to a `Success` state instead of `Pending` - [#586](https://github.com/PrefectHQ/prefect/issues/586)
+- Convert and rename `CachedState` to a successful state named `Cached` - [#586](https://github.com/PrefectHQ/prefect/issues/586)
 
 ## 0.4.0 <Badge text="beta" type="success"/>
 

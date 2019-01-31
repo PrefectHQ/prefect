@@ -487,9 +487,9 @@ class Success(Finished):
     color = "#008000"
 
 
-class CachedState(Success):
+class Cached(Success):
     """
-    CachedState, which represents a Task whose outputs have been cached.
+    Cached, which represents a Task whose outputs have been cached.
 
     Args:
         - message (str or Exception, optional): Defaults to `None`. A message about the
