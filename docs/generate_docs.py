@@ -99,8 +99,8 @@ def format_lists(doc):
     lists = re.findall(
         r"(Args\:|Returns\:|Raises\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL
     )  # find formatted lists
-    ul_tag = "<ul style='padding-left:3.5em;text-indent:-3.5em;'>"
-    li_tag = "<li style='padding-left:3.5em;text-indent:-3.5em;'>"
+    ul_tag = "<ul>"
+    li_tag = "<li>"
     for section, _, items, ending in lists:
         if section.startswith(("Returns:", "Raises:")) and ":" not in items:
             doc = doc.replace(
@@ -231,7 +231,7 @@ def get_source(obj):
         line_no = inspect.getsourcelines(obj)[1]
         url_ending = "/".join(dir_struct[begins_at:]) + f"#L{line_no}"
         link = f'<a href="{base_url}{url_ending}">[source]</a>'
-    source_tag = f'<span style="text-align:right; float:right; font-size:0.8em; width: 50%; max-width: 6em; display: inline-block;">{link}</span>'
+    source_tag = f"<span>{link}</span>"
     return source_tag
 
 
@@ -244,9 +244,9 @@ def format_subheader(obj, level=1, in_table=False):
         header = "##" + "#" * level
     else:
         header = "|"
-    is_class = "<em><b>class </b></em>" if inspect.isclass(obj) else ""
-    class_name = f"<b>{create_absolute_path(obj)}</b>"
-    div_tag = f"<div class='sig' style='padding-left:3.5em;text-indent:-3.5em;'>"
+    is_class = "<strong><em>class </em></strong>" if inspect.isclass(obj) else ""
+    class_name = f"<strong>{create_absolute_path(obj)}</strong>"
+    div_tag = f"<div class='sig'>"
 
     call_sig = f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>\n\n"
     return call_sig

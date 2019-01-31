@@ -65,13 +65,13 @@ flow.run() # prints "Here's your data: [10, 20, 30]"
 
 If we call `flow.visualize()`, Prefect will draw the computational graph:
 
-![](/etl.png) {style="text-align: center;"}
+![etl](/etl.png) {.viz}
 
 ## An Imperative Flow
+
 We love Prefect's **functional API**, but some users might prefer a more explicit approach. Fortunately, Prefect can be operated through an **imperative API** as well.
 
-
- Here's an identical Flow, built with the imperative API:
+Here's an identical Flow, built with the imperative API:
 
 ```python
 from prefect import Flow
