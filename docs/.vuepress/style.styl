@@ -1,82 +1,156 @@
-/* prefect custom styling overriding default vuepress theme */
+/* ==========================================================================
+  	prefect custom styling and overrides for vuepress default theme and prismjs styles
+    ========================================================================== */
 
-// importing prefect fonts
+
+/**
+ * vuepress' 0.12.0+ release split style overrides into 2 APIs: `override.styl` and `style.styl`
+ * this is due to issues with styles being duplicated multiple times
+ * all custom styles have been migrated from `override.styl`
+ *
+ * vuepress uses stylus, an 'efficient, dynamic, & feature-rich CSS language built for nodejs'
+ * stylus supports both indented and regular CSS syntax
+ * more information can be found here: http://stylus-lang.com
+ *
+ * we use regular CSS and SCSS syntax as much as possible to keep our code consistent
+ * 
+ */
+
+
+/* prefect font families
+	========================================================================== */
+
+// load fonts
 @import url('https://rsms.me/inter/inter-ui.css');
 @import url('https://use.typekit.net/cvp6pli.css');
 
-// prefect palette
-$bluePrimary 	= #27b1ff;
-$blueSecondary = #3b8dff;
-$blueTertiary = #1061d0;
-$pink = #fe5196;
-$orange = #e90;
+// backup fonts
+$backupFonts = -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+$backupCode = Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
 
-// neutrals
-$grey = #a5b4be;
-$greyDark = #4d606e;
-
-$greyBorder = #f6f6fc; 
-$greyBg = #fbfcfd;
-$white = #fff;
-$black = #000;
-
-// prefect fonts
-$fontPrimary = 'Inter UI', Helvetica, Arial, sans-serif;
-$fontSecondary = Arboria, Helvetica, Arial, sans-serif;
-$fontCode = source-code-pro, Menlo, Consolas, monospace;
+// font stacks
+$fontPrimary = 'Inter UI', $backupFonts;
+$fontSecondary = Arboria, $backupFonts;
+$fontCode = source-code-pro, $backupCode;
 
 // font weights
 $bold = 700;
 $normal = 400;
 $light = 300;
 
-// link selectors
-$aLink = 'a, a:active, a:visited, a span';
 
-// button selector
-$button = 'button, .action-button, .home .hero .action-button';
+/* prefect color palette
+	========================================================================== */
 
-// hover & pocus states
-$onHover = '&:hover, &:focus';
+// brand colors
+$bluePrimary 	= #27b1ff;
+$blueSecondary = #3b8dff;
+$blueTertiary = #1061d0;
+$grey = #a5b4be;
+$greyDark = #4d606e;
+$pink = #fe5196;
+$orange = #e90;
 
-// breakpoints
-$mobile = 'max-width: 719px';
+// neutrals
+$greyBg = #fbfcfd;
+$greyBorder = #f6f6fc;
+$white = #fff;
+$black = #000;
 
-// typography settings
-body,
-p {
-	color: $greyDark;
-	font-family: $fontPrimary;
-	font-size: 1em;
-	font-weight: $normal;
+
+/* breakpoints
+	========================================================================== */
+
+$bpSmall = 26.25rem;
+$bpMedium = 45rem;
+$bpLarge = 60rem;
+
+
+/* type settings
+	========================================================================== */
+
+// setting base font settings
+html,
+body {
+	font: $normal 16px/1.5 $fontPrimary;
 }
 
 p,
 ul,
 ol {
-	line-height: 1.75em;
+	font-size: 1em;
+	line-height: 1.75;
+	margin-bottom: 1.25rem;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+ul,
+ol {
+	li {
+		line-height: 2;
+	}
+}
+
+// disclaimer text
+.disclaimer {
+	font-size: 0.8em;
+	font-style: italic;
+}
+
+// headers
+$headers = 'h1, h2, h3, h4, h5, h6';
+
+{$headers} {
 	color: $greyDark;
 	font-family: $fontSecondary;
 	font-weight: $bold;
+	line-height: 1.15;
+	margin: 2.75rem 0 1rem;
+	/* enables font's navtive kerning instructions */
+	text-rendering: optimizeLegibility;
 }
 
-{$aLink} {
+h1 {
+	font-size: 3em;
+}
+
+h2 {
+	font-size: 2.5em;
+
+	/.features .feature & {
+		font-weight: $bold;
+	}
+}
+
+h3 {
+	font-size: 2em;
+}
+
+h4 {
+	font-size: 1.5em;
+}
+
+h5 {
+	font-size: 1.25em;
+}
+
+h6 {
+	font-size: 0.85em;
+}
+
+// a tags
+$link = 'a, a:visited, a:active';
+$hover = '&:hover, &:focus';
+
+{$link} {
 	color: $bluePrimary;
 
-	{$onHover} {
+	{$hover} {
 		color: $blueSecondary;
 		cursor: pointer;
 	}
 }
 
+// font weight and styles
 strong,
 b {
 	font-weight: $bold;
@@ -87,105 +161,9 @@ i {
 	font-style: italic;
 }
 
-// nav bar
-.navbar {
-	{$aLink} {
-		color: $greyDark;
 
-		{$onHover} {
-			color: $bluePrimary;
-		}
-	}
-
-	@media screen and ({$mobile}) {
-		img,
-		.logo {
-			position: absolute;
-			left: 50%;
-		}
-	}	
-}
-
-// sidebar links
-.sidebar {
-	a,
-	^[0]-link,
-	^[0]-heading {
-		color: $greyDark;
-
-		{$onHover} {
-			color: $grey;
-		}
-	}
-	.arrow {
-		top: 0;
-
-		&.right {
-			border-left: 0.375em solid $greyDark;
-		}
-
-		&.left {
-			border-right: 0.375em solid $greyDark;
-		}
-	}	
-}
-
-//
-.home {
-	.features {
-		border-bottom: 0.0625em solid $grey;
-		border-top: 0.0625em solid $grey;
-		margin: 2.5em 0;
-
-		h2 {
-			font-weight: $bold;
-		}
-	}
-}
-
-// footer
-.footer {
-	margin-top: 2.5em;
-}
-
-// buttons
-{$button} {
-	background-color: $bluePrimary;
-	border: none;
-	border-bottom: 0.0625em solid $blueTertiary;
-	color: $white;
-	font-family: $fontPrimary;
-	margin: 1em;
-
-	{$onHover} {
-		background-color: $blueSecondary;
-		cursor: pointer;
-	}
-
-	{$aLink} {
-		color: $white;
-	}
-}
-
-// custom tip and warning blocks
-.custom-block {
-	&.tip {
-		border-color: $blueSecondary;
-		background-color: $greyBg;
-	}
-
-	&.warning {
-		background-color: lighten($orange, 90%);
-		border-color: $orange;
-		color: $greyDark;
-
-		 $title = 'p.custom-block-title';
-	 
-		{$title} {
-			color: $greyDark;
-		}
-	}
-}
+/* component styling
+	========================================================================== */
 
 // tables
 tr {
@@ -196,77 +174,271 @@ tr {
 	}
 }
 
-// unique text styling
-.note {
-	font-size: 0.825em;
-	font-style: italic;
-}
+// top navigation
+.navbar {
+	{$link} {
+		color: $greyDark;
 
-/* code syntax highlighting */
-
-.content {
-	div[class*="language-"] {
-		background-color: $greyBg;
-
-		&::before {
-			color: $greyDark;
+		{$hover} {
+			color: $bluePrimary;
 		}
+	}
 
-		pre,
-		code {	
-			background: transparent;
-			color: $greyDark;
-			z-index: 1;
-			white-space: pre;
+	@media screen and (max-width: $bpMedium) {
+		.logo {
+			display: block;
+			position: absolute;
+			margin: 0;	
+			left: 50%;
+			top: .7rem;
 		}
 	}	
+}
 
-	pre, 
-	pre[class*="language-"] {
+// sidebar
+.sidebar {
+	&-link,
+	&-heading,
+	{$link} {
+		color: $greyDark;
+
+		{$hover} {
+			color: $grey;
+		}
+	}
+}
+
+// license agreement spacing
+.content:not(.custom) > .license {
+	margin-top: 0;
+
+	h1,
+	p,
+	.action {
+		text-align: left;
+
+		.action-button {
+			margin-left: 0;	
+		}
+	}
+}
+
+
+// footer
+.footer {
+	margin-top: 2.5em;
+}
+
+// buttons
+$button = 'button, .action-button, .home .action .action-button';
+
+{$button} {	
+	background-color: $bluePrimary;
+	border: none;
+	border-bottom: 0.0625em solid $blueTertiary;
+	color: $white;
+	font-family: $fontPrimary !important;
+	margin: 1em;
+
+	{$hover} {
+		background-color: $blueSecondary;
+		cursor: pointer;
+	}
+
+ 	{$link} {
+		color: $white;
+	}
+}
+
+// images
+.viz {
+	text-align: center;
+	margin: 2rem auto;
+}
+
+.slack-example {
+	width: 500px;
+}
+
+.example {
+	height: 400px;
+}
+
+// custom blocks
+.custom-block {
+	$title = '.custom-block-title';
+
+	&-title {
+		font-weight: $bold;
+	}
+
+	&.tip {
+		background-color: $greyBg;
+		border-color: $blueSecondary;		
+	}
+
+	&.warning {
+		background-color: lighten($orange, 90%);
+		border-color: $orange;
+		color: $greyDark;
+		
+		{$title} {
+			color: $greyDark;
+		}
+	}
+}
+
+pre.vue-container {
+	border-color: $bluePrimary;
+
+	& > code {
+		font-size: 0.875em;
+
+		code {
+			background-color: $bluePrimary;
+			color: $black;
+		}
+
+		em {
+			color: $grey;
+			font-weight: $light;
+		}
+	}
+}
+
+
+/* code and syntax highlighting
+	========================================================================== */
+
+// code selectors
+$divLang = 'div[class*="language-"]';
+$preLang = 'pre[class*="language-"]';
+$codeLang = 'code[class*="language-"]';
+
+// prism.js and general overrides
+pre,
+code,
+kbd,
+.line-number {
+	color: $greyDark;
+	font-family: $fontCode;
+}
+
+{$preLang},
+{$codeLang} {
+	color: $greyDark;
+	background: transparent;
+	font-family: $fontCode;
+	line-height: 1.75;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
+
+{$preLang} {
+	padding: 1rem;
+	margin: 0.5rem 0;
+	overflow: auto;
+}
+
+:not(pre) > {$preLang}, {$codeLang} {
+	background: darken($greyDark, 50%);
+}
+
+:not(pre) > {$codeLang} {
+	padding: 0.25rem;
+	border-radius: 0.5em;
+	white-space: normal;
+}
+
+// vuepress theme overrides
+$token = '.token';
+
+.content {
+	pre,
+	{$preLang} {
 		background-color: $greyBg;
 		border-radius: 0.5em;
 		border: solid 0.125em $greyBorder;
 		color: $greyDark;
 		font-family: $fontCode;
-		line-height: 1.4;
+		line-height: 1.75;
 		margin: 0.85rem 0;
 		overflow: auto;
 		padding: 1.25rem 1.5rem;
-		white-space: pre;
+
+		code,
+		{$codeLang} {
+			background-color: transparent;
+			border-radius: 0;
+			padding: 0;
+		}
 	}
 
-	code {
-    border-radius: 0.25em;		
+	code,
+	{$codeLang} {
+		background-color: darken($greyBg, 5%);
+		border-radius: 0.25em;
 		color: $greyDark;
 		font-family: $fontCode;
-		font-size: 0.875em;
-		padding: 0.25em 0.5em;
-		white-space: pre;
-	}
-}
+		font-size: 0.9em;
+		padding: 0.25rem 0.5rem;
 
-.content {
-	div[class*="language-graphql"] {
-		&::before {
-			content: 'gql';
-			position: absolute;
-			z-index: 3;
-			top: 0.8em;
-			right: 1em;
-			font-size: 0.75rem;
+		{$token} {
+			&.deleted {
+				color: $blueSecondary;
+			}
+			&.inserted {
+				color: $pink;
+			}
 		}
 	}
 }
 
-// source docs
+.content {
+	{$divLang} {
+		background-color: $greyBg;
+		border-radius: 0.375em;
+		position: relative;
+
+		&::before {
+			color: $greyDark;
+			font-size: 0.75em;
+			position: absolute;
+			right: 1rem;
+			top: 0.8rem;
+			z-index: 3;
+		}
+
+		pre,
+		{$preLang},
+		code,
+		{$codeLang} {
+			background: transparent;
+			color: $greyDark;
+			position: relative;
+			z-index: 1;
+		}
+	}
+}
+
+// resource docs
 .content {
 	div[class="sig"] {
 		background-color: lighten($bluePrimary, 95%);
 		border-top: 0.325em solid $blueSecondary;
 		font-family: $fontCode;
-		font-size: 0.875em;
-		line-height: 1.5em;
-		padding: 1.5em 2em 3.5em 5em;
+		font-size: 1em;
+		line-height: 1.5;
+		padding: 1.5rem 2rem 3.5rem 5rem;
 		text-indent: -2.5em;
 
 		span a {
@@ -274,88 +446,153 @@ tr {
 			color: $blueTertiary;
 			float: right;
 			font-size: 0.875em;
-			margin-top: 1em;
+			margin-top: 2.5rem;
 
-			{$onHover} {
+			{$hover} {
 				font-weight: $bold;
 			}
 		}
 	}
 }
 
-.token.comment,
-.token.prolog,
-.token.doctype,
-.token.cdata {
-	color: darken($grey, 25%);
-	font-style: italic;
+// tokens
+{$token} {
+	&.comment,
+	&.block-comment,
+	&.prolog,
+	&.doctype,
+	&.cdata {
+		color: darken($grey, 25%);
+		font-style: italic;
+	}
+	
+	&.atrule,
+	&.attr-value,
+	&.keyword {
+		color: $bluePrimary;
+		font-style: italic;
+		font-weight: $bold;
+	}	
+
+	&.builtin {
+		color: $bluePrimary;
+	}
+
+	&.tag,
+	&.deleted,
+	&.number,
+	&.boolean,
+	&.property,
+	&.constant,
+	&.symbol {
+		color: $blueSecondary;
+	}
+
+	&.function-name,
+	&.function,
+	&.class-name,
+	&.operator,
+	&.entity,
+	&.url {
+		color: $blueSecondary;
+		font-weight: $bold;
+	}
+
+	&.punctuation {
+		color: $blueTertiary;
+	}
+
+	&.attr-name,
+	&.namespace,
+	&.selector,
+	&.decorator,
+	&.string,
+	&.car,
+	&.inserted {
+		color: $pink;
+	}	
+
+	&.important,
+	&.regex,
+	&.variable {
+		color: $orange;
+	}
+
+	&.important,
+	&.bold {
+		font-weight: $bold;
+	}
+
+	&.italic {
+		font-style: italic;
+	}
+
+	&.entity {
+		cursor: help;
+	}
+
+	&.namespace {
+		opacity: 0.75;
+	}
+
+	//style specific tokens
+	$tokenString = '.token.string';
+
+	/.language-css {$tokenString},
+	/.style {$tokenString} {
+		color: $blueSecondary;
+		font-weight: $bold;
+	}
 }
 
-.token.punctuation {
-  color: $blueTertiary;
+/* prefect - code snippet languages */
+
+// most often used (required)
+div[class~="language-bash"] {
+	&:before {
+		content: "sh";
+	}
 }
 
-.namespace {
-	opacity: .75;
+div[class~="language-python"] {
+	&:before {
+		content: "py";
+	}
 }
 
-$token = '.token';
-
-.token.property,
-.token.tag,
-.token.boolean,
-.token.number,
-.token.constant,
-.token.symbol,
-.token.deleted, {
-	color: $blueSecondary;
+div[class~="language-graphql"] {
+	&:before {
+		content: "gql";
+	}
 }
 
-.token.selector,
-.token.attr-name,
-.token.decorator,
-.token.string,
-.token.char,
-.token.inserted {
-	color: $pink;
+div[class~="language-json"] {
+	&:before {
+		content: "json";
+	}
 }
 
-.token.builtin {
-  color: $bluePrimary;
+// seldomly used (optional)
+div[class~="language-markdown"] {
+  &:before {
+		content: "md";
+	}
 }
 
-.token.operator,
-.token.entity,
-.token.url,
-.language-css .token.string,
-.style .token.string,
-.token.function,
-.token.class-name {
-	color: $blueSecondary;
-  font-weight: $bold;
+div[class~="language-javascript"] {
+	&:before {
+		content: "js";
+	}
 }
 
-.token.atrule,
-.token.attr-value,
-.token.keyword {
-	color: $bluePrimary;
-	font-style: italic;
-	font-weight: $bold;
+div[class~="language-css"] {
+	&:before {
+		content: "css";
+	}
 }
 
-.token.regex,
-.token.variable {
-	color: $orange;
-}
-
-.token.important,
-.token.bold {
-	font-weight: $bold;
-}
-.token.italic {
-	font-style: italic;
-}
-
-.token.entity {
-	cursor: help;
+div[class~="language-scss"] {
+	&:before {
+		content: "scss";
+	}
 }

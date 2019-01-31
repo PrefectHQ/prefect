@@ -1,7 +1,32 @@
-/* vuepress 0.12.0+ split this into two APIs, custom styles have been migrated to style.styl */
+/* ==========================================================================
+    vuepress default theme constants overrides
+    ========================================================================== */
 
-// overriding default styles
+/**
+ * vuepress' 0.12.0+ release split style overrides into 2 APIs: `override.styl` and `style.styl`
+ * this is due to issues with styles being duplicated multiple times
+ * custom styles have been migrated to `style.styl`
+ * 
+ * DO NOT add additional styling to ths file
+ * all custom prefect styles needs to be placed in `style.styl`
+ * 
+ * this stylesheet outlines the default variables/constants that allow for edits
+ * 
+ */
+
+// default color changes
 $accentColor = #27b1ff;
 $textColor = #4d606e;
-$borderColor = #a5b4be;
+$borderColor = lighten(#a5b4be, 50%);
 $codeBgColor = #fbfcfd;
+$arrowBgColor = $textColor;
+
+// responsive layouts
+$navbarHeight = 3.75rem;
+$sidebarWidth = 20rem;
+$contentWidth = 46.25rem;
+
+// responsive breakpoints
+$MQNarrow = 60rem;
+$MQMobile = 45rem;
+$MQMobileNarrow = 26.25rem;
