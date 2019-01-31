@@ -1,4 +1,5 @@
 import cloudpickle
+import datetime
 import tempfile
 import time
 import uuid
@@ -13,7 +14,7 @@ from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import (
-    CachedState,
+    Cached,
     Failed,
     Finished,
     Mapped,
@@ -339,3 +340,70 @@ class TestHeartBeats:
 
         assert res.is_successful()
         assert client.update_task_run_heartbeat.call_args[0][0] == 1234
+
+
+class TestStateResultHandling:
+    def test_task_runner_handles_outputs_prior_to_setting_state(self, client):
+        serialized = ResultHandlerSchema().dump(JSONResultHandler())
+
+        @prefect.task(
+            cache_for=datetime.timedelta(days=1), result_handler=JSONResultHandler()
+        )
+        def add(x, y):
+            return x + y
+
+        x_state = Success(result=1)
+        y_state = Success(result=1)
+        x_state._metadata["result"]["result_handler"] = serialized
+        y_state._metadata["result"]["result_handler"] = serialized
+        upstream_states = {
+            Edge(Task(), Task(), key="x"): x_state,
+            Edge(Task(), Task(), key="y"): y_state,
+        }
+
+        res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
+
+        ## assertions
+        assert client.get_task_run_info.call_count == 0  # never called
+        assert (
+            client.set_task_run_state.call_count == 3
+        )  # Pending -> Running -> Successful -> Cached
+
+        states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+        assert states[0].is_running()
+        assert states[1].is_successful()
+        assert isinstance(states[2], Cached)
+        assert states[2].cached_inputs == dict(x="1", y="1")
+        assert states[2].result == "2"
+
+    def test_task_runner_handles_inputs_prior_to_setting_state(self, client):
+        serialized = ResultHandlerSchema().dump(JSONResultHandler())
+
+        @prefect.task(max_retries=1, retry_delay=datetime.timedelta(days=1))
+        def add(x, y):
+            return x + y
+
+        state = Pending(cached_inputs=dict(x=1, y="0"))
+        x_state = Success(result=1)
+        y_state = Success(result=1)
+        x_state._metadata["result"]["result_handler"] = serialized
+        y_state._metadata["result"]["result_handler"] = serialized
+        upstream_states = {
+            Edge(Task(), Task(), key="x"): x_state,
+            Edge(Task(), Task(), key="y"): y_state,
+        }
+        res = CloudTaskRunner(task=add).run(
+            state=state, upstream_states=upstream_states
+        )
+
+        ## assertions
+        assert client.get_task_run_info.call_count == 0  # never called
+        assert (
+            client.set_task_run_state.call_count == 3
+        )  # Pending -> Running -> Failed -> Retrying
+
+        states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+        assert states[0].is_running()
+        assert states[1].is_failed()
+        assert isinstance(states[2], Retrying)
+        assert states[2].cached_inputs == dict(x="1", y='"0"')
