@@ -34,6 +34,7 @@
 - Older versions of Prefect will now ignore fields added by newer versions when deserializing objects - [#583](https://github.com/PrefectHQ/prefect/pull/583)
 - Result handler failures now result in clear task run failures - [#575](https://github.com/PrefectHQ/prefect/issues/575)
 - Fix issue deserializing old states with empty metadata - [#590](https://github.com/PrefectHQ/prefect/pull/590)
+- Fix issue serializing `cached_inputs` - [#594](https://github.com/PrefectHQ/prefect/pull/594)
 
 ### Breaking Changes
 
