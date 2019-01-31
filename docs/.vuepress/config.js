@@ -3,12 +3,15 @@ const webpack = require('webpack')
 module.exports = {
   title: 'Prefect (Preview)',
   description: "Don't Panic.",
+  head: ['link', { rel: 'icon', href: '/favicon.ico'}], 
   ga: "UA-115585378-1",
   themeConfig: {
     repo: 'PrefectHQ/prefect/tree/master/docs',
     editLinks: true,
     // repoLabel: 'GitHub',
-    nav: [{
+    logo: '/assets/logomark-color.svg',
+    nav: [
+      {
         text: "Overview",
         link: '/introduction.html'
       },
@@ -19,7 +22,8 @@ module.exports = {
       {
         text: "License",
         link: '/license.html'
-      }, {
+      },
+      {
         text: "Log Out",
         link: '/logout.html'
       }
@@ -32,32 +36,38 @@ module.exports = {
           collapsable: true,
           children: ['environments', 'triggers', 'schedules']
         },
-
         {
           title: 'prefect.client',
           collapsable: true,
           children: ['client/client', 'client/secrets']
         },
-
         {
           title: 'prefect.core',
           collapsable: true,
           children: ['core/task', 'core/flow', 'core/edge']
         },
-
         {
           title: 'prefect.engine',
           collapsable: true,
-          children: ['engine/cache_validators',
-            'engine/executors', 'engine/flow_runner', 'engine/signals',
-            'engine/state', 'engine/task_runner',
+          children: [
+            'engine/cache_validators',
+            'engine/executors',
+            'engine/flow_runner',
+            'engine/signals',
+            'engine/state',
+            'engine/task_runner'
           ]
         },
-
         {
           title: 'prefect.tasks',
           collapsable: true,
-          children: ['tasks/control_flow', 'tasks/function', 'tasks/shell', 'tasks/sqlite', 'tasks/strings']
+          children: [
+            'tasks/control_flow',
+            'tasks/function',
+            'tasks/shell',
+            'tasks/sqlite',
+            'tasks/strings'
+          ]
         },
         {
           title: 'prefect.utilities',
@@ -76,10 +86,14 @@ module.exports = {
             'utilities/tasks',
             'utilities/airflow'
           ]
-        },
+        }
       ],
       '/license': [],
-      '/': ['introduction', 'changelog', 'installation', 'getting_started',
+      '/': [
+        'introduction',
+        'changelog',
+        'installation',
+        'getting_started',
         {
           title: 'Core Concepts',
           collapsable: true,
@@ -97,7 +111,8 @@ module.exports = {
             'core_concepts/best-practices',
             'core_concepts/common-pitfalls'
           ]
-        }, {
+        },
+        {
           title: 'Cloud Concepts',
           collapsable: true,
           children: [
@@ -106,22 +121,23 @@ module.exports = {
             'cloud_concepts/projects',
             'cloud_concepts/flows',
             'cloud_concepts/schedules',
-            'cloud_concepts/flow_runs',
+            'cloud_concepts/flow_runs'
           ]
         },
         {
           title: 'Tutorials',
           collapsable: true,
           children: [
-            'tutorials/',
-            'tutorials/etl',
-            'tutorials/calculator',
-            'tutorials/local-debugging',
-            'tutorials/task-retries',
+
+            'tutorials/', 
+            'tutorials/etl', 
+            'tutorials/calculator', 
+            'tutorials/local-debugging', 
+            'tutorials/task-retries', 
             'tutorials/triggers-and-references',
-            'tutorials/visualization',
-            'tutorials/advanced-mapping',
-            'tutorials/airflow_migration',
+            'tutorials/visualization', 
+            'tutorials/advanced-mapping', 
+            'tutorials/airflow_migration', 
             'tutorials/slack-notifications'
           ]
         },

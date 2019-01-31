@@ -1,9 +1,4 @@
-<template>
-  <div></div>
-</template>
-
 <script>
-
 export default {
   mounted () {
     const netlifyIdentity = require("netlify-identity-widget")
@@ -11,5 +6,4 @@ export default {
     this.$router.push('/')
   }
 }
-
 </script>

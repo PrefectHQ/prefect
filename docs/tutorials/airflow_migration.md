@@ -15,32 +15,39 @@ Prefect is actively building out support for migrating workflows from Airflow to
 The utility presented here introspects a given Airflow DAG and creates a corresponding Prefect Flow object (called an `AirFlow`, pardon the pun) which _represents_ the underlying Airflow DAG.  Each Airflow operator of the DAG is represented by a corresponding Prefect task of the same name. Moreover, all dependency information is transferred to and handled by Prefect (triggers, skips, etc.).  During execution, each Prefect task runs its corresponding Airflow operator. This allows users to augment their Flow with new Prefect tasks, as well as taking advantage of Prefect functionality, all without giving up Airflow-specific operators and functions.
 
 ::: warning There are a few additional implementation details you should be aware of:
+
 - In order to leave your Airflow DAGs unaffected, each `AirFlow` flow will spin up its own temporary sqlite3 database
 - each task in your DAG will be mapped to a corresponding Prefect task which can be inspected with Prefect; the underlying Airflow task is still present under the hood, but **Prefect controls all execution logic**.  This is important because it highlights what is and isn't possible with the current tool:
-    - any parallelism or resource pooling settings in Airflow will need to be explicitly set with Prefect
-    - if you remove or replace a Prefect Airflow task, Airflow will still reference it and expect it to be run for its downstream dependencies
-    - all triggers are converted automatically
+
+  - any parallelism or resource pooling settings in Airflow will need to be explicitly set with Prefect
+  - if you remove or replace a Prefect Airflow task, Airflow will still reference it and expect it to be run for its downstream dependencies
+  - all triggers are converted automatically
+
 - XComs pushed from a task are converted to the _return value_ for the corresponding Prefect task, because Prefect allows for data to be passed downstream
+
 :::
 
 These are subject to change per customer feedback!
 
 ## Example Airflow DAG
+
 To see this functionality at work, let's begin with a contrived DAG meant to highlight the various features and benefits you might find by allowing Prefect to run your Airflow DAG.  Moreover, this exercise will highlight many of the differences between Airflow and Prefect.
 
 ::: tip Roadmap of our example DAG
+
 - `run_this_first`: a dummy operator
 - `branching`: a `BranchPythonOperator` which will randomly return one of `"branch_a"` or `"branch_b"`
-    - `branch_a`: a dummy operator immediately downstream of `branching`
-        - `push_xcom_for_branch_a`: downstream of `branch_a`; if run, pushes an XCom value of `"branch_a"`
-    - `branch_b`: a dummy operator immediately downstream of `branching`
-        - `push_xcom_for_branch_b`: downstream of `branch_b`; if run, pushes an XCom value of `"branch_b"`
+  - `branch_a`: a dummy operator immediately downstream of `branching`
+    - `push_xcom_for_branch_a`: downstream of `branch_a`; if run, pushes an XCom value of `"branch_a"`
+  - `branch_b`: a dummy operator immediately downstream of `branching`
+    - `push_xcom_for_branch_b`: downstream of `branch_b`; if run, pushes an XCom value of `"branch_b"`
 - `join`: a final dummy operator which is downstream of the `push_xcom` tasks; will run as long as at least one of those is successful
+
 :::
 
 The following code is _pure Airflow_ which you should save in a `.py` file in your DAG folder and run before continuing.
 
-<div class=comp-code>
+<div>
 
 ```python
 import airflow
@@ -96,9 +103,11 @@ for option in options:
     t.set_downstream(xcom_follow)
     xcom_follow.set_downstream(join)
 ```
+
 </div>
 
 ## Import DAG as a Prefect Flow
+
 After adding the above DAG to your Airflow database, we can now import it as a Prefect flow and manipulate it as a first-class Prefect object.
 
 ::: tip Don't Panic
@@ -115,12 +124,11 @@ flow = AirFlow(dag_id='example_dag_for_prefect')
 flow.visualize()
 ```
 
-![](/airflow_dag.svg) {style="text-align: center;"}
+![airflow dag](/airflow_dag.svg) {.viz}
 
 Reminder: underlying each of these Prefect tasks is _still_ an Airflow task which is a part of an Airflow DAG; consequently, it is not currently recommended that you manipulate the individual tasks themselves.
 
 However, we _can_ build on top of this using pure Prefect!  Importantly, because Prefect allows for dataflow as a first-class operation, we can add downstream dependencies of any task which pushes an XCom and use the pushed XCom value without touching Airflow!
-
 
 ```python
 from prefect import task, triggers
@@ -144,15 +152,16 @@ with flow:
 flow.visualize()
 ```
 
-![svg](/extended_airflow_dag.svg) {style="text-align: center;"}
+![extended airflow dag](/extended_airflow_dag.svg) {.viz}
 
 ## Execution
+
 In Airflow, time is intimately tied with DAG and task execution; that is not always the case in Prefect.  In order to execute a Prefect `AirFlow` (apologies for the pun) you will also need to provide an `execution_date` to the `run()` method - this is only necessary for flows which have been converted from Airflow.
 
 When we execute this, we expect to see two print statements:
+
 1. a print of the branch name which was run by the `branching` operator
 2. a print of `None` corresponding to the `print_value` task on the skipped branch
-
 
 ```python
 from prefect.utilities.debug import raise_on_exception
@@ -163,6 +172,6 @@ flow_state = flow.run(execution_date='2018-09-20', return_tasks=flow.tasks)
 flow.visualize(flow_state=flow_state)
 ```
 
-![svg](/run_airflow_dag.svg) {style="text-align: center;"}
+![run airflow dag](/run_airflow_dag.svg) {.viz}
 
 This is just one way in which Prefect allows you to extend and _improve_ your Airflow DAGs!
