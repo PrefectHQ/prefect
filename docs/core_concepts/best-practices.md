@@ -57,5 +57,4 @@ with Flow() as flow:
 
     # use the imperative API where appropriate
     shell_result.set_upstream(two)
-
 ```
