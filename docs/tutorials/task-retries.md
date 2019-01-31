@@ -10,8 +10,6 @@ A notebook containing all code presented in this tutorial can be downloaded [her
 
 When designing data workflows, it is to be expected that certain components might occasionally fail or need manual intervention. In these situations, to avoid re-running entire flows from scratch and still ensure the necessary data arrives at the paused / retrying task, Prefect will automatically detect that caching is required and will store the necessary inputs to be used in subsequent executions of the flow.
 
-![retry success](/retry_success.png) {.viz}
-
 There are many reasons a given flow run might result in a task failure; for example, if a task pings an external service that is temporarily down, or queries a database that is currently locked, that task cannot proceed.
 
 Of course, you could encapsulate your own error-handling logic in the task itself with `try / except` clauses, etc. However, allowing Prefect to register the task failure provides many benefits:
@@ -26,7 +24,7 @@ Let's dig into this further with an example.
 We have two tasks: `create_payload` and `ping_external_service` which depend on each other. We imagine `create_payloud` performs expensive computation, and its result is used by `ping_external_service` to ping an external service (which may occasionally go down). Ideally we don't want to rerun `create_payload` if the external service is temporarily unavailable.
 :::
 
-In Prefect, we can set a retry limit (using the keyword `max_retries`) on tasks we expect could fail; behind the scenes, Prefect will store all inputs / parameters required to execute the retrying task, so that on the next run any previously Successful tasks aren't unnecessarily rerun.
+In Prefect, we can set a retry limit (using the keyword `max_retries`) along with a `retry_delay` on tasks we expect could fail; behind the scenes, Prefect will store all inputs / parameters required to execute the retrying task, so that on the next run any previously Successful tasks aren't unnecessarily rerun.
 
 To create the tasks, we use the `@task` decorator, which optionally accepts `kwargs` related to the behavior of the task.
 
@@ -35,6 +33,7 @@ import prefect
 from prefect import task, Flow
 
 import requests
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 from time import sleep
 
@@ -47,7 +46,7 @@ def create_payload():
     return 'http://www.google.com'
 
 
-@task(max_retries=1)
+@task(max_retries=1, retry_delay=timedelta(minutes=10))
 def ping_external_service(url):
     "Performs a simple GET request to the provided URL, and returns the text of the response."
 
@@ -62,7 +61,7 @@ To combine the tasks into a flow and specify the appropriate dependencies, we us
 
 ```python
 with Flow(name="retry example") as f:
-    text = ping_external_service(create_payload())
+    text = ping_external_service(create_payload)
 ```
 
 Now that we have created our flow `f`, we could continue to add tasks and dependencies to it through a variety of methods such as `add_task` and `set_dependencies`, or inspect its current state with methods such as `visualize` and `terminal_tasks`.
@@ -71,8 +70,8 @@ To actually perform the computation, we call `f.run()` and specify which tasks w
 
 ```python
 %%time
-with prefect.context(fail=True):
-    flow_state = f.run(return_tasks=f.tasks)
+with prefect.context(fail=True) as ctx:
+    flow_state = f.run(return_tasks=f.tasks, context=ctx)
 
 ##    CPU times: user 5.65 ms, sys: 1.46 ms, total: 7.12 ms
 ##    Wall time: 5.01 s
@@ -94,9 +93,7 @@ print("Flow results: {}".format(flow_state.result))
 
 No surprises here; the entire flow is `Pending` because its sole terminal task (`ping_external_service`) hasn't finished yet.
 
-![pending retry](/retry.png) {.viz}
-
-To trigger a retry / rerun, we need to run `f.run()` again, providing the retrying task state, and explicitly telling the flow which task to start with. Contained within the `Retrying` state are the necessary cached inputs that were provided to `ping_external_service` on the last run.
+To trigger a retry / rerun _locally_, we need to run `f.run()` again (in production this would be handled automatically), providing the retrying task state, and explicitly telling the flow which task to start with. Contained within the `Retrying` state are the necessary cached inputs that were provided to `ping_external_service` on the last run.
 
 When we rerun this flow, we expect it to take significantly less time and return a successful result.
 
