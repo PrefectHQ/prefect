@@ -178,15 +178,15 @@ def test_format_list_on_normal_doc():
     formatted_doc = format_lists(doc)
     assert formatted_doc == (
         "\n    Does a thing.\n\n    Args:\n        "
-        "<ul>"
-        "<li>"
+        '<ul class="args">'
+        '<li class="args">'
         "`x (bool)`: it's x\n        </li>"
-        "<li>"
+        '<li class="args">'
         "`y (bool)`: it's y</li></ul>    "
-        "Returns:\n        <ul>"
-        "<li>whatever you want</li></ul>"
-        "\n\n    Raises:\n        <ul>"
-        "<li>`NotImplementedError`: because it doesnt exist\n    </li></ul>"
+        'Returns:\n        <ul class="args">'
+        '<li class="args">whatever you want</li></ul>'
+        '\n\n    Raises:\n        <ul class="args">'
+        '<li class="args">`NotImplementedError`: because it doesnt exist\n    </li></ul>'
     )
 
 
@@ -203,8 +203,8 @@ def test_format_doc_on_simple_doc():
     formatted = format_doc(my_fun)
     assert formatted == (
         "Indicates that a task should not run and wait for manual execution.\n\n"
-        "**Args**:     <ul>"
-        "<li>"
+        '**Args**:     <ul class="args">'
+        '<li class="args">'
         "`message (Any, optional)`: Defaults to `None`. A message about the signal.</li></ul>"
     )
 
