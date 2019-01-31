@@ -584,7 +584,7 @@ class TestCheckTaskTrigger:
 
 
 class TestCheckTaskReady:
-    @pytest.mark.parametrize("state", [Pending(), CachedState(), Mapped()])
+    @pytest.mark.parametrize("state", [Pending(), Mapped()])
     def test_ready_states(self, state):
         new_state = TaskRunner(task=Task()).check_task_is_ready(state=state)
         assert new_state is state
@@ -676,18 +676,15 @@ class TestCheckTaskCached:
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
         state = CachedState(cached_inputs={"a": 1}, cached_result=2)
-        with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
-        assert isinstance(exc.value.state, Success)
-        assert exc.value.state.result == 2
-        assert exc.value.state.cached is state
+        new = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
+        assert new is state
 
     def test_cached_different_inputs(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
         state = CachedState(cached_inputs={"a": 1}, cached_result=2)
         new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 2})
-        assert new_state is state
+        assert new_state.is_pending()
 
     def test_cached_duration(self):
         with pytest.warns(UserWarning):
@@ -697,11 +694,8 @@ class TestCheckTaskCached:
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
         )
 
-        with pytest.raises(ENDRUN) as exc:
-            TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
-        assert isinstance(exc.value.state, Success)
-        assert exc.value.state.result == 2
-        assert exc.value.state.cached is state
+        new = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
+        assert new is state
 
     def test_cached_duration_fail(self):
         with pytest.warns(UserWarning):
@@ -711,16 +705,16 @@ class TestCheckTaskCached:
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=-1),
         )
         new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
-        assert new_state is state
+        assert new_state.is_pending()
 
 
 class TestSetTaskRunning:
-    @pytest.mark.parametrize("state", [Pending(), CachedState()])
+    @pytest.mark.parametrize("state", [Pending()])
     def test_pending(self, state):
         new_state = TaskRunner(task=Task()).set_task_to_running(state=state)
         assert new_state.is_running()
 
-    @pytest.mark.parametrize("state", [Running(), Success(), Skipped()])
+    @pytest.mark.parametrize("state", [CachedState(), Running(), Success(), Skipped()])
     def test_not_pending(self, state):
         with pytest.raises(ENDRUN):
             TaskRunner(task=Task()).set_task_to_running(state=state)
@@ -942,14 +936,13 @@ class TestCacheResultStep:
         )
         assert new_state is not state
         assert new_state.is_successful()
+        assert isinstance(new_state, CachedState)
         assert new_state.result == 2
         assert new_state.message == "hello"
-        assert isinstance(new_state.cached, CachedState)
-        assert new_state.cached.cached_result == 2
-        assert new_state.cached.cached_inputs == {"x": 5}
+        assert new_state.cached_result == 2
+        assert new_state.cached_inputs == {"x": 5}
         assert (
-            new_state.cached._metadata["cached_inputs"]["x"]["result_handler"]
-            == "json-blob"
+            new_state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob"
         )
 
 

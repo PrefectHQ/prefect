@@ -329,44 +329,6 @@ class Paused(Pending):
     color = "#800000"
 
 
-class CachedState(Pending):
-    """
-    CachedState, which represents a Task whose outputs have been cached.
-
-    Args:
-        - message (str or Exception, optional): Defaults to `None`. A message about the
-            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-        keys to values.  Used / set if the Task requires Retries.
-        - cached_result (Any): Defaults to `None`. Cached result from a
-        successful Task run.
-        - cached_parameters (dict): Defaults to `None`
-        - cached_result_expiration (datetime): The time at which this cache
-            expires and can no longer be used. Defaults to `None`
-    """
-
-    color = "#ffa500"
-
-    def __init__(
-        self,
-        message: str = None,
-        result: Any = None,
-        cached_inputs: Dict[str, Any] = None,
-        cached_result: Any = None,
-        cached_parameters: Dict[str, Any] = None,
-        cached_result_expiration: datetime.datetime = None,
-    ):
-        super().__init__(message=message, result=result, cached_inputs=cached_inputs)
-        self.cached_result = cached_result  # type: ignore
-        self.cached_parameters = cached_parameters  # type: Optional[Dict[str, Any]]
-        if cached_result_expiration is not None:
-            cached_result_expiration = ensure_tz_aware(cached_result_expiration)
-        self.cached_result_expiration = (
-            cached_result_expiration
-        )  # type: Optional[datetime.datetime]
-
-
 class Scheduled(Pending):
     """
     Pending state indicating the object has been scheduled to run.
@@ -520,18 +482,51 @@ class Success(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached (CachedState): a `CachedState` which can be used for future
-            runs of this task (if the cache is still valid); this attribute should only be set
-            by the task runner.
     """
 
     color = "#008000"
 
+    def __init__(self, message: str = None, result: Any = None):
+        super().__init__(message=message, result=result)
+
+
+class CachedState(Success):
+    """
+    CachedState, which represents a Task whose outputs have been cached.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+        keys to values.  Used / set if the Task requires Retries.
+        - cached_result (Any): Defaults to `None`. Cached result from a
+        successful Task run.
+        - cached_parameters (dict): Defaults to `None`
+        - cached_result_expiration (datetime): The time at which this cache
+            expires and can no longer be used. Defaults to `None`
+    """
+
+    color = "#ffa500"
+
     def __init__(
-        self, message: str = None, result: Any = None, cached: CachedState = None
+        self,
+        message: str = None,
+        result: Any = None,
+        cached_inputs: Dict[str, Any] = None,
+        cached_result: Any = None,
+        cached_parameters: Dict[str, Any] = None,
+        cached_result_expiration: datetime.datetime = None,
     ):
         super().__init__(message=message, result=result)
-        self.cached = cached
+        self.cached_inputs = cached_inputs
+        self.cached_result = cached_result  # type: ignore
+        self.cached_parameters = cached_parameters  # type: Optional[Dict[str, Any]]
+        if cached_result_expiration is not None:
+            cached_result_expiration = ensure_tz_aware(cached_result_expiration)
+        self.cached_result_expiration = (
+            cached_result_expiration
+        )  # type: Optional[datetime.datetime]
 
 
 class Mapped(Success):
@@ -547,9 +542,6 @@ class Mapped(Success):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `[]`. A data payload for the state.
-        - cached (CachedState): a `CachedState` which can be used for future
-            runs of this task (if the cache is still valid); this attribute should only be set
-            by the task runner.
         - children (List): A list containing the states of any "children" of this task. When
             a task enters a Mapped state, it indicates that it has dynamically created copies
             of itself to map its operation over its inputs. Those copies are the children.
@@ -558,13 +550,9 @@ class Mapped(Success):
     color = "#97FFFF"
 
     def __init__(
-        self,
-        message: str = None,
-        result: Any = None,
-        cached: CachedState = None,
-        map_states: List[State] = None,
+        self, message: str = None, result: Any = None, map_states: List[State] = None
     ):
-        super().__init__(message=message, result=result, cached=cached)
+        super().__init__(message=message, result=result)
         self.map_states = map_states or []  # type: List[State]
 
     @property
