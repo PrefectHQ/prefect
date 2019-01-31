@@ -87,6 +87,8 @@ class ResultSerializer:
         """deserialize a result from a JSON-compatible object"""
 ```
 
+As an extension, we might also consider a `NoResult` class that would be the initial (default) value for any State. This would help us differentiate between a `State` that had been run and produced a `None` result, and a `State` that had no result attached.
+
 ### State
 
 We will change states to have the following signature:
