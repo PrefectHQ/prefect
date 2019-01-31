@@ -11,7 +11,7 @@ Author: Chris White
 
 ## Status
 
-Proposed
+Accepted; expanded by [PIN-4](PIN-4-Result-Objects.md)
 
 ## Context
 
@@ -27,7 +27,7 @@ We will implement result handlers (with a new name) by making the following chan
 - State serializers will use this metadata dictionary in making decisions about what to ship to the backend; in particular, _no raw data_ will be serialized into the State object.  Additionally, State serializers will no longer perform the handling - they will simply decide what is safe to put in the DB, and ignore all else. (Note that, because Failed states include informative messages about their exceptions, we don't really lose anything by not storing those exceptions)
 - Task Runner caching pipeline steps will be updated to include result handling logic; for example, the only time a _result_ will be handled is if the user requests it via the `cache_for` kwarg on the Task.  Similarly, for input storage the Task Runner can inspect the upstream state's metadata attribute to handle each and every input in a custom way
 - Task Runner input handling pipeline steps will become responsible for unpackaging any URIs using the associated result handlers (this will prevent too much data from being loaded at the beginning of a Flow run)
-  
+
 Note that this allows for all kinds of interesting features: for example, we will implement a simple `JSONHandler` for storing tiny bits of data (strings, numbers) _directly in the DB_.  This will allow for the convenience of storing such things to users, while also providing plenty of surface area for warning them that this means the Prefect backend will actually have their data.  In this case, the "URI" of a processed piece of data is simply its JSON representation.
 
 Additionally, note that this means that if handling of data fails for any reason, it will be treated as a Task failure.
