@@ -86,13 +86,14 @@ ol {
 	}
 }
 
-.content {
-	ul,
-	ol,
-	li {
-		padding-left: 3.5em;
-		text-indent: -3.5em;
-	}
+$args = 'ul.args, ol.args';
+
+{$args} {
+    li {
+        line-height: 2.25;
+        padding-left: 2.5em;
+        text-indent: -2em;
+    }
 }
 
 // disclaimer text
