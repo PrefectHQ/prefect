@@ -13,20 +13,29 @@ from prefect.utilities.serialization import (
 )
 
 
+def reset_value(value, is_raw):
+    if is_raw:
+        value = None
+    else:
+        try:
+            json.dumps(value)
+        except TypeError:
+            raise TypeError(
+                "The serialized result of a ResultHandler must be JSON-compatible."
+            )
+    return value
+
+
 class ResultHandlerField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
         if hasattr(obj, "_metadata"):
-            is_raw = obj._metadata[attr]["raw"]
-            # "raw" results are never serialized
-            if is_raw:
-                value = None
-            else:
-                try:
-                    json.dumps(value)
-                except TypeError:
-                    raise TypeError(
-                        "The serialized result of a ResultHandler must be JSON-compatible."
+            if attr == "cached_inputs":
+                for var in value or {}:
+                    value[var] = reset_value(
+                        value[var], obj._metadata[attr][var]["raw"]
                     )
+            else:
+                value = reset_value(value, obj._metadata[attr]["raw"])
         return super()._serialize(value, attr, obj, **kwargs)
 
 
@@ -117,9 +126,7 @@ class MappedSchema(SuccessSchema):
     @post_load
     def create_object(self, data):
         n_map_states = data.pop("n_map_states", 0)
-        data["map_states"] = [
-            state.Pending("Generated map state") for _ in range(n_map_states)
-        ]
+        data["map_states"] = [None for _ in range(n_map_states)]
         return super().create_object(data)
 
 
