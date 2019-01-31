@@ -55,8 +55,6 @@ def complex_states():
         state.Submitted(state=state.Resume(start_time=utc_dt)),
         cached_state,
         cached_state_naive,
-        state.Success(result=complex_result, cached=cached_state),
-        state.Success(result=complex_result, cached=cached_state_naive),
         state.TimedOut(cached_inputs=complex_result),
     ]
     return test_states
@@ -114,26 +112,6 @@ class TestResultHandlerField:
         assert serialized["cached_result"] is None
         assert serialized["cached_parameters"] == dict(three=3)
 
-    def test_nested_serializes_without_derived_result_attrs_if_raw(self):
-        s = state.CachedState(
-            message="hi",
-            result=42,
-            cached_inputs=dict(x=1, y="str"),
-            cached_result={"x": {"y": {"z": 55}}},
-            cached_parameters=dict(three=3),
-        )
-        top_state = state.Success(message="hello", cached=s)
-        schema = StateSchema()
-        top_serialized = schema.dump(top_state)
-        assert top_serialized["message"] == "hello"
-
-        serialized = top_serialized["cached"]
-        assert serialized["message"] == "hi"
-        assert serialized["result"] is None
-        assert serialized["cached_inputs"] == dict.fromkeys(["x", "y"])
-        assert serialized["cached_result"] is None
-        assert serialized["cached_parameters"] == dict(three=3)
-
     def test_serializes_with_result_if_not_raw(self):
         s = state.Success(message="hi", result=42)
         s._metadata.update(result=dict(raw=False))
@@ -162,31 +140,6 @@ class TestResultHandlerField:
         assert serialized["result"] == 42
         assert serialized["cached_inputs"] == dict(x=1, y="str")
         assert serialized["cached_result"] is None
-        assert serialized["cached_parameters"] == dict(three=3)
-
-    def test_nested_serializes_with_derived_result_attrs_if_not_raw(self):
-        s = state.CachedState(
-            message="hi",
-            result=42,
-            cached_inputs=dict(x=1, y="str"),
-            cached_result={"x": {"y": {"z": 55}}},
-            cached_parameters=dict(three=3),
-        )
-        s._metadata.update(
-            result=dict(raw=False),
-            cached_result=dict(raw=False),
-            cached_inputs=dict(x=dict(raw=False), y=dict(raw=False)),
-        )
-        top_state = state.Success(message="hello", cached=s)
-        schema = StateSchema()
-        top_serialized = schema.dump(top_state)
-        assert top_serialized["message"] == "hello"
-
-        serialized = top_serialized["cached"]
-        assert serialized["message"] == "hi"
-        assert serialized["result"] == 42
-        assert serialized["cached_inputs"] == dict(x=1, y="str")
-        assert serialized["cached_result"] == {"x": {"y": {"z": 55}}}
         assert serialized["cached_parameters"] == dict(three=3)
 
     def test_metadata_structure_is_preserved(self):

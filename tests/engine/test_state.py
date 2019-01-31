@@ -228,16 +228,13 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
         cached_state._metadata["cached_result"] = dict(
             raw=False, result_handler=serialized_handler
         )
-        state = Success(cached=cached_state, result=tmp.name)
-        state._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
-        state.ensure_raw()
+        cached_state.ensure_raw()
 
-    assert state.result == 42
-    assert state.cached.cached_inputs == dict(x=42, y=42, z=23)
+    assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
     for v in ["x", "y"]:
-        assert state.cached._metadata["cached_inputs"][v]["raw"] is True
-    assert state.cached.cached_result == 42
-    assert state.cached._metadata["cached_result"]["raw"] is True
+        assert cached_state._metadata["cached_inputs"][v]["raw"] is True
+    assert cached_state.cached_result == 42
+    assert cached_state._metadata["cached_result"]["raw"] is True
 
 
 def test_cached_states_are_handled_correctly_with_handle_outputs():
@@ -264,45 +261,43 @@ def test_cached_states_are_handled_correctly_with_handle_outputs():
 
 def test_serialize_and_deserialize_with_no_metadata():
     now = pendulum.now("utc")
-    cached = CachedState(
+    state = CachedState(
         cached_inputs=dict(x=99, p="p"),
         cached_result=dict(hi=5, bye=6),
         cached_result_expiration=now,
+        result=100,
     )
-    state = Success(result=dict(hi=5, bye=6), cached=cached)
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
-    assert isinstance(new_state, Success)
+    assert isinstance(new_state, CachedState)
     assert new_state.color == state.color
     assert new_state.result is None
-    assert isinstance(new_state.cached, CachedState)
-    assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
-    assert new_state.cached.cached_inputs == dict.fromkeys(["x", "p"])
-    assert new_state.cached.cached_result is None
+    assert new_state.cached_result_expiration == state.cached_result_expiration
+    assert new_state.cached_inputs == dict.fromkeys(["x", "p"])
+    assert new_state.cached_result is None
 
 
 def test_serialize_and_deserialize_with_metadata():
     now = pendulum.now("utc")
-    cached = CachedState(
+    state = CachedState(
         cached_inputs=dict(x=99, p="p"),
         cached_result=dict(hi=5, bye=6),
         cached_result_expiration=now,
+        result=100,
     )
-    cached._metadata.update(
+    state._metadata.update(
         cached_inputs=defaultdict(lambda: dict(raw=False)),
         cached_result=dict(raw=False),
     )
-    state = Success(result=dict(hi=5, bye=6), cached=cached)
     state._metadata.update(dict(result=dict(raw=False)))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
-    assert isinstance(new_state, Success)
+    assert isinstance(new_state, CachedState)
     assert new_state.color == state.color
     assert new_state.result == state.result
-    assert isinstance(new_state.cached, CachedState)
-    assert new_state.cached.cached_result_expiration == cached.cached_result_expiration
-    assert new_state.cached.cached_inputs == cached.cached_inputs
-    assert new_state.cached.cached_result == cached.cached_result
+    assert new_state.cached_result_expiration == state.cached_result_expiration
+    assert new_state.cached_inputs == state.cached_inputs
+    assert new_state.cached_result == state.cached_result
 
 
 def test_serialization_of_cached_inputs():
@@ -371,8 +366,8 @@ class TestStateHierarchy:
     def test_mapped_is_success(self):
         assert issubclass(Mapped, Success)
 
-    def test_cached_is_pending(self):
-        assert issubclass(CachedState, Pending)
+    def test_cached_is_successful(self):
+        assert issubclass(CachedState, Success)
 
     def test_retrying_is_pending(self):
         assert issubclass(Retrying, Pending)
@@ -485,12 +480,12 @@ class TestStateMethods:
 
     def test_state_type_methods_with_cached_state(self):
         state = CachedState()
-        assert state.is_pending()
+        assert not state.is_pending()
         assert not state.is_running()
-        assert not state.is_finished()
+        assert state.is_finished()
         assert not state.is_skipped()
         assert not state.is_scheduled()
-        assert not state.is_successful()
+        assert state.is_successful()
         assert not state.is_failed()
         assert not state.is_mapped()
 
