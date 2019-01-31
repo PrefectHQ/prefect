@@ -103,7 +103,6 @@ class State:
     """
     _result: Result
     cached_inputs: Dict[str, Result]
-    cached_result: Result
 
     @property
     def result(self) -> Any:
@@ -116,9 +115,12 @@ class State:
 
 The `_metadata` object is removed.
 
-We will also modify the various `StateSchema` objects to use a new `ResultSchema` object as a nested field. This `ResultSchema` will automatically call `Result.serialize()` whenever it is asked to `dump()` a `Result` with `serialized=False`, and automatically call `Result.deserialize()` whenever `load()`-ing a `Result` with `serialized=True`.
+We will also modify the various `StateSchema` objects to use a new `ResultSchema` object as a nested field. This `ResultSchema` will automatically call `Result.serialize()` whenever it is asked to `dump()` a `Result` with `serialized=False`. While serialization could also be performed explicitly, this check will ensure that states (and their results) are JSON-compatible.
 
-This means that user code should never have to actually serialize or deserialize results. It can work with them assuming they are deserialized (what we currently call "raw") and know that the Prefect serialization mechanisms will automatically apply the correct `ResultSerializer` whenever a state is serialized for transport, for example to Cloud.
+This means that user code should never have to actually serialize results. It can work with them while knowing that the Prefect serialization mechanisms will automatically apply the correct `ResultSerializer` whenever a state is serialized for transport, for example to Cloud.
+
+However, deserialization should probably not take place automatically. We may be preloading many states, and we should only deserialize the result if and when it's actually needed. For this reason, deserialization can take place somewhere like the `get_task_inputs()` or `initialize_run()` pipeline steps.
+
 
 ### TaskRunner
 
@@ -143,12 +145,6 @@ value = task.run(**{k: v.value} for k, v in inputs.items())
 result = Result(value=value, serialized=False, serializer=task.serializer)
 ```
 
-And caching that result:
-
-```python
-state.cached_result = result
-```
-
 ### FlowRunner
 
 Despite all of this, the FlowRunner would require no changes. It would return an object that could still be accessed in the exact same way we do today:
@@ -162,9 +158,10 @@ state.result[x].result
 
 ### CloudRunners
 
-If the marshmallow schemas for states were properly configured to serialize `Results` (as described in the **State** section, above), then the `CloudTaskRunner` would have to do _no new work_ to properly sanitize state results for transport. Simply serializing the `State` object would take care of all necessary work.
+If the marshmallow schemas for states were properly configured to serialize `Results` (as described in the **State** section, above), then the `CloudTaskRunner` would have to do _no new work_ to properly sanitize state results for transport. Simply serializing the `State` object would take care of all necessary work. With that said, serialization could also be done explicitly. Since serialization yields a new `Result` object, the original `State` could remain unchanged and be passed to downstream tasks with the "raw" result, while the serialized `Result` gets shipped to Cloud.
 
-It might be undesirable to aggressively DEserialize results every time a state is deserialized, however, so maybe that would be an explicit action. For example, the `CloudFlowRunner` loads all states from Cloud when the flow starts; we don't want to also download all results at that time. Perhaps the `CloudTaskRunner` would therefore do a check in `initialize_run()`.
+However, as described earlier, `CloudTaskRunners` should probably be responsible for deserializing results at the appropriate time (perhaps this is even something the base TaskRunner should do, as a universal check?).
+
 
 ## Consequences
 
