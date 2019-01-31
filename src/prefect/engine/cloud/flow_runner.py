@@ -140,10 +140,6 @@ class CloudFlowRunner(FlowRunner):
                 `(state, task_states, context, task_contexts)`
         """
         try:
-            result_handler = (
-                self.flow.result_handler
-                or prefect.engine.get_default_result_handler_class()()
-            )
             flow_run_info = self.client.get_flow_run_info(
                 flow_run_id=prefect.context.get("flow_run_id", "")
             )
