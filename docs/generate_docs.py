@@ -99,8 +99,8 @@ def format_lists(doc):
     lists = re.findall(
         r"(Args\:|Returns\:|Raises\:)(.*?)\s+(-.*?)(\n\n|$)", doc, re.DOTALL
     )  # find formatted lists
-    ul_tag = "<ul>"
-    li_tag = "<li>"
+    ul_tag = '<ul class="args">'
+    li_tag = '<li class="args">'
     for section, _, items, ending in lists:
         if section.startswith(("Returns:", "Raises:")) and ":" not in items:
             doc = doc.replace(

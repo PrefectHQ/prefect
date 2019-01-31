@@ -86,13 +86,14 @@ ol {
 	}
 }
 
-.content {
-	ul,
-	ol,
-	li {
-		padding-left: 3.5em;
-		text-indent: -3.5em;
-	}
+$args = 'ul.args, ol.args';
+
+{$args} {
+    li {
+        line-height: 2.25;
+        padding-left: 2.5em;
+        text-indent: -2em;
+    }
 }
 
 // disclaimer text
@@ -256,17 +257,23 @@ $button = 'button, .action-button, .home .action .action-button';
 }
 
 // images
+// images
 .viz {
-	text-align: center;
-	margin: 2rem auto;
+    text-align: center;
+    margin: 2rem auto;
+    height: auto;
+}
+
+.etl {
+    width: 25%
 }
 
 .slack-example {
-	width: 500px;
+    width: 75%;
 }
 
 .example {
-	height: 400px;
+    width: 45%;
 }
 
 // custom blocks
