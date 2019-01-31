@@ -14,7 +14,7 @@ from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import (
-    CachedState,
+    Cached,
     Failed,
     Finished,
     Mapped,
@@ -367,12 +367,12 @@ class TestStateResultHandling:
         assert client.get_task_run_info.call_count == 0  # never called
         assert (
             client.set_task_run_state.call_count == 3
-        )  # Pending -> Running -> Successful -> CachedState
+        )  # Pending -> Running -> Successful -> Cached
 
         states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
         assert states[0].is_running()
         assert states[1].is_successful()
-        assert isinstance(states[2], CachedState)
+        assert isinstance(states[2], Cached)
         assert states[2].cached_inputs == dict(x="1", y="1")
         assert states[2].cached_result == "2"
 

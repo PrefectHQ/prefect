@@ -103,9 +103,9 @@ class SuccessSchema(FinishedSchema):
         object_class = state.Success
 
 
-class CachedStateSchema(SuccessSchema):
+class CachedSchema(SuccessSchema):
     class Meta:
-        object_class = state.CachedState
+        object_class = state.Cached
 
     cached_inputs = ResultHandlerField(allow_none=True)
     cached_result = ResultHandlerField(allow_none=True)
@@ -164,7 +164,7 @@ class StateSchema(OneOfSchema):
 
     # map class name to schema
     type_schemas = {
-        "CachedState": CachedStateSchema,
+        "Cached": CachedSchema,
         "Failed": FailedSchema,
         "Finished": FinishedSchema,
         "Mapped": MappedSchema,

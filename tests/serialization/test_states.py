@@ -30,13 +30,13 @@ def complex_states():
     naive_dt = datetime.datetime(2020, 1, 1)
     utc_dt = pendulum.datetime(2020, 1, 1)
     complex_result = {"x": 1, "y": {"z": 2}}
-    cached_state = state.CachedState(
+    cached_state = state.Cached(
         cached_inputs=complex_result,
         cached_result=complex_result,
         cached_parameters=complex_result,
         cached_result_expiration=utc_dt,
     )
-    cached_state_naive = state.CachedState(
+    cached_state_naive = state.Cached(
         cached_inputs=complex_result,
         cached_result=complex_result,
         cached_parameters=complex_result,
@@ -97,7 +97,7 @@ class TestResultHandlerField:
         assert serialized["result"] is None
 
     def test_serializes_without_derived_result_attrs_if_raw(self):
-        s = state.CachedState(
+        s = state.Cached(
             message="hi",
             result=42,
             cached_inputs=dict(x=1, y="str"),
@@ -122,7 +122,7 @@ class TestResultHandlerField:
         assert serialized["result"] == 42
 
     def test_serializes_with_derived_result_attrs_if_not_raw(self):
-        s = state.CachedState(
+        s = state.Cached(
             message="hi",
             result=42,
             cached_inputs=dict(x=1, y="str"),

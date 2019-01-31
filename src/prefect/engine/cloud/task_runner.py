@@ -8,7 +8,7 @@ from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
-from prefect.engine.state import CachedState, Failed, Mapped, State
+from prefect.engine.state import Cached, Failed, Mapped, State
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
 from prefect.utilities.graphql import with_args
 
@@ -93,7 +93,7 @@ class CloudTaskRunner(TaskRunner):
         try:
             if getattr(new_state, "cached_inputs", None) is not None:
                 new_state.handle_inputs()
-            if isinstance(new_state, CachedState):
+            if isinstance(new_state, Cached):
                 new_state.handle_outputs()  # type: ignore
             self.client.set_task_run_state(
                 task_run_id=task_run_id,

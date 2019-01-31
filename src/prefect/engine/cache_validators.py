@@ -24,7 +24,7 @@ import prefect
 
 
 def never_use(
-    state: "prefect.engine.state.CachedState",
+    state: "prefect.engine.state.Cached",
     inputs: Dict[str, Any],
     parameters: Dict[str, Any],
 ) -> bool:
@@ -45,7 +45,7 @@ def never_use(
 
 
 def duration_only(
-    state: "prefect.engine.state.CachedState",
+    state: "prefect.engine.state.Cached",
     inputs: Dict[str, Any],
     parameters: Dict[str, Any],
 ) -> bool:
@@ -71,7 +71,7 @@ def duration_only(
 
 
 def all_inputs(
-    state: "prefect.engine.state.CachedState",
+    state: "prefect.engine.state.Cached",
     inputs: Dict[str, Any],
     parameters: Dict[str, Any],
 ) -> bool:
@@ -98,7 +98,7 @@ def all_inputs(
 
 
 def all_parameters(
-    state: "prefect.engine.state.CachedState",
+    state: "prefect.engine.state.Cached",
     inputs: Dict[str, Any],
     parameters: Dict[str, Any],
 ) -> bool:
@@ -126,7 +126,7 @@ def all_parameters(
 
 @curry
 def partial_parameters_only(
-    state: "prefect.engine.state.CachedState",
+    state: "prefect.engine.state.Cached",
     inputs: Dict[str, Any],
     parameters: Dict[str, Any],
     validate_on: Iterable[str] = None,
@@ -191,7 +191,7 @@ def partial_parameters_only(
 
 @curry
 def partial_inputs_only(
-    state: "prefect.engine.state.CachedState",
+    state: "prefect.engine.state.Cached",
     inputs: Dict[str, Any],
     parameters: Dict[str, Any],
     validate_on: Iterable[str] = None,
