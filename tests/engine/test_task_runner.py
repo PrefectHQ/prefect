@@ -684,14 +684,14 @@ class TestCheckTaskCached:
     def test_cached_same_inputs(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
-        state = Cached(cached_inputs={"a": 1}, cached_result=2)
+        state = Cached(cached_inputs={"a": 1}, result=2)
         new = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
         assert new is state
 
     def test_cached_different_inputs(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
-        state = Cached(cached_inputs={"a": 1}, cached_result=2)
+        state = Cached(cached_inputs={"a": 1}, result=2)
         new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 2})
         assert new_state.is_pending()
 
@@ -699,7 +699,7 @@ class TestCheckTaskCached:
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.duration_only)
         state = Cached(
-            cached_result=2,
+            result=2,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
         )
 
@@ -710,7 +710,7 @@ class TestCheckTaskCached:
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.duration_only)
         state = Cached(
-            cached_result=2,
+            result=2,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=-1),
         )
         new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
@@ -946,9 +946,8 @@ class TestCacheResultStep:
         assert new_state is not state
         assert new_state.is_successful()
         assert isinstance(new_state, Cached)
-        assert new_state.result == 2
         assert new_state.message == "hello"
-        assert new_state.cached_result == 2
+        assert new_state.result == 2
         assert new_state.cached_inputs == {"x": 5}
         assert (
             new_state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob"

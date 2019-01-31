@@ -217,7 +217,7 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
         cached_state = Cached(
             message="hi mom",
             cached_inputs=dict(x=tmp.name, y=tmp.name, z=23),
-            cached_result=tmp.name,
+            result=tmp.name,
         )
         cached_state._metadata["cached_inputs"].update(
             dict(
@@ -225,7 +225,7 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
                 y=dict(raw=False, result_handler=serialized_handler),
             )
         )
-        cached_state._metadata["cached_result"] = dict(
+        cached_state._metadata["result"] = dict(
             raw=False, result_handler=serialized_handler
         )
         cached_state.ensure_raw()
@@ -233,8 +233,8 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
     assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
     for v in ["x", "y"]:
         assert cached_state._metadata["cached_inputs"][v]["raw"] is True
-    assert cached_state.cached_result == 42
-    assert cached_state._metadata["cached_result"]["raw"] is True
+    assert cached_state.result == 42
+    assert cached_state._metadata["result"]["raw"] is True
 
 
 def test_cached_states_are_handled_correctly_with_handle_outputs():
@@ -242,30 +242,24 @@ def test_cached_states_are_handled_correctly_with_handle_outputs():
     serialized_handler = ResultHandlerSchema().dump(handler)
 
     cached_state = Cached(
-        message="hi mom",
-        cached_inputs=dict(x=42, y=42, z=23),
-        cached_result=dict(qq=42),
-        result=lambda: None,
+        message="hi mom", cached_inputs=dict(x=42, y=42, z=23), result=dict(qq=42)
     )
-    cached_state._metadata["cached_result"] = dict(raw=True)
+    cached_state._metadata["result"] = dict(raw=True)
     cached_state.update_output_metadata(handler)
     cached_state.handle_outputs()
 
     assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
-    assert cached_state.cached_result == '{"qq": 42}'
-    assert cached_state._metadata["cached_result"]["raw"] is False
-    assert (
-        cached_state._metadata["cached_result"]["result_handler"] == serialized_handler
-    )
+    assert cached_state.result == '{"qq": 42}'
+    assert cached_state._metadata["result"]["raw"] is False
+    assert cached_state._metadata["result"]["result_handler"] == serialized_handler
 
 
 def test_serialize_and_deserialize_with_no_metadata():
     now = pendulum.now("utc")
     state = Cached(
         cached_inputs=dict(x=99, p="p"),
-        cached_result=dict(hi=5, bye=6),
+        result=dict(hi=5, bye=6),
         cached_result_expiration=now,
-        result=100,
     )
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
@@ -274,22 +268,18 @@ def test_serialize_and_deserialize_with_no_metadata():
     assert new_state.result is None
     assert new_state.cached_result_expiration == state.cached_result_expiration
     assert new_state.cached_inputs == dict.fromkeys(["x", "p"])
-    assert new_state.cached_result is None
 
 
 def test_serialize_and_deserialize_with_metadata():
     now = pendulum.now("utc")
     state = Cached(
         cached_inputs=dict(x=99, p="p"),
-        cached_result=dict(hi=5, bye=6),
+        result=dict(hi=5, bye=6),
         cached_result_expiration=now,
-        result=100,
     )
     state._metadata.update(
-        cached_inputs=defaultdict(lambda: dict(raw=False)),
-        cached_result=dict(raw=False),
+        cached_inputs=defaultdict(lambda: dict(raw=False)), result=dict(raw=False)
     )
-    state._metadata.update(dict(result=dict(raw=False)))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Cached)
@@ -297,7 +287,6 @@ def test_serialize_and_deserialize_with_metadata():
     assert new_state.result == state.result
     assert new_state.cached_result_expiration == state.cached_result_expiration
     assert new_state.cached_inputs == state.cached_inputs
-    assert new_state.cached_result == state.cached_result
 
 
 def test_serialization_of_cached_inputs():

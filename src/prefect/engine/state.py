@@ -28,7 +28,6 @@ class StateMetaData(DotDict):
     def __init__(self) -> None:
         init_dict = {
             "result": {"raw": True},
-            "cached_result": {"raw": True},
             "cached_inputs": defaultdict(lambda: {"raw": True}),
         }
         super().__init__(init_dict)
@@ -135,7 +134,7 @@ class State:
         from prefect.serialization.result_handlers import ResultHandlerSchema
 
         schema = ResultHandlerSchema()
-        self._metadata["cached_result"]["result_handler"] = schema.dump(result_handler)
+        self._metadata["result"]["result_handler"] = schema.dump(result_handler)
 
     def handle_outputs(self) -> None:
         """
@@ -146,12 +145,12 @@ class State:
         from prefect.serialization.result_handlers import ResultHandlerSchema
 
         schema = ResultHandlerSchema()
-        result_handler = schema.load(self._metadata["cached_result"]["result_handler"])
+        result_handler = schema.load(self._metadata["result"]["result_handler"])
 
-        if self._metadata["cached_result"]["raw"] is True:
-            packed_value = result_handler.serialize(self.cached_result)  # type: ignore
-            self.cached_result = packed_value  # type: ignore
-            self._metadata["cached_result"]["raw"] = False
+        if self._metadata["result"]["raw"] is True:
+            packed_value = result_handler.serialize(self.result)  # type: ignore
+            self.result = packed_value  # type: ignore
+            self._metadata["result"]["raw"] = False
 
     def ensure_raw(self) -> None:
         """
@@ -163,12 +162,11 @@ class State:
 
         schema = ResultHandlerSchema()
 
-        for attr in ["result", "cached_result"]:
-            if self._metadata[attr].get("raw") is False:
-                handler = schema.load(self._metadata[attr]["result_handler"])
-                unpacked_value = handler.deserialize(getattr(self, attr))
-                setattr(self, attr, unpacked_value)
-                self._metadata[attr].update(raw=True)
+        if self._metadata["result"].get("raw") is False:
+            handler = schema.load(self._metadata["result"]["result_handler"])
+            unpacked_value = handler.deserialize(self.result)
+            self.result = unpacked_value
+            self._metadata["result"].update(raw=True)
 
         if getattr(self, "cached_inputs", None) is not None:
             # each variable could presumably come from different tasks with
@@ -494,11 +492,10 @@ class Cached(Success):
     Args:
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - result (Any, optional): Defaults to `None`. A data payload for the
+            state, which will be cached.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
         keys to values.  Used / set if the Task requires Retries.
-        - cached_result (Any): Defaults to `None`. Cached result from a
-        successful Task run.
         - cached_parameters (dict): Defaults to `None`
         - cached_result_expiration (datetime): The time at which this cache
             expires and can no longer be used. Defaults to `None`
@@ -511,13 +508,11 @@ class Cached(Success):
         message: str = None,
         result: Any = None,
         cached_inputs: Dict[str, Any] = None,
-        cached_result: Any = None,
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
     ):
         super().__init__(message=message, result=result)
         self.cached_inputs = cached_inputs
-        self.cached_result = cached_result  # type: ignore
         self.cached_parameters = cached_parameters  # type: Optional[Dict[str, Any]]
         if cached_result_expiration is not None:
             cached_result_expiration = ensure_tz_aware(cached_result_expiration)

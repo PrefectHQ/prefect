@@ -374,7 +374,7 @@ class TestStateResultHandling:
         assert states[1].is_successful()
         assert isinstance(states[2], Cached)
         assert states[2].cached_inputs == dict(x="1", y="1")
-        assert states[2].cached_result == "2"
+        assert states[2].result == "2"
 
     def test_task_runner_handles_inputs_prior_to_setting_state(self, client):
         serialized = ResultHandlerSchema().dump(JSONResultHandler())

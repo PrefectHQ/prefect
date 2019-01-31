@@ -108,7 +108,6 @@ class CachedSchema(SuccessSchema):
         object_class = state.Cached
 
     cached_inputs = ResultHandlerField(allow_none=True)
-    cached_result = ResultHandlerField(allow_none=True)
     cached_parameters = JSONCompatible(allow_none=True)
     cached_result_expiration = fields.DateTime(allow_none=True)
 
