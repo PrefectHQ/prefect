@@ -28,9 +28,9 @@ class TestLocalHandler:
         assert handler.dir == "/.prefect"
 
     @pytest.mark.parametrize("res", [42, "stringy", None, type(None)])
-    def test_local_handler_serializes_and_writes_to_dir(self, tmp_dir, res):
+    def test_local_handler_writes_and_writes_to_dir(self, tmp_dir, res):
         handler = LocalResultHandler(dir=tmp_dir)
-        fpath = handler.serialize(res)
+        fpath = handler.write(res)
         assert isinstance(fpath, str)
         assert os.path.basename(fpath).startswith("prefect")
 
@@ -39,7 +39,7 @@ class TestLocalHandler:
         assert isinstance(val, bytes)
 
     @pytest.mark.parametrize("res", [42, "stringy", None, type(None)])
-    def test_local_handler_serializes_and_deserializes(self, tmp_dir, res):
+    def test_local_handler_writes_and_reads(self, tmp_dir, res):
         handler = LocalResultHandler(dir=tmp_dir)
-        final = handler.deserialize(handler.serialize(res))
+        final = handler.read(handler.write(res))
         assert final == res

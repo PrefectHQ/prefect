@@ -25,13 +25,13 @@ class GCSResultHandler(ResultHandler):
         self.bucket = self.client.bucket(bucket)
         super().__init__()
 
-    def serialize(self, result: Any) -> str:
+    def write(self, result: Any) -> str:
         """
-        Given a result, serializes the result and writes to a location in GCS
+        Given a result, writes the result and writes to a location in GCS
         and returns the resulting URI.
 
         Args:
-            - result (Any): the serialized result
+            - result (Any): the writed result
 
         Returns:
             - str: the GCS URI
@@ -44,15 +44,15 @@ class GCSResultHandler(ResultHandler):
         self.logger.debug("Finished uploading result to {}.".format(uri))
         return uri
 
-    def deserialize(self, uri: str) -> Any:
+    def read(self, uri: str) -> Any:
         """
-        Given a uri, reads a result from GCS, deserializes it and returns it
+        Given a uri, reads a result from GCS, reads it and returns it
 
         Args:
             - uri (str): the GCS URI
 
         Returns:
-            - Any: the deserialized result
+            - Any: the readd result
         """
         try:
             self.logger.debug("Starting to download result from {}...".format(uri))

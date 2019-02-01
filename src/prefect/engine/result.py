@@ -10,32 +10,36 @@ ResultType = Union["Result", "NoResult"]
 
 class Result:
     def __init__(
-        self, value: Any, serialized: bool = False, serializer: ResultHandler = None
+        self, value: Any, handled: bool = False, result_handler: ResultHandler = None
     ):
         self.value = value
-        if serialized is True and serializer is None:
-            raise ValueError("If value is serialized, a serializer must be provided.")
+        if handled is True and result_handler is None:
+            raise ValueError(
+                "If value has been handled, a result_handler must be provided."
+            )
 
-        self.serialized = serialized
-        self.serializer = serializer
+        self.handled = handled
+        self.result_handler = result_handler
 
-    def serialize(self) -> "Result":
-        if not self.serialized:
+    def write(self) -> "Result":
+        if not self.handled:
             assert isinstance(
-                self.serializer, ResultHandler
+                self.result_handler, ResultHandler
             ), "Result has no ResultHandler"
-            value = self.serializer.serialize(self.value)
-            return Result(value=value, serialized=True, serializer=self.serializer)
+            value = self.result_handler.write(self.value)
+            return Result(value=value, handled=True, result_handler=self.result_handler)
         else:
             return self
 
-    def deserialize(self) -> "Result":
-        if self.serialized:
+    def read(self) -> "Result":
+        if self.handled:
             assert isinstance(
-                self.serializer, ResultHandler
+                self.result_handler, ResultHandler
             ), "Result has no ResultHandler"
-            value = self.serializer.deserialize(self.value)
-            return Result(value=value, serialized=False, serializer=self.serializer)
+            value = self.result_handler.read(self.value)
+            return Result(
+                value=value, handled=False, result_handler=self.result_handler
+            )
         else:
             return self
 

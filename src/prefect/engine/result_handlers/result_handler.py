@@ -20,8 +20,8 @@ class ResultHandler:
     def __init__(self) -> None:
         self.logger = logging.get_logger(type(self).__name__)
 
-    def serialize(self, result: Any) -> str:
+    def write(self, result: Any) -> str:
         raise NotImplementedError()
 
-    def deserialize(self, loc: str) -> Any:
+    def read(self, loc: str) -> Any:
         raise NotImplementedError()
