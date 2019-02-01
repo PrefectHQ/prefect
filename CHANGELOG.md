@@ -19,6 +19,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Breaking Changes
 
 - Removed the `BokehRunner` and associated webapp - [#609](https://github.com/PrefectHQ/prefect/issues/609)
+- Renamed all `ResultHandler` references `ResultSerializer` - [#612](https://github.com/PrefectHQ/prefect/pull/612)
 
 ## 0.4.1 <Badge text="beta" type="success"/>
 
