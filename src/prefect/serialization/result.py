@@ -10,7 +10,7 @@ class ResultSchema(ObjectSchema):
         object_class = result.Result
 
     value = JSONCompatible(allow_none=True)
-    handled = fields.Boolean(allow_none=False)
+    handled = fields.Boolean()
     result_handler = fields.Nested(ResultHandlerSchema)
 
 
