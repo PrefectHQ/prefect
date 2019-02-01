@@ -99,49 +99,6 @@ f.visualize(flow_state=flow_state)
 
 We can see that the `6` task was still executed (as we suspected), and both branches of the `switch` were skipped.
 
-## Dynamic Flow visualization with `BokehRunner`
-
-`Flow.visualize()` is great for static analysis, but for understanding the underlying _execution_ model, Prefect's `BokehRunner` is a more powerful tool.  
-
-::: warning
-The `BokehRunner` tool is not a replacement for a UI, nor is it meant to be used in production; it is merely a tool for better understanding Prefect's execution model and helping users debug their flows locally.
-:::
-
-`BokehRunner` is a subclass of `FlowRunner`, which is the class responsible for setting up the execution of flows.  The `BokehRunner` will _first_ perform a full execution of the flow, and then, using the stored states from the execution, run a [Bokeh webapp](https://bokeh.pydata.org/en/latest/) that allows for step-by-step _simulated_ execution that cleanly displays how states are propagated through the flow until the final flow state is reached.
-
-Using our flow `f` from above, we run the `BokehRunner` as follows (this will open up a new tab / window with the Bokeh application):
-
-```python
-from prefect.utilities.bokeh_runner import BokehRunner
-
-BokehRunner(flow=f).run(parameters=dict(x=1, y=5))
-```
-
-The web app should look something like this (the layout may change slightly from run to run):
-
-![bokeh web app](/bokeh1.png) {.viz}
-
-Similar to `f.visualize()`, we have a node for every task and an edge for every dependency.  The biggest difference is that now we have information regarding the current _state_ of each task and of the overall flow.  In the actual web app you can use your mouse to hover over each node and see more information about its state.
-
-We can run the first set of tasks by clicking "Run Next Tasks"; this will execute the first set of non-dependent tasks (the root tasks in this case):
-
-![run next tasks in bokeh](/bokeh2.png) {.viz}
-
-Now we see what the warning was telling us even more clearly - the "6" task is run on the first pass.  Continuing this exercise, we ultimately reach the final state:
-
-![bokeh warning](/bokeh3.png) {.viz}
-
-Let's see what would happen if we explicitly tell the flow to start at the "x" and "y" tasks, and trigger the divide switch:
-
-```python
-BokehRunner(flow=f).run(parameters=dict(x=1, y=0),
-                        start_tasks=[x, y])
-```
-
-![failed state](/bokeh4.png) {.viz}
-
-We find that our final state is `Failed` because the "6" task wasn't run, so this pattern of running our flow is not going to be very robust.
-
 ::: tip
 Fully understanding why our flow failed might have been trickier without the visualization aids that Prefect provides.
 :::
