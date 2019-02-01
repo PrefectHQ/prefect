@@ -31,7 +31,7 @@ class GCSResultHandler(ResultHandler):
         and returns the resulting URI.
 
         Args:
-            - result (Any): the writed result
+            - result (Any): the written result
 
         Returns:
             - str: the GCS URI
@@ -52,7 +52,7 @@ class GCSResultHandler(ResultHandler):
             - uri (str): the GCS URI
 
         Returns:
-            - Any: the readd result
+            - Any: the read result
         """
         try:
             self.logger.debug("Starting to download result from {}...".format(uri))
