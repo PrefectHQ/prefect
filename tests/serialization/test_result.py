@@ -41,3 +41,9 @@ def test_result_serializes_serializers():
     r = Result(value=3, serialized=False, serializer=JSONResultSerializer())
     serialized = ResultSchema().dump(r)
     assert serialized["serializer"]["type"] == "JSONResultSerializer"
+
+
+def test_result_allows_none_value():
+    r = Result(value=None)
+    serialized = ResultSchema().dump(r)
+    assert serialized["value"] is None
