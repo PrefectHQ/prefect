@@ -15,7 +15,7 @@ For example, imagine we have the following workflow:
 
 In Prefect, this workflow can be implemented through the use of `triggers`.  A `trigger` is a function which determines whether a task should run, fail, or be placed in some other state based on the state of its upstream dependencies.  The default task trigger is (naturally) `all_successful`.  To implement the workflow above, we will use two triggers:
 
-- the `manual_only` trigger, which will cause the task which requires approval to be placed in a `Pending` state until explicitly requested as a `start_task` in a future call to `Flow.run()`
+- the `manual_only` trigger, which will cause the task which requires approval to be placed in a `Paused` state until explicitly requested as a `start_task` in a future call to `Flow.run()`
 - the `any_failed` trigger so that the complaint is only run if approval _fails_
 
 ### Reference Tasks
@@ -89,14 +89,10 @@ print(flow_state.result)
   
 ##    Flow results: {
 ##     <Task: build_report>: Success("Task run succeeded."),
-##     <Task: email_report_to_board>: Pending("Trigger function is "manual_only""),
+##     <Task: email_report_to_board>: Paused("Trigger function is "manual_only""), 
 ##     <Task: complain_to_data_analyst>: Pending()
 ##     }
 ```
-
-Let's have a look at what the current flow state looks like visually:
-
-![current flow state visual](/manual_only.png) {.viz}
 
 We can now inspect the `report` to decide if we would like to proceed:
 
@@ -105,7 +101,7 @@ flow_state.result[report].result
 ### 'quality report'
 ```
 
-Looks good to me!  Since we aren't running this tutorial with a Prefect server, we now need to explicitly tell the flow to run beginning at the `board_email` task.
+Looks good to me!  Since we aren't running this tutorial with Prefect Cloud, we now need to explicitly tell the flow to run beginning at the `board_email` task.
 
 :::tip
 Anytime a task is included in `start_tasks`, its trigger is ignored and it attempts to run.  
@@ -128,5 +124,3 @@ print(new_flow_state.result)
 ##       <Task: complain_to_data_analyst>: TriggerFailed("Trigger was "any_failed" but none of the upstream tasks failed.")
 ##       }
 ```
-
-![successful reference tasks](/successful_reference_tasks.png) {.viz}
