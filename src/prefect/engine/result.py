@@ -47,7 +47,7 @@ class Result:
         if not self.handled:
             assert isinstance(
                 self.result_handler, ResultHandler
-            ), "Result has no ResultHandler"
+            ), "Result has no ResultHandler"  # mypy assert
             value = self.result_handler.write(self.value)
             return Result(value=value, handled=True, result_handler=self.result_handler)
         else:
@@ -63,7 +63,7 @@ class Result:
         if self.handled:
             assert isinstance(
                 self.result_handler, ResultHandler
-            ), "Result has no ResultHandler"
+            ), "Result has no ResultHandler"  # mypy assert
             value = self.result_handler.read(self.value)
             return Result(
                 value=value, handled=False, result_handler=self.result_handler
