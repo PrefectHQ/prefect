@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.engine.result import Result, NoResult
-from prefect.engine.result_serializers import ResultSerializer
+from prefect.engine.result_serializers import ResultSerializer, JSONResultSerializer
 
 
 class TestInitialization:
@@ -50,4 +50,30 @@ def test_noresult_has_no_result_attrs(attr):
 
 
 class TestSerialization:
-    pass
+    def test_serialize_serializes(self):
+        r = Result(value=4, serializer=JSONResultSerializer())
+        assert r.serialized is False
+        s = r.serialize()
+        assert s.serialized is True
+        assert s.value == "4"
+        assert s.serializer is r.serializer
+
+    def test_serialize_doesnt_serialize(self):
+        r = Result(value=4, serialized=True, serializer=JSONResultSerializer())
+        assert r.serialized is True
+        s = r.serialize()
+        assert s is r
+
+    def test_serialize_deserializes(self):
+        r = Result(value="4", serialized=True, serializer=JSONResultSerializer())
+        assert r.serialized is True
+        s = r.deserialize()
+        assert s.serialized is False
+        assert s.value == 4
+        assert s.serializer is r.serializer
+
+    def test_serialize_doesnt_deserialize(self):
+        r = Result(value="4", serialized=False, serializer=JSONResultSerializer())
+        assert r.serialized is False
+        s = r.deserialize()
+        assert s is r

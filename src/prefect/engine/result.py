@@ -20,18 +20,26 @@ class Result:
         self.serializer = serializer
 
     def serialize(self) -> "Result":
-        value = self.value
         if not self.serialized:
+            assert isinstance(
+                self.serializer, ResultSerializer
+            ), "Result has no ResultSerializer"
             value = self.serializer.serialize(self.value)
-        return Result(value=value, serialized=True, serializer=self.serializer)
+            return Result(value=value, serialized=True, serializer=self.serializer)
+        else:
+            return self
 
     def deserialize(self) -> "Result":
-        value = self.value
         if self.serialized:
+            assert isinstance(
+                self.serializer, ResultSerializer
+            ), "Result has no ResultSerializer"
             value = self.serializer.deserialize(self.value)
-        return Result(value=value, serialized=False, serializer=self.serializer)
+            return Result(value=value, serialized=False, serializer=self.serializer)
+        else:
+            return self
 
 
 class NoResult:
-    def __init__(self):
+    def __init__(self) -> None:
         pass
