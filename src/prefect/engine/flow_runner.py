@@ -511,11 +511,11 @@ class FlowRunner(Runner):
             - State: `State` representing the final post-run state of the `Flow`.
 
         """
-        default_handler = task.result_handler or self.flow.result_handler
+        default_handler = task.result_serializer or self.flow.result_serializer
         task_runner = self.task_runner_cls(
             task=task,
             state_handlers=task_runner_state_handlers,
-            result_handler=default_handler,
+            result_serializer=default_handler,
         )
 
         # if this task reduces over a mapped state, make sure its children have finished

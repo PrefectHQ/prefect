@@ -46,7 +46,7 @@ from prefect.engine.state import (
 from prefect.utilities.executors import main_thread_timeout, run_with_heartbeat
 
 if TYPE_CHECKING:
-    from prefect.engine.result_handlers import ResultHandler
+    from prefect.engine.result_serializers import ResultSerializer
 
 
 TaskRunnerInitializeResult = NamedTuple(
@@ -76,7 +76,7 @@ class TaskRunner(Runner):
             (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - result_handler (ResultHandler, optional): the handler to use for
+        - result_serializer (ResultSerializer, optional): the handler to use for
             retrieving and storing state results during execution (if the Task doesn't already have one);
             if not provided here or by the Task, will default to the one specified in your config
     """
@@ -85,13 +85,13 @@ class TaskRunner(Runner):
         self,
         task: Task,
         state_handlers: Iterable[Callable] = None,
-        result_handler: "ResultHandler" = None,
+        result_serializer: "ResultSerializer" = None,
     ):
         self.task = task
-        self.result_handler = (
-            task.result_handler
-            or result_handler
-            or prefect.engine.get_default_result_handler_class()()
+        self.result_serializer = (
+            task.result_serializer
+            or result_serializer
+            or prefect.engine.get_default_result_serializer_class()()
         )
         super().__init__(state_handlers=state_handlers)
 
@@ -119,7 +119,7 @@ class TaskRunner(Runner):
 
         return new_state
 
-    def _get_upstream_result_handlers(
+    def _get_upstream_result_serializers(
         self, upstream_states: Dict[Edge, State]
     ) -> Dict[str, dict]:
         input_handlers = {}
@@ -127,7 +127,7 @@ class TaskRunner(Runner):
         for edge, upstream_state in upstream_states.items():
             if edge.key is not None:
                 input_handlers[edge.key] = upstream_state._metadata["result"][
-                    "result_handler"
+                    "result_serializer"
                 ]
 
         return input_handlers
@@ -316,7 +316,7 @@ class TaskRunner(Runner):
             if exc.state.is_pending():
                 exc.state.cached_inputs = task_inputs or {}  # type: ignore
                 exc.state.update_input_metadata(
-                    self._get_upstream_result_handlers(upstream_states)
+                    self._get_upstream_result_serializers(upstream_states)
                 )
             state = exc.state
             if not isinstance(exc, ENDRUN) and prefect.context.get(
@@ -340,11 +340,11 @@ class TaskRunner(Runner):
         )
 
         ## finally, update state _metadata attribute with information about how to handle this state's data
-        from prefect.serialization.result_handlers import ResultHandlerSchema
+        from prefect.serialization.result_serializers import ResultSerializerSchema
 
         state._metadata["result"].setdefault("raw", True)
         state._metadata["result"].setdefault(
-            "result_handler", ResultHandlerSchema().dump(self.result_handler)
+            "result_serializer", ResultSerializerSchema().dump(self.result_serializer)
         )
         return state
 
@@ -845,7 +845,7 @@ class TaskRunner(Runner):
                 "Task timed out during execution.", result=exc, cached_inputs=inputs
             )
             state.update_input_metadata(
-                self._get_upstream_result_handlers(upstream_states)
+                self._get_upstream_result_serializers(upstream_states)
             )
             return state
 
@@ -889,9 +889,9 @@ class TaskRunner(Runner):
                 message=state.message,
             )
             cached_state.update_input_metadata(
-                self._get_upstream_result_handlers(upstream_states)
+                self._get_upstream_result_serializers(upstream_states)
             )
-            cached_state.update_output_metadata(self.result_handler)
+            cached_state.update_output_metadata(self.result_serializer)
             return cached_state
 
         return state
@@ -928,7 +928,7 @@ class TaskRunner(Runner):
                     run_count=run_count,
                 )
                 retry_state.update_input_metadata(
-                    self._get_upstream_result_handlers(upstream_states)
+                    self._get_upstream_result_serializers(upstream_states)
                 )
                 return retry_state
 

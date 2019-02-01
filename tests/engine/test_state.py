@@ -9,7 +9,10 @@ import pytest
 from collections import defaultdict
 
 import prefect
-from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
+from prefect.engine.result_serializers import (
+    JSONResultSerializer,
+    LocalResultSerializer,
+)
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -28,7 +31,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
+from prefect.serialization.result_serializers import ResultSerializerSchema
 from prefect.serialization.state import StateSchema
 
 all_states = sorted(
@@ -137,14 +140,16 @@ def test_states_by_default_are_considered_raw(cls):
 
 @pytest.mark.parametrize("cls", all_states)
 def test_states_with_non_raw_results_are_handled_correctly(cls):
-    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
+    serialized_handler = ResultSerializerSchema().dump(LocalResultSerializer())
 
     with tempfile.NamedTemporaryFile() as tmp:
         with open(tmp.name, "wb") as f:
             cloudpickle.dump(42, f)
 
         state = cls(message="hi mom", result=tmp.name)
-        state._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
+        state._metadata["result"] = dict(
+            raw=False, result_serializer=serialized_handler
+        )
         assert state.result == tmp.name
         state.ensure_raw()
 
@@ -155,7 +160,7 @@ def test_states_with_non_raw_results_are_handled_correctly(cls):
 
 @pytest.mark.parametrize("cls", cached_input_states)
 def test_states_with_non_raw_cached_inputs_are_handled_correctly(cls):
-    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
+    serialized_handler = ResultSerializerSchema().dump(LocalResultSerializer())
 
     with tempfile.NamedTemporaryFile() as tmp:
         with open(tmp.name, "wb") as f:
@@ -168,8 +173,8 @@ def test_states_with_non_raw_cached_inputs_are_handled_correctly(cls):
         )
         state._metadata["cached_inputs"].update(
             dict(
-                x=dict(raw=False, result_handler=serialized_handler),
-                y=dict(raw=False, result_handler=serialized_handler),
+                x=dict(raw=False, result_serializer=serialized_handler),
+                y=dict(raw=False, result_serializer=serialized_handler),
             )
         )
         state.ensure_raw()
@@ -183,8 +188,8 @@ def test_states_with_non_raw_cached_inputs_are_handled_correctly(cls):
 
 @pytest.mark.parametrize("cls", cached_input_states)
 def test_states_with_raw_cached_inputs_are_handled_correctly(cls):
-    schema = ResultHandlerSchema()
-    serialized_handler = schema.dump(JSONResultHandler())
+    schema = ResultSerializerSchema()
+    serialized_handler = schema.dump(JSONResultSerializer())
 
     state = cls(
         message="hi mom", cached_inputs=dict(x=dict(key="value"), y=[], z=23), result=55
@@ -203,12 +208,13 @@ def test_states_with_raw_cached_inputs_are_handled_correctly(cls):
     for v in ["x", "y", "z"]:
         assert state._metadata["cached_inputs"][v]["raw"] is False
         assert (
-            state._metadata["cached_inputs"][v]["result_handler"] == serialized_handler
+            state._metadata["cached_inputs"][v]["result_serializer"]
+            == serialized_handler
         )
 
 
 def test_cached_states_are_handled_correctly_with_ensure_raw():
-    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
+    serialized_handler = ResultSerializerSchema().dump(LocalResultSerializer())
 
     with tempfile.NamedTemporaryFile() as tmp:
         with open(tmp.name, "wb") as f:
@@ -221,12 +227,12 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
         )
         cached_state._metadata["cached_inputs"].update(
             dict(
-                x=dict(raw=False, result_handler=serialized_handler),
-                y=dict(raw=False, result_handler=serialized_handler),
+                x=dict(raw=False, result_serializer=serialized_handler),
+                y=dict(raw=False, result_serializer=serialized_handler),
             )
         )
         cached_state._metadata["result"] = dict(
-            raw=False, result_handler=serialized_handler
+            raw=False, result_serializer=serialized_handler
         )
         cached_state.ensure_raw()
 
@@ -238,8 +244,8 @@ def test_cached_states_are_handled_correctly_with_ensure_raw():
 
 
 def test_cached_states_are_handled_correctly_with_handle_outputs():
-    handler = JSONResultHandler()
-    serialized_handler = ResultHandlerSchema().dump(handler)
+    handler = JSONResultSerializer()
+    serialized_handler = ResultSerializerSchema().dump(handler)
 
     cached_state = Cached(
         message="hi mom", cached_inputs=dict(x=42, y=42, z=23), result=dict(qq=42)
@@ -251,7 +257,7 @@ def test_cached_states_are_handled_correctly_with_handle_outputs():
     assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
     assert cached_state.result == '{"qq": 42}'
     assert cached_state._metadata["result"]["raw"] is False
-    assert cached_state._metadata["result"]["result_handler"] == serialized_handler
+    assert cached_state._metadata["result"]["result_serializer"] == serialized_handler
 
 
 def test_serialize_and_deserialize_with_no_metadata():

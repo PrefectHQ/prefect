@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Union
 import pendulum
 
 import prefect
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result_serializers import ResultSerializer
 from prefect.utilities.collections import DotDict
 from prefect.utilities.datetimes import ensure_tz_aware
 
@@ -94,7 +94,7 @@ class State:
         """
         for variable in self.cached_inputs or {}:  # type: ignore
             self._metadata["cached_inputs"][variable][
-                "result_handler"
+                "result_serializer"
             ] = input_handlers[variable]
 
     def handle_inputs(self) -> None:
@@ -103,11 +103,11 @@ class State:
 
         Modifies the state object in place.
         """
-        from prefect.serialization.result_handlers import ResultHandlerSchema
+        from prefect.serialization.result_serializers import ResultSerializerSchema
 
-        schema = ResultHandlerSchema()
+        schema = ResultSerializerSchema()
         input_handlers = {
-            var: schema.load(self._metadata["cached_inputs"][var]["result_handler"])
+            var: schema.load(self._metadata["cached_inputs"][var]["result_serializer"])
             for var in (self.cached_inputs or {})  # type: ignore
         }
 
@@ -120,20 +120,20 @@ class State:
                 self.cached_inputs[variable] = packed_value  # type: ignore
                 self._metadata["cached_inputs"][variable]["raw"] = False
 
-    def update_output_metadata(self, result_handler: ResultHandler) -> None:
+    def update_output_metadata(self, result_serializer: ResultSerializer) -> None:
         """
         Handles the `cached_result` attribute of this state (if it has one).
 
         Args:
-            - result_handler (ResultHandler): the result handler to use when
+            - result_serializer (ResultSerializer): the result handler to use when
                 processing the `cached_result`
 
         Modifies the state object in place.
         """
-        from prefect.serialization.result_handlers import ResultHandlerSchema
+        from prefect.serialization.result_serializers import ResultSerializerSchema
 
-        schema = ResultHandlerSchema()
-        self._metadata["result"]["result_handler"] = schema.dump(result_handler)
+        schema = ResultSerializerSchema()
+        self._metadata["result"]["result_serializer"] = schema.dump(result_serializer)
 
     def handle_outputs(self) -> None:
         """
@@ -141,13 +141,13 @@ class State:
 
         Modifies the state object in place.
         """
-        from prefect.serialization.result_handlers import ResultHandlerSchema
+        from prefect.serialization.result_serializers import ResultSerializerSchema
 
-        schema = ResultHandlerSchema()
-        result_handler = schema.load(self._metadata["result"]["result_handler"])
+        schema = ResultSerializerSchema()
+        result_serializer = schema.load(self._metadata["result"]["result_serializer"])
 
         if self._metadata["result"]["raw"] is True:
-            packed_value = result_handler.serialize(self.result)  # type: ignore
+            packed_value = result_serializer.serialize(self.result)  # type: ignore
             self.result = packed_value  # type: ignore
             self._metadata["result"]["raw"] = False
 
@@ -157,12 +157,12 @@ class State:
 
         Modifies the state object in place.
         """
-        from prefect.serialization.result_handlers import ResultHandlerSchema
+        from prefect.serialization.result_serializers import ResultSerializerSchema
 
-        schema = ResultHandlerSchema()
+        schema = ResultSerializerSchema()
 
         if self._metadata["result"].get("raw") is False:
-            handler = schema.load(self._metadata["result"]["result_handler"])
+            handler = schema.load(self._metadata["result"]["result_serializer"])
             unpacked_value = handler.deserialize(self.result)
             self.result = unpacked_value
             self._metadata["result"].update(raw=True)
@@ -173,7 +173,7 @@ class State:
             for variable in self.cached_inputs:  # type: ignore
                 var_info = self._metadata["cached_inputs"][variable]
                 if var_info["raw"] is False:
-                    handler = schema.load(var_info["result_handler"])
+                    handler = schema.load(var_info["result_serializer"])
                     unpacked_value = handler.deserialize(
                         self.cached_inputs[variable]  # type: ignore
                     )
