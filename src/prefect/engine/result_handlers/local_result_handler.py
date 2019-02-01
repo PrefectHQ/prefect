@@ -17,7 +17,7 @@ from prefect.engine.result_handlers import ResultHandler
 class LocalResultHandler(ResultHandler):
     """
     Hook for storing and retrieving task results from local file storage. Only intended to be used
-    for local testing and development. Task results are writed using `cloudpickle` and stored in the
+    for local testing and development. Task results are written using `cloudpickle` and stored in the
     provided location for use in future runs.
 
     **NOTE**: Stored results will _not_ be automatically cleaned up after execution.
@@ -36,10 +36,10 @@ class LocalResultHandler(ResultHandler):
         Read a result from the given file location.
 
         Args:
-            - fpath (str): the _absolute_ path to the location of a writed result
+            - fpath (str): the _absolute_ path to the location of a written result
 
         Returns:
-            - the readd result from the provided file
+            - the read result from the provided file
         """
         self.logger.debug("Starting to read result from {}...".format(fpath))
         with open(fpath, "rb") as f:
@@ -55,7 +55,7 @@ class LocalResultHandler(ResultHandler):
             - result (Any): the result to write and store
 
         Returns:
-            - str: the _absolute_ path to the writed result on disk
+            - str: the _absolute_ path to the written result on disk
         """
         fd, loc = tempfile.mkstemp(prefix="prefect-", dir=self.dir)
         self.logger.debug("Starting to upload result to {}...".format(loc))
