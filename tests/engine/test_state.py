@@ -9,6 +9,7 @@ import pytest
 from collections import defaultdict
 
 import prefect
+from prefect.engine.result import Result, NoResult, NoResultType
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cached,
@@ -49,22 +50,29 @@ cached_input_states = sorted(
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_no_args(cls):
     state = cls()
-    assert state.result is None
+    assert state._result == NoResult
     assert state.message is None
+    with pytest.raises(ValueError) as exc:
+        state.result
+    assert "no value" in str(exc.value)
 
 
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_kwarg_data_arg(cls):
     state = cls(result=1)
+    assert isinstance(state._result, Result)
+    assert state._result.handled is False
+    assert state._result.result_handler is None
     assert state.result == 1
     assert state.message is None
+    assert isinstance(state._result, Result)
 
 
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_positional_message_arg(cls):
     state = cls("i am a string")
     assert state.message == "i am a string"
-    assert state.result is None
+    assert state._result == NoResult
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -125,133 +133,6 @@ def test_retry_stores_default_run_count_in_context():
 @pytest.mark.parametrize("cls", all_states)
 def test_states_have_color(cls):
     assert cls.color.startswith("#")
-
-
-@pytest.mark.parametrize("cls", all_states)
-def test_states_by_default_are_considered_raw(cls):
-    state = cls(message="hi mom", result=42)
-    state.ensure_raw()
-    assert state.message == "hi mom"
-    assert state.result == 42
-
-
-@pytest.mark.parametrize("cls", all_states)
-def test_states_with_non_raw_results_are_handled_correctly(cls):
-    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
-
-    with tempfile.NamedTemporaryFile() as tmp:
-        with open(tmp.name, "wb") as f:
-            cloudpickle.dump(42, f)
-
-        state = cls(message="hi mom", result=tmp.name)
-        state._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
-        assert state.result == tmp.name
-        state.ensure_raw()
-
-    assert state.message == "hi mom"
-    assert state.result == 42
-    assert state._metadata["result"]["raw"] is True
-
-
-@pytest.mark.parametrize("cls", cached_input_states)
-def test_states_with_non_raw_cached_inputs_are_handled_correctly(cls):
-    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
-
-    with tempfile.NamedTemporaryFile() as tmp:
-        with open(tmp.name, "wb") as f:
-            cloudpickle.dump(42, f)
-
-        state = cls(
-            message="hi mom",
-            cached_inputs=dict(x=tmp.name, y=tmp.name, z=23),
-            result=55,
-        )
-        state._metadata["cached_inputs"].update(
-            dict(
-                x=dict(raw=False, result_handler=serialized_handler),
-                y=dict(raw=False, result_handler=serialized_handler),
-            )
-        )
-        state.ensure_raw()
-
-    assert state.message == "hi mom"
-    assert state.result == 55
-    assert state.cached_inputs == dict(x=42, y=42, z=23)
-    for v in ["x", "y"]:
-        assert state._metadata["cached_inputs"][v]["raw"] is True
-
-
-@pytest.mark.parametrize("cls", cached_input_states)
-def test_states_with_raw_cached_inputs_are_handled_correctly(cls):
-    schema = ResultHandlerSchema()
-    serialized_handler = schema.dump(JSONResultHandler())
-
-    state = cls(
-        message="hi mom", cached_inputs=dict(x=dict(key="value"), y=[], z=23), result=55
-    )
-    state._metadata["cached_inputs"] = dict(
-        x=dict(raw=True), y=dict(raw=True), z=dict(raw=True)
-    )
-    state.update_input_metadata(
-        dict(x=serialized_handler, y=serialized_handler, z=serialized_handler)
-    )
-    state.handle_inputs()
-
-    assert state.message == "hi mom"
-    assert state.result == 55
-    assert state.cached_inputs == dict(x='{"key": "value"}', y="[]", z="23")
-    for v in ["x", "y", "z"]:
-        assert state._metadata["cached_inputs"][v]["raw"] is False
-        assert (
-            state._metadata["cached_inputs"][v]["result_handler"] == serialized_handler
-        )
-
-
-def test_cached_states_are_handled_correctly_with_ensure_raw():
-    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
-
-    with tempfile.NamedTemporaryFile() as tmp:
-        with open(tmp.name, "wb") as f:
-            cloudpickle.dump(42, f)
-
-        cached_state = Cached(
-            message="hi mom",
-            cached_inputs=dict(x=tmp.name, y=tmp.name, z=23),
-            result=tmp.name,
-        )
-        cached_state._metadata["cached_inputs"].update(
-            dict(
-                x=dict(raw=False, result_handler=serialized_handler),
-                y=dict(raw=False, result_handler=serialized_handler),
-            )
-        )
-        cached_state._metadata["result"] = dict(
-            raw=False, result_handler=serialized_handler
-        )
-        cached_state.ensure_raw()
-
-    assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
-    for v in ["x", "y"]:
-        assert cached_state._metadata["cached_inputs"][v]["raw"] is True
-    assert cached_state.result == 42
-    assert cached_state._metadata["result"]["raw"] is True
-
-
-def test_cached_states_are_handled_correctly_with_handle_outputs():
-    handler = JSONResultHandler()
-    serialized_handler = ResultHandlerSchema().dump(handler)
-
-    cached_state = Cached(
-        message="hi mom", cached_inputs=dict(x=42, y=42, z=23), result=dict(qq=42)
-    )
-    cached_state._metadata["result"] = dict(raw=True)
-    cached_state.update_output_metadata(handler)
-    cached_state.handle_outputs()
-
-    assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
-    assert cached_state.result == '{"qq": 42}'
-    assert cached_state._metadata["result"]["raw"] is False
-    assert cached_state._metadata["result"]["result_handler"] == serialized_handler
 
 
 def test_serialize_and_deserialize_with_no_metadata():

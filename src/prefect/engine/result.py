@@ -34,6 +34,14 @@ class Result:
         self.handled = handled
         self.result_handler = result_handler
 
+    def __eq__(self, other: Any) -> bool:
+        if type(self) == type(other):
+            assert isinstance(other, Result)  # mypy assert
+            eq = True
+            for attr in ["value", "handled", "result_handler"]:
+                eq &= getattr(self, attr, object()) == getattr(other, attr, object())
+        return False
+
     def write(self) -> "Result":
         """
         Write the value of this result using the result handler (if it hasn't already been handled).
@@ -75,6 +83,10 @@ class NoResultType:
             return True
         else:
             return False
+
+    @property
+    def value(self) -> None:
+        raise ValueError("NoResult has no value.")
 
 
 NoResult = NoResultType()

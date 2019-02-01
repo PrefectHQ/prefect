@@ -45,11 +45,19 @@ class TestInitialization:
         assert r.result_handler is None
 
 
-@pytest.mark.parametrize("attr", ["value", "handled", "result_handler"])
-def test_noresult_has_no_result_attrs(attr):
+@pytest.mark.parametrize("attr", ["handled", "result_handler"])
+def test_noresult_has_no_handler_attrs(attr):
     n = NoResult
     with pytest.raises(AttributeError):
         getattr(n, attr)
+
+
+def test_noresult_raises_informative_error_about_value():
+    n = NoResult
+    with pytest.raises(ValueError) as exc:
+        val = n.value
+
+    assert "NoResult has no value" in str(exc.value)
 
 
 def test_no_results_are_all_the_same():
@@ -64,6 +72,23 @@ def test_no_results_are_not_the_same_as_result():
     n = NoResult
     r = Result(None)
     assert n != r
+
+
+class TestResultEquality:
+    @pytest.mark.parametrize("val", [1, "2", object, lambda: None])
+    def test_boring_results_are_the_same_if_values_are(self, val):
+        r, s = Result(val), Result(val)
+        assert r == s
+
+    def test_results_are_different_if_handled(self):
+        r = Result("3", handled=True, result_handler=JSONResultHandler())
+        s = Result("3", handled=False, result_handler=JSONResultHandler())
+        assert s != r
+
+    def test_results_are_same_if_handled(self):
+        r = Result("3", handled=True, result_handler=JSONResultHandler())
+        s = Result("3", handled=True, result_handler=JSONResultHandler())
+        assert s == r
 
 
 class TestSerialization:
