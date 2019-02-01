@@ -5,6 +5,7 @@ from prefect import config
 import prefect.engine.executors
 import prefect.engine.state
 import prefect.engine.signals
+import prefect.engine.result
 import prefect.engine.result_handlers
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.task_runner import TaskRunner

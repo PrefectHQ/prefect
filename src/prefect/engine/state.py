@@ -11,7 +11,6 @@ This module contains all Prefect state classes, all ultimately inheriting from t
 Every run is initialized with the `Pending` state, meaning that it is waiting for
 execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
 """
-import copy
 import datetime
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
@@ -115,7 +114,7 @@ class State:
         for variable in self.cached_inputs:  # type: ignore
             var_info = self._metadata["cached_inputs"][variable]
             if var_info["raw"] is True:
-                packed_value = input_handlers[variable].serialize(
+                packed_value = input_handlers[variable].write(
                     self.cached_inputs[variable]  # type: ignore
                 )
                 self.cached_inputs[variable] = packed_value  # type: ignore
@@ -148,7 +147,7 @@ class State:
         result_handler = schema.load(self._metadata["result"]["result_handler"])
 
         if self._metadata["result"]["raw"] is True:
-            packed_value = result_handler.serialize(self.result)  # type: ignore
+            packed_value = result_handler.write(self.result)  # type: ignore
             self.result = packed_value  # type: ignore
             self._metadata["result"]["raw"] = False
 
@@ -164,7 +163,7 @@ class State:
 
         if self._metadata["result"].get("raw") is False:
             handler = schema.load(self._metadata["result"]["result_handler"])
-            unpacked_value = handler.deserialize(self.result)
+            unpacked_value = handler.read(self.result)
             self.result = unpacked_value
             self._metadata["result"].update(raw=True)
 
@@ -175,7 +174,7 @@ class State:
                 var_info = self._metadata["cached_inputs"][variable]
                 if var_info["raw"] is False:
                     handler = schema.load(var_info["result_handler"])
-                    unpacked_value = handler.deserialize(
+                    unpacked_value = handler.read(
                         self.cached_inputs[variable]  # type: ignore
                     )
                     self.cached_inputs[variable] = unpacked_value  # type: ignore

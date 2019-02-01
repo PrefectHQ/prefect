@@ -10,7 +10,7 @@ Jeremiah Lowin
 
 ## Status
 
-Proposed; furthers the objectives of [PIN-2](PIN-2-Result-Handlers.md)
+Accepted; furthers the objectives of [PIN-2](PIN-2-Result-Handlers.md)
 
 ## Context
 
