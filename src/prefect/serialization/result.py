@@ -1,7 +1,7 @@
 from marshmallow import fields
 
 from prefect.engine import result
-from prefect.serialization.result_serializers import ResultSerializerSchema
+from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema
 
 
@@ -11,7 +11,7 @@ class ResultSchema(ObjectSchema):
 
     value = JSONCompatible(allow_none=True)
     serialized = fields.Boolean(allow_none=False)
-    serializer = fields.Nested(ResultSerializerSchema)
+    serializer = fields.Nested(ResultHandlerSchema)
 
 
 class NoResultSchema(ObjectSchema):

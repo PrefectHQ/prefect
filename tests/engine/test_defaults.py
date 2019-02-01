@@ -88,43 +88,40 @@ def test_default_task_runner_with_bad_config():
             )
 
 
-def test_default_result_serializer():
-    assert (
-        engine.get_default_result_serializer_class()
-        is engine.cloud.CloudResultSerializer
-    )
+def test_default_result_handler():
+    assert engine.get_default_result_handler_class() is engine.cloud.CloudResultHandler
 
 
-def test_default_result_serializer_responds_to_config():
+def test_default_result_handler_responds_to_config():
     with utilities.configuration.set_temporary_config(
         {
-            "engine.result_serializer.default_class": "prefect.engine.result_serializers.local_result_serializer.LocalResultSerializer"
+            "engine.result_handler.default_class": "prefect.engine.result_handlers.local_result_handler.LocalResultHandler"
         }
     ):
         assert (
-            engine.get_default_result_serializer_class()
-            is engine.result_serializers.local_result_serializer.LocalResultSerializer
+            engine.get_default_result_handler_class()
+            is engine.result_handlers.local_result_handler.LocalResultHandler
         )
 
 
-def test_default_result_serializer_responds_to_config_object():
+def test_default_result_handler_responds_to_config_object():
     with utilities.configuration.set_temporary_config(
         {
-            "engine.result_serializer.default_class": engine.result_serializers.local_result_serializer.LocalResultSerializer
+            "engine.result_handler.default_class": engine.result_handlers.local_result_handler.LocalResultHandler
         }
     ):
         assert (
-            engine.get_default_result_serializer_class()
-            is engine.result_serializers.local_result_serializer.LocalResultSerializer
+            engine.get_default_result_handler_class()
+            is engine.result_handlers.local_result_handler.LocalResultHandler
         )
 
 
-def test_default_result_serializer_with_bad_config():
+def test_default_result_handler_with_bad_config():
     with utilities.configuration.set_temporary_config(
-        {"engine.result_serializer.default_class": "prefect.engine. bad import path"}
+        {"engine.result_handler.default_class": "prefect.engine. bad import path"}
     ):
         with pytest.warns(UserWarning):
             assert (
-                engine.get_default_result_serializer_class()
-                is engine.cloud.CloudResultSerializer
+                engine.get_default_result_handler_class()
+                is engine.cloud.CloudResultHandler
             )

@@ -10,11 +10,8 @@ import pytest
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
-from prefect.engine.cloud import CloudTaskRunner, CloudResultSerializer
-from prefect.engine.result_serializers import (
-    JSONResultSerializer,
-    LocalResultSerializer,
-)
+from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
+from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import (
     Cached,
@@ -30,7 +27,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.serialization.result_serializers import ResultSerializerSchema
+from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -68,7 +65,7 @@ def client(monkeypatch):
 
 class TestInitializeRun:
     def test_ensures_all_upstream_states_are_raw(self, client):
-        serialized_handler = ResultSerializerSchema().dump(LocalResultSerializer())
+        serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
 
         with tempfile.NamedTemporaryFile() as tmp:
             with open(tmp.name, "wb") as f:
@@ -79,12 +76,8 @@ class TestInitializeRun:
                 Failed(result=55),
                 Pending(result=tmp.name),
             )
-            a._metadata["result"] = dict(
-                raw=False, result_serializer=serialized_handler
-            )
-            c._metadata["result"] = dict(
-                raw=False, result_serializer=serialized_handler
-            )
+            a._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
+            c._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
             result = CloudTaskRunner(Task()).initialize_run(
                 state=Success(), context={}, upstream_states={1: a, 2: b, 3: c}
             )
@@ -94,7 +87,7 @@ class TestInitializeRun:
         assert result.upstream_states[3].result == 42
 
     def test_ensures_provided_initial_state_is_raw(self, client):
-        serialized_handler = ResultSerializerSchema().dump(LocalResultSerializer())
+        serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
 
         with tempfile.NamedTemporaryFile() as tmp:
             with open(tmp.name, "wb") as f:
@@ -102,7 +95,7 @@ class TestInitializeRun:
 
             state = Success(result=tmp.name)
             state._metadata["result"] = dict(
-                raw=False, result_serializer=serialized_handler
+                raw=False, result_handler=serialized_handler
             )
             result = CloudTaskRunner(Task()).initialize_run(
                 state=state, context={}, upstream_states={}
@@ -351,19 +344,18 @@ class TestHeartBeats:
 
 class TestStateResultHandling:
     def test_task_runner_handles_outputs_prior_to_setting_state(self, client):
-        serialized = ResultSerializerSchema().dump(JSONResultSerializer())
+        serialized = ResultHandlerSchema().dump(JSONResultHandler())
 
         @prefect.task(
-            cache_for=datetime.timedelta(days=1),
-            result_serializer=JSONResultSerializer(),
+            cache_for=datetime.timedelta(days=1), result_handler=JSONResultHandler()
         )
         def add(x, y):
             return x + y
 
         x_state = Success(result=1)
         y_state = Success(result=1)
-        x_state._metadata["result"]["result_serializer"] = serialized
-        y_state._metadata["result"]["result_serializer"] = serialized
+        x_state._metadata["result"]["result_handler"] = serialized
+        y_state._metadata["result"]["result_handler"] = serialized
         upstream_states = {
             Edge(Task(), Task(), key="x"): x_state,
             Edge(Task(), Task(), key="y"): y_state,
@@ -385,7 +377,7 @@ class TestStateResultHandling:
         assert states[2].result == "2"
 
     def test_task_runner_handles_inputs_prior_to_setting_state(self, client):
-        serialized = ResultSerializerSchema().dump(JSONResultSerializer())
+        serialized = ResultHandlerSchema().dump(JSONResultHandler())
 
         @prefect.task(max_retries=1, retry_delay=datetime.timedelta(days=1))
         def add(x, y):
@@ -394,8 +386,8 @@ class TestStateResultHandling:
         state = Pending(cached_inputs=dict(x=1, y="0"))
         x_state = Success(result=1)
         y_state = Success(result=1)
-        x_state._metadata["result"]["result_serializer"] = serialized
-        y_state._metadata["result"]["result_serializer"] = serialized
+        x_state._metadata["result"]["result_handler"] = serialized
+        y_state._metadata["result"]["result_handler"] = serialized
         upstream_states = {
             Edge(Task(), Task(), key="x"): x_state,
             Edge(Task(), Task(), key="y"): y_state,

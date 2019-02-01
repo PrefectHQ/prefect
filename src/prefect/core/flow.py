@@ -28,7 +28,7 @@ from mypy_extensions import TypedDict
 
 import prefect
 import prefect.schedules
-from prefect.engine.result_serializers import ResultSerializer
+from prefect.engine.result_handlers import ResultHandler
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.environments import Environment
@@ -123,7 +123,7 @@ class Flow:
             the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
-        - result_serializer (ResultSerializer, optional): the handler to use for
+        - result_handler (ResultHandler, optional): the handler to use for
             retrieving and storing state results during execution; if not provided, will default
             to the one specified in your config
 
@@ -140,7 +140,7 @@ class Flow:
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
         validate: bool = None,
-        result_serializer: ResultSerializer = None,
+        result_handler: ResultHandler = None,
     ):
         self._cache = {}  # type: dict
 
@@ -152,8 +152,8 @@ class Flow:
         self.name = name or type(self).__name__
         self.schedule = schedule
         self.environment = environment or prefect.environments.LocalEnvironment()
-        self.result_serializer = (
-            result_serializer or prefect.engine.get_default_result_serializer_class()()
+        self.result_handler = (
+            result_handler or prefect.engine.get_default_result_handler_class()()
         )
 
         self.tasks = set()  # type: Set[Task]

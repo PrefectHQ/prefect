@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.engine.result import Result, NoResult
-from prefect.engine.result_serializers import ResultSerializer, JSONResultSerializer
+from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 
 
 class TestInitialization:
@@ -21,7 +21,7 @@ class TestInitialization:
         assert s.value == 5
 
     def test_result_inits_with_serialized_and_serializer(self):
-        handler = ResultSerializer()
+        handler = ResultHandler()
         r = Result(value=3, serialized=False, serializer=handler)
         assert r.value == 3
         assert r.serialized is False
@@ -51,7 +51,7 @@ def test_noresult_has_no_result_attrs(attr):
 
 class TestSerialization:
     def test_serialize_serializes(self):
-        r = Result(value=4, serializer=JSONResultSerializer())
+        r = Result(value=4, serializer=JSONResultHandler())
         assert r.serialized is False
         s = r.serialize()
         assert s.serialized is True
@@ -59,13 +59,13 @@ class TestSerialization:
         assert s.serializer is r.serializer
 
     def test_serialize_doesnt_serialize(self):
-        r = Result(value=4, serialized=True, serializer=JSONResultSerializer())
+        r = Result(value=4, serialized=True, serializer=JSONResultHandler())
         assert r.serialized is True
         s = r.serialize()
         assert s is r
 
     def test_serialize_deserializes(self):
-        r = Result(value="4", serialized=True, serializer=JSONResultSerializer())
+        r = Result(value="4", serialized=True, serializer=JSONResultHandler())
         assert r.serialized is True
         s = r.deserialize()
         assert s.serialized is False
@@ -73,7 +73,7 @@ class TestSerialization:
         assert s.serializer is r.serializer
 
     def test_serialize_doesnt_deserialize(self):
-        r = Result(value="4", serialized=False, serializer=JSONResultSerializer())
+        r = Result(value="4", serialized=False, serializer=JSONResultHandler())
         assert r.serialized is False
         s = r.deserialize()
         assert s is r
