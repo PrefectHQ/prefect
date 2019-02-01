@@ -20,29 +20,29 @@ class TestInitialization:
         s = Result(value=5)
         assert s.value == 5
 
-    def test_result_inits_with_serialized_and_serializer(self):
+    def test_result_inits_with_handled_and_result_handler(self):
         handler = ResultHandler()
-        r = Result(value=3, serialized=False, serializer=handler)
+        r = Result(value=3, handled=False, result_handler=handler)
         assert r.value == 3
-        assert r.serialized is False
-        assert r.serializer == handler
+        assert r.handled is False
+        assert r.result_handler == handler
 
-    def test_result_does_allow_serialized_false_without_serializer(self):
-        r = Result(value=2, serialized=False)
+    def test_result_does_allow_handled_false_without_result_handler(self):
+        r = Result(value=2, handled=False)
         assert r.value == 2
-        assert r.serialized is False
+        assert r.handled is False
 
-    def test_result_doesnt_allow_serialized_without_serializer(self):
+    def test_result_doesnt_allow_handled_without_result_handler(self):
         with pytest.raises(ValueError):
-            r = Result(value=3, serialized=True)
+            r = Result(value=3, handled=True)
 
-    def test_result_assumes_nonserialized_at_init(self):
+    def test_result_assumes_nonhandled_at_init(self):
         r = Result(10)
-        assert r.serialized is False
-        assert r.serializer is None
+        assert r.handled is False
+        assert r.result_handler is None
 
 
-@pytest.mark.parametrize("attr", ["value", "serialized", "serializer"])
+@pytest.mark.parametrize("attr", ["value", "handled", "result_handler"])
 def test_noresult_has_no_result_attrs(attr):
     n = NoResult()
     with pytest.raises(AttributeError):
@@ -50,30 +50,30 @@ def test_noresult_has_no_result_attrs(attr):
 
 
 class TestSerialization:
-    def test_serialize_serializes(self):
-        r = Result(value=4, serializer=JSONResultHandler())
-        assert r.serialized is False
-        s = r.serialize()
-        assert s.serialized is True
+    def test_write_writes(self):
+        r = Result(value=4, result_handler=JSONResultHandler())
+        assert r.handled is False
+        s = r.write()
+        assert s.handled is True
         assert s.value == "4"
-        assert s.serializer is r.serializer
+        assert s.result_handler is r.result_handler
 
-    def test_serialize_doesnt_serialize(self):
-        r = Result(value=4, serialized=True, serializer=JSONResultHandler())
-        assert r.serialized is True
-        s = r.serialize()
+    def test_write_doesnt_write(self):
+        r = Result(value=4, handled=True, result_handler=JSONResultHandler())
+        assert r.handled is True
+        s = r.write()
         assert s is r
 
-    def test_serialize_deserializes(self):
-        r = Result(value="4", serialized=True, serializer=JSONResultHandler())
-        assert r.serialized is True
-        s = r.deserialize()
-        assert s.serialized is False
+    def test_write_reads(self):
+        r = Result(value="4", handled=True, result_handler=JSONResultHandler())
+        assert r.handled is True
+        s = r.read()
+        assert s.handled is False
         assert s.value == 4
-        assert s.serializer is r.serializer
+        assert s.result_handler is r.result_handler
 
-    def test_serialize_doesnt_deserialize(self):
-        r = Result(value="4", serialized=False, serializer=JSONResultHandler())
-        assert r.serialized is False
-        s = r.deserialize()
+    def test_write_doesnt_read(self):
+        r = Result(value="4", handled=False, result_handler=JSONResultHandler())
+        assert r.handled is False
+        s = r.read()
         assert s is r

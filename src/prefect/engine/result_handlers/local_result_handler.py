@@ -17,7 +17,7 @@ from prefect.engine.result_handlers import ResultHandler
 class LocalResultHandler(ResultHandler):
     """
     Hook for storing and retrieving task results from local file storage. Only intended to be used
-    for local testing and development. Task results are serialized using `cloudpickle` and stored in the
+    for local testing and development. Task results are writed using `cloudpickle` and stored in the
     provided location for use in future runs.
 
     **NOTE**: Stored results will _not_ be automatically cleaned up after execution.
@@ -31,15 +31,15 @@ class LocalResultHandler(ResultHandler):
         self.dir = dir
         super().__init__()
 
-    def deserialize(self, fpath: str) -> Any:
+    def read(self, fpath: str) -> Any:
         """
-        Deserialize a result from the given file location.
+        Read a result from the given file location.
 
         Args:
-            - fpath (str): the _absolute_ path to the location of a serialized result
+            - fpath (str): the _absolute_ path to the location of a writed result
 
         Returns:
-            - the deserialized result from the provided file
+            - the readd result from the provided file
         """
         self.logger.debug("Starting to read result from {}...".format(fpath))
         with open(fpath, "rb") as f:
@@ -47,15 +47,15 @@ class LocalResultHandler(ResultHandler):
         self.logger.debug("Finished reading result from {}...".format(fpath))
         return val
 
-    def serialize(self, result: Any) -> str:
+    def write(self, result: Any) -> str:
         """
         Serialize the provided result to local disk.
 
         Args:
-            - result (Any): the result to serialize and store
+            - result (Any): the result to write and store
 
         Returns:
-            - str: the _absolute_ path to the serialized result on disk
+            - str: the _absolute_ path to the writed result on disk
         """
         fd, loc = tempfile.mkstemp(prefix="prefect-", dir=self.dir)
         self.logger.debug("Starting to upload result to {}...".format(loc))

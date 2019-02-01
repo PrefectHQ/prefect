@@ -12,24 +12,24 @@ class JSONResultHandler(ResultHandler):
     for small data loads.
     """
 
-    def deserialize(self, jblob: str) -> Any:
+    def read(self, jblob: str) -> Any:
         """
-        Deserialize a result from a string JSON blob.
+        Read a result from a string JSON blob.
 
         Args:
             - jblob (str): the JSON representation of the result
 
         Returns:
-            - the deserialized result
+            - Any: the deserialized result
         """
         return json.loads(jblob)
 
-    def serialize(self, result: Any) -> str:
+    def write(self, result: Any) -> str:
         """
         Serialize the provided result to JSON.
 
         Args:
-            - result (Any): the result to serialize
+            - result (Any): the result to write
 
         Returns:
             - str: the JSON representation of the result

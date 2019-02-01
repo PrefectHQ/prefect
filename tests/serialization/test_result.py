@@ -9,27 +9,27 @@ from prefect.serialization.result import ResultSchema, NoResultSchema
 
 def test_basic_result_serializes():
     r = Result(3)
-    serialized = ResultSchema().dump(r)
-    assert serialized["value"] == 3
-    assert serialized["serializer"] is None
-    assert serialized["serialized"] is False
-    assert serialized["__version__"] == prefect.__version__
+    handled = ResultSchema().dump(r)
+    assert handled["value"] == 3
+    assert handled["result_handler"] is None
+    assert handled["handled"] is False
+    assert handled["__version__"] == prefect.__version__
 
 
 def test_basic_noresult_serializes():
     r = NoResult()
-    serialized = ResultSchema().dump(r)
-    version = serialized.pop("__version__")
+    handled = ResultSchema().dump(r)
+    version = handled.pop("__version__")
     assert version == prefect.__version__
-    assert serialized == {}
+    assert handled == {}
 
 
 def test_basic_result_deserializes():
     r = ResultSchema().load({"value": "3"})
     assert isinstance(r, Result)
     assert r.value == "3"
-    assert r.serialized is False
-    assert r.serializer is None
+    assert r.handled is False
+    assert r.result_handler is None
 
 
 def test_basic_noresult_deserializes():
@@ -37,13 +37,13 @@ def test_basic_noresult_deserializes():
     assert isinstance(r, NoResult)
 
 
-def test_result_serializes_serializers():
-    r = Result(value=3, serialized=False, serializer=JSONResultHandler())
-    serialized = ResultSchema().dump(r)
-    assert serialized["serializer"]["type"] == "JSONResultHandler"
+def test_result_serializes_result_handlers():
+    r = Result(value=3, handled=False, result_handler=JSONResultHandler())
+    handled = ResultSchema().dump(r)
+    assert handled["result_handler"]["type"] == "JSONResultHandler"
 
 
 def test_result_allows_none_value():
     r = Result(value=None)
-    serialized = ResultSchema().dump(r)
-    assert serialized["value"] is None
+    handled = ResultSchema().dump(r)
+    assert handled["value"] is None

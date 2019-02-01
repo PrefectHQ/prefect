@@ -10,8 +10,8 @@ class ResultSchema(ObjectSchema):
         object_class = result.Result
 
     value = JSONCompatible(allow_none=True)
-    serialized = fields.Boolean(allow_none=False)
-    serializer = fields.Nested(ResultHandlerSchema)
+    handled = fields.Boolean(allow_none=False)
+    result_handler = fields.Nested(ResultHandlerSchema)
 
 
 class NoResultSchema(ObjectSchema):
