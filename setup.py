@@ -12,7 +12,7 @@ dev_requires = open("dev-requirements.txt").read().strip().split("\n")
 
 extras = {
     "dev": dev_requires,
-    "viz": ["bokeh >= 0.13.0, < 0.14", "graphviz >= 0.8.3"],
+    "viz": ["graphviz >= 0.8.3"],
     "templates": ["jinja2 >= 2.0, < 3.0"],
 }
 

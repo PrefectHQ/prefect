@@ -73,7 +73,6 @@ module.exports = {
           title: 'prefect.utilities',
           collapsable: true,
           children: [
-            'utilities/bokeh',
             'utilities/collections',
             'utilities/configuration',
             'utilities/context',
