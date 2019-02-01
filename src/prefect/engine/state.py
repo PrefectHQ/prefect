@@ -11,7 +11,6 @@ This module contains all Prefect state classes, all ultimately inheriting from t
 Every run is initialized with the `Pending` state, meaning that it is waiting for
 execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
 """
-import copy
 import datetime
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
