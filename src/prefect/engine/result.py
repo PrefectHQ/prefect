@@ -9,6 +9,22 @@ ResultType = Union["Result", "NoResult"]
 
 
 class Result:
+    """
+    A representation of the result of a Prefect task; this class contains information about
+    the value of a task's result, a result handler specifying how to serialize or store this value securely,
+    and a boolean `handled` specifying whether the result has already been handled or not.
+
+    Args:
+        - value (Any): the value of the result
+        - handled (boolean, optional): whether this value has already been
+            handled or not; defaults to `False`
+        - result_handler (ResultHandler, optional): the result handler to use
+            when storing / serializing this result's value; required if `handled=True`
+
+    Raises:
+        - ValueError: if a handled value is provided without a result handler
+    """
+
     def __init__(
         self, value: Any, handled: bool = False, result_handler: ResultHandler = None
     ):
@@ -22,6 +38,12 @@ class Result:
         self.result_handler = result_handler
 
     def write(self) -> "Result":
+        """
+        Write the value of this result using the result handler (if it hasn't already been handled).
+
+        Returns:
+            - Result: a new result containing the written representation of the value
+        """
         if not self.handled:
             assert isinstance(
                 self.result_handler, ResultHandler
@@ -32,6 +54,12 @@ class Result:
             return self
 
     def read(self) -> "Result":
+        """
+        Read the value of this result using the result handler.
+
+        Returns:
+            - Result: a new result containing the new representation of the value
+        """
         if self.handled:
             assert isinstance(
                 self.result_handler, ResultHandler
