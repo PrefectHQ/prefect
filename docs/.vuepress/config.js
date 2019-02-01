@@ -127,6 +127,7 @@ module.exports = {
           title: 'Tutorials',
           collapsable: true,
           children: [
+
             'tutorials/', 
             'tutorials/etl', 
             'tutorials/calculator', 
@@ -144,9 +145,10 @@ module.exports = {
           collapsable: true,
           children: [
             'PINs/',
-            'PINs/PIN-1-Introduce-PINs', 
+            'PINs/PIN-1-Introduce-PINs',
             'PINs/PIN-2-Result-Handlers',
-            'PINs/PIN-3-Agent-Environment'
+            'PINs/PIN-3-Agent-Environment',
+            'PINs/PIN-4-Result-Objects'
           ]
         },
         {
