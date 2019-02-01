@@ -4,7 +4,7 @@ import pytest
 import prefect
 from prefect.engine.result import Result, NoResult, NoResultType
 from prefect.engine.result_handlers import JSONResultHandler
-from prefect.serialization.result import ResultSchema, NoResultSchema
+from prefect.serialization.result import ResultSchema, NoResultSchema, StateResultSchema
 
 
 def test_basic_result_serializes():
@@ -48,3 +48,9 @@ def test_result_allows_none_value():
     r = Result(value=None)
     handled = ResultSchema().dump(r)
     assert handled["value"] is None
+
+
+@pytest.mark.parametrize("obj", [Result(value=19), NoResult])
+def test_state_result_schema_chooses_schema(obj):
+    schema = StateResultSchema()
+    assert type(schema.load(schema.dump(obj))) == type(obj)
