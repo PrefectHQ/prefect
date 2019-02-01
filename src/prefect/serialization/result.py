@@ -16,4 +16,4 @@ class ResultSchema(ObjectSchema):
 
 class NoResultSchema(ObjectSchema):
     class Meta:
-        object_class = result.NoResult
+        object_class = result.NoResultType

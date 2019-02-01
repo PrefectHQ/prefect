@@ -2,7 +2,7 @@ import marshmallow
 import pytest
 
 import prefect
-from prefect.engine.result import Result, NoResult
+from prefect.engine.result import Result, NoResult, NoResultType
 from prefect.engine.result_handlers import JSONResultHandler
 from prefect.serialization.result import ResultSchema, NoResultSchema
 
@@ -17,7 +17,7 @@ def test_basic_result_serializes():
 
 
 def test_basic_noresult_serializes():
-    r = NoResult()
+    r = NoResult
     handled = ResultSchema().dump(r)
     version = handled.pop("__version__")
     assert version == prefect.__version__
@@ -34,7 +34,8 @@ def test_basic_result_deserializes():
 
 def test_basic_noresult_deserializes():
     r = NoResultSchema().load({})
-    assert isinstance(r, NoResult)
+    assert r == NoResult
+    assert isinstance(r, NoResultType)
 
 
 def test_result_serializes_result_handlers():
