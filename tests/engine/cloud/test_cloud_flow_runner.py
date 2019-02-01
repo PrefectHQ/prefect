@@ -7,7 +7,7 @@ import pytest
 
 import prefect
 from prefect.client import Client
-from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
+from prefect.engine.result_serializers import ResultSerializer, JSONResultSerializer
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 
 from prefect.engine.state import (
@@ -21,7 +21,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
+from prefect.serialization.result_serializers import ResultSerializerSchema
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -46,7 +46,7 @@ def client(monkeypatch):
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
         set_task_run_state=MagicMock(),
         get_latest_task_run_states=MagicMock(
-            side_effect=lambda flow_run_id, states, result_handler: states
+            side_effect=lambda flow_run_id, states, result_serializer: states
         ),
     )
     monkeypatch.setattr(
@@ -249,7 +249,7 @@ def test_heartbeat_traps_errors_caused_by_client(monkeypatch):
 
 
 def test_task_failure_caches_inputs_automatically(client):
-    serialized_handler = ResultHandlerSchema().dump(JSONResultHandler())
+    serialized_handler = ResultSerializerSchema().dump(JSONResultSerializer())
 
     @prefect.task(max_retries=2, retry_delay=timedelta(seconds=10))
     def is_p_three(p):
@@ -265,7 +265,7 @@ def test_task_failure_caches_inputs_automatically(client):
     assert isinstance(state.result[res], Retrying)
     assert state.result[res]._metadata["cached_inputs"]["p"]["raw"] is False
     assert (
-        state.result[res]._metadata["cached_inputs"]["p"]["result_handler"]
+        state.result[res]._metadata["cached_inputs"]["p"]["result_serializer"]
         == serialized_handler
     )
     assert state.result[res].cached_inputs["p"] == "3"

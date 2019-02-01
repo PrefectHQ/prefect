@@ -1,7 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 """
-Result Handlers provide the hooks that Prefect uses to store task results in production; a `ResultHandler` can be provided to a `Flow` at creation.
+Result Handlers provide the hooks that Prefect uses to store task results in production; a `ResultSerializer` can be provided to a `Flow` at creation.
 
 Anytime a task needs its output or inputs stored, a result handler is used to determine where this data should be stored (and how it can be retrieved).
 """
@@ -11,10 +11,10 @@ from typing import Any
 
 import cloudpickle
 
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result_serializers import ResultSerializer
 
 
-class LocalResultHandler(ResultHandler):
+class LocalResultSerializer(ResultSerializer):
     """
     Hook for storing and retrieving task results from local file storage. Only intended to be used
     for local testing and development. Task results are serialized using `cloudpickle` and stored in the

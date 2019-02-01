@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.engine.result import Result, NoResult
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result_serializers import ResultSerializer
 
 
 class TestInitialization:
@@ -21,7 +21,7 @@ class TestInitialization:
         assert s.value == 5
 
     def test_result_inits_with_serialized_and_serializer(self):
-        handler = ResultHandler()
+        handler = ResultSerializer()
         r = Result(value=3, serialized=False, serializer=handler)
         assert r.value == 3
         assert r.serialized is False

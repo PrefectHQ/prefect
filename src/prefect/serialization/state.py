@@ -21,12 +21,12 @@ def reset_value(value, is_raw):
             json.dumps(value)
         except TypeError:
             raise TypeError(
-                "The serialized result of a ResultHandler must be JSON-compatible."
+                "The serialized result of a ResultSerializer must be JSON-compatible."
             )
     return value
 
 
-class ResultHandlerField(fields.Field):
+class ResultSerializerField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
         if hasattr(obj, "_metadata"):
             if attr == "cached_inputs":
@@ -45,7 +45,7 @@ class BaseStateSchema(ObjectSchema):
 
     message = fields.String(allow_none=True)
     _metadata = fields.Dict(keys=fields.Str())
-    result = ResultHandlerField(allow_none=True)
+    result = ResultSerializerField(allow_none=True)
 
     @post_load
     def create_object(self, data):
@@ -59,7 +59,7 @@ class PendingSchema(BaseStateSchema):
     class Meta:
         object_class = state.Pending
 
-    cached_inputs = ResultHandlerField(allow_none=True)
+    cached_inputs = ResultSerializerField(allow_none=True)
 
 
 class SubmittedSchema(BaseStateSchema):
@@ -107,7 +107,7 @@ class CachedSchema(SuccessSchema):
     class Meta:
         object_class = state.Cached
 
-    cached_inputs = ResultHandlerField(allow_none=True)
+    cached_inputs = ResultSerializerField(allow_none=True)
     cached_parameters = JSONCompatible(allow_none=True)
     cached_result_expiration = fields.DateTime(allow_none=True)
 
@@ -137,7 +137,7 @@ class TimedOutSchema(FinishedSchema):
     class Meta:
         object_class = state.TimedOut
 
-    cached_inputs = ResultHandlerField(allow_none=True)
+    cached_inputs = ResultSerializerField(allow_none=True)
 
 
 class TriggerFailedSchema(FailedSchema):

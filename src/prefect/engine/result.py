@@ -2,7 +2,7 @@
 
 from typing import Any, Union
 
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result_serializers import ResultSerializer
 
 
 ResultType = Union["Result", "NoResult"]
@@ -10,7 +10,7 @@ ResultType = Union["Result", "NoResult"]
 
 class Result:
     def __init__(
-        self, value: Any, serialized: bool = False, serializer: ResultHandler = None
+        self, value: Any, serialized: bool = False, serializer: ResultSerializer = None
     ):
         self.value = value
         if serialized is True and serializer is None:

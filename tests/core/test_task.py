@@ -8,7 +8,7 @@ import pytest
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.cache_validators import all_inputs, duration_only, never_use
-from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
+from prefect.engine.result_serializers import ResultSerializer, JSONResultSerializer
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task
 
@@ -135,15 +135,15 @@ class TestCreateTask:
         with pytest.warns(UserWarning, match=".*Task will not be cached.*"):
             Task(cache_validator=all_inputs)
 
-    def test_create_task_with_and_without_result_handler(self):
+    def test_create_task_with_and_without_result_serializer(self):
         t1 = Task()
-        assert t1.result_handler is None
-        t2 = Task(result_handler=ResultHandler())
-        assert isinstance(t2.result_handler, ResultHandler)
+        assert t1.result_serializer is None
+        t2 = Task(result_serializer=ResultSerializer())
+        assert isinstance(t2.result_serializer, ResultSerializer)
 
-    def test_create_parameter_uses_json_result_handler(self):
+    def test_create_parameter_uses_json_result_serializer(self):
         p = Parameter("p")
-        assert isinstance(p.result_handler, JSONResultHandler)
+        assert isinstance(p.result_serializer, JSONResultSerializer)
 
 
 def test_task_has_logger():
