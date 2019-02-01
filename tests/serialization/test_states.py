@@ -10,9 +10,9 @@ import pytest
 from collections import defaultdict
 
 import prefect
-from prefect.engine.result_serializers import ResultSerializer
+from prefect.engine.result_handlers import ResultHandler
 from prefect.engine import state
-from prefect.serialization.state import ResultSerializerField, StateSchema
+from prefect.serialization.state import ResultHandlerField, StateSchema
 
 all_states = sorted(
     set(
@@ -79,9 +79,9 @@ def test_all_states_have_deserialization_schemas_in_stateschema():
     )
 
 
-class TestResultSerializerField:
+class TestResultHandlerField:
     class Schema(marshmallow.Schema):
-        field = ResultSerializerField()
+        field = ResultHandlerField()
 
     def test_serializes_normally_for_objs_without_metadata(self):
         schema = self.Schema()

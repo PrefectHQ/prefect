@@ -6,7 +6,7 @@ import prefect.engine.executors
 import prefect.engine.state
 import prefect.engine.signals
 import prefect.engine.result
-import prefect.engine.result_serializers
+import prefect.engine.result_handlers
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.task_runner import TaskRunner
 import prefect.engine.cloud
@@ -82,15 +82,15 @@ def get_default_task_runner_class() -> type:
         return config_value
 
 
-def get_default_result_serializer_class() -> type:
+def get_default_result_handler_class() -> type:
     """
-    Returns the `ResultSerializer` class specified in `prefect.config.engine.result_serializer.default_class` If the
+    Returns the `ResultHandler` class specified in `prefect.config.engine.result_handler.default_class` If the
     value is a string, it will attempt to load the already-imported object. Otherwise, the
     value is returned.
 
-    Defaults to `CloudResultSerializer` if the string config value can not be loaded
+    Defaults to `CloudResultHandler` if the string config value can not be loaded
     """
-    config_value = config.get_nested("engine.result_serializer.default_class")
+    config_value = config.get_nested("engine.result_handler.default_class")
 
     if isinstance(config_value, str):
         try:
@@ -98,10 +98,8 @@ def get_default_result_serializer_class() -> type:
         except ValueError:
             warn(
                 "Could not import {}; using "
-                "prefect.engine.cloud.CloudResultSerializer instead.".format(
-                    config_value
-                )
+                "prefect.engine.cloud.CloudResultHandler instead.".format(config_value)
             )
-            return prefect.engine.cloud.CloudResultSerializer
+            return prefect.engine.cloud.CloudResultHandler
     else:
         return config_value

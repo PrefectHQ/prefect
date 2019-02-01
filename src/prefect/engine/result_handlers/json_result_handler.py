@@ -3,10 +3,10 @@
 import json
 from typing import Any
 
-from prefect.engine.result_serializers import ResultSerializer
+from prefect.engine.result_handlers import ResultHandler
 
 
-class JSONResultSerializer(ResultSerializer):
+class JSONResultHandler(ResultHandler):
     """
     Hook for storing and retrieving task results to / from JSON. Only intended to be used
     for small data loads.

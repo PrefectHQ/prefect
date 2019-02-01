@@ -1,5 +1,5 @@
 """
-Result Handlers provide the hooks that Prefect uses to store task results in production; a `ResultSerializer` can be provided to a `Flow` at creation.
+Result Handlers provide the hooks that Prefect uses to store task results in production; a `ResultHandler` can be provided to a `Flow` at creation.
 
 Anytime a task needs its output or inputs stored, a result handler is used to determine where this data should be stored (and how it can be retrieved).
 """
@@ -11,22 +11,22 @@ import cloudpickle
 
 from prefect import config
 from prefect.client.client import Client
-from prefect.engine.result_serializers import ResultSerializer
+from prefect.engine.result_handlers import ResultHandler
 
 
-class CloudResultSerializer(ResultSerializer):
+class CloudResultHandler(ResultHandler):
     """
     Hook for storing and retrieving task results from Prefect cloud storage.
 
     Args:
-        - result_serializer_service (str, optional): the location of the service
+        - result_handler_service (str, optional): the location of the service
             which will further process and store the results; if not provided, will default to
-            the value of `cloud.result_serializer` in your config file
+            the value of `cloud.result_handler` in your config file
     """
 
-    def __init__(self, result_serializer_service: str = None) -> None:
+    def __init__(self, result_handler_service: str = None) -> None:
         self.client = None
-        self.result_serializer_service = result_serializer_service
+        self.result_handler_service = result_handler_service
         super().__init__()
 
     def _initialize_client(self) -> None:
@@ -40,8 +40,8 @@ class CloudResultSerializer(ResultSerializer):
         """
         if self.client is None:
             self.client = Client()  # type: ignore
-        if self.result_serializer_service is None:
-            self.result_serializer_service = config.cloud.result_serializer
+        if self.result_handler_service is None:
+            self.result_handler_service = config.cloud.result_handler
 
     def deserialize(self, uri: str) -> Any:
         """
@@ -56,7 +56,7 @@ class CloudResultSerializer(ResultSerializer):
         self._initialize_client()
         self.logger.debug("Starting to read result from {}...".format(uri))
         res = self.client.get(  # type: ignore
-            "/", server=self.result_serializer_service, **{"uri": uri}
+            "/", server=self.result_handler_service, **{"uri": uri}
         )
 
         try:
@@ -80,12 +80,12 @@ class CloudResultSerializer(ResultSerializer):
         self._initialize_client()
         binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()
         self.logger.debug(
-            "Starting to upload result to {}...".format(self.result_serializer_service)
+            "Starting to upload result to {}...".format(self.result_handler_service)
         )
         res = self.client.post(  # type: ignore
-            "/", server=self.result_serializer_service, **{"result": binary_data}
+            "/", server=self.result_handler_service, **{"result": binary_data}
         )
         self.logger.debug(
-            "Finished uploading result to {}...".format(self.result_serializer_service)
+            "Finished uploading result to {}...".format(self.result_handler_service)
         )
         return res.get("uri", "")

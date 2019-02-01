@@ -3,7 +3,7 @@ import pytest
 
 import prefect
 from prefect.engine.result import Result, NoResult
-from prefect.engine.result_serializers import JSONResultSerializer
+from prefect.engine.result_handlers import JSONResultHandler
 from prefect.serialization.result import ResultSchema, NoResultSchema
 
 
@@ -38,9 +38,9 @@ def test_basic_noresult_deserializes():
 
 
 def test_result_serializes_serializers():
-    r = Result(value=3, serialized=False, serializer=JSONResultSerializer())
+    r = Result(value=3, serialized=False, serializer=JSONResultHandler())
     serialized = ResultSchema().dump(r)
-    assert serialized["serializer"]["type"] == "JSONResultSerializer"
+    assert serialized["serializer"]["type"] == "JSONResultHandler"
 
 
 def test_result_allows_none_value():

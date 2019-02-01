@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
-from prefect.engine.result_serializers import ResultSerializer
+from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
 from prefect.engine.state import Cached, Failed, Mapped, State
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
@@ -30,7 +30,7 @@ class CloudTaskRunner(TaskRunner):
             (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - result_serializer (ResultSerializer, optional): the handler to use for
+        - result_handler (ResultHandler, optional): the handler to use for
             retrieving and storing state results during execution (if the Task doesn't already have one);
             if not provided here or by the Task, will default to the one specified in your config
     """
@@ -39,13 +39,11 @@ class CloudTaskRunner(TaskRunner):
         self,
         task: Task,
         state_handlers: Iterable[Callable] = None,
-        result_serializer: ResultSerializer = None,
+        result_handler: ResultHandler = None,
     ) -> None:
         self.client = Client()
         super().__init__(
-            task=task,
-            state_handlers=state_handlers,
-            result_serializer=result_serializer,
+            task=task, state_handlers=state_handlers, result_handler=result_handler
         )
 
     def _heartbeat(self) -> None:

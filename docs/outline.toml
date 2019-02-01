@@ -109,15 +109,15 @@ classes = [
             "LocalExecutor",
             "SynchronousExecutor"]
 
-[pages.engine.result_serializers]
+[pages.engine.result_handlers]
 title = "Result Handlers"
-module = "prefect.engine.result_serializers"
-classes = ["LocalResultSerializer"]
+module = "prefect.engine.result_handlers"
+classes = ["LocalResultHandler"]
 
 [pages.engine.cloud]
 title = "Cloud"
 module = "prefect.engine.cloud"
-classes = ["CloudFlowRunner", "CloudTaskRunner", "CloudResultSerializer"]
+classes = ["CloudFlowRunner", "CloudTaskRunner", "CloudResultHandler"]
 
 [pages.tasks.control_flow]
 title = "Control Flow"

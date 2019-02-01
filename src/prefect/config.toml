@@ -9,7 +9,7 @@ debug = false
 # the Prefect Server address
 graphql = "http://localhost:4200"
 log = "http://localhost:4202/log"
-result_serializer = "http://localhost:4204"
+result_handler = "http://localhost:4204"
 use_local_secrets = true
 heartbeat_interval = 30.0
 
@@ -64,9 +64,9 @@ retry_delay = false
     # the default flow runner, specified using a full path
     default_class = "prefect.engine.flow_runner.FlowRunner"
 
-    [engine.result_serializer]
+    [engine.result_handler]
     # the default task runner, specified using a full path
-    default_class = "prefect.engine.cloud.CloudResultSerializer"
+    default_class = "prefect.engine.cloud.CloudResultHandler"
 
     [engine.task_runner]
     # the default task runner, specified using a full path

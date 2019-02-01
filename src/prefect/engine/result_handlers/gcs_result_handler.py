@@ -6,10 +6,10 @@ import uuid
 from google.cloud import storage
 from typing import Any
 
-from prefect.engine.result_serializers import ResultSerializer
+from prefect.engine.result_handlers import ResultHandler
 
 
-class GCSResultSerializer(ResultSerializer):
+class GCSResultHandler(ResultHandler):
     """
     Result Handler for serializing to and from a Google Cloud Bucket.
 

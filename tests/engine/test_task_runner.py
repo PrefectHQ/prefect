@@ -293,7 +293,7 @@ def test_task_runner_accepts_dictionary_of_edges():
 def test_task_runner_can_handle_timeouts_by_default():
     sleeper = SlowTask(timeout=1)
     upstream_state = Success(result=2)
-    upstream_state._metadata["result"]["result_serializer"] = "json-blob"
+    upstream_state._metadata["result"]["result_handler"] = "json-blob"
     state = TaskRunner(sleeper).run(
         upstream_states={Edge(None, sleeper, key="secs"): upstream_state}
     )
@@ -302,7 +302,7 @@ def test_task_runner_can_handle_timeouts_by_default():
     assert isinstance(state.result, TimeoutError)
     assert state.cached_inputs == dict(secs=2)
     assert "secs" in state._metadata["cached_inputs"]
-    assert state._metadata["cached_inputs"]["secs"]["result_serializer"] == "json-blob"
+    assert state._metadata["cached_inputs"]["secs"]["result_handler"] == "json-blob"
 
 
 def test_task_runner_handles_secrets():
@@ -860,7 +860,7 @@ class TestCheckRetryStep:
     def test_failed_retry_caches_inputs(self):
         state = Failed()
         upstream_state = Success(result=1)
-        upstream_state._metadata["result"]["result_serializer"] = "json-blob"
+        upstream_state._metadata["result"]["result_handler"] = "json-blob"
 
         new_state = TaskRunner(
             task=Task(max_retries=1, retry_delay=timedelta(0))
@@ -873,8 +873,7 @@ class TestCheckRetryStep:
         assert new_state.cached_inputs == {"x": 1}
         assert "x" in new_state._metadata["cached_inputs"]
         assert (
-            new_state._metadata["cached_inputs"]["x"]["result_serializer"]
-            == "json-blob"
+            new_state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob"
         )
 
     def test_retrying_when_run_count_greater_than_max_retries(self):
@@ -937,7 +936,7 @@ class TestCacheResultStep:
 
         state = Success(result=2, message="hello")
         upstream_state = Success(result=5)
-        upstream_state._metadata["result"]["result_serializer"] = "json-blob"
+        upstream_state._metadata["result"]["result_handler"] = "json-blob"
 
         new_state = TaskRunner(task=fn).cache_result(
             state=state,
@@ -951,8 +950,7 @@ class TestCacheResultStep:
         assert new_state.result == 2
         assert new_state.cached_inputs == {"x": 5}
         assert (
-            new_state._metadata["cached_inputs"]["x"]["result_serializer"]
-            == "json-blob"
+            new_state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob"
         )
 
 
@@ -1284,8 +1282,8 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
 
 def test_retry_has_updated_metadata():
     a, b = Success(result=15), Success(result="abc")
-    a._metadata["result"]["result_serializer"] = "json-blob-a"
-    b._metadata["result"]["result_serializer"] = "json-blob-b"
+    a._metadata["result"]["result_handler"] = "json-blob-a"
+    b._metadata["result"]["result_handler"] = "json-blob-b"
 
     runner = TaskRunner(task=AddTask(max_retries=1, retry_delay=timedelta(days=1)))
     state = runner.run(
@@ -1299,8 +1297,8 @@ def test_retry_has_updated_metadata():
     assert state.cached_inputs == dict(x=15, y="abc")
     assert "x" in state._metadata["cached_inputs"]
     assert "y" in state._metadata["cached_inputs"]
-    assert state._metadata["cached_inputs"]["x"]["result_serializer"] == "json-blob-a"
-    assert state._metadata["cached_inputs"]["y"]["result_serializer"] == "json-blob-b"
+    assert state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob-a"
+    assert state._metadata["cached_inputs"]["y"]["result_handler"] == "json-blob-b"
 
 
 def test_pending_raised_from_endrun_has_updated_metadata():
@@ -1309,7 +1307,7 @@ def test_pending_raised_from_endrun_has_updated_metadata():
             raise ENDRUN(state=Pending("abc"))
 
     upstream_state = Success(result=15)
-    upstream_state._metadata["result"]["result_serializer"] = "json-blob"
+    upstream_state._metadata["result"]["result_handler"] = "json-blob"
 
     runner = TaskRunner(task=EndRunTask())
     state = runner.run(upstream_states={Edge(Task(), Task(), key="x"): upstream_state})
@@ -1317,4 +1315,4 @@ def test_pending_raised_from_endrun_has_updated_metadata():
     assert state.is_pending()
     assert state.cached_inputs == dict(x=15)
     assert "x" in state._metadata["cached_inputs"]
-    assert state._metadata["cached_inputs"]["x"]["result_serializer"] == "json-blob"
+    assert state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob"
