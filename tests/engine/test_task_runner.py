@@ -301,7 +301,7 @@ def test_task_runner_can_handle_timeouts_by_default():
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
-    assert state.cached_inputs == dict(secs=2)
+    assert state.cached_inputs == dict(secs=Result(2))
 
 
 def test_task_runner_handles_secrets():
@@ -320,7 +320,7 @@ def test_task_that_starts_failed_doesnt_get_retried():
 def test_runner_checks_cached_inputs_correctly():
     with pytest.warns(UserWarning):
         task = AddTask(cache_validator=cache_validators.all_inputs)
-    pre = Cached(cached_inputs={"x": 1, "y": 2}, result=99)
+    pre = Cached(cached_inputs={"x": Result(1), "y": Result(2)}, result=99)
     upstream = {
         Edge(Task(), task, key="x"): Success(result=1),
         Edge(Task(), task, key="y"): Success(result=2),
@@ -628,7 +628,7 @@ class TestGetTaskInputs:
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=Pending(), upstream_states={Edge(1, 2, key="x"): Success(result=1)}
         )
-        assert inputs == {"x": 1}
+        assert inputs == {"x": Result(1)}
 
     def test_get_inputs_from_upstream_with_non_key_edges(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
@@ -638,44 +638,44 @@ class TestGetTaskInputs:
                 Edge(1, 2): Success(result=2),
             },
         )
-        assert inputs == {"x": 1}
+        assert inputs == {"x": Result(1)}
 
     def test_get_inputs_from_upstream_failed(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=Pending(),
             upstream_states={Edge(1, 2, key="x"): Failed(result=ValueError())},
         )
-        assert isinstance(inputs["x"], ValueError)
+        assert isinstance(inputs["x"].value, ValueError)
 
     def test_get_inputs_from_upstream_mapped(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=Pending(),
             upstream_states={Edge(1, 2, key="x", mapped=True): Success(result=[1, 2])},
         )
-        assert inputs == {"x": [1, 2]}
+        assert inputs == {"x": Result([1, 2])}
 
     def test_get_inputs_from_cached_inputs(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": 1}), upstream_states={}
+            state=Pending(cached_inputs={"x": Result(1)}), upstream_states={}
         )
-        assert inputs == {"x": 1}
+        assert inputs == {"x": Result(1)}
 
     def test_get_inputs_from_cached_inputs_and_upstream_states(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": 1}),
+            state=Pending(cached_inputs={"x": Result(1)}),
             upstream_states={Edge(1, 2, key="y"): Success(result=2)},
         )
-        assert inputs == {"x": 1, "y": 2}
+        assert inputs == {"x": Result(1), "y": Result(2)}
 
     def test_get_inputs_from_cached_inputs_overwrites_upstream_states(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": 1}),
+            state=Pending(cached_inputs={"x": Result(1)}),
             upstream_states={
                 Edge(1, 2, key="x"): Success(result=2),
                 Edge(1, 2, key="y"): Success(result=2),
             },
         )
-        assert inputs == {"x": 1, "y": 2}
+        assert inputs == {"x": Result(1), "y": Result(2)}
 
 
 class TestCheckTaskCached:
@@ -687,15 +687,19 @@ class TestCheckTaskCached:
     def test_cached_same_inputs(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
-        state = Cached(cached_inputs={"a": 1}, result=2)
-        new = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
+        state = Cached(cached_inputs={"a": Result(1)}, result=Result(2))
+        new = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(1)}
+        )
         assert new is state
 
     def test_cached_different_inputs(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
-        state = Cached(cached_inputs={"a": 1}, result=2)
-        new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 2})
+        state = Cached(cached_inputs={"a": Result(1)}, result=2)
+        new_state = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(2)}
+        )
         assert new_state.is_pending()
 
     def test_cached_duration(self):
@@ -706,7 +710,9 @@ class TestCheckTaskCached:
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
         )
 
-        new = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
+        new = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(1)}
+        )
         assert new is state
 
     def test_cached_duration_fail(self):
@@ -716,7 +722,9 @@ class TestCheckTaskCached:
             result=2,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=-1),
         )
-        new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
+        new_state = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(1)}
+        )
         assert new_state.is_pending()
 
 
@@ -810,7 +818,10 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={"x": 1}, timeout_handler=None, upstream_states={}
+            state=state,
+            inputs={"x": Result(1)},
+            timeout_handler=None,
+            upstream_states={},
         )
         assert new_state.is_successful()
         assert new_state.result == 2
@@ -822,7 +833,10 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={"y": 1}, timeout_handler=None, upstream_states={}
+            state=state,
+            inputs={"y": Result(1)},
+            timeout_handler=None,
+            upstream_states={},
         )
         assert new_state.is_failed()
 
@@ -1306,7 +1320,7 @@ def test_retry_has_updated_metadata():
     )
 
     assert isinstance(state, Retrying)
-    assert state.cached_inputs == dict(x=15, y="abc")
+    assert state.cached_inputs == dict(x=Result(15), y=Result("abc"))
 
 
 def test_pending_raised_from_endrun_has_updated_metadata():
@@ -1320,4 +1334,4 @@ def test_pending_raised_from_endrun_has_updated_metadata():
     state = runner.run(upstream_states={Edge(Task(), Task(), key="x"): upstream_state})
 
     assert state.is_pending()
-    assert state.cached_inputs == dict(x=15)
+    assert state.cached_inputs == dict(x=Result(15))
