@@ -68,6 +68,16 @@ class CloudTaskRunner(TaskRunner):
         return state
 
     def prepare_state_for_cloud(self, state: State) -> State:
+        """
+        Prepares a Prefect State for being sent to Cloud; this ensures that any data attributes
+        are properly handled prior to being shipped off to a database.
+
+        Args:
+            - state (State): the Prefect State to prepare
+
+        Returns:
+            - State: a sanitized copy of the original state
+        """
         res = state._result
         cloud_state = copy.copy(state)
         cloud_state._result = res.write() if cloud_state.is_cached() else NoResult
@@ -132,10 +142,7 @@ class CloudTaskRunner(TaskRunner):
         return new_state
 
     def initialize_run(  # type: ignore
-        self,
-        state: Optional[State],
-        context: Dict[str, Any],
-        upstream_states: Dict[Edge, State],
+        self, state: Optional[State], context: Dict[str, Any]
     ) -> TaskRunnerInitializeResult:
         """
         Initializes the Task run by initializing state and context appropriately.
@@ -143,8 +150,6 @@ class CloudTaskRunner(TaskRunner):
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
             - context (Dict[str, Any]): the context to be updated with relevant information
-            - upstream_states (Dict[Edge, State]): a dictionary
-                representing the states of tasks upstream of this one
 
         Returns:
             - tuple: a tuple of the updated state, context, and upstream_states objects
@@ -182,10 +187,6 @@ class CloudTaskRunner(TaskRunner):
         self.task_run_id = context.get("task_run_id")  # type: ignore
         if state is not None:
             state = self.prepare_state_for_run(state)
-
-        upstream_states = {
-            e: self.prepare_state_for_run(state) for e, state in upstream_states.items()
-        }
 
         return super().initialize_run(
             state=state, context=context, upstream_states=upstream_states

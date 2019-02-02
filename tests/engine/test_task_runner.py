@@ -20,7 +20,7 @@ from prefect.engine.cache_validators import (
     partial_parameters_only,
 )
 from prefect.engine.result import Result, NoResult
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -629,6 +629,23 @@ class TestGetTaskInputs:
             state=Pending(), upstream_states={Edge(1, 2, key="x"): Success(result=1)}
         )
         assert inputs == {"x": Result(1)}
+
+    def test_get_inputs_from_upstream_reads_results(self):
+        result = Result("1", handled=True, result_handler=JSONResultHandler())
+        state = Success()
+        state._result = result
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(), upstream_states={Edge(1, 2, key="x"): state}
+        )
+        assert inputs == {"x": Result(1, result_handler=JSONResultHandler())}
+
+    def test_get_inputs_from_upstream_reads_cached_inputs(self):
+        result = Result("1", handled=True, result_handler=JSONResultHandler())
+        state = Pending(cached_inputs=dict(x=result))
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=state, upstream_states={}
+        )
+        assert inputs == {"x": Result(1, result_handler=JSONResultHandler())}
 
     def test_get_inputs_from_upstream_with_non_key_edges(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
