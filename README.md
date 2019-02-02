@@ -55,6 +55,11 @@ git checkout 0.4.1
 pip install ".[viz]"
 ```
 
+Note that the visualization package additionally requires a non-Python dependency: [graphviz](https://www.graphviz.org/download/). Perhaps the easiest way to obtain `graphviz` is with [Homebrew](https://brew.sh/):
+```bash
+brew install graphviz
+```
+
 ### Install master branch
 
 To install the very latest version of Prefect, we recommend an "editable" install so that you
