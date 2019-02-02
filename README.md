@@ -44,19 +44,38 @@ Pefect's documentation -- including concepts, tutorials, and a full API referenc
 
 Prefect requires Python 3.4+. Dask execution requires Python 3.5+.
 
-### Install
+### Install latest release
 
-This will install optional visualization utilities:
+The latest release of Prefect is `0.4.1`. To install it with optional visualization utilities:
 
 ```bash
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
+git checkout 0.4.1
 pip install ".[viz]"
+```
+
+Note that the visualization package additionally requires a non-Python dependency: [graphviz](https://www.graphviz.org/download/). Perhaps the easiest way to obtain `graphviz` is with [Homebrew](https://brew.sh/):
+```bash
+brew install graphviz
+```
+
+### Install master branch
+
+To install the very latest version of Prefect, we recommend an "editable" install so that you
+can automatically update Prefect by pulling the latest changes:
+
+```bash
+git clone https://github.com/PrefectHQ/prefect.git
+cd prefect
+pip install -e ".[viz]"
 ```
 
 ## Development
 
-### Install `dev` package
+### Install
+
+For development, install Prefect as an "editable" package with all development dependencies:
 
 ```bash
 git clone https://github.com/PrefectHQ/prefect.git
@@ -65,6 +84,8 @@ pip install -e ".[dev]"
 ```
 
 ### Run unit tests
+
+Prefect uses `pytest` for unit tests. To run tests, simply run `pytest` from the root Prefect directory:
 
 ```bash
 cd prefect

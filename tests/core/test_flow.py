@@ -325,6 +325,30 @@ def test_chain():
     assert f.edges == set(edges)
 
 
+def test_splatting_chain_works_in_flow_context_without_duplication():
+    @task
+    def do_nothing():
+        pass
+
+    with Flow() as f:
+        f.chain(*[do_nothing() for _ in range(10)])
+
+    assert len(f.tasks) == 10
+    assert len(f.edges) == 9
+
+
+def test_chain_works_in_flow_context_without_duplication():
+    @task
+    def do_nothing():
+        pass
+
+    with Flow() as f:
+        f.chain(do_nothing(), do_nothing(), do_nothing(), Task())
+
+    assert len(f.tasks) == 4
+    assert len(f.edges) == 3
+
+
 def test_iter():
     """
     Tests that iterating over a Flow yields the tasks in order
