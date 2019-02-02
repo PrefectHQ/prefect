@@ -7,6 +7,7 @@ import pytest
 
 import prefect
 from prefect.client import Client
+from prefect.engine.result import Result
 from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 
@@ -249,8 +250,6 @@ def test_heartbeat_traps_errors_caused_by_client(monkeypatch):
 
 
 def test_task_failure_caches_inputs_automatically(client):
-    serialized_handler = ResultHandlerSchema().dump(JSONResultHandler())
-
     @prefect.task(max_retries=2, retry_delay=timedelta(seconds=10))
     def is_p_three(p):
         if p == 3:
@@ -263,9 +262,12 @@ def test_task_failure_caches_inputs_automatically(client):
     state = CloudFlowRunner(flow=f).run(return_tasks=[res], parameters=dict(p=3))
     assert state.is_running()
     assert isinstance(state.result[res], Retrying)
-    assert state.result[res]._metadata["cached_inputs"]["p"]["raw"] is False
-    assert (
-        state.result[res]._metadata["cached_inputs"]["p"]["result_handler"]
-        == serialized_handler
+    assert state.result[res].cached_inputs["p"] == Result(
+        3, handled=False, result_handler=JSONResultHandler()
     )
-    assert state.result[res].cached_inputs["p"] == "3"
+
+    last_state = client.set_task_run_state.call_args_list[-1][-1]["state"]
+    assert isinstance(last_state, Retrying)
+    assert last_state.cached_inputs["p"] == Result(
+        "3", handled=True, result_handler=JSONResultHandler()
+    )

@@ -1339,6 +1339,12 @@ class TestMapping:
     def test_mapped_tasks_do_run_if_upstream_pending_and_they_are_start_tasks(
         self, executor
     ):
+        """
+        Tests that that the full “children” pipelines are generated even if it might look like they shouldn’t run;
+        in this case, a Retrying task is the upstream task and it hasn’t reached it’s scheduled time yet
+        So we expect that the mapped task parent properly skips its upstream checks if it is the start_task
+        and attempts to generate its children, which, in this case, will simply fail the pipeline.
+        """
 
         with Flow() as flow:
             ups = SuccessTask()
