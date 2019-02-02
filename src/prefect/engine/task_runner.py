@@ -25,7 +25,7 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result import NoResult, Result
+from prefect.engine.result import NoResult, Result, NoResultType
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from prefect.engine.result_handlers import ResultHandler
 
 
+ResultType = Union[Result, NoResultType]
 TaskRunnerInitializeResult = NamedTuple(
     "TaskRunnerInitializeResult",
     [
@@ -555,7 +556,7 @@ class TaskRunner(Runner):
 
     def get_task_inputs(
         self, state: State, upstream_states: Dict[Edge, State]
-    ) -> Dict[str, Result]:
+    ) -> Dict[str, ResultType]:
         """
         Given the task's current state and upstream states, generates the inputs for this task.
         If the current state has `cached_inputs`, they are used. Upstream states supplement
@@ -566,10 +567,10 @@ class TaskRunner(Runner):
             - upstream_states (Dict[Edge, State]): the upstream state_handlers
 
         Returns:
-            - Dict[str, Result]: the task inputs
+            - Dict[str, ResultType]: the task inputs
 
         """
-        task_inputs = {}
+        task_inputs = {}  # type: Dict[str, ResultType]
 
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
