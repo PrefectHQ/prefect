@@ -4,6 +4,7 @@ from typing import Any, Dict
 from marshmallow import fields, post_load, ValidationError
 
 from prefect.engine import state
+from prefect.engine import result
 from prefect.serialization.result import StateResultSchema
 from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
@@ -19,14 +20,13 @@ class BaseStateSchema(ObjectSchema):
         object_class = state.State
 
     message = fields.String(allow_none=True)
-    _metadata = fields.Dict(keys=fields.Str())
-    _result = StateResultSchema()
+    _result = fields.Nested(StateResultSchema, allow_none=False)
 
     @post_load
     def create_object(self, data):
-        _metadata = data.pop("_metadata", {})
+        result_obj = data.pop("_result", result.NoResult)
         base_obj = super().create_object(data)
-        base_obj._metadata.update(_metadata)
+        base_obj._result = result_obj
         return base_obj
 
 
@@ -89,7 +89,7 @@ class CachedSchema(SuccessSchema):
 
 class MappedSchema(SuccessSchema):
     class Meta:
-        exclude = ["result", "map_states"]
+        exclude = ["_result", "map_states"]
         object_class = state.Mapped
 
     # though this field is excluded from serialization, it must be present in the schema

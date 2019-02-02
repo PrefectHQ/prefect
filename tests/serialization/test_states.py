@@ -10,9 +10,10 @@ import pytest
 from collections import defaultdict
 
 import prefect
+from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine import state
-from prefect.serialization.state import ResultHandlerField, StateSchema
+from prefect.serialization.state import StateSchema
 
 all_states = sorted(
     set(
@@ -79,122 +80,35 @@ def test_all_states_have_deserialization_schemas_in_stateschema():
     )
 
 
-class TestResultHandlerField:
-    class Schema(marshmallow.Schema):
-        field = ResultHandlerField()
-
-    def test_serializes_normally_for_objs_without_metadata(self):
-        schema = self.Schema()
-        serialized = schema.dump({"field": 50})
-        assert "field" in serialized
-        assert serialized["field"] == 50
-
-    def test_serializes_without_result_if_raw(self):
-        s = state.Success(message="hi", result=42)
-        schema = StateSchema()
-        serialized = schema.dump(s)
-        assert serialized["message"] == "hi"
-        assert serialized["result"] is None
-
-    def test_serializes_without_derived_result_attrs_if_raw(self):
-        s = state.Cached(
-            message="hi",
-            cached_inputs=dict(x=1, y="str"),
-            result={"x": {"y": {"z": 55}}},
-            cached_parameters=dict(three=3),
-        )
-        schema = StateSchema()
-        serialized = schema.dump(s)
-        assert serialized["message"] == "hi"
-        assert serialized["result"] is None
-        assert serialized["cached_inputs"] == dict.fromkeys(["x", "y"])
-        assert serialized["cached_parameters"] == dict(three=3)
-
-    def test_serializes_with_result_if_not_raw(self):
-        s = state.Success(message="hi", result=42)
-        s._metadata.update(result=dict(raw=False))
-        schema = StateSchema()
-        serialized = schema.dump(s)
-        print(serialized)
-        assert serialized["message"] == "hi"
-        assert serialized["result"] == 42
-
-    def test_serializes_with_derived_result_attrs_if_not_raw(self):
-        s = state.Cached(
-            message="hi",
-            result=42,
-            cached_inputs=dict(x=1, y="str"),
-            cached_parameters=dict(three=3),
-        )
-        s._metadata.update(
-            result=dict(raw=True),
-            cached_inputs=dict(x=dict(raw=False), y=dict(raw=False)),
-        )
-        schema = StateSchema()
-        serialized = schema.dump(s)
-        assert serialized["message"] == "hi"
-        assert serialized["result"] is None
-        assert serialized["cached_inputs"] == dict(x=1, y="str")
-        assert serialized["cached_parameters"] == dict(three=3)
-
-    def test_metadata_structure_is_preserved(self):
-        s = state.Success()
-        s._metadata["result"]["raw"] = False
-        s._metadata["cached_inputs"]["x"]["raw"] = False
-        schema = StateSchema()
-        new = schema.load(schema.dump(s))
-        assert "y" not in new._metadata.cached_inputs
-        assert new._metadata.cached_inputs["y"]["raw"] is True
-
-    def test_metadata_is_repopulated_if_empty(self):
-        schema = StateSchema()
-        new = schema.load({"type": "Pending"})
-        assert "cached_inputs" in new._metadata
-        assert "result" in new._metadata
-        assert new._metadata["result"]["raw"] is True
-        assert new._metadata["cached_inputs"]["_def_not_real"]["raw"] is True
-
-    def test_cached_inputs_can_be_partially_serialized(self):
-        schema = StateSchema()
-        pending = state.Pending(cached_inputs=dict(x=1, y="str"))
-        pending._metadata.cached_inputs.update(x=dict(raw=False), y=dict(raw=True))
-        new = schema.load(schema.dump(pending))
-        assert new.cached_inputs["x"] == 1
-        assert new.cached_inputs["y"] is None
-
-
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
-def test_serialize_state(cls):
+def test_serialize_state_with_result(cls):
     serialized = StateSchema().dump(cls(message="message", result=1))
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
     assert serialized["message"] is "message"
-    assert serialized["result"] is None
+    assert serialized["_result"]["value"] == 1
     assert serialized["__version__"] == prefect.__version__
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
-def test_serialize_state_with_metadata(cls):
-    state = cls(message="message", result=1)
-    state._metadata.update(result=dict(raw=False))
+def test_serialize_state_with_no_result(cls):
+    state = cls(message="message")
     serialized = StateSchema().dump(state)
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
     assert serialized["message"] is "message"
-    assert serialized["result"] == 1
+    assert serialized["_result"]["type"] == "NoResultType"
     assert serialized["__version__"] == prefect.__version__
 
 
 def test_serialize_mapped():
     s = state.Success(message="1", result=1)
     f = state.Failed(message="2", result=2)
-    s._metadata.update(result=dict(raw=False))
-    f._metadata.update(result=dict(raw=False))
     serialized = StateSchema().dump(state.Mapped(message="message", map_states=[s, f]))
     assert isinstance(serialized, dict)
     assert serialized["type"] == "Mapped"
     assert serialized["message"] is "message"
-    assert "result" not in serialized
+    assert "_result" not in serialized
     assert "map_states" not in serialized
     assert serialized["n_map_states"] == 2
     assert serialized["__version__"] == prefect.__version__
@@ -203,7 +117,6 @@ def test_serialize_mapped():
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
 def test_deserialize_state(cls):
     s = cls(message="message", result=1)
-    s._metadata.update(result=dict(raw=False))
     serialized = StateSchema().dump(s)
     deserialized = StateSchema().load(serialized)
     assert isinstance(deserialized, cls)
@@ -218,7 +131,7 @@ def test_deserialize_mapped():
     assert isinstance(deserialized, state.Mapped)
     assert len(deserialized.map_states) == 2
     assert deserialized.map_states == [None, None]
-    assert deserialized.result == None
+    assert deserialized._result == NoResult
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -227,7 +140,7 @@ def test_deserialize_state_from_only_type(cls):
     new_state = StateSchema().load(serialized)
     assert isinstance(new_state, cls)
     assert new_state.message is None
-    assert new_state.result is None
+    assert new_state._result == NoResult
 
 
 def test_deserialize_state_without_type_fails():
@@ -242,11 +155,6 @@ def test_deserialize_state_with_unknown_type_fails():
 
 @pytest.mark.parametrize("state", complex_states())
 def test_complex_state_attributes_are_handled(state):
-    state._metadata.update(
-        result=dict(raw=False),
-        cached_parameters=dict(raw=False),
-        cached_inputs=defaultdict(lambda: {"raw": False}),
-    )
     serialized = StateSchema().dump(state)
     deserialized = StateSchema().load(serialized)
     assert state == deserialized
@@ -254,33 +162,22 @@ def test_complex_state_attributes_are_handled(state):
 
 def test_result_must_be_valid_json():
     s = state.Success(result={"x": {"y": {"z": 1}}})
-    s._metadata.update(result=dict(raw=False))
     serialized = StateSchema().dump(s)
-    assert serialized["result"] == s.result
-
-
-def test_result_doesnt_raise_error_on_dump_if_raw():
-    s = state.Success(result={"x": {"y": {"z": lambda: 1}}})
-    s._metadata.update(result=dict(raw=True))
-    serialized = StateSchema().dump(s)
-    assert serialized["result"] is None
+    assert serialized["_result"]["value"] == s.result
 
 
 def test_result_raises_error_on_dump_if_not_valid_json():
     s = state.Success(result={"x": {"y": {"z": lambda: 1}}})
-    s._metadata.update(result=dict(raw=False))
-    with pytest.raises(TypeError):
+    with pytest.raises(marshmallow.exceptions.ValidationError):
         StateSchema().dump(s)
 
 
 def test_deserialize_json_without_version():
-    deserialized = StateSchema().load(
-        {"type": "Running", "message": "test", "result": 1}
-    )
+    deserialized = StateSchema().load({"type": "Running", "message": "test"})
     assert type(deserialized) is state.Running
     assert deserialized.is_running()
     assert deserialized.message == "test"
-    assert deserialized.result == 1
+    assert deserialized._result == NoResult
 
 
 def test_deserialize_handles_unknown_fields():
