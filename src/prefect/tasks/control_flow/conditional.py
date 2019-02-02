@@ -6,6 +6,8 @@ from typing import Any, Dict
 import prefect
 from prefect import Task
 from prefect.engine import signals
+from prefect.engine.result import NoResult
+
 
 __all__ = ["switch", "ifelse"]
 
@@ -17,7 +19,7 @@ class Merge(Task):
         super().__init__(**kwargs)
 
     def run(self, **task_results: Any) -> Any:
-        return next((v for v in task_results.values() if v is not None), None)
+        return next((v for v in task_results.values() if v != NoResult), None)
 
 
 class Match(Task):
@@ -116,7 +118,7 @@ def merge(*tasks: Task) -> Task:
     more tasks skipping. It is often convenient to merge those branches back into a
     single result. This function is a simple way to achieve that goal.
 
-    The merge will return the first non-None result it encounters, or None. If multiple
+    The merge will return the first real result it encounters, or None. If multiple
     tasks might return a result, group them with a list.
 
     Example:

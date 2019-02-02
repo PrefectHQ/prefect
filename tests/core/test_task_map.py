@@ -705,17 +705,16 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
         s = get_sum(y)
 
     # first run with a missing result from `n` but map_states for `x`
-    with raise_on_exception():
-        state = f.run(
-            executor=executor,
-            return_tasks=f.tasks,
-            task_states={
-                n: Success(),
-                x: Mapped(
-                    map_states=[Pending(cached_inputs={"x": i}) for i in range(1, 4)]
-                ),
-            },
-        )
+    state = f.run(
+        executor=executor,
+        return_tasks=f.tasks,
+        task_states={
+            n: Success(),
+            x: Mapped(
+                map_states=[Pending(cached_inputs={"x": i}) for i in range(1, 4)]
+            ),
+        },
+    )
 
     assert state.is_successful()
     assert state.result[s].result == 12

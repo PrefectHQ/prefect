@@ -52,12 +52,9 @@ def test_noresult_has_no_handler_attrs(attr):
         getattr(n, attr)
 
 
-def test_noresult_raises_informative_error_about_value():
+def test_noresult_returns_itself_for_value():
     n = NoResult
-    with pytest.raises(ValueError) as exc:
-        val = n.value
-
-    assert "NoResult has no value" in str(exc.value)
+    assert n is n.value
 
 
 def test_no_results_are_all_the_same():
