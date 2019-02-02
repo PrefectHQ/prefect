@@ -25,6 +25,7 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
+from prefect.engine.result import NoResult
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
@@ -676,7 +677,7 @@ class TaskRunner(Runner):
                         # in the `cached_inputs` attribute of one of the child states).
                         # Therefore, we only try to get a result if EITHER this task's
                         # state is not already mapped OR the upstream result is not None.
-                        if not state.is_mapped() or upstream_state.result is not None:
+                        if not state.is_mapped() or upstream_state.result != NoResult:
                             states[edge].result = upstream_state.result[  # type: ignore
                                 i
                             ]

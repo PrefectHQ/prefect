@@ -457,7 +457,7 @@ def test_flow_runner_makes_copy_of_task_results_dict():
 
     task_states = {t1: Pending()}
     state = flow.run(task_states=task_states, return_tasks=[t1])
-    assert state.result[t1] == Success()
+    assert state.result[t1] == Success(result=None)
     assert task_states == {t1: Pending()}
 
 
@@ -1350,7 +1350,7 @@ class TestMapping:
             task_states={ups: Retrying(start_time=pendulum.now().add(hours=1))},
         )
         assert state.is_failed()
-        assert "object is not subscriptable" in state.result[res].message
+        assert "object does not support indexing" in state.result[res].message
 
     @pytest.mark.parametrize(
         "executor", ["local", "mthread", "mproc", "sync"], indirect=True

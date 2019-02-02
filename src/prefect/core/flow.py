@@ -28,6 +28,7 @@ from mypy_extensions import TypedDict
 
 import prefect
 import prefect.schedules
+from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
@@ -923,7 +924,7 @@ class Flow:
 
         # state always should return a dict of tasks. If it's None (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
-        if state.result is None:
+        if state.result == NoResult:
             state.result = {}
         elif isinstance(state.result, Exception):
             self.logger.error(

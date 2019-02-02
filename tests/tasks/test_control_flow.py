@@ -157,6 +157,20 @@ def test_merge_diamond_flow_with_results():
         assert state.result[merge_task].result is None
 
 
+def test_merge_can_distinguish_between_a_none_result_and_an_unrun_task():
+    condition = Condition()
+    true_branch = Constant(None)
+    false_branch = Constant(0)
+
+    with Flow() as flow:
+        ifelse(condition, true_branch, false_branch)
+        merge_task = merge(true_branch, false_branch)
+
+    with prefect.context(CONDITION=True):
+        state = flow.run(return_tasks=flow.tasks)
+        assert state.result[merge_task].result is None
+
+
 def test_merge_with_list():
     with Flow() as flow:
         condition = Condition()
