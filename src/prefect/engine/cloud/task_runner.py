@@ -55,18 +55,6 @@ class CloudTaskRunner(TaskRunner):
         except:
             warnings.warn("Heartbeat failed for Task '{}'".format(self.task.name))
 
-    def prepare_state_for_run(self, state: State) -> State:
-        res = state._result
-        state._result = res.read()
-        if (  # type: ignore
-            hasattr(state, "cached_inputs")
-            and state.cached_inputs is not None  # type: ignore
-        ):
-            state.cached_inputs = {  # type: ignore
-                k: r.read() for k, r in state.cached_inputs.items()  # type: ignore
-            }  # type: ignore
-        return state
-
     def prepare_state_for_cloud(self, state: State) -> State:
         """
         Prepares a Prefect State for being sent to Cloud; this ensures that any data attributes
@@ -185,9 +173,5 @@ class CloudTaskRunner(TaskRunner):
 
         # we assign this so it can be shared with heartbeat thread
         self.task_run_id = context.get("task_run_id")  # type: ignore
-        if state is not None:
-            state = self.prepare_state_for_run(state)
 
-        return super().initialize_run(
-            state=state, context=context, upstream_states=upstream_states
-        )
+        return super().initialize_run(state=state, context=context)

@@ -64,43 +64,6 @@ def client(monkeypatch):
     yield cloud_client
 
 
-class TestInitializeRun:
-    def test_ensures_all_upstream_states_are_raw(self, client):
-        with tempfile.NamedTemporaryFile() as tmp:
-            with open(tmp.name, "wb") as f:
-                cloudpickle.dump(42, f)
-
-            res_a = Result(tmp.name, handled=True, result_handler=LocalResultHandler())
-            res_c = Result(tmp.name, handled=True, result_handler=LocalResultHandler())
-
-            a, b, c = (Success(), Failed(result=55), Pending())
-            a._result = res_a
-            c._result = res_c
-
-            result = CloudTaskRunner(Task()).initialize_run(
-                state=None, context={}, upstream_states={1: a, 2: b, 3: c}
-            )
-
-        assert result.upstream_states[1].result == 42
-        assert result.upstream_states[2].result == 55
-        assert result.upstream_states[3].result == 42
-
-    def test_ensures_provided_initial_state_is_raw(self, client):
-        with tempfile.NamedTemporaryFile() as tmp:
-            with open(tmp.name, "wb") as f:
-                cloudpickle.dump(42, f)
-
-            state = Success()
-            state._result = Result(
-                tmp.name, handled=True, result_handler=LocalResultHandler()
-            )
-            result = CloudTaskRunner(Task()).initialize_run(
-                state=state, context={}, upstream_states={}
-            )
-
-        assert result.state.result == 42
-
-
 def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     task = Task(name="test")
 

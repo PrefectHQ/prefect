@@ -336,9 +336,7 @@ class TestInitializeRun:
     def test_states_without_run_count(self, state):
         with prefect.context() as ctx:
             assert "task_run_count" not in ctx
-            result = TaskRunner(Task()).initialize_run(
-                state=state, context=ctx, upstream_states={}
-            )
+            result = TaskRunner(Task()).initialize_run(state=state, context=ctx)
             assert ctx.task_run_count == 1
             assert result.state is state
 
@@ -354,18 +352,14 @@ class TestInitializeRun:
     def test_states_with_run_count(self, state):
         with prefect.context() as ctx:
             assert "task_run_count" not in ctx
-            result = TaskRunner(Task()).initialize_run(
-                state=state, context=ctx, upstream_states={}
-            )
+            result = TaskRunner(Task()).initialize_run(state=state, context=ctx)
             assert ctx.task_run_count == state.run_count + 1
             assert result.state is state
 
     def test_task_runner_puts_resume_in_context_if_state_is_resume(self):
         with prefect.context() as ctx:
             assert "resume" not in ctx
-            result = TaskRunner(Task()).initialize_run(
-                state=Resume(), context=ctx, upstream_states={}
-            )
+            result = TaskRunner(Task()).initialize_run(state=Resume(), context=ctx)
             assert result.context.resume is True
 
     @pytest.mark.parametrize(
@@ -376,15 +370,13 @@ class TestInitializeRun:
     ):
         with prefect.context() as ctx:
             assert "resume" not in ctx
-            result = TaskRunner(Task()).initialize_run(
-                state=state, context=ctx, upstream_states={}
-            )
+            result = TaskRunner(Task()).initialize_run(state=state, context=ctx)
             assert "resume" not in result.context
 
     def test_unwrap_submitted_states(self):
         state = Scheduled()
         result = TaskRunner(Task()).initialize_run(
-            state=Submitted(state=state), context={}, upstream_states={}
+            state=Submitted(state=state), context={}
         )
         assert result.state is state
 
@@ -743,6 +735,21 @@ class TestCheckTaskCached:
             state=state, inputs={"a": Result(1)}
         )
         assert new_state.is_pending()
+
+    def test_reads_result_if_cached_valid(self):
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=cache_validators.duration_only)
+        result = Result("2", handled=True, result_handler=JSONResultHandler())
+        state = Cached(
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1)
+        )
+        state._result = result
+
+        new = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(1)}
+        )
+        assert new is state
+        assert new.result == 2
 
 
 class TestSetTaskRunning:
