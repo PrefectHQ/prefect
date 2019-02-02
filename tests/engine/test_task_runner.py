@@ -19,6 +19,8 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
+from prefect.engine.result import Result, NoResult
+from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -313,6 +315,16 @@ def test_task_runner_handles_secrets():
 def test_task_that_starts_failed_doesnt_get_retried():
     state = TaskRunner(Task()).run(state=Failed())
     assert state.is_failed()
+
+
+def test_runner_checks_cached_inputs_correctly():
+    with pytest.warns(UserWarning):
+        task = AddTask(cache_validator=cache_validators.all_inputs)
+    pre = Cached(cached_inputs={"x": 1, "y": 2}, result=99)
+    upstream = {Edge(Task(), task, key='x'): Success(result=1),
+                Edge(Task(), task, key='y'): Success(result=2)}
+    post = TaskRunner(task).run(state=pre, upstream_states=upstream)
+    assert post.result == 99
 
 
 class TestInitializeRun:
@@ -819,6 +831,26 @@ class TestRunTaskStep:
             state=state, inputs={"y": 1}, timeout_handler=None, upstream_states={}
         )
         assert new_state.is_failed()
+
+    def test_returns_success_with_hydrated_result_obj(self):
+        runner = TaskRunner(task=Task())
+        state = runner.get_task_run_state(
+            state=Running(), inputs={}, timeout_handler=None, upstream_states={}
+        )
+        assert state.is_successful()
+        assert isinstance(state._result, Result)
+        assert state._result == Result(
+            value=None, handled=False, result_handler=runner.result_handler
+        )
+
+    def test_returns_success_with_correct_result_handler(self):
+        runner = TaskRunner(task=Task(result_handler=ResultHandler()))
+        state = runner.get_task_run_state(
+            state=Running(), inputs={}, timeout_handler=None, upstream_states={}
+        )
+        assert state.is_successful()
+        assert isinstance(state._result, Result)
+        assert state._result.result_handler == ResultHandler()
 
 
 class TestCheckRetryStep:
