@@ -85,10 +85,6 @@ class CloudTaskRunner(TaskRunner):
         version = prefect.context.get("task_run_version")
 
         try:
-            if getattr(new_state, "cached_inputs", None) is not None:
-                new_state.handle_inputs()
-            if isinstance(new_state, Cached):
-                new_state.handle_outputs()  # type: ignore
             self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
@@ -155,12 +151,6 @@ class CloudTaskRunner(TaskRunner):
 
         # we assign this so it can be shared with heartbeat thread
         self.task_run_id = context.get("task_run_id")  # type: ignore
-
-        ## ensure all inputs have been handled
-        if state is not None:
-            state.ensure_raw()
-        for up_state in upstream_states.values():
-            up_state.ensure_raw()
 
         return super().initialize_run(
             state=state, context=context, upstream_states=upstream_states
