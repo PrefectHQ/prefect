@@ -16,6 +16,7 @@ from prefect.engine import signals
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.executors import Executor, LocalExecutor
 from prefect.engine.flow_runner import ENDRUN, FlowRunner, FlowRunnerInitializeResult
+from prefect.engine.result import NoResult, Result
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -610,7 +611,7 @@ class TestInputCaching:
         first_state = FlowRunner(flow=f).run(executor=executor, return_tasks=[res])
         assert first_state.is_running()
         b_state = first_state.result[res]
-        b_state.cached_inputs = dict(x=2)  # artificially alter state
+        b_state.cached_inputs = dict(x=Result(2))  # artificially alter state
         with raise_on_exception():  # without caching we'd expect a KeyError
             second_state = FlowRunner(flow=f).run(
                 executor=executor,
@@ -632,7 +633,7 @@ class TestInputCaching:
 
         state = FlowRunner(flow=f).run(
             executor=executor,
-            task_states={t2: Retrying(cached_inputs=dict(x=4, y=1))},
+            task_states={t2: Retrying(cached_inputs=dict(x=Result(4), y=Result(1)))},
             start_tasks=[t2],
             return_tasks=[t2],
         )
@@ -654,7 +655,7 @@ class TestInputCaching:
         assert first_state.is_running()
 
         res_state = first_state.result[res]
-        res_state.cached_inputs = dict(x=2)  # artificially alter state
+        res_state.cached_inputs = dict(x=Result(2))  # artificially alter state
 
         second_state = FlowRunner(flow=f).run(
             executor=executor,
