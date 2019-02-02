@@ -52,12 +52,7 @@ if TYPE_CHECKING:
 
 ResultType = Union[Result, NoResultType]
 TaskRunnerInitializeResult = NamedTuple(
-    "TaskRunnerInitializeResult",
-    [
-        ("state", State),
-        ("context", Dict[str, Any]),
-        ("upstream_states", Dict[Edge, State]),
-    ],
+    "TaskRunnerInitializeResult", [("state", State), ("context", Dict[str, Any])]
 )
 
 
@@ -122,10 +117,7 @@ class TaskRunner(Runner):
         return new_state
 
     def initialize_run(  # type: ignore
-        self,
-        state: Optional[State],
-        context: Dict[str, Any],
-        upstream_states: Dict[Edge, State],
+        self, state: Optional[State], context: Dict[str, Any]
     ) -> TaskRunnerInitializeResult:
         """
         Initializes the Task run by initializing state and context appropriately.
@@ -139,7 +131,6 @@ class TaskRunner(Runner):
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
             - context (Dict[str, Any]): the context to be updated with relevant information
-            - upstream_states (Dict[Edge, State]): the upstream states
 
         Returns:
             - tuple: a tuple of the updated state, context, upstream_states, and inputs objects
@@ -156,9 +147,7 @@ class TaskRunner(Runner):
 
         context.update(task_run_count=run_count, task_name=self.task.name)
 
-        return TaskRunnerInitializeResult(
-            state=state, context=context, upstream_states=upstream_states
-        )
+        return TaskRunnerInitializeResult(state=state, context=context)
 
     def run(
         self,
@@ -215,9 +204,7 @@ class TaskRunner(Runner):
         try:
 
             # initialize the run
-            state, context, upstream_states = self.initialize_run(
-                state, context, upstream_states
-            )
+            state, context = self.initialize_run(state, context)
 
             # run state transformation pipeline
             with prefect.context(context):
@@ -568,10 +555,12 @@ class TaskRunner(Runner):
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
             if edge.key is not None:
-                task_inputs[edge.key] = upstream_state._result
+                task_inputs[edge.key] = upstream_state._result.read()
 
         if state.is_pending() and state.cached_inputs is not None:  # type: ignore
-            task_inputs.update(state.cached_inputs)  # type: ignore
+            task_inputs.update(
+                {k: r.read() for k, r in state.cached_inputs.items()}
+            )  # type: ignore
 
         return task_inputs
 
