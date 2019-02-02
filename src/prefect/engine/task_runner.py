@@ -555,7 +555,7 @@ class TaskRunner(Runner):
 
     def get_task_inputs(
         self, state: State, upstream_states: Dict[Edge, State]
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, Result]:
         """
         Given the task's current state and upstream states, generates the inputs for this task.
         If the current state has `cached_inputs`, they are used. Upstream states supplement
@@ -566,7 +566,7 @@ class TaskRunner(Runner):
             - upstream_states (Dict[Edge, State]): the upstream state_handlers
 
         Returns:
-            - Dict[str, Any]: the task inputs
+            - Dict[str, Result]: the task inputs
 
         """
         task_inputs = {}
@@ -574,7 +574,7 @@ class TaskRunner(Runner):
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
             if edge.key is not None:
-                task_inputs[edge.key] = upstream_state.result
+                task_inputs[edge.key] = upstream_state._result
 
         if state.is_pending() and state.cached_inputs is not None:  # type: ignore
             task_inputs.update(state.cached_inputs)  # type: ignore
@@ -582,13 +582,13 @@ class TaskRunner(Runner):
         return task_inputs
 
     @call_state_handlers
-    def check_task_is_cached(self, state: State, inputs: Dict[str, Any]) -> State:
+    def check_task_is_cached(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Checks if task is cached and whether the cache is still valid.
 
         Args:
             - state (State): the current state of this task
-            - inputs (Dict[str, Any]): a dictionary of inputs whose keys correspond
+            - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
 
         Returns:
@@ -774,7 +774,7 @@ class TaskRunner(Runner):
     def get_task_run_state(
         self,
         state: State,
-        inputs: Dict[str, Any],
+        inputs: Dict[str, Result],
         timeout_handler: Optional[Callable],
         upstream_states: Dict[Edge, State],
     ) -> State:
@@ -783,7 +783,7 @@ class TaskRunner(Runner):
 
         Args:
             - state (State): the current state of this task
-            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+            - inputs (Dict[str, Result], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
             - timeout_handler (Callable, optional): function for timing out
                 task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
@@ -816,7 +816,10 @@ class TaskRunner(Runner):
                 )
             )
             timeout_handler = timeout_handler or main_thread_timeout
-            result = timeout_handler(self.task.run, timeout=self.task.timeout, **inputs)
+            raw_inputs = {k: r.value for k, r in inputs.items()}
+            result = timeout_handler(
+                self.task.run, timeout=self.task.timeout, **raw_inputs
+            )
 
         # inform user of timeout
         except TimeoutError as exc:
@@ -834,7 +837,10 @@ class TaskRunner(Runner):
 
     @call_state_handlers
     def cache_result(
-        self, state: State, inputs: Dict[str, Any], upstream_states: Dict[Edge, State]
+        self,
+        state: State,
+        inputs: Dict[str, Result],
+        upstream_states: Dict[Edge, State],
     ) -> State:
         """
         Caches the result of a successful task, if appropriate.
@@ -846,7 +852,7 @@ class TaskRunner(Runner):
 
         Args:
             - state (State): the current state of this task
-            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+            - inputs (Dict[str, Result], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
             - upstream_states (Dict[Edge, State]): a dictionary
                 representing the states of any tasks upstream of this one. The keys of the
@@ -866,23 +872,26 @@ class TaskRunner(Runner):
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
                 cached_parameters=prefect.context.get("parameters"),
-                result=state.result,
                 message=state.message,
             )
+            cached_state._result = state._result
             return cached_state
 
         return state
 
     @call_state_handlers
     def check_for_retry(
-        self, state: State, inputs: Dict[str, Any], upstream_states: Dict[Edge, State]
+        self,
+        state: State,
+        inputs: Dict[str, Result],
+        upstream_states: Dict[Edge, State],
     ) -> State:
         """
         Checks to see if a FAILED task should be retried.
 
         Args:
             - state (State): the current state of this task
-            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+            - inputs (Dict[str, Result], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
             - upstream_states (Dict[Edge, State]): a dictionary
                 representing the states of any tasks upstream of this one. The keys of the

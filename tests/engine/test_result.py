@@ -45,6 +45,11 @@ class TestInitialization:
         assert r.result_handler is None
 
 
+def test_basic_result_repr():
+    r = Result(2)
+    assert repr(r) == "Result: 2"
+
+
 @pytest.mark.parametrize("attr", ["handled", "result_handler"])
 def test_noresult_has_no_handler_attrs(attr):
     n = NoResult

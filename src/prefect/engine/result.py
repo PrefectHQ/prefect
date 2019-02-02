@@ -43,6 +43,9 @@ class Result:
             return eq
         return False
 
+    def __repr__(self) -> str:
+        return "Result: {}".format(repr(self.value))
+
     def write(self) -> "Result":
         """
         Write the value of this result using the result handler (if it hasn't already been handled).
