@@ -119,19 +119,6 @@ class TaskRunner(Runner):
 
         return new_state
 
-    def _get_upstream_result_handlers(
-        self, upstream_states: Dict[Edge, State]
-    ) -> Dict[str, dict]:
-        input_handlers = {}
-
-        for edge, upstream_state in upstream_states.items():
-            if edge.key is not None:
-                input_handlers[edge.key] = upstream_state._metadata["result"][
-                    "result_handler"
-                ]
-
-        return input_handlers
-
     def initialize_run(  # type: ignore
         self,
         state: Optional[State],
@@ -315,9 +302,6 @@ class TaskRunner(Runner):
         except (ENDRUN, signals.PrefectStateSignal) as exc:
             if exc.state.is_pending():
                 exc.state.cached_inputs = task_inputs or {}  # type: ignore
-                exc.state.update_input_metadata(
-                    self._get_upstream_result_handlers(upstream_states)
-                )
             state = exc.state
             if not isinstance(exc, ENDRUN) and prefect.context.get(
                 "raise_on_exception"
@@ -339,13 +323,6 @@ class TaskRunner(Runner):
             )
         )
 
-        ## finally, update state _metadata attribute with information about how to handle this state's data
-        from prefect.serialization.result_handlers import ResultHandlerSchema
-
-        state._metadata["result"].setdefault("raw", True)
-        state._metadata["result"].setdefault(
-            "result_handler", ResultHandlerSchema().dump(self.result_handler)
-        )
         return state
 
     @call_state_handlers
@@ -844,12 +821,10 @@ class TaskRunner(Runner):
             state = TimedOut(
                 "Task timed out during execution.", result=exc, cached_inputs=inputs
             )
-            state.update_input_metadata(
-                self._get_upstream_result_handlers(upstream_states)
-            )
             return state
 
-        return Success(result=result, message="Task run succeeded.")
+        state = Success(result=result, message="Task run succeeded.")
+        return state
 
     @call_state_handlers
     def cache_result(
@@ -888,10 +863,6 @@ class TaskRunner(Runner):
                 result=state.result,
                 message=state.message,
             )
-            cached_state.update_input_metadata(
-                self._get_upstream_result_handlers(upstream_states)
-            )
-            cached_state.update_output_metadata(self.result_handler)
             return cached_state
 
         return state
@@ -926,9 +897,6 @@ class TaskRunner(Runner):
                     cached_inputs=inputs,
                     message=msg,
                     run_count=run_count,
-                )
-                retry_state.update_input_metadata(
-                    self._get_upstream_result_handlers(upstream_states)
                 )
                 return retry_state
 

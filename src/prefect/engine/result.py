@@ -86,8 +86,8 @@ class NoResultType:
             return False
 
     @property
-    def value(self) -> None:
-        raise ValueError("NoResult has no value.")
+    def value(self) -> "NoResultType":
+        return self
 
 
 NoResult = NoResultType()

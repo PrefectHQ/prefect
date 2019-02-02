@@ -62,10 +62,7 @@ class State:
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
-            try:
-                eq = self._result.value == other._result.value
-            except ValueError:
-                eq = (self._result == NoResult) and (other._result == NoResult)
+            eq = self._result.value == other._result.value
             for attr in self.__dict__:
                 if attr.startswith("_") or attr in ["message", "result"]:
                     continue
