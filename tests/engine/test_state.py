@@ -243,6 +243,7 @@ class TestStateMethods:
     def test_state_type_methods_with_pending_state(self):
         state = Pending()
         assert state.is_pending()
+        assert not state.is_cached()
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
@@ -254,6 +255,7 @@ class TestStateMethods:
     def test_state_type_methods_with_paused_state(self):
         state = Paused()
         assert state.is_pending()
+        assert not state.is_cached()
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
@@ -265,6 +267,7 @@ class TestStateMethods:
     def test_state_type_methods_with_scheduled_state(self):
         state = Scheduled()
         assert state.is_pending()
+        assert not state.is_cached()
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
@@ -276,6 +279,7 @@ class TestStateMethods:
     def test_state_type_methods_with_resume_state(self):
         state = Resume()
         assert state.is_pending()
+        assert not state.is_cached()
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
@@ -287,6 +291,7 @@ class TestStateMethods:
     def test_state_type_methods_with_retry_state(self):
         state = Retrying()
         assert state.is_pending()
+        assert not state.is_cached()
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
@@ -297,6 +302,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_submitted_state(self):
         state = Submitted()
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert not state.is_finished()
@@ -310,6 +316,7 @@ class TestStateMethods:
         state = Running()
         assert not state.is_pending()
         assert state.is_running()
+        assert not state.is_cached()
         assert not state.is_finished()
         assert not state.is_skipped()
         assert not state.is_scheduled()
@@ -319,6 +326,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_cached_state(self):
         state = Cached()
+        assert state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -330,6 +338,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_mapped_state(self):
         state = Mapped()
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -341,6 +350,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_success_state(self):
         state = Success()
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -352,6 +362,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_failed_state(self):
         state = Failed(message="")
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -363,6 +374,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_timedout_state(self):
         state = TimedOut(message="")
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -374,6 +386,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_trigger_failed_state(self):
         state = TriggerFailed(message="")
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -385,6 +398,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_skipped_state(self):
         state = Skipped()
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()

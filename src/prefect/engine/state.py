@@ -103,6 +103,15 @@ class State:
         """
         return isinstance(self, Running)
 
+    def is_cached(self) -> bool:
+        """
+        Checks if the object is currently in a Cached state
+
+        Returns:
+            - bool: `True` if the state is Cached, `False` otherwise
+        """
+        return isinstance(self, Cached)
+
     def is_finished(self) -> bool:
         """
         Checks if the object is currently in a finished state
