@@ -24,15 +24,6 @@ from prefect.utilities.collections import DotDict
 from prefect.utilities.datetimes import ensure_tz_aware
 
 
-class StateMetaData(DotDict):
-    def __init__(self) -> None:
-        init_dict = {
-            "result": {"raw": True},
-            "cached_inputs": defaultdict(lambda: {"raw": True}),
-        }
-        super().__init__(init_dict)
-
-
 class State:
     """
     Base state class implementing the basic helper methods for checking state.
@@ -209,7 +200,7 @@ class Pending(State):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-        keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#d3d3d3"
@@ -218,7 +209,7 @@ class Pending(State):
         self,
         message: str = None,
         result: Any = NoResult,
-        cached_inputs: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
         super().__init__(message=message, result=result)
         self.cached_inputs = cached_inputs
@@ -233,7 +224,7 @@ class Paused(Pending):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-        keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#800000"
@@ -253,7 +244,7 @@ class Scheduled(Pending):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to run
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#b0c4de"
@@ -263,7 +254,7 @@ class Scheduled(Pending):
         message: str = None,
         result: Any = NoResult,
         start_time: datetime.datetime = None,
-        cached_inputs: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.start_time = ensure_tz_aware(start_time or pendulum.now("utc"))
@@ -306,7 +297,7 @@ class Resume(Scheduled):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to run
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#20B2AA"
@@ -322,7 +313,7 @@ class Retrying(Scheduled):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to be retried
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
         - run_count (int): The number of runs that had been attempted at the time of this
             Retry. Defaults to the value stored in context under "task_run_count" or 1,
             if that value isn't found.
@@ -335,7 +326,7 @@ class Retrying(Scheduled):
         message: str = None,
         result: Any = NoResult,
         start_time: datetime.datetime = None,
-        cached_inputs: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
         run_count: int = None,
     ):
         super().__init__(
@@ -409,7 +400,7 @@ class Cached(Success):
         - result (Any, optional): Defaults to `None`. A data payload for the
             state, which will be cached.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-        keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
         - cached_parameters (dict): Defaults to `None`
         - cached_result_expiration (datetime): The time at which this cache
             expires and can no longer be used. Defaults to `None`
@@ -421,7 +412,7 @@ class Cached(Success):
         self,
         message: str = None,
         result: Any = NoResult,
-        cached_inputs: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
     ):
@@ -491,7 +482,7 @@ class TimedOut(Failed):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-        keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#CDC9A5"
@@ -500,7 +491,7 @@ class TimedOut(Failed):
         self,
         message: str = None,
         result: Any = NoResult,
-        cached_inputs: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
         super().__init__(message=message, result=result)
         self.cached_inputs = cached_inputs

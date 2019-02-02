@@ -32,6 +32,12 @@ def test_basic_result_deserializes():
     assert r.result_handler is None
 
 
+def test_roundtrip_for_results():
+    r = Result(value={"y": 4})
+    s = ResultSchema().load(ResultSchema().dump(r))
+    assert r == s
+
+
 def test_basic_noresult_deserializes():
     r = NoResultSchema().load({})
     assert r == NoResult

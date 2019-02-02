@@ -34,7 +34,9 @@ class PendingSchema(BaseStateSchema):
     class Meta:
         object_class = state.Pending
 
-    cached_inputs = StateResultSchema()
+    cached_inputs = fields.Dict(
+        key=fields.Str(), values=fields.Nested(StateResultSchema), allow_none=True
+    )
 
 
 class SubmittedSchema(BaseStateSchema):
@@ -82,7 +84,9 @@ class CachedSchema(SuccessSchema):
     class Meta:
         object_class = state.Cached
 
-    cached_inputs = StateResultSchema()
+    cached_inputs = fields.Dict(
+        key=fields.Str(), values=fields.Nested(StateResultSchema), allow_none=True
+    )
     cached_parameters = JSONCompatible(allow_none=True)
     cached_result_expiration = fields.DateTime(allow_none=True)
 
@@ -112,7 +116,9 @@ class TimedOutSchema(FinishedSchema):
     class Meta:
         object_class = state.TimedOut
 
-    cached_inputs = StateResultSchema()
+    cached_inputs = fields.Dict(
+        key=fields.Str(), values=fields.Nested(StateResultSchema), allow_none=True
+    )
 
 
 class TriggerFailedSchema(FailedSchema):

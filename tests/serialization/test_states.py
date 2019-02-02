@@ -10,7 +10,7 @@ import pytest
 from collections import defaultdict
 
 import prefect
-from prefect.engine.result import NoResult
+from prefect.engine.result import NoResult, Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine import state
 from prefect.serialization.state import StateSchema
@@ -30,17 +30,17 @@ all_states = sorted(
 def complex_states():
     naive_dt = datetime.datetime(2020, 1, 1)
     utc_dt = pendulum.datetime(2020, 1, 1)
-    complex_result = {"x": 1, "y": {"z": 2}}
+    complex_result = {"x": Result(1), "y": Result({"z": 2})}
     cached_state = state.Cached(
         cached_inputs=complex_result,
-        result=complex_result,
-        cached_parameters=complex_result,
+        result={"x": 1, "y": {"z": 2}},
+        cached_parameters={"x": 1, "y": {"z": 2}},
         cached_result_expiration=utc_dt,
     )
     cached_state_naive = state.Cached(
         cached_inputs=complex_result,
-        result=complex_result,
-        cached_parameters=complex_result,
+        result={"x": 1, "y": {"z": 2}},
+        cached_parameters={"x": 1, "y": {"z": 2}},
         cached_result_expiration=naive_dt,
     )
     test_states = [
