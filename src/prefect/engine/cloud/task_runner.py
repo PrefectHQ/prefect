@@ -1,11 +1,13 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import copy
 import warnings
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
+from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
 from prefect.engine.state import Cached, Failed, Mapped, State
@@ -53,11 +55,25 @@ class CloudTaskRunner(TaskRunner):
         except:
             warnings.warn("Heartbeat failed for Task '{}'".format(self.task.name))
 
-    def prepare_state_for_run(state: State) -> State:
-        pass
+    def prepare_state_for_run(self, state: State) -> State:
+        res = state._result
+        state._result = res.read()
+        if hasattr(state, "cached_inputs") and state.cached_inputs is not None:
+            state.cached_inputs = {k: r.read() for k, r in state.cached_inputs.items()}
+        return state
 
-    def prepare_state_for_cloud(state: State) -> State:
-        pass
+    def prepare_state_for_cloud(self, state: State) -> State:
+        res = state._result
+        cloud_state = copy.copy(state)
+        cloud_state._result = res.write() if cloud_state.is_cached() else NoResult
+        if (
+            hasattr(cloud_state, "cached_inputs")
+            and cloud_state.cached_inputs is not None
+        ):
+            cloud_state.cached_inputs = {
+                k: r.write() for k, r in cloud_state.cached_inputs.items()
+            }
+        return cloud_state
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -91,10 +107,11 @@ class CloudTaskRunner(TaskRunner):
         version = prefect.context.get("task_run_version")
 
         try:
+            cloud_state = self.prepare_state_for_cloud(new_state)
             self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
-                state=new_state,
+                state=cloud_state,
                 cache_for=self.task.cache_for,
             )
         except Exception as exc:
@@ -157,6 +174,12 @@ class CloudTaskRunner(TaskRunner):
 
         # we assign this so it can be shared with heartbeat thread
         self.task_run_id = context.get("task_run_id")  # type: ignore
+        if state is not None:
+            state = self.prepare_state_for_run(state)
+
+        upstream_states = {
+            e: self.prepare_state_for_run(state) for e, state in upstream_states.items()
+        }
 
         return super().initialize_run(
             state=state, context=context, upstream_states=upstream_states
