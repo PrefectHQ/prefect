@@ -558,8 +558,8 @@ class TaskRunner(Runner):
                 task_inputs[edge.key] = upstream_state._result.read()
 
         if state.is_pending() and state.cached_inputs is not None:  # type: ignore
-            task_inputs.update(
-                {k: r.read() for k, r in state.cached_inputs.items()}
+            task_inputs.update(  # type: ignore
+                {k: r.read() for k, r in state.cached_inputs.items()}  # type: ignore
             )  # type: ignore
 
         return task_inputs
@@ -585,6 +585,7 @@ class TaskRunner(Runner):
             if self.task.cache_validator(
                 state, inputs, prefect.context.get("parameters")
             ):
+                state._result = state._result.read()
                 return state
             else:
                 self.logger.debug(
