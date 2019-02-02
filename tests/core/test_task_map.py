@@ -6,7 +6,7 @@ import pytest
 
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
-from prefect.engine.result import NoResult
+from prefect.engine.result import NoResult, Result
 from prefect.engine.state import Mapped, Success, Pending, Retrying
 from prefect.utilities.debug import raise_on_exception
 from prefect.utilities.tasks import task, unmapped
@@ -711,7 +711,9 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
         task_states={
             n: Success(),
             x: Mapped(
-                map_states=[Pending(cached_inputs={"x": i}) for i in range(1, 4)]
+                map_states=[
+                    Pending(cached_inputs={"x": Result(i)}) for i in range(1, 4)
+                ]
             ),
         },
     )
@@ -730,7 +732,7 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
                 map_states=[
                     Success(result=3),
                     Success(result=4),
-                    Retrying(cached_inputs={"x": 4}),
+                    Retrying(cached_inputs={"x": Result(4)}),
                 ]
             ),
         },
