@@ -92,5 +92,11 @@ class NoResultType:
     def value(self) -> "NoResultType":
         return self
 
+    def read(self) -> "NoResultType":
+        return self
+
+    def write(self) -> "NoResultType":
+        return self
+
 
 NoResult = NoResultType()

@@ -598,6 +598,7 @@ class TaskRunner(Runner):
             - ENDRUN: if the task is not ready to run
         """
         if state.is_cached():
+            assert isinstance(state, Cached)  # mypy assert
             if self.task.cache_validator(
                 state, inputs, prefect.context.get("parameters")
             ):
