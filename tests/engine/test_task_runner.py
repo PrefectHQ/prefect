@@ -321,8 +321,10 @@ def test_runner_checks_cached_inputs_correctly():
     with pytest.warns(UserWarning):
         task = AddTask(cache_validator=cache_validators.all_inputs)
     pre = Cached(cached_inputs={"x": 1, "y": 2}, result=99)
-    upstream = {Edge(Task(), task, key='x'): Success(result=1),
-                Edge(Task(), task, key='y'): Success(result=2)}
+    upstream = {
+        Edge(Task(), task, key="x"): Success(result=1),
+        Edge(Task(), task, key="y"): Success(result=2),
+    }
     post = TaskRunner(task).run(state=pre, upstream_states=upstream)
     assert post.result == 99
 
@@ -593,22 +595,14 @@ class TestCheckTaskTrigger:
 
 
 class TestCheckTaskReady:
-    @pytest.mark.parametrize("state", [Pending(), Mapped()])
+    @pytest.mark.parametrize("state", [Cached(), Pending(), Mapped()])
     def test_ready_states(self, state):
         new_state = TaskRunner(task=Task()).check_task_is_ready(state=state)
         assert new_state is state
 
     @pytest.mark.parametrize(
         "state",
-        [
-            Cached(),
-            Running(),
-            Finished(),
-            TriggerFailed(),
-            Skipped(),
-            Success(),
-            Paused(),
-        ],
+        [Running(), Finished(), TriggerFailed(), Skipped(), Success(), Paused()],
     )
     def test_not_ready_doesnt_run(self, state):
 

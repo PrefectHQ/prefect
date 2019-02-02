@@ -221,9 +221,6 @@ class TaskRunner(Runner):
             # run state transformation pipeline
             with prefect.context(context):
 
-                # check to see if the task has a cached result
-                state = self.check_task_is_cached(state, inputs=task_inputs)
-
                 # check to make sure the task is in a pending state
                 state = self.check_task_is_ready(state)
 
@@ -267,6 +264,9 @@ class TaskRunner(Runner):
                 task_inputs = self.get_task_inputs(
                     state=state, upstream_states=upstream_states
                 )
+
+                # check to see if the task has a cached result
+                state = self.check_task_is_cached(state, inputs=task_inputs)
 
                 # triggers can raise Pauses, which require task_inputs to be available for caching
                 # so we run this after the previous step
@@ -505,6 +505,9 @@ class TaskRunner(Runner):
             )
             raise ENDRUN(state)
 
+        elif state.is_cached():
+            return state
+
         # this task is already finished
         elif state.is_finished():
             self.logger.debug(
@@ -594,7 +597,7 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
-        if isinstance(state, Cached):
+        if state.is_cached():
             if self.task.cache_validator(
                 state, inputs, prefect.context.get("parameters")
             ):
