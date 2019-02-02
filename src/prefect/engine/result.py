@@ -40,6 +40,7 @@ class Result:
             eq = True
             for attr in ["value", "handled", "result_handler"]:
                 eq &= getattr(self, attr, object()) == getattr(other, attr, object())
+            return eq
         return False
 
     def write(self) -> "Result":
