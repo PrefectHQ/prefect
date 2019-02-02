@@ -58,8 +58,13 @@ class CloudTaskRunner(TaskRunner):
     def prepare_state_for_run(self, state: State) -> State:
         res = state._result
         state._result = res.read()
-        if hasattr(state, "cached_inputs") and state.cached_inputs is not None:
-            state.cached_inputs = {k: r.read() for k, r in state.cached_inputs.items()}
+        if (  # type: ignore
+            hasattr(state, "cached_inputs")
+            and state.cached_inputs is not None  # type: ignore
+        ):
+            state.cached_inputs = {  # type: ignore
+                k: r.read() for k, r in state.cached_inputs.items()  # type: ignore
+            }  # type: ignore
         return state
 
     def prepare_state_for_cloud(self, state: State) -> State:
@@ -68,10 +73,11 @@ class CloudTaskRunner(TaskRunner):
         cloud_state._result = res.write() if cloud_state.is_cached() else NoResult
         if (
             hasattr(cloud_state, "cached_inputs")
-            and cloud_state.cached_inputs is not None
+            and cloud_state.cached_inputs is not None  # type: ignore
         ):
-            cloud_state.cached_inputs = {
-                k: r.write() for k, r in cloud_state.cached_inputs.items()
+            cloud_state.cached_inputs = {  # type: ignore
+                k: r.write()
+                for k, r in cloud_state.cached_inputs.items()  # type: ignore
             }
         return cloud_state
 
