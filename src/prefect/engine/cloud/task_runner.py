@@ -53,6 +53,12 @@ class CloudTaskRunner(TaskRunner):
         except:
             warnings.warn("Heartbeat failed for Task '{}'".format(self.task.name))
 
+    def prepare_state_for_run(state: State) -> State:
+        pass
+
+    def prepare_state_for_cloud(state: State) -> State:
+        pass
+
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
         A special state handler that the TaskRunner uses to call its task's state handlers.

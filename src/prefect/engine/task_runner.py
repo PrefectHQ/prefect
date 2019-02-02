@@ -25,7 +25,7 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result import NoResult
+from prefect.engine.result import NoResult, Result
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
@@ -824,7 +824,9 @@ class TaskRunner(Runner):
             )
             return state
 
-        state = Success(result=result, message="Task run succeeded.")
+        state = Success(message="Task run succeeded.")
+        result = Result(value=result, handled=False, result_handler=self.result_handler)
+        state._result = result
         return state
 
     @call_state_handlers
