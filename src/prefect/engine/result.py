@@ -81,7 +81,10 @@ class Result:
             return self
 
 
-class NoResultType:
+class NoResultType(Result):
+    def __init__(self) -> None:
+        pass
+
     def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
             return True

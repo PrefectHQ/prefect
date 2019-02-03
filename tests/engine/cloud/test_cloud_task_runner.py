@@ -12,7 +12,11 @@ from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
 from prefect.engine.result import NoResult, Result
-from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
+from prefect.engine.result_handlers import (
+    JSONResultHandler,
+    LocalResultHandler,
+    ResultHandler,
+)
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import (
     Cached,
@@ -364,3 +368,19 @@ class TestStateResultHandling:
         assert states[1].is_failed()
         assert isinstance(states[2], Retrying)
         assert states[2].cached_inputs == dict(x=x.write(), y=y.write())
+
+
+def test_preparing_state_for_cloud_doesnt_copy_data():
+    class FakeHandler(ResultHandler):
+        def write(self, val):
+            return val
+
+    runner = CloudTaskRunner(task=Task())
+    value = 124.090909
+    result = Result(value, handled=False, result_handler=FakeHandler())
+    state = Cached()
+    state._result = result
+    cloud_state = runner.prepare_state_for_cloud(state)
+    assert cloud_state.is_cached()
+    assert cloud_state is not state
+    assert cloud_state.result is state.result

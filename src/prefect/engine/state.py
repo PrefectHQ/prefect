@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Union
 import pendulum
 
 import prefect
-from prefect.engine.result import Result, NoResult, NoResultType
+from prefect.engine.result import Result, NoResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.utilities.collections import DotDict
 from prefect.utilities.datetimes import ensure_tz_aware
@@ -79,8 +79,8 @@ class State:
 
     @result.setter
     def result(self, value: Any) -> None:
-        if isinstance(value, NoResultType):
-            self._result = NoResult
+        if value == NoResult:
+            self._result = value
         else:
             self._result = Result(value=value)  # type: ignore
 

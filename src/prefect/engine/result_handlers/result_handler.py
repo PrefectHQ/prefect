@@ -28,7 +28,7 @@ class ResultHandler:
 
     def __eq__(self, other: object) -> bool:
         """
-        Equality depends on state type and data, but not message
+        Equality depends on result handler type and any public attributes
         """
         if type(self) == type(other):
             assert isinstance(other, ResultHandler)  # mypy assert
