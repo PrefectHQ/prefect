@@ -9,7 +9,7 @@ import pytest
 from collections import defaultdict
 
 import prefect
-from prefect.engine.result import Result, NoResult, NoResultType
+from prefect.engine.result import Result, NoResult
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cached,
