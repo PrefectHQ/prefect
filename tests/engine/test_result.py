@@ -45,6 +45,10 @@ class TestInitialization:
         assert r.result_handler is None
 
 
+def test_basic_noresult_repr():
+    assert repr(NoResult) == "NoResult"
+
+
 def test_basic_result_repr():
     r = Result(2)
     assert repr(r) == "Result: 2"
