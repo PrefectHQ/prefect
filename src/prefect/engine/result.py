@@ -91,6 +91,9 @@ class NoResultType(Result):
         else:
             return False
 
+    def __repr__(self) -> str:
+        return "NoResult"
+
     @property
     def value(self) -> "NoResultType":
         return self
