@@ -315,9 +315,7 @@ class TestStateResultHandling:
             return x + y
 
         result = Result(1, handled=False, result_handler=JSONResultHandler())
-        x_state, y_state = Success(), Success()
-        x_state._result = result
-        y_state._result = result
+        x_state, y_state = Success(result=result), Success(result=result)
 
         upstream_states = {
             Edge(Task(), Task(), key="x"): x_state,
@@ -378,8 +376,7 @@ def test_preparing_state_for_cloud_doesnt_copy_data():
     runner = CloudTaskRunner(task=Task())
     value = 124.090909
     result = Result(value, handled=False, result_handler=FakeHandler())
-    state = Cached()
-    state._result = result
+    state = Cached(result=result)
     cloud_state = runner.prepare_state_for_cloud(state)
     assert cloud_state.is_cached()
     assert cloud_state is not state

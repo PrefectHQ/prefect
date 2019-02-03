@@ -624,8 +624,7 @@ class TestGetTaskInputs:
 
     def test_get_inputs_from_upstream_reads_results(self):
         result = Result("1", handled=True, result_handler=JSONResultHandler())
-        state = Success()
-        state._result = result
+        state = Success(result=result)
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=Pending(), upstream_states={Edge(1, 2, key="x"): state}
         )
@@ -741,9 +740,9 @@ class TestCheckTaskCached:
             task = Task(cache_validator=cache_validators.duration_only)
         result = Result("2", handled=True, result_handler=JSONResultHandler())
         state = Cached(
-            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1)
+            result=result,
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
         )
-        state._result = result
 
         new = TaskRunner(task).check_task_is_cached(
             state=state, inputs={"a": Result(1)}

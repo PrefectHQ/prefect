@@ -66,6 +66,15 @@ def test_create_state_with_kwarg_data_arg(cls):
 
 
 @pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_fully_hydrated_result(cls):
+    result = Result(value=10)
+    state = cls(result=result)
+    assert isinstance(state._result, Result)
+    assert state._result.value == 10
+    assert state.result == 10
+
+
+@pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_positional_message_arg(cls):
     state = cls("i am a string")
     assert state.message == "i am a string"

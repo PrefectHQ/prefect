@@ -79,10 +79,10 @@ class State:
 
     @result.setter
     def result(self, value: Any) -> None:
-        if value == NoResult:
+        if isinstance(value, Result):
             self._result = value
         else:
-            self._result = Result(value=value)  # type: ignore
+            self._result = Result(value=value)
 
     def is_pending(self) -> bool:
         """
