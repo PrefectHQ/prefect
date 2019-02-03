@@ -810,9 +810,8 @@ class TaskRunner(Runner):
             )
             return state
 
-        state = Success(message="Task run succeeded.")
         result = Result(value=result, handled=False, result_handler=self.result_handler)
-        state._result = result
+        state = Success(result=result, message="Task run succeeded.")
         return state
 
     @call_state_handlers
@@ -841,12 +840,12 @@ class TaskRunner(Runner):
         ):
             expiration = pendulum.now("utc") + self.task.cache_for
             cached_state = Cached(
+                result=state._result,
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
                 cached_parameters=prefect.context.get("parameters"),
                 message=state.message,
             )
-            cached_state._result = state._result
             return cached_state
 
         return state
