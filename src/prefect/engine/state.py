@@ -18,18 +18,10 @@ from typing import Any, Dict, List, Optional, Union
 import pendulum
 
 import prefect
+from prefect.engine.result import Result, NoResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.utilities.collections import DotDict
 from prefect.utilities.datetimes import ensure_tz_aware
-
-
-class StateMetaData(DotDict):
-    def __init__(self) -> None:
-        init_dict = {
-            "result": {"raw": True},
-            "cached_inputs": defaultdict(lambda: {"raw": True}),
-        }
-        super().__init__(init_dict)
 
 
 class State:
@@ -54,10 +46,9 @@ class State:
 
     color = "#000000"
 
-    def __init__(self, message: str = None, result: Any = None):
+    def __init__(self, message: str = None, result: Any = NoResult):
         self.message = message
         self.result = result
-        self._metadata = StateMetaData()
 
     def __repr__(self) -> str:
         if self.message:
@@ -71,9 +62,9 @@ class State:
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
-            eq = True
+            eq = self._result.value == other._result.value
             for attr in self.__dict__:
-                if attr.startswith("_") or attr == "message":
+                if attr.startswith("_") or attr in ["message", "result"]:
                     continue
                 eq &= getattr(self, attr, object()) == getattr(other, attr, object())
             return eq
@@ -82,106 +73,16 @@ class State:
     def __hash__(self) -> int:
         return id(self)
 
-    def update_input_metadata(self, input_handlers: dict) -> None:
-        """
-        Updates the `cached_inputs` metadata entry of this state with all appropriate result handlers.
+    @property
+    def result(self) -> Any:
+        return self._result.value
 
-        Args:
-            - input_handlers (dict): the individual serialized result handlers to use when
-                processing each variable in `cached_inputs`
-
-        Modifies the state object in place.
-        """
-        for variable in self.cached_inputs or {}:  # type: ignore
-            self._metadata["cached_inputs"][variable][
-                "result_handler"
-            ] = input_handlers[variable]
-
-    def handle_inputs(self) -> None:
-        """
-        Handles the `cached_inputs` attribute of this state (if it has one).
-
-        Modifies the state object in place.
-        """
-        from prefect.serialization.result_handlers import ResultHandlerSchema
-
-        schema = ResultHandlerSchema()
-        input_handlers = {
-            var: schema.load(self._metadata["cached_inputs"][var]["result_handler"])
-            for var in (self.cached_inputs or {})  # type: ignore
-        }
-
-        for variable in self.cached_inputs:  # type: ignore
-            var_info = self._metadata["cached_inputs"][variable]
-            if var_info["raw"] is True:
-                packed_value = input_handlers[variable].write(
-                    self.cached_inputs[variable]  # type: ignore
-                )
-                self.cached_inputs[variable] = packed_value  # type: ignore
-                self._metadata["cached_inputs"][variable]["raw"] = False
-
-    def update_output_metadata(self, result_handler: ResultHandler) -> None:
-        """
-        Handles the `cached_result` attribute of this state (if it has one).
-
-        Args:
-            - result_handler (ResultHandler): the result handler to use when
-                processing the `cached_result`
-
-        Modifies the state object in place.
-        """
-        from prefect.serialization.result_handlers import ResultHandlerSchema
-
-        schema = ResultHandlerSchema()
-        self._metadata["result"]["result_handler"] = schema.dump(result_handler)
-
-    def handle_outputs(self) -> None:
-        """
-        Handles the `cached_result` attribute of this state (if it has one).
-
-        Modifies the state object in place.
-        """
-        from prefect.serialization.result_handlers import ResultHandlerSchema
-
-        schema = ResultHandlerSchema()
-        result_handler = schema.load(self._metadata["result"]["result_handler"])
-
-        if self._metadata["result"]["raw"] is True:
-            packed_value = result_handler.write(self.result)  # type: ignore
-            self.result = packed_value  # type: ignore
-            self._metadata["result"]["raw"] = False
-
-    def ensure_raw(self) -> None:
-        """
-        Ensures that all attributes are _raw_ (as specified in `self._metadata`).
-
-        Modifies the state object in place.
-        """
-        from prefect.serialization.result_handlers import ResultHandlerSchema
-
-        schema = ResultHandlerSchema()
-
-        if self._metadata["result"].get("raw") is False:
-            handler = schema.load(self._metadata["result"]["result_handler"])
-            unpacked_value = handler.read(self.result)
-            self.result = unpacked_value
-            self._metadata["result"].update(raw=True)
-
-        if getattr(self, "cached_inputs", None) is not None:
-            # each variable could presumably come from different tasks with
-            # different result handlers
-            for variable in self.cached_inputs:  # type: ignore
-                var_info = self._metadata["cached_inputs"][variable]
-                if var_info["raw"] is False:
-                    handler = schema.load(var_info["result_handler"])
-                    unpacked_value = handler.read(
-                        self.cached_inputs[variable]  # type: ignore
-                    )
-                    self.cached_inputs[variable] = unpacked_value  # type: ignore
-                    self._metadata["cached_inputs"][variable]["raw"] = True
-
-        if getattr(self, "cached", None) is not None:
-            self.cached.ensure_raw()  # type: ignore
+    @result.setter
+    def result(self, value: Any) -> None:
+        if isinstance(value, Result):
+            self._result = value
+        else:
+            self._result = Result(value=value)
 
     def is_pending(self) -> bool:
         """
@@ -201,6 +102,15 @@ class State:
             - bool: `True` if the state is running, `False` otherwise
         """
         return isinstance(self, Running)
+
+    def is_cached(self) -> bool:
+        """
+        Checks if the object is currently in a Cached state
+
+        Returns:
+            - bool: `True` if the state is Cached, `False` otherwise
+        """
+        return isinstance(self, Cached)
 
     def is_finished(self) -> bool:
         """
@@ -296,7 +206,7 @@ class Pending(State):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-        keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#d3d3d3"
@@ -304,8 +214,8 @@ class Pending(State):
     def __init__(
         self,
         message: str = None,
-        result: Any = None,
-        cached_inputs: Dict[str, Any] = None,
+        result: Any = NoResult,
+        cached_inputs: Dict[str, Result] = None,
     ):
         super().__init__(message=message, result=result)
         self.cached_inputs = cached_inputs
@@ -320,7 +230,7 @@ class Paused(Pending):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-        keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#800000"
@@ -340,7 +250,7 @@ class Scheduled(Pending):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to run
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#b0c4de"
@@ -348,9 +258,9 @@ class Scheduled(Pending):
     def __init__(
         self,
         message: str = None,
-        result: Any = None,
+        result: Any = NoResult,
         start_time: datetime.datetime = None,
-        cached_inputs: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.start_time = ensure_tz_aware(start_time or pendulum.now("utc"))
@@ -376,7 +286,9 @@ class Submitted(State):
 
     """
 
-    def __init__(self, message: str = None, result: Any = None, state: State = None):
+    def __init__(
+        self, message: str = None, result: Any = NoResult, state: State = None
+    ):
         super().__init__(message=message, result=result)
         self.state = state
 
@@ -391,7 +303,7 @@ class Resume(Scheduled):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to run
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#20B2AA"
@@ -407,7 +319,7 @@ class Retrying(Scheduled):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to be retried
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
         - run_count (int): The number of runs that had been attempted at the time of this
             Retry. Defaults to the value stored in context under "task_run_count" or 1,
             if that value isn't found.
@@ -418,9 +330,9 @@ class Retrying(Scheduled):
     def __init__(
         self,
         message: str = None,
-        result: Any = None,
+        result: Any = NoResult,
         start_time: datetime.datetime = None,
-        cached_inputs: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
         run_count: int = None,
     ):
         super().__init__(
@@ -494,7 +406,7 @@ class Cached(Success):
         - result (Any, optional): Defaults to `None`. A data payload for the
             state, which will be cached.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-        keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
         - cached_parameters (dict): Defaults to `None`
         - cached_result_expiration (datetime): The time at which this cache
             expires and can no longer be used. Defaults to `None`
@@ -505,8 +417,8 @@ class Cached(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = None,
-        cached_inputs: Dict[str, Any] = None,
+        result: Any = NoResult,
+        cached_inputs: Dict[str, Result] = None,
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
     ):
@@ -541,7 +453,10 @@ class Mapped(Success):
     color = "#97FFFF"
 
     def __init__(
-        self, message: str = None, result: Any = None, map_states: List[State] = None
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        map_states: List[State] = None,
     ):
         super().__init__(message=message, result=result)
         self.map_states = map_states or []  # type: List[State]
@@ -573,7 +488,7 @@ class TimedOut(Failed):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
-        keys to values.  Used / set if the Task requires Retries.
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#CDC9A5"
@@ -581,8 +496,8 @@ class TimedOut(Failed):
     def __init__(
         self,
         message: str = None,
-        result: Any = None,
-        cached_inputs: Dict[str, Any] = None,
+        result: Any = NoResult,
+        cached_inputs: Dict[str, Result] = None,
     ):
         super().__init__(message=message, result=result)
         self.cached_inputs = cached_inputs
@@ -614,5 +529,5 @@ class Skipped(Success):
     color = "#F0FFF0"
 
     # note: this does not allow setting "cached" as Success states do
-    def __init__(self, message: str = None, result: Any = None):
+    def __init__(self, message: str = None, result: Any = NoResult):
         super().__init__(message=message, result=result)

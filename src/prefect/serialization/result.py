@@ -2,7 +2,7 @@ from marshmallow import fields
 
 from prefect.engine import result
 from prefect.serialization.result_handlers import ResultHandlerSchema
-from prefect.utilities.serialization import JSONCompatible, ObjectSchema
+from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
 
 
 class ResultSchema(ObjectSchema):
@@ -11,9 +11,18 @@ class ResultSchema(ObjectSchema):
 
     value = JSONCompatible(allow_none=True)
     handled = fields.Boolean()
-    result_handler = fields.Nested(ResultHandlerSchema)
+    result_handler = fields.Nested(ResultHandlerSchema, allow_none=True)
 
 
 class NoResultSchema(ObjectSchema):
     class Meta:
-        object_class = result.NoResult
+        object_class = result.NoResultType
+
+
+class StateResultSchema(OneOfSchema):
+    """
+    Field that chooses between several nested schemas
+    """
+
+    # map class name to schema
+    type_schemas = {"Result": ResultSchema, "NoResultType": NoResultSchema}

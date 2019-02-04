@@ -11,7 +11,12 @@ import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
-from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
+from prefect.engine.result import NoResult, Result
+from prefect.engine.result_handlers import (
+    JSONResultHandler,
+    LocalResultHandler,
+    ResultHandler,
+)
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import (
     Cached,
@@ -63,47 +68,6 @@ def client(monkeypatch):
     yield cloud_client
 
 
-class TestInitializeRun:
-    def test_ensures_all_upstream_states_are_raw(self, client):
-        serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
-
-        with tempfile.NamedTemporaryFile() as tmp:
-            with open(tmp.name, "wb") as f:
-                cloudpickle.dump(42, f)
-
-            a, b, c = (
-                Success(result=tmp.name),
-                Failed(result=55),
-                Pending(result=tmp.name),
-            )
-            a._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
-            c._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
-            result = CloudTaskRunner(Task()).initialize_run(
-                state=Success(), context={}, upstream_states={1: a, 2: b, 3: c}
-            )
-
-        assert result.upstream_states[1].result == 42
-        assert result.upstream_states[2].result == 55
-        assert result.upstream_states[3].result == 42
-
-    def test_ensures_provided_initial_state_is_raw(self, client):
-        serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
-
-        with tempfile.NamedTemporaryFile() as tmp:
-            with open(tmp.name, "wb") as f:
-                cloudpickle.dump(42, f)
-
-            state = Success(result=tmp.name)
-            state._metadata["result"] = dict(
-                raw=False, result_handler=serialized_handler
-            )
-            result = CloudTaskRunner(Task()).initialize_run(
-                state=state, context={}, upstream_states={}
-            )
-
-        assert result.state.result == 42
-
-
 def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     task = Task(name="test")
 
@@ -114,7 +78,7 @@ def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Success
 
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
-    assert states == [Running(), Success()]
+    assert [type(s).__name__ for s in states] == ["Running", "Success"]
     assert res.is_successful()
 
 
@@ -128,7 +92,7 @@ def test_task_runner_calls_get_task_run_info_if_map_index_is_not_none(client):
     assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Success
 
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
-    assert states == [Running(), Success()]
+    assert [type(s).__name__ for s in states] == ["Running", "Success"]
 
 
 def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updates(
@@ -218,7 +182,7 @@ def test_task_runner_uses_cached_inputs_from_db_state(monkeypatch):
     def add_one(x):
         return x + 1
 
-    db_state = Retrying(cached_inputs=dict(x=41))
+    db_state = Retrying(cached_inputs=dict(x=Result(41)))
     get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
     set_task_run_state = MagicMock()
     client = MagicMock(
@@ -259,7 +223,7 @@ def test_task_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
     assert set_task_run_state.call_count == 2  # Pending -> Running -> Success
 
     states = [call[1]["state"] for call in set_task_run_state.call_args_list]
-    assert states == [Running(), Success()]
+    assert [type(s).__name__ for s in states] == ["Running", "Success"]
 
 
 class TestHeartBeats:
@@ -344,18 +308,15 @@ class TestHeartBeats:
 
 class TestStateResultHandling:
     def test_task_runner_handles_outputs_prior_to_setting_state(self, client):
-        serialized = ResultHandlerSchema().dump(JSONResultHandler())
-
         @prefect.task(
             cache_for=datetime.timedelta(days=1), result_handler=JSONResultHandler()
         )
         def add(x, y):
             return x + y
 
-        x_state = Success(result=1)
-        y_state = Success(result=1)
-        x_state._metadata["result"]["result_handler"] = serialized
-        y_state._metadata["result"]["result_handler"] = serialized
+        result = Result(1, handled=False, result_handler=JSONResultHandler())
+        x_state, y_state = Success(result=result), Success(result=result)
+
         upstream_states = {
             Edge(Task(), Task(), key="x"): x_state,
             Edge(Task(), Task(), key="y"): y_state,
@@ -373,21 +334,19 @@ class TestStateResultHandling:
         assert states[0].is_running()
         assert states[1].is_successful()
         assert isinstance(states[2], Cached)
-        assert states[2].cached_inputs == dict(x="1", y="1")
+        assert states[2].cached_inputs == dict(x=result.write(), y=result.write())
         assert states[2].result == "2"
 
     def test_task_runner_handles_inputs_prior_to_setting_state(self, client):
-        serialized = ResultHandlerSchema().dump(JSONResultHandler())
-
         @prefect.task(max_retries=1, retry_delay=datetime.timedelta(days=1))
         def add(x, y):
             return x + y
 
-        state = Pending(cached_inputs=dict(x=1, y="0"))
+        x = Result(1, handled=False, result_handler=JSONResultHandler())
+        y = Result("0", handled=False, result_handler=JSONResultHandler())
+        state = Pending(cached_inputs=dict(x=x, y=y))
         x_state = Success(result=1)
         y_state = Success(result=1)
-        x_state._metadata["result"]["result_handler"] = serialized
-        y_state._metadata["result"]["result_handler"] = serialized
         upstream_states = {
             Edge(Task(), Task(), key="x"): x_state,
             Edge(Task(), Task(), key="y"): y_state,
@@ -406,4 +365,19 @@ class TestStateResultHandling:
         assert states[0].is_running()
         assert states[1].is_failed()
         assert isinstance(states[2], Retrying)
-        assert states[2].cached_inputs == dict(x="1", y='"0"')
+        assert states[2].cached_inputs == dict(x=x.write(), y=y.write())
+
+
+def test_preparing_state_for_cloud_doesnt_copy_data():
+    class FakeHandler(ResultHandler):
+        def write(self, val):
+            return val
+
+    runner = CloudTaskRunner(task=Task())
+    value = 124.090909
+    result = Result(value, handled=False, result_handler=FakeHandler())
+    state = Cached(result=result)
+    cloud_state = runner.prepare_state_for_cloud(state)
+    assert cloud_state.is_cached()
+    assert cloud_state is not state
+    assert cloud_state.result is state.result

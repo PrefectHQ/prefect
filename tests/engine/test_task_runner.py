@@ -19,6 +19,8 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
+from prefect.engine.result import Result, NoResult
+from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -293,16 +295,13 @@ def test_task_runner_accepts_dictionary_of_edges():
 def test_task_runner_can_handle_timeouts_by_default():
     sleeper = SlowTask(timeout=1)
     upstream_state = Success(result=2)
-    upstream_state._metadata["result"]["result_handler"] = "json-blob"
     state = TaskRunner(sleeper).run(
         upstream_states={Edge(None, sleeper, key="secs"): upstream_state}
     )
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
     assert isinstance(state.result, TimeoutError)
-    assert state.cached_inputs == dict(secs=2)
-    assert "secs" in state._metadata["cached_inputs"]
-    assert state._metadata["cached_inputs"]["secs"]["result_handler"] == "json-blob"
+    assert state.cached_inputs == dict(secs=Result(2))
 
 
 def test_task_runner_handles_secrets():
@@ -318,6 +317,18 @@ def test_task_that_starts_failed_doesnt_get_retried():
     assert state.is_failed()
 
 
+def test_runner_checks_cached_inputs_correctly():
+    with pytest.warns(UserWarning):
+        task = AddTask(cache_validator=cache_validators.all_inputs)
+    pre = Cached(cached_inputs={"x": Result(1), "y": Result(2)}, result=99)
+    upstream = {
+        Edge(Task(), task, key="x"): Success(result=1),
+        Edge(Task(), task, key="y"): Success(result=2),
+    }
+    post = TaskRunner(task).run(state=pre, upstream_states=upstream)
+    assert post.result == 99
+
+
 class TestInitializeRun:
     @pytest.mark.parametrize(
         "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), Cached()]
@@ -325,9 +336,7 @@ class TestInitializeRun:
     def test_states_without_run_count(self, state):
         with prefect.context() as ctx:
             assert "task_run_count" not in ctx
-            result = TaskRunner(Task()).initialize_run(
-                state=state, context=ctx, upstream_states={}
-            )
+            result = TaskRunner(Task()).initialize_run(state=state, context=ctx)
             assert ctx.task_run_count == 1
             assert result.state is state
 
@@ -343,18 +352,14 @@ class TestInitializeRun:
     def test_states_with_run_count(self, state):
         with prefect.context() as ctx:
             assert "task_run_count" not in ctx
-            result = TaskRunner(Task()).initialize_run(
-                state=state, context=ctx, upstream_states={}
-            )
+            result = TaskRunner(Task()).initialize_run(state=state, context=ctx)
             assert ctx.task_run_count == state.run_count + 1
             assert result.state is state
 
     def test_task_runner_puts_resume_in_context_if_state_is_resume(self):
         with prefect.context() as ctx:
             assert "resume" not in ctx
-            result = TaskRunner(Task()).initialize_run(
-                state=Resume(), context=ctx, upstream_states={}
-            )
+            result = TaskRunner(Task()).initialize_run(state=Resume(), context=ctx)
             assert result.context.resume is True
 
     @pytest.mark.parametrize(
@@ -365,15 +370,13 @@ class TestInitializeRun:
     ):
         with prefect.context() as ctx:
             assert "resume" not in ctx
-            result = TaskRunner(Task()).initialize_run(
-                state=state, context=ctx, upstream_states={}
-            )
+            result = TaskRunner(Task()).initialize_run(state=state, context=ctx)
             assert "resume" not in result.context
 
     def test_unwrap_submitted_states(self):
         state = Scheduled()
         result = TaskRunner(Task()).initialize_run(
-            state=Submitted(state=state), context={}, upstream_states={}
+            state=Submitted(state=state), context={}
         )
         assert result.state is state
 
@@ -584,22 +587,14 @@ class TestCheckTaskTrigger:
 
 
 class TestCheckTaskReady:
-    @pytest.mark.parametrize("state", [Pending(), Mapped()])
+    @pytest.mark.parametrize("state", [Cached(), Pending(), Mapped()])
     def test_ready_states(self, state):
         new_state = TaskRunner(task=Task()).check_task_is_ready(state=state)
         assert new_state is state
 
     @pytest.mark.parametrize(
         "state",
-        [
-            Cached(),
-            Running(),
-            Finished(),
-            TriggerFailed(),
-            Skipped(),
-            Success(),
-            Paused(),
-        ],
+        [Running(), Finished(), TriggerFailed(), Skipped(), Success(), Paused()],
     )
     def test_not_ready_doesnt_run(self, state):
 
@@ -625,7 +620,23 @@ class TestGetTaskInputs:
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=Pending(), upstream_states={Edge(1, 2, key="x"): Success(result=1)}
         )
-        assert inputs == {"x": 1}
+        assert inputs == {"x": Result(1)}
+
+    def test_get_inputs_from_upstream_reads_results(self):
+        result = Result("1", handled=True, result_handler=JSONResultHandler())
+        state = Success(result=result)
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(), upstream_states={Edge(1, 2, key="x"): state}
+        )
+        assert inputs == {"x": Result(1, result_handler=JSONResultHandler())}
+
+    def test_get_inputs_from_upstream_reads_cached_inputs(self):
+        result = Result("1", handled=True, result_handler=JSONResultHandler())
+        state = Pending(cached_inputs=dict(x=result))
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=state, upstream_states={}
+        )
+        assert inputs == {"x": Result(1, result_handler=JSONResultHandler())}
 
     def test_get_inputs_from_upstream_with_non_key_edges(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
@@ -635,44 +646,44 @@ class TestGetTaskInputs:
                 Edge(1, 2): Success(result=2),
             },
         )
-        assert inputs == {"x": 1}
+        assert inputs == {"x": Result(1)}
 
     def test_get_inputs_from_upstream_failed(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=Pending(),
             upstream_states={Edge(1, 2, key="x"): Failed(result=ValueError())},
         )
-        assert isinstance(inputs["x"], ValueError)
+        assert isinstance(inputs["x"].value, ValueError)
 
     def test_get_inputs_from_upstream_mapped(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=Pending(),
             upstream_states={Edge(1, 2, key="x", mapped=True): Success(result=[1, 2])},
         )
-        assert inputs == {"x": [1, 2]}
+        assert inputs == {"x": Result([1, 2])}
 
     def test_get_inputs_from_cached_inputs(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": 1}), upstream_states={}
+            state=Pending(cached_inputs={"x": Result(1)}), upstream_states={}
         )
-        assert inputs == {"x": 1}
+        assert inputs == {"x": Result(1)}
 
     def test_get_inputs_from_cached_inputs_and_upstream_states(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": 1}),
+            state=Pending(cached_inputs={"x": Result(1)}),
             upstream_states={Edge(1, 2, key="y"): Success(result=2)},
         )
-        assert inputs == {"x": 1, "y": 2}
+        assert inputs == {"x": Result(1), "y": Result(2)}
 
     def test_get_inputs_from_cached_inputs_overwrites_upstream_states(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": 1}),
+            state=Pending(cached_inputs={"x": Result(1)}),
             upstream_states={
                 Edge(1, 2, key="x"): Success(result=2),
                 Edge(1, 2, key="y"): Success(result=2),
             },
         )
-        assert inputs == {"x": 1, "y": 2}
+        assert inputs == {"x": Result(1), "y": Result(2)}
 
 
 class TestCheckTaskCached:
@@ -684,15 +695,19 @@ class TestCheckTaskCached:
     def test_cached_same_inputs(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
-        state = Cached(cached_inputs={"a": 1}, result=2)
-        new = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
+        state = Cached(cached_inputs={"a": Result(1)}, result=Result(2))
+        new = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(1)}
+        )
         assert new is state
 
     def test_cached_different_inputs(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.all_inputs)
-        state = Cached(cached_inputs={"a": 1}, result=2)
-        new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 2})
+        state = Cached(cached_inputs={"a": Result(1)}, result=2)
+        new_state = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(2)}
+        )
         assert new_state.is_pending()
 
     def test_cached_duration(self):
@@ -703,7 +718,9 @@ class TestCheckTaskCached:
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
         )
 
-        new = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
+        new = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(1)}
+        )
         assert new is state
 
     def test_cached_duration_fail(self):
@@ -713,8 +730,25 @@ class TestCheckTaskCached:
             result=2,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=-1),
         )
-        new_state = TaskRunner(task).check_task_is_cached(state=state, inputs={"a": 1})
+        new_state = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(1)}
+        )
         assert new_state.is_pending()
+
+    def test_reads_result_if_cached_valid(self):
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=cache_validators.duration_only)
+        result = Result("2", handled=True, result_handler=JSONResultHandler())
+        state = Cached(
+            result=result,
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
+        )
+
+        new = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(1)}
+        )
+        assert new is state
+        assert new.result == 2
 
 
 class TestSetTaskRunning:
@@ -733,7 +767,7 @@ class TestRunTaskStep:
     def test_running_state(self):
         state = Running()
         new_state = TaskRunner(task=Task()).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None, upstream_states={}
+            state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_successful()
 
@@ -741,7 +775,7 @@ class TestRunTaskStep:
     def test_not_running_state(self, state):
         with pytest.raises(ENDRUN):
             TaskRunner(task=Task()).get_task_run_state(
-                state=state, inputs={}, timeout_handler=None, upstream_states={}
+                state=state, inputs={}, timeout_handler=None
             )
 
     def test_raise_success_signal(self):
@@ -751,7 +785,7 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None, upstream_states={}
+            state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_successful()
 
@@ -762,7 +796,7 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None, upstream_states={}
+            state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_failed()
 
@@ -773,7 +807,7 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None, upstream_states={}
+            state=state, inputs={}, timeout_handler=None
         )
         assert isinstance(new_state, Skipped)
 
@@ -784,7 +818,7 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None, upstream_states={}
+            state=state, inputs={}, timeout_handler=None
         )
         assert isinstance(new_state, Paused)
 
@@ -795,7 +829,7 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None, upstream_states={}
+            state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_failed()
         assert isinstance(new_state.result, ZeroDivisionError)
@@ -807,7 +841,7 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={"x": 1}, timeout_handler=None, upstream_states={}
+            state=state, inputs={"x": Result(1)}, timeout_handler=None
         )
         assert new_state.is_successful()
         assert new_state.result == 2
@@ -819,9 +853,29 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={"y": 1}, timeout_handler=None, upstream_states={}
+            state=state, inputs={"y": Result(1)}, timeout_handler=None
         )
         assert new_state.is_failed()
+
+    def test_returns_success_with_hydrated_result_obj(self):
+        runner = TaskRunner(task=Task())
+        state = runner.get_task_run_state(
+            state=Running(), inputs={}, timeout_handler=None
+        )
+        assert state.is_successful()
+        assert isinstance(state._result, Result)
+        assert state._result == Result(
+            value=None, handled=False, result_handler=runner.result_handler
+        )
+
+    def test_returns_success_with_correct_result_handler(self):
+        runner = TaskRunner(task=Task(result_handler=ResultHandler()))
+        state = runner.get_task_run_state(
+            state=Running(), inputs={}, timeout_handler=None
+        )
+        assert state.is_successful()
+        assert isinstance(state._result, Result)
+        assert state._result.result_handler == ResultHandler()
 
 
 class TestCheckRetryStep:
@@ -829,23 +883,19 @@ class TestCheckRetryStep:
         "state", [Success(), Pending(), Running(), Retrying(), Skipped()]
     )
     def test_non_failed_states(self, state):
-        new_state = TaskRunner(task=Task()).check_for_retry(
-            state=state, inputs={}, upstream_states={}
-        )
+        new_state = TaskRunner(task=Task()).check_for_retry(state=state, inputs={})
         assert new_state is state
 
     def test_failed_zero_max_retry(self):
         state = Failed()
-        new_state = TaskRunner(task=Task()).check_for_retry(
-            state=state, inputs={}, upstream_states={}
-        )
+        new_state = TaskRunner(task=Task()).check_for_retry(state=state, inputs={})
         assert new_state is state
 
     def test_failed_one_max_retry(self):
         state = Failed()
         new_state = TaskRunner(
             task=Task(max_retries=1, retry_delay=timedelta(0))
-        ).check_for_retry(state=state, inputs={}, upstream_states={})
+        ).check_for_retry(state=state, inputs={})
         assert isinstance(new_state, Retrying)
         assert new_state.run_count == 1
 
@@ -854,41 +904,31 @@ class TestCheckRetryStep:
         with prefect.context(task_run_count=2):
             new_state = TaskRunner(
                 task=Task(max_retries=1, retry_delay=timedelta(0))
-            ).check_for_retry(state=state, inputs={}, upstream_states={})
+            ).check_for_retry(state=state, inputs={})
             assert new_state is state
 
     def test_failed_retry_caches_inputs(self):
         state = Failed()
-        upstream_state = Success(result=1)
-        upstream_state._metadata["result"]["result_handler"] = "json-blob"
 
         new_state = TaskRunner(
             task=Task(max_retries=1, retry_delay=timedelta(0))
-        ).check_for_retry(
-            state=state,
-            inputs={"x": 1},
-            upstream_states={Edge(Task(), Task(), key="x"): upstream_state},
-        )
+        ).check_for_retry(state=state, inputs={"x": Result(1)})
         assert isinstance(new_state, Retrying)
-        assert new_state.cached_inputs == {"x": 1}
-        assert "x" in new_state._metadata["cached_inputs"]
-        assert (
-            new_state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob"
-        )
+        assert new_state.cached_inputs == {"x": Result(1)}
 
     def test_retrying_when_run_count_greater_than_max_retries(self):
         with prefect.context(task_run_count=10):
             state = Retrying()
             new_state = TaskRunner(
                 task=Task(max_retries=1, retry_delay=timedelta(0))
-            ).check_for_retry(state=state, inputs={}, upstream_states={})
+            ).check_for_retry(state=state, inputs={})
             assert new_state is state
 
     def test_retrying_with_start_time(self):
         state = Retrying(start_time=pendulum.now("utc"))
         new_state = TaskRunner(
             task=Task(max_retries=1, retry_delay=timedelta(0))
-        ).check_for_retry(state=state, inputs={}, upstream_states={})
+        ).check_for_retry(state=state, inputs={})
         assert new_state is state
 
     def test_retrying_when_state_has_explicit_run_count_set(self):
@@ -896,7 +936,7 @@ class TestCheckRetryStep:
             state = Retrying(run_count=5)
             new_state = TaskRunner(
                 task=Task(max_retries=1, retry_delay=timedelta(0))
-            ).check_for_retry(state=state, inputs={}, upstream_states={})
+            ).check_for_retry(state=state, inputs={})
             assert new_state is state
 
 
@@ -905,9 +945,7 @@ class TestCacheResultStep:
         "state", [Failed(), Skipped(), Finished(), Pending(), Running()]
     )
     def test_non_success_states(self, state):
-        new_state = TaskRunner(task=Task()).cache_result(
-            state=state, inputs={}, upstream_states={}
-        )
+        new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
         assert new_state is state
 
     @pytest.mark.parametrize(
@@ -924,9 +962,7 @@ class TestCacheResultStep:
         state = Success()
         with pytest.warns(UserWarning):
             t = Task(cache_validator=validator)
-        new_state = TaskRunner(task=t).cache_result(
-            state=state, inputs={}, upstream_states={}
-        )
+        new_state = TaskRunner(task=t).cache_result(state=state, inputs={})
         assert new_state is state
 
     def test_success_state(self):
@@ -935,23 +971,16 @@ class TestCacheResultStep:
             return x + 1
 
         state = Success(result=2, message="hello")
-        upstream_state = Success(result=5)
-        upstream_state._metadata["result"]["result_handler"] = "json-blob"
 
         new_state = TaskRunner(task=fn).cache_result(
-            state=state,
-            inputs={"x": 5},
-            upstream_states={Edge(Task(), Task(), key="x"): upstream_state},
+            state=state, inputs={"x": Result(5)}
         )
         assert new_state is not state
         assert new_state.is_successful()
         assert isinstance(new_state, Cached)
         assert new_state.message == "hello"
         assert new_state.result == 2
-        assert new_state.cached_inputs == {"x": 5}
-        assert (
-            new_state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob"
-        )
+        assert new_state.cached_inputs == {"x": Result(5)}
 
 
 class TestCheckScheduledStep:
@@ -1282,8 +1311,6 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
 
 def test_retry_has_updated_metadata():
     a, b = Success(result=15), Success(result="abc")
-    a._metadata["result"]["result_handler"] = "json-blob-a"
-    b._metadata["result"]["result_handler"] = "json-blob-b"
 
     runner = TaskRunner(task=AddTask(max_retries=1, retry_delay=timedelta(days=1)))
     state = runner.run(
@@ -1294,11 +1321,7 @@ def test_retry_has_updated_metadata():
     )
 
     assert isinstance(state, Retrying)
-    assert state.cached_inputs == dict(x=15, y="abc")
-    assert "x" in state._metadata["cached_inputs"]
-    assert "y" in state._metadata["cached_inputs"]
-    assert state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob-a"
-    assert state._metadata["cached_inputs"]["y"]["result_handler"] == "json-blob-b"
+    assert state.cached_inputs == dict(x=Result(15), y=Result("abc"))
 
 
 def test_pending_raised_from_endrun_has_updated_metadata():
@@ -1307,12 +1330,9 @@ def test_pending_raised_from_endrun_has_updated_metadata():
             raise ENDRUN(state=Pending("abc"))
 
     upstream_state = Success(result=15)
-    upstream_state._metadata["result"]["result_handler"] = "json-blob"
 
     runner = TaskRunner(task=EndRunTask())
     state = runner.run(upstream_states={Edge(Task(), Task(), key="x"): upstream_state})
 
     assert state.is_pending()
-    assert state.cached_inputs == dict(x=15)
-    assert "x" in state._metadata["cached_inputs"]
-    assert state._metadata["cached_inputs"]["x"]["result_handler"] == "json-blob"
+    assert state.cached_inputs == dict(x=Result(15))

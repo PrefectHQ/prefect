@@ -300,10 +300,10 @@ def test_get_flow_run_info(monkeypatch):
         "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
         "serialized_state": {
             "type": "Pending",
-            "result": 42,
+            "_result": {"type": "Result", "value": 42},
             "message": null,
             "__version__": "0.3.3+309.gf1db024",
-            "cached_inputs": "null"
+            "cached_inputs": null
         },
         "task_runs":[
             {
@@ -315,7 +315,7 @@ def test_get_flow_run_info(monkeypatch):
                     "result": null,
                     "message": null,
                     "__version__": "0.3.3+309.gf1db024",
-                    "cached_inputs": "null"
+                    "cached_inputs": null
                 }
             }
         ]
@@ -422,10 +422,10 @@ def test_get_task_run_info(monkeypatch):
                 "version": 0,
                 "serialized_state": {
                     "type": "Pending",
-                    "result": "42",
+                    "_result": {"type": "Result", "value": "42"},
                     "message": null,
                     "__version__": "0.3.3+310.gd19b9b7.dirty",
-                    "cached_inputs": "null"
+                    "cached_inputs": null
                 }
             }
         }
