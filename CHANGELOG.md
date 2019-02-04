@@ -4,11 +4,11 @@
 
 These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
 
-### Major Features
+### Features
 
 - None
 
-### Minor Features
+### Enhancements
 
 - None
 
@@ -25,12 +25,12 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 Released January 31, 2019
 
-### Major Features
+### Features
 
 - Add ability to run scheduled flows locally via `on_schedule` kwarg in `flow.run()` - [#519](https://github.com/PrefectHQ/prefect/issues/519)
 - Allow tasks to specify their own result handlers, ensure inputs and outputs are stored only when necessary, and ensure no raw data is sent to the database - [#587](https://github.com/PrefectHQ/prefect/pull/587)
 
-### Minor Features
+### Enhancements
 
 - Allow for building `ContainerEnvironment`s locally without pushing to registry - [#514](https://github.com/PrefectHQ/prefect/issues/514)
 - Make mapping more robust when running children tasks multiple times - [#541](https://github.com/PrefectHQ/prefect/pull/541)
@@ -74,14 +74,14 @@ Released January 31, 2019
 
 Released January 8, 2019
 
-### Major Features
+### Features
 
 - Add support for Prefect Cloud - [#374](https://github.com/PrefectHQ/prefect/pull/374), [#406](https://github.com/PrefectHQ/prefect/pull/406), [#473](https://github.com/PrefectHQ/prefect/pull/473), [#491](https://github.com/PrefectHQ/prefect/pull/491)
 - Add versioned serialization schemas for `Flow`, `Task`, `Parameter`, `Edge`, `State`, `Schedule`, and `Environment` objects - [#310](https://github.com/PrefectHQ/prefect/pull/310), [#318](https://github.com/PrefectHQ/prefect/pull/318), [#319](https://github.com/PrefectHQ/prefect/pull/319), [#340](https://github.com/PrefectHQ/prefect/pull/340)
 - Add ability to provide `ResultHandler`s for storing private result data - [#391](https://github.com/PrefectHQ/prefect/pull/391), [#394](https://github.com/PrefectHQ/prefect/pull/394), [#430](https://github.com/PrefectHQ/prefect/pull/430/)
 - Support depth-first execution of mapped tasks and tracking of both the static "parent" and dynamic "children" via `Mapped` states - [#485](https://github.com/PrefectHQ/prefect/pull/485)
 
-### Minor Features
+### Enhancements
 
 - Add new `TimedOut` state for task execution timeouts - [#255](https://github.com/PrefectHQ/prefect/issues/255)
 - Use timezone-aware dates throughout Prefect - [#325](https://github.com/PrefectHQ/prefect/pull/325)
@@ -156,13 +156,13 @@ Released January 8, 2019
 
 Released October 30, 2018
 
-### Major Features
+### Features
 
 - Refactor `FlowRunner` and `TaskRunner` into a modular `Runner` pipelines - [#260](https://github.com/PrefectHQ/prefect/pull/260), [#267](https://github.com/PrefectHQ/prefect/pull/267)
 - Add configurable `state_handlers` for `FlowRunners`, `Flows`, `TaskRunners`, and `Tasks` - [#264](https://github.com/PrefectHQ/prefect/pull/264), [#267](https://github.com/PrefectHQ/prefect/pull/267)
 - Add gmail and slack notification state handlers w/ tutorial - [#274](https://github.com/PrefectHQ/prefect/pull/274), [#294](https://github.com/PrefectHQ/prefect/pull/294)
 
-### Minor Features
+### Enhancements
 
 - Add a new method `flow.get_tasks()` for easily filtering flow tasks by attribute - [#242](https://github.com/PrefectHQ/prefect/pull/242)
 - Add new `JinjaTemplateTask` for easily rendering jinja templates - [#200](https://github.com/PrefectHQ/prefect/issues/200)
@@ -190,14 +190,14 @@ Released October 30, 2018
 
 Released October 2, 2018
 
-### Major Features
+### Features
 
 - Local parallelism with `DaskExecutor` - [#151](https://github.com/PrefectHQ/prefect/issues/151), [#186](https://github.com/PrefectHQ/prefect/issues/186)
 - Resource throttling based on `tags` - [#158](https://github.com/PrefectHQ/prefect/issues/158), [#186](https://github.com/PrefectHQ/prefect/issues/186)
 - `Task.map` for mapping tasks - [#186](https://github.com/PrefectHQ/prefect/issues/186)
 - Added `AirFlow` utility for importing Airflow DAGs as Prefect Flows - [#232](https://github.com/PrefectHQ/prefect/pull/232)
 
-### Minor Features
+### Enhancements
 
 - Use Netlify to deploy docs - [#156](https://github.com/prefecthq/prefect/issues/156)
 - Add changelog - [#153](https://github.com/prefecthq/prefect/issues/153)
@@ -229,11 +229,11 @@ Released October 2, 2018
 
 Released September 6, 2018
 
-### Major Features
+### Features
 
 - Support for user configuration files - [#195](https://github.com/PrefectHQ/prefect/pull/195)
 
-### Minor Features
+### Enhancements
 
 - None
 
@@ -249,7 +249,7 @@ Released September 6, 2018
 
 Released August 20, 2018
 
-### Major Features
+### Features
 
 - BokehRunner - [#104](https://github.com/prefecthq/prefect/issues/104), [#128](https://github.com/prefecthq/prefect/issues/128)
 - Control flow: `ifelse`, `switch`, and `merge` - [#92](https://github.com/prefecthq/prefect/issues/92)
@@ -262,7 +262,7 @@ Released August 20, 2018
 - `State` classes
 - `Signals` to transmit `State`
 
-### Minor Features
+### Enhancements
 
 - Add custom syntax highlighting to docs - [#141](https://github.com/prefecthq/prefect/issues/141)
 - Add `bind()` method for tasks to call without copying - [#132](https://github.com/prefecthq/prefect/issues/132)
