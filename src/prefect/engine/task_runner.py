@@ -25,6 +25,7 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
+from prefect.engine.result import NoResult, Result
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
@@ -50,12 +51,7 @@ if TYPE_CHECKING:
 
 
 TaskRunnerInitializeResult = NamedTuple(
-    "TaskRunnerInitializeResult",
-    [
-        ("state", State),
-        ("context", Dict[str, Any]),
-        ("upstream_states", Dict[Edge, State]),
-    ],
+    "TaskRunnerInitializeResult", [("state", State), ("context", Dict[str, Any])]
 )
 
 
@@ -119,24 +115,8 @@ class TaskRunner(Runner):
 
         return new_state
 
-    def _get_upstream_result_handlers(
-        self, upstream_states: Dict[Edge, State]
-    ) -> Dict[str, dict]:
-        input_handlers = {}
-
-        for edge, upstream_state in upstream_states.items():
-            if edge.key is not None:
-                input_handlers[edge.key] = upstream_state._metadata["result"][
-                    "result_handler"
-                ]
-
-        return input_handlers
-
     def initialize_run(  # type: ignore
-        self,
-        state: Optional[State],
-        context: Dict[str, Any],
-        upstream_states: Dict[Edge, State],
+        self, state: Optional[State], context: Dict[str, Any]
     ) -> TaskRunnerInitializeResult:
         """
         Initializes the Task run by initializing state and context appropriately.
@@ -150,7 +130,6 @@ class TaskRunner(Runner):
         Args:
             - state (State): the proposed initial state of the flow run; can be `None`
             - context (Dict[str, Any]): the context to be updated with relevant information
-            - upstream_states (Dict[Edge, State]): the upstream states
 
         Returns:
             - tuple: a tuple of the updated state, context, upstream_states, and inputs objects
@@ -167,9 +146,7 @@ class TaskRunner(Runner):
 
         context.update(task_run_count=run_count, task_name=self.task.name)
 
-        return TaskRunnerInitializeResult(
-            state=state, context=context, upstream_states=upstream_states
-        )
+        return TaskRunnerInitializeResult(state=state, context=context)
 
     def run(
         self,
@@ -226,15 +203,10 @@ class TaskRunner(Runner):
         try:
 
             # initialize the run
-            state, context, upstream_states = self.initialize_run(
-                state, context, upstream_states
-            )
+            state, context = self.initialize_run(state, context)
 
             # run state transformation pipeline
             with prefect.context(context):
-
-                # check to see if the task has a cached result
-                state = self.check_task_is_cached(state, inputs=task_inputs)
 
                 # check to make sure the task is in a pending state
                 state = self.check_task_is_ready(state)
@@ -280,6 +252,9 @@ class TaskRunner(Runner):
                     state=state, upstream_states=upstream_states
                 )
 
+                # check to see if the task has a cached result
+                state = self.check_task_is_cached(state, inputs=task_inputs)
+
                 # triggers can raise Pauses, which require task_inputs to be available for caching
                 # so we run this after the previous step
                 if check_upstream:
@@ -294,30 +269,20 @@ class TaskRunner(Runner):
 
                 # run the task
                 state = self.get_task_run_state(
-                    state,
-                    inputs=task_inputs,
-                    timeout_handler=executor.timeout_handler,
-                    upstream_states=upstream_states,
+                    state, inputs=task_inputs, timeout_handler=executor.timeout_handler
                 )
 
                 # cache the output, if appropriate
-                state = self.cache_result(
-                    state, inputs=task_inputs, upstream_states=upstream_states
-                )
+                state = self.cache_result(state, inputs=task_inputs)
 
                 # check if the task needs to be retried
-                state = self.check_for_retry(
-                    state, inputs=task_inputs, upstream_states=upstream_states
-                )
+                state = self.check_for_retry(state, inputs=task_inputs)
 
         # for pending signals, including retries and pauses we need to make sure the
         # task_inputs are set
         except (ENDRUN, signals.PrefectStateSignal) as exc:
             if exc.state.is_pending():
                 exc.state.cached_inputs = task_inputs or {}  # type: ignore
-                exc.state.update_input_metadata(
-                    self._get_upstream_result_handlers(upstream_states)
-                )
             state = exc.state
             if not isinstance(exc, ENDRUN) and prefect.context.get(
                 "raise_on_exception"
@@ -339,13 +304,6 @@ class TaskRunner(Runner):
             )
         )
 
-        ## finally, update state _metadata attribute with information about how to handle this state's data
-        from prefect.serialization.result_handlers import ResultHandlerSchema
-
-        state._metadata["result"].setdefault("raw", True)
-        state._metadata["result"].setdefault(
-            "result_handler", ResultHandlerSchema().dump(self.result_handler)
-        )
         return state
 
     @call_state_handlers
@@ -527,6 +485,9 @@ class TaskRunner(Runner):
             )
             raise ENDRUN(state)
 
+        elif state.is_cached():
+            return state
+
         # this task is already finished
         elif state.is_finished():
             self.logger.debug(
@@ -574,7 +535,7 @@ class TaskRunner(Runner):
 
     def get_task_inputs(
         self, state: State, upstream_states: Dict[Edge, State]
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, Result]:
         """
         Given the task's current state and upstream states, generates the inputs for this task.
         If the current state has `cached_inputs`, they are used. Upstream states supplement
@@ -585,29 +546,31 @@ class TaskRunner(Runner):
             - upstream_states (Dict[Edge, State]): the upstream state_handlers
 
         Returns:
-            - Dict[str, Any]: the task inputs
+            - Dict[str, Result]: the task inputs
 
         """
-        task_inputs = {}
+        task_inputs = {}  # type: Dict[str, Result]
 
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
             if edge.key is not None:
-                task_inputs[edge.key] = upstream_state.result
+                task_inputs[edge.key] = upstream_state._result.read()
 
         if state.is_pending() and state.cached_inputs is not None:  # type: ignore
-            task_inputs.update(state.cached_inputs)  # type: ignore
+            task_inputs.update(  # type: ignore
+                {k: r.read() for k, r in state.cached_inputs.items()}  # type: ignore
+            )  # type: ignore
 
         return task_inputs
 
     @call_state_handlers
-    def check_task_is_cached(self, state: State, inputs: Dict[str, Any]) -> State:
+    def check_task_is_cached(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Checks if task is cached and whether the cache is still valid.
 
         Args:
             - state (State): the current state of this task
-            - inputs (Dict[str, Any]): a dictionary of inputs whose keys correspond
+            - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
 
         Returns:
@@ -616,10 +579,12 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
-        if isinstance(state, Cached):
+        if state.is_cached():
+            assert isinstance(state, Cached)  # mypy assert
             if self.task.cache_validator(
                 state, inputs, prefect.context.get("parameters")
             ):
+                state._result = state._result.read()
                 return state
             else:
                 self.logger.debug(
@@ -699,7 +664,7 @@ class TaskRunner(Runner):
                         # in the `cached_inputs` attribute of one of the child states).
                         # Therefore, we only try to get a result if EITHER this task's
                         # state is not already mapped OR the upstream result is not None.
-                        if not state.is_mapped() or upstream_state.result is not None:
+                        if not state.is_mapped() or upstream_state.result != NoResult:
                             states[edge].result = upstream_state.result[  # type: ignore
                                 i
                             ]
@@ -793,23 +758,19 @@ class TaskRunner(Runner):
     def get_task_run_state(
         self,
         state: State,
-        inputs: Dict[str, Any],
+        inputs: Dict[str, Result],
         timeout_handler: Optional[Callable],
-        upstream_states: Dict[Edge, State],
     ) -> State:
         """
         Runs the task and traps any signals or errors it raises.
 
         Args:
             - state (State): the current state of this task
-            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+            - inputs (Dict[str, Result], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
             - timeout_handler (Callable, optional): function for timing out
                 task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
                 `prefect.utilities.executors.main_thread_timeout`
-            - upstream_states (Dict[Edge, State]): a dictionary
-                representing the states of any tasks upstream of this one. The keys of the
-                dictionary should correspond to the edges leading to the task.
 
         Returns:
             - State: the state of the task after running the check
@@ -835,7 +796,10 @@ class TaskRunner(Runner):
                 )
             )
             timeout_handler = timeout_handler or main_thread_timeout
-            result = timeout_handler(self.task.run, timeout=self.task.timeout, **inputs)
+            raw_inputs = {k: r.value for k, r in inputs.items()}
+            result = timeout_handler(
+                self.task.run, timeout=self.task.timeout, **raw_inputs
+            )
 
         # inform user of timeout
         except TimeoutError as exc:
@@ -844,17 +808,14 @@ class TaskRunner(Runner):
             state = TimedOut(
                 "Task timed out during execution.", result=exc, cached_inputs=inputs
             )
-            state.update_input_metadata(
-                self._get_upstream_result_handlers(upstream_states)
-            )
             return state
 
-        return Success(result=result, message="Task run succeeded.")
+        result = Result(value=result, handled=False, result_handler=self.result_handler)
+        state = Success(result=result, message="Task run succeeded.")
+        return state
 
     @call_state_handlers
-    def cache_result(
-        self, state: State, inputs: Dict[str, Any], upstream_states: Dict[Edge, State]
-    ) -> State:
+    def cache_result(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Caches the result of a successful task, if appropriate.
 
@@ -865,11 +826,8 @@ class TaskRunner(Runner):
 
         Args:
             - state (State): the current state of this task
-            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+            - inputs (Dict[str, Result], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
-            - upstream_states (Dict[Edge, State]): a dictionary
-                representing the states of any tasks upstream of this one. The keys of the
-                dictionary should correspond to the edges leading to the task.
 
         Returns:
             - State: the state of the task after running the check
@@ -882,34 +840,25 @@ class TaskRunner(Runner):
         ):
             expiration = pendulum.now("utc") + self.task.cache_for
             cached_state = Cached(
+                result=state._result,
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
                 cached_parameters=prefect.context.get("parameters"),
-                result=state.result,
                 message=state.message,
             )
-            cached_state.update_input_metadata(
-                self._get_upstream_result_handlers(upstream_states)
-            )
-            cached_state.update_output_metadata(self.result_handler)
             return cached_state
 
         return state
 
     @call_state_handlers
-    def check_for_retry(
-        self, state: State, inputs: Dict[str, Any], upstream_states: Dict[Edge, State]
-    ) -> State:
+    def check_for_retry(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Checks to see if a FAILED task should be retried.
 
         Args:
             - state (State): the current state of this task
-            - inputs (Dict[str, Any], optional): a dictionary of inputs whose keys correspond
+            - inputs (Dict[str, Result], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
-            - upstream_states (Dict[Edge, State]): a dictionary
-                representing the states of any tasks upstream of this one. The keys of the
-                dictionary should correspond to the edges leading to the task.
 
         Returns:
             - State: the state of the task after running the check
@@ -926,9 +875,6 @@ class TaskRunner(Runner):
                     cached_inputs=inputs,
                     message=msg,
                     run_count=run_count,
-                )
-                retry_state.update_input_metadata(
-                    self._get_upstream_result_handlers(upstream_states)
                 )
                 return retry_state
 

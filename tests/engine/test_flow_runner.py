@@ -16,6 +16,7 @@ from prefect.engine import signals
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.executors import Executor, LocalExecutor
 from prefect.engine.flow_runner import ENDRUN, FlowRunner, FlowRunnerInitializeResult
+from prefect.engine.result import NoResult, Result
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -457,7 +458,7 @@ def test_flow_runner_makes_copy_of_task_results_dict():
 
     task_states = {t1: Pending()}
     state = flow.run(task_states=task_states, return_tasks=[t1])
-    assert state.result[t1] == Success()
+    assert state.result[t1] == Success(result=None)
     assert task_states == {t1: Pending()}
 
 
@@ -610,7 +611,7 @@ class TestInputCaching:
         first_state = FlowRunner(flow=f).run(executor=executor, return_tasks=[res])
         assert first_state.is_running()
         b_state = first_state.result[res]
-        b_state.cached_inputs = dict(x=2)  # artificially alter state
+        b_state.cached_inputs = dict(x=Result(2))  # artificially alter state
         with raise_on_exception():  # without caching we'd expect a KeyError
             second_state = FlowRunner(flow=f).run(
                 executor=executor,
@@ -632,7 +633,7 @@ class TestInputCaching:
 
         state = FlowRunner(flow=f).run(
             executor=executor,
-            task_states={t2: Retrying(cached_inputs=dict(x=4, y=1))},
+            task_states={t2: Retrying(cached_inputs=dict(x=Result(4), y=Result(1)))},
             start_tasks=[t2],
             return_tasks=[t2],
         )
@@ -654,7 +655,7 @@ class TestInputCaching:
         assert first_state.is_running()
 
         res_state = first_state.result[res]
-        res_state.cached_inputs = dict(x=2)  # artificially alter state
+        res_state.cached_inputs = dict(x=Result(2))  # artificially alter state
 
         second_state = FlowRunner(flow=f).run(
             executor=executor,
@@ -1338,6 +1339,12 @@ class TestMapping:
     def test_mapped_tasks_do_run_if_upstream_pending_and_they_are_start_tasks(
         self, executor
     ):
+        """
+        Tests that that the full “children” pipelines are generated even if it might look like they shouldn’t run;
+        in this case, a Retrying task is the upstream task and it hasn’t reached it’s scheduled time yet
+        So we expect that the mapped task parent properly skips its upstream checks if it is the start_task
+        and attempts to generate its children, which, in this case, will simply fail the pipeline.
+        """
 
         with Flow() as flow:
             ups = SuccessTask()
@@ -1350,7 +1357,7 @@ class TestMapping:
             task_states={ups: Retrying(start_time=pendulum.now().add(hours=1))},
         )
         assert state.is_failed()
-        assert "object is not subscriptable" in state.result[res].message
+        assert "object does not support indexing" in state.result[res].message
 
     @pytest.mark.parametrize(
         "executor", ["local", "mthread", "mproc", "sync"], indirect=True

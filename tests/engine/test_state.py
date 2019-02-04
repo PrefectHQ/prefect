@@ -9,6 +9,7 @@ import pytest
 from collections import defaultdict
 
 import prefect
+from prefect.engine.result import Result, NoResult
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cached,
@@ -49,22 +50,35 @@ cached_input_states = sorted(
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_no_args(cls):
     state = cls()
-    assert state.result is None
     assert state.message is None
+    assert state.result == NoResult
 
 
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_kwarg_data_arg(cls):
     state = cls(result=1)
+    assert isinstance(state._result, Result)
+    assert state._result.handled is False
+    assert state._result.result_handler is None
     assert state.result == 1
     assert state.message is None
+    assert isinstance(state._result, Result)
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_fully_hydrated_result(cls):
+    result = Result(value=10)
+    state = cls(result=result)
+    assert isinstance(state._result, Result)
+    assert state._result.value == 10
+    assert state.result == 10
 
 
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_positional_message_arg(cls):
     state = cls("i am a string")
     assert state.message == "i am a string"
-    assert state.result is None
+    assert state._result == NoResult
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -127,137 +141,10 @@ def test_states_have_color(cls):
     assert cls.color.startswith("#")
 
 
-@pytest.mark.parametrize("cls", all_states)
-def test_states_by_default_are_considered_raw(cls):
-    state = cls(message="hi mom", result=42)
-    state.ensure_raw()
-    assert state.message == "hi mom"
-    assert state.result == 42
-
-
-@pytest.mark.parametrize("cls", all_states)
-def test_states_with_non_raw_results_are_handled_correctly(cls):
-    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
-
-    with tempfile.NamedTemporaryFile() as tmp:
-        with open(tmp.name, "wb") as f:
-            cloudpickle.dump(42, f)
-
-        state = cls(message="hi mom", result=tmp.name)
-        state._metadata["result"] = dict(raw=False, result_handler=serialized_handler)
-        assert state.result == tmp.name
-        state.ensure_raw()
-
-    assert state.message == "hi mom"
-    assert state.result == 42
-    assert state._metadata["result"]["raw"] is True
-
-
-@pytest.mark.parametrize("cls", cached_input_states)
-def test_states_with_non_raw_cached_inputs_are_handled_correctly(cls):
-    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
-
-    with tempfile.NamedTemporaryFile() as tmp:
-        with open(tmp.name, "wb") as f:
-            cloudpickle.dump(42, f)
-
-        state = cls(
-            message="hi mom",
-            cached_inputs=dict(x=tmp.name, y=tmp.name, z=23),
-            result=55,
-        )
-        state._metadata["cached_inputs"].update(
-            dict(
-                x=dict(raw=False, result_handler=serialized_handler),
-                y=dict(raw=False, result_handler=serialized_handler),
-            )
-        )
-        state.ensure_raw()
-
-    assert state.message == "hi mom"
-    assert state.result == 55
-    assert state.cached_inputs == dict(x=42, y=42, z=23)
-    for v in ["x", "y"]:
-        assert state._metadata["cached_inputs"][v]["raw"] is True
-
-
-@pytest.mark.parametrize("cls", cached_input_states)
-def test_states_with_raw_cached_inputs_are_handled_correctly(cls):
-    schema = ResultHandlerSchema()
-    serialized_handler = schema.dump(JSONResultHandler())
-
-    state = cls(
-        message="hi mom", cached_inputs=dict(x=dict(key="value"), y=[], z=23), result=55
-    )
-    state._metadata["cached_inputs"] = dict(
-        x=dict(raw=True), y=dict(raw=True), z=dict(raw=True)
-    )
-    state.update_input_metadata(
-        dict(x=serialized_handler, y=serialized_handler, z=serialized_handler)
-    )
-    state.handle_inputs()
-
-    assert state.message == "hi mom"
-    assert state.result == 55
-    assert state.cached_inputs == dict(x='{"key": "value"}', y="[]", z="23")
-    for v in ["x", "y", "z"]:
-        assert state._metadata["cached_inputs"][v]["raw"] is False
-        assert (
-            state._metadata["cached_inputs"][v]["result_handler"] == serialized_handler
-        )
-
-
-def test_cached_states_are_handled_correctly_with_ensure_raw():
-    serialized_handler = ResultHandlerSchema().dump(LocalResultHandler())
-
-    with tempfile.NamedTemporaryFile() as tmp:
-        with open(tmp.name, "wb") as f:
-            cloudpickle.dump(42, f)
-
-        cached_state = Cached(
-            message="hi mom",
-            cached_inputs=dict(x=tmp.name, y=tmp.name, z=23),
-            result=tmp.name,
-        )
-        cached_state._metadata["cached_inputs"].update(
-            dict(
-                x=dict(raw=False, result_handler=serialized_handler),
-                y=dict(raw=False, result_handler=serialized_handler),
-            )
-        )
-        cached_state._metadata["result"] = dict(
-            raw=False, result_handler=serialized_handler
-        )
-        cached_state.ensure_raw()
-
-    assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
-    for v in ["x", "y"]:
-        assert cached_state._metadata["cached_inputs"][v]["raw"] is True
-    assert cached_state.result == 42
-    assert cached_state._metadata["result"]["raw"] is True
-
-
-def test_cached_states_are_handled_correctly_with_handle_outputs():
-    handler = JSONResultHandler()
-    serialized_handler = ResultHandlerSchema().dump(handler)
-
-    cached_state = Cached(
-        message="hi mom", cached_inputs=dict(x=42, y=42, z=23), result=dict(qq=42)
-    )
-    cached_state._metadata["result"] = dict(raw=True)
-    cached_state.update_output_metadata(handler)
-    cached_state.handle_outputs()
-
-    assert cached_state.cached_inputs == dict(x=42, y=42, z=23)
-    assert cached_state.result == '{"qq": 42}'
-    assert cached_state._metadata["result"]["raw"] is False
-    assert cached_state._metadata["result"]["result_handler"] == serialized_handler
-
-
-def test_serialize_and_deserialize_with_no_metadata():
+def test_serialize_and_deserialize_on_cached_state():
     now = pendulum.now("utc")
     state = Cached(
-        cached_inputs=dict(x=99, p="p"),
+        cached_inputs=dict(x=Result(99), p=Result("p")),
         result=dict(hi=5, bye=6),
         cached_result_expiration=now,
     )
@@ -265,45 +152,17 @@ def test_serialize_and_deserialize_with_no_metadata():
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Cached)
     assert new_state.color == state.color
-    assert new_state.result is None
-    assert new_state.cached_result_expiration == state.cached_result_expiration
-    assert new_state.cached_inputs == dict.fromkeys(["x", "p"])
-
-
-def test_serialize_and_deserialize_with_metadata():
-    now = pendulum.now("utc")
-    state = Cached(
-        cached_inputs=dict(x=99, p="p"),
-        result=dict(hi=5, bye=6),
-        cached_result_expiration=now,
-    )
-    state._metadata.update(
-        cached_inputs=defaultdict(lambda: dict(raw=False)), result=dict(raw=False)
-    )
-    serialized = state.serialize()
-    new_state = State.deserialize(serialized)
-    assert isinstance(new_state, Cached)
-    assert new_state.color == state.color
-    assert new_state.result == state.result
+    assert new_state.result == dict(hi=5, bye=6)
     assert new_state.cached_result_expiration == state.cached_result_expiration
     assert new_state.cached_inputs == state.cached_inputs
 
 
 def test_serialization_of_cached_inputs():
-    state = Pending(cached_inputs=dict(hi=5, bye=6))
-    state._metadata.update(cached_inputs=defaultdict(lambda: dict(raw=False)))
+    state = Pending(cached_inputs=dict(hi=Result(5), bye=Result(6)))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Pending)
     assert new_state.cached_inputs == state.cached_inputs
-
-
-def test_serialization_of_cached_inputs_with_no_metadata():
-    state = Pending(cached_inputs=dict(hi=5, bye=6))
-    serialized = state.serialize()
-    new_state = State.deserialize(serialized)
-    assert isinstance(new_state, Pending)
-    assert new_state.cached_inputs == dict.fromkeys(["hi", "bye"])
 
 
 def test_state_equality():
@@ -393,6 +252,7 @@ class TestStateMethods:
     def test_state_type_methods_with_pending_state(self):
         state = Pending()
         assert state.is_pending()
+        assert not state.is_cached()
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
@@ -404,6 +264,7 @@ class TestStateMethods:
     def test_state_type_methods_with_paused_state(self):
         state = Paused()
         assert state.is_pending()
+        assert not state.is_cached()
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
@@ -415,6 +276,7 @@ class TestStateMethods:
     def test_state_type_methods_with_scheduled_state(self):
         state = Scheduled()
         assert state.is_pending()
+        assert not state.is_cached()
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
@@ -426,6 +288,7 @@ class TestStateMethods:
     def test_state_type_methods_with_resume_state(self):
         state = Resume()
         assert state.is_pending()
+        assert not state.is_cached()
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
@@ -437,6 +300,7 @@ class TestStateMethods:
     def test_state_type_methods_with_retry_state(self):
         state = Retrying()
         assert state.is_pending()
+        assert not state.is_cached()
         assert not state.is_running()
         assert not state.is_finished()
         assert not state.is_skipped()
@@ -447,6 +311,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_submitted_state(self):
         state = Submitted()
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert not state.is_finished()
@@ -460,6 +325,7 @@ class TestStateMethods:
         state = Running()
         assert not state.is_pending()
         assert state.is_running()
+        assert not state.is_cached()
         assert not state.is_finished()
         assert not state.is_skipped()
         assert not state.is_scheduled()
@@ -469,6 +335,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_cached_state(self):
         state = Cached()
+        assert state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -480,6 +347,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_mapped_state(self):
         state = Mapped()
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -491,6 +359,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_success_state(self):
         state = Success()
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -502,6 +371,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_failed_state(self):
         state = Failed(message="")
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -513,6 +383,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_timedout_state(self):
         state = TimedOut(message="")
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -524,6 +395,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_trigger_failed_state(self):
         state = TriggerFailed(message="")
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()
@@ -535,6 +407,7 @@ class TestStateMethods:
 
     def test_state_type_methods_with_skipped_state(self):
         state = Skipped()
+        assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()
         assert state.is_finished()

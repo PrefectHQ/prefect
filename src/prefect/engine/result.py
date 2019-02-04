@@ -5,9 +5,6 @@ from typing import Any, Union
 from prefect.engine.result_handlers import ResultHandler
 
 
-ResultType = Union["Result", "NoResult"]
-
-
 class Result:
     """
     A representation of the result of a Prefect task; this class contains information about
@@ -36,6 +33,18 @@ class Result:
 
         self.handled = handled
         self.result_handler = result_handler
+
+    def __eq__(self, other: Any) -> bool:
+        if type(self) == type(other):
+            assert isinstance(other, Result)  # mypy assert
+            eq = True
+            for attr in ["value", "handled", "result_handler"]:
+                eq &= getattr(self, attr, object()) == getattr(other, attr, object())
+            return eq
+        return False
+
+    def __repr__(self) -> str:
+        return "Result: {}".format(repr(self.value))
 
     def write(self) -> "Result":
         """
@@ -72,6 +81,28 @@ class Result:
             return self
 
 
-class NoResult:
+class NoResultType(Result):
     def __init__(self) -> None:
         pass
+
+    def __eq__(self, other: Any) -> bool:
+        if type(self) == type(other):
+            return True
+        else:
+            return False
+
+    def __repr__(self) -> str:
+        return "NoResult"
+
+    @property
+    def value(self) -> "NoResultType":
+        return self
+
+    def read(self) -> "NoResultType":
+        return self
+
+    def write(self) -> "NoResultType":
+        return self
+
+
+NoResult = NoResultType()

@@ -4,6 +4,8 @@ from typing import Any, Dict
 from marshmallow import fields, post_load, ValidationError
 
 from prefect.engine import state
+from prefect.engine import result
+from prefect.serialization.result import StateResultSchema
 from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
     JSONCompatible,
@@ -13,45 +15,18 @@ from prefect.utilities.serialization import (
 )
 
 
-def reset_value(value, is_raw):
-    if is_raw:
-        value = None
-    else:
-        try:
-            json.dumps(value)
-        except TypeError:
-            raise TypeError(
-                "The serialized result of a ResultHandler must be JSON-compatible."
-            )
-    return value
-
-
-class ResultHandlerField(fields.Field):
-    def _serialize(self, value, attr, obj, **kwargs):
-        if hasattr(obj, "_metadata"):
-            if attr == "cached_inputs":
-                for var in value or {}:
-                    value[var] = reset_value(
-                        value[var], obj._metadata[attr][var]["raw"]
-                    )
-            else:
-                value = reset_value(value, obj._metadata[attr]["raw"])
-        return super()._serialize(value, attr, obj, **kwargs)
-
-
 class BaseStateSchema(ObjectSchema):
     class Meta:
         object_class = state.State
 
     message = fields.String(allow_none=True)
-    _metadata = fields.Dict(keys=fields.Str())
-    result = ResultHandlerField(allow_none=True)
+    _result = fields.Nested(StateResultSchema, allow_none=False)
 
     @post_load
     def create_object(self, data):
-        _metadata = data.pop("_metadata", {})
+        result_obj = data.pop("_result", result.NoResult)
         base_obj = super().create_object(data)
-        base_obj._metadata.update(_metadata)
+        base_obj._result = result_obj
         return base_obj
 
 
@@ -59,7 +34,9 @@ class PendingSchema(BaseStateSchema):
     class Meta:
         object_class = state.Pending
 
-    cached_inputs = ResultHandlerField(allow_none=True)
+    cached_inputs = fields.Dict(
+        key=fields.Str(), values=fields.Nested(StateResultSchema), allow_none=True
+    )
 
 
 class SubmittedSchema(BaseStateSchema):
@@ -107,14 +84,16 @@ class CachedSchema(SuccessSchema):
     class Meta:
         object_class = state.Cached
 
-    cached_inputs = ResultHandlerField(allow_none=True)
+    cached_inputs = fields.Dict(
+        key=fields.Str(), values=fields.Nested(StateResultSchema), allow_none=True
+    )
     cached_parameters = JSONCompatible(allow_none=True)
     cached_result_expiration = fields.DateTime(allow_none=True)
 
 
 class MappedSchema(SuccessSchema):
     class Meta:
-        exclude = ["result", "map_states"]
+        exclude = ["_result", "map_states"]
         object_class = state.Mapped
 
     # though this field is excluded from serialization, it must be present in the schema
@@ -137,7 +116,9 @@ class TimedOutSchema(FinishedSchema):
     class Meta:
         object_class = state.TimedOut
 
-    cached_inputs = ResultHandlerField(allow_none=True)
+    cached_inputs = fields.Dict(
+        key=fields.Str(), values=fields.Nested(StateResultSchema), allow_none=True
+    )
 
 
 class TriggerFailedSchema(FailedSchema):

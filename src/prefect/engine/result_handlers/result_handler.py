@@ -25,3 +25,17 @@ class ResultHandler:
 
     def read(self, loc: str) -> Any:
         raise NotImplementedError()
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Equality depends on result handler type and any public attributes
+        """
+        if type(self) == type(other):
+            assert isinstance(other, ResultHandler)  # mypy assert
+            eq = True
+            for attr in self.__dict__:
+                if attr.startswith("_"):
+                    continue
+                eq &= getattr(self, attr, object()) == getattr(other, attr, object())
+            return eq
+        return False
