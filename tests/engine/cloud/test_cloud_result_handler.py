@@ -17,7 +17,7 @@ def requests_post(*args, result=None, **kwargs):
 class TestCloudHandler:
     def test_cloud_handler_initializes_with_no_args(self):
         handler = CloudResultHandler()
-        assert handler.client is None
+        assert handler._client is None
         assert handler.result_handler_service is None
 
     def test_cloud_handler_pulls_settings_from_config_after_first_method_call(
@@ -29,7 +29,7 @@ class TestCloudHandler:
         )
         with set_temporary_config({"cloud.result_handler": "http://foo.bar:4204"}):
             handler = CloudResultHandler()
-            handler.serialize("random string")
+            handler.write("random string")
         assert handler.result_handler_service == "http://foo.bar:4204"
 
     @pytest.mark.parametrize("data", [None, "my_string", 42])
@@ -39,7 +39,7 @@ class TestCloudHandler:
             "prefect.engine.cloud.result_handler.Client", MagicMock(return_value=client)
         )
         handler = CloudResultHandler()
-        assert isinstance(handler.serialize(data), str)
+        assert isinstance(handler.write(data), str)
 
     def test_cloud_handler_can_interpret_contents_of_standard_uri(self, monkeypatch):
         binary_data = "gASVDQAAAAAAAACMCW15IHNlY3JldJQu"
@@ -48,7 +48,7 @@ class TestCloudHandler:
             "prefect.engine.cloud.result_handler.Client", MagicMock(return_value=client)
         )
         handler = CloudResultHandler()
-        assert handler.deserialize(uri="http://look-here") == "my secret"
+        assert handler.read(uri="http://look-here") == "my secret"
 
     def test_cloud_handler_handles_empty_buckets(self, monkeypatch):
         binary_data = ""
@@ -57,4 +57,4 @@ class TestCloudHandler:
             "prefect.engine.cloud.result_handler.Client", MagicMock(return_value=client)
         )
         handler = CloudResultHandler()
-        assert handler.deserialize(uri="http://look-here") is None
+        assert handler.read(uri="http://look-here") is None
