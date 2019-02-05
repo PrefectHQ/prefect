@@ -869,13 +869,13 @@ class TestRunTaskStep:
         )
 
     def test_returns_success_with_correct_result_handler(self):
-        runner = TaskRunner(task=Task(result_handler=ResultHandler()))
+        runner = TaskRunner(task=Task(result_handler=JSONResultHandler()))
         state = runner.get_task_run_state(
             state=Running(), inputs={}, timeout_handler=None
         )
         assert state.is_successful()
         assert isinstance(state._result, Result)
-        assert state._result.result_handler == ResultHandler()
+        assert state._result.result_handler == JSONResultHandler()
 
 
 class TestCheckRetryStep:
