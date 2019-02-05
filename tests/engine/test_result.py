@@ -24,7 +24,7 @@ class TestInitialization:
         assert s.value == 5
 
     def test_result_inits_with_handled_and_result_handler(self):
-        handler = ResultHandler()
+        handler = JSONResultHandler()
         r = Result(value=3, handled=False, result_handler=handler)
         assert r.value == 3
         assert r.handled is False

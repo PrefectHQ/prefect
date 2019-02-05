@@ -25,7 +25,7 @@ class CloudResultHandler(ResultHandler):
     """
 
     def __init__(self, result_handler_service: str = None) -> None:
-        self.client = None
+        self._client = None
         self.result_handler_service = result_handler_service
         super().__init__()
 
@@ -38,24 +38,24 @@ class CloudResultHandler(ResultHandler):
 
         This will instantiate a Client upon the first call to (de)serialize.
         """
-        if self.client is None:
-            self.client = Client()  # type: ignore
+        if self._client is None:
+            self._client = Client()  # type: ignore
         if self.result_handler_service is None:
             self.result_handler_service = config.cloud.result_handler
 
-    def deserialize(self, uri: str) -> Any:
+    def read(self, uri: str) -> Any:
         """
-        Deserialize a result from the given URI location.
+        Read a result from the given URI location.
 
         Args:
-            - uri (str): the path to the location of a serialized result
+            - uri (str): the path to the location of a result
 
         Returns:
             - the deserialized result from the provided URI
         """
         self._initialize_client()
         self.logger.debug("Starting to read result from {}...".format(uri))
-        res = self.client.get(  # type: ignore
+        res = self._client.get(  # type: ignore
             "/", server=self.result_handler_service, **{"uri": uri}
         )
 
@@ -67,22 +67,22 @@ class CloudResultHandler(ResultHandler):
 
         return return_val
 
-    def serialize(self, result: Any) -> str:
+    def write(self, result: Any) -> str:
         """
-        Serialize the provided result to Prefect Cloud.
+        Write the provided result to Prefect Cloud.
 
         Args:
-            - result (Any): the result to serialize and store
+            - result (Any): the result to store
 
         Returns:
-            - str: the URI path to the serialized result in Cloud storage
+            - str: the URI path to the result in Cloud storage
         """
         self._initialize_client()
         binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()
         self.logger.debug(
             "Starting to upload result to {}...".format(self.result_handler_service)
         )
-        res = self.client.post(  # type: ignore
+        res = self._client.post(  # type: ignore
             "/", server=self.result_handler_service, **{"result": binary_data}
         )
         self.logger.debug(

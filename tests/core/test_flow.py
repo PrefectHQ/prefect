@@ -85,8 +85,9 @@ class TestCreateFlow:
         assert isinstance(f.logger, logging.Logger)
 
     def test_create_flow_with_result_handler(self):
-        f = Flow(result_handler=ResultHandler())
+        f = Flow(result_handler=LocalResultHandler())
         assert isinstance(f.result_handler, ResultHandler)
+        assert isinstance(f.result_handler, LocalResultHandler)
 
     def test_create_flow_without_result_handler_uses_config(self):
         with set_temporary_config(
