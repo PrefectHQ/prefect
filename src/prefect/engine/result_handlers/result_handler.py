@@ -34,7 +34,7 @@ class ResultHandler:
             assert isinstance(other, ResultHandler)  # mypy assert
             eq = True
             for attr in self.__dict__:
-                if attr.startswith("_"):
+                if attr.startswith("_") or attr == "logger":
                     continue
                 eq &= getattr(self, attr, object()) == getattr(other, attr, object())
             return eq
