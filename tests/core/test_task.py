@@ -138,8 +138,9 @@ class TestCreateTask:
     def test_create_task_with_and_without_result_handler(self):
         t1 = Task()
         assert t1.result_handler is None
-        t2 = Task(result_handler=ResultHandler())
+        t2 = Task(result_handler=JSONResultHandler())
         assert isinstance(t2.result_handler, ResultHandler)
+        assert isinstance(t2.result_handler, JSONResultHandler)
 
     def test_create_parameter_uses_json_result_handler(self):
         p = Parameter("p")

@@ -370,6 +370,9 @@ class TestStateResultHandling:
 
 def test_preparing_state_for_cloud_doesnt_copy_data():
     class FakeHandler(ResultHandler):
+        def read(self, val):
+            return val
+
         def write(self, val):
             return val
 

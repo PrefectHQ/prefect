@@ -6,20 +6,6 @@ from prefect.engine.result_handlers import ResultHandler, LocalResultHandler
 from prefect.serialization.result_handlers import ResultHandlerSchema
 
 
-class TestBaseResultHandler:
-    def test_serialize_base_result_handler(self):
-        serialized = ResultHandlerSchema().dump(ResultHandler())
-        assert isinstance(serialized, dict)
-        assert serialized["type"] == "ResultHandler"
-
-    def test_deserialize_base_result_handler(self):
-        schema = ResultHandlerSchema()
-        obj = schema.load(schema.dump(ResultHandler()))
-        assert isinstance(obj, ResultHandler)
-        assert hasattr(obj, "logger")
-        assert obj.logger.name == "prefect.ResultHandler"
-
-
 class TestLocalResultHandler:
     def test_serialize_local_result_handler_with_no_dir(self):
         serialized = ResultHandlerSchema().dump(LocalResultHandler())
