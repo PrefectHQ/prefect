@@ -53,6 +53,7 @@ module.exports = {
             'engine/cache_validators',
             'engine/executors',
             'engine/flow_runner',
+            'engine/result',
             'engine/signals',
             'engine/state',
             'engine/task_runner'
