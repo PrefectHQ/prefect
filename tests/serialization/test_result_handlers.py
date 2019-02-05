@@ -61,13 +61,13 @@ class TestCloudResultHandler:
         assert "client" not in serialized
 
     @pytest.mark.parametrize("result_handler_service", [None, "http://foo.bar"])
-    def test_deserialize_local_result_handler(self, result_handler_service):
+    def test_deserialize_cloud_result_handler(self, result_handler_service):
         schema = ResultHandlerSchema()
         handler = CloudResultHandler(result_handler_service=result_handler_service)
-        handler.client = Client()
+        handler._client = Client()
         obj = schema.load(schema.dump(handler))
         assert isinstance(obj, CloudResultHandler)
         assert hasattr(obj, "logger")
         assert obj.logger.name == "prefect.CloudResultHandler"
         assert obj.result_handler_service == result_handler_service
-        assert obj.client is None
+        assert obj._client is None
