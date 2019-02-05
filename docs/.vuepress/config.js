@@ -106,6 +106,7 @@ module.exports = {
             'core_concepts/mapping',
             'core_concepts/engine',
             'core_concepts/execution',
+            'core_concepts/results',
             'core_concepts/environments',
             'core_concepts/schedules',
             'core_concepts/best-practices',
