@@ -47,7 +47,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -vv
+          command: pytest
 
   test-3.5:
     docker:
@@ -80,7 +80,7 @@ jobs:
 
       - run:
           name: Run tests w/ airflow
-          command: pytest -vv --airflow
+          command: pytest --airflow
 
 workflows:
   version: 2
