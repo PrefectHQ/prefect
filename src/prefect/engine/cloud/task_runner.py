@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
+from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
@@ -55,30 +56,6 @@ class CloudTaskRunner(TaskRunner):
         except:
             warnings.warn("Heartbeat failed for Task '{}'".format(self.task.name))
 
-    def prepare_state_for_cloud(self, state: State) -> State:
-        """
-        Prepares a Prefect State for being sent to Cloud; this ensures that any data attributes
-        are properly handled prior to being shipped off to a database.
-
-        Args:
-            - state (State): the Prefect State to prepare
-
-        Returns:
-            - State: a sanitized copy of the original state
-        """
-        res = state._result
-        cloud_state = copy.copy(state)
-        cloud_state._result = res.write() if cloud_state.is_cached() else NoResult
-        if (
-            hasattr(cloud_state, "cached_inputs")
-            and cloud_state.cached_inputs is not None  # type: ignore
-        ):
-            cloud_state.cached_inputs = {  # type: ignore
-                k: r.write()
-                for k, r in cloud_state.cached_inputs.items()  # type: ignore
-            }
-        return cloud_state
-
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
         A special state handler that the TaskRunner uses to call its task's state handlers.
@@ -111,7 +88,7 @@ class CloudTaskRunner(TaskRunner):
         version = prefect.context.get("task_run_version")
 
         try:
-            cloud_state = self.prepare_state_for_cloud(new_state)
+            cloud_state = prepare_state_for_cloud(new_state)
             self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
