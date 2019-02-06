@@ -288,7 +288,7 @@ def test_state_handler_failures_are_handled_appropriately(client):
     assert isinstance(res.result, SyntaxError)
 
     assert client.set_flow_run_state.call_count == 2
-    states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+    states = [call[1]["state"] for call in client.set_flow_run_state.call_args_list]
     assert states[0].is_running()
     assert states[1].is_failed()
     assert states[1].result == NoResult
