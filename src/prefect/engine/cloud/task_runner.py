@@ -75,14 +75,11 @@ class CloudTaskRunner(TaskRunner):
                 old_state=old_state, new_state=new_state
             )
         except Exception as exc:
-            self.logger.debug(
-                "Exception raised while calling state handlers: {}".format(repr(exc))
-            )
+            msg = "Exception raised while calling state handlers: {}".format(repr(exc))
+            self.logger.debug(msg)
             if raise_on_exception:
                 raise exc
-            new_state = Failed(
-                "Exception raised while calling state handlers.", result=exc
-            )
+            new_state = Failed(msg, result=exc)
 
         task_run_id = prefect.context.get("task_run_id")
         version = prefect.context.get("task_run_version")
