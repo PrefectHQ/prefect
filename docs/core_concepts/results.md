@@ -1,7 +1,7 @@
 # Results and Result Handlers
 
 Prefect allows data to pass between Tasks as a first class operation. Additionally, Prefect was designed with security and privacy concerns
-in mind. Consequently, Prefect's abstractions make it easy to use all its features without _ever needing to store, see or have any access whatsoever to your data_.
+in mind. Consequently, Prefect's abstractions allow users to take advantage of all its features without ever needing to surrender control, access, or even visibility of their private data.
 
 One of the primary ways in which this is achieved is through the use of "Results" and their handlers.  At a high level, you can code up a task and provide it with a "result handler" which specifies how the outputs of this Task should be handled if they need to be stored for any reason (for background on when / why this might occur, see the Concepts section on [caching](execution.html#caching)).  This _includes_ the situation where a _downstream_ task needs to cache its inputs - each input will be stored according to its own individual result handler.
 
