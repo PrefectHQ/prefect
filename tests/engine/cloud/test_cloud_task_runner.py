@@ -368,19 +368,21 @@ class TestStateResultHandling:
         assert states[2].cached_inputs == dict(x=x.write(), y=y.write())
 
 
-def test_preparing_state_for_cloud_doesnt_copy_data():
-    class FakeHandler(ResultHandler):
-        def read(self, val):
-            return val
+def test_state_handler_failures_are_handled_appropriately(client):
+    def bad(*args, **kwargs):
+        raise SyntaxError("Syntax Errors are nice because they're so unique")
 
-        def write(self, val):
-            return val
+    @prefect.task(on_failure=bad)
+    def do_nothing():
+        raise ValueError("This task failed somehow")
 
-    runner = CloudTaskRunner(task=Task())
-    value = 124.090909
-    result = Result(value, handled=False, result_handler=FakeHandler())
-    state = Cached(result=result)
-    cloud_state = runner.prepare_state_for_cloud(state)
-    assert cloud_state.is_cached()
-    assert cloud_state is not state
-    assert cloud_state.result is state.result
+    res = CloudTaskRunner(task=do_nothing).run()
+    assert res.is_failed()
+    assert "SyntaxError" in res.message
+    assert isinstance(res.result, SyntaxError)
+
+    assert client.set_task_run_state.call_count == 2
+    states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+    assert states[0].is_running()
+    assert states[1].is_failed()
+    assert states[1].result == NoResult
