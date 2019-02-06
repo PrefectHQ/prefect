@@ -4,7 +4,12 @@ from unittest.mock import MagicMock
 
 from prefect.client import Client
 from prefect.engine.cloud.result_handler import CloudResultHandler
-from prefect.engine.result_handlers import ResultHandler, JSONResultHandler, GCSResultHandler, LocalResultHandler
+from prefect.engine.result_handlers import (
+    ResultHandler,
+    JSONResultHandler,
+    GCSResultHandler,
+    LocalResultHandler,
+)
 from prefect.serialization.result_handlers import ResultHandlerSchema
 
 
@@ -69,27 +74,29 @@ class TestCloudResultHandler:
 class TestGCSResultHandler:
     @pytest.fixture
     def google_client(self, monkeypatch):
-        client = MagicMock()
-        storage = MagicMock(Client=MagicMock(return_value=client))
-        monkeypatch.setattr("prefect.engine.result_handlers.gcs_result_handler.storage", storage)
-        yield client
+        monkeypatch.setattr(
+            "prefect.engine.result_handlers.gcs_result_handler.storage", MagicMock()
+        )
+        yield
 
     def test_serialize(self, google_client):
-        handler = GCSResultHandler(bucket='my-bucket')
+        handler = GCSResultHandler(bucket="my-bucket")
         serialized = ResultHandlerSchema().dump(handler)
-        assert serialized['type'] == 'GCSResultHandler'
-        assert serialized['_bucket'] == 'my-bucket'
+        assert serialized["type"] == "GCSResultHandler"
+        assert serialized["_bucket"] == "my-bucket"
 
     def test_deserialize_from_dict(self, google_client):
-        handler = ResultHandlerSchema().load({"type": "GCSResultHandler", "_bucket": "foo-bar"})
+        handler = ResultHandlerSchema().load(
+            {"type": "GCSResultHandler", "_bucket": "foo-bar"}
+        )
         assert isinstance(handler, GCSResultHandler)
-        assert handler._bucket == 'foo-bar'
+        assert handler._bucket == "foo-bar"
 
     def test_roundtrip(self, google_client):
         schema = ResultHandlerSchema()
-        handler = schema.load(schema.dump(GCSResultHandler(bucket='bucket3')))
+        handler = schema.load(schema.dump(GCSResultHandler(bucket="bucket3")))
         assert isinstance(handler, GCSResultHandler)
-        assert handler._bucket == 'bucket3'
+        assert handler._bucket == "bucket3"
 
 
 class TestJSONResultHandler:
@@ -106,4 +113,4 @@ class TestJSONResultHandler:
         schema = ResultHandlerSchema()
         handler = schema.load(schema.dump(JSONResultHandler()))
         assert isinstance(handler, JSONResultHandler)
-        assert handler.write(3) == '3'
+        assert handler.write(3) == "3"
