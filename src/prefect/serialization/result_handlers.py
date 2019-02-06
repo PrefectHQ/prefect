@@ -38,7 +38,7 @@ class GCSResultHandlerSchema(BaseResultHandlerSchema):
 
     @post_load
     def create_object(self, data):
-        data['bucket'] = data.pop("_bucket", None)
+        data["bucket"] = data.pop("_bucket", None)
         base_obj = super().create_object(data)
         return base_obj
 

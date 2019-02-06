@@ -8,6 +8,7 @@ import pytest
 from prefect.client import Client
 from prefect.engine.result_handlers import (
     ResultHandler,
+    GCSResultHandler,
     LocalResultHandler,
     JSONResultHandler,
 )
@@ -104,3 +105,7 @@ class TestGCSResultHandler:
             "prefect.engine.result_handlers.gcs_result_handler.storage", storage
         )
         yield client
+
+    def test_gcs_init(self, google_client):
+        handler = GCSResultHandler(bucket="bob")
+        assert google_client.bucket.call_args[0][0] == "bob"

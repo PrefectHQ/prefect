@@ -22,7 +22,7 @@ class GCSResultHandler(ResultHandler):
 
     def __init__(self, bucket: str = None) -> None:
         self.client = storage.Client()
-        self._bucket = bucket # used for serialization
+        self._bucket = bucket  # used for serialization
         self.bucket = self.client.bucket(bucket)
         super().__init__()
 
