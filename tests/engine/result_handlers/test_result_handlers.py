@@ -132,4 +132,4 @@ class TestGCSResultHandler:
         handler = GCSResultHandler(bucket="foo")
         handler.write(None)
         assert blob.upload_from_string.called
-        assert blob.upload_from_string.call_args[0][0] == "gASVAgAAAAAAAABOLg=="
+        assert isinstance(blob.upload_from_string.call_args[0][0], str)
