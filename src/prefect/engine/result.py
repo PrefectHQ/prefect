@@ -1,4 +1,22 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+"""
+Results represent Prefect Task inputs and outputs.  In particular, anytime a Task runs, its output
+is encapsulated in a `Result` object.  This object retains information about what the data is, and how to "handle" it
+if it needs to be saved / retrieved at a later time (for example, if this Task requests for its outputs to be cached).
+
+An instantiated Result object has the following attributes:
+
+- a `value`: the value of a Result represents a single piece of data, which can be
+    in raw form or compressed into a "handled" representation such as a URI or filename pointing to
+    where the raw form lives
+- a `handled` boolean specifying whether this `value` has been handled or not
+- a `result_handler` which holds onto the `ResultHandler` used to read /
+    write the value to / from its handled representation
+
+To distinguish between a Task which runs but does not return output from a Task which has yet to run, Prefect
+also provides a `NoResult` object representing the _absence_ of computation / data.  This is in contrast to a `Result`
+whose value is `None`.
+"""
 
 from typing import Any, Union
 
@@ -82,6 +100,11 @@ class Result:
 
 
 class NoResultType(Result):
+    """
+    A `Result` subclass representing the _absence_ of computation / output.  A `NoResult` object
+    simply returns itself for its `value`, and as the output of both `read` and `write`.
+    """
+
     def __init__(self) -> None:
         pass
 
@@ -99,9 +122,15 @@ class NoResultType(Result):
         return self
 
     def read(self) -> "NoResultType":
+        """
+        Performs no computation and returns self.
+        """
         return self
 
     def write(self) -> "NoResultType":
+        """
+        Performs no computation and returns self.
+        """
         return self
 
 
