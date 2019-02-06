@@ -246,7 +246,8 @@ def format_subheader(obj, level=1, in_table=False):
         header = "|"
     is_class = "<strong><em>class </em></strong>" if inspect.isclass(obj) else ""
     class_name = f"<strong>{create_absolute_path(obj)}</strong>"
-    div_tag = f"<div class='sig'>"
+    div_class = "class-sig" if is_class else "method-sig"
+    div_tag = f"<div class='{div_class}'>"
 
     call_sig = f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>\n\n"
     return call_sig

@@ -445,9 +445,40 @@ $token = '.token';
 
 // resource docs
 .content {
-	div[class="sig"] {
+	div[class="class-sig"] {
 		background-color: lighten($bluePrimary, 95%);
 		border-top: 0.325em solid $blueSecondary;
+		font-family: $fontCode;
+		font-size: 1.1em;
+		line-height: 1.5;
+		padding: 1.5rem 2rem 3.5rem 5rem;
+		text-indent: -2.5em;
+
+		pre,
+		{$preLang} {
+			code {
+				color: $greyDark;
+			}
+		}
+
+		span a {
+			clear: both;
+			color: $blueTertiary;
+			float: right;
+			font-size: 0.875em;
+			margin-top: 2.5rem;
+
+			{$hover} {
+				font-weight: $bold;
+			}
+		}
+	}
+}
+
+.content {
+	div[class="method-sig"] {
+		background-color: lighten($bluePrimary, 98%);
+		border-top: 0.325em solid lighten($blueSecondary, 50%);
 		font-family: $fontCode;
 		font-size: 1em;
 		line-height: 1.5;

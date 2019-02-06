@@ -109,10 +109,15 @@ classes = [
             "LocalExecutor",
             "SynchronousExecutor"]
 
+[pages.engine.result]
+title = "Results"
+module = "prefect.engine.result"
+classes = ["Result", "NoResultType"]
+
 [pages.engine.result_handlers]
 title = "Result Handlers"
 module = "prefect.engine.result_handlers"
-classes = ["LocalResultHandler"]
+classes = ["JSONResultHandler", "LocalResultHandler"]
 
 [pages.engine.cloud]
 title = "Cloud"

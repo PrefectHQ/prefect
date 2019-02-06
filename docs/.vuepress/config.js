@@ -50,9 +50,12 @@ module.exports = {
           title: 'prefect.engine',
           collapsable: true,
           children: [
+            'engine/cloud',
             'engine/cache_validators',
             'engine/executors',
             'engine/flow_runner',
+            'engine/result',
+            'engine/result_handlers',
             'engine/signals',
             'engine/state',
             'engine/task_runner'
@@ -105,6 +108,7 @@ module.exports = {
             'core_concepts/mapping',
             'core_concepts/engine',
             'core_concepts/execution',
+            'core_concepts/results',
             'core_concepts/environments',
             'core_concepts/schedules',
             'core_concepts/best-practices',
