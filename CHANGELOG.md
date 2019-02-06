@@ -14,6 +14,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
+- Fix edge case in doc generation in which some `Exception`s' call signature could not be inspected - [#513](https://github.com/PrefectHQ/prefect/issues/513)
 - Fix bug in which exceptions raised within flow runner state handlers could not be sent to Cloud - [#628](https://github.com/PrefectHQ/prefect/pull/628)
 
 ### Breaking Changes
