@@ -93,3 +93,14 @@ def test_result_handlers_must_implement_read_and_write_to_work():
         m = ReadHandler()
 
     assert "abstract methods write" in str(exc.value)
+
+
+class TestGCSResultHandler:
+    @pytest.fixture
+    def google_client(self, monkeypatch):
+        client = MagicMock()
+        storage = MagicMock(Client=MagicMock(return_value=client))
+        monkeypatch.setattr(
+            "prefect.engine.result_handlers.gcs_result_handler.storage", storage
+        )
+        yield client

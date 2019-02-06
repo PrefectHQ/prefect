@@ -1,3 +1,4 @@
+google-cloud-storage >= 1.13, < 2.0
 graphviz >= 0.8.3
 jinja2 >= 2.0, < 3.0
 nbformat >= 4.4.0, < 5.0
