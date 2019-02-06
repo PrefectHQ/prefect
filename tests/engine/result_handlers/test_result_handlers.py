@@ -1,5 +1,6 @@
 import json
 import os
+import pendulum
 import tempfile
 from unittest.mock import MagicMock
 
@@ -109,3 +110,26 @@ class TestGCSResultHandler:
     def test_gcs_init(self, google_client):
         handler = GCSResultHandler(bucket="bob")
         assert google_client.bucket.call_args[0][0] == "bob"
+
+    def test_gcs_writes_to_blob_prefixed_by_date_suffixed_by_prefect(
+        self, google_client
+    ):
+        bucket = MagicMock()
+        google_client.bucket = MagicMock(return_value=bucket)
+        handler = GCSResultHandler(bucket="foo")
+        handler.write("so-much-data")
+        assert bucket.blob.called
+        assert bucket.blob.call_args[0][0].startswith(
+            pendulum.now("utc").format("Y/M/D")
+        )
+        assert bucket.blob.call_args[0][0].endswith("prefect_result")
+
+    def test_gcs_writes_binary_string(self, google_client):
+        blob = MagicMock()
+        google_client.bucket = MagicMock(
+            return_value=MagicMock(blob=MagicMock(return_value=blob))
+        )
+        handler = GCSResultHandler(bucket="foo")
+        handler.write(None)
+        assert blob.upload_from_string.called
+        assert blob.upload_from_string.call_args[0][0] == "gASVAgAAAAAAAABOLg=="

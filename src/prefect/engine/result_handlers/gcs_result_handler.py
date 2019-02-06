@@ -28,7 +28,7 @@ class GCSResultHandler(ResultHandler):
 
     def write(self, result: Any) -> str:
         """
-        Given a result, writes the result and writes to a location in GCS
+        Given a result, writes the result to a location in GCS
         and returns the resulting URI.
 
         Args:
