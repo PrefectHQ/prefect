@@ -366,3 +366,23 @@ class TestStateResultHandling:
         assert states[1].is_failed()
         assert isinstance(states[2], Retrying)
         assert states[2].cached_inputs == dict(x=x.write(), y=y.write())
+
+
+def test_state_handler_failures_are_handled_appropriately(client):
+    def bad(*args, **kwargs):
+        raise SyntaxError("Syntax Errors are nice because they're so unique")
+
+    @prefect.task(on_failure=bad)
+    def do_nothing():
+        raise ValueError("This task failed somehow")
+
+    res = CloudTaskRunner(task=do_nothing).run()
+    assert res.is_failed()
+    assert "SyntaxError" in res.message
+    assert isinstance(res.result, SyntaxError)
+
+    assert client.set_task_run_state.call_count == 2
+    states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+    assert states[0].is_running()
+    assert states[1].is_failed()
+    assert states[1].result == NoResult
