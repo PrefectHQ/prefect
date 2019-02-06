@@ -46,6 +46,25 @@ def varargs_with_default(*args, iso=None, **kwargs):
     pass
 
 
+class CustomException(Exception):
+    """
+    Docstring.
+
+    Args:
+        - x (Any, optional): Just a placeholder
+    """
+
+    def __init__(self, x):
+        self.x = x
+        super().__init__()
+
+
+class NamedException(Exception):
+    """
+    Just a name, nothing more.
+    """
+
+
 class A:
     """
     A class called "A".
@@ -85,6 +104,8 @@ class A:
         (A.run, "*args, b=True, **kwargs"),
         (A.y, "*args, b, **kwargs"),
         (A.from_nothing, "stuff=None"),
+        (CustomException, "x"),
+        (NamedException, "*args, **kwargs"),
     ],
 )
 def test_format_signature(obj, exp):
@@ -207,6 +228,11 @@ def test_format_doc_on_simple_doc():
         '<li class="args">'
         "`message (Any, optional)`: Defaults to `None`. A message about the signal.</li></ul>"
     )
+
+
+def test_format_doc_on_raw_exception():
+    formatted = format_doc(NamedException)
+    assert formatted == "Just a name, nothing more."
 
 
 @pytest.mark.parametrize(
