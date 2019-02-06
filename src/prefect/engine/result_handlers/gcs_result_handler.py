@@ -11,7 +11,7 @@ from prefect.engine.result_handlers import ResultHandler
 
 class GCSResultHandler(ResultHandler):
     """
-    Result Handler for serializing to and from a Google Cloud Bucket.
+    Result Handler for writing to and reading from a Google Cloud Bucket.
 
     Args:
         - bucket (str): the name of the bucket to write to / read from
@@ -22,6 +22,7 @@ class GCSResultHandler(ResultHandler):
 
     def __init__(self, bucket: str = None) -> None:
         self.client = storage.Client()
+        self._bucket = bucket # used for serialization
         self.bucket = self.client.bucket(bucket)
         super().__init__()
 
