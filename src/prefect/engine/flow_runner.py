@@ -25,6 +25,7 @@ from prefect.engine.state import (
     Pending,
     Retrying,
     Running,
+    Scheduled,
     State,
     Success,
 )
@@ -236,6 +237,7 @@ class FlowRunner(Runner):
 
             with prefect.context(context):
                 state = self.check_flow_is_pending_or_running(state)
+                state = self.check_flow_reached_start_time(state)
                 state = self.set_flow_to_running(state)
                 state = self.get_flow_run_state(
                     state,
@@ -262,6 +264,31 @@ class FlowRunner(Runner):
                 result=exc,
             )
 
+        return state
+
+    @call_state_handlers
+    def check_flow_reached_start_time(self, state: State) -> State:
+        """
+        Checks if the Flow is in a Scheduled state and, if it is, ensures that the scheduled
+        time has been reached.
+
+        Args:
+            - state (State): the current state of this Flow
+
+        Returns:
+            - State: the state of the flow after performing the check
+
+        Raises:
+            - ENDRUN: if the flow is Scheduled with a future scheduled time
+        """
+        if isinstance(state, Scheduled):
+            if state.start_time and state.start_time > pendulum.now("utc"):
+                self.logger.debug(
+                    "Flow '{name}': start_time has not been reached; ending run.".format(
+                        name=self.flow.name
+                    )
+                )
+                raise ENDRUN(state)
         return state
 
     @call_state_handlers
