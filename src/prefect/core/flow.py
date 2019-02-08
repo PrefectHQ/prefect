@@ -1290,7 +1290,9 @@ class Flow:
 
     # Deployment ------------------------------------------------------------------
 
-    def deploy(self, project_name: str = "Flows", set_schedule_active: bool = False) -> str:
+    def deploy(
+        self, project_name: str = "Flows", set_schedule_active: bool = False
+    ) -> str:
         """
         Deploy the flow to Prefect Cloud
 
@@ -1306,7 +1308,9 @@ class Flow:
         """
         client = prefect.Client()
         deployed_flow = client.deploy(
-            flow=self, project_name=project_name, set_schedule_active=set_schedule_active
+            flow=self,
+            project_name=project_name,
+            set_schedule_active=set_schedule_active,
         )
         return deployed_flow
 
