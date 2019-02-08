@@ -337,9 +337,9 @@ class Client:
             }
         }
 
-        project_id = self.graphql(query_project).id  # type: ignore
+        project = self.graphql(query_project).project  # type: ignore
 
-        if not project_id:
+        if not project:
             raise ValueError(
                 "Project {} not found. Run `client.create_project({})` to create it.".format(
                     project_name, project_name
@@ -348,7 +348,9 @@ class Client:
 
         res = self.graphql(
             create_mutation,
-            input=dict(projectId=project_id, serializedFlow=flow.serialize(build=True)),
+            input=dict(
+                projectId=project[0].id, serializedFlow=flow.serialize(build=True)
+            ),
         )  # type: Any
 
         if res.createFlow.error:
@@ -386,7 +388,7 @@ class Client:
         res = self.graphql(project_mutation, input=dict(name=project_name))  # type: Any
 
         if res.createProject.error:
-            raise ClientError(result.createProject.error)
+            raise ClientError(res.createProject.error)
 
         return res.createProject.id
 
