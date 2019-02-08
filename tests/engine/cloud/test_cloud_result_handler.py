@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from prefect import config
 from prefect.client import Client
 from prefect.engine.cloud import CloudResultHandler
 from prefect.utilities.configuration import set_temporary_config
@@ -15,14 +16,17 @@ def requests_post(*args, result=None, **kwargs):
 
 
 class TestCloudHandler:
-    def test_cloud_handler_initializes_with_no_args(self):
-        handler = CloudResultHandler()
+    def test_cloud_handler_initializes_with_no_args_and_reads_from_config(self):
+        with set_temporary_config({"cloud.result_handler": "http://foo:bar"}):
+            handler = CloudResultHandler()
         assert handler._client is None
-        assert handler.result_handler_service is None
+        assert handler.result_handler_service == "http://foo:bar"
 
-    def test_cloud_handler_pulls_settings_from_config_after_first_method_call(
-        self, monkeypatch
-    ):
+    def test_cloud_handler_init_args_override_config(self):
+        handler = CloudResultHandler("ftp://old-school")
+        assert handler.result_handler_service == "ftp://old-school"
+
+    def test_cloud_handler_creates_client_after_first_method_call(self, monkeypatch):
         client = MagicMock(post=requests_post)
         monkeypatch.setattr(
             "prefect.engine.cloud.result_handler.Client", MagicMock(return_value=client)
@@ -30,7 +34,7 @@ class TestCloudHandler:
         with set_temporary_config({"cloud.result_handler": "http://foo.bar:4204"}):
             handler = CloudResultHandler()
             handler.write("random string")
-        assert handler.result_handler_service == "http://foo.bar:4204"
+        assert handler._client == client
 
     @pytest.mark.parametrize("data", [None, "my_string", 42])
     def test_cloud_handler_sends_jsonable_packages(self, data, monkeypatch):

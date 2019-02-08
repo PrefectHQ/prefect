@@ -12,16 +12,19 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Refactor all `State` objects to store fully hydrated `Result` objects which track information about how results should be handled - [#612](https://github.com/PrefectHQ/prefect/pull/612), [#616](https://github.com/PrefectHQ/prefect/pull/616)
 - Added `google.cloud.storage` as an optional extra requirement so that the `GCSResultHandler` can be exposed better - [#626](https://github.com/PrefectHQ/prefect/pull/626)
+- Add a `start_time` check for Scheduled flow runs, similar to the one for Task runs - [#605](https://github.com/PrefectHQ/prefect/issues/605)
 
 ### Fixes
 
-- None
+- Fix edge case in doc generation in which some `Exception`s' call signature could not be inspected - [#513](https://github.com/PrefectHQ/prefect/issues/513)
+- Fix bug in which exceptions raised within flow runner state handlers could not be sent to Cloud - [#628](https://github.com/PrefectHQ/prefect/pull/628)
 
 ### Breaking Changes
 
 - Removed the `BokehRunner` and associated webapp - [#609](https://github.com/PrefectHQ/prefect/issues/609)
 - Renamed `ResultHandler` methods from `serialize` / `deserialize` to `write` / `read` - [#612](https://github.com/PrefectHQ/prefect/pull/612)
 - Refactor all `State` objects to store fully hydrated `Result` objects which track information about how results should be handled - [#612](https://github.com/PrefectHQ/prefect/pull/612), [#616](https://github.com/PrefectHQ/prefect/pull/616)
+- `Client.create_flow_run` now returns a string instead of a `GraphQLResult` object to match the API of `deploy` - [#630](https://github.com/PrefectHQ/prefect/pull/630)
 
 ## 0.4.1 <Badge text="beta" type="success"/>
 
