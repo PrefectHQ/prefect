@@ -294,18 +294,14 @@ class Client:
         self.token = response.json().get("token")
 
     def deploy(
-        self,
-        flow: "Flow",
-        project_name: str = "Flows",
-        set_schedule_active: bool = False,
+        self, flow: "Flow", project_name: str, set_schedule_active: bool = False
     ) -> str:
         """
         Push a new flow to Prefect Cloud
 
         Args:
             - flow (Flow): a flow to deploy
-            - project_name (str, optional): the project that should contain this flow. If `None`, the
-                default project will be used ("Flows"). This can be changed later.
+            - project_name (str): the project that should contain this flow.
             - set_schedule_active (bool, optional): if `True`, will set the
                 schedule to active in the database and begin scheduling runs (if the Flow has a schedule).
                 Defaults to `False`. This can be changed later.
@@ -315,7 +311,6 @@ class Client:
 
         Raises:
             - ClientError: if the deploy failed
-
         """
         required_parameters = flow.parameters(only_required=True)
         if flow.schedule is not None and required_parameters:
@@ -342,31 +337,18 @@ class Client:
             }
         }
 
-        project = self.graphql(query_project).project  # type: ignore
+        project_id = self.graphql(query_project).id  # type: ignore
 
-        project_id = None
-        if not project:
-            project_mutation = {
-                "mutation($input: createProjectInput!)": {
-                    "createProject(input: $input)": {"id", "error"}
-                }
-            }
-
-            result = self.graphql(
-                project_mutation, input=dict(name=project_name)
-            )  # type: Any
-
-            if result.createProject.error:
-                raise ClientError(result.createProject.error)
-
-            project_id = result.createProject.id
+        if not project_id:
+            raise ValueError(
+                "Project {} not found. Run `client.create_project({})` to create it.".format(
+                    project_name, project_name
+                )
+            )
 
         res = self.graphql(
             create_mutation,
-            input=dict(
-                projectId=project_id or project[0].id,
-                serializedFlow=flow.serialize(build=True),
-            ),
+            input=dict(projectId=project_id, serializedFlow=flow.serialize(build=True)),
         )  # type: Any
 
         if res.createFlow.error:
@@ -381,6 +363,32 @@ class Client:
                 raise ClientError(scheduled_res.setFlowScheduleState.error)
 
         return res.createFlow.id
+
+    def create_project(self, project_name: str) -> str:
+        """
+        Create a new Project
+
+        Args:
+            - project_name (str): the project that should contain this flow.
+
+        Returns:
+            - str: the ID of the newly-created project
+
+        Raises:
+            - ClientError: if the project creation failed
+        """
+        project_mutation = {
+            "mutation($input: createProjectInput!)": {
+                "createProject(input: $input)": {"id", "error"}
+            }
+        }
+
+        res = self.graphql(project_mutation, input=dict(name=project_name))  # type: Any
+
+        if res.createProject.error:
+            raise ClientError(result.createProject.error)
+
+        return res.createProject.id
 
     def create_flow_run(
         self,
