@@ -9,7 +9,7 @@ debug = false
 # the Prefect Server address
 graphql = "http://localhost:4200"
 log = "http://localhost:4202/log"
-result_handler = "http://localhost:4204"
+result_handler = "http://localhost:4204/result-handler"
 use_local_secrets = true
 heartbeat_interval = 30.0
 
