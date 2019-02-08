@@ -476,6 +476,36 @@ class TestCheckFlowPendingOrRunning:
             FlowRunner(flow=flow).check_flow_is_pending_or_running(state=state)
 
 
+class TestCheckScheduledStep:
+    @pytest.mark.parametrize("state", [Failed(), Pending(), Running(), Success()])
+    def test_non_scheduled_states(self, state):
+        assert (
+            FlowRunner(flow=Flow()).check_flow_reached_start_time(state=state) is state
+        )
+
+    def test_scheduled_states_without_start_time(self):
+        state = Scheduled(start_time=None)
+        assert (
+            FlowRunner(flow=Flow()).check_flow_reached_start_time(state=state) is state
+        )
+
+    def test_scheduled_states_with_future_start_time(self):
+        state = Scheduled(
+            start_time=pendulum.now("utc") + datetime.timedelta(minutes=10)
+        )
+        with pytest.raises(ENDRUN) as exc:
+            FlowRunner(flow=Flow()).check_flow_reached_start_time(state=state)
+        assert exc.value.state is state
+
+    def test_scheduled_states_with_past_start_time(self):
+        state = Scheduled(
+            start_time=pendulum.now("utc") - datetime.timedelta(minutes=1)
+        )
+        assert (
+            FlowRunner(flow=Flow()).check_flow_reached_start_time(state=state) is state
+        )
+
+
 class TestSetFlowToRunning:
     @pytest.mark.parametrize("state", [Pending(), Retrying()])
     def test_pending_becomes_running(self, state):
