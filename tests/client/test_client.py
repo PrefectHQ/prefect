@@ -244,7 +244,18 @@ def test_graphql_errors_get_raised(monkeypatch):
 
 
 def test_client_deploy(monkeypatch):
-    response = """
+    responses = []
+    responses.append(
+        """
+    {
+        "project": [{
+            "id": "proj-id"
+        }]
+    }
+    """
+    )
+    responses.append(
+        """
     {
         "createFlow": {
             "id": "long-id",
@@ -252,9 +263,12 @@ def test_client_deploy(monkeypatch):
         }
     }
     """
+    )
     post = MagicMock(
         return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=json.loads(response)))
+            json=MagicMock(
+                side_effect=[dict(data=json.loads(res)) for res in responses]
+            )
         )
     )
     monkeypatch.setattr("requests.post", post)
@@ -265,6 +279,34 @@ def test_client_deploy(monkeypatch):
     flow = prefect.Flow(name="test")
     flow_id = client.deploy(flow, project_name="my-default-project")
     assert flow_id == "long-id"
+
+
+def test_client_deploy_with_bad_proj_name(monkeypatch):
+    responses = []
+    responses.append(
+        """
+    {
+        "project": []
+    }
+    """
+    )
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(
+                side_effect=[dict(data=json.loads(res)) for res in responses]
+            )
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    flow = prefect.Flow(name="test")
+    with pytest.raises(ValueError) as exc:
+        flow_id = client.deploy(flow, project_name="my-default-project")
+    assert "not found" in str(exc.value)
+    assert "client.create_project" in str(exc.value)
 
 
 @pytest.mark.parametrize("active", [False, True])
