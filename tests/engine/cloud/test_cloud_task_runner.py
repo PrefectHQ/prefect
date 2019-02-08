@@ -345,8 +345,8 @@ class TestStateResultHandling:
         x = Result(1, handled=False, result_handler=JSONResultHandler())
         y = Result("0", handled=False, result_handler=JSONResultHandler())
         state = Pending(cached_inputs=dict(x=x, y=y))
-        x_state = Success(result=1)
-        y_state = Success(result=1)
+        x_state = Success()
+        y_state = Success()
         upstream_states = {
             Edge(Task(), Task(), key="x"): x_state,
             Edge(Task(), Task(), key="y"): y_state,

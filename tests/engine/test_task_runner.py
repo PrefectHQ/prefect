@@ -675,15 +675,25 @@ class TestGetTaskInputs:
         )
         assert inputs == {"x": Result(1), "y": Result(2)}
 
-    def test_get_inputs_from_cached_inputs_overwrites_upstream_states(self):
+    def test_cached_inputs_overwrites_upstream_states_if_they_are_noresult(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": Result(1)}),
+            state=Pending(cached_inputs={"x": Result(1), "y": Result(2)}),
             upstream_states={
-                Edge(1, 2, key="x"): Success(result=2),
-                Edge(1, 2, key="y"): Success(result=2),
+                Edge(1, 2, key="x"): Success(),
+                Edge(1, 2, key="y"): Success(),
             },
         )
         assert inputs == {"x": Result(1), "y": Result(2)}
+
+    def test_cached_inputs_doesnt_overwrites_upstream_states_if_hydrated(self):
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(cached_inputs={"x": Result(1), "y": Result(2)}),
+            upstream_states={
+                Edge(1, 2, key="x"): Success(result=None),
+                Edge(1, 2, key="y"): Success(result=5),
+            },
+        )
+        assert inputs == {"x": Result(None), "y": Result(5)}
 
 
 class TestCheckTaskCached:
