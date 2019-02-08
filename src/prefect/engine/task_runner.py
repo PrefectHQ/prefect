@@ -538,8 +538,8 @@ class TaskRunner(Runner):
     ) -> Dict[str, Result]:
         """
         Given the task's current state and upstream states, generates the inputs for this task.
-        If the current state has `cached_inputs`, they are used. Upstream states supplement
-        any missing keys.
+        Upstream state result values are used. If the current state has `cached_inputs`, they
+        will override any upstream values which are `NoResult`.
 
         Args:
             - state (State): the task's current state.
@@ -557,9 +557,13 @@ class TaskRunner(Runner):
                 task_inputs[edge.key] = upstream_state._result.read()
 
         if state.is_pending() and state.cached_inputs is not None:  # type: ignore
-            task_inputs.update(  # type: ignore
-                {k: r.read() for k, r in state.cached_inputs.items()}  # type: ignore
-            )  # type: ignore
+            task_inputs.update(
+                {
+                    k: r.read()
+                    for k, r in state.cached_inputs.items()  # type: ignore
+                    if task_inputs.get(k, NoResult) == NoResult
+                }
+            )
 
         return task_inputs
 
