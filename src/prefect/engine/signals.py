@@ -1,7 +1,7 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
 """
-These classes are used to signal state changes when tasks or flows are running. Signals
+These Exceptions, when raised, are used to signal state changes when tasks or flows are running. Signals
 are used in TaskRunners and FlowRunners as a way of communicating the changes in states.
 """
 
