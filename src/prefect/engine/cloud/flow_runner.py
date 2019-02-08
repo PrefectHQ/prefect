@@ -10,6 +10,7 @@ from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, State
 from prefect.engine.cloud import CloudTaskRunner
+from prefect.engine.cloud.utilities import prepare_state_for_cloud
 
 
 class CloudFlowRunner(FlowRunner):
@@ -88,21 +89,19 @@ class CloudFlowRunner(FlowRunner):
                 old_state=old_state, new_state=new_state
             )
         except Exception as exc:
-            self.logger.debug(
-                "Exception raised while calling state handlers: {}".format(repr(exc))
-            )
+            msg = "Exception raised while calling state handlers: {}".format(repr(exc))
+            self.logger.debug(msg)
             if raise_on_exception:
                 raise exc
-            new_state = Failed(
-                "Exception raised while calling state handlers.", result=exc
-            )
+            new_state = Failed(msg, result=exc)
 
         flow_run_id = prefect.context.get("flow_run_id", None)
         version = prefect.context.get("flow_run_version")
 
         try:
+            cloud_state = prepare_state_for_cloud(new_state)
             self.client.set_flow_run_state(
-                flow_run_id=flow_run_id, version=version, state=new_state
+                flow_run_id=flow_run_id, version=version, state=cloud_state
             )
         except Exception as exc:
             self.logger.debug(

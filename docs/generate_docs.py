@@ -167,7 +167,10 @@ def create_methods_table(members, title):
 def get_call_signature(obj):
     assert callable(obj), f"{obj} is not callable, cannot format signature."
     # collect data
-    sig = inspect.getfullargspec(obj)
+    try:
+        sig = inspect.getfullargspec(obj)
+    except TypeError:  # if obj is exception
+        sig = inspect.getfullargspec(obj.__init__)
     args, defaults = sig.args, sig.defaults or []
     kwonly, kwonlydefaults = sig.kwonlyargs or [], sig.kwonlydefaults or {}
     varargs, varkwargs = sig.varargs, sig.varkw
