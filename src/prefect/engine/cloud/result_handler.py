@@ -26,7 +26,10 @@ class CloudResultHandler(ResultHandler):
 
     def __init__(self, result_handler_service: str = None) -> None:
         self._client = None
-        self.result_handler_service = result_handler_service
+        if result_handler_service is None:
+            self.result_handler_service = config.cloud.result_handler
+        else:
+            self.result_handler_service = result_handler_service
         super().__init__()
 
     def _initialize_client(self) -> None:
@@ -40,8 +43,6 @@ class CloudResultHandler(ResultHandler):
         """
         if self._client is None:
             self._client = Client()  # type: ignore
-        if self.result_handler_service is None:
-            self.result_handler_service = config.cloud.result_handler
 
     def read(self, uri: str) -> Any:
         """
