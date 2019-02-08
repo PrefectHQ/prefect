@@ -1,8 +1,15 @@
 import pytest
 
+from unittest.mock import MagicMock
+
 from prefect.client import Client
 from prefect.engine.cloud.result_handler import CloudResultHandler
-from prefect.engine.result_handlers import ResultHandler, LocalResultHandler
+from prefect.engine.result_handlers import (
+    ResultHandler,
+    JSONResultHandler,
+    GCSResultHandler,
+    LocalResultHandler,
+)
 from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
 
@@ -13,6 +20,11 @@ class TestLocalResultHandler:
         assert isinstance(serialized, dict)
         assert serialized["type"] == "LocalResultHandler"
         assert serialized["dir"] is None
+
+    def test_deserialize_from_dict(self):
+        handler = ResultHandlerSchema().load({"type": "LocalResultHandler"})
+        assert isinstance(handler, LocalResultHandler)
+        assert handler.dir is None
 
     def test_serialize_local_result_handler_with_dir(self):
         serialized = ResultHandlerSchema().dump(LocalResultHandler(dir="/root/prefect"))
@@ -72,3 +84,48 @@ class TestCloudResultHandler:
         assert obj.logger.name == "prefect.CloudResultHandler"
         assert obj.result_handler_service == "new-service"
         assert obj._client is None
+
+
+class TestGCSResultHandler:
+    @pytest.fixture
+    def google_client(self, monkeypatch):
+        monkeypatch.setattr(
+            "prefect.engine.result_handlers.gcs_result_handler.storage", MagicMock()
+        )
+        yield
+
+    def test_serialize(self, google_client):
+        handler = GCSResultHandler(bucket="my-bucket")
+        serialized = ResultHandlerSchema().dump(handler)
+        assert serialized["type"] == "GCSResultHandler"
+        assert serialized["bucket"] == "my-bucket"
+
+    def test_deserialize_from_dict(self, google_client):
+        handler = ResultHandlerSchema().load(
+            {"type": "GCSResultHandler", "bucket": "foo-bar"}
+        )
+        assert isinstance(handler, GCSResultHandler)
+        assert handler.bucket == "foo-bar"
+
+    def test_roundtrip(self, google_client):
+        schema = ResultHandlerSchema()
+        handler = schema.load(schema.dump(GCSResultHandler(bucket="bucket3")))
+        assert isinstance(handler, GCSResultHandler)
+        assert handler.bucket == "bucket3"
+
+
+class TestJSONResultHandler:
+    def test_serialize(self):
+        serialized = ResultHandlerSchema().dump(JSONResultHandler())
+        assert isinstance(serialized, dict)
+        assert serialized["type"] == "JSONResultHandler"
+
+    def test_deserialize_from_dict(self):
+        handler = ResultHandlerSchema().load({"type": "JSONResultHandler"})
+        assert isinstance(handler, JSONResultHandler)
+
+    def test_roundtrip(self):
+        schema = ResultHandlerSchema()
+        handler = schema.load(schema.dump(JSONResultHandler()))
+        assert isinstance(handler, JSONResultHandler)
+        assert handler.write(3) == "3"
