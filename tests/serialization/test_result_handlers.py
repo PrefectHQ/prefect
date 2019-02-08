@@ -98,20 +98,20 @@ class TestGCSResultHandler:
         handler = GCSResultHandler(bucket="my-bucket")
         serialized = ResultHandlerSchema().dump(handler)
         assert serialized["type"] == "GCSResultHandler"
-        assert serialized["_bucket"] == "my-bucket"
+        assert serialized["bucket"] == "my-bucket"
 
     def test_deserialize_from_dict(self, google_client):
         handler = ResultHandlerSchema().load(
-            {"type": "GCSResultHandler", "_bucket": "foo-bar"}
+            {"type": "GCSResultHandler", "bucket": "foo-bar"}
         )
         assert isinstance(handler, GCSResultHandler)
-        assert handler._bucket == "foo-bar"
+        assert handler.bucket == "foo-bar"
 
     def test_roundtrip(self, google_client):
         schema = ResultHandlerSchema()
         handler = schema.load(schema.dump(GCSResultHandler(bucket="bucket3")))
         assert isinstance(handler, GCSResultHandler)
-        assert handler._bucket == "bucket3"
+        assert handler.bucket == "bucket3"
 
 
 class TestJSONResultHandler:

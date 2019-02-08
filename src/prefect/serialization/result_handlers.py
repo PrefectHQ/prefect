@@ -34,13 +34,7 @@ class GCSResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
         object_class = GCSResultHandler
 
-    _bucket = fields.String(allow_none=False)
-
-    @post_load
-    def create_object(self, data):
-        data["bucket"] = data.pop("_bucket", None)
-        base_obj = super().create_object(data)
-        return base_obj
+    bucket = fields.String(allow_none=False)
 
 
 class JSONResultHandlerSchema(BaseResultHandlerSchema):

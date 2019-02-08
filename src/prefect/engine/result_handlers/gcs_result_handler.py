@@ -22,8 +22,8 @@ class GCSResultHandler(ResultHandler):
 
     def __init__(self, bucket: str = None) -> None:
         self.client = storage.Client()
-        self._bucket = bucket  # used for serialization
-        self.bucket = self.client.bucket(bucket)
+        self.bucket = bucket
+        self.gcs_bucket = self.client.bucket(self.bucket)
         super().__init__()
 
     def write(self, result: Any) -> str:
@@ -41,7 +41,7 @@ class GCSResultHandler(ResultHandler):
         uri = "{date}/{uuid}.prefect_result".format(date=date, uuid=uuid.uuid4())
         self.logger.debug("Starting to upload result to {}...".format(uri))
         binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()
-        self.bucket.blob(uri).upload_from_string(binary_data)
+        self.gcs_bucket.blob(uri).upload_from_string(binary_data)
         self.logger.debug("Finished uploading result to {}.".format(uri))
         return uri
 
@@ -57,7 +57,7 @@ class GCSResultHandler(ResultHandler):
         """
         try:
             self.logger.debug("Starting to download result from {}...".format(uri))
-            result = self.bucket.blob(uri).download_as_string()
+            result = self.gcs_bucket.blob(uri).download_as_string()
             try:
                 return_val = cloudpickle.loads(base64.b64decode(result))
             except EOFError:

@@ -109,6 +109,7 @@ class TestGCSResultHandler:
 
     def test_gcs_init(self, google_client):
         handler = GCSResultHandler(bucket="bob")
+        assert handler.bucket == "bob"
         assert google_client.bucket.call_args[0][0] == "bob"
 
     def test_gcs_writes_to_blob_prefixed_by_date_suffixed_by_prefect(
