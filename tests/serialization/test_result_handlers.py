@@ -11,6 +11,7 @@ from prefect.engine.result_handlers import (
     LocalResultHandler,
 )
 from prefect.serialization.result_handlers import ResultHandlerSchema
+from prefect.utilities.configuration import set_temporary_config
 
 
 class TestLocalResultHandler:
@@ -43,10 +44,11 @@ class TestLocalResultHandler:
 
 class TestCloudResultHandler:
     def test_serialize_with_no_attributes(self):
-        serialized = ResultHandlerSchema().dump(CloudResultHandler())
+        with set_temporary_config({"cloud.result_handler": "website"}):
+            serialized = ResultHandlerSchema().dump(CloudResultHandler())
         assert isinstance(serialized, dict)
         assert serialized["type"] == "CloudResultHandler"
-        assert serialized["result_handler_service"] is None
+        assert serialized["result_handler_service"] == "website"
         assert "client" not in serialized
 
     def test_serialize_with_attributes(self):
@@ -58,16 +60,29 @@ class TestCloudResultHandler:
         assert serialized["result_handler_service"] == "http://foo.bar"
         assert "client" not in serialized
 
-    @pytest.mark.parametrize("result_handler_service", [None, "http://foo.bar"])
-    def test_deserialize_cloud_result_handler(self, result_handler_service):
+    def test_deserialize_cloud_result_handler(self):
         schema = ResultHandlerSchema()
-        handler = CloudResultHandler(result_handler_service=result_handler_service)
+        handler = CloudResultHandler(result_handler_service="http://foo.bar")
         handler._client = Client()
         obj = schema.load(schema.dump(handler))
         assert isinstance(obj, CloudResultHandler)
         assert hasattr(obj, "logger")
         assert obj.logger.name == "prefect.CloudResultHandler"
-        assert obj.result_handler_service == result_handler_service
+        assert obj.result_handler_service == "http://foo.bar"
+        assert obj._client is None
+
+    def test_deserialize_cloud_result_handler_with_None_populates_from_config(self):
+        schema = ResultHandlerSchema()
+        handler = CloudResultHandler()
+        handler.result_handler_service = None
+        handler._client = Client()
+        serialized = schema.dump(handler)
+        with set_temporary_config({"cloud.result_handler": "new-service"}):
+            obj = schema.load(serialized)
+        assert isinstance(obj, CloudResultHandler)
+        assert hasattr(obj, "logger")
+        assert obj.logger.name == "prefect.CloudResultHandler"
+        assert obj.result_handler_service == "new-service"
         assert obj._client is None
 
 
