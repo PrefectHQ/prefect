@@ -263,7 +263,7 @@ def test_client_deploy(monkeypatch):
     ):
         client = Client()
     flow = prefect.Flow(name="test")
-    flow_id = client.deploy(flow, project_id="my-default-0000")
+    flow_id = client.deploy(flow, project_name="my-default-project")
     assert flow_id == "long-id"
 
 
@@ -283,7 +283,7 @@ def test_client_deploy_rejects_setting_active_schedules_for_flows_with_req_param
 
     with pytest.raises(ClientError) as exc:
         result = client.deploy(
-            flow, project_id="my-default-0000", set_schedule_active=active
+            flow, project_name="my-default-project", set_schedule_active=active
         )
     assert (
         str(exc.value)

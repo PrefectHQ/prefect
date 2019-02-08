@@ -1291,14 +1291,13 @@ class Flow:
     # Deployment ------------------------------------------------------------------
 
     def deploy(
-        self, project_name: str = "Flows", set_schedule_active: bool = False
+        self, project_name: str, set_schedule_active: bool = False
     ) -> str:
         """
         Deploy the flow to Prefect Cloud
 
         Args:
-            - project_name (str, optional): the project that should contain this flow. If `None`, the
-                default project will be used ("Flows"). This can be changed later.
+            - project_name (str): the project that should contain this flow.
             - set_schedule_active (bool, optional): if `True`, will set the
                 schedule to active in the database and begin scheduling runs (if the Flow has a schedule).
                 Defaults to `False`. This can be changed later.
