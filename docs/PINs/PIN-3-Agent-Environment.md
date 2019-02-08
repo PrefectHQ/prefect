@@ -16,13 +16,13 @@ Proposed
 ## Context
 
 __Environments__:
-Environments in the Prefect core library are serializable objects that describe how to run a flow. They serve as a way of describing how a specific flow should be stored, shared, and executed. 
+Environments in the Prefect core library are serializable objects that describe how to run a flow. They serve as a way of describing how a specific flow should be stored, shared, and executed.
 
 __Agents__:
 The current status of open source Prefect _agents_ revolves around small running processes which retrieve flow runs and then determine how to execute them based on the environment metadata information found in the flow itself.
 
 __Hybrid Execution__:
-Prefect supports a mode of execution where a user provides infrastructure to run flows and in turn communicates back with Prefect Cloud to provide a platform of robust data pipeline execution. 
+Prefect supports a mode of execution where a user provides infrastructure to run flows and in turn communicates back with Prefect Cloud to provide a platform of robust data pipeline execution.
 
 ---
 
@@ -89,8 +89,6 @@ The method of looking for completed jobs adds two main benefits:
 The labels will play a crucial role in the agent handling which resources to delete. Upon finding a new flow run the agent will generate a UUID and that will be attached to both the Prefect container and any resources created by the environment's `setup` function. The Prefect container will also be labeled with something signifying that it is separate from any other resources which will allow it to be deleted upon job completion without having any interference on the other resources created for that particular run. Now the Prefect container can be deleted and the job which is responsible for running the flow can continue on without leaving behind any unused resources. After completion of that job the agent will see that another job had entered a finished state, look at the labels, see that it isn't the original Prefect container which created it, and delete any resources tagged with that particular deployment's UUID.
 
 ## Consequences
-
-The core Prefect library will now contain code for languages other than Python. It is preferred that we still use [client-go](https://github.com/kubernetes/client-go) for Kubernetes resource management and that will need to be a part of Kubernetes related environment `setup` and `execute` steps. This could lead to some frictions with _GOPATH_ however there are a few ways in which we could address this once started.
 
 The agent is still platform specific. For example, our k8s-agent is still responsible for running Kubernetes related environments. Users aren't able to use environments for a platform different than their is set up to run on because it will be incompatible. Going forward, Kubernetes will be our primarily supported agent platform unless noted otherwise.
 
