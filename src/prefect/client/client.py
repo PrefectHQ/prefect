@@ -294,14 +294,17 @@ class Client:
         self.token = response.json().get("token")
 
     def deploy(
-        self, flow: "Flow", project_id: str = None, set_schedule_active: bool = False
+        self,
+        flow: "Flow",
+        project_name: str = "Flows",
+        set_schedule_active: bool = False,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
 
         Args:
             - flow (Flow): a flow to deploy
-            - project_id (str, optional): the project that should contain this flow. If `None`, the
+            - project_name (str, optional): the project that should contain this flow. If `None`, the
                 default project will be used ("Flows"). This can be changed later.
             - set_schedule_active (bool, optional): if `True`, will set the
                 schedule to active in the database and begin scheduling runs (if the Flow has a schedule).
@@ -330,9 +333,37 @@ class Client:
                 "setFlowScheduleState(input: $input)": {"error"}
             }
         }
+
+        query_project = {
+            "query": {
+                with_args("project", {"where": {"name": {"_eq": project_name}}}): {
+                    "id": True
+                }
+            }
+        }
+
+        project = self.graphql(query_project).project  # type: ignore
+
+        project_id = None
+        if not project:
+            project_mutation = {
+                "mutation($input: createProjectInput!)": {
+                    "createProject(input: $input)": {"id", "error"}
+                }
+            }
+
+            result = self.graphql(
+                project_mutation, input=dict(name=project_name)
+            )  # type: Any
+
+            if result.createProject.error:
+                raise ClientError(result.createProject.error)
+
+            project_id = result.createProject.id
+
         res = self.graphql(
             create_mutation,
-            input=dict(projectId=project_id, serializedFlow=flow.serialize(build=True)),
+            input=dict(projectId=project_id or project[0].id, serializedFlow=flow.serialize(build=True)),
         )  # type: Any
 
         if res.createFlow.error:
