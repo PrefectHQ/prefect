@@ -363,7 +363,10 @@ class Client:
 
         res = self.graphql(
             create_mutation,
-            input=dict(projectId=project_id or project[0].id, serializedFlow=flow.serialize(build=True)),
+            input=dict(
+                projectId=project_id or project[0].id,
+                serializedFlow=flow.serialize(build=True),
+            ),
         )  # type: Any
 
         if res.createFlow.error:
