@@ -202,7 +202,7 @@ class Client:
         def request_fn() -> "requests.models.Response":
             headers = {"Authorization": "Bearer {}".format(self.token)}
             if method == "GET":
-                response = requests.get(url, headers=headers, json=params)
+                response = requests.get(url, headers=headers, params=params)
             elif method == "POST":
                 response = requests.post(url, headers=headers, json=params)
             elif method == "DELETE":
@@ -353,7 +353,7 @@ class Client:
         flow_id: str,
         parameters: dict = None,
         scheduled_start_time: datetime.datetime = None,
-    ) -> GraphQLResult:
+    ) -> str:
         """
         Create a new flow run for the given flow id.  If `start_time` is not provided, the flow run will be scheduled to start immediately.
 
@@ -363,7 +363,7 @@ class Client:
             - scheduled_start_time (datetime, optional): the time to schedule the execution for; if not provided, defaults to now
 
         Returns:
-            - GraphQLResult: a `DotDict` with an `"id"` key representing the id of the newly created flow run
+            - str: the ID of the newly-created flow run
 
         Raises:
             - ClientError: if the GraphQL query is bad for any reason
@@ -381,7 +381,7 @@ class Client:
                 scheduledStartTime=scheduled_start_time.isoformat()
             )  # type: ignore
         res = self.graphql(create_mutation, input=inputs)
-        return res.createFlowRun.flow_run  # type: ignore
+        return res.createFlowRun.flow_run.id  # type: ignore
 
     def get_flow_run_info(self, flow_run_id: str) -> FlowRunInfoResult:
         """

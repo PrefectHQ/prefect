@@ -23,6 +23,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Removed the `BokehRunner` and associated webapp - [#609](https://github.com/PrefectHQ/prefect/issues/609)
 - Renamed `ResultHandler` methods from `serialize` / `deserialize` to `write` / `read` - [#612](https://github.com/PrefectHQ/prefect/pull/612)
 - Refactor all `State` objects to store fully hydrated `Result` objects which track information about how results should be handled - [#612](https://github.com/PrefectHQ/prefect/pull/612), [#616](https://github.com/PrefectHQ/prefect/pull/616)
+- `Client.create_flow_run` now returns a string instead of a `GraphQLResult` object to match the API of `deploy` - [#630](https://github.com/PrefectHQ/prefect/pull/630)
 
 ## 0.4.1 <Badge text="beta" type="success"/>
 
