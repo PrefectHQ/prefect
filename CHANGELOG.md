@@ -15,6 +15,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add a `start_time` check for Scheduled flow runs, similar to the one for Task runs - [#605](https://github.com/PrefectHQ/prefect/issues/605)
 - Project names can now be specified for deployments instead of IDs - [#633](https://github.com/PrefectHQ/prefect/pull/633)
 - Added a createProject mutation function to the client - [#633](https://github.com/PrefectHQ/prefect/pull/633)
+- Ensure the result handler used for `Constant` tasks is `JSONResultHandler` - [#635](https://github.com/PrefectHQ/prefect/pull/635)
 
 ### Fixes
 

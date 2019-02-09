@@ -16,7 +16,11 @@ class Constant(prefect.Task):
             if len(name) > 8:
                 name = "Constant[{}]".format(type(self.value).__name__)
 
-        super().__init__(name=name, **kwargs)
+        super().__init__(
+            name=name,
+            result_handler=prefect.engine.result_handlers.JSONResultHandler(),
+            **kwargs
+        )
 
     def run(self):  # type: ignore
         return self.value
