@@ -1,6 +1,7 @@
 import pytest
 
 from prefect.core import Edge, Flow, Parameter, Task
+from prefect.engine.result_handlers import JSONResultHandler
 from prefect.tasks.core import collections
 from prefect.tasks.core.constants import Constant
 from prefect.tasks.core.function import FunctionTask
@@ -25,6 +26,10 @@ class TestConstant:
             t.set_dependencies(upstream_tasks=[4])
         assert len(flow.tasks) == 2
         assert any(isinstance(t, Constant) for t in flow.tasks)
+
+    def test_constant_tasks_have_json_result_handlers(self):
+        x = Constant("x")
+        assert x.result_handler == JSONResultHandler()
 
 
 class TestCollections:
