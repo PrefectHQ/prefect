@@ -35,8 +35,8 @@ old_factory = logging.getLogRecordFactory()
 
 def cloud_record_factory(*args, **kwargs):
     record = old_factory(*args, **kwargs)
-    record.flowrunid = prefect.context.get("flow_run_id", "")
-    record.taskrunid = prefect.context.get("task_run_id", "")
+    record.flow_run_id = prefect.context.get("flow_run_id", "")
+    record.task_run_id = prefect.context.get("task_run_id", "")
     return record
 
 

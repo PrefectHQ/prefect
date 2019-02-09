@@ -7,16 +7,17 @@ debug = false
 
 [cloud]
 # the Prefect Server address
-graphql = "http://localhost:4200"
-log = "http://localhost:4202/log"
-result_handler = "http://localhost:4204/result-handler"
+api = "http://api-staging.prefect.io"
+graphql = "${cloud.api}/graphql/alpha"
+log = "${cloud.api}/log"
+result_handler = "${cloud.api}/result-handler"
 use_local_secrets = true
 heartbeat_interval = 30.0
 
 
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
-level = "INFO"
+level = "DEBUG"
 
 # The log format
 format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
