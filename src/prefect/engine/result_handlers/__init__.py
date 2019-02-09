@@ -5,5 +5,6 @@ The only requirement for a Result handler implementation is that the `write` met
 """
 
 from prefect.engine.result_handlers.result_handler import ResultHandler
+from prefect.engine.result_handlers.gcs_result_handler import GCSResultHandler
 from prefect.engine.result_handlers.json_result_handler import JSONResultHandler
 from prefect.engine.result_handlers.local_result_handler import LocalResultHandler

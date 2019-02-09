@@ -1,5 +1,6 @@
 import json
 import os
+import pendulum
 import tempfile
 from unittest.mock import MagicMock
 
@@ -8,6 +9,7 @@ import pytest
 from prefect.client import Client
 from prefect.engine.result_handlers import (
     ResultHandler,
+    GCSResultHandler,
     LocalResultHandler,
     JSONResultHandler,
 )
@@ -93,3 +95,42 @@ def test_result_handlers_must_implement_read_and_write_to_work():
         m = ReadHandler()
 
     assert "abstract methods write" in str(exc.value)
+
+
+class TestGCSResultHandler:
+    @pytest.fixture
+    def google_client(self, monkeypatch):
+        client = MagicMock()
+        storage = MagicMock(Client=MagicMock(return_value=client))
+        monkeypatch.setattr(
+            "prefect.engine.result_handlers.gcs_result_handler.storage", storage
+        )
+        yield client
+
+    def test_gcs_init(self, google_client):
+        handler = GCSResultHandler(bucket="bob")
+        assert handler.bucket == "bob"
+        assert google_client.bucket.call_args[0][0] == "bob"
+
+    def test_gcs_writes_to_blob_prefixed_by_date_suffixed_by_prefect(
+        self, google_client
+    ):
+        bucket = MagicMock()
+        google_client.bucket = MagicMock(return_value=bucket)
+        handler = GCSResultHandler(bucket="foo")
+        handler.write("so-much-data")
+        assert bucket.blob.called
+        assert bucket.blob.call_args[0][0].startswith(
+            pendulum.now("utc").format("Y/M/D")
+        )
+        assert bucket.blob.call_args[0][0].endswith("prefect_result")
+
+    def test_gcs_writes_binary_string(self, google_client):
+        blob = MagicMock()
+        google_client.bucket = MagicMock(
+            return_value=MagicMock(blob=MagicMock(return_value=blob))
+        )
+        handler = GCSResultHandler(bucket="foo")
+        handler.write(None)
+        assert blob.upload_from_string.called
+        assert isinstance(blob.upload_from_string.call_args[0][0], str)
