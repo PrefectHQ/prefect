@@ -6,6 +6,7 @@ from marshmallow import fields, post_load, ValidationError
 from prefect.engine.cloud.result_handler import CloudResultHandler
 from prefect.engine.result_handlers import (
     ResultHandler,
+    GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
 )
@@ -29,6 +30,13 @@ class CloudResultHandlerSchema(BaseResultHandlerSchema):
     result_handler_service = fields.String(allow_none=True)
 
 
+class GCSResultHandlerSchema(BaseResultHandlerSchema):
+    class Meta:
+        object_class = GCSResultHandler
+
+    bucket = fields.String(allow_none=False)
+
+
 class JSONResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
         object_class = JSONResultHandler
@@ -49,6 +57,7 @@ class ResultHandlerSchema(OneOfSchema):
     # map class name to schema
     type_schemas = {
         "ResultHandler": BaseResultHandlerSchema,
+        "GCSResultHandler": GCSResultHandlerSchema,
         "CloudResultHandler": CloudResultHandlerSchema,
         "JSONResultHandler": JSONResultHandlerSchema,
         "LocalResultHandler": LocalResultHandlerSchema,

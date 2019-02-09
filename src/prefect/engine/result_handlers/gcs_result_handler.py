@@ -11,7 +11,7 @@ from prefect.engine.result_handlers import ResultHandler
 
 class GCSResultHandler(ResultHandler):
     """
-    Result Handler for serializing to and from a Google Cloud Bucket.
+    Result Handler for writing to and reading from a Google Cloud Bucket.
 
     Args:
         - bucket (str): the name of the bucket to write to / read from
@@ -22,12 +22,13 @@ class GCSResultHandler(ResultHandler):
 
     def __init__(self, bucket: str = None) -> None:
         self.client = storage.Client()
-        self.bucket = self.client.bucket(bucket)
+        self.bucket = bucket
+        self.gcs_bucket = self.client.bucket(self.bucket)
         super().__init__()
 
     def write(self, result: Any) -> str:
         """
-        Given a result, writes the result and writes to a location in GCS
+        Given a result, writes the result to a location in GCS
         and returns the resulting URI.
 
         Args:
@@ -40,7 +41,7 @@ class GCSResultHandler(ResultHandler):
         uri = "{date}/{uuid}.prefect_result".format(date=date, uuid=uuid.uuid4())
         self.logger.debug("Starting to upload result to {}...".format(uri))
         binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()
-        self.bucket.blob(uri).upload_from_string(binary_data)
+        self.gcs_bucket.blob(uri).upload_from_string(binary_data)
         self.logger.debug("Finished uploading result to {}.".format(uri))
         return uri
 
@@ -56,7 +57,7 @@ class GCSResultHandler(ResultHandler):
         """
         try:
             self.logger.debug("Starting to download result from {}...".format(uri))
-            result = self.bucket.blob(uri).download_as_string()
+            result = self.gcs_bucket.blob(uri).download_as_string()
             try:
                 return_val = cloudpickle.loads(base64.b64decode(result))
             except EOFError:
