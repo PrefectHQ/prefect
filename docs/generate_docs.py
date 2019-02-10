@@ -321,7 +321,7 @@ if __name__ == "__main__":
     GIT_SHA = os.getenv("GIT_SHA", "0000000")
     SHORT_SHA = GIT_SHA[:7]
     auto_generated_footer = (
-        '<br><hr><p style="text-align:center;"i><small><i>This documentation was auto-generated from commit '
+        '<p style="text-align:center;"i><small><i>This documentation was auto-generated from commit '
         "<a href='https://github.com/PrefectHQ/prefect/commit/{git_sha}'>{short_sha}</a> "
         "on {timestamp}</i></small></p>".format(
             short_sha=SHORT_SHA,
