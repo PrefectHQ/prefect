@@ -135,12 +135,12 @@ def merge(*tasks: Task) -> Task:
         ```
 
     Args:
-        - tasks whose results should be merged into a single result. The tasks are
+        - *tasks (Task): tasks whose results should be merged into a single result. The tasks are
             assumed to all sit downstream of different `switch` branches, such that only
             one of them will contain a result and the others will all be skipped.
 
     Returns:
-        Task: a Task representing the merged result.
+        - Task: a Task representing the merged result.
 
     """
     return Merge().bind(**{"task_{}".format(i + 1): t for i, t in enumerate(tasks)})
