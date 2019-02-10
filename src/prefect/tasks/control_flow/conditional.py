@@ -34,7 +34,7 @@ class CompareValue(Task):
 
     def __init__(self, value: Any, **kwargs):
         self.value = value
-        kwargs.setdefault("name", 'match: "{}"'.format(value))
+        kwargs.setdefault("name", 'CompareValue: "{}"'.format(value))
         super().__init__(**kwargs)
 
     def run(self, value: Any) -> None:
