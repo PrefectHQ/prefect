@@ -22,16 +22,19 @@ class Merge(Task):
         return next((v for v in task_results.values() if v != NoResult), None)
 
 
-class Match(Task):
+class CompareValue(Task):
     """
+    This task stores a `value` at initialization and compares it to a `value` received at runtime.
+    If the values don't match, it raises a SKIP exception.
+
     Args:
-        - match_value (Any): the value this task will attempt to match when it runs
+        - value (Any): the value this task will attempt to match when it runs
         - **kwargs: keyword arguments for the Task
     """
 
-    def __init__(self, match_value: Any, **kwargs):
-        self.match_value = match_value
-        kwargs.setdefault("name", 'match: "{}"'.format(match_value))
+    def __init__(self, value: Any, **kwargs):
+        self.value = value
+        kwargs.setdefault("name", 'CompareValue: "{}"'.format(value))
         super().__init__(**kwargs)
 
     def run(self, value: Any) -> None:
@@ -40,11 +43,11 @@ class Match(Task):
         succeeds silently otherwise.
 
         Args:
-            - value (Any): the value that will be matched against the task's match_value.
+            - value (Any): the value that will be matched against the task's value.
         """
-        if value != self.match_value:
+        if value != self.value:
             raise signals.SKIP(
-                'Provided value "{}" did not match "{}"'.format(value, self.match_value)
+                'Provided value "{}" did not match "{}"'.format(value, self.value)
             )
 
 
@@ -71,7 +74,7 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
     """
 
     with prefect.tags("switch"):
-        for match_value, task in cases.items():
+        for value, task in cases.items():
             task = prefect.utilities.tasks.as_task(task)
 
             active_flow = prefect.context.get("flow", None)
@@ -89,7 +92,7 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
                     prefect.utilities.exceptions.PrefectWarning,
                 )
 
-            match_condition = Match(match_value=match_value).bind(value=condition)
+            match_condition = CompareValue(value=value).bind(value=condition)
             task.set_dependencies(upstream_tasks=[match_condition])
 
 
@@ -132,12 +135,12 @@ def merge(*tasks: Task) -> Task:
         ```
 
     Args:
-        - tasks whose results should be merged into a single result. The tasks are
+        - *tasks (Task): tasks whose results should be merged into a single result. The tasks are
             assumed to all sit downstream of different `switch` branches, such that only
             one of them will contain a result and the others will all be skipped.
 
     Returns:
-        Task: a Task representing the merged result.
+        - Task: a Task representing the merged result.
 
     """
     return Merge().bind(**{"task_{}".format(i + 1): t for i, t in enumerate(tasks)})
