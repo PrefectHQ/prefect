@@ -22,6 +22,7 @@ import warnings
 from functools import partial
 
 import nbformat as nbf
+import pendulum
 import toml
 import toolz
 
@@ -320,9 +321,13 @@ if __name__ == "__main__":
     GIT_SHA = os.getenv("GIT_SHA", "0000000")
     SHORT_SHA = GIT_SHA[:7]
     auto_generated_footer = (
-        "<hr>\n\n<p><small><i>This documentation was auto-generated from "
-        "<a href='https://github.com/PrefectHQ/prefect/commit/{git_sha}'>{short_sha}</a>"
-        "</i></small></p>".format(short_sha=SHORT_SHA, git_sha=GIT_SHA)
+        '<p style="text-align:center;"i><small><i>This documentation was auto-generated from commit '
+        "<a href='https://github.com/PrefectHQ/prefect/commit/{git_sha}'>{short_sha}</a> "
+        "on {timestamp}</i></small></p>".format(
+            short_sha=SHORT_SHA,
+            git_sha=GIT_SHA,
+            timestamp=pendulum.now("utc").format("MMMM D, YYYY [at] HH:mm:ss [UTC]"),
+        )
     )
 
     front_matter = textwrap.dedent(
@@ -352,9 +357,14 @@ if __name__ == "__main__":
         )
         f.write("# API Reference\n")
         f.write(
-            "*This documentation was auto-generated from "
-            "[{short_sha}](https://github.com/PrefectHQ/prefect/commit/{git_sha})*".format(
-                short_sha=SHORT_SHA, git_sha=GIT_SHA
+            "*This documentation was auto-generated from commit "
+            "[{short_sha}](https://github.com/PrefectHQ/prefect/commit/{git_sha}) "
+            "on {timestamp}.*".format(
+                short_sha=SHORT_SHA,
+                git_sha=GIT_SHA,
+                timestamp=pendulum.now("utc").format(
+                    "MMMM D, YYYY [at] HH:mm:ss [UTC]"
+                ),
             )
         )
         f.write(
