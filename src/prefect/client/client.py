@@ -134,7 +134,10 @@ class Client:
             return {}
 
     def graphql(
-        self, query: Any, **variables: Union[bool, dict, str, int]
+        self,
+        query: Any,
+        raise_on_error: bool = True,
+        **variables: Union[bool, dict, str, int],
     ) -> GraphQLResult:
         """
         Convenience function for running queries against the Prefect GraphQL API
@@ -142,6 +145,8 @@ class Client:
         Args:
             - query (Any): A representation of a graphql query to be executed. It will be
                 parsed by prefect.utilities.graphql.parse_graphql().
+            - raise_on_error (bool): if True, a `ClientError` will be raised if the GraphQL
+                returns any `errors`.
             - **variables (kwarg): Variables to be filled into a query with the key being
                 equivalent to the variables that are accepted by the query
 
@@ -158,10 +163,10 @@ class Client:
             server=self.graphql_server,
         )
 
-        if "errors" in result:
+        if raise_on_error and "errors" in result:
             raise ClientError(result["errors"])
         else:
-            return as_nested_dict(result, GraphQLResult).data  # type: ignore
+            return as_nested_dict(result, GraphQLResult)  # type: ignore
 
     def _request(
         self, method: str, path: str, params: dict = None, server: str = None
@@ -319,13 +324,11 @@ class Client:
             )
 
         create_mutation = {
-            "mutation($input: createFlowInput!)": {
-                "createFlow(input: $input)": {"id", "error"}
-            }
+            "mutation($input: createFlowInput!)": {"createFlow(input: $input)": {"id"}}
         }
         schedule_mutation = {
             "mutation($input: setFlowScheduleStateInput!)": {
-                "setFlowScheduleState(input: $input)": {"error"}
+                "setFlowScheduleState(input: $input)": {"id"}
             }
         }
 
@@ -337,7 +340,7 @@ class Client:
             }
         }
 
-        project = self.graphql(query_project).project  # type: ignore
+        project = self.graphql(query_project).data.project  # type: ignore
 
         if not project:
             raise ValueError(
@@ -353,18 +356,13 @@ class Client:
             ),
         )  # type: Any
 
-        if res.createFlow.error:
-            raise ClientError(res.createFlow.error)
-
         if set_schedule_active:
-            scheduled_res = self.graphql(
+            self.graphql(
                 schedule_mutation,
                 input=dict(flowId=res.createFlow.id, setActive=True),  # type: ignore
             )  # type: Any
-            if scheduled_res.setFlowScheduleState.error:
-                raise ClientError(scheduled_res.setFlowScheduleState.error)
 
-        return res.createFlow.id
+        return res.data.createFlow.id
 
     def create_project(self, project_name: str) -> str:
         """
@@ -381,16 +379,13 @@ class Client:
         """
         project_mutation = {
             "mutation($input: createProjectInput!)": {
-                "createProject(input: $input)": {"id", "error"}
+                "createProject(input: $input)": {"id"}
             }
         }
 
         res = self.graphql(project_mutation, input=dict(name=project_name))  # type: Any
 
-        if res.createProject.error:
-            raise ClientError(res.createProject.error)
-
-        return res.createProject.id
+        return res.data.createProject.id
 
     def create_flow_run(
         self,
@@ -425,7 +420,7 @@ class Client:
                 scheduledStartTime=scheduled_start_time.isoformat()
             )  # type: ignore
         res = self.graphql(create_mutation, input=inputs)
-        return res.createFlowRun.flow_run.id  # type: ignore
+        return res.data.createFlowRun.flow_run.id  # type: ignore
 
     def get_flow_run_info(self, flow_run_id: str) -> FlowRunInfoResult:
         """
@@ -457,7 +452,7 @@ class Client:
                 }
             }
         }
-        result = self.graphql(query).flow_run_by_pk  # type: ignore
+        result = self.graphql(query).data.flow_run_by_pk  # type: ignore
         if result is None:
             raise ClientError('Flow run ID not found: "{}"'.format(flow_run_id))
 
@@ -494,10 +489,10 @@ class Client:
             "mutation": {
                 with_args(
                     "updateFlowRunHeartbeat", {"input": {"flowRunId": flow_run_id}}
-                ): {"error"}
+                ): {"success"}
             }
         }
-        self.graphql(mutation)
+        self.graphql(mutation, raise_on_error=False)
 
     def update_task_run_heartbeat(self, task_run_id: str) -> None:
         """
@@ -513,10 +508,10 @@ class Client:
             "mutation": {
                 with_args(
                     "updateTaskRunHeartbeat", {"input": {"taskRunId": task_run_id}}
-                ): {"error"}
+                ): {"success"}
             }
         }
-        self.graphql(mutation)
+        self.graphql(mutation, raise_on_error=False)
 
     def set_flow_run_state(
         self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
@@ -543,16 +538,13 @@ class Client:
                             "state": EnumValue("$state"),
                         }
                     },
-                ): {"error"}
+                ): {"id"}
             }
         }
 
         serialized_state = state.serialize()
 
-        result = self.graphql(mutation, state=serialized_state)  # type: Any
-
-        if result.setFlowRunState.error:
-            raise ClientError(result.setFlowRunState.error)
+        self.graphql(mutation, state=serialized_state)  # type: Any
 
     def get_task_run_info(
         self, flow_run_id: str, task_id: str, map_index: Optional[int] = None
@@ -583,19 +575,15 @@ class Client:
                             "mapIndex": -1 if map_index is None else map_index,
                         }
                     },
-                ): {"task_run": {"id", "version", "serialized_state"}, "error": True}
+                ): {"task_run": {"id", "version", "serialized_state"}, "id": True}
             }
         }
         result = self.graphql(mutation)  # type: Any
+        task_run = result.data.getOrCreateTaskRun.task_run
 
-        if result.getOrCreateTaskRun.error:
-            raise ClientError(result.getOrCreateTaskRun.error)
-        else:
-            result = result.getOrCreateTaskRun.task_run
-
-        state = prefect.engine.state.State.deserialize(result.serialized_state)
+        state = prefect.engine.state.State.deserialize(task_run.serialized_state)
         return TaskRunInfoResult(
-            id=result.id, task_id=task_id, version=result.version, state=state
+            id=task_run.id, task_id=task_id, version=task_run.version, state=state
         )
 
     def set_task_run_state(
@@ -629,15 +617,13 @@ class Client:
                             "state": EnumValue("$state"),
                         }
                     },
-                ): {"error"}
+                ): {"id"}
             }
         }
 
         serialized_state = state.serialize()
 
-        result = self.graphql(mutation, state=serialized_state)  # type: Any
-        if result.setTaskRunState.error:
-            raise ClientError(result.setTaskRunState.error)
+        self.graphql(mutation, state=serialized_state)  # type: Any
 
     def set_secret(self, name: str, value: Any) -> None:
         """
@@ -653,11 +639,10 @@ class Client:
         """
         mutation = {
             "mutation": {
-                with_args("setSecret", {"input": dict(name=name, value=value)}): "error"
+                with_args("setSecret", {"input": dict(name=name, value=value)}): {
+                    "success"
+                }
             }
         }
 
-        result = self.graphql(mutation)  # type: Any
-
-        if result.setSecret.error:
-            raise ClientError(result.setSecret.error)
+        self.graphql(mutation)  # type: Any
