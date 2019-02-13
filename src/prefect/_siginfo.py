@@ -22,7 +22,7 @@ def sig_handler(*args, **kwargs):
         size = width * height
         start_pos = (width - 60) // 2
 
-        if width < 60 or height < 33:
+        if width < 60 or height < 35:
             curses.endwin()
             num_iters = 0
 
