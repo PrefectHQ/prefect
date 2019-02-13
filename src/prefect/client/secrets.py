@@ -37,10 +37,12 @@ class Secret:
             return secrets.get(self.name)
         else:
             client = Client()
-            return client.graphql(  # type: ignore
+            result = client.graphql(  # type: ignore
                 """
                 query($name: String!) {
                     secretValue(name: $name)
-                }""",
+                }
+                """,
                 name=self.name,
-            ).secretValue
+            )
+            return result.data.secretValue  # type: ignore

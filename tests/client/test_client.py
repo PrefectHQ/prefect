@@ -199,7 +199,7 @@ def test_client_posts_graphql_to_graphql_server(monkeypatch):
     ):
         client = Client()
     result = client.graphql("{projects{name}}")
-    assert result == {"success": True}
+    assert result.data == {"success": True}
     assert post.called
     assert post.call_args[0][0] == "http://my-cloud.foo"
 
@@ -244,33 +244,10 @@ def test_graphql_errors_get_raised(monkeypatch):
 
 
 def test_client_deploy(monkeypatch):
-    responses = []
-    responses.append(
-        """
-    {
-        "project": [{
-            "id": "proj-id"
-        }]
+    response = {
+        "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
     }
-    """
-    )
-    responses.append(
-        """
-    {
-        "createFlow": {
-            "id": "long-id",
-            "error": null
-        }
-    }
-    """
-    )
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(
-                side_effect=[dict(data=json.loads(res)) for res in responses]
-            )
-        )
-    )
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -282,21 +259,8 @@ def test_client_deploy(monkeypatch):
 
 
 def test_client_deploy_with_bad_proj_name(monkeypatch):
-    responses = []
-    responses.append(
-        """
-    {
-        "project": []
-    }
-    """
-    )
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(
-                side_effect=[dict(data=json.loads(res)) for res in responses]
-            )
-        )
-    )
+    response = {"data": {"project": []}}
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -388,9 +352,9 @@ def test_get_flow_run_info(monkeypatch):
 
 def test_get_flow_run_info_raises_informative_error(monkeypatch):
     response = """
-{
-    "flow_run_by_pk": null
-}
+    {
+        "flow_run_by_pk": null
+    }
     """
     post = MagicMock(
         return_value=MagicMock(
@@ -408,18 +372,8 @@ def test_get_flow_run_info_raises_informative_error(monkeypatch):
 
 
 def test_set_flow_run_state(monkeypatch):
-    response = """
-    {
-        "setFlowRunState": {
-            "error": null
-        }
-    }
-    """
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=json.loads(response)))
-        )
-    )
+    response = {"data": {"setFlowRunState": {"id": 1}}}
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -432,18 +386,11 @@ def test_set_flow_run_state(monkeypatch):
 
 
 def test_set_flow_run_state_with_error(monkeypatch):
-    response = """
-    {
-        "setFlowRunState": {
-            "error": "something went wrong"
-        }
+    response = {
+        "data": {"setFlowRunState": None},
+        "errors": [{"message": "something went wrong"}],
     }
-    """
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=json.loads(response)))
-        )
-    )
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -458,7 +405,6 @@ def test_get_task_run_info(monkeypatch):
     response = """
     {
         "getOrCreateTaskRun": {
-            "error": null,
             "task_run": {
                 "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
                 "version": 0,
@@ -495,19 +441,11 @@ def test_get_task_run_info(monkeypatch):
 
 
 def test_get_task_run_info_with_error(monkeypatch):
-    response = """
-    {
-        "getOrCreateTaskRun": {
-            "error": "something went wrong",
-            "task_run": null
-        }
+    response = {
+        "data": {"getOrCreateTaskRun": None},
+        "errors": [{"message": "something went wrong"}],
     }
-    """
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=json.loads(response)))
-        )
-    )
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -523,18 +461,9 @@ def test_get_task_run_info_with_error(monkeypatch):
 
 
 def test_set_task_run_state(monkeypatch):
-    response = """
-    {
-        "setTaskRunState": {
-            "error": null
-        }
-    }
-    """
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=json.loads(response)))
-        )
-    )
+    response = {"data": {"setTaskRunState": None}}
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -548,18 +477,12 @@ def test_set_task_run_state(monkeypatch):
 
 
 def test_set_task_run_state_with_error(monkeypatch):
-    response = """
-    {
-        "setTaskRunState": {
-            "error": "something went wrong"
-        }
+    response = {
+        "data": {"setTaskRunState": None},
+        "errors": [{"message": "something went wrong"}],
     }
-    """
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=json.loads(response)))
-        )
-    )
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
