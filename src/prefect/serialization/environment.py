@@ -32,6 +32,9 @@ class DockerEnvironmentSchema(ObjectSchema):
     image_tag = fields.String(allow_none=True)
     python_dependencies = fields.List(fields.String(), allow_none=True)
 
+class LocalOnKubernetesEnvironment(DockerEnvironmentSchema):
+    class Meta:
+        object_class = prefect.environments.kubernetes.LocalOnKubernetesEnvironment
 
 class EnvironmentSchema(OneOfSchema):
     """
@@ -42,4 +45,5 @@ class EnvironmentSchema(OneOfSchema):
     type_schemas = {
         "DockerEnvironment": DockerEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
+        "LocalOnKubernetesEnvironment": LocalOnKubernetesEnvironment
     }
