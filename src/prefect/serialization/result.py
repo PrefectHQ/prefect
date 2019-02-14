@@ -5,12 +5,11 @@ from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
 
 
-class ResultSchema(ObjectSchema):
+class SafeResultSchema(ObjectSchema):
     class Meta:
-        object_class = result.Result
+        object_class = result.SafeResult
 
     value = JSONCompatible(allow_none=True)
-    handled = fields.Boolean()
     result_handler = fields.Nested(ResultHandlerSchema, allow_none=True)
 
 
@@ -25,4 +24,4 @@ class StateResultSchema(OneOfSchema):
     """
 
     # map class name to schema
-    type_schemas = {"Result": ResultSchema, "NoResultType": NoResultSchema}
+    type_schemas = {"SafeResult": SafeResultSchema, "NoResultType": NoResultSchema}

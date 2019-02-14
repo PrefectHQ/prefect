@@ -28,6 +28,7 @@ class ResultInterface:
     A necessary evil so that Results can store SafeResults and NoResults
     in its attributes without pickle recursion problems.
     """
+
     def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
             eq = True
@@ -62,9 +63,7 @@ class Result(ResultInterface):
             when storing / serializing this result's value; required if `handled=True`
     """
 
-    def __init__(
-        self, value: Any, result_handler: ResultHandler = None
-    ):
+    def __init__(self, value: Any, result_handler: ResultHandler = None):
         self.value = value
         self.safe_value = NoResult
         self.result_handler = result_handler
@@ -78,15 +77,19 @@ class Result(ResultInterface):
                 self.result_handler, ResultHandler
             ), "Result has no ResultHandler"  # mypy assert
             value = self.result_handler.write(self.value)
-            self.safe_value = SafeResult(value=value, result_handler=self.result_handler)
+            self.safe_value = SafeResult(
+                value=value, result_handler=self.result_handler
+            )
 
 
 class SafeResult(ResultInterface):
-    def __init__(
-        self, value: Any, result_handler: ResultHandler
-    ):
+    def __init__(self, value: Any, result_handler: ResultHandler):
         self.value = value
         self.result_handler = result_handler
+
+    @property
+    def safe_value(self) -> "SafeResult":
+        return self
 
     def to_result(self) -> "Result":
         """
