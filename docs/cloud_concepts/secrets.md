@@ -37,6 +37,10 @@ mutation{
 }
 ```
 
+::: tip You can overwrite Secrets
+Changing the value of a Secret is as simple as re-issuing the above mutation with the new value.
+:::
+
 ## Using a Secret
 
 Secrets can be used anywhere, at any time.  This includes, but is not limited to:
