@@ -23,8 +23,6 @@ from typing import Any, Union
 
 from prefect.engine.result_handlers import ResultHandler
 
-## implement an ABC metaclass for all 3 types to avoid recursion problems
-## this class will enforce a standard interface
 
 class ResultInterface(metaclass=ABCMeta):
     """
@@ -63,44 +61,34 @@ class Result(metaclass=ResultInterface):
         if type(self) == type(other):
             assert isinstance(other, Result)  # mypy assert
             eq = True
-            for attr in ["value", "result_handler"]:
+            for attr in ["value", "safe_value", "result_handler"]:
                 eq &= getattr(self, attr, object()) == getattr(other, attr, object())
             return eq
         return False
 
     def __repr__(self) -> str:
-        return "Result: {}".format(repr(self.value))
+        return "<Result: {}>".format(repr(self.value))
 
-    def store_safe_value(self) -> "Result":
+    def store_safe_value(self) -> None:
         """
         Write the value of this result using the result handler (if it hasn't already been handled).
-
-        Returns:
-            - Result: a new result containing the written representation of the value
         """
-        if :
+        if self.safe_value == NoResult:
             assert isinstance(
                 self.result_handler, ResultHandler
             ), "Result has no ResultHandler"  # mypy assert
             value = self.result_handler.write(self.value)
-            return Result(value=value, handled=True, result_handler=self.result_handler)
-        else:
-            return self
+            self.safe_value = SafeResult(value=value, result_handler=self.result_handler)
 
     def to_result(self) -> "Result":
-        if isinstance(self, SafeResult):
-            res = Result(value=self.result_handler.read(self.value), result_handler=self.result_handler)
-            res.safe_value = self
-            return res
-        else:
-            return self
+        return self
 
 
-class SafeResult(Result):
+class SafeResult(metaclass=ResultInterface):
     pass
 
 
-class NoResultType(Result):
+class NoResultType(metaclass=ResultInterface):
     """
     A `Result` subclass representing the _absence_ of computation / output.  A `NoResult` object
     simply returns itself for its `value`, and as the output of both `read` and `write`.
@@ -116,23 +104,23 @@ class NoResultType(Result):
             return False
 
     def __repr__(self) -> str:
-        return "NoResult"
+        return "<No result>"
 
     @property
     def value(self) -> "NoResultType":
         return self
 
-    def read(self) -> "NoResultType":
+    def to_result(self) -> "NoResultType":
         """
         Performs no computation and returns self.
         """
         return self
 
-    def write(self) -> "NoResultType":
+    def store_safe_value(self) -> None:
         """
         Performs no computation and returns self.
         """
-        return self
+        pass
 
 
 NoResult = NoResultType()
