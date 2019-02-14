@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Union
 import pendulum
 
 import prefect
-from prefect.engine.result import Result, NoResult
+from prefect.engine.result import Result, NoResult, ResultInterface
 from prefect.engine.result_handlers import ResultHandler
 from prefect.utilities.collections import DotDict
 from prefect.utilities.datetimes import ensure_tz_aware
@@ -79,7 +79,7 @@ class State:
 
     @result.setter
     def result(self, value: Any) -> None:
-        if isinstance(value, Result):
+        if isinstance(value, ResultInterface):
             self._result = value
         else:
             self._result = Result(value=value)
