@@ -5,7 +5,7 @@ from marshmallow import fields, post_load, ValidationError
 
 from prefect.engine import state
 from prefect.engine import result
-from prefect.serialization.result import StateResultSchema
+from prefect.serialization.result import ResultSchema
 from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
     JSONCompatible,
@@ -13,6 +13,7 @@ from prefect.utilities.serialization import (
     ObjectSchema,
     to_qualified_name,
 )
+
 
 
 class BaseStateSchema(ObjectSchema):
