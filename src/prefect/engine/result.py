@@ -18,27 +18,39 @@ also provides a `NoResult` object representing the _absence_ of computation / da
 whose value is `None`.
 """
 
-from abc import ABCMeta, abstractmethod
 from typing import Any, Union
 
 from prefect.engine.result_handlers import ResultHandler
 
 
-class ResultInterface(metaclass=ABCMeta):
+class ResultInterface:
     """
     A necessary evil so that Results can store SafeResults and NoResults
     in its attributes without pickle recursion problems.
     """
-    @abstractmethod
-    def to_result(self) -> None
+    def __eq__(self, other: Any) -> bool:
+        if type(self) == type(other):
+            eq = True
+            for attr in self.__dict__:
+                if attr.startswith("_"):
+                    continue
+                eq &= getattr(self, attr, object()) == getattr(other, attr, object())
+            return eq
+        return False
+
+    def __repr__(self) -> str:
+        return "<{type}: {val}>".format(type=type(self).__name__, val=repr(self.value))
+
+    def to_result(self) -> "ResultInterface":
+        """Performs no computation and returns self."""
+        return self
+
+    def store_safe_value(self) -> None:
+        """Performs no computation."""
         pass
 
-    @abstractmethod
-    def store_safe_value(self) -> None
-        pass
 
-
-class Result(metaclass=ResultInterface):
+class Result(ResultInterface):
     """
     A representation of the result of a Prefect task; this class contains information about
     the value of a task's result, a result handler specifying how to serialize or store this value securely,
@@ -57,18 +69,6 @@ class Result(metaclass=ResultInterface):
         self.safe_value = NoResult
         self.result_handler = result_handler
 
-    def __eq__(self, other: Any) -> bool:
-        if type(self) == type(other):
-            assert isinstance(other, Result)  # mypy assert
-            eq = True
-            for attr in ["value", "safe_value", "result_handler"]:
-                eq &= getattr(self, attr, object()) == getattr(other, attr, object())
-            return eq
-        return False
-
-    def __repr__(self) -> str:
-        return "<Result: {}>".format(repr(self.value))
-
     def store_safe_value(self) -> None:
         """
         Write the value of this result using the result handler (if it hasn't already been handled).
@@ -80,17 +80,27 @@ class Result(metaclass=ResultInterface):
             value = self.result_handler.write(self.value)
             self.safe_value = SafeResult(value=value, result_handler=self.result_handler)
 
+
+class SafeResult(ResultInterface):
+    def __init__(
+        self, value: Any, result_handler: ResultHandler
+    ):
+        self.value = value
+        self.result_handler = result_handler
+
     def to_result(self) -> "Result":
-        return self
+        """
+        Read the value of this result using the result handler and return a fully hydrated Result.
+        """
+        value = self.result_handler.read(self.value)
+        res = Result(value=value, result_handler=self.result_handler)
+        res.safe_value = self
+        return res
 
 
-class SafeResult(metaclass=ResultInterface):
-    pass
-
-
-class NoResultType(metaclass=ResultInterface):
+class NoResultType(ResultInterface):
     """
-    A `Result` subclass representing the _absence_ of computation / output.  A `NoResult` object
+    A `ResultInterface` subclass representing the _absence_ of computation / output.  A `NoResult` object
     simply returns itself for its `value`, and as the output of both `read` and `write`.
     """
 
@@ -107,20 +117,12 @@ class NoResultType(metaclass=ResultInterface):
         return "<No result>"
 
     @property
+    def safe_value(self) -> "NoResultType":
+        return self
+
+    @property
     def value(self) -> "NoResultType":
         return self
-
-    def to_result(self) -> "NoResultType":
-        """
-        Performs no computation and returns self.
-        """
-        return self
-
-    def store_safe_value(self) -> None:
-        """
-        Performs no computation and returns self.
-        """
-        pass
 
 
 NoResult = NoResultType()

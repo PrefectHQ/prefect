@@ -1,6 +1,7 @@
+import cloudpickle
 import pytest
 
-from prefect.engine.result import Result, NoResult, NoResultType
+from prefect.engine.result import Result, NoResult, NoResultType, SafeResult
 from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 
 
@@ -19,46 +20,42 @@ class TestInitialization:
     def test_result_inits_with_value(self):
         r = Result(3)
         assert r.value == 3
+        assert r.safe_value is NoResult
+        assert r.result_handler is None
 
         s = Result(value=5)
         assert s.value == 5
+        assert s.safe_value is NoResult
+        assert s.result_handler is None
 
     def test_result_inits_with_handled_and_result_handler(self):
         handler = JSONResultHandler()
-        r = Result(value=3, handled=False, result_handler=handler)
+        r = Result(value=3, result_handler=handler)
         assert r.value == 3
-        assert r.handled is False
+        assert r.safe_value is NoResult
         assert r.result_handler == handler
 
-    def test_result_does_allow_handled_false_without_result_handler(self):
-        r = Result(value=2, handled=False)
-        assert r.value == 2
-        assert r.handled is False
-
-    def test_result_doesnt_allow_handled_without_result_handler(self):
-        with pytest.raises(ValueError):
-            r = Result(value=3, handled=True)
-
-    def test_result_assumes_nonhandled_at_init(self):
-        r = Result(10)
-        assert r.handled is False
-        assert r.result_handler is None
+    def test_safe_result_requires_both_init_args(self):
 
 
 def test_basic_noresult_repr():
-    assert repr(NoResult) == "NoResult"
+    assert repr(NoResult) == "<No result>"
 
 
 def test_basic_result_repr():
     r = Result(2)
-    assert repr(r) == "Result: 2"
+    assert repr(r) == "<Result: 2>"
 
 
-@pytest.mark.parametrize("attr", ["handled", "result_handler"])
-def test_noresult_has_no_handler_attrs(attr):
+def test_noresult_has_no_handler_attrs():
     n = NoResult
     with pytest.raises(AttributeError):
-        getattr(n, attr)
+        n.result_handler
+
+
+def test_noresult_returns_itself_for_safe_value():
+    n = NoResult
+    assert n is n.safe_value
 
 
 def test_noresult_returns_itself_for_value():
@@ -87,17 +84,22 @@ class TestResultEquality:
         assert r == s
 
     def test_results_are_different_if_handled(self):
-        r = Result("3", handled=True, result_handler=JSONResultHandler())
-        s = Result("3", handled=False, result_handler=JSONResultHandler())
+        r = Result("3", result_handler=JSONResultHandler())
+        s = Result("3", result_handler=JSONResultHandler())
+        s.store_safe_value()
         assert s != r
 
     def test_results_are_same_if_handled(self):
-        r = Result("3", handled=True, result_handler=JSONResultHandler())
-        s = Result("3", handled=True, result_handler=JSONResultHandler())
+        r = Result("3", result_handler=JSONResultHandler())
+        s = Result("3", result_handler=JSONResultHandler())
+        r.store_safe_value()
+        s.store_safe_value()
         assert s == r
 
+    def test_safe_results_are_same(self):
 
-class TestSerialization:
+
+class Test:
     def test_write_writes(self):
         r = Result(value=4, result_handler=JSONResultHandler())
         assert r.handled is False
