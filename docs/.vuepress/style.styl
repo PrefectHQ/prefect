@@ -156,17 +156,6 @@ i
 /* components
 	========================================================================== */
 
-// tables
-table
-	text-align: left
-
-	tr
-		background-color: color-white
-
-		&:nth-child(2n)
-			background-color: color-grey-bg + 75%
-
-
 // top navigation
 .navbar
 	{a-links}
@@ -279,6 +268,7 @@ lang = '[class*="language-"]'
 .word-wrap
 	overflow-wrap: break-word
 	word-wrap: break-word
+	word-break: break-word
 
 .prefect-code 
 	color: color-grey-dark
@@ -294,6 +284,18 @@ lang = '[class*="language-"]'
 
 .prefect-block
 	@extends .prefect-code, .prefect-spacing
+
+// tables
+table
+	> &
+		text-align: left
+
+	tr
+		background-color: color-white
+
+		&:nth-child(2n)
+			background-color: color-grey-bg + 75%
+
 
 // begin styling code blocks
 {pre-code}
@@ -389,19 +391,13 @@ pre.vue-container
 
 
 // api resource documentation
-prefect-classes = 'div[class="class-sig"]'
-prefect-methods = 'div[class="method-sig"]'
+sig-class = 'div[class="class-sig"]'
+sig-method = 'div[class="method-sig"]'
 
 .content
-	{prefect-classes},
-	{prefect-methods}
-		@extend .prefect-code
-		background-color: color-blue-primary + 95%
-		border-top: 0.325em solid color-blue-secondary
-		font-size: 1.125em
-		line-height: 2
-		padding: 1.5rem 2rem 3.5rem 5rem
-		text-indent: -2.5em
+	{sig-class},
+	{sig-method}
+		@extend .prefect-block
 
 		// source link
 		span a
@@ -414,13 +410,20 @@ prefect-methods = 'div[class="method-sig"]'
 			{on-hover}
 				font-weight: font-bold
 
+	{sig-class}
+		background-color: color-blue-primary + 95%
+		border-top: 0.325em solid color-blue-secondary
+		font-size: 1.125em
+		line-height: 2
+		padding: 1.5rem 2rem 3.5rem 5rem
+		text-indent: -2.5em			
 
-	// overrides to differentiate methods
-	{prefect-methods}
-		background-color: color-blue-primary - 97%
-		border-top: 0.325em solid (color-blue-secondary - 50%)
+	{sig-method}
+		background-color: color-blue-primary + 97%
+		border-top: 0.325em solid (color-blue-secondary + 50%)
 		font-size: 1em
 		line-height: 1.75em
+		padding: 1.5rem 2rem 3rem
 	
 
 // select and style py args lists and nested items
