@@ -22,7 +22,7 @@ class LocalEnvironmentSchema(ObjectSchema):
     serialized_flow = Bytes(allow_none=True)
 
 
-class ContainerEnvironmentSchema(ObjectSchema):
+class DockerEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = prefect.environments.DockerEnvironment
 
@@ -40,6 +40,6 @@ class EnvironmentSchema(OneOfSchema):
 
     # map class name to schema
     type_schemas = {
-        "ContainerEnvironment": ContainerEnvironmentSchema,
+        "DockerEnvironment": DockerEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
     }
