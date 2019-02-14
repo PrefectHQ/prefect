@@ -1,2 +1,2 @@
 
-from prefect.environments.kubernetes.local.local_on_kubernetes import LocalOnKubernetes
+from prefect.environments.kubernetes.local.local_on_kubernetes import LocalOnKubernetesEnvironment

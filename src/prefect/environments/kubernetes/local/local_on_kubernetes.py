@@ -2,7 +2,7 @@ import prefect
 from prefect.environments import DockerEnvironment
 
 
-class LocalOnKubernetes(DockerEnvironment):
+class LocalOnKubernetesEnvironment(DockerEnvironment):
     """"""
 
     def __init__(self, registry_url: str = None) -> None:
