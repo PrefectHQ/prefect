@@ -68,9 +68,6 @@ class LocalEnvironment(Environment):
         flow = cloudpickle.loads(decrypted_pickle)
         return flow
 
-    def execute(self) -> None:
-        raise NotImplementedError()
-
     def run(
         self, start_task_ids: List[str] = None, runner_kwargs: dict = None
     ) -> "prefect.engine.state.State":
@@ -97,6 +94,3 @@ class LocalEnvironment(Environment):
         runner_cls = prefect.engine.get_default_flow_runner_class()
         runner = runner_cls(flow=flow)
         return runner.run(**runner_kwargs)
-
-    def setup(self) -> None:
-        raise NotImplementedError()

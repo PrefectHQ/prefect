@@ -240,12 +240,3 @@ class DockerEnvironment(Environment):
             )
 
             dockerfile.write(file_contents)
-
-    def execute(self) -> None:
-        raise NotImplementedError()
-
-    def run(self) -> "prefect.engine.state.State":
-        raise NotImplementedError()
-
-    def setup(self) -> None:
-        raise NotImplementedError()
