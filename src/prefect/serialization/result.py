@@ -18,18 +18,6 @@ class NoResultSchema(ObjectSchema):
         object_class = result.NoResultType
 
 
-class ResultSchema(ObjectSchema):
-    class Meta:
-        object_class = result.Result
-
-    @post_load
-    def create_object(self, data):
-        result_obj = data.pop("_result", result.NoResult)
-        base_obj = super().create_object(data)
-        base_obj._result = result_obj
-        return base_obj
-
-
 class StateResultSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas

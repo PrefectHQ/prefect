@@ -11,7 +11,7 @@ from collections import defaultdict
 
 import prefect
 from prefect.engine.result import NoResult, Result
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine import state
 from prefect.serialization.state import StateSchema
 
@@ -81,12 +81,12 @@ def test_all_states_have_deserialization_schemas_in_stateschema():
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
-def test_serialize_state_with_result(cls):
+def test_serialize_state_with_un_handled_result(cls):
     serialized = StateSchema().dump(cls(message="message", result=1))
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
     assert serialized["message"] is "message"
-    assert serialized["_result"]["value"] == 1
+    assert serialized["_result"]["type"] == 'NoResultType'
     assert serialized["__version__"] == prefect.__version__
 
 
@@ -98,6 +98,34 @@ def test_serialize_state_with_no_result(cls):
     assert serialized["type"] == cls.__name__
     assert serialized["message"] is "message"
     assert serialized["_result"]["type"] == "NoResultType"
+    assert serialized["__version__"] == prefect.__version__
+
+
+@pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
+def test_serialize_state_with_handled_result(cls):
+    state = cls(message="message", result=1)
+    state._result.result_handler = JSONResultHandler()
+    state._result.store_safe_value()
+    serialized = StateSchema().dump(state)
+    assert isinstance(serialized, dict)
+    assert serialized["type"] == cls.__name__
+    assert serialized["message"] is "message"
+    assert serialized["_result"]["type"] == 'SafeResult'
+    assert serialized["_result"]["value"] == "1"
+    assert serialized["__version__"] == prefect.__version__
+
+
+@pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
+def test_serialize_state_with_safe_result(cls):
+    state = cls(message="message", result=1)
+    state._result.result_handler = JSONResultHandler()
+    state._result.store_safe_value()
+    serialized = StateSchema().dump(state)
+    assert isinstance(serialized, dict)
+    assert serialized["type"] == cls.__name__
+    assert serialized["message"] is "message"
+    assert serialized["_result"]["type"] == 'SafeResult'
+    assert serialized["_result"]["value"] == "1"
     assert serialized["__version__"] == prefect.__version__
 
 

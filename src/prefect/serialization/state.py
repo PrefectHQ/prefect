@@ -5,15 +5,25 @@ from marshmallow import fields, post_load, ValidationError
 
 from prefect.engine import state
 from prefect.engine import result
-from prefect.serialization.result import ResultSchema
+from prefect.serialization.result import StateResultSchema
 from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
     JSONCompatible,
     OneOfSchema,
     ObjectSchema,
+    Nested,
     to_qualified_name,
 )
 
+
+
+def get_safe(obj, context):
+    """
+    Helper function for ensuring only safe values are serialized.
+    Note that it is up to the user to actively store a Result's value in a
+    safe way prior to serialization (if they want the result to be avaiable post-serialization).
+    """
+    return obj._result.safe_value
 
 
 class BaseStateSchema(ObjectSchema):
@@ -21,7 +31,7 @@ class BaseStateSchema(ObjectSchema):
         object_class = state.State
 
     message = fields.String(allow_none=True)
-    _result = fields.Nested(StateResultSchema, allow_none=False)
+    _result = Nested(StateResultSchema, allow_none=False, value_selection_fn=get_safe)
 
     @post_load
     def create_object(self, data):
