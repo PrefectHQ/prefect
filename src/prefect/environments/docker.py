@@ -4,13 +4,15 @@ import logging
 import os
 import shutil
 import tempfile
+import textwrap
 from typing import Iterable
 import uuid
 
 import docker
 
 import prefect
-from prefect.environments import Environment, LocalEnvironment
+from prefect.environments import Environment
+from prefect.environments import LocalEnvironment
 
 
 class DockerEnvironment(Environment):
@@ -242,7 +244,7 @@ class DockerEnvironment(Environment):
     def execute(self) -> None:
         raise NotImplementedError()
 
-    def run(self) -> None:
+    def run(self) -> "prefect.engine.state.State":
         raise NotImplementedError()
 
     def setup(self) -> None:
