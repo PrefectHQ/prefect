@@ -236,24 +236,6 @@ img
 
 	.slack-example
 		width: 75%
-	
-
-// custom blocks
-.custom-block
-
-	&-title
-		font-weight: font-bold
-
-	&.tip
-		background-color: color-grey-bg
-		border-color: color-blue-secondary
-
-	&.warning
-		background-color: color-orange - 90%
-		border-color: color-orange
-		
-		/ &-title &
-			color: color-grey-dark
 
 
 /* prefect code and syntax highlighting styles; overrides prism.js and vuepress theme
@@ -295,6 +277,42 @@ table
 
 		&:nth-child(2n)
 			background-color: color-grey-bg + 75%
+
+// custom blocks
+.custom-block
+	.custom-block-title
+		font-weight: font-bold
+
+	&.tip
+		background-color: color-blue-primary + 95%
+		border-color: color-blue-secondary
+
+		.custom-block-title
+			color: color-blue-primary
+
+		pre{lang}
+			border: 1px solid (color-blue-secondary + 50%)
+
+
+	&.warning
+		background-color: color-orange + 90%
+		border-color: color-orange
+
+		.custom-block-title
+			color: color-orange - 10%
+
+		pre{lang}
+			border: 1px solid (color-orange + 50%)
+
+	&.danger
+		background-color: color-pink + 90%
+		border-color: color-pink
+
+		.custom-block-title
+			color: color-pink - 10%
+
+		pre{lang}
+			border: 1px solid (color-pink + 50%)
 
 
 // begin styling code blocks
