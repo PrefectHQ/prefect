@@ -18,12 +18,29 @@ also provides a `NoResult` object representing the _absence_ of computation / da
 whose value is `None`.
 """
 
+from abc import ABCMeta, abstractmethod
 from typing import Any, Union
 
 from prefect.engine.result_handlers import ResultHandler
 
+## implement an ABC metaclass for all 3 types to avoid recursion problems
+## this class will enforce a standard interface
 
-class Result:
+class ResultInterface(metaclass=ABCMeta):
+    """
+    A necessary evil so that Results can store SafeResults and NoResults
+    in its attributes without pickle recursion problems.
+    """
+    @abstractmethod
+    def to_result(self) -> None
+        pass
+
+    @abstractmethod
+    def store_safe_value(self) -> None
+        pass
+
+
+class Result(metaclass=ResultInterface):
     """
     A representation of the result of a Prefect task; this class contains information about
     the value of a task's result, a result handler specifying how to serialize or store this value securely,
@@ -31,32 +48,22 @@ class Result:
 
     Args:
         - value (Any): the value of the result
-        - handled (boolean, optional): whether this value has already been
-            handled or not; defaults to `False`
         - result_handler (ResultHandler, optional): the result handler to use
             when storing / serializing this result's value; required if `handled=True`
-
-    Raises:
-        - ValueError: if a handled value is provided without a result handler
     """
 
     def __init__(
-        self, value: Any, handled: bool = False, result_handler: ResultHandler = None
+        self, value: Any, result_handler: ResultHandler = None
     ):
         self.value = value
-        if handled is True and result_handler is None:
-            raise ValueError(
-                "If value has been handled, a result_handler must be provided."
-            )
-
-        self.handled = handled
+        self.safe_value = NoResult
         self.result_handler = result_handler
 
     def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
             assert isinstance(other, Result)  # mypy assert
             eq = True
-            for attr in ["value", "handled", "result_handler"]:
+            for attr in ["value", "result_handler"]:
                 eq &= getattr(self, attr, object()) == getattr(other, attr, object())
             return eq
         return False
@@ -64,14 +71,14 @@ class Result:
     def __repr__(self) -> str:
         return "Result: {}".format(repr(self.value))
 
-    def write(self) -> "Result":
+    def store_safe_value(self) -> "Result":
         """
         Write the value of this result using the result handler (if it hasn't already been handled).
 
         Returns:
             - Result: a new result containing the written representation of the value
         """
-        if not self.handled:
+        if :
             assert isinstance(
                 self.result_handler, ResultHandler
             ), "Result has no ResultHandler"  # mypy assert
@@ -80,23 +87,17 @@ class Result:
         else:
             return self
 
-    def read(self) -> "Result":
-        """
-        Read the value of this result using the result handler.
-
-        Returns:
-            - Result: a new result containing the new representation of the value
-        """
-        if self.handled:
-            assert isinstance(
-                self.result_handler, ResultHandler
-            ), "Result has no ResultHandler"  # mypy assert
-            value = self.result_handler.read(self.value)
-            return Result(
-                value=value, handled=False, result_handler=self.result_handler
-            )
+    def to_result(self) -> "Result":
+        if isinstance(self, SafeResult):
+            res = Result(value=self.result_handler.read(self.value), result_handler=self.result_handler)
+            res.safe_value = self
+            return res
         else:
             return self
+
+
+class SafeResult(Result):
+    pass
 
 
 class NoResultType(Result):
