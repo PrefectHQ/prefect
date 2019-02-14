@@ -359,7 +359,9 @@ class Client:
         if set_schedule_active:
             self.graphql(
                 schedule_mutation,
-                input=dict(flowId=res.createFlow.id, setActive=True),  # type: ignore
+                input=dict(
+                    flowId=res.data.createFlow.id, setActive=True
+                ),  # type: ignore
             )  # type: Any
 
         return res.data.createFlow.id
