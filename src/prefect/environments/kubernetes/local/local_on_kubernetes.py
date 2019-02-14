@@ -1,13 +1,14 @@
 import prefect
-from prefect.environments import Environment
+from prefect.environments import DockerEnvironment
 
-class LocalOnKubernetes(Environment):
+
+class LocalOnKubernetes(DockerEnvironment):
     """"""
-    def __init__(self) -> None:
-        pass
 
-    def build(self, flow: "prefect.Flow") -> "Environment":
-        pass
+    def __init__(self, registry_url: str = None) -> None:
+        DockerEnvironment.__init__(
+            self, base_image="python:3.6", registry_url=registry_url
+        )
 
     def execute(self) -> None:
         pass
