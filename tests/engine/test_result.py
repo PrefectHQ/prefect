@@ -2,7 +2,11 @@ import cloudpickle
 import pytest
 
 from prefect.engine.result import Result, NoResult, NoResultType, SafeResult
-from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
+from prefect.engine.result_handlers import (
+    ResultHandler,
+    JSONResultHandler,
+    LocalResultHandler,
+)
 
 
 class TestInitialization:
@@ -36,10 +40,32 @@ class TestInitialization:
         assert r.result_handler == handler
 
     def test_safe_result_requires_both_init_args(self):
+        with pytest.raises(TypeError) as exc:
+            res = SafeResult()
+        assert "2 required positional arguments" in str(exc.value)
+
+        with pytest.raises(TypeError) as exc:
+            res = SafeResult(value="3")
+        assert "1 required positional argument" in str(exc.value)
+
+        with pytest.raises(TypeError) as exc:
+            res = SafeResult(result_handler=JSONResultHandler())
+        assert "1 required positional argument" in str(exc.value)
+
+    def test_safe_result_inits_with_both_args(self):
+        res = SafeResult(value="3", result_handler=JSONResultHandler())
+        assert res.value == "3"
+        assert res.result_handler == JSONResultHandler()
+        assert res.safe_value is res
 
 
 def test_basic_noresult_repr():
     assert repr(NoResult) == "<No result>"
+
+
+def test_basic_safe_result_repr():
+    r = SafeResult(2, result_handler=JSONResultHandler())
+    assert repr(r) == "<SafeResult: 2>"
 
 
 def test_basic_result_repr():
@@ -97,33 +123,90 @@ class TestResultEquality:
         assert s == r
 
     def test_safe_results_are_same(self):
+        r = SafeResult("3", result_handler=JSONResultHandler())
+        s = SafeResult("3", result_handler=JSONResultHandler())
+        assert r == s
+
+    def test_safe_results_with_different_values_are_not_same(self):
+        r = SafeResult("3", result_handler=JSONResultHandler())
+        s = SafeResult("4", result_handler=JSONResultHandler())
+        assert r != s
+
+    def test_safe_results_with_different_handlers_are_not_same(self):
+        r = SafeResult("3", result_handler=JSONResultHandler())
+        s = SafeResult("3", result_handler=LocalResultHandler())
+        assert r != s
+
+    def test_safe_results_to_results_remain_the_same(self):
+        r = SafeResult("3", result_handler=JSONResultHandler())
+        s = SafeResult("3", result_handler=JSONResultHandler())
+        assert r.to_result() == s.to_result()
 
 
-class Test:
-    def test_write_writes(self):
+class TestStoreSafeValue:
+    def test_store_safe_value_for_results(self):
         r = Result(value=4, result_handler=JSONResultHandler())
-        assert r.handled is False
-        s = r.write()
-        assert s.handled is True
-        assert s.value == "4"
-        assert s.result_handler is r.result_handler
+        assert r.safe_value is NoResult
+        output = r.store_safe_value()
+        assert output is None
+        assert isinstance(r.safe_value, SafeResult)
+        assert r.value == 4
 
-    def test_write_doesnt_write(self):
-        r = Result(value=4, handled=True, result_handler=JSONResultHandler())
-        assert r.handled is True
-        s = r.write()
-        assert s is r
+    def test_store_safe_value_for_safe_results(self):
+        r = SafeResult(value=4, result_handler=JSONResultHandler())
+        output = r.store_safe_value()
+        assert output is None
+        assert isinstance(r.safe_value, SafeResult)
+        assert r.value == 4
 
-    def test_write_reads(self):
-        r = Result(value="4", handled=True, result_handler=JSONResultHandler())
-        assert r.handled is True
-        s = r.read()
-        assert s.handled is False
-        assert s.value == 4
-        assert s.result_handler is r.result_handler
+    def test_store_safe_value_for_no_results(self):
+        output = NoResult.store_safe_value()
+        assert output is None
 
-    def test_write_doesnt_read(self):
-        r = Result(value="4", handled=False, result_handler=JSONResultHandler())
-        assert r.handled is False
-        s = r.read()
-        assert s is r
+    def test_storing_happens_once(self):
+        r = Result(value=4, result_handler=JSONResultHandler())
+        safe_value = SafeResult(value="123", result_handler=JSONResultHandler())
+        r.safe_value = safe_value
+        r.store_safe_value()
+        assert r.safe_value is safe_value
+
+    def test_error_when_storing_with_no_handler(self):
+        r = Result(value=42)
+        with pytest.raises(AssertionError):
+            r.store_safe_value()
+
+
+class TestToResult:
+    def test_to_result_returns_self_for_results(self):
+        r = Result(4)
+        assert r.to_result() is r
+
+    def test_to_result_returns_self_for_no_results(self):
+        assert NoResult.to_result() is NoResult
+
+    def test_to_result_returns_hydrated_result_for_safe(self):
+        s = SafeResult("3", result_handler=JSONResultHandler())
+        res = s.to_result()
+        assert isinstance(res, Result)
+        assert res.value == 3
+        assert res.safe_value is s
+        assert res.result_handler is s.result_handler
+
+
+@pytest.mark.parametrize(
+    "obj",
+    [
+        Result(3),
+        Result(object, result_handler=LocalResultHandler()),
+        NoResult,
+        SafeResult("3", result_handler=JSONResultHandler()),
+    ],
+)
+def test_everything_is_pickleable_after_init(obj):
+    assert cloudpickle.loads(cloudpickle.dumps(obj)) == obj
+
+
+def test_results_are_pickleable_with_their_safe_values():
+    res = Result(3, result_handler=JSONResultHandler())
+    res.store_safe_value()
+    assert cloudpickle.loads(cloudpickle.dumps(res)) == res
