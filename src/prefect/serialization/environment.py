@@ -15,24 +15,22 @@ from prefect.utilities.serialization import (
 
 
 class LocalEnvironmentSchema(ObjectSchema):
-    pass
-#     class Meta:
-#         object_class = prefect.environments.LocalEnvironment
+    class Meta:
+        object_class = prefect.environments.LocalEnvironment
 
-#     encryption_key = Bytes(allow_none=True)
-#     serialized_flow = Bytes(allow_none=True)
+    encryption_key = Bytes(allow_none=True)
+    serialized_flow = Bytes(allow_none=True)
 
 
 class ContainerEnvironmentSchema(ObjectSchema):
-    pass
-#     class Meta:
-#         object_class = prefect.environments.ContainerEnvironment
+    class Meta:
+        object_class = prefect.environments.DockerEnvironment
 
-#     base_image = fields.String(required=True)
-#     registry_url = fields.String(required=True)
-#     image_name = fields.String(allow_none=True)
-#     image_tag = fields.String(allow_none=True)
-#     python_dependencies = fields.List(fields.String(), allow_none=True)
+    base_image = fields.String(required=True)
+    registry_url = fields.String(required=True)
+    image_name = fields.String(allow_none=True)
+    image_tag = fields.String(allow_none=True)
+    python_dependencies = fields.List(fields.String(), allow_none=True)
 
 
 class EnvironmentSchema(OneOfSchema):

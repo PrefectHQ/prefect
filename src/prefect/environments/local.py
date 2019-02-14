@@ -8,7 +8,7 @@ import prefect
 from prefect.environments import Environment
 
 
-class LocalEnvironment:
+class LocalEnvironment(Environment):
     """"""
 
     def __init__(self, encryption_key: bytes = None, serialized_flow: bytes = None):

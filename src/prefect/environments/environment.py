@@ -22,7 +22,7 @@ class Environment:
     def execute(self) -> None:
         raise NotImplementedError()
 
-    def run(self) -> None:
+    def run(self) -> "prefect.engine.state.State":
         raise NotImplementedError()
 
     def setup(self) -> None:
