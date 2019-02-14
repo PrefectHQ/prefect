@@ -58,7 +58,7 @@ def test_create_state_with_no_args(cls):
 def test_create_state_with_kwarg_data_arg(cls):
     state = cls(result=1)
     assert isinstance(state._result, Result)
-    assert state._result.handled is False
+    assert state._result.safe_value is NoResult
     assert state._result.result_handler is None
     assert state.result == 1
     assert state.message is None

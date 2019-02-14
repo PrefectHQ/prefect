@@ -2,18 +2,21 @@ import marshmallow
 import pytest
 
 import prefect
-from prefect.engine.result import Result, NoResult, NoResultType
+from prefect.engine.result import Result, NoResult, NoResultType, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler
-from prefect.serialization.result import ResultSchema, NoResultSchema, StateResultSchema
+from prefect.serialization.result import (
+    SafeResultSchema,
+    NoResultSchema,
+    StateResultSchema,
+)
 
 
-def test_basic_result_serializes():
-    r = Result(3)
-    handled = ResultSchema().dump(r)
-    assert handled["value"] == 3
-    assert handled["result_handler"] is None
-    assert handled["handled"] is False
-    assert handled["__version__"] == prefect.__version__
+def test_basic_safe_result_serializes():
+    res = SafeResult("3", result_handler=JSONResultHandler())
+    serialized = SafeResultSchema().dump(res)
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["value"] == "3"
+    assert serialized["result_handler"]["type"] == "JSONResultHandler"
 
 
 def test_basic_noresult_serializes():
@@ -24,7 +27,13 @@ def test_basic_noresult_serializes():
     assert handled == {}
 
 
-def test_basic_result_deserializes():
+def test_basic_result_doesnt_serialize():
+    r = Result(3)
+    handled = StateResultSchema().dump(r)
+    assert handled[1]["_schema"] == "Unsupported object type: Result"
+
+
+def test_basic_safe_result_deserializes():
     r = ResultSchema().load({"value": "3"})
     assert isinstance(r, Result)
     assert r.value == "3"
