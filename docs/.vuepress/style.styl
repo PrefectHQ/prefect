@@ -271,10 +271,9 @@ img
 	========================================================================== */
 
 // selectors
+div-pre = 'div, pre'
 pre-code = 'pre, code'
 lang = '[class*="language-"]'
-div-pre-lang = 'div{lang}, pre{lang}'
-pre-code-lang = 'pre{lang}, code{lang}'
 
 // extends
 .word-wrap
@@ -300,18 +299,18 @@ pre-code-lang = 'pre{lang}, code{lang}'
 {pre-code}
 	@extend .prefect-code
 
-	{pre-code-lang}
+	&{lang}
 		background: transparent;
 
 	/pre{lang}
 		padding: 1rem;
 		margin: 0.5rem 0;
 
-:not(pre)
-	& > {pre-code-lang}
-		background: color-grey-dark + 50%
+:not(pre) > {pre-code}
+		&{lang}
+			background: color-grey-dark + 50%
 
-	& > code{lang}
+:not(pre) > code{lang}
 		padding: 0.25rem
 		border-radius: 0.5em
 		white-space: normal
@@ -319,7 +318,7 @@ pre-code-lang = 'pre{lang}, code{lang}'
 pre.vue-container
 	border-color: color-blue-primary
 
-	& > code
+	> code
 		background-color: color-blue-primary
 		color: color-black
 		font-size: 0.875em
@@ -338,14 +337,15 @@ pre.vue-container
 		pre{lang} &
 			background-color: color-grey-bg
 
-		{pre-code},
-		{pre-code-lang}
-			@extend .prefect-code
-			background: transparent
-			z-index: 1
+		{pre-code}
+			&{lang} &
+				@extend .prefect-code
+				background: transparent
+				z-index: 1
 
 		// top right language tag in code blocks
 		&:before
+			color: color-grey-dark;
 			font-size: 0.75em
 			position: absolute
 			right: 1rem
@@ -366,6 +366,7 @@ pre.vue-container
 
 		code,
 		code{lang}
+			@extend .prefect-code
 			background-color: transparent
 			border-radius: 0
 			padding: 0
@@ -374,7 +375,7 @@ pre.vue-container
 	// standalone code blocks within vuepress content
 	code,
 	code{lang}
-		background-color: color-grey-bg + 5%
+		background-color: color-grey-bg - 5%
 		border-radius: 0.25em
 		font-size: 1em
 		padding: 0.25rem 0.5rem
@@ -395,7 +396,7 @@ prefect-methods = 'div[class="method-sig"]'
 	{prefect-classes},
 	{prefect-methods}
 		@extend .prefect-code
-		background-color: color-blue-primary - 95%
+		background-color: color-blue-primary + 95%
 		border-top: 0.325em solid color-blue-secondary
 		font-size: 1.125em
 		line-height: 2
@@ -439,7 +440,7 @@ args-list = 'ul.args, ol.args'
 	&.prolog,
 	&.doctype,
 	&.cdata
-		color: color-grey + 25%
+		color: color-grey
 		font-style: italic
 	
 	&.atrule,
@@ -524,11 +525,3 @@ div[class~="language-json"]
 	&:before
 		content: "json"
 
-// seldomly used (optional)
-div[class~="language-markdown"]
-  &:before
-		content: "md"
-
-div[class~="language-javascript"]
-	&:before
-		content: "js"
