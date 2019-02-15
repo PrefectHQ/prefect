@@ -2,14 +2,14 @@
 """
 Results represent Prefect Task inputs and outputs.  In particular, anytime a Task runs, its output
 is encapsulated in a `Result` object.  This object retains information about what the data is, and how to "handle" it
-if it needs to be saved / retrieved at a later time (for example, if this Task requests for its outputs to be cached).
+if it needs to be saved / retrieved at a later time (for example, if this Task requests for its outputs to be cached or checkpointed).
 
 An instantiated Result object has the following attributes:
 
-- a `value`: the value of a Result represents a single piece of data, which can be
-    in raw form or compressed into a "handled" representation such as a URI or filename pointing to
-    where the raw form lives
-- a `handled` boolean specifying whether this `value` has been handled or not
+- a `value`: the value of a Result represents a single piece of data
+- a `safe_value`: this attribute maintains a reference to a `SafeResult` object
+    which contains a "safe" representation of the `value`; for example, the `value` of a `SafeResult`
+    might be a URI or filename pointing to where the raw data lives
 - a `result_handler` which holds onto the `ResultHandler` used to read /
     write the value to / from its handled representation
 
@@ -56,12 +56,12 @@ class Result(ResultInterface):
     """
     A representation of the result of a Prefect task; this class contains information about
     the value of a task's result, a result handler specifying how to serialize or store this value securely,
-    and a boolean `handled` specifying whether the result has already been handled or not.
+    and a `safe_value` attribute which holds information about the current "safe" representation of this result.
 
     Args:
         - value (Any): the value of the result
         - result_handler (ResultHandler, optional): the result handler to use
-            when storing / serializing this result's value; required if `handled=True`
+            when storing / serializing this result's value; required if you intend on persisting this result in some way
     """
 
     def __init__(self, value: Any, result_handler: ResultHandler = None):
@@ -71,7 +71,7 @@ class Result(ResultInterface):
 
     def store_safe_value(self) -> None:
         """
-        Write the value of this result using the result handler (if it hasn't already been handled).
+        Populate the `safe_value` attribute with a `SafeResult` using the result handler
         """
         if self.safe_value == NoResult:
             assert isinstance(
@@ -84,6 +84,15 @@ class Result(ResultInterface):
 
 
 class SafeResult(ResultInterface):
+    """
+    A _safe_ representation of the result of a Prefect task; this class contains information about
+    the serialized value of a task's result, and a result handler specifying how to deserialize this value
+
+    Args:
+        - value (Any): the safe represenation of a value
+        - result_handler (ResultHandler): the result handler to use when reading this result's value
+    """
+
     def __init__(self, value: Any, result_handler: ResultHandler):
         self.value = value
         self.result_handler = result_handler
@@ -96,7 +105,6 @@ class SafeResult(ResultInterface):
         """
         Read the value of this result using the result handler and return a fully hydrated Result.
         """
-
         value = self.result_handler.read(self.value)
         res = Result(value=value, result_handler=self.result_handler)
         res.safe_value = self
@@ -106,7 +114,7 @@ class SafeResult(ResultInterface):
 class NoResultType(SafeResult):
     """
     A `SafeResult` subclass representing the _absence_ of computation / output.  A `NoResult` object
-    simply returns itself for its `value`, and as the output of both `read` and `write`.
+    simply returns itself for its `value` and its `safe_value`.
     """
 
     def __init__(self) -> None:
@@ -120,6 +128,9 @@ class NoResultType(SafeResult):
 
     def __repr__(self) -> str:
         return "<No result>"
+
+    def __str__(self) -> str:
+        return "NoResult"
 
     @property
     def value(self) -> "ResultInterface":

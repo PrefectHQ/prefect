@@ -112,7 +112,7 @@ classes = [
 [pages.engine.result]
 title = "Results"
 module = "prefect.engine.result"
-classes = ["Result", "NoResultType"]
+classes = ["Result", "SafeResult", "NoResultType"]
 
 [pages.engine.result_handlers]
 title = "Result Handlers"

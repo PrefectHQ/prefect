@@ -67,6 +67,10 @@ def test_basic_noresult_repr():
     assert repr(NoResult) == "<No result>"
 
 
+def test_basic_noresult_str():
+    assert str(NoResult) == "NoResult"
+
+
 def test_basic_safe_result_repr():
     r = SafeResult(2, result_handler=JSONResultHandler())
     assert repr(r) == "<SafeResult: 2>"
