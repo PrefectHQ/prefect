@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- Add `checkpoint` option for individual `Task`s, as well as a global `checkpoint` config setting for storing the results of Task's using their result handlers - [#649](https://github.com/PrefectHQ/prefect/pull/649)
+- Add `checkpoint` option for individual `Task`s, as well as a global `checkpoint` config setting for storing the results of Tasks using their result handlers - [#649](https://github.com/PrefectHQ/prefect/pull/649)
 
 ### Enhancements
 
