@@ -19,7 +19,7 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
-from prefect.engine.result import Result, NoResult
+from prefect.engine.result import Result, NoResult, SafeResult
 from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine.state import (
     Cached,
@@ -623,20 +623,20 @@ class TestGetTaskInputs:
         assert inputs == {"x": Result(1)}
 
     def test_get_inputs_from_upstream_reads_results(self):
-        result = Result("1", handled=True, result_handler=JSONResultHandler())
+        result = SafeResult("1", result_handler=JSONResultHandler())
         state = Success(result=result)
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=Pending(), upstream_states={Edge(1, 2, key="x"): state}
         )
-        assert inputs == {"x": Result(1, result_handler=JSONResultHandler())}
+        assert inputs == {"x": result.to_result()}
 
     def test_get_inputs_from_upstream_reads_cached_inputs(self):
-        result = Result("1", handled=True, result_handler=JSONResultHandler())
+        result = SafeResult("1", result_handler=JSONResultHandler())
         state = Pending(cached_inputs=dict(x=result))
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=state, upstream_states={}
         )
-        assert inputs == {"x": Result(1, result_handler=JSONResultHandler())}
+        assert inputs == {"x": result.to_result()}
 
     def test_get_inputs_from_upstream_with_non_key_edges(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
@@ -748,7 +748,7 @@ class TestCheckTaskCached:
     def test_reads_result_if_cached_valid(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.duration_only)
-        result = Result("2", handled=True, result_handler=JSONResultHandler())
+        result = SafeResult("2", result_handler=JSONResultHandler())
         state = Cached(
             result=result,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
@@ -874,9 +874,7 @@ class TestRunTaskStep:
         )
         assert state.is_successful()
         assert isinstance(state._result, Result)
-        assert state._result == Result(
-            value=None, handled=False, result_handler=runner.result_handler
-        )
+        assert state._result == Result(value=None, result_handler=runner.result_handler)
 
     def test_returns_success_with_correct_result_handler(self):
         runner = TaskRunner(task=Task(result_handler=JSONResultHandler()))
