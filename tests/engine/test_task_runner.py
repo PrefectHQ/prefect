@@ -1403,3 +1403,26 @@ def test_pending_raised_from_endrun_has_updated_metadata():
 
     assert state.is_pending()
     assert state.cached_inputs == dict(x=Result(15))
+
+
+def test_failures_arent_checkpointed():
+    handler = MagicMock(store_safe_value=MagicMock(side_effect=SyntaxError))
+
+    @prefect.task(checkpoint=True, result_handler=handler)
+    def fn():
+        raise TypeError("Bad types")
+
+    new_state = TaskRunner(task=fn).run()
+    assert new_state.is_failed()
+    assert isinstance(new_state.result, TypeError)
+
+
+def test_skips_arent_checkpointed():
+    handler = MagicMock(store_safe_value=MagicMock(side_effect=SyntaxError))
+
+    @prefect.task(checkpoint=True, result_handler=handler)
+    def fn():
+        raise signals.SKIP("Not rn")
+
+    new_state = TaskRunner(task=fn).run()
+    assert new_state.is_successful()
