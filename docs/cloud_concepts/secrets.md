@@ -57,7 +57,7 @@ s = Secret("NAME")
 s.get() # returns the value
 ```
 
-Note that `s.get()` will not work locally unless `use_local_secrets` is set to `true` in your config.  To pull a Secret value from Cloud requires admin-level permissions.
+Note that `s.get()` will not work locally unless `use_local_secrets` is set to `true` in your config.  Secret values from Cloud are only available during execution.
 
 ## Querying for Secrets
 
