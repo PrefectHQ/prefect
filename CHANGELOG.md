@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Add `checkpoint` option for individual `Task`s, as well as a global `checkpoint` config setting for storing the results of Task's using their result handlers - [#649](https://github.com/PrefectHQ/prefect/pull/649)
 
 ### Enhancements
 
@@ -16,6 +16,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Project names can now be specified for deployments instead of IDs - [#633](https://github.com/PrefectHQ/prefect/pull/633)
 - Add a `createProject` mutation function to the client - [#633](https://github.com/PrefectHQ/prefect/pull/633)
 - Add timestamp to auto-generated API docs footer - [#639](https://github.com/PrefectHQ/prefect/pull/639)
+- Refactor `Result` interface into `Result` and `SafeResult` - [#649](https://github.com/PrefectHQ/prefect/pull/649)
 
 ### Fixes
 
