@@ -769,6 +769,7 @@ class TaskRunner(Runner):
     ) -> State:
         """
         Runs the task and traps any signals or errors it raises.
+        Also checkpoints the result of a successful task, if `task.checkpoint` is `True`.
 
         Args:
             - state (State): the current state of this task
@@ -818,13 +819,16 @@ class TaskRunner(Runner):
 
         result = Result(value=result, result_handler=self.result_handler)
         state = Success(result=result, message="Task run succeeded.")
+
+        if state.is_successful() and self.task.checkpoint is True:
+            state._result.store_safe_value()
+
         return state
 
     @call_state_handlers
     def cache_result(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Caches the result of a successful task, if appropriate.
-        Checkpoints the result of a successful task, if `task.checkpoint` is `True`.
 
         Tasks are cached if:
             - task.cache_for is not None
@@ -840,9 +844,6 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
-        if state.is_successful() and self.task.checkpoint is True:
-            state._result.store_safe_value()
-
         if (
             state.is_successful()
             and not state.is_skipped()
