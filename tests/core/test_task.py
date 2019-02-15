@@ -146,6 +146,16 @@ class TestCreateTask:
         p = Parameter("p")
         assert isinstance(p.result_handler, JSONResultHandler)
 
+    def test_create_task_with_and_without_checkpoint(self):
+        t = Task()
+        assert t.checkpoint is False
+        s = Task(checkpoint=True)
+        assert s.checkpoint is True
+
+    def test_create_parameter_always_checkpoints(self):
+        p = Parameter("p")
+        assert p.checkpoint is True
+
 
 def test_task_has_logger():
     t = Task()
