@@ -314,7 +314,9 @@ class TestStateResultHandling:
         def add(x, y):
             return x + y
 
-        result = Result(1, handled=False, result_handler=JSONResultHandler())
+        result = Result(1, result_handler=JSONResultHandler())
+        assert result.safe_value is NoResult
+
         x_state, y_state = Success(result=result), Success(result=result)
 
         upstream_states = {
@@ -323,6 +325,7 @@ class TestStateResultHandling:
         }
 
         res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
+        assert result.safe_value != NoResult  # proves was handled
 
         ## assertions
         assert client.get_task_run_info.call_count == 0  # never called
@@ -334,16 +337,63 @@ class TestStateResultHandling:
         assert states[0].is_running()
         assert states[1].is_successful()
         assert isinstance(states[2], Cached)
-        assert states[2].cached_inputs == dict(x=result.write(), y=result.write())
-        assert states[2].result == "2"
+        assert states[2].cached_inputs == dict(x=result, y=result)
+        assert states[2].result == 2
+
+    def test_task_runner_handles_outputs_once_and_only_once(self, client):
+        class TestHandler(JSONResultHandler):
+            def __init__(self):
+                self.call_count = 0
+                super().__init__()
+
+            def write(self, *args, **kwargs):
+                self.call_count += 1
+                return super().write(*args, **kwargs)
+
+        handler = TestHandler()
+
+        @prefect.task(
+            cache_for=datetime.timedelta(days=1),
+            checkpoint=True,
+            result_handler=handler,
+        )
+        def add(x, y):
+            return x + y
+
+        result = Result(1, result_handler=JSONResultHandler())
+        assert result.safe_value is NoResult
+
+        x_state, y_state = Success(result=result), Success(result=result)
+
+        upstream_states = {
+            Edge(Task(), Task(), key="x"): x_state,
+            Edge(Task(), Task(), key="y"): y_state,
+        }
+
+        res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
+        assert result.safe_value != NoResult  # proves was handled
+        assert handler.call_count == 1
+
+        ## assertions
+        assert client.get_task_run_info.call_count == 0  # never called
+        assert (
+            client.set_task_run_state.call_count == 3
+        )  # Pending -> Running -> Successful -> Cached
+
+        states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+        assert states[0].is_running()
+        assert states[1].is_successful()
+        assert isinstance(states[2], Cached)
+        assert states[2].cached_inputs == dict(x=result, y=result)
+        assert states[2].result == 2
 
     def test_task_runner_handles_inputs_prior_to_setting_state(self, client):
         @prefect.task(max_retries=1, retry_delay=datetime.timedelta(days=1))
         def add(x, y):
             return x + y
 
-        x = Result(1, handled=False, result_handler=JSONResultHandler())
-        y = Result("0", handled=False, result_handler=JSONResultHandler())
+        x = Result(1, result_handler=JSONResultHandler())
+        y = Result("0", result_handler=JSONResultHandler())
         state = Pending(cached_inputs=dict(x=x, y=y))
         x_state = Success()
         y_state = Success()
@@ -354,6 +404,8 @@ class TestStateResultHandling:
         res = CloudTaskRunner(task=add).run(
             state=state, upstream_states=upstream_states
         )
+        assert x.safe_value != NoResult
+        assert y.safe_value != NoResult
 
         ## assertions
         assert client.get_task_run_info.call_count == 0  # never called
@@ -365,7 +417,7 @@ class TestStateResultHandling:
         assert states[0].is_running()
         assert states[1].is_failed()
         assert isinstance(states[2], Retrying)
-        assert states[2].cached_inputs == dict(x=x.write(), y=y.write())
+        assert states[2].cached_inputs == dict(x=x, y=y)
 
 
 def test_state_handler_failures_are_handled_appropriately(client):

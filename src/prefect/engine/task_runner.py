@@ -554,12 +554,14 @@ class TaskRunner(Runner):
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
             if edge.key is not None:
-                task_inputs[edge.key] = upstream_state._result.read()
+                task_inputs[  # type: ignore
+                    edge.key
+                ] = upstream_state._result.to_result()  # type: ignore
 
         if state.is_pending() and state.cached_inputs is not None:  # type: ignore
             task_inputs.update(
                 {
-                    k: r.read()
+                    k: r.to_result()
                     for k, r in state.cached_inputs.items()  # type: ignore
                     if task_inputs.get(k, NoResult) == NoResult
                 }
@@ -588,7 +590,7 @@ class TaskRunner(Runner):
             if self.task.cache_validator(
                 state, inputs, prefect.context.get("parameters")
             ):
-                state._result = state._result.read()
+                state._result = state._result.to_result()
                 return state
             else:
                 self.logger.debug(
@@ -814,7 +816,7 @@ class TaskRunner(Runner):
             )
             return state
 
-        result = Result(value=result, handled=False, result_handler=self.result_handler)
+        result = Result(value=result, result_handler=self.result_handler)
         state = Success(result=result, message="Task run succeeded.")
         return state
 
@@ -822,6 +824,7 @@ class TaskRunner(Runner):
     def cache_result(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Caches the result of a successful task, if appropriate.
+        Checkpoints the result of a successful task, if `task.checkpoint` is `True`.
 
         Tasks are cached if:
             - task.cache_for is not None
@@ -837,6 +840,9 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
+        if state.is_successful() and self.task.checkpoint is True:
+            state._result.store_safe_value()
+
         if (
             state.is_successful()
             and not state.is_skipped()
