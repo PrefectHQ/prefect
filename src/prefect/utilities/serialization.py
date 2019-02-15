@@ -212,6 +212,7 @@ class Nested(fields.Nested):
 
     def _serialize(self, value, attr, obj, **kwargs):
         if self.value_selection_fn is not None:
+            self.context.update(value=value, attr=attr)
             value = self.value_selection_fn(obj, self.context)
         if value is missing:
             return value

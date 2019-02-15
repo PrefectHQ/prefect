@@ -10,35 +10,35 @@ For example, suppose Task A has Result Handler A, and Task B has Result Handler 
 :::
 
 ::: tip What gets stored
-When running Prefect with Prefect Cloud, _all_ data is "handled" first by calling its `ResultHandler`'s `write` method before being sent to Cloud.  The output of this method is the only thing that needs to be stored in the Prefect Cloud database.
+When running Prefect with Prefect Cloud, only the data contained in a `Result`'s `safe_value` attribute are stored.  This `safe_value` is populated by calling a `Result`'s `store_safe_value` method, which in turn will "write" the result using its result handler.  This ensures that no raw data arrives in the database.
 :::
 
 ## Results
 
 Results represent Prefect Task outputs.  In particular, anytime a Task runs, its output
 is encapsulated in a `Result` object.  This object retains information about what the data is and how to "handle" it
-if it needs to be saved / retrieved at a later time (for example, if this Task requests for its outputs to be cached).
+if it needs to be saved / retrieved at a later time (for example, if this Task requests for its outputs to be cached or checkpointed).
 
 An instantiated Result object has the following attributes:
 
-- a `value`: the value of a Result represents a single piece of data, which can be
-    in raw form or compressed into a "handled" representation such as a URI or filename pointing to
-    where the raw form lives
-- a `handled` boolean specifying whether this `value` has been handled or not
+- a `value`: the value of a Result represents a single piece of data
+- a `safe_value`: this attribute maintains a reference to a `SafeResult` object
+    which contains a "safe" representation of the `value`; for example, the `value` of a `SafeResult`
+    might be a URI or filename pointing to where the raw data lives
 - a `result_handler` which holds onto the `ResultHandler` used to read /
     write the value to / from its handled representation
 
 ::: tip NoResult vs. a None Result
 To distinguish between a Task which runs but does not return output from a Task which has yet to run, Prefect
 also provides a `NoResult` object representing the _absence_ of computation / data.  This is in contrast to a `Result`
-whose value is `None`.  The `read` / `write` methods, along with the `value` attribute of `NoResult` all return the same `NoResult` object.
+whose value is `None`.  The `to_result` / `store_safe_value` methods, along with the `value` and `safe_value` attributes of `NoResult` all return the same `NoResult` object.
 :::
 
 ### Interacting with Results
 
 The most common scenario in which a user might need to directly interact with a `Result` object is when running Flows locally.  All Prefect States have Result objects built into them, which can be accessed via the private `_result` attribute.  For convenience, the public `.result` property retrieves the underlying `Result`'s value.
 
-All Results come equipped with `read` / `write` methods which read results from their handlers, and write results with their handlers, respectively.
+All Results come equipped with `to_result` / `store_safe_value` methods which read results from their handlers, and write results with their handlers, respectively.
 
 ## Result Handlers
 
@@ -47,6 +47,10 @@ Result Handlers are a more public entity than the `Result` class.  A Result hand
 - a `LocalResultHandler` which reads / writes data from local file storage; the `write` method in this instance returns an absolute file path
 
 However, we can be more creative with Result Handlers.  For example, if you have a task which returns a small piece of data such as a string, or a short list of numbers, and you are comfortable with this data living in Prefect Cloud's database, then a simple `JSONResultHandler` which dumps your data to a JSON string will suffice!
+
+::: warning Handle your data carefully
+When running on Prefect Cloud, the output of a Result Handler's `write` method is what is stored in the Cloud database.
+:::
 
 ### How to specify a `ResultHandler`
 
