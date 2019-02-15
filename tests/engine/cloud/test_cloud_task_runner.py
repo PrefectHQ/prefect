@@ -11,7 +11,7 @@ import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
-from prefect.engine.result import NoResult, Result
+from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
     LocalResultHandler,
@@ -340,30 +340,14 @@ class TestStateResultHandling:
         assert states[2].cached_inputs == dict(x=result, y=result)
         assert states[2].result == 2
 
-    def test_task_runner_handles_outputs_once_and_only_once(self, client):
-        class TestHandler(JSONResultHandler):
-            def __init__(self):
-                self.call_count = 0
-                super().__init__()
+    def test_task_runner_sends_checkpointed_success_states_to_cloud(self, client):
+        handler = JSONResultHandler()
 
-            def write(self, *args, **kwargs):
-                self.call_count += 1
-                return super().write(*args, **kwargs)
-
-        handler = TestHandler()
-
-        @prefect.task(
-            cache_for=datetime.timedelta(days=1),
-            checkpoint=True,
-            result_handler=handler,
-        )
+        @prefect.task(checkpoint=True, result_handler=handler)
         def add(x, y):
             return x + y
 
-        result = Result(1, result_handler=JSONResultHandler())
-        assert result.safe_value is NoResult
-
-        x_state, y_state = Success(result=result), Success(result=result)
+        x_state, y_state = Success(result=Result(1)), Success(result=Result(1))
 
         upstream_states = {
             Edge(Task(), Task(), key="x"): x_state,
@@ -371,21 +355,17 @@ class TestStateResultHandling:
         }
 
         res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
-        assert result.safe_value != NoResult  # proves was handled
-        assert handler.call_count == 1
 
         ## assertions
         assert client.get_task_run_info.call_count == 0  # never called
         assert (
-            client.set_task_run_state.call_count == 3
-        )  # Pending -> Running -> Successful -> Cached
+            client.set_task_run_state.call_count == 2
+        )  # Pending -> Running -> Successful
 
         states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
         assert states[0].is_running()
         assert states[1].is_successful()
-        assert isinstance(states[2], Cached)
-        assert states[2].cached_inputs == dict(x=result, y=result)
-        assert states[2].result == 2
+        assert states[1]._result.safe_value == SafeResult("2", result_handler=handler)
 
     def test_task_runner_handles_inputs_prior_to_setting_state(self, client):
         @prefect.task(max_retries=1, retry_delay=datetime.timedelta(days=1))
@@ -437,4 +417,4 @@ def test_state_handler_failures_are_handled_appropriately(client):
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
     assert states[0].is_running()
     assert states[1].is_failed()
-    assert states[1].result == NoResult
+    assert isinstance(states[1].result, SyntaxError)
