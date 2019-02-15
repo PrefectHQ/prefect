@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Union
 import pendulum
 
 import prefect
-from prefect.engine.result import Result, NoResult, ResultInterface
+from prefect.engine.result import Result, NoResult, ResultInterface, SafeResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.utilities.collections import DotDict
 from prefect.utilities.datetimes import ensure_tz_aware
@@ -62,7 +62,7 @@ class State:
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
-            eq = self._result.value == other._result.value
+            eq = self._result.value == other._result.value  # type: ignore
             for attr in self.__dict__:
                 if attr.startswith("_") or attr in ["message", "result"]:
                     continue
@@ -75,7 +75,7 @@ class State:
 
     @property
     def result(self) -> Any:
-        return self._result.value
+        return self._result.value  # type: ignore
 
     @result.setter
     def result(self, value: Any) -> None:

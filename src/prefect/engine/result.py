@@ -40,7 +40,8 @@ class ResultInterface:
         return False
 
     def __repr__(self) -> str:
-        return "<{type}: {val}>".format(type=type(self).__name__, val=repr(self.value))
+        val = self.value  # type: ignore
+        return "<{type}: {val}>".format(type=type(self).__name__, val=repr(val))
 
     def to_result(self) -> "ResultInterface":
         """Performs no computation and returns self."""
@@ -65,7 +66,7 @@ class Result(ResultInterface):
 
     def __init__(self, value: Any, result_handler: ResultHandler = None):
         self.value = value
-        self.safe_value = NoResult
+        self.safe_value = NoResult  # type: SafeResult
         self.result_handler = result_handler
 
     def store_safe_value(self) -> None:
@@ -91,19 +92,20 @@ class SafeResult(ResultInterface):
     def safe_value(self) -> "SafeResult":
         return self
 
-    def to_result(self) -> "Result":
+    def to_result(self) -> "ResultInterface":
         """
         Read the value of this result using the result handler and return a fully hydrated Result.
         """
+
         value = self.result_handler.read(self.value)
         res = Result(value=value, result_handler=self.result_handler)
         res.safe_value = self
         return res
 
 
-class NoResultType(ResultInterface):
+class NoResultType(SafeResult):
     """
-    A `ResultInterface` subclass representing the _absence_ of computation / output.  A `NoResult` object
+    A `SafeResult` subclass representing the _absence_ of computation / output.  A `NoResult` object
     simply returns itself for its `value`, and as the output of both `read` and `write`.
     """
 
@@ -120,11 +122,11 @@ class NoResultType(ResultInterface):
         return "<No result>"
 
     @property
-    def safe_value(self) -> "NoResultType":
+    def value(self) -> "ResultInterface":
         return self
 
-    @property
-    def value(self) -> "NoResultType":
+    def to_result(self) -> "ResultInterface":
+        """Performs no computation and returns self."""
         return self
 
 

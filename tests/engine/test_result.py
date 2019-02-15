@@ -59,6 +59,10 @@ class TestInitialization:
         assert res.safe_value is res
 
 
+def test_noresult_is_safe():
+    assert isinstance(NoResult, SafeResult)
+
+
 def test_basic_noresult_repr():
     assert repr(NoResult) == "<No result>"
 
