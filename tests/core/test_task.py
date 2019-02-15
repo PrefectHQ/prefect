@@ -149,11 +149,17 @@ class TestCreateTask:
     def test_create_task_with_and_without_checkpoint(self):
         t = Task()
         assert t.checkpoint is False
+
         s = Task(checkpoint=True)
         assert s.checkpoint is True
 
+        with set_temporary_config({"tasks.defaults.checkpoint": True}):
+            r = Task()
+        assert r.checkpoint is True
+
     def test_create_parameter_always_checkpoints(self):
-        p = Parameter("p")
+        with set_temporary_config({"tasks.defaults.checkpoint": False}):
+            p = Parameter("p")
         assert p.checkpoint is True
 
 
