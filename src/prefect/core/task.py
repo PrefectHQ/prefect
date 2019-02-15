@@ -111,7 +111,8 @@ class Task(metaclass=SignatureValidator):
             whether the cache for this task is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
         - checkpoint (bool, optional): if this Task is successful, whether to
-            store its result using the `result_handler` available during the run
+            store its result using the `result_handler` available during the run; defaults to the value of
+            `tasks.defaults.checkpoint` in your user config
         - result_handler (ResultHandler, optional): the handler to use for
             retrieving and storing state results during execution; if not provided, will default to the
             one attached to the Flow
@@ -146,7 +147,7 @@ class Task(metaclass=SignatureValidator):
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
-        checkpoint: bool = False,
+        checkpoint: bool = None,
         result_handler: "ResultHandler" = None,
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
@@ -208,7 +209,11 @@ class Task(metaclass=SignatureValidator):
             else prefect.engine.cache_validators.duration_only
         )
         self.cache_validator = cache_validator or default_validator
-        self.checkpoint = checkpoint
+        self.checkpoint = (
+            checkpoint
+            if checkpoint is not None
+            else prefect.config.tasks.defaults.checkpoint
+        )
         self.result_handler = result_handler
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
