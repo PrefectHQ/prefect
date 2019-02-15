@@ -950,11 +950,19 @@ class TestCheckRetryStep:
 
 class TestCacheResultStep:
     @pytest.mark.parametrize(
-        "state", [Failed(), Skipped(), Finished(), Pending(), Running()]
+        "state",
+        [
+            Failed(result=1),
+            Skipped(result=1),
+            Finished(result=1),
+            Pending(result=1),
+            Running(result=1),
+        ],
     )
     def test_non_success_states(self, state):
         new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
         assert new_state is state
+        assert new_state._result.safe_value is NoResult
 
     @pytest.mark.parametrize(
         "validator",
@@ -973,7 +981,7 @@ class TestCacheResultStep:
         new_state = TaskRunner(task=t).cache_result(state=state, inputs={})
         assert new_state is state
 
-    def test_success_state(self):
+    def test_success_state_with_cache_for(self):
         @prefect.task(cache_for=timedelta(minutes=10))
         def fn(x):
             return x + 1
@@ -989,6 +997,62 @@ class TestCacheResultStep:
         assert new_state.message == "hello"
         assert new_state.result == 2
         assert new_state.cached_inputs == {"x": Result(5)}
+
+    def test_success_state_without_checkpoint(self):
+        @prefect.task(checkpoint=False)
+        def fn(x):
+            return x + 1
+
+        state = Success(result=2, message="empty")
+        new_state = TaskRunner(task=fn).cache_result(state=state, inputs={})
+        assert new_state is state
+        assert new_state._result.safe_value is NoResult
+
+    def test_success_state_with_checkpoint(self):
+        handler = JSONResultHandler()
+
+        @prefect.task(checkpoint=True)
+        def fn(x):
+            return x + 1
+
+        state = Success(result=2, message="empty")
+        state._result.result_handler = (
+            handler
+        )  # normally populated during `get_run_state`
+        new_state = TaskRunner(task=fn).cache_result(state=state, inputs={})
+        assert new_state is state
+        assert new_state._result.safe_value == SafeResult("2", result_handler=handler)
+
+    def test_success_state_for_parameter(self):
+        handler = JSONResultHandler()
+        p = prefect.Parameter("p")
+        state = Success(result=2, message="empty")
+        state._result.result_handler = (
+            handler
+        )  # normally populated during `get_run_state`
+        new_state = TaskRunner(task=p).cache_result(state=state, inputs={})
+        assert new_state is state
+        assert new_state._result.safe_value == SafeResult("2", result_handler=handler)
+
+    def test_success_state_with_bad_handler_results_in_failed_state(self):
+        class BadHandler(ResultHandler):
+            def read(self, val):
+                pass
+
+            def write(self, val):
+                raise SyntaxError("Oh boy")
+
+        @prefect.task(checkpoint=True)
+        def fn(x):
+            return x + 1
+
+        state = Success(result=2, message="empty")
+        state._result.result_handler = (
+            BadHandler()
+        )  # normally populated during `get_run_state`
+        new_state = TaskRunner(task=fn).cache_result(state=state, inputs={})
+        assert new_state.is_failed()
+        assert "SyntaxError" in new_state.message
 
 
 class TestCheckScheduledStep:

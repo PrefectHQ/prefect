@@ -110,6 +110,8 @@ class Task(metaclass=SignatureValidator):
         - cache_validator (Callable, optional): Validator which will determine
             whether the cache for this task is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
+        - checkpoint (bool, optional): if this Task is successful, whether to
+            store its result using the `result_handler` available during the run
         - result_handler (ResultHandler, optional): the handler to use for
             retrieving and storing state results during execution; if not provided, will default to the
             one attached to the Flow
@@ -144,6 +146,7 @@ class Task(metaclass=SignatureValidator):
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
+        checkpoint: bool = False,
         result_handler: "ResultHandler" = None,
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
@@ -205,6 +208,7 @@ class Task(metaclass=SignatureValidator):
             else prefect.engine.cache_validators.duration_only
         )
         self.cache_validator = cache_validator or default_validator
+        self.checkpoint = checkpoint
         self.result_handler = result_handler
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
@@ -882,7 +886,11 @@ class Parameter(Task):
         from prefect.engine.result_handlers import JSONResultHandler
 
         super().__init__(
-            name=name, slug=name, tags=tags, result_handler=JSONResultHandler()
+            name=name,
+            slug=name,
+            tags=tags,
+            checkpoint=True,
+            result_handler=JSONResultHandler(),
         )
 
     def __repr__(self) -> str:

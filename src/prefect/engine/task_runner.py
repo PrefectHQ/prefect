@@ -824,6 +824,7 @@ class TaskRunner(Runner):
     def cache_result(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Caches the result of a successful task, if appropriate.
+        Checkpoints the result of a successful task, if `task.checkpoint` is `True`.
 
         Tasks are cached if:
             - task.cache_for is not None
@@ -839,6 +840,9 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
+        if state.is_successful() and self.task.checkpoint is True:
+            state._result.store_safe_value()
+
         if (
             state.is_successful()
             and not state.is_skipped()
