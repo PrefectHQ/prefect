@@ -16,14 +16,18 @@ from prefect.utilities.serialization import (
 )
 
 
-
 def get_safe(obj, context):
     """
     Helper function for ensuring only safe values are serialized.
     Note that it is up to the user to actively store a Result's value in a
     safe way prior to serialization (if they want the result to be avaiable post-serialization).
     """
-    return obj._result.safe_value
+    if context.get("attr") == "_result":
+        return obj._result.safe_value
+    value = context.get("value", result.NoResult)
+    if value is None:
+        return value
+    return value.safe_value
 
 
 class BaseStateSchema(ObjectSchema):
@@ -36,8 +40,8 @@ class BaseStateSchema(ObjectSchema):
     @post_load
     def create_object(self, data):
         result_obj = data.pop("_result", result.NoResult)
+        data["result"] = result_obj
         base_obj = super().create_object(data)
-        base_obj._result = result_obj
         return base_obj
 
 
@@ -46,7 +50,9 @@ class PendingSchema(BaseStateSchema):
         object_class = state.Pending
 
     cached_inputs = fields.Dict(
-        key=fields.Str(), values=fields.Nested(StateResultSchema), allow_none=True
+        key=fields.Str(),
+        values=Nested(StateResultSchema, value_selection_fn=get_safe),
+        allow_none=True,
     )
 
 
@@ -96,7 +102,11 @@ class CachedSchema(SuccessSchema):
         object_class = state.Cached
 
     cached_inputs = fields.Dict(
-        key=fields.Str(), values=fields.Nested(StateResultSchema), allow_none=True
+        key=fields.Str(),
+        values=Nested(
+            StateResultSchema, value_selection_fn=get_safe, attr="cached_inputs"
+        ),
+        allow_none=True,
     )
     cached_parameters = JSONCompatible(allow_none=True)
     cached_result_expiration = fields.DateTime(allow_none=True)
@@ -128,7 +138,11 @@ class TimedOutSchema(FinishedSchema):
         object_class = state.TimedOut
 
     cached_inputs = fields.Dict(
-        key=fields.Str(), values=fields.Nested(StateResultSchema), allow_none=True
+        key=fields.Str(),
+        values=Nested(
+            StateResultSchema, value_selection_fn=get_safe, attr="cached_inputs"
+        ),
+        allow_none=True,
     )
 
 
