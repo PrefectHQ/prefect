@@ -72,6 +72,17 @@ class DockerEnvironment(Environment):
             - DockerEnvironment: a DockerEnvironment that represents the provided flow.
         """
 
+        image_name, image_tag = self.build_image(flow=flow, push=push)
+
+        return DockerEnvironment(
+            base_image=self.base_image,
+            registry_url=self.registry_url,
+            image_name=image_name,
+            image_tag=image_tag,
+        )
+
+    def build_image(self, flow: "prefect.Flow", push: bool = True) -> tuple:
+        """"""
         image_name = str(uuid.uuid4())
         image_tag = str(uuid.uuid4())
 
@@ -106,13 +117,7 @@ class DockerEnvironment(Environment):
                     image="{}:{}".format(full_name, image_tag), force=True
                 )
 
-            return DockerEnvironment(
-                base_image=self.base_image,
-                registry_url=self.registry_url,
-                image_name=image_name,
-                image_tag=image_tag,
-                python_dependencies=self.python_dependencies,
-            )
+            return image_name, image_tag
 
     def pull_image(self) -> None:
         """Pull the image specified so it can be built.

@@ -62,44 +62,11 @@ class LocalOnKubernetesEnvironment(DockerEnvironment):
             - DockerEnvironment: a DockerEnvironment that represents the provided flow.
         """
 
-        image_name = str(uuid.uuid4())
-        image_tag = str(uuid.uuid4())
+        image_name, image_tag = self.build_image(flow=flow, push=push)
 
-        with tempfile.TemporaryDirectory() as tempdir:
-
-            self.pull_image()
-
-            self.create_dockerfile(flow=flow, directory=tempdir)
-
-            client = docker.APIClient(base_url="unix://var/run/docker.sock")
-
-            if self.registry_url:
-                full_name = os.path.join(self.registry_url, image_name)
-            elif push is True:
-                raise ValueError(
-                    "This environment has no `registry_url`, and cannot be pushed."
-                )
-            else:
-                full_name = image_name
-
-            logging.info("Building the flow's container environment...")
-            output = client.build(
-                path=tempdir, tag="{}:{}".format(full_name, image_tag), forcerm=True
-            )
-            self._parse_generator_output(output)
-
-            if push:
-                self.push_image(full_name, image_tag)
-
-                # Remove the image locally after being pushed
-                client.remove_image(
-                    image="{}:{}".format(full_name, image_tag), force=True
-                )
-
-            return LocalOnKubernetesEnvironment(
-                base_image=self.base_image,
-                registry_url=self.registry_url,
-                image_name=image_name,
-                image_tag=image_tag,
-                python_dependencies=self.python_dependencies,
-            )
+        return LocalOnKubernetesEnvironment(
+            base_image=self.base_image,
+            registry_url=self.registry_url,
+            image_name=image_name,
+            image_tag=image_tag,
+        )
