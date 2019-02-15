@@ -1422,7 +1422,9 @@ def test_skips_arent_checkpointed():
 
     @prefect.task(checkpoint=True, result_handler=handler)
     def fn():
-        raise signals.SKIP("Not rn")
+        return 2
 
-    new_state = TaskRunner(task=fn).run()
+    new_state = TaskRunner(task=fn).run(
+        upstream_states={Edge(Task(), Task()): Skipped()}
+    )
     assert new_state.is_successful()
