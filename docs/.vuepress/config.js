@@ -124,7 +124,8 @@ module.exports = {
             'cloud_concepts/projects',
             'cloud_concepts/flows',
             'cloud_concepts/schedules',
-            'cloud_concepts/flow_runs'
+            'cloud_concepts/flow_runs',
+            'cloud_concepts/secrets'
           ]
         },
         {
