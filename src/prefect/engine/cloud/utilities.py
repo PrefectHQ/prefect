@@ -19,6 +19,9 @@ def prepare_state_for_cloud(state: State) -> State:
     cloud_state = copy.copy(state)
     if cloud_state.is_cached():
         cloud_state._result.store_safe_value()
+    else:
+        cloud_state._result = NoResult
+
     if (
         hasattr(cloud_state, "cached_inputs")
         and cloud_state.cached_inputs is not None  # type: ignore

@@ -34,16 +34,17 @@ def test_basic_result_doesnt_serialize():
 
 
 def test_basic_safe_result_deserializes():
-    r = ResultSchema().load({"value": "3"})
-    assert isinstance(r, Result)
+    r = SafeResultSchema().load(
+        {"value": "3", "result_handler": {"type": "JSONResultHandler"}}
+    )
+    assert isinstance(r, SafeResult)
     assert r.value == "3"
-    assert r.handled is False
-    assert r.result_handler is None
+    assert r.result_handler == JSONResultHandler()
 
 
 def test_roundtrip_for_results():
-    r = Result(value={"y": 4})
-    s = ResultSchema().load(ResultSchema().dump(r))
+    r = SafeResult(value={"y": 4}, result_handler=JSONResultHandler())
+    s = SafeResultSchema().load(SafeResultSchema().dump(r))
     assert r == s
 
 
@@ -53,27 +54,39 @@ def test_basic_noresult_deserializes():
     assert isinstance(r, NoResultType)
 
 
-def test_result_serializes_result_handlers():
-    r = Result(value=3, handled=False, result_handler=JSONResultHandler())
-    handled = ResultSchema().dump(r)
+def test_safe_result_serializes_result_handlers():
+    r = SafeResult(value=3, result_handler=JSONResultHandler())
+    handled = SafeResultSchema().dump(r)
     assert handled["result_handler"]["type"] == "JSONResultHandler"
 
 
-def test_result_allows_none_value_and_handler():
-    schema = ResultSchema()
-    r = Result(value=None, result_handler=None)
+def test_result_allows_none_value():
+    schema = SafeResultSchema()
+    r = SafeResult(value=None, result_handler=JSONResultHandler())
     handled = schema.load(schema.dump(r))
     assert handled.value is None
-    assert handled.result_handler is None
+    assert handled.result_handler == JSONResultHandler()
 
 
-@pytest.mark.parametrize("obj", [Result(value=19), NoResult])
+def test_safe_result_disallows_none_result_handler_at_deserialization_time():
+    schema = SafeResultSchema()
+    r = SafeResult(value=None, result_handler=None)
+    serialized = schema.dump(r)
+    with pytest.raises(marshmallow.exceptions.ValidationError) as exc:
+        schema.load(serialized)
+
+
+@pytest.mark.parametrize(
+    "obj", [SafeResult(value=19, result_handler=JSONResultHandler()), NoResult]
+)
 def test_state_result_schema_chooses_schema(obj):
     schema = StateResultSchema()
     assert type(schema.load(schema.dump(obj))) == type(obj)
 
 
 def test_value_raises_error_on_dump_if_not_valid_json():
-    r = Result(value={"x": {"y": {"z": lambda: 1}}})
+    r = SafeResult(
+        value={"x": {"y": {"z": lambda: 1}}}, result_handler=JSONResultHandler()
+    )
     with pytest.raises(marshmallow.exceptions.ValidationError):
         StateResultSchema().dump(r)
