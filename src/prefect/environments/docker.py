@@ -27,7 +27,7 @@ class DockerEnvironment(Environment):
         image_tag: str = None,
         env_vars: dict = None,
         files: dict = None,
-    ):
+    ) -> None:
         self.base_image = base_image
         self.registry_url = registry_url
         self.image_name = image_name
