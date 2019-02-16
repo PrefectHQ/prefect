@@ -10,8 +10,8 @@ import pytest
 from collections import defaultdict
 
 import prefect
-from prefect.engine.result import NoResult, Result
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine import state
 from prefect.serialization.state import StateSchema
 
@@ -28,18 +28,21 @@ all_states = sorted(
 
 
 def complex_states():
+    res1 = SafeResult(1, result_handler=JSONResultHandler())
+    res2 = SafeResult({"z": 2}, result_handler=JSONResultHandler())
+    res3 = SafeResult(dict(x=1, y={"z": 2}), result_handler=JSONResultHandler())
     naive_dt = datetime.datetime(2020, 1, 1)
     utc_dt = pendulum.datetime(2020, 1, 1)
-    complex_result = {"x": Result(1), "y": Result({"z": 2})}
+    complex_result = {"x": res1, "y": res2}
     cached_state = state.Cached(
         cached_inputs=complex_result,
-        result={"x": 1, "y": {"z": 2}},
+        result=res3,
         cached_parameters={"x": 1, "y": {"z": 2}},
         cached_result_expiration=utc_dt,
     )
     cached_state_naive = state.Cached(
         cached_inputs=complex_result,
-        result={"x": 1, "y": {"z": 2}},
+        result=res3,
         cached_parameters={"x": 1, "y": {"z": 2}},
         cached_result_expiration=naive_dt,
     )
@@ -81,12 +84,12 @@ def test_all_states_have_deserialization_schemas_in_stateschema():
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
-def test_serialize_state_with_result(cls):
+def test_serialize_state_with_un_handled_result(cls):
     serialized = StateSchema().dump(cls(message="message", result=1))
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
     assert serialized["message"] is "message"
-    assert serialized["_result"]["value"] == 1
+    assert serialized["_result"]["type"] == "NoResultType"
     assert serialized["__version__"] == prefect.__version__
 
 
@@ -98,6 +101,33 @@ def test_serialize_state_with_no_result(cls):
     assert serialized["type"] == cls.__name__
     assert serialized["message"] is "message"
     assert serialized["_result"]["type"] == "NoResultType"
+    assert serialized["__version__"] == prefect.__version__
+
+
+@pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
+def test_serialize_state_with_handled_result(cls):
+    res = Result(value=1, result_handler=JSONResultHandler())
+    res.store_safe_value()
+    state = cls(message="message", result=res)
+    serialized = StateSchema().dump(state)
+    assert isinstance(serialized, dict)
+    assert serialized["type"] == cls.__name__
+    assert serialized["message"] is "message"
+    assert serialized["_result"]["type"] == "SafeResult"
+    assert serialized["_result"]["value"] == "1"
+    assert serialized["__version__"] == prefect.__version__
+
+
+@pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
+def test_serialize_state_with_safe_result(cls):
+    res = SafeResult(value="1", result_handler=JSONResultHandler())
+    state = cls(message="message", result=res)
+    serialized = StateSchema().dump(state)
+    assert isinstance(serialized, dict)
+    assert serialized["type"] == cls.__name__
+    assert serialized["message"] is "message"
+    assert serialized["_result"]["type"] == "SafeResult"
+    assert serialized["_result"]["value"] == "1"
     assert serialized["__version__"] == prefect.__version__
 
 
@@ -116,7 +146,16 @@ def test_serialize_mapped():
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
 def test_deserialize_state(cls):
-    s = cls(message="message", result=1)
+    s = cls(message="message")
+    serialized = StateSchema().dump(s)
+    deserialized = StateSchema().load(serialized)
+    assert isinstance(deserialized, cls)
+    assert deserialized == s
+
+
+@pytest.mark.parametrize("cls", [s for s in all_states if s is not state.Mapped])
+def test_deserialize_state_with_safe_result(cls):
+    s = cls(message="message")
     serialized = StateSchema().dump(s)
     deserialized = StateSchema().load(serialized)
     assert isinstance(deserialized, cls)
@@ -161,13 +200,15 @@ def test_complex_state_attributes_are_handled(state):
 
 
 def test_result_must_be_valid_json():
-    s = state.Success(result={"x": {"y": {"z": 1}}})
+    res = SafeResult({"x": {"y": {"z": 1}}}, result_handler=JSONResultHandler())
+    s = state.Success(result=res)
     serialized = StateSchema().dump(s)
     assert serialized["_result"]["value"] == s.result
 
 
 def test_result_raises_error_on_dump_if_not_valid_json():
-    s = state.Success(result={"x": {"y": {"z": lambda: 1}}})
+    res = SafeResult({"x": {"y": {"z": lambda: 1}}}, result_handler=JSONResultHandler())
+    s = state.Success(result=res)
     with pytest.raises(marshmallow.exceptions.ValidationError):
         StateSchema().dump(s)
 
