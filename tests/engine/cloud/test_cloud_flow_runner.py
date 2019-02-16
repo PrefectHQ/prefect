@@ -7,7 +7,7 @@ import pytest
 
 import prefect
 from prefect.client import Client
-from prefect.engine.result import Result, NoResult
+from prefect.engine.result import Result, NoResult, SafeResult
 from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 
@@ -74,7 +74,7 @@ def test_flow_runner_calls_client_the_approriate_number_of_times(client):
     assert client.set_flow_run_state.call_count == 2  # Pending -> Running -> Success
 
     states = [call[1]["state"] for call in client.set_flow_run_state.call_args_list]
-    assert states == [Running(), Success()]
+    assert states == [Running(), Success(result={})]
 
 
 def test_flow_runner_raises_endrun_if_client_cant_update_state(monkeypatch):
@@ -151,7 +151,7 @@ def test_client_is_always_called_even_during_state_handler_failures(client):
     state = flow_states.pop()
     assert state.is_failed()
     assert "state handlers" in state.message
-    assert state.result == NoResult  # exceptions should never be sent to cloud
+    assert isinstance(state.result, ZeroDivisionError)
     assert client.get_task_run_info.call_count == 0
 
 
@@ -198,7 +198,7 @@ def test_flow_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
     assert set_flow_run_state.call_count == 2  # Pending -> Running -> Success
 
     states = [call[1]["state"] for call in set_flow_run_state.call_args_list]
-    assert states == [Running(), Success()]
+    assert states == [Running(), Success(result={})]
 
 
 def test_client_is_always_called_even_during_failures(client):
@@ -220,7 +220,7 @@ def test_client_is_always_called_even_during_failures(client):
     flow_states = [
         call[1]["state"] for call in client.set_flow_run_state.call_args_list
     ]
-    assert flow_states == [Running(), Failed()]
+    assert [type(s).__name__ for s in flow_states] == ["Running", "Failed"]
 
     assert (
         client.set_task_run_state.call_count == 6
@@ -262,15 +262,14 @@ def test_task_failure_caches_inputs_automatically(client):
     state = CloudFlowRunner(flow=f).run(return_tasks=[res], parameters=dict(p=3))
     assert state.is_running()
     assert isinstance(state.result[res], Retrying)
-    assert state.result[res].cached_inputs["p"] == Result(
-        3, handled=False, result_handler=JSONResultHandler()
-    )
+    exp_res = Result(3, result_handler=JSONResultHandler())
+    assert not state.result[res].cached_inputs["p"] == exp_res
+    exp_res.store_safe_value()
+    assert state.result[res].cached_inputs["p"] == exp_res
 
     last_state = client.set_task_run_state.call_args_list[-1][-1]["state"]
     assert isinstance(last_state, Retrying)
-    assert last_state.cached_inputs["p"] == Result(
-        "3", handled=True, result_handler=JSONResultHandler()
-    )
+    assert last_state.cached_inputs["p"] == exp_res
 
 
 def test_state_handler_failures_are_handled_appropriately(client):
@@ -291,4 +290,4 @@ def test_state_handler_failures_are_handled_appropriately(client):
     states = [call[1]["state"] for call in client.set_flow_run_state.call_args_list]
     assert states[0].is_running()
     assert states[1].is_failed()
-    assert states[1].result == NoResult
+    assert isinstance(states[1].result, SyntaxError)

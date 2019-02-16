@@ -5,11 +5,13 @@ import pendulum
 import uuid
 from unittest.mock import MagicMock, mock_open
 
+import marshmallow
 import pytest
 import requests
 
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
+from prefect.engine.result import Result, NoResult, SafeResult
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -306,7 +308,7 @@ def test_get_flow_run_info(monkeypatch):
         "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
         "serialized_state": {
             "type": "Pending",
-            "_result": {"type": "Result", "value": 42},
+            "_result": {"type": "SafeResult", "value": "42", "result_handler": {"type": "JSONResultHandler"}},
             "message": null,
             "__version__": "0.3.3+309.gf1db024",
             "cached_inputs": null
@@ -344,7 +346,7 @@ def test_get_flow_run_info(monkeypatch):
     assert result.scheduled_start_time.minute == 15
     assert result.scheduled_start_time.year == 2019
     assert isinstance(result.state, Pending)
-    assert result.state.result == 42
+    assert result.state.result == "42"
     assert result.state.message is None
     assert result.version == 0
     assert result.parameters == dict()
@@ -410,7 +412,7 @@ def test_get_task_run_info(monkeypatch):
                 "version": 0,
                 "serialized_state": {
                     "type": "Pending",
-                    "_result": {"type": "Result", "value": "42"},
+                    "_result": {"type": "SafeResult", "value": "42", "result_handler": {"type": "JSONResultHandler"}},
                     "message": null,
                     "__version__": "0.3.3+310.gd19b9b7.dirty",
                     "cached_inputs": null
@@ -474,6 +476,23 @@ def test_set_task_run_state(monkeypatch):
     )
 
     assert result is None
+
+
+def test_set_task_run_state_serializes(monkeypatch):
+    response = {"data": {"setTaskRunState": None}}
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+
+    res = SafeResult(lambda: None, result_handler=None)
+    with pytest.raises(marshmallow.exceptions.ValidationError) as exc:
+        result = client.set_task_run_state(
+            task_run_id="76-salt", version=0, state=Pending(result=res)
+        )
 
 
 def test_set_task_run_state_with_error(monkeypatch):
