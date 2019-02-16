@@ -318,14 +318,16 @@ if __name__ == "__main__":
         os.path.basename(os.getcwd()) == "docs"
     ), "Only run this script from inside the docs/ directory!"
 
-    GIT_SHA = os.getenv("GIT_SHA", "0000000")
+    GIT_SHA = os.getenv("GIT_SHA", "n/a")
     SHORT_SHA = GIT_SHA[:7]
     auto_generated_footer = (
-        '\n<p style="text-align:center;"i><small><i>This documentation was auto-generated from commit '
+        '\n<p style="text-align:center;"i><small><i>This documentation was auto-generated '
+        "for Prefect {version} from commit "
         "<a href='https://github.com/PrefectHQ/prefect/commit/{git_sha}'>{short_sha}</a> "
         "on {timestamp}</i></small></p>".format(
             short_sha=SHORT_SHA,
             git_sha=GIT_SHA,
+            version=prefect.__version__,
             timestamp=pendulum.now("utc").format("MMMM D, YYYY [at] HH:mm:ss [UTC]"),
         )
     )
