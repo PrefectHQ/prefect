@@ -359,17 +359,6 @@ if __name__ == "__main__":
         )
         f.write("# API Reference\n")
         f.write(
-            "*This documentation was auto-generated from commit "
-            "[{short_sha}](https://github.com/PrefectHQ/prefect/commit/{git_sha}) "
-            "on {timestamp}.*".format(
-                short_sha=SHORT_SHA,
-                git_sha=GIT_SHA,
-                timestamp=pendulum.now("utc").format(
-                    "MMMM D, YYYY [at] HH:mm:ss [UTC]"
-                ),
-            )
-        )
-        f.write(
             "\n\n"
             "*Click <a href='/prefect-coverage/index.html'>here</a> for a complete test coverage report.*"
         )
