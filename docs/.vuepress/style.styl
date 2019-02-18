@@ -12,9 +12,8 @@
  * stylus supports both indented and regular CSS syntax
  * more information can be found here: http://stylus-lang.com
  *
- * if you typically write python code, use stylus' indent syntax!
- * it's a CSS pre-processor so regular CSS syntax works too.
- *
+ * we use regular CSS and SCSS syntax as much as possible to keep our code consistent
+ * 
  */
 
 
@@ -22,458 +21,513 @@
 	========================================================================== */
 
 // load fonts
-@import url('https://rsms.me/inter/inter-ui.css')
-@import url('https://use.typekit.net/cvp6pli.css')
+@import url('https://rsms.me/inter/inter-ui.css');
+@import url('https://use.typekit.net/cvp6pli.css');
 
 // backup fonts
-fallback-copy = -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif
-
-fallback-mono = Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace
+$backupFonts = -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+$backupCode = Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
 
 // font stacks
-font-primary = 'Inter UI', fallback-copy
-font-secondary = Arboria, fallback-copy
-font-code = source-code-pro, fallback-mono
+$fontPrimary = 'Inter UI', $backupFonts;
+$fontSecondary = Arboria, $backupFonts;
+$fontCode = source-code-pro, $backupCode;
 
 // font weights
-font-bold = 700
-font-normal = 400
-font-light = 300
+$bold = 700;
+$normal = 400;
+$light = 300;
 
 
 /* prefect color palette
 	========================================================================== */
 
 // brand colors
-color-blue-primary = #27b1ff
-color-blue-secondary = #3b8dff
-color-blue-tertiary = #1061d0
-color-grey = #a5b4be
-color-grey-dark = #4d606e
-color-pink = #fe5196
-color-orange = #e90
+$bluePrimary 	= #27b1ff;
+$blueSecondary = #3b8dff;
+$blueTertiary = #1061d0;
+$grey = #a5b4be;
+$greyDark = #4d606e;
+$pink = #fe5196;
+$orange = #e90;
 
 // neutrals
-color-grey-bg = #fbfcfd
-color-grey-border = #f6f6fc
-color-white = #fff
-color-black = #000
+$greyBg = #fbfcfd;
+$greyBorder = #f6f6fc;
+$white = #fff;
+$black = #000;
 
-/* media query breakpoints
+
+/* breakpoints
 	========================================================================== */
 
-// media query block mixins
-media-size(screensize)
-	@media screen and (max-width: screensize)
-		{block}
-
-// breakpoint sizes
-bp-sml = 26.25rem
-bp-med = 45rem
-bp-lrg = 60rem
+$bpSmall = 26.25rem;
+$bpMedium = 45rem;
+$bpLarge = 60rem;
 
 
 /* type settings
 	========================================================================== */
 
+// setting base font settings
 html,
-body
-	font: font-normal 16px/1.5 font-primary // set base font
+body {
+	font: $normal 16px/1.5 $fontPrimary;
+}
 
-p
-	font-size: 1em
-	line-height: 1.75
-	margin-bottom: 1.25em
-
+p,
 ul,
-ol
-	@extend p
+ol {
+	font-size: 1em;
+	line-height: 1.75;
+	margin-bottom: 1.25rem;
+	li {
+		line-height: 2;
+	}
+}
 
-	li
-		line-height: 2
+$args = 'ul.args, ol.args';
 
+{$args} {
+    li {
+        line-height: 2.25;
+        padding-left: 2.5em;
+        text-indent: -2em;
+    }
+}
 
-headings = 'h1, h2, h3, h4, h5, h6' // headings selector
+// disclaimer text
+.disclaimer {
+	font-size: 0.8em;
+	font-style: italic;
+}
 
-{headings}
-	color: color-grey-dark
-	font-family: font-secondary
-	font-weight: font-bold
-	line-height: 1.15
-	margin: 2.75rem 0 1rem
-	text-rendering: optimizeLegibility // enables native kerning
+// headers
+$headers = 'h1, h2, h3, h4, h5, h6';
 
-h1
-	font-size: 3em
+{$headers} {
+	color: $greyDark;
+	font-family: $fontSecondary;
+	font-weight: $bold;
+	line-height: 1.15;
+	margin: 2.75rem 0 1rem;
+	/* enables font's navtive kerning instructions */
+	text-rendering: optimizeLegibility;
+}
 
-h2
-	font-size: 2.5em
+h1 {
+	font-size: 3em;
+}
 
-	/.features .feature &
-		font-weight: font-bold
+h2 {
+	font-size: 2.5em;
 
-h3
-	font-size: 2em
+	/.features .feature & {
+		font-weight: $bold;
+	}
+}
 
-h4
-	font-size: 1.5em
+h3 {
+	font-size: 2em;
+}
 
-h5
-	font-size: 1.25em
+h4 {
+	font-size: 1.5em;
+}
 
-h6
-	font-size: 0.85em
+h5 {
+	font-size: 1.25em;
+}
 
+h6 {
+	font-size: 0.85em;
+}
 
 // a tags
-a-links = 'a, a:visited, a:active'
-on-hover = '&:hover, &:focus'
+$link = 'a, a:visited, a:active';
+$hover = '&:hover, &:focus';
 
-{a-links}
-	color: color-blue-primary
+{$link} {
+	color: $bluePrimary;
 
-	{on-hover}
-		color: color-blue-secondary
-		cursor: pointer
-
+	{$hover} {
+		color: $blueSecondary;
+		cursor: pointer;
+	}
+}
 
 // font weight and styles
 strong,
-b
-	font-weight: font-bold
+b {
+	font-weight: $bold;
+}
 
 em,
-i
-	font-style: italic
+i {
+	font-style: italic;
+}
 
 
-// disclaimer text
-.disclaimer
-	font-size: 0.8em
-	font-style: italic
-
-
-/* components
+/* component styling
 	========================================================================== */
 
+// tables
+tr {
+	background-color: $white;
+
+	&:nth-child(2n) {
+		background-color: lighten($greyBg, 75%);
+	}
+}
+
 // top navigation
-.navbar
-	{a-links}
-		color: color-grey-dark
+.navbar {
+	{$link} {
+		color: $greyDark;
 
-		{on-hover}
-			color: color-blue-primary
+		{$hover} {
+			color: $bluePrimary;
+		}
+	}
 
-	+media-size(bp-med)
-		.logo
-			display: block
-			position: absolute
-			margin: 0
-			left: 50%
-			top: .7rem
-
+	@media screen and (max-width: $bpMedium) {
+		.logo {
+			display: block;
+			position: absolute;
+			margin: 0;	
+			left: 50%;
+			top: .7rem;
+		}
+	}	
+}
 
 // sidebar
-.sidebar
+.sidebar {
 	&-link,
 	&-heading,
-	{a-links}
-		color: color-grey-dark
+	{$link} {
+		color: $greyDark;
 
-		{on-hover}
-			color: color-grey
-
+		{$hover} {
+			color: $grey;
+		}
+	}
+}
 
 // license agreement spacing
-.content:not(.custom) > .license
-	margin-top: 0
+.content:not(.custom) > .license {
+	margin-top: 0;
 
 	h1,
 	p,
-	.action
-		text-align: left
+	.action {
+		text-align: left;
 
-		&-button
-			margin-left: 0
+		.action-button {
+			margin-left: 0;	
+		}
+	}
+}
 
 
 // footer
-.footer
-	margin-top: 2.5em
-
+.footer {
+	margin-top: 2.5em;
+}
 
 // buttons
-buttons = 'button, .action-button, .home .action .action-button'
+$button = 'button, .action-button, .home .action .action-button';
 
-{buttons}
-	background-color: color-blue-primary
-	border: none
-	border-bottom: 0.0625em solid color-blue-tertiary
-	color: color-white
-	font-family: font-primary
-	margin: 1em
+{$button} {	
+	background-color: $bluePrimary;
+	border: none;
+	border-bottom: 0.0625em solid $blueTertiary;
+	color: $white;
+	font-family: $fontPrimary !important;
+	margin: 1em;
 
-	{a-links}
-		color: color-white
+	{$hover} {
+		background-color: $blueSecondary;
+		cursor: pointer;
+	}
 
-	{on-hover}
-		background-color: color-blue-secondary
-		cursor: pointer
-
+ 	{$link} {
+		color: $white;
+	}
+}
 
 // images
-img
-	height: auto
-	margin: 2rem auto
-	max-width: 75%
-	text-align: center
+// images
+.viz {
+    text-align: center;
+    margin: 2rem auto;
+    height: auto;
+}
 
-	.etl
-		width: 25%
+.etl {
+    width: 25%
+}
 
-	.example
-		width: 45%
+.slack-example {
+    width: 75%;
+}
 
-	.slack-example
-		width: 75%
-
-
-/* prefect code and syntax highlighting styles; overrides prism.js and vuepress theme
-	========================================================================== */
-
-// selectors
-div-pre = 'div, pre'
-pre-code = 'pre, code'
-lang = '[class*="language-"]'
-
-// extends
-.word-wrap
-	overflow-wrap: break-word
-	word-wrap: break-word
-	word-break: break-word
-
-.prefect-code
-	color: color-grey-dark
-	font-family: font-code
-
-.prefect-spacing
-	@extend .word-wrap
-	box-decoration-break: clone;
-	-webkit-box-decoration-break: clone;
-	line-height: 2
-	white-space: pre-wrap
-	tab-size: 4
-
-.prefect-block
-	@extends .prefect-code, .prefect-spacing
-
-// tables
-table
-	> &
-		text-align: left
-
-	tr
-		background-color: color-white
-
-		&:nth-child(2n)
-			background-color: color-grey-bg + 75%
+.example {
+    width: 45%;
+}
 
 // custom blocks
-.custom-block
-	.custom-block-title
-		font-weight: font-bold
+.custom-block {
+	$title = '.custom-block-title';
 
-	&.tip
-		background-color: color-blue-primary + 95%
-		border-color: color-blue-secondary
+	&-title {
+		font-weight: $bold;
+	}
 
-		.custom-block-title
-			color: color-blue-primary
+	&.tip {
+		background-color: $greyBg;
+		border-color: $blueSecondary;		
+	}
 
-		pre{lang}
-			border: 1px solid (color-blue-secondary + 50%)
+	&.warning {
+		background-color: lighten($orange, 90%);
+		border-color: $orange;
+		color: $greyDark;
+		
+		{$title} {
+			color: $greyDark;
+		}
+	}
+}
 
+pre.vue-container {
+	border-color: $bluePrimary;
 
-	&.warning
-		background-color: color-orange + 90%
-		border-color: color-orange
+	& > code {
+		font-size: 0.875em;
 
-		.custom-block-title
-			color: color-orange - 10%
+		code {
+			background-color: $bluePrimary;
+			color: $black;
+		}
 
-		pre{lang}
-			border: 1px solid (color-orange + 50%)
-
-	&.danger
-		background-color: color-pink + 90%
-		border-color: color-pink
-
-		.custom-block-title
-			color: color-pink - 10%
-
-		pre{lang}
-			border: 1px solid (color-pink + 50%)
-
-
-// begin styling code blocks
-{pre-code}
-	@extend .prefect-code
-
-	&{lang}
-		background: transparent;
-
-	/pre{lang}
-		padding: 1rem;
-		margin: 0.5rem 0;
-
-:not(pre) > {pre-code}
-		&{lang}
-			background: color-grey-dark + 50%
-
-:not(pre) > code{lang}
-		padding: 0.25rem
-		border-radius: 0.5em
-		white-space: normal
-
-pre.vue-container
-	border-color: color-blue-primary
-
-	> code
-		background-color: color-blue-primary
-		color: color-black
-		font-size: 0.875em
-
-		em
-			color: color-grey
-			font-weight: font-light
+		em {
+			color: $grey;
+			font-weight: $light;
+		}
+	}
+}
 
 
-// code blocks wrapped in a div inside vuepress content
-.content
-	div{lang}
-		border-radius: 0.375em
-		position: relative
+/* code and syntax highlighting
+	========================================================================== */
 
-		pre{lang} &
-			background-color: color-grey-bg
+// code selectors
+$divLang = 'div[class*="language-"]';
+$preLang = 'pre[class*="language-"]';
+$codeLang = 'code[class*="language-"]';
 
-		{pre-code}
-			&{lang} &
-				@extend .prefect-code
-				background: transparent
-				z-index: 1
+// prism.js and general overrides
+pre,
+code,
+kbd,
+.line-number {
+	color: $greyDark;
+	font-family: $fontCode;
+}
 
-		// top right language tag in code blocks
-		&:before
-			color: color-grey-dark;
-			font-size: 0.75em
-			position: absolute
-			right: 1rem
-			top: 0.8rem
-			z-index: 3
+{$preLang},
+{$codeLang} {
+	color: $greyDark;
+	background: transparent;
+	font-family: $fontCode;
+	line-height: 1.75;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
 
+{$preLang} {
+	padding: 1rem;
+	margin: 0.5rem 0;
+	overflow: auto;
+}
 
-// code blocks within vuepress content but not wrapped in a div
-.content
+:not(pre) > {$preLang}, {$codeLang} {
+	background: darken($greyDark, 50%);
+}
+
+:not(pre) > {$codeLang} {
+	padding: 0.25rem;
+	border-radius: 0.5em;
+	white-space: normal;
+}
+
+// vuepress theme overrides
+$token = '.token';
+
+.content {
 	pre,
-	pre{lang}
-		@extend .prefect-code
-		border-radius: 0.5em
-		border: solid 0.125em color-grey-border
-		line-height: 1.75
-		margin: 0.85rem 0
-		padding: 1.25rem 1.5rem
+	{$preLang} {
+		background-color: $greyBg;
+		border-radius: 0.5em;
+		border: solid 0.125em $greyBorder;
+		color: $greyDark;
+		font-family: $fontCode;
+		line-height: 1.75;
+		margin: 0.85rem 0;
+		overflow: auto;
+		padding: 1.25rem 1.5rem;
 
 		code,
-		code{lang}
-			@extend .prefect-code
-			background-color: transparent
-			border-radius: 0
-			padding: 0
+		{$codeLang} {
+			color: $greyDark;
+			background-color: transparent;
+			border-radius: 0;
+			padding: 0;
+		}
+	}
 
-
-	// standalone code blocks within vuepress content
 	code,
-	code{lang}
-		background-color: color-grey-bg - 5%
-		border-radius: 0.25em
-		font-size: 1em
-		padding: 0.25rem 0.5rem
+	{$codeLang} {
+		background-color: darken($greyBg, 5%);
+		border-radius: 0.25em;
+		color: $greyDark;
+		font-family: $fontCode;
+		font-size: 0.9em;
+		padding: 0.25rem 0.5rem;
 
-		.token
-			&.deleted
-				color: color-blue-secondary
+		{$token} {
+			&.deleted {
+				color: $blueSecondary;
+			}
+			&.inserted {
+				color: $pink;
+			}
+		}
+	}
+}
 
-			&.inserted
-				color: color-pink
+.content {
+	{$divLang} {
+		background-color: $greyBg;
+		border-radius: 0.375em;
+		position: relative;
 
+		&::before {
+			color: $greyDark;
+			font-size: 0.75em;
+			position: absolute;
+			right: 1rem;
+			top: 0.8rem;
+			z-index: 3;
+		}
 
-// api resource documentation
-sig-class = 'div[class="class-sig"]'
-sig-method = 'div[class="method-sig"]'
+		pre,
+		{$preLang},
+		code,
+		{$codeLang} {
+			background: transparent;
+			color: $greyDark;
+			position: relative;
+			z-index: 1;
+		}
+	}
+}
 
-.content
-	{sig-class},
-	{sig-method}
-		@extend .prefect-block
+// resource docs
+.content {
+	div[class="class-sig"] {
+		background-color: lighten($bluePrimary, 95%);
+		border-top: 0.325em solid $blueSecondary;
+		font-family: $fontCode;
+		font-size: 1.1em;
+		line-height: 1.5;
+		padding: 1.5rem 2rem 3.5rem 5rem;
+		text-indent: -2.5em;
 
-		// source link
-		span a
-			clear: both
-			color: color-blue-tertiary
-			float: right
-			font-size: 0.875em
-			margin-top: 2.5rem
+		pre,
+		{$preLang} {
+			code {
+				color: $greyDark;
+			}
+		}
 
-			{on-hover}
-				font-weight: font-bold
+		span a {
+			clear: both;
+			color: $blueTertiary;
+			float: right;
+			font-size: 0.875em;
+			margin-top: 2.5rem;
 
-	{sig-class}
-		background-color: color-blue-primary + 95%
-		border-top: 0.325em solid color-blue-secondary
-		font-size: 1.125em
-		line-height: 2
-		padding: 1.5rem 2rem 3.5rem 5rem
-		text-indent: -2.5em
+			{$hover} {
+				font-weight: $bold;
+			}
+		}
+	}
+}
 
-	{sig-method}
-		background-color: color-blue-primary + 97%
-		border-top: 0.325em solid (color-blue-secondary + 50%)
-		font-size: 1em
-		line-height: 1.75em
-		padding: 1.5rem 2rem 3.5rem 5rem
-		text-indent: -2.5em
+.content {
+	div[class="method-sig"] {
+		background-color: lighten($bluePrimary, 98%);
+		border-top: 0.325em solid lighten($blueSecondary, 50%);
+		font-family: $fontCode;
+		font-size: 1em;
+		line-height: 1.5;
+		padding: 1.5rem 2rem 3.5rem 5rem;
+		text-indent: -2.5em;
 
+		pre,
+		{$preLang} {
+			code {
+				color: $greyDark;
+			}
+		}
 
-// select and style py args lists and nested items
-args-list = 'ul.args, ol.args'
+		span a {
+			clear: both;
+			color: $blueTertiary;
+			float: right;
+			font-size: 0.875em;
+			margin-top: 2.5rem;
 
-{args-list}
-	li
-		line-height: 2.25
-		padding-left: 2.5em
-		text-indent: -2em
-
+			{$hover} {
+				font-weight: $bold;
+			}
+		}
+	}
+}
 
 // tokens
-.token
+{$token} {
 	&.comment,
 	&.block-comment,
 	&.prolog,
 	&.doctype,
-	&.cdata
-		color: color-grey
-		font-style: italic
-
+	&.cdata {
+		color: darken($grey, 25%);
+		font-style: italic;
+	}
+	
 	&.atrule,
 	&.attr-value,
-	&.keyword
-		color: color-blue-primary
-		font-style: italic
-		font-weight: font-bold
+	&.keyword {
+		color: $bluePrimary;
+		font-style: italic;
+		font-weight: $bold;
+	}	
 
-	&.builtin
-		color: color-blue-primary
+	&.builtin {
+		color: $bluePrimary;
+	}
 
 	&.tag,
 	&.deleted,
@@ -481,20 +535,23 @@ args-list = 'ul.args, ol.args'
 	&.boolean,
 	&.property,
 	&.constant,
-	&.symbol
-		color: color-blue-secondary
+	&.symbol {
+		color: $blueSecondary;
+	}
 
 	&.function-name,
 	&.function,
 	&.class-name,
 	&.operator,
 	&.entity,
-	&.url
-		color: color-blue-secondary
-		font-weight: font-bold
+	&.url {
+		color: $blueSecondary;
+		font-weight: $bold;
+	}
 
-	&.punctuation
-		color: color-blue-tertiary
+	&.punctuation {
+		color: $blueTertiary;
+	}
 
 	&.attr-name,
 	&.namespace,
@@ -502,48 +559,91 @@ args-list = 'ul.args, ol.args'
 	&.decorator,
 	&.string,
 	&.car,
-	&.inserted
-		color: color-pink
+	&.inserted {
+		color: $pink;
+	}	
 
 	&.important,
 	&.regex,
-	&.variable
-		color: color-orange
+	&.variable {
+		color: $orange;
+	}
 
 	&.important,
-	&.bold
-		font-weight: font-bold
+	&.bold {
+		font-weight: $bold;
+	}
 
-	&.italic
-		font-style: italic
+	&.italic {
+		font-style: italic;
+	}
 
-	&.entity
-		cursor: help
+	&.entity {
+		cursor: help;
+	}
 
-	&.namespace
-		opacity: 0.75
+	&.namespace {
+		opacity: 0.75;
+	}
 
 	//style specific tokens
-	/.language-css .token.string,
-	/.style .token.string
-		color: color-blue-secondary
-		font-weight: font-bold
+	$tokenString = '.token.string';
 
+	/.language-css {$tokenString},
+	/.style {$tokenString} {
+		color: $blueSecondary;
+		font-weight: $bold;
+	}
+}
 
-/*  prefect code snippet languages */
-div[class~="language-bash"]
-	&:before
-		content: "sh"
+/* prefect - code snippet languages */
 
-div[class~="language-python"]
-	&:before
-		content: "py"
+// most often used (required)
+div[class~="language-bash"] {
+	&:before {
+		content: "sh";
+	}
+}
 
-div[class~="language-graphql"]
-	&:before
-		content: "gql"
+div[class~="language-python"] {
+	&:before {
+		content: "py";
+	}
+}
 
-div[class~="language-json"]
-	&:before
-		content: "json"
+div[class~="language-graphql"] {
+	&:before {
+		content: "gql";
+	}
+}
 
+div[class~="language-json"] {
+	&:before {
+		content: "json";
+	}
+}
+
+// seldomly used (optional)
+div[class~="language-markdown"] {
+  &:before {
+		content: "md";
+	}
+}
+
+div[class~="language-javascript"] {
+	&:before {
+		content: "js";
+	}
+}
+
+div[class~="language-css"] {
+	&:before {
+		content: "css";
+	}
+}
+
+div[class~="language-scss"] {
+	&:before {
+		content: "scss";
+	}
+}
