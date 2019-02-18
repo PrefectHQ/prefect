@@ -14,7 +14,7 @@
  *
  * if you typically write python code, use stylus' indent syntax!
  * it's a CSS pre-processor so regular CSS syntax works too.
- * 
+ *
  */
 
 
@@ -91,7 +91,7 @@ ol
 
 	li
 		line-height: 2
-	
+
 
 headings = 'h1, h2, h3, h4, h5, h6' // headings selector
 
@@ -135,7 +135,7 @@ on-hover = '&:hover, &:focus'
 	{on-hover}
 		color: color-blue-secondary
 		cursor: pointer
-	
+
 
 // font weight and styles
 strong,
@@ -163,7 +163,7 @@ i
 
 		{on-hover}
 			color: color-blue-primary
-		
+
 	+media-size(bp-med)
 		.logo
 			display: block
@@ -171,7 +171,7 @@ i
 			margin: 0
 			left: 50%
 			top: .7rem
-	
+
 
 // sidebar
 .sidebar
@@ -179,10 +179,10 @@ i
 	&-heading,
 	{a-links}
 		color: color-grey-dark
-	
+
 		{on-hover}
 			color: color-grey
-		
+
 
 // license agreement spacing
 .content:not(.custom) > .license
@@ -195,7 +195,7 @@ i
 
 		&-button
 			margin-left: 0
-		
+
 
 // footer
 .footer
@@ -215,11 +215,11 @@ buttons = 'button, .action-button, .home .action .action-button'
 
 	{a-links}
 		color: color-white
-	
+
 	{on-hover}
 		background-color: color-blue-secondary
 		cursor: pointer
-	
+
 
 // images
 img
@@ -252,7 +252,7 @@ lang = '[class*="language-"]'
 	word-wrap: break-word
 	word-break: break-word
 
-.prefect-code 
+.prefect-code
 	color: color-grey-dark
 	font-family: font-code
 
@@ -371,7 +371,7 @@ pre.vue-container
 			right: 1rem
 			top: 0.8rem
 			z-index: 3
-		
+
 
 // code blocks within vuepress content but not wrapped in a div
 .content
@@ -434,15 +434,16 @@ sig-method = 'div[class="method-sig"]'
 		font-size: 1.125em
 		line-height: 2
 		padding: 1.5rem 2rem 3.5rem 5rem
-		text-indent: -2.5em			
+		text-indent: -2.5em
 
 	{sig-method}
 		background-color: color-blue-primary + 97%
 		border-top: 0.325em solid (color-blue-secondary + 50%)
 		font-size: 1em
 		line-height: 1.75em
-		padding: 1.5rem 2rem 3rem
-	
+		padding: 1.5rem 2rem 3.5rem 5rem
+		text-indent: -2.5em
+
 
 // select and style py args lists and nested items
 args-list = 'ul.args, ol.args'
@@ -463,7 +464,7 @@ args-list = 'ul.args, ol.args'
 	&.cdata
 		color: color-grey
 		font-style: italic
-	
+
 	&.atrule,
 	&.attr-value,
 	&.keyword
