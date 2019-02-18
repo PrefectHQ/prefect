@@ -204,7 +204,7 @@ def defaults_from_attrs(attr_args: Iterable[str], run_method: Callable) -> Calla
     Helper decorator for dealing with Task classes with attributes which serve
     as defaults for `Task.run`.  Specifically, this decorator allows the author of a Task
     to identify certain keyword arguments to the run method which will fall back to `self.ATTR_NAME`
-    if not _explicitly_ provided to `self.run`.
+    if not explicitly provided to `self.run`.
 
     Args:
         - attr_args (Iterable[str]): an iterable of strings specifying which
@@ -215,21 +215,22 @@ def defaults_from_attrs(attr_args: Iterable[str], run_method: Callable) -> Calla
         - Callable: the decorated / altered `Task.run` method
 
     Example:
-        ```python
-        class MyTask(Task):
-            def __init__(self, a=None, b=None, **kwargs):
-                self.a = a
-                self.b = b
-                ...
-            @defaults_from_attrs(['a', 'b'])
-            def run(self, a=None, b=None):
-                return a, b
+    ```python
+    class MyTask(Task):
+        def __init__(self, a=None, b=None):
+            self.a = a
+            self.b = b
 
-        task = MyTask(a=1, b=2)
-        task.run() # (1, 2)
-        task.run(a=99) # (99, 2)
-        task.run(a=None, b=None) # (None, None)
-        ```
+        @defaults_from_attrs(['a', 'b'])
+        def run(self, a=None, b=None):
+            return a, b
+
+    task = MyTask(a=1, b=2)
+
+    task.run() # (1, 2)
+    task.run(a=99) # (99, 2)
+    task.run(a=None, b=None) # (None, None)
+    ```
     """
 
     @wraps(run_method)
