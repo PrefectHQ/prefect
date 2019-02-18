@@ -2,13 +2,14 @@
 
 import inspect
 from contextlib import contextmanager
+from functools import wraps
 from typing import Any, Callable, Iterator
 
 from toolz import curry
 
 import prefect
 
-__all__ = ["tags", "as_task", "pause_task", "task", "unmapped"]
+__all__ = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
 
 
 @contextmanager
@@ -195,3 +196,14 @@ class unmapped:
 
     def __init__(self, task: "prefect.Task"):
         self.task = as_task(task)
+
+
+@curry
+def defaults_from_attrs(attr_args: tuple, run_method) -> Callable:
+    @wraps(run_method)
+    def method(self, *args, **kwargs):
+        for attr in attr_args:
+            kwargs.setdefault(attr, getattr(self, attr))
+        return run_method(self, *args, **kwargs)
+
+    return method
