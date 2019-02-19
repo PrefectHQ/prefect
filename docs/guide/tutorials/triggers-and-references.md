@@ -9,7 +9,7 @@ In some cases, we explicitly _don't_ want to automate some portion of a system; 
 
 For example, imagine we have the following workflow:
 
-![workflow](/manual_approval.svg) {.viz .example}
+![manual approval workflow](/manual_approval.svg){.viz}
 
 ### Triggers
 
@@ -89,7 +89,8 @@ print(flow_state.result)
   
 ##    Flow results: {
 ##     <Task: build_report>: Success("Task run succeeded."),
-##     <Task: email_report_to_board>: Paused("Trigger function is "manual_only""), 
+##     <Task: email_report_to_board>: Paused("Trigger function is
+##     "manual_only""),
 ##     <Task: complain_to_data_analyst>: Pending()
 ##     }
 ```
@@ -120,7 +121,8 @@ print(new_flow_state.result)
 ##    Flow state: Success("All reference tasks succeeded.")
 
 ##    Flow result: {
-##       <Task: email_report_to_board>: Success("Task run succeeded."), 
-##       <Task: complain_to_data_analyst>: TriggerFailed("Trigger was "any_failed" but none of the upstream tasks failed.")
+##       <Task: email_report_to_board>: Success("Task run succeeded."),
+##       <Task: complain_to_data_analyst>: TriggerFailed("Trigger was
+##       "any_failed" but none of the upstream tasks failed.")
 ##       }
 ```

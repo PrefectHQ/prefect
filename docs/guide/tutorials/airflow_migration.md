@@ -124,7 +124,7 @@ flow = AirFlow(dag_id='example_dag_for_prefect')
 flow.visualize()
 ```
 
-![airflow dag](/airflow_dag.svg) {.viz}
+![airflow dag](/airflow_dag.svg){.viz-padded}
 
 Reminder: underlying each of these Prefect tasks is _still_ an Airflow task which is a part of an Airflow DAG; consequently, it is not currently recommended that you manipulate the individual tasks themselves.
 
@@ -152,7 +152,7 @@ with flow:
 flow.visualize()
 ```
 
-![extended airflow dag](/extended_airflow_dag.svg) {.viz}
+![extended airflow dag](/extended_airflow_dag.svg){.viz-padded}
 
 ## Execution
 
@@ -172,6 +172,6 @@ flow_state = flow.run(execution_date='2018-09-20', return_tasks=flow.tasks)
 flow.visualize(flow_state=flow_state)
 ```
 
-![run airflow dag](/run_airflow_dag.svg) {.viz}
+![run airflow dag](/run_airflow_dag.svg){.viz-padded}
 
 This is just one way in which Prefect allows you to extend and _improve_ your Airflow DAGs!
