@@ -233,7 +233,7 @@ def get_source(obj):
         line_no = inspect.getsourcelines(obj)[1]
         url_ending = "/".join(dir_struct[begins_at:]) + f"#L{line_no}"
         link = f'<a href="{base_url}{url_ending}">[source]</a>'
-    source_tag = f"<span class="source">{link}</span>"
+    source_tag = f'<span class="source">{link}</span>'
     return source_tag
 
 
@@ -246,8 +246,8 @@ def format_subheader(obj, level=1, in_table=False):
         header = "##" + "#" * level
     else:
         header = "|"
-    is_class = "<p class="prefect-sig">class </p>" if inspect.isclass(obj) else ""
-    class_name = f"<p class="prefect-class">{create_absolute_path(obj)}</p>"
+    is_class = '<p class="prefect-sig">class </p>' if inspect.isclass(obj) else ""
+    class_name = f'<p class="prefect-class">{create_absolute_path(obj)}</p>'
     div_class = "class-sig" if is_class else "method-sig"
     div_tag = f"<div class='{div_class}'>"
 
