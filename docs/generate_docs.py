@@ -156,7 +156,7 @@ def create_methods_table(members, title):
         table = f"|{title} " + "&nbsp;" * 150 + "|\n"
         table += "|:----|\n"
     for method in members:
-        table += format_subheader(method, level=2, in_table=True).replace("\n\n")
+        table += format_subheader(method, level=2, in_table=True).replace("\n\n", "\n")
         table += format_doc(method, in_table=True)
         table += "|\n"
     return table
@@ -428,7 +428,7 @@ if __name__ == "__main__":
                 f.write("\n---\n<br>\n\n")
 
             if fns:
-                f.write("## Functions\n")
+                f.write("\n## Functions\n")
             f.write(create_methods_table(fns, title="top-level functions:"))
             f.write("\n")
             f.write(auto_generated_footer)
