@@ -6,6 +6,8 @@ Prefect embraces tests!
 
 Prefect's tests are stored in the top-level `tests` directory. In general, the test directory layout mimics the library layout: a test at `tests/utilities/test_collections.py` is expected to test `prefect/utilities/collections.py`.
 
+Prefect's tests are organized as submodules, meaning each directory has an `__init__.py` file. This means that module names can be safely reused for tests. If you create a new directory, be sure to put an (empty) `__init__.py` in it to ensure it gets picked up during test discovery.
+
 Please remember that the purpose of writing tests is not only to show what your code is expected to do, but also to make sure it doesn't inadvertently start doing something else! We'd prefer overcomplete tests to too few tests, and a PR that adds more lines of test code than library code is a good PR.
 
 Prefect has a few fixtures available for testing all available executors; see `conftest.py` for details.
@@ -18,6 +20,8 @@ Prefect uses `pytest` for unit testing. To run tests, simply run `pytest` from t
 cd prefect
 pytest
 ```
+
+Prefect has a few flags for modifying pytest's behavior. `--skip-formatting` will skip the `black` and `mypy` tests, which can be helpful when running with Python <3.6 or in the interest of efficiency. `--airflow` will run a series of Prefect/Airflow integration tests that can take a long time (and are not run unless this flag is invoked).
 
 ## CI
 
