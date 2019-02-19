@@ -6,7 +6,7 @@ FROM python:3.6
 ARG PERSONAL_ACCESS_TOKEN
 ENV PERSONAL_ACCESS_TOKEN=$PERSONAL_ACCESS_TOKEN
 
-RUN git clone https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
+RUN git clone -b environments https://$PERSONAL_ACCESS_TOKEN@github.com/PrefectHQ/prefect.git
 
 RUN pip install ./prefect
 
