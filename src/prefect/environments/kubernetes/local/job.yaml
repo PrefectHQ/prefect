@@ -12,7 +12,7 @@ spec:
     spec:
       containers:
         - name: flow
-          image: gcr.io/prefect-dev/local_environment_execution:0.1.4
+          image: gcr.io/prefect-dev/prefect
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
           args: ["prefect run /root/.prefect/flow_env.prefect"]
