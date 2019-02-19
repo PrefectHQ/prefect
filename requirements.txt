@@ -7,12 +7,14 @@ distributed >= 1.21.8, < 2.0
 docker >= 3.4.1, < 4.0
 google-cloud-storage >= 1.13, < 2.0
 idna < 2.8, >= 2.5
+kubernetes >= 8.0.1, < 9.0
 marshmallow == 3.0.0b19
 marshmallow-oneofschema >= 2.0.0b2, < 3.0
 mypy >= 0.600, < 0.700
 mypy_extensions >= 0.4.0, < 0.5
 pendulum >= 2.0.4, < 3.0
 python-dateutil >2.7.3, < 3.0
+pyyaml == 3.13
 requests >= 2.20, < 3.0
 toml >= 0.9.4, < 1.0
 typing >= 3.6.4, < 4.0
