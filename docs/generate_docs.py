@@ -145,7 +145,7 @@ def format_doc(obj, in_table=False):
             )
         cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(" "))
     if in_table:
-        return f"<p class="methods">{cleaned}</p>"
+        return f'<p class="methods">{cleaned}</p>'
     else:
         return cleaned
 
