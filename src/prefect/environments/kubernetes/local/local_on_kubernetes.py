@@ -36,16 +36,14 @@ class LocalOnKubernetesEnvironment(DockerEnvironment):
             files=files,
         )
 
-    # Override build, make a build_image which has all the logic,
-    # build must return a type of the environment that is is subclassed from
     def execute(self) -> None:
-        pass
+        print("execute")
 
     def run(self) -> None:
         pass
 
     def setup(self) -> None:
-        pass
+        print("setup")
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
