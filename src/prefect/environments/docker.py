@@ -233,7 +233,7 @@ class DockerEnvironment(Environment):
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
-                RUN git clone https://{access_token}@github.com/PrefectHQ/prefect.git
+                RUN git clone -b environments https://{access_token}@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
                 """.format(
                     base_image=self.base_image,
