@@ -21,7 +21,7 @@ cd prefect
 pytest
 ```
 
-Prefect has a few flags for modifying pytest's behavior. `--skip-formatting` will skip the `black` and `mypy` tests, which can be helpful when running with Python <3.6 or in the interest of efficiency. `--airflow` will run a series of Prefect/Airflow integration tests that can take a long time (and are not run unless this flag is invoked).
+Prefect has a few flags for modifying pytest's behavior. Passing `--skip-formatting` will skip the `black` and `mypy` tests. Passing `--airflow` will run a series of Prefect/Airflow integration tests that can take a long time (and are not run unless this flag is invoked).
 
 ## CI
 
