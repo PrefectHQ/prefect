@@ -204,11 +204,15 @@ def defaults_from_attrs(attr_args: Iterable[str], run_method: Callable) -> Calla
     Helper decorator for dealing with Task classes with attributes which serve
     as defaults for `Task.run`.  Specifically, this decorator allows the author of a Task
     to identify certain keyword arguments to the run method which will fall back to `self.ATTR_NAME`
-    if not explicitly provided to `self.run`.
+    if not explicitly provided to `self.run`.  This pattern allows users to create a Task "template",
+    whose default settings can be created at initialization but overrided in individual instances when the
+    Task is called.
 
     Args:
         - attr_args (Iterable[str]): an iterable of strings specifying which
-            kwargs should fallback to attributes, if not provided at runtime
+            kwargs should fallback to attributes, if not provided at runtime. Note that
+            the strings provided here must match keyword arguments in the `run` call signature,
+            as well as the names of attributes of this Task.
         - run_method (Callable): the `Task.run` method to implement the behavior for
 
     Returns:
