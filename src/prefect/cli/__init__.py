@@ -47,5 +47,19 @@ def run(environment_file, runner_kwargs):
     """
     Run a flow from an environment file.
     """
-    environment = prefect.environments.from_file(environment_file)
+    schema = prefect.serialization.environment.EnvironmentSchema()
+    with open(environment_file, "r") as f:
+        environment = schema.load(json.load(f))
+
     click.echo(environment.run(runner_kwargs=runner_kwargs))
+
+
+@cli.command()
+@click.argument("environment_metadata")
+def create_environment(environment_metadata):
+    """
+    Call the setup and execute functions for a given environment.
+    """
+    schema = prefect.serialization.environment.EnvironmentSchema()
+    env = schema.load(json.loads(environment_metadata))
+    print(env)
