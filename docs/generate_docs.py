@@ -145,7 +145,7 @@ def format_doc(obj, in_table=False):
             )
         cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(" "))
     if in_table:
-        return f"<sub>{cleaned}</sub><br>"
+        return f"<p class="methods">{cleaned}</p>"
     else:
         return cleaned
 
@@ -156,9 +156,7 @@ def create_methods_table(members, title):
         table = f"|{title} " + "&nbsp;" * 150 + "|\n"
         table += "|:----|\n"
     for method in members:
-        table += format_subheader(method, level=2, in_table=True).replace(
-            "\n\n", "<br>"
-        )
+        table += format_subheader(method, level=2, in_table=True).replace("\n\n")
         table += format_doc(method, in_table=True)
         table += "|\n"
     return table
@@ -235,7 +233,7 @@ def get_source(obj):
         line_no = inspect.getsourcelines(obj)[1]
         url_ending = "/".join(dir_struct[begins_at:]) + f"#L{line_no}"
         link = f'<a href="{base_url}{url_ending}">[source]</a>'
-    source_tag = f"<span>{link}</span>"
+    source_tag = f"<span class="source">{link}</span>"
     return source_tag
 
 
@@ -248,8 +246,8 @@ def format_subheader(obj, level=1, in_table=False):
         header = "##" + "#" * level
     else:
         header = "|"
-    is_class = "<strong><em>class </em></strong>" if inspect.isclass(obj) else ""
-    class_name = f"<strong>{create_absolute_path(obj)}</strong>"
+    is_class = "<p class="prefect-sig">class </p>" if inspect.isclass(obj) else ""
+    class_name = f"<p class="prefect-class">{create_absolute_path(obj)}</p>"
     div_class = "class-sig" if is_class else "method-sig"
     div_tag = f"<div class='{div_class}'>"
 
@@ -321,9 +319,9 @@ if __name__ == "__main__":
     GIT_SHA = os.getenv("GIT_SHA", "0000000")
     SHORT_SHA = GIT_SHA[:7]
     auto_generated_footer = (
-        '\n<p style="text-align:center;"i><small><i>This documentation was auto-generated from commit '
+        '\n<p class="auto-gen">This documentation was auto-generated from commit '
         "<a href='https://github.com/PrefectHQ/prefect/commit/{git_sha}'>{short_sha}</a> "
-        "on {timestamp}</i></small></p>".format(
+        "on {timestamp}</p>".format(
             short_sha=SHORT_SHA,
             git_sha=GIT_SHA,
             timestamp=pendulum.now("utc").format("MMMM D, YYYY [at] HH:mm:ss [UTC]"),
@@ -417,7 +415,6 @@ if __name__ == "__main__":
                 top_doc = inspect.getdoc(top_doc_obj)
                 if top_doc is not None:
                     f.write(top_doc)
-                    f.write("\n<hr>\n<br>\n\n")
             for obj in classes:
                 f.write(format_subheader(obj))
 

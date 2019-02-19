@@ -86,9 +86,10 @@ print("Flow results: {}".format(flow_state.result))
 ## Flow state: Pending("Some terminal tasks are still pending.")
 
 ## Flow results: {
-##      <Task: create_payload>: Success("Task run succeeded."),
-##      <Task: ping_external_service>: Retrying("Retrying Task (after attempt 1 of 2)")
-##                }
+##   <Task: create_payload>: Success("Task run succeeded."),
+##   <Task: ping_external_service>: Retrying("Retrying Task (after
+##   attempt 1 of 2)")
+##   }
 ```
 
 No surprises here; the entire flow is `Pending` because its sole terminal task (`ping_external_service`) hasn't finished yet.
@@ -115,7 +116,9 @@ new_flow_state = f.run(return_tasks=[text],
 print("Flow state: {}\n".format(new_flow_state))
 print("Flow results: {}".format(new_flow_state.result))
 
-##     Flow state: Success("All reference tasks succeeded.")
+## Flow state: Success("All reference tasks succeeded.")
 
-##     Flow results: {<Task: ping_external_service>: Success("Task run succeeded.")}
+## Flow results: {
+##   <Task: ping_external_service>: Success("Task run succeeded.")
+##   }
 ```
