@@ -61,5 +61,7 @@ def create_environment(environment_metadata):
     Call the setup and execute functions for a given environment.
     """
     schema = prefect.serialization.environment.EnvironmentSchema()
-    env = schema.load(json.loads(environment_metadata))
-    print(env)
+    environment = schema.load(json.loads(environment_metadata))
+
+    environment.setup()
+    environment.execute()
