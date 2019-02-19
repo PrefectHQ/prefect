@@ -178,7 +178,7 @@ def test_format_subheader_on_class():
     doc = format_subheader(A)
     assert doc == (
         "  <div class='class-sig'>"
-        "<strong><em>class </em></strong><strong>A</strong>(attr, keep=True)<span>[source]</span></div>\n\n"
+        '<p class="prefect-sig">class </p><p class="prefect-class">A</p>(attr, keep=True)<span class="source">[source]</span></div>\n\n'
     )
 
 
@@ -358,7 +358,9 @@ def test_format_doc_removes_unnecessary_newlines_when_appropriate_in_tables():
         pass
 
     res = format_doc(doc_fun, in_table=True)
-    sub_string = "<sub>I am a poorly formatte d doc string.<br><br>**Args**:"
+    sub_string = (
+        '<p class="methods">I am a poorly formatte d doc string.<br><br>**Args**:'
+    )
     assert sub_string in res
     assert "<br>**Raises**:" in res
 
