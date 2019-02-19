@@ -2,13 +2,14 @@
 
 import inspect
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator
+from functools import wraps
+from typing import Any, Callable, Iterator, Iterable
 
 from toolz import curry
 
 import prefect
 
-__all__ = ["tags", "as_task", "pause_task", "task", "unmapped"]
+__all__ = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
 
 
 @contextmanager
@@ -195,3 +196,51 @@ class unmapped:
 
     def __init__(self, task: "prefect.Task"):
         self.task = as_task(task)
+
+
+@curry
+def defaults_from_attrs(attr_args: Iterable[str], run_method: Callable) -> Callable:
+    """
+    Helper decorator for dealing with Task classes with attributes which serve
+    as defaults for `Task.run`.  Specifically, this decorator allows the author of a Task
+    to identify certain keyword arguments to the run method which will fall back to `self.ATTR_NAME`
+    if not explicitly provided to `self.run`.  This pattern allows users to create a Task "template",
+    whose default settings can be created at initialization but overrided in individual instances when the
+    Task is called.
+
+    Args:
+        - attr_args (Iterable[str]): an iterable of strings specifying which
+            kwargs should fallback to attributes, if not provided at runtime. Note that
+            the strings provided here must match keyword arguments in the `run` call signature,
+            as well as the names of attributes of this Task.
+        - run_method (Callable): the `Task.run` method to implement the behavior for
+
+    Returns:
+        - Callable: the decorated / altered `Task.run` method
+
+    Example:
+    ```python
+    class MyTask(Task):
+        def __init__(self, a=None, b=None):
+            self.a = a
+            self.b = b
+
+        @defaults_from_attrs(['a', 'b'])
+        def run(self, a=None, b=None):
+            return a, b
+
+    task = MyTask(a=1, b=2)
+
+    task.run() # (1, 2)
+    task.run(a=99) # (99, 2)
+    task.run(a=None, b=None) # (None, None)
+    ```
+    """
+
+    @wraps(run_method)
+    def method(self, *args, **kwargs):
+        for attr in attr_args:
+            kwargs.setdefault(attr, getattr(self, attr))
+        return run_method(self, *args, **kwargs)
+
+    return method
