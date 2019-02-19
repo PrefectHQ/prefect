@@ -100,7 +100,7 @@ For example, if the stylized module described above was importable at `prefect.u
 title = "Example Module"
 module = "prefect.utilities.example"
 classes = ["Class"]
-functions = ["function]
+functions = ["function"]
 ```
 
 If your module wasn't already in the reference docs, update `docs/.vuepress/config.js` to add it to the navigation sidebar. For example, the collections module from this example would be added to the "utilities" section:
