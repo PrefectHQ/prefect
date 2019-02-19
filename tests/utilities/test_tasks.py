@@ -193,3 +193,77 @@ class TestPauseTask:
         res = f.run(return_tasks=f.tasks, task_states={t1: Resume()})
         assert res.result[t1].is_successful()
         assert isinstance(res.result[t2], Paused)
+
+
+class TestDefaultFromAttrs:
+    @pytest.fixture
+    def xtask(self):
+        class A(Task):
+            def __init__(self, x=None):
+                self.x = x
+                super().__init__()
+
+            @tasks.defaults_from_attrs(["x"])
+            def run(self, x=None):
+                "Lil doc"
+                return x
+
+        return A
+
+    @pytest.fixture
+    def multitask(self):
+        class B(Task):
+            def __init__(self, x=None, y=None):
+                self.x = x
+                self.y = y
+                super().__init__()
+
+            @tasks.defaults_from_attrs(["x"])
+            def run(self, x=None, y=None):
+                return x, y
+
+        return B
+
+    def test_pulls_from_attr_if_not_provided_at_runtime(self, xtask):
+        a = xtask(5)
+        assert a.run() == 5
+
+    def test_runtime_takes_precedence(self, xtask):
+        a = xtask(5)
+        assert a.run(x=6) == 6
+
+    def test_even_none_at_runtime_takes_precedence(self, xtask):
+        """
+        This test ensures that `None` isn't some ambiguous special case: keywords
+        provided at runtime _always_ take precedence.
+        """
+        a = xtask(5)
+        assert a.run(x=None) is None
+
+    def test_doc_is_unaffected(self, xtask):
+        assert xtask.run.__doc__ == "Lil doc"
+
+    def test_args_not_listed_are_unaffected(self, multitask):
+        b = multitask(x=1, y=2)
+        assert b.run() == (1, None)
+
+    def test_works_with_multiple_args(self, multitask):
+        b = multitask(x=1, y=2)
+        assert b.run(y=3, x=55) == (55, 3)
+
+    def test_raises_if_attr_wasnt_set_at_init(self):
+        """
+        It would be nice to raise this at creation time, but unfortunately
+        the information just isn't available.
+        """
+
+        class Forgot(Task):
+            @tasks.defaults_from_attrs(["x"])
+            def run(self, x=None):
+                return x
+
+        t = Forgot()
+        with pytest.raises(AttributeError) as exc:
+            t.run()
+
+        assert "no attribute 'x'" in str(exc.value)
