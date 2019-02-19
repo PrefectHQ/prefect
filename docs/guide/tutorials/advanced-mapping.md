@@ -208,7 +208,6 @@ The `Parameter` class has a few useful settings that we need in the above exampl
 - `required`: a boolean specifying whether or not the parameter is required at flow runtime; if not provided, the default value will be used
   :::
 
-<a name="scrape_single_box"></a>
 :::tip Scraping a single episode
 To reproduce [the first example](#setting-up-the-flow-for-a-single-episode) we ran using our new flow, we could now run:
 
@@ -377,7 +376,7 @@ Disappointing, especially considering "The Springfield Files" was a Simpson's ep
 
 ## Reusability
 
-Suppose some time has passed, and a _new_ transcript has been uploaded - we've already put together all the necessary logic for going from a URL to the database, but how can we reuse that logic? Simple - we use the [same pattern we used for scraping a single episode above](#scrape_single_box)!
+Suppose some time has passed, and a _new_ transcript has been uploaded - we've already put together all the necessary logic for going from a URL to the database, but how can we reuse that logic? Simple - we use the same pattern we used for scraping a single episode above!
 
 Fun fact: The X-Files resulted in a spinoff TV series called "The Lone Gunmen"; the transcripts of this series are also [posted on the website we've been using](http://www.insidethex.co.uk/scripts.htm#tlg), so let's scrape Episode 5 using our already constructed flow; to do so, we'll utilize our custom `bypass` flag along with the `start_tasks` keyword argument for avoiding the initial scrape of the home page:
 
