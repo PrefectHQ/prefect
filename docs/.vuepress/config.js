@@ -3,17 +3,21 @@ const webpack = require('webpack')
 module.exports = {
   title: 'Prefect (Preview)',
   description: "Don't Panic.",
-  head: ['link', { rel: 'icon', href: '/favicon.ico'}], 
+  head: [
+    'link', {
+      rel: 'icon',
+      href: '/favicon.ico'
+    }
+  ],
   ga: "UA-115585378-1",
   themeConfig: {
     repo: 'PrefectHQ/prefect/tree/master/docs',
     editLinks: true,
     // repoLabel: 'GitHub',
     logo: '/assets/logomark-color.svg',
-    nav: [
-      {
-        text: "Overview",
-        link: '/introduction.html'
+    nav: [{
+        text: "Guide",
+        link: '/guide/'
       },
       {
         text: "API Reference",
@@ -31,6 +35,7 @@ module.exports = {
     sidebar: {
       '/api/': [
         '/api/',
+        'changelog',
         {
           title: 'prefect',
           collapsable: true,
@@ -91,9 +96,8 @@ module.exports = {
         }
       ],
       '/license': [],
-      '/': [
-        'introduction',
-        'changelog',
+      '/guide/': [
+        '/guide/',
         'installation',
         'getting_started',
         {
@@ -133,15 +137,15 @@ module.exports = {
           collapsable: true,
           children: [
 
-            'tutorials/', 
-            'tutorials/etl', 
-            'tutorials/calculator', 
-            'tutorials/local-debugging', 
-            'tutorials/task-retries', 
+            'tutorials/',
+            'tutorials/etl',
+            'tutorials/calculator',
+            'tutorials/local-debugging',
+            'tutorials/task-retries',
             'tutorials/triggers-and-references',
-            'tutorials/visualization', 
-            'tutorials/advanced-mapping', 
-            'tutorials/airflow_migration', 
+            'tutorials/visualization',
+            'tutorials/advanced-mapping',
+            'tutorials/airflow_migration',
             'tutorials/slack-notifications'
           ]
         },
@@ -155,12 +159,12 @@ module.exports = {
             'PINs/PIN-3-Agent-Environment',
             'PINs/PIN-4-Result-Objects'
           ]
-        },
-        {
-          title: 'Comparisons',
-          collapsable: true,
-          children: ['comparisons/', 'comparisons/airflow']
-        },
+        }
+        // {
+        //   title: 'Comparisons',
+        //   collapsable: true,
+        //   children: ['comparisons/', 'comparisons/airflow']
+        // },
       ]
     }
   },
