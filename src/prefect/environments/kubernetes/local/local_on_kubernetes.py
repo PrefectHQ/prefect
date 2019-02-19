@@ -32,8 +32,8 @@ class LocalOnKubernetesEnvironment(DockerEnvironment):
             files=files,
         )
 
-        config.load_kube_config()  # OUT OF CLUSTER
-        # config.load_incluster_config() # IN CLUSTER
+        # config.load_kube_config()  # OUT OF CLUSTER
+        config.load_incluster_config() # IN CLUSTER
 
         self.identifier_label = str(uuid.uuid4())
 
