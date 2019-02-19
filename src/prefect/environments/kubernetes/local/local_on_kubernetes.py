@@ -35,15 +35,17 @@ class LocalOnKubernetesEnvironment(DockerEnvironment):
         config.load_kube_config()  # OUT OF CLUSTER
         # config.load_incluster_config() # IN CLUSTER
 
-        self.uuid_label = str(uuid.uuid4())
+        self.identifier_label = str(uuid.uuid4())
 
     def _populate_yaml(self, yaml_obj: dict) -> dict:
         # set identifier labels
-        yaml_obj["metadata"]["name"] = "prefect-local-job-{}".format(self.uuid_label)
-        yaml_obj["metadata"]["labels"]["identifier"] = self.uuid_label
+        yaml_obj["metadata"]["name"] = "prefect-local-job-{}".format(
+            self.identifier_label
+        )
+        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
         yaml_obj["spec"]["template"]["metadata"]["labels"][
             "identifier"
-        ] = self.uuid_label
+        ] = self.identifier_label
 
         # set environment variables
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"][0][
