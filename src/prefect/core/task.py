@@ -24,7 +24,8 @@ VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
 
 def _validate_run_signature(run: Callable) -> None:
-    run_sig = inspect.getfullargspec(run)
+    func = getattr(run, "__wrapped__", run)
+    run_sig = inspect.getfullargspec(func)
     if run_sig.varargs:
         raise ValueError(
             "Tasks with variable positional arguments (*args) are not "
