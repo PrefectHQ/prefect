@@ -6,12 +6,31 @@ Documentation is incredibly important to Prefect, both for explaining its concep
 
 Prefect auto-generates API documentation from docstrings by compiling them to Markdown. In order for docstrings to compile correctly, please follow these rules:
 
+:::tip Docstring Formatting
 - All documentation about class initialization should go into the class docstring, _not_ the `__init__` method docstring.
-- Arguments are indicated by the word `Args:` followed by a Markdown list of the form `- <arg name> (<arg type>): <arg description>`.
-- The return value is indicated by the word `Returns:` followed by a Markdown list of the form `- <return type>: <return description>`. Note that a list is required even though there is only a single return type.
-- Any errors raised by a function are indicated by the word `Raises:` followed by a Markdown list of the form `- <error type>: <error condition>`.
-- Any references to "code" objects should be surrounded by backticks (`) so it is properly formatted in Markdown.
+- Any references to "code" or variable names should be surrounded by backticks so it will be properly formatted in Markdown.
+- Arguments are indicated by the word `Args:` followed by a Markdown list that indicates each argument's name, type, and description:
+    ```
+    Args:
+        - x (int): a number that provides the initial value.
+    ```
 
+
+- The return value is indicated by the word `Returns:` followed by a Markdown list that indicates the return value's type and description. Note that a list is required even though there is only a single return type:
+
+    ```
+    Returns:
+        - int: a number representing the output
+    ```
+
+- Any errors raised by a function are indicated by the word `Raises:` followed by a Markdown list  that indicates each exception's type and description:
+
+    ```
+    Raises:
+        - ValueError: if the input is zero or negative
+    ```
+
+:::
 Here is an example of a fully-documented module:
 
 ```python
