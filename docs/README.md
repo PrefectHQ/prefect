@@ -10,7 +10,7 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
 <div class="action">
 
 <button class="action-button">
-<router-link to="introduction.html">Read the docs</router-link>
+<router-link to="guide/">Read the docs</router-link>
 </button>
 <button class="action-button">
 <router-link to="agreement.html">Get the code</router-link>
@@ -53,7 +53,7 @@ We've rebuilt data engineering for the data science era.
 
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
-Read the [docs](/introduction.html); get the [code](/agreement.html); ask us [anything](mailto:help@prefect.io)!
+Read the [docs](/guide/); get the [code](/agreement.html); ask us [anything](mailto:help@prefect.io)!
 
 ### Hello, world! 👋
 

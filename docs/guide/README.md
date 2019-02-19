@@ -10,7 +10,7 @@ Thank you for being one of our early partners. Your feedback is critical to maki
 
 ## Core + Cloud
 
-Prefect 0.4 is the biggest Prefect release yet -- just check out the [changelog](changelog.html#version-0-4-1)! Prefect Core was already the best tool for designing, testing, and running data workflows - and thanks to your feedback, it's even better now.
+Prefect 0.4 is the biggest Prefect release yet -- just check out the [changelog](/api/changelog.html#version-0-4-1)! Prefect Core was already the best tool for designing, testing, and running data workflows - and thanks to your feedback, it's even better now.
 
 The biggest new feature in Core is that it introduces support for **Prefect Cloud**. Cloud enables a variety of stateful interactions, including:
 
@@ -50,4 +50,4 @@ To install all development dependencies (for running unit tests): `pip install -
 
 ## What's Next?
 
-Jump in with the [quick start](getting_started.html) or [tutorials](tutorials/), browse the [API reference docs](api/)... or just `import prefect`.
+Jump in with the [quick start](getting_started.html) or [tutorials](tutorials/), browse the [API reference docs](/api/)... or just `import prefect`.

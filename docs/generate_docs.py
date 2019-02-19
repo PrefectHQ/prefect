@@ -378,7 +378,7 @@ if __name__ == "__main__":
             f.write(auto_generated_footer)
 
     ## UPDATE CHANGELOG
-    with open("changelog.md", "w+") as f:
+    with open("api/changelog.md", "w+") as f:
         f.write(
             textwrap.dedent(
                 """
