@@ -192,7 +192,9 @@ def test_deserialize_docker_on_kubernetes_environment():
 
 
 def test_environment_schema_with_docker_on_kubernetes_environment():
-    env = environments.kubernetes.DockerOnKubernetesEnvironment(base_image="a", python_dependencies=["b", "c"], registry_url="f")
+    env = environments.kubernetes.DockerOnKubernetesEnvironment(
+        base_image="a", python_dependencies=["b", "c"], registry_url="f"
+    )
     serialized = DockerOnKubernetesEnvironmentSchema().dump(env)
     deserialized = DockerOnKubernetesEnvironmentSchema().load(serialized)
     assert isinstance(
