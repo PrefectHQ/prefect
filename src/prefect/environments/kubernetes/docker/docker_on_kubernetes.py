@@ -84,8 +84,8 @@ class DockerOnKubernetesEnvironment(DockerEnvironment):
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = "{}:{}".format(
-            path.join(self.registry_url, self.image_name),
-            self.image_tag,  # type: ignore
+            path.join(self.registry_url, self.image_name),  # type: ignore
+            self.image_tag,
         )
 
         return yaml_obj

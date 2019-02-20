@@ -14,6 +14,14 @@ from prefect.serialization.environment import (
 
 FERNET_KEY = b"1crderTHVJ7vvVJj79Zns81_1opaTID0HRZoOzqIpOA="
 
+#################################
+##### Environment Tests
+#################################
+
+#################################
+##### Local Tests
+#################################
+
 
 def test_serialize_local_environment():
     env = environments.LocalEnvironment(encryption_key=FERNET_KEY)
@@ -33,7 +41,20 @@ def test_deserialize_local_environment():
     assert deserialized.encryption_key == FERNET_KEY
 
 
-def test_serialize_container_environment():
+def test_environment_schema_with_local_environment():
+    env = environments.LocalEnvironment(encryption_key=FERNET_KEY)
+    serialized = EnvironmentSchema().dump(env)
+    deserialized = EnvironmentSchema().load(serialized)
+    assert isinstance(deserialized, environments.LocalEnvironment)
+    assert deserialized.encryption_key == FERNET_KEY
+
+
+#################################
+##### Docker Tests
+#################################
+
+
+def test_serialize_docker_environment():
     env = environments.DockerEnvironment(
         base_image="a",
         python_dependencies=["b", "c"],
@@ -49,18 +70,18 @@ def test_serialize_container_environment():
     assert serialized["__version__"] == prefect.__version__
 
 
-def test_deserialize_empty_container_environment():
+def test_deserialize_empty_docker_environment():
     schema = DockerEnvironmentSchema()
     with pytest.raises(marshmallow.ValidationError):
         schema.load(schema.dump({}))
 
 
-def test_deserialize_minimal_container_environment():
+def test_deserialize_minimal_docker_environment():
     schema = DockerEnvironmentSchema()
     assert schema.load(schema.dump({"base_image": "a", "registry_url": "b"}))
 
 
-def test_deserialize_container_environment():
+def test_deserialize_docker_environment():
     env = environments.DockerEnvironment(
         base_image="a", python_dependencies=["b", "c"], registry_url="f"
     )
@@ -71,15 +92,7 @@ def test_deserialize_container_environment():
     assert deserialized.registry_url == env.registry_url
 
 
-def test_environment_schema_with_local_environment():
-    env = environments.LocalEnvironment(encryption_key=FERNET_KEY)
-    serialized = EnvironmentSchema().dump(env)
-    deserialized = EnvironmentSchema().load(serialized)
-    assert isinstance(deserialized, environments.LocalEnvironment)
-    assert deserialized.encryption_key == FERNET_KEY
-
-
-def test_environment_schema_with_container_environment():
+def test_environment_schema_with_docker_environment():
     env = environments.DockerEnvironment(
         base_image="a", python_dependencies=["b", "c"], registry_url="f"
     )
@@ -88,3 +101,13 @@ def test_environment_schema_with_container_environment():
     assert isinstance(deserialized, environments.DockerEnvironment)
     assert deserialized.registry_url == env.registry_url
     assert deserialized.base_image == env.base_image
+
+
+#################################
+##### LocalOnKubernetes Tests
+#################################
+
+#################################
+##### DockerOnKubernetes Tests
+#################################
+
