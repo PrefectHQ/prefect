@@ -11,7 +11,7 @@ Author: Josh Meek
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
