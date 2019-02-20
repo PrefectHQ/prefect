@@ -12,7 +12,16 @@ from prefect.environments import DockerEnvironment
 
 
 class LocalOnKubernetesEnvironment(DockerEnvironment):
-    """"""
+    """
+    LocalOnKubernetes is an environment which deploys a python:3.6 container on Kubernetes
+    with Prefect installed. This is the simplest method of execution on Kubernetes. There
+    is no set up requirements and execute created a single job which has the role of running
+    the flow.
+
+    This environment is meant to be used as a simple and non-configurable environment for quickly
+    testing a flow on Kubernetes. No dependencies or custom images are intended to be set with this
+    environment and if desired then a DockerOnKubernetes environment should be used instead.
+    """
 
     def __init__(
         self,
@@ -35,11 +44,20 @@ class LocalOnKubernetesEnvironment(DockerEnvironment):
         )
 
         # config.load_kube_config()  # OUT OF CLUSTER
-        config.load_incluster_config() # IN CLUSTER
+        config.load_incluster_config()  # IN CLUSTER
 
         self.identifier_label = str(uuid.uuid4())
 
     def _populate_yaml(self, yaml_obj: dict) -> dict:
+        """
+        Populate a yaml object used in this environment with the proper values
+
+        Args:
+            - yaml_obj (dict): A dictionary representing the parsed yaml
+
+        Returns:
+            - dict: a dictionary with the yaml values replaced
+        """
         # set identifier labels
         yaml_obj["metadata"]["name"] = "prefect-local-job-{}".format(
             self.identifier_label
@@ -74,6 +92,9 @@ class LocalOnKubernetesEnvironment(DockerEnvironment):
         return yaml_obj
 
     def execute(self) -> None:
+        """
+        Create a single Kubernetes job on the default namespace that runs a flow
+        """
         batch_client = client.BatchV1Api()
 
         with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
@@ -83,10 +104,10 @@ class LocalOnKubernetesEnvironment(DockerEnvironment):
             # Create Job
             batch_client.create_namespaced_job(namespace="default", body=job)
 
-    def run(self) -> None:
-        pass
-
     def setup(self) -> None:
+        """
+        No setup is required for this environment
+        """
         pass
 
     def build(

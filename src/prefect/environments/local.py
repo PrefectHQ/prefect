@@ -11,7 +11,10 @@ from prefect.environments import Environment
 
 
 class LocalEnvironment(Environment):
-    """"""
+    """
+    LocalEnvironment is an encrypted and serializable environment for simply packaging
+    up flows so they can be stored and transported.
+    """
 
     def __init__(self, encryption_key: bytes = None, serialized_flow: bytes = None):
         if encryption_key is None:
