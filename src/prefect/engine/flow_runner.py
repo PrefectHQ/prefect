@@ -399,7 +399,6 @@ class FlowRunner(Runner):
                     task=task,
                     state=task_states.get(task),
                     upstream_states=upstream_states,
-                    check_upstream=True,
                     context=dict(prefect.context, **task_contexts.get(task, {})),
                     task_runner_state_handlers=task_runner_state_handlers,
                     executor=executor,
@@ -497,7 +496,6 @@ class FlowRunner(Runner):
         task: Task,
         state: State,
         upstream_states: Dict[Edge, State],
-        check_upstream: bool,
         context: Dict[str, Any],
         task_runner_state_handlers: Iterable[Callable],
         executor: "prefect.engine.executors.Executor",
@@ -512,7 +510,6 @@ class FlowRunner(Runner):
             - state (State): starting state for the Flow. Defaults to
                 `Pending`
             - upstream_states (Dict[Edge, State]): dictionary of upstream states
-            - check_upstream (bool): if False, the task will skip its upstream checks
             - context (Dict[str, Any]): a context dictionary for the task run
             - task_runner_state_handlers (Iterable[Callable]): A list of state change
                 handlers that will be provided to the task_runner, and called whenever a task changes
@@ -543,8 +540,6 @@ class FlowRunner(Runner):
         return task_runner.run(
             state=state,
             upstream_states=upstream_states,
-            # if the task is a "start task", don't check its upstream dependencies
-            check_upstream=check_upstream,
             context=context,
             executor=executor,
         )
