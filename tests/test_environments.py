@@ -10,12 +10,7 @@ from cryptography.fernet import Fernet, InvalidToken
 
 import prefect
 from prefect import Flow, Parameter, Task
-from prefect.environments import (
-    ContainerEnvironment,
-    Environment,
-    LocalEnvironment,
-    from_file,
-)
+from prefect.environments import DockerEnvironment, Environment, LocalEnvironment
 
 
 def error_flow():
@@ -46,26 +41,26 @@ def test_environment_build_error():
 
 
 #################################
-##### Container Tests
+##### Docker Tests
 #################################
 
 
 class TestContainerEnvironment:
     def test_create_container_environment(self):
-        container = ContainerEnvironment(base_image=None, registry_url=None)
+        container = DockerEnvironment(base_image=None, registry_url=None)
         assert container
 
     @pytest.mark.skip("Circle will need to handle container building")
     def test_build_image_process(self):
 
-        container = ContainerEnvironment(
+        container = DockerEnvironment(
             base_image="python:3.6", image_tag="tag", registry_url=""
         )
         image = container.build(Flow())
         assert image
 
     def test_basic_create_dockerfile(self):
-        container = ContainerEnvironment(base_image="python:3.6", registry_url="")
+        container = DockerEnvironment(base_image="python:3.6", registry_url="")
         with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
             container.create_dockerfile(Flow(), directory=tmp)
             with open(os.path.join(tmp, "Dockerfile"), "r") as f:
@@ -77,7 +72,7 @@ class TestContainerEnvironment:
         assert "RUN mkdir /root/.prefect/" in dockerfile
 
     def test_create_dockerfile_with_environment_variables(self):
-        container = ContainerEnvironment(
+        container = DockerEnvironment(
             base_image="python:3.6",
             registry_url="",
             env_vars=dict(X=2, Y='"/a/quoted/string/path"'),
@@ -95,7 +90,7 @@ class TestContainerEnvironment:
 
     def test_create_dockerfile_with_copy_files(self):
         with tempfile.NamedTemporaryFile() as t1, tempfile.NamedTemporaryFile() as t2:
-            container = ContainerEnvironment(
+            container = DockerEnvironment(
                 base_image="python:3.6",
                 registry_url="",
                 files={t1.name: "/root/dockerconfig", t2.name: "./.secret_file"},
@@ -120,7 +115,7 @@ class TestContainerEnvironment:
         self
     ):
         with tempfile.NamedTemporaryFile() as t1, tempfile.NamedTemporaryFile() as t2:
-            container = ContainerEnvironment(
+            container = DockerEnvironment(
                 base_image="python:3.6",
                 registry_url="",
                 files={t1.name: "/root/dockerconfig", t2.name: "./.secret_file"},
@@ -136,7 +131,7 @@ class TestContainerEnvironment:
         self
     ):
         with tempfile.NamedTemporaryFile() as t1, tempfile.NamedTemporaryFile() as t2:
-            container = ContainerEnvironment(
+            container = DockerEnvironment(
                 base_image="python:3.6",
                 registry_url="",
                 files={t1.name: "/root/dockerconfig", t2.name: "./.secret_file"},
@@ -156,7 +151,7 @@ class TestContainerEnvironment:
 
     def test_init_with_copy_files_raises_informative_error_if_not_absolute(self):
         with pytest.raises(ValueError) as exc:
-            container = ContainerEnvironment(
+            container = DockerEnvironment(
                 base_image="python:3.6",
                 registry_url="",
                 files={
