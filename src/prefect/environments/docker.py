@@ -18,7 +18,11 @@ from prefect.environments import LocalEnvironment
 
 
 class DockerEnvironment(Environment):
-    """"""
+    """
+    This is a base environment which takes a flow, serialized it into a LocalEnvironment,
+    and places it inside of a Docker image. This image is then used in any environment
+    which depende on using Docker containers (e.g. the Kubernetes environments).
+    """
 
     def __init__(
         self,
@@ -63,11 +67,11 @@ class DockerEnvironment(Environment):
         self, flow: "prefect.Flow", push: bool = True
     ) -> "prefect.environments.DockerEnvironment":
         """
-        Build the Docker container. Returns a Container Environment with the appropriate
+        Build the Docker image. Returns a DockerEnvironment with the appropriate
         image_name and image_tag set.
 
         Args:
-            - flow (prefect.Flow): Flow to be placed in container
+            - flow (prefect.Flow): Flow to be placed the image
             - push (bool): Whether or not to push to registry after build
 
         Returns:
@@ -84,7 +88,17 @@ class DockerEnvironment(Environment):
         )
 
     def build_image(self, flow: "prefect.Flow", push: bool = True) -> tuple:
-        """"""
+        """
+        Build the Docker image using the docker python library. Optionally pushes the
+        image if both `push`=`True` and `self.registry_url` is set.
+
+        Args:
+            - flow (prefect.Flow): Flow to be placed the image
+            - push (bool): Whether or not to push to registry after build
+
+        Returns:
+            - tuple: `image_name`, `image_tag` (strings)
+        """
         image_name = str(uuid.uuid4())
         image_tag = str(uuid.uuid4())
 
@@ -141,9 +155,6 @@ class DockerEnvironment(Environment):
         Args:
             - image_name (str): Name for the image
             - image_tag (str): Tag for the image
-
-        Returns:
-            - None
         """
         client = docker.APIClient(base_url="unix://var/run/docker.sock")
 
@@ -167,9 +178,6 @@ class DockerEnvironment(Environment):
             - flow (Flow): the flow that the container will run
             - directory (str, optional): A directory where the Dockerfile will be created,
                 if no directory is specified is will be created in the current working directory
-
-        Returns:
-            - None
         """
 
         with open(os.path.join(directory, "Dockerfile"), "w+") as dockerfile:
