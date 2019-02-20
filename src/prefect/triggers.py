@@ -26,7 +26,8 @@ def all_finished(upstream_states: Set["state.State"]) -> bool:
 
 def manual_only(upstream_states: Set["state.State"]) -> bool:
     """
-    This task will never run automatically, because this trigger will always place the task in a Paused state. The only exception is if
+    This task will never run automatically, because this trigger will 
+    always place the task in a Paused state. The only exception is if
     the "resume" keyword is found in the Prefect context, which happens
     automatically when a task starts in a Resume state.
 
