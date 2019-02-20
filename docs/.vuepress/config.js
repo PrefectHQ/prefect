@@ -72,6 +72,7 @@ module.exports = {
           children: [
             'tasks/control_flow',
             'tasks/function',
+            'tasks/google',
             'tasks/shell',
             'tasks/sqlite',
             'tasks/strings'

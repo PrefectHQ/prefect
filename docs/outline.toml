@@ -129,6 +129,11 @@ title = "Control Flow"
 module = "prefect.tasks.control_flow"
 functions = ["switch", "ifelse", "merge"]
 
+[pages.tasks.google]
+title = "Google Cloud Tasks"
+module = "prefect.tasks.google"
+classes = ["GoogleCloudStorageTask"]
+
 [pages.tasks.sqlite]
 title = "SQLite Tasks"
 module = "prefect.tasks.database"
