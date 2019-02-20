@@ -384,13 +384,13 @@ class FlowRunner(Runner):
 
             for task in self.flow.sorted_tasks():
 
-                state = task_states.get(task)  # type: ignore
+                task_state = task_states.get(task)
 
                 # if the state is finished, don't run the task, just use the provided state
                 if (
-                    isinstance(state, State)
-                    and state.is_finished()
-                    and not state.is_mapped()
+                    isinstance(task_state, State)
+                    and task_state.is_finished()
+                    and not task_state.is_mapped()
                 ):
                     continue
 
@@ -407,7 +407,7 @@ class FlowRunner(Runner):
                 task_states[task] = executor.submit(
                     self.run_task,
                     task=task,
-                    state=state,
+                    state=task_state,
                     upstream_states=upstream_states,
                     context=dict(prefect.context, **task_contexts.get(task, {})),
                     task_runner_state_handlers=task_runner_state_handlers,
