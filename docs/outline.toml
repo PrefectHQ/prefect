@@ -1,11 +1,22 @@
 extension = ".md"
 
 [pages]
+
 [pages.environments]
 module = "prefect.environments"
-classes = ["Environment", "ContainerEnvironment", "LocalEnvironment"]
-functions = ["from_file"]
+classes = ["Environment"]
 title = "Environments"
+
+[pages.environments.base_environment]
+module = "prefect.environments"
+classes = ["LocalEnvironment", "DockerEnvironment"]
+title = "Base Environments"
+
+# This should be broken up better
+[pages.environments.kubernetes]
+module = "prefect.environments.kubernetes"
+classes = ["LocalOnKubernetes", "DockerOnKubernetes"]
+title = "Kubernetes Environments"
 
 [pages.triggers]
 title = "Triggers"

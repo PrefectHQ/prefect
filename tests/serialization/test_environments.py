@@ -7,7 +7,7 @@ import pytest
 import prefect
 from prefect import environments
 from prefect.serialization.environment import (
-    ContainerEnvironmentSchema,
+    DockerEnvironmentSchema,
     EnvironmentSchema,
     LocalEnvironmentSchema,
 )
@@ -41,7 +41,7 @@ def test_serialize_container_environment():
         image_name="g",
         image_tag="h",
     )
-    serialized = ContainerEnvironmentSchema().dump(env)
+    serialized = DockerEnvironmentSchema().dump(env)
     assert serialized["base_image"] == "a"
     assert serialized["python_dependencies"] == ["b", "c"]
     assert serialized["registry_url"] == "f"
@@ -51,13 +51,13 @@ def test_serialize_container_environment():
 
 
 def test_deserialize_empty_container_environment():
-    schema = ContainerEnvironmentSchema()
+    schema = DockerEnvironmentSchema()
     with pytest.raises(marshmallow.ValidationError):
         schema.load(schema.dump({}))
 
 
 def test_deserialize_minimal_container_environment():
-    schema = ContainerEnvironmentSchema()
+    schema = DockerEnvironmentSchema()
     assert schema.load(schema.dump({"base_image": "a", "registry_url": "b"}))
 
 
@@ -65,8 +65,8 @@ def test_deserialize_container_environment():
     env = environments.ContainerEnvironment(
         base_image="a", python_dependencies=["b", "c"], registry_url="f"
     )
-    serialized = ContainerEnvironmentSchema().dump(env)
-    deserialized = ContainerEnvironmentSchema().load(serialized)
+    serialized = DockerEnvironmentSchema().dump(env)
+    deserialized = DockerEnvironmentSchema().load(serialized)
 
     assert deserialized.python_dependencies == env.python_dependencies
     assert deserialized.base_image == env.base_image
