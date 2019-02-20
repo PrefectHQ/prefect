@@ -10,7 +10,12 @@ from cryptography.fernet import Fernet, InvalidToken
 
 import prefect
 from prefect import Flow, Parameter, Task
-from prefect.environments import DockerEnvironment, Environment, LocalEnvironment
+from prefect.environments import (
+    DockerEnvironment,
+    Environment,
+    LocalEnvironment,
+    kubernetes,
+)
 from prefect.utilities.environments import from_file
 
 
@@ -46,24 +51,24 @@ def test_environment_build_error():
 #################################
 
 
-class TestContainerEnvironment:
-    def test_create_container_environment(self):
-        container = DockerEnvironment(base_image=None, registry_url=None)
-        assert container
+class TestDockerEnvironment:
+    def test_create_docker_environment(self):
+        docker = DockerEnvironment(base_image=None, registry_url=None)
+        assert docker
 
     @pytest.mark.skip("Circle will need to handle container building")
     def test_build_image_process(self):
 
-        container = DockerEnvironment(
+        docker = DockerEnvironment(
             base_image="python:3.6", image_tag="tag", registry_url=""
         )
-        image = container.build(Flow())
+        image = docker.build(Flow())
         assert image
 
     def test_basic_create_dockerfile(self):
-        container = DockerEnvironment(base_image="python:3.6", registry_url="")
+        docker = DockerEnvironment(base_image="python:3.6", registry_url="")
         with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
-            container.create_dockerfile(Flow(), directory=tmp)
+            docker.create_dockerfile(Flow(), directory=tmp)
             with open(os.path.join(tmp, "Dockerfile"), "r") as f:
                 dockerfile = f.read()
 
@@ -73,13 +78,13 @@ class TestContainerEnvironment:
         assert "RUN mkdir /root/.prefect/" in dockerfile
 
     def test_create_dockerfile_with_environment_variables(self):
-        container = DockerEnvironment(
+        docker = DockerEnvironment(
             base_image="python:3.6",
             registry_url="",
             env_vars=dict(X=2, Y='"/a/quoted/string/path"'),
         )
         with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
-            container.create_dockerfile(Flow(), directory=tmp)
+            docker.create_dockerfile(Flow(), directory=tmp)
             with open(os.path.join(tmp, "Dockerfile"), "r") as f:
                 dockerfile = f.read()
 
@@ -91,7 +96,7 @@ class TestContainerEnvironment:
 
     def test_create_dockerfile_with_copy_files(self):
         with tempfile.NamedTemporaryFile() as t1, tempfile.NamedTemporaryFile() as t2:
-            container = DockerEnvironment(
+            docker = DockerEnvironment(
                 base_image="python:3.6",
                 registry_url="",
                 files={t1.name: "/root/dockerconfig", t2.name: "./.secret_file"},
@@ -100,7 +105,7 @@ class TestContainerEnvironment:
             base1, base2 = os.path.basename(t1.name), os.path.basename(t2.name)
 
             with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
-                container.create_dockerfile(Flow(), directory=tmp)
+                docker.create_dockerfile(Flow(), directory=tmp)
 
                 ## ensure create_dockerfile copied the files over
                 assert os.path.exists(os.path.join(tmp, base1))
@@ -116,7 +121,7 @@ class TestContainerEnvironment:
         self
     ):
         with tempfile.NamedTemporaryFile() as t1, tempfile.NamedTemporaryFile() as t2:
-            container = DockerEnvironment(
+            docker = DockerEnvironment(
                 base_image="python:3.6",
                 registry_url="",
                 files={t1.name: "/root/dockerconfig", t2.name: "./.secret_file"},
@@ -126,13 +131,13 @@ class TestContainerEnvironment:
 
             with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
                 shutil.copy(t1.name, os.path.join(tmp, base1))
-                container.create_dockerfile(Flow(), directory=tmp)
+                docker.create_dockerfile(Flow(), directory=tmp)
 
     def test_create_dockerfile_with_copy_files_raises_if_file_exists_and_different(
         self
     ):
         with tempfile.NamedTemporaryFile() as t1, tempfile.NamedTemporaryFile() as t2:
-            container = DockerEnvironment(
+            docker = DockerEnvironment(
                 base_image="python:3.6",
                 registry_url="",
                 files={t1.name: "/root/dockerconfig", t2.name: "./.secret_file"},
@@ -146,13 +151,13 @@ class TestContainerEnvironment:
                 with open(new_file, "w+") as f:
                     f.write("a few lines\n")
                 with pytest.raises(ValueError) as exc:
-                    container.create_dockerfile(Flow(), directory=tmp)
+                    docker.create_dockerfile(Flow(), directory=tmp)
 
         assert "already exists" in str(exc.value)
 
     def test_init_with_copy_files_raises_informative_error_if_not_absolute(self):
         with pytest.raises(ValueError) as exc:
-            container = DockerEnvironment(
+            docker = DockerEnvironment(
                 base_image="python:3.6",
                 registry_url="",
                 files={
@@ -296,3 +301,95 @@ class TestLocalEnvironment:
         with pytest.raises(ValueError) as exc:
             env.build(flow).run(start_task_ids=["nope"])
         assert "Invalid start_task_ids" in str(exc.value)
+
+
+#################################
+##### LocalOnKubernetes Tests
+#################################
+
+
+class TestLocalOnKubernetesEnvironment:
+    def test_create_local_on_kubernetes_environment(self):
+        env = kubernetes.LocalOnKubernetesEnvironment()
+        assert env
+
+    def test_local_on_kubernetes_environment_has_default_image(self):
+        env = kubernetes.LocalOnKubernetesEnvironment()
+        assert env.base_image == "python:3.6"
+
+    def test_local_on_kubernetes_environment_variables(self):
+        env = kubernetes.LocalOnKubernetesEnvironment(registry_url="a")
+        assert env.base_image == "python:3.6"
+        assert env.registry_url == "a"
+        assert not env.python_dependencies
+        assert not env.image_name
+        assert not env.image_tag
+        assert not env.env_vars
+        assert not env.files
+
+    def test_local_on_kubernetes_environment_identifier_label(self):
+        env = kubernetes.LocalOnKubernetesEnvironment()
+        assert env.identifier_label
+
+    def test_local_on_kubernetes_environment_setup_does_nothing(self):
+        env = kubernetes.LocalOnKubernetesEnvironment()
+        env.setup()
+        assert env
+
+    def test_local_on_kubernetes_environment_execution_raises_error_out_of_cluster(
+        self
+    ):
+        env = kubernetes.LocalOnKubernetesEnvironment()
+        with pytest.raises(EnvironmentError) as exc:
+            env.execute()
+        assert "Environment not currently inside a cluster" in str(exc.value)
+
+
+#################################
+##### LocalOnKubernetes Tests
+#################################
+
+
+class TestDockerOnKubernetesEnvironment:
+    def test_create_docker_on_kubernetes_environment(self):
+        env = kubernetes.DockerOnKubernetesEnvironment(base_image="a")
+        assert env
+
+    def test_docker_on_kubernetes_environment_has_default_image(self):
+        env = kubernetes.DockerOnKubernetesEnvironment(base_image="a")
+        assert env.base_image == "a"
+
+    def test_docker_on_kubernetes_environment_variables(self):
+        env = kubernetes.DockerOnKubernetesEnvironment(
+            base_image="a",
+            registry_url="b",
+            python_dependencies=["c"],
+            image_name="d",
+            image_tag="e",
+            env_vars={"f": "g"},
+            files={"/": "/"},
+        )
+        assert env.base_image == "a"
+        assert env.registry_url == "b"
+        assert env.python_dependencies == ["c"]
+        assert env.image_name == "d"
+        assert env.image_tag == "e"
+        assert env.env_vars == {"f": "g"}
+        assert env.files == {"/": "/"}
+
+    def test_docker_on_kubernetes_environment_identifier_label(self):
+        env = kubernetes.DockerOnKubernetesEnvironment(base_image="a")
+        assert env.identifier_label
+
+    def test_docker_on_kubernetes_environment_setup_does_nothing(self):
+        env = kubernetes.DockerOnKubernetesEnvironment(base_image="a")
+        env.setup()
+        assert env
+
+    def test_docker_on_kubernetes_environment_execution_raises_error_out_of_cluster(
+        self
+    ):
+        env = kubernetes.DockerOnKubernetesEnvironment(base_image="a")
+        with pytest.raises(EnvironmentError) as exc:
+            env.execute()
+        assert "Environment not currently inside a cluster" in str(exc.value)

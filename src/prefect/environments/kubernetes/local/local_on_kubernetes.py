@@ -49,11 +49,6 @@ class LocalOnKubernetesEnvironment(DockerEnvironment):
             files=files,
         )
 
-        try:
-            config.load_incluster_config()
-        except config.config_exception.ConfigException:
-            logging.warning("Environment not currently running inside a cluster.")
-
         self.identifier_label = str(uuid.uuid4())
 
     def _populate_yaml(self, yaml_obj: dict) -> dict:
@@ -104,6 +99,11 @@ class LocalOnKubernetesEnvironment(DockerEnvironment):
         """
         Create a single Kubernetes job on the default namespace that runs a flow
         """
+        try:
+            config.load_incluster_config()
+        except config.config_exception.ConfigException:
+            raise EnvironmentError("Environment not currently inside a cluster")
+
         batch_client = client.BatchV1Api()
 
         with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
