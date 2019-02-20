@@ -5,7 +5,7 @@ Triggers are functions that determine if task state should change based on
 the state of preceding tasks.
 """
 from typing import Set
-
+from prefect import context
 from prefect.engine import signals, state
 
 
@@ -26,20 +26,17 @@ def all_finished(upstream_states: Set["state.State"]) -> bool:
 
 def manual_only(upstream_states: Set["state.State"]) -> bool:
     """
-    This task will never run automatically. It will only run if it is
-    specifically instructed, either by ignoring the trigger or adding it
-    as a flow run's start task.
-
-    Note this doesn't raise a failure, it simply doesn't run the task.
+    This task will never run automatically, because this trigger will always place the task in a Paused state. The only exception is if
+    the "resume" keyword is found in the Prefect context, which happens
+    automatically when a task starts in a Resume state.
 
     Args:
         - upstream_states (set[State]): the set of all upstream states
     """
+    if context.get("resume"):
+        return True
+
     raise signals.PAUSE('Trigger function is "manual_only"')
-
-
-# aliases
-always_run = all_finished
 
 
 def all_successful(upstream_states: Set["state.State"]) -> bool:
@@ -104,3 +101,7 @@ def any_failed(upstream_states: Set["state.State"]) -> bool:
             'Trigger was "any_failed" but none of the upstream tasks failed.'
         )
     return True
+
+
+# aliases
+always_run = all_finished
