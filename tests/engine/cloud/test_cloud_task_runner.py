@@ -287,6 +287,40 @@ class TestHeartBeats:
         assert res.is_successful()
         assert len(results.split()) >= 60
 
+    @pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
+    def test_task_runner_has_a_heartbeat_with_timeouts(self, executor, monkeypatch):
+        with tempfile.NamedTemporaryFile() as call_file:
+            fname = call_file.name
+
+            def update(*args, **kwargs):
+                with open(fname, "a") as f:
+                    f.write("called\n")
+
+            @prefect.task(timeout=1)
+            def sleeper():
+                time.sleep(2)
+
+            def multiprocessing_helper(executor):
+                client = MagicMock()
+                monkeypatch.setattr(
+                    "prefect.engine.cloud.task_runner.Client",
+                    MagicMock(return_value=client),
+                )
+                runner = CloudTaskRunner(task=sleeper)
+                runner._heartbeat = update
+                with set_temporary_config({"cloud.heartbeat_interval": 0.025}):
+                    return runner.run(executor=executor)
+
+            with executor.start():
+                fut = executor.submit(multiprocessing_helper, executor=executor)
+                res = executor.wait(fut)
+
+            with open(call_file.name, "r") as g:
+                results = g.read()
+
+        assert isinstance(res, TimedOut)
+        assert len(results.split()) >= 30
+
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
