@@ -32,6 +32,7 @@ def run_with_heartbeat(
             timer = threading.Timer(
                 prefect.config.cloud.heartbeat_interval, self._heartbeat
             )
+            timer.daemon = True
             try:
                 self._heartbeat()
             except:
