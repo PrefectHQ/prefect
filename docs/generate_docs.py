@@ -316,15 +316,16 @@ if __name__ == "__main__":
         os.path.basename(os.getcwd()) == "docs"
     ), "Only run this script from inside the docs/ directory!"
 
-    GIT_SHA = os.getenv("GIT_SHA", "0000000")
+    GIT_SHA = os.getenv("GIT_SHA", "n/a")
     SHORT_SHA = GIT_SHA[:7]
     auto_generated_footer = (
-        '\n<p class="auto-gen">This documentation was auto-generated from commit '
+        '<p class="auto-gen">This documentation was auto-generated from commit '
         "<a href='https://github.com/PrefectHQ/prefect/commit/{git_sha}'>{short_sha}</a> "
-        "on {timestamp}</p>".format(
+        "</br>by Prefect {version} on {timestamp}</p>".format(
             short_sha=SHORT_SHA,
             git_sha=GIT_SHA,
-            timestamp=pendulum.now("utc").format("MMMM D, YYYY [at] HH:mm:ss [UTC]"),
+            version=prefect.__version__,
+            timestamp=pendulum.now("utc").format("MMMM D, YYYY [at] HH:mm [UTC]"),
         )
     )
 
@@ -354,17 +355,6 @@ if __name__ == "__main__":
             ).lstrip()
         )
         f.write("# API Reference\n")
-        f.write(
-            "*This documentation was auto-generated from commit "
-            "[{short_sha}](https://github.com/PrefectHQ/prefect/commit/{git_sha}) "
-            "on {timestamp}.*".format(
-                short_sha=SHORT_SHA,
-                git_sha=GIT_SHA,
-                timestamp=pendulum.now("utc").format(
-                    "MMMM D, YYYY [at] HH:mm:ss [UTC]"
-                ),
-            )
-        )
         f.write(
             "\n\n"
             "*Click <a href='/prefect-coverage/index.html'>here</a> for a complete test coverage report.*"
