@@ -1,5 +1,6 @@
 ---
 sidebarDepth: 1
+title: Installation
 ---
 
 # Installing Prefect
@@ -18,10 +19,10 @@ pip install prefect
 
 ## Optional dependencies
 
-Prefect ships with a number of optional dependencies, which can be installed like this:
+Prefect ships with a number of optional dependencies, which can be installed using "extras" syntax:
 
 ```bash
-pip install "prefect[extra1, extra2]"
+pip install "prefect[extra_1, extra_2]"
 ```
 
 The extra packages include:
@@ -30,3 +31,7 @@ The extra packages include:
 - `dev`: tools for developing Prefect itself
 - `templates`: tools for working with string templates
 - `viz`: tools for visualizing Prefect flows
+
+## Development
+
+For developing Prefect, see the [development guide](development/overview.md).
