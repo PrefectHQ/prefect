@@ -14,7 +14,7 @@ from prefect.environments import DockerEnvironment
 
 class DockerOnKubernetesEnvironment(DockerEnvironment):
     """
-    DockerOnKubernetes is an environment which deploys your image of choide on Kubernetes.
+    DockerOnKubernetes is an environment which deploys your image of choice on Kubernetes.
     *Note*: Make sure the base image is able to pip install Prefect.
 
     (A future environment will allow for a minimal set up which does not require pip)
