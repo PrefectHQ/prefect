@@ -10,12 +10,6 @@ The flow runner takes a flow and attempts to run all of its tasks. It collects t
 
 Flow runners loop over all of the tasks one time. If tasks remain unfinished after that pass -- for example, if one of them needs to be retried -- then a second loop will be required to attempt to finish them. There is no limit to the number of attempts it may take to move all tasks (and therefore the flow itself) into a finished state.
 
-### Start tasks
-
-"Start tasks" allow users to run only a subgraph of the full flow. For example, if the 50th task out of 100 needs to be retried, you can specify that task as a `start_task` and ignore the previous 50.
-
-Start tasks are treated as root tasks, which means their upstream checks are skipped. For example, they do not evaluate their trigger functions. While this can be helpful, users must take care to provide the appropriate inputs if the task requires them.
-
 ### Return tasks
 
 When a flow is run, users can set `return_tasks`. The runner will return states for all requested tasks; by default, it returns states for no tasks.

@@ -520,8 +520,7 @@ class TaskRunner(Runner):
             - State: the state of the task after performing the check
 
         Raises:
-            - ENDRUN: if the task is not a start task and Scheduled with a future
-                scheduled time
+            - ENDRUN: if the task is Scheduled with a future scheduled time
         """
         if isinstance(state, Scheduled):
             if state.start_time and state.start_time > pendulum.now("utc"):
