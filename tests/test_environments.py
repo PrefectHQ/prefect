@@ -10,11 +10,7 @@ from cryptography.fernet import Fernet, InvalidToken
 
 import prefect
 from prefect import Flow, Parameter, Task
-from prefect.environments import (
-    DockerEnvironment,
-    Environment,
-    LocalEnvironment,
-)
+from prefect.environments import DockerEnvironment, Environment, LocalEnvironment
 from prefect.utilities.environments import from_file
 
 
