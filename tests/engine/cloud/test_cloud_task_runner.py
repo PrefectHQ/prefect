@@ -285,7 +285,7 @@ class TestHeartBeats:
                 results = g.read()
 
         assert res.is_successful()
-        assert len(results.split()) >= 2
+        assert len(results.split()) >= 60
 
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
@@ -293,31 +293,41 @@ class TestHeartBeats:
     def test_task_runner_has_a_heartbeat_only_during_execution(
         self, executor, monkeypatch
     ):
-        client = MagicMock()
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
-        )
+        with tempfile.NamedTemporaryFile() as call_file:
+            fname = call_file.name
 
-        with set_temporary_config({"cloud.heartbeat_interval": 0.05}):
-            runner = CloudTaskRunner(task=Task())
-            runner.cache_result = lambda *args, **kwargs: time.sleep(0.2)
-            res = runner.run(executor=executor)
+            def update(*args, **kwargs):
+                with open(fname, "a") as f:
+                    f.write("called\n")
 
-        assert client.update_task_run_heartbeat.called
-        assert client.update_task_run_heartbeat.call_count == 1
+            def multiprocessing_helper(executor):
+                client = MagicMock()
+                monkeypatch.setattr(
+                    "prefect.engine.cloud.task_runner.Client",
+                    MagicMock(return_value=client),
+                )
+                runner = CloudTaskRunner(task=Task())
+                runner.cache_result = lambda *args, **kwargs: time.sleep(0.2)
+                runner._heartbeat = update
+                with set_temporary_config({"cloud.heartbeat_interval": 0.05}):
+                    return runner.run(executor=executor)
 
-    @pytest.mark.parametrize(
-        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-    )
-    def test_task_runner_has_a_heartbeat_with_task_run_id(self, executor, monkeypatch):
+            with executor.start():
+                fut = executor.submit(multiprocessing_helper, executor=executor)
+                res = executor.wait(fut)
+
+            with open(call_file.name, "r") as g:
+                results = g.read()
+
+        assert len(results.split()) == 1
+
+    def test_task_runner_has_a_heartbeat_with_task_run_id(self, monkeypatch):
         client = MagicMock()
         monkeypatch.setattr(
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
         )
         task = Task(name="test")
-        res = CloudTaskRunner(task=task).run(
-            executor=executor, context={"task_run_id": 1234}
-        )
+        res = CloudTaskRunner(task=task).run(context={"task_run_id": 1234})
 
         assert res.is_successful()
         assert client.update_task_run_heartbeat.call_args[0][0] == 1234
