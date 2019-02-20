@@ -1,9 +1,17 @@
 import pytest
 
-from prefect import triggers
+from prefect import triggers, context
 from prefect.core.edge import Edge
 from prefect.engine import signals
-from prefect.engine.state import Failed, Pending, Retrying, Skipped, State, Success
+from prefect.engine.state import (
+    Failed,
+    Pending,
+    Retrying,
+    Skipped,
+    State,
+    Success,
+    Resume,
+)
 
 
 def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0) -> dict:
@@ -85,6 +93,18 @@ def test_manual_only_with_all_failed():
 def test_manual_only_with_mixed_states():
     with pytest.raises(signals.PAUSE):
         triggers.manual_only(generate_states(success=1, failed=1, skipped=1))
+
+
+def test_manual_only_with_resume_in_context():
+    """manual only passes when resume = True in context"""
+    with context(resume=True):
+        assert triggers.manual_only(generate_states(success=1, failed=1, skipped=1))
+
+
+def test_manual_only_with_resume_state():
+    """Passing a resume state from upstream should have no impact"""
+    with pytest.raises(signals.PAUSE):
+        triggers.manual_only({Success(), Resume()})
 
 
 def test_all_finished_with_all_success():
