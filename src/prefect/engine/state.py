@@ -6,7 +6,7 @@ status of a flow or task.
 
 This module contains all Prefect state classes, all ultimately inheriting from the base State class as follows:
 
-![](/state_inheritance_diagram.svg) {style="text-align: center;"}
+![diagram of state inheritances](/state_inheritance_diagram.svg){.viz-padded}
 
 Every run is initialized with the `Pending` state, meaning that it is waiting for
 execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
