@@ -1,6 +1,6 @@
 /* ==========================================================================
-  	prefect custom styling and overrides for vuepress default theme and prismjs styles
-	========================================================================== */
+    prefect custom styling and overrides for vuepress default theme and prismjs styles
+    ========================================================================== */
 
 
 /**
@@ -19,7 +19,7 @@
 
 
 /* prefect font families
-	========================================================================== */
+    ========================================================================== */
 
 // load fonts
 @import url('https://rsms.me/inter/inter-ui.css')
@@ -42,7 +42,7 @@ font-light = 300
 
 
 /* prefect color palette
-	========================================================================== */
+    ========================================================================== */
 
 // brand colors
 color-blue-primary = #27b1ff
@@ -60,12 +60,12 @@ color-white = #fff
 color-black = #000
 
 /* media query breakpoints
-	========================================================================== */
+    ========================================================================== */
 
 // media query block mixins
 media-size(screensize)
-	@media screen and (max-width: screensize)
-		{block}
+    @media screen and (max-width: screensize)
+        {block}
 
 // breakpoint sizes
 bp-sml = 26.25rem
@@ -74,23 +74,23 @@ bp-lrg = 60rem
 
 
 /* type settings
-	========================================================================== */
+    ========================================================================== */
 
 html,
 body
-	font: font-normal 16px/1.5 font-primary // set base font
+    font: font-normal 16px/1.5 font-primary // set base font
 
 p
-	font-size: 1em
-	line-height: 1.75
-	margin-bottom: 1.25em
+    font-size: 1em
+    line-height: 1.75
+    margin-bottom: 1.25em
 
 ul,
 ol
-	@extend p
+    @extend p
 
-	li
-		line-height: 2
+    li
+        line-height: 2
 
 // selectors
 headings = 'h1, h2, h3, h4, h5, h6' // headings selector
@@ -99,188 +99,188 @@ on-hover = '&:hover, &:focus'  // hover styles
 
 // headers
 {headings}
-	color: color-grey-dark
-	font-family: font-secondary
-	font-weight: font-bold
-	line-height: 1.15
-	margin: 2.75rem 0 1rem
-	text-rendering: optimizeLegibility // enables native kerning
+    color: color-grey-dark
+    font-family: font-secondary
+    font-weight: font-bold
+    line-height: 1.15
+    margin: 2.75rem 0 1rem
+    text-rendering: optimizeLegibility // enables native kerning
 
-	{a-links},
-	.header-anchor
-		font-size: 0.75em
-		font-weight: font-bold
+    {a-links},
+    .header-anchor
+        font-size: 0.75em
+        font-weight: font-bold
 
 h1
-	font-size: 3em
+    font-size: 3em
 
 h2
-	font-size: 2.5em
+    font-size: 2.5em
 
-	/.features .feature &
-		font-weight: font-bold
+    /.features .feature &
+        font-weight: font-bold
 
 h3
-	font-size: 2em
+    font-size: 2em
 
 h4
-	font-size: 1.5em
+    font-size: 1.5em
 
 h5
-	font-size: 1.25em
+    font-size: 1.25em
 
 h6
-	font-size: 0.85em
+    font-size: 0.85em
 
 
 // links
 {a-links}
-	color: color-blue-primary
+    color: color-blue-primary
 
-	{on-hover}
-		color: color-blue-secondary
-		cursor: pointer
+    {on-hover}
+        color: color-blue-secondary
+        cursor: pointer
 
 // font weight and styles
 strong,
 b
-	font-weight: font-bold
+    font-weight: font-bold
 
 em,
 i
-	font-style: italic
+    font-style: italic
 
 
 // disclaimer text
 .disclaimer
-	font-size: 0.8em
-	font-style: italic
+    font-size: 0.8em
+    font-style: italic
 
 
 /* components
-	========================================================================== */
+    ========================================================================== */
 
 // top navigation
 .navbar
-	{a-links}
-		color: color-grey-dark
+    {a-links}
+        color: color-grey-dark
 
-		{on-hover}
-			color: color-blue-primary
+        {on-hover}
+            color: color-blue-primary
 
-	.logo
-		margin: 0 0.8rem 0 0;
-		+media-size(bp-med)
-			display: block
-			position: absolute
-			margin: 0
-			left: 50%
-			top: .7rem
+    .logo
+        margin: 0 0.8rem 0 0;
+        +media-size(bp-med)
+            display: block
+            position: absolute
+            margin: 0
+            left: 50%
+            top: .7rem
 
 // sidebar
 .sidebar
-	&-link,
-	&-heading,
-	{a-links}
-		color: color-grey-dark
+    &-link,
+    &-heading,
+    {a-links}
+        color: color-grey-dark
 
-		{on-hover}
-			color: color-grey
+        {on-hover}
+            color: color-grey
 
 
 // license agreement spacing
 .content:not(.custom) > .license
-	margin-top: 0
+    margin-top: 0
 
-	h1,
-	p,
-	.action
-		text-align: left
+    h1,
+    p,
+    .action
+        text-align: left
 
-		&-button
-			margin-left: 0
+        &-button
+            margin-left: 0
 
 
 // footer
 .footer
-	margin-top: 2.5em
+    margin-top: 2.5em
 
 // badges
 badge = '.badge[data-v-23988dc6]'
 
 .content
-	{badge}
-		border-radius: 0.25rem
-		font-size: 0.325em
-		height: 1.325rem
-		line-height: 1.325
-		padding: 0.125rem 0.5rem
-		margin-right: 0.125rem
+    {badge}
+        border-radius: 0.25rem
+        font-size: 0.325em
+        height: 1.325rem
+        line-height: 1.325
+        padding: 0.125rem 0.5rem
+        margin-right: 0.125rem
 
-		&.tip, &.green
-			background-color: color-blue-primary
+        &.tip, &.green
+            background-color: color-blue-primary
 
-		&.warn, &.warning, &.yellow
-			background-color: color-orange
+        &.warn, &.warning, &.yellow
+            background-color: color-orange
 
-		&.error
-			background-color: color-pink
+        &.error
+            background-color: color-pink
 
-	h2 {badge}
-		font-size: 0.375em
-		line-height: 1.375
+    h2 {badge}
+        font-size: 0.375em
+        line-height: 1.375
 
 
 // buttons
 buttons = 'button, .action-button, .home .action .action-button'
 
 {buttons}
-	background-color: color-blue-primary
-	border: none
-	border-bottom: 0.0625em solid color-blue-tertiary
-	color: color-white
-	font-family: font-primary
-	margin: 1em
+    background-color: color-blue-primary
+    border: none
+    border-bottom: 0.0625em solid color-blue-tertiary
+    color: color-white
+    font-family: font-primary
+    margin: 1em
 
-	{a-links}
-		color: color-white
+    {a-links}
+        color: color-white
 
-	{on-hover}
-		background-color: color-blue-secondary
-		cursor: pointer
+    {on-hover}
+        background-color: color-blue-secondary
+        cursor: pointer
 
 
 // images
 .content:not(.custom),
 .content
-	img
-		display: block
-		height: auto
-		margin: 0 auto
+    img
+        display: block
+        height: auto
+        margin: 0 auto
 
-	.viz
-		&-xs
-			width: 25%
-		&-sm
-			width: 37.5%
-		&-md
-			width: 50%
-		&-lg
-			width: 62.5%
-		&-xl
-			width: 75%
-		&-padded
-			padding: 1rem 0 2rem
+    .viz
+        &-xs
+            width: 25%
+        &-sm
+            width: 37.5%
+        &-md
+            width: 50%
+        &-lg
+            width: 62.5%
+        &-xl
+            width: 75%
+        &-padded
+            padding: 1rem 0 2rem
 
 // auto-generated docs disclaimer
 .auto-gen
-	font-style: italic
-	font-size: 0.825em
-	text-align: center
-	margin-top: 2rem
+    font-style: italic
+    font-size: 0.825em
+    text-align: center
+    margin-top: 2rem
 
 /* prefect code and syntax highlighting styles; overrides prism.js and vuepress theme
-	========================================================================== */
+    ========================================================================== */
 
 // selectors
 div-pre = 'div, pre'
@@ -289,175 +289,175 @@ lang = '[class*="language-"]'
 
 // extends
 .word-wrap
-	-ms-word-break: break-all
-	word-break: break-all
-	word-break: break-word
-	-webkit-hyphens: none
-	-moz-hyphens: none
-	-ms-hyphens: none
-	hyphens: none
+    -ms-word-break: break-all
+    word-break: break-all
+    word-break: break-word
+    -webkit-hyphens: none
+    -moz-hyphens: none
+    -ms-hyphens: none
+    hyphens: none
 
 .prefect-code
-	color: color-grey-dark
-	font-family: font-code
+    color: color-grey-dark
+    font-family: font-code
 
 .prefect-spacing
-	@extend .word-wrap
-	box-decoration-break: clone;
-	-webkit-box-decoration-break: clone;
-	line-height: 2
-	white-space: pre-wrap
-	tab-size: 4
+    @extend .word-wrap
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    line-height: 2
+    white-space: pre-wrap
+    tab-size: 4
 
 .prefect-block
-	@extends .prefect-code, .prefect-spacing
+    @extends .prefect-code, .prefect-spacing
 
 // tables
 table
-	> &
-		text-align: left
+    > &
+        text-align: left
 
-	tr
-		background-color: color-white
+    tr
+        background-color: color-white
 
-		&:nth-child(2n)
-			background-color: color-grey-bg + 75%
+        &:nth-child(2n)
+            background-color: color-grey-bg + 75%
 
 // custom blocks
 .custom-block
-	&-title
-		font-weight: font-bold
+    &-title
+        font-weight: font-bold
 
-	&.tip
-		background-color: color-blue-primary + 95%
-		border-color: color-blue-secondary
+    &.tip
+        background-color: color-blue-primary + 95%
+        border-color: color-blue-secondary
 
-		.custom-block-title
-			color: color-blue-tertiary - 15%
+        .custom-block-title
+            color: color-blue-tertiary - 15%
 
-		pre{lang}
-			border: 1px solid (color-blue-secondary + 50%)
+        pre{lang}
+            border: 1px solid (color-blue-secondary + 50%)
 
 
-	&.warning
-		background-color: color-orange + 95%
-		border-color: color-orange
+    &.warning
+        background-color: color-orange + 95%
+        border-color: color-orange
 
-		.custom-block-title
-			color: color-orange - 15%
+        .custom-block-title
+            color: color-orange - 15%
 
-		pre{lang}
-			border: 1px solid (color-orange + 50%)
+        pre{lang}
+            border: 1px solid (color-orange + 50%)
 
-	&.danger
-		background-color: color-pink + 95%
-		border-color: color-pink
+    &.danger
+        background-color: color-pink + 95%
+        border-color: color-pink
 
-		.custom-block-title
-			color: color-pink - 15%
+        .custom-block-title
+            color: color-pink - 15%
 
-		pre{lang}
-			border: 1px solid (color-pink + 50%)
+        pre{lang}
+            border: 1px solid (color-pink + 50%)
 
-	p
-		color: color-grey-dark
+    p
+        color: color-grey-dark
 
 
 // begin styling code blocks
 {pre-code}
-	@extend .prefect-code
+    @extend .prefect-code
 
-	&{lang}
-		background: transparent;
+    &{lang}
+        background: transparent;
 
-	/pre{lang}
-		@extend .prefect-block;
-		padding: 1rem;
-		margin: 0.5rem 0;
+    /pre{lang}
+        @extend .prefect-block;
+        padding: 1rem;
+        margin: 0.5rem 0;
 
 :not(pre) > {pre-code}
-		&{lang}
-			background: color-grey-dark + 50%
+        &{lang}
+            background: color-grey-dark + 50%
 
 :not(pre) > code{lang}
-		padding: 0.25rem
-		border-radius: 0.5em
-		white-space: normal
+        padding: 0.25rem
+        border-radius: 0.5em
+        white-space: normal
 
 pre.vue-container
-	border-color: color-blue-primary
+    border-color: color-blue-primary
 
-	> code
-		background-color: color-blue-primary
-		color: color-black
-		font-size: 0.875em
+    > code
+        background-color: color-blue-primary
+        color: color-black
+        font-size: 0.875em
 
-		em
-			color: color-grey
-			font-weight: font-light
+        em
+            color: color-grey
+            font-weight: font-light
 
 
 // code blocks wrapped in a div inside vuepress content
 .content
-	div{lang}
-		border-radius: 0.375em
-		position: relative
+    div{lang}
+        border-radius: 0.375em
+        position: relative
 
-		pre{lang} &
-			background-color: color-grey-bg
+        pre{lang} &
+            background-color: color-grey-bg
 
-		{pre-code}
-			&{lang} &
-				@extend .prefect-code
-				background: transparent
-				z-index: 1
+        {pre-code}
+            &{lang} &
+                @extend .prefect-code
+                background: transparent
+                z-index: 1
 
-		// top right language tag in code blocks
-		&:before
-			color: color-grey-dark;
-			font-size: 0.75em
-			position: absolute
-			right: 1rem
-			top: 0.8rem
-			z-index: 3
+        // top right language tag in code blocks
+        &:before
+            color: color-grey-dark;
+            font-size: 0.75em
+            position: absolute
+            right: 1rem
+            top: 0.8rem
+            z-index: 3
 
 
 // code blocks within vuepress content but not wrapped in a div
 .content
-	pre,
-	pre{lang}
-		@extend .prefect-code
-		border-radius: 0.5em
-		border: solid 0.125em color-grey-border
-		margin: 0.85rem 0
-		padding: 1.25rem 1.5rem
+    pre,
+    pre{lang}
+        @extend .prefect-code
+        border-radius: 0.5em
+        border: solid 0.125em color-grey-border
+        margin: 0.85rem 0
+        padding: 1.25rem 1.5rem
 
-		code,
-		code{lang}
-			@extend .prefect-code
-			background-color: transparent
-			border-radius: 0
-			font-size: 0.95em
-			line-height: 1.75
-			padding: 0
+        code,
+        code{lang}
+            @extend .prefect-code
+            background-color: transparent
+            border-radius: 0
+            font-size: 0.95em
+            line-height: 1.75
+            padding: 0
 
 
-	// standalone code blocks within vuepress content
-	code,
-	code{lang}
-		@extend .prefect-block
-		background-color: color-grey-bg - 5%
-		border-radius: 0.25em
-		font-size: 1em
-		line-height: 2
-		padding: 0.0125rem 0.5rem
+    // standalone code blocks within vuepress content
+    code,
+    code{lang}
+        @extend .prefect-block
+        background-color: color-grey-bg - 5%
+        border-radius: 0.25em
+        font-size: 1em
+        line-height: 2
+        padding: 0.0125rem 0.5rem
 
-		.token
-			&.deleted
-				color: color-blue-secondary
+        .token
+            &.deleted
+                color: color-blue-secondary
 
-			&.inserted
-				color: color-pink
+            &.inserted
+                color: color-pink
 
 
 // api resource documentation
@@ -465,151 +465,151 @@ sig-class = 'div[class="class-sig"]'
 sig-method = 'div[class="method-sig"]'
 
 .content
-	{sig-class},
-	{sig-method}
-		@extend .prefect-block
+    {sig-class},
+    {sig-method}
+        @extend .prefect-block
 
-		// prefect classes
-		.prefect-sig,
-		.prefect-class
-			display: inline
-			font-weight: font-bold
+        // prefect classes
+        .prefect-sig,
+        .prefect-class
+            display: inline
+            font-weight: font-bold
 
-		.prefect-sig
-			font-style: italic
+        .prefect-sig
+            font-style: italic
 
-		// source link
-		span.source a
-			clear: both
-			color: color-blue-tertiary
-			float: right
-			font-size: 0.875em
-			margin-top: 2.5rem
+        // source link
+        span.source a
+            clear: both
+            color: color-blue-tertiary
+            float: right
+            font-size: 0.875em
+            margin-top: 2.5rem
 
-			{on-hover}
-				font-weight: font-bold
+            {on-hover}
+                font-weight: font-bold
 
-	{sig-class},
-	{sig-method}
-		background-color: color-blue-primary + 95%
-		border-top: 0.325em solid color-blue-secondary
-		font-size: 1.125em
-		line-height: 1.75
-		padding: 2.5rem 2rem 3.5rem 5.5rem
-		margin-top: 2rem
-		text-indent: -2.5em
+    {sig-class},
+    {sig-method}
+        background-color: color-blue-primary + 95%
+        border-top: 0.325em solid color-blue-secondary
+        font-size: 1.125em
+        line-height: 1.75
+        padding: 2.5rem 2rem 3.5rem 5.5rem
+        margin-top: 2rem
+        text-indent: -2.5em
 
-	{sig-method}
-		background-color: color-blue-tertiary + 95%
-		border-top: 0.325em solid (color-blue-tertiary + 65%)
-		font-size: 1.0625em
-		margin: 1rem 0
+    {sig-method}
+        background-color: color-blue-tertiary + 95%
+        border-top: 0.325em solid (color-blue-tertiary + 65%)
+        font-size: 1.0625em
+        margin: 1rem 0
 
 // styles text within methods tables
 .methods
-	font-size: 0.875em
-	line-height: 1.625
-	margin: 1rem
+    font-size: 0.875em
+    line-height: 1.625
+    margin: 1rem
 
 // select and style py args lists and nested items
 args-list = 'ul.args, ol.args'
 
 {args-list}
-	li
-		line-height: 2.25
-		padding-left: 2.5em
-		text-indent: -2em
+    li
+        line-height: 2.25
+        padding-left: 2.5em
+        text-indent: -2em
 
 
 // tokens
 .token
-	&.comment,
-	&.block-comment,
-	&.prolog,
-	&.doctype,
-	&.cdata
-		color: color-grey - 15%
-		font-style: italic
+    &.comment,
+    &.block-comment,
+    &.prolog,
+    &.doctype,
+    &.cdata
+        color: color-grey - 15%
+        font-style: italic
 
-	&.atrule,
-	&.attr-value,
-	&.keyword
-		color: color-blue-primary
-		font-style: italic
-		font-weight: font-bold
+    &.atrule,
+    &.attr-value,
+    &.keyword
+        color: color-blue-primary
+        font-style: italic
+        font-weight: font-bold
 
-	&.builtin
-		color: color-blue-primary
+    &.builtin
+        color: color-blue-primary
 
-	&.tag,
-	&.deleted,
-	&.number,
-	&.boolean,
-	&.property,
-	&.constant,
-	&.symbol
-		color: color-blue-secondary
+    &.tag,
+    &.deleted,
+    &.number,
+    &.boolean,
+    &.property,
+    &.constant,
+    &.symbol
+        color: color-blue-secondary
 
-	&.function-name,
-	&.function,
-	&.class-name,
-	&.operator,
-	&.entity,
-	&.url
-		color: color-blue-secondary
-		font-weight: font-bold
+    &.function-name,
+    &.function,
+    &.class-name,
+    &.operator,
+    &.entity,
+    &.url
+        color: color-blue-secondary
+        font-weight: font-bold
 
-	&.punctuation
-		color: color-blue-tertiary
+    &.punctuation
+        color: color-blue-tertiary
 
-	&.attr-name,
-	&.namespace,
-	&.selector,
-	&.decorator,
-	&.string,
-	&.car,
-	&.inserted
-		color: color-pink
+    &.attr-name,
+    &.namespace,
+    &.selector,
+    &.decorator,
+    &.string,
+    &.car,
+    &.inserted
+        color: color-pink
 
-	&.important,
-	&.regex,
-	&.variable
-		color: color-orange
+    &.important,
+    &.regex,
+    &.variable
+        color: color-orange
 
-	&.important,
-	&.bold
-		font-weight: font-bold
+    &.important,
+    &.bold
+        font-weight: font-bold
 
-	&.italic
-		font-style: italic
+    &.italic
+        font-style: italic
 
-	&.entity
-		cursor: help
+    &.entity
+        cursor: help
 
-	&.namespace
-		opacity: 0.75
+    &.namespace
+        opacity: 0.75
 
-	//style specific tokens
-	/.language-css .token.string,
-	/.style .token.string
-		color: color-blue-secondary
-		font-weight: font-bold
+    //style specific tokens
+    /.language-css .token.string,
+    /.style .token.string
+        color: color-blue-secondary
+        font-weight: font-bold
 
 
 /*  prefect code snippet languages */
 div[class~="language-bash"]
-	&:before
-		content: "sh"
+    &:before
+        content: "sh"
 
 div[class~="language-python"]
-	&:before
-		content: "py"
+    &:before
+        content: "py"
 
 div[class~="language-graphql"]
-	&:before
-		content: "gql"
+    &:before
+        content: "gql"
 
 div[class~="language-json"]
-	&:before
-		content: "json"
+    &:before
+        content: "json"
 
