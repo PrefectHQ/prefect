@@ -576,7 +576,9 @@ class TestCheckTaskTrigger:
         task = Task(trigger=prefect.triggers.manual_only)
         state = Pending()
         with prefect.context(resume=True):
-            new_state = TaskRunner(task).check_task_trigger(state=state, upstream_states={1: Success()})
+            new_state = TaskRunner(task).check_task_trigger(
+                state=state, upstream_states={1: Success()}
+            )
         assert new_state is state
 
     def test_custom_trigger_function_raise(self):
@@ -1341,14 +1343,13 @@ def test_task_runner_converts_pause_signal_to_paused_state_for_manual_only_trigg
     assert isinstance(out, Paused)
     assert "manual_only" in out.message
 
+
 def test_task_runner_passes_manual_only_trigger_when_resume_state_is_passed():
     t1, t2 = SuccessTask(), SuccessTask(trigger=prefect.triggers.manual_only)
     e = Edge(t1, t2)
     runner = TaskRunner(t2)
     out = runner.run(state=Resume(), upstream_states={e: Success(result=1)})
     assert isinstance(out, Success)
-
-
 
 
 def test_task_runner_converts_pause_signal_to_paused_state_for_internally_raised_pauses():
