@@ -6,7 +6,27 @@ from unittest.mock import MagicMock
 import pytest
 
 import prefect
-from prefect.utilities.executors import main_thread_timeout, multiprocessing_timeout
+from prefect.utilities.executors import (
+    main_thread_timeout,
+    multiprocessing_timeout,
+    Heartbeat,
+)
+
+
+def test_heartbeat_calls_function_on_interval():
+    class A:
+        def __init__(self):
+            self.called = 0
+
+        def __call__(self):
+            self.called += 1
+
+    a = A()
+    timer = Heartbeat(0.09, a)
+    timer.start()
+    time.sleep(0.2)
+    timer.cancel()
+    assert a.called == 2
 
 
 @pytest.mark.parametrize("handler", [multiprocessing_timeout, main_thread_timeout])
