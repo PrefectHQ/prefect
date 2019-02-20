@@ -29,6 +29,7 @@ import json
 
 import prefect
 
+
 class Environment:
     """
     Base class for Environments.
@@ -45,6 +46,7 @@ class Environment:
     as (LocalEnvironment and DockerEnvironment) from which infrastructure dependent environments
     inherit from.
     """
+
     def __init__(self) -> None:
         pass
 
