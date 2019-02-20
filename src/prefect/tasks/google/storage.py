@@ -1,5 +1,6 @@
 import json
 import uuid
+
 from google.oauth2.service_account import Credentials
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
@@ -46,6 +47,7 @@ class GoogleCloudStorageTask(Task):
     ):
         ## create client
         creds = json.loads(Secret(credentials_secret).get())
+        credentials = Credentials.from_service_account_info(creds)
         project = project or credentials.project_id
         client = storage.Client(project=project, credentials=credentials)
 
