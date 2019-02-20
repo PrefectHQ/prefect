@@ -105,7 +105,7 @@ with Flow("xfiles") as flow:
 flow.visualize()
 ```
 
-![simple flow](/simple_flow.svg){.viz .viz-padded}
+![simple flow](/simple_flow.svg){.viz-xs .viz-padded}
 
 Awesome! We've constructed our flow and everything looks good; all that's left is to run it. When we call `flow.run()` we need to provide two keywords:
 
@@ -227,7 +227,7 @@ To highlight the benefits of `map`, note that we went from scraping a single epi
 flow.visualize()
 ```
 
-![full scrape flow](/full_scrape_flow.svg){.viz .viz-padded}
+![full scrape flow](/full_scrape_flow.svg){.viz-md .viz-padded}
 
 ::: tip How mapped tasks are returned
 In a normal flow run, `flow_state.result[task]` returns the post-run `State` of the `task` (e.g., `Success("Task run succeeded")`). If, however, the task was the result of calling `.map()`, `flow_state.result[task]` will be a _list_ of states - one for each mapped instance.
@@ -343,7 +343,7 @@ You also might notice the special `upstream_tasks` keyword argument; this is not
 flow.visualize()
 ```
 
-![full db flow](/full_db_flow.svg){.viz .viz-padded}
+![full db flow](/full_db_flow.svg){.viz-md .viz-padded}
 
 We are now ready to execute our flow! Of course, we have _already_ scraped all the dialogue - there's no real need to redo all that work. This is where our previous flow state (`scraped_state`) comes in handy! Recall that `scraped_state.result` will be a dictionary of tasks to their corresponding states; consequently we can feed this information to the next flow run via the `task_states` keyword argument. These states will then be used in determining whether each task should be run or whether they are already finished. Because we have added _new_ tasks to the flow, the new tasks will not have a corresponding state in this dictionary and will run as expected.
 

@@ -92,9 +92,12 @@ ol
 	li
 		line-height: 2
 
-
+// selectors
 headings = 'h1, h2, h3, h4, h5, h6' // headings selector
+a-links = 'a, a:visited, a:active'  // a tags
+on-hover = '&:hover, &:focus'  // hover styles
 
+// headers
 {headings}
 	color: color-grey-dark
 	font-family: font-secondary
@@ -102,6 +105,11 @@ headings = 'h1, h2, h3, h4, h5, h6' // headings selector
 	line-height: 1.15
 	margin: 2.75rem 0 1rem
 	text-rendering: optimizeLegibility // enables native kerning
+
+	{a-links},
+	.header-anchor
+		font-size: 0.75em
+		font-weight: font-bold
 
 h1
 	font-size: 3em
@@ -125,17 +133,13 @@ h6
 	font-size: 0.85em
 
 
-// a tags
-a-links = 'a, a:visited, a:active'
-on-hover = '&:hover, &:focus'
-
+// links
 {a-links}
 	color: color-blue-primary
 
 	{on-hover}
 		color: color-blue-secondary
 		cursor: pointer
-
 
 // font weight and styles
 strong,
@@ -201,6 +205,31 @@ i
 .footer
 	margin-top: 2.5em
 
+// badges
+badge = '.badge[data-v-23988dc6]'
+
+.content
+	{badge}
+		border-radius: 0.25rem
+		font-size: 0.325em
+		height: 1.325rem
+		line-height: 1.325
+		padding: 0.125rem 0.5rem
+		margin-right: 0.125rem
+
+		&.tip, &.green
+			background-color: color-blue-primary
+
+		&.warn, &.warning, &.yellow
+			background-color: color-orange
+
+		&.error
+			background-color: color-pink
+
+	h2 {badge}
+		font-size: 0.375em
+		line-height: 1.375
+
 
 // buttons
 buttons = 'button, .action-button, .home .action .action-button'
@@ -229,17 +258,21 @@ buttons = 'button, .action-button, .home .action .action-button'
 		height: auto
 		margin: 0 auto
 
-	.viz-padded
-		padding: 1rem 0
-
 	.viz
-		width: 50%
-
-	.viz-notify
-		width: 75%
+		&-xs
+			width: 25%
+		&-sm
+			width: 37.5%
+		&-md
+			width: 50%
+		&-lg
+			width: 62.5%
+		&-xl
+			width: 75%
+		&-padded
+			padding: 1rem 0 2rem
 
 // auto-generated docs disclaimer
-
 .auto-gen
 	font-style: italic
 	font-size: 0.825em
@@ -277,8 +310,6 @@ lang = '[class*="language-"]'
 
 .prefect-block
 	@extends .prefect-code, .prefect-spacing
-
-
 
 // tables
 table
