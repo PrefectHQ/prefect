@@ -36,6 +36,10 @@ class LocalOnKubernetesEnvironment(DockerEnvironmentSchema):
     class Meta:
         object_class = prefect.environments.kubernetes.LocalOnKubernetesEnvironment
 
+class DockerOnKubernetesEnvironment(DockerEnvironmentSchema):
+    class Meta:
+        object_class = prefect.environments.kubernetes.DockerOnKubernetesEnvironment
+
 
 class EnvironmentSchema(OneOfSchema):
     """
@@ -47,4 +51,5 @@ class EnvironmentSchema(OneOfSchema):
         "DockerEnvironment": DockerEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
         "LocalOnKubernetesEnvironment": LocalOnKubernetesEnvironment,
+        "DockerOnKubernetesEnvironment": DockerOnKubernetesEnvironment,
     }
