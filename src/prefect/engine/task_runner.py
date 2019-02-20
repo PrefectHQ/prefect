@@ -197,7 +197,6 @@ class TaskRunner(Runner):
         )
 
         try:
-
             # initialize the run
             state, context = self.initialize_run(state, context)
 
