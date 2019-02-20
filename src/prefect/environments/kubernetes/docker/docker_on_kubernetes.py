@@ -11,26 +11,20 @@ import prefect
 from prefect.environments import DockerEnvironment
 
 
-class LocalOnKubernetesEnvironment(DockerEnvironment):
+class DockerOnKubernetesEnvironment(DockerEnvironment):
     """
-    LocalOnKubernetes is an environment which deploys a python:3.6 container on Kubernetes
-    with Prefect installed. This is the simplest method of execution on Kubernetes. There
-    is no set up requirements and execute creates a single job which has the role of running
-    the flow.
+    DockerOnKubernetes is an environment which deploys your image of choide on Kubernetes.
+    *Note*: Make sure the base image is able to pip install Prefect.
 
-    This environment is meant to be used as a simple and non-configurable environment for quickly
-    testing a flow on Kubernetes. No dependencies or custom images are intended to be set with this
-    environment and if desired then a DockerOnKubernetes environment should be used instead.
+    (A future environment will allow for a minimal set up which does not require pip)
 
-    This is called a LocalOnKubernetes job because the Docker portion is meant to be ignored
-    however the image containing the flow is required at a minimum to currently run a flow on
-    Kubernetes. Again, refer to the DockerOnKubernetes environment for a more customizeable
-    experience.
+    There is no set up requirements and execute creates a single job which has the role
+    of running the flow.
     """
 
     def __init__(
         self,
-        base_image: str = "python:3.6",
+        base_image: str,
         registry_url: str = None,
         python_dependencies: list = None,
         image_name: str = None,
@@ -131,7 +125,7 @@ class LocalOnKubernetesEnvironment(DockerEnvironment):
 
         image_name, image_tag = self.build_image(flow=flow, push=push)
 
-        return LocalOnKubernetesEnvironment(
+        return DockerOnKubernetesEnvironment(
             base_image=self.base_image,
             registry_url=self.registry_url,
             image_name=image_name,
