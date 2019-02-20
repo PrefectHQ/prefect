@@ -123,7 +123,7 @@ classes = [
 [pages.engine.result]
 title = "Results"
 module = "prefect.engine.result"
-classes = ["Result", "NoResultType"]
+classes = ["Result", "SafeResult", "NoResultType"]
 
 [pages.engine.result_handlers]
 title = "Result Handlers"
@@ -211,7 +211,7 @@ functions = ["to_qualified_name", "from_qualified_name"]
 [pages.utilities.tasks]
 title = "Tasks"
 module = "prefect.utilities.tasks"
-functions = ["tags", "as_task", "pause_task", "task", "unmapped"]
+functions = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
 
 [pages.utilities.airflow]
 title = "Airflow Conversion Tools"

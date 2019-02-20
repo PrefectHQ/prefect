@@ -2,7 +2,7 @@
 """
 This module contains utilities for migrating Airflow workflows into Prefect. Using these requires `airflow` to be installed.
 
-For more details, see [the Airflow conversion tutorial](../../tutorials/airflow_migration.html).
+For more details, see [the Airflow conversion tutorial](../../guide/tutorials/airflow_migration.html).
 """
 
 import os

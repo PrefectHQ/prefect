@@ -21,8 +21,9 @@ Let's write a quick function to make retrieving our calculation results a little
 ```python
 def run(flow, **parameters):
     """
-    Convenience function that figures out a flow's terminal task, then
-    runs the flow with the provided parameters and returns that task's result.
+    Convenience function that figures out a flow's terminal task,
+    then runs the flow with the provided parameters and returns
+    that task's result.
     """
     task = list(flow.terminal_tasks())[0]
     state = flow.run(parameters=parameters, return_tasks=[task])
@@ -161,4 +162,4 @@ For the curious and/or brave, here's a visualization of the computational graph 
 flow.visualize()
 ```
 
-![calculator](/calculator.png) {.viz}
+![visualization of a computational graph](/calculator.png)

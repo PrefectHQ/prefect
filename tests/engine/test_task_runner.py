@@ -19,7 +19,7 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
-from prefect.engine.result import Result, NoResult
+from prefect.engine.result import Result, NoResult, SafeResult
 from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine.state import (
     Cached,
@@ -572,6 +572,15 @@ class TestCheckTaskTrigger:
         new_state = TaskRunner(task).check_task_trigger(state=state, upstream_states={})
         assert new_state is state
 
+    def test_manual_passes_when_context_is_resume(self):
+        task = Task(trigger=prefect.triggers.manual_only)
+        state = Pending()
+        with prefect.context(resume=True):
+            new_state = TaskRunner(task).check_task_trigger(
+                state=state, upstream_states={1: Success()}
+            )
+        assert new_state is state
+
     def test_custom_trigger_function_raise(self):
         def trigger(states):
             1 / 0
@@ -623,20 +632,20 @@ class TestGetTaskInputs:
         assert inputs == {"x": Result(1)}
 
     def test_get_inputs_from_upstream_reads_results(self):
-        result = Result("1", handled=True, result_handler=JSONResultHandler())
+        result = SafeResult("1", result_handler=JSONResultHandler())
         state = Success(result=result)
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=Pending(), upstream_states={Edge(1, 2, key="x"): state}
         )
-        assert inputs == {"x": Result(1, result_handler=JSONResultHandler())}
+        assert inputs == {"x": result.to_result()}
 
     def test_get_inputs_from_upstream_reads_cached_inputs(self):
-        result = Result("1", handled=True, result_handler=JSONResultHandler())
+        result = SafeResult("1", result_handler=JSONResultHandler())
         state = Pending(cached_inputs=dict(x=result))
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=state, upstream_states={}
         )
-        assert inputs == {"x": Result(1, result_handler=JSONResultHandler())}
+        assert inputs == {"x": result.to_result()}
 
     def test_get_inputs_from_upstream_with_non_key_edges(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
@@ -748,7 +757,7 @@ class TestCheckTaskCached:
     def test_reads_result_if_cached_valid(self):
         with pytest.warns(UserWarning):
             task = Task(cache_validator=cache_validators.duration_only)
-        result = Result("2", handled=True, result_handler=JSONResultHandler())
+        result = SafeResult("2", result_handler=JSONResultHandler())
         state = Cached(
             result=result,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
@@ -874,9 +883,7 @@ class TestRunTaskStep:
         )
         assert state.is_successful()
         assert isinstance(state._result, Result)
-        assert state._result == Result(
-            value=None, handled=False, result_handler=runner.result_handler
-        )
+        assert state._result == Result(value=None, result_handler=runner.result_handler)
 
     def test_returns_success_with_correct_result_handler(self):
         runner = TaskRunner(task=Task(result_handler=JSONResultHandler()))
@@ -886,6 +893,57 @@ class TestRunTaskStep:
         assert state.is_successful()
         assert isinstance(state._result, Result)
         assert state._result.result_handler == JSONResultHandler()
+
+    def test_success_state_without_checkpoint(self):
+        @prefect.task(checkpoint=False)
+        def fn(x):
+            return x + 1
+
+        new_state = TaskRunner(task=fn).get_task_run_state(
+            state=Running(), inputs={"x": Result(1)}, timeout_handler=None
+        )
+        assert new_state.is_successful()
+        assert new_state._result.safe_value is NoResult
+
+    def test_success_state_with_checkpoint(self):
+        handler = JSONResultHandler()
+
+        @prefect.task(checkpoint=True, result_handler=handler)
+        def fn(x):
+            return x + 1
+
+        new_state = TaskRunner(task=fn).get_task_run_state(
+            state=Running(), inputs={"x": Result(2)}, timeout_handler=None
+        )
+        assert new_state.is_successful()
+        assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
+
+    def test_success_state_for_parameter(self):
+        handler = JSONResultHandler()
+        p = prefect.Parameter("p", default=2)
+        new_state = TaskRunner(task=p).get_task_run_state(
+            state=Running(), inputs={}, timeout_handler=None
+        )
+        assert new_state.is_successful()
+        assert new_state._result.safe_value == SafeResult("2", result_handler=handler)
+
+    def test_success_state_with_bad_handler_results_in_failed_state(self):
+        class BadHandler(ResultHandler):
+            def read(self, val):
+                pass
+
+            def write(self, val):
+                raise SyntaxError("Oh boy")
+
+        @prefect.task(checkpoint=True, result_handler=BadHandler())
+        def fn(x):
+            return x + 1
+
+        new_state = TaskRunner(task=fn).get_task_run_state(
+            state=Running(), inputs={"x": Result(1)}, timeout_handler=None
+        )
+        assert new_state.is_failed()
+        assert "SyntaxError" in new_state.message
 
 
 class TestCheckRetryStep:
@@ -952,11 +1010,19 @@ class TestCheckRetryStep:
 
 class TestCacheResultStep:
     @pytest.mark.parametrize(
-        "state", [Failed(), Skipped(), Finished(), Pending(), Running()]
+        "state",
+        [
+            Failed(result=1),
+            Skipped(result=1),
+            Finished(result=1),
+            Pending(result=1),
+            Running(result=1),
+        ],
     )
     def test_non_success_states(self, state):
         new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
         assert new_state is state
+        assert new_state._result.safe_value is NoResult
 
     @pytest.mark.parametrize(
         "validator",
@@ -975,7 +1041,7 @@ class TestCacheResultStep:
         new_state = TaskRunner(task=t).cache_result(state=state, inputs={})
         assert new_state is state
 
-    def test_success_state(self):
+    def test_success_state_with_cache_for(self):
         @prefect.task(cache_for=timedelta(minutes=10))
         def fn(x):
             return x + 1
@@ -1278,6 +1344,14 @@ def test_task_runner_converts_pause_signal_to_paused_state_for_manual_only_trigg
     assert "manual_only" in out.message
 
 
+def test_task_runner_passes_manual_only_trigger_when_resume_state_is_passed():
+    t1, t2 = SuccessTask(), SuccessTask(trigger=prefect.triggers.manual_only)
+    e = Edge(t1, t2)
+    runner = TaskRunner(t2)
+    out = runner.run(state=Resume(), upstream_states={e: Success(result=1)})
+    assert isinstance(out, Success)
+
+
 def test_task_runner_converts_pause_signal_to_paused_state_for_internally_raised_pauses():
     class WaitTask(Task):
         def run(self):
@@ -1346,3 +1420,28 @@ def test_pending_raised_from_endrun_has_updated_metadata():
 
     assert state.is_pending()
     assert state.cached_inputs == dict(x=Result(15))
+
+
+def test_failures_arent_checkpointed():
+    handler = MagicMock(store_safe_value=MagicMock(side_effect=SyntaxError))
+
+    @prefect.task(checkpoint=True, result_handler=handler)
+    def fn():
+        raise TypeError("Bad types")
+
+    new_state = TaskRunner(task=fn).run()
+    assert new_state.is_failed()
+    assert isinstance(new_state.result, TypeError)
+
+
+def test_skips_arent_checkpointed():
+    handler = MagicMock(store_safe_value=MagicMock(side_effect=SyntaxError))
+
+    @prefect.task(checkpoint=True, result_handler=handler)
+    def fn():
+        return 2
+
+    new_state = TaskRunner(task=fn).run(
+        upstream_states={Edge(Task(), Task()): Skipped()}
+    )
+    assert new_state.is_successful()

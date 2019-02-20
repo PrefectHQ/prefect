@@ -9,7 +9,7 @@ import pytest
 from collections import defaultdict
 
 import prefect
-from prefect.engine.result import Result, NoResult
+from prefect.engine.result import Result, NoResult, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cached,
@@ -58,7 +58,7 @@ def test_create_state_with_no_args(cls):
 def test_create_state_with_kwarg_data_arg(cls):
     state = cls(result=1)
     assert isinstance(state._result, Result)
-    assert state._result.handled is False
+    assert state._result.safe_value is NoResult
     assert state._result.result_handler is None
     assert state.result == 1
     assert state.message is None
@@ -141,11 +141,46 @@ def test_states_have_color(cls):
     assert cls.color.startswith("#")
 
 
-def test_serialize_and_deserialize_on_cached_state():
+def test_serialize_and_deserialize_on_raw_cached_state():
     now = pendulum.now("utc")
     state = Cached(
         cached_inputs=dict(x=Result(99), p=Result("p")),
         result=dict(hi=5, bye=6),
+        cached_result_expiration=now,
+    )
+    serialized = state.serialize()
+    new_state = State.deserialize(serialized)
+    assert isinstance(new_state, Cached)
+    assert new_state.color == state.color
+    assert new_state.result == NoResult
+    assert new_state.cached_result_expiration == state.cached_result_expiration
+    assert new_state.cached_inputs == dict.fromkeys(["x", "p"], NoResult)
+
+
+def test_serialize_and_deserialize_on_mixed_cached_state():
+    safe_dct = SafeResult(dict(hi=5, bye=6), result_handler=JSONResultHandler())
+    now = pendulum.now("utc")
+    state = Cached(
+        cached_inputs=dict(x=Result(2), p=Result("p")),
+        result=safe_dct,
+        cached_result_expiration=now,
+    )
+    serialized = state.serialize()
+    new_state = State.deserialize(serialized)
+    assert isinstance(new_state, Cached)
+    assert new_state.color == state.color
+    assert new_state.result == dict(hi=5, bye=6)
+    assert new_state.cached_result_expiration == state.cached_result_expiration
+    assert new_state.cached_inputs == dict.fromkeys(["x", "p"], NoResult)
+
+
+def test_serialize_and_deserialize_on_safe_cached_state():
+    safe = SafeResult("99", result_handler=JSONResultHandler())
+    safe_dct = SafeResult(dict(hi=5, bye=6), result_handler=JSONResultHandler())
+    now = pendulum.now("utc")
+    state = Cached(
+        cached_inputs=dict(x=safe, p=safe),
+        result=safe_dct,
         cached_result_expiration=now,
     )
     serialized = state.serialize()
@@ -158,7 +193,8 @@ def test_serialize_and_deserialize_on_cached_state():
 
 
 def test_serialization_of_cached_inputs():
-    state = Pending(cached_inputs=dict(hi=Result(5), bye=Result(6)))
+    safe5 = SafeResult(5, result_handler=JSONResultHandler())
+    state = Pending(cached_inputs=dict(hi=safe5, bye=safe5))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Pending)

@@ -6,7 +6,7 @@ status of a flow or task.
 
 This module contains all Prefect state classes, all ultimately inheriting from the base State class as follows:
 
-![](/state_inheritance_diagram.svg) {style="text-align: center;"}
+![diagram of state inheritances](/state_inheritance_diagram.svg){.viz-padded}
 
 Every run is initialized with the `Pending` state, meaning that it is waiting for
 execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Union
 import pendulum
 
 import prefect
-from prefect.engine.result import Result, NoResult
+from prefect.engine.result import Result, NoResult, ResultInterface, SafeResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.utilities.collections import DotDict
 from prefect.utilities.datetimes import ensure_tz_aware
@@ -62,7 +62,7 @@ class State:
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
-            eq = self._result.value == other._result.value
+            eq = self._result.value == other._result.value  # type: ignore
             for attr in self.__dict__:
                 if attr.startswith("_") or attr in ["message", "result"]:
                     continue
@@ -75,11 +75,11 @@ class State:
 
     @property
     def result(self) -> Any:
-        return self._result.value
+        return self._result.value  # type: ignore
 
     @result.setter
     def result(self, value: Any) -> None:
-        if isinstance(value, Result):
+        if isinstance(value, ResultInterface):
             self._result = value
         else:
             self._result = Result(value=value)

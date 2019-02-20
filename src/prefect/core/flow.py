@@ -922,7 +922,7 @@ class Flow:
             parameters=passed_parameters, return_tasks=return_tasks, **kwargs
         )
 
-        # state always should return a dict of tasks. If it's None (meaning the run was
+        # state always should return a dict of tasks. If it's NoResult (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
         if state.result == NoResult:
             state.result = {}
