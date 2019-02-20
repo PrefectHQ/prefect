@@ -1,5 +1,6 @@
 import cloudpickle
 import datetime
+import os
 import tempfile
 import time
 import uuid
@@ -254,21 +255,37 @@ class TestHeartBeats:
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_task_runner_has_a_heartbeat(self, executor, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
-        )
+        with tempfile.NamedTemporaryFile() as call_file:
+            fname = call_file.name
 
-        @prefect.task
-        def sleeper():
-            time.sleep(0.2)
+            def update(*args, **kwargs):
+                with open(fname, "a") as f:
+                    f.write("called\n")
 
-        with set_temporary_config({"cloud.heartbeat_interval": 0.05}):
-            res = CloudTaskRunner(task=sleeper).run(executor=executor)
+            @prefect.task
+            def sleeper():
+                time.sleep(2)
+
+            def multiprocessing_helper(executor):
+                client = MagicMock()
+                monkeypatch.setattr(
+                    "prefect.engine.cloud.task_runner.Client",
+                    MagicMock(return_value=client),
+                )
+                runner = CloudTaskRunner(task=sleeper)
+                runner._heartbeat = update
+                with set_temporary_config({"cloud.heartbeat_interval": 0.025}):
+                    return runner.run(executor=executor)
+
+            with executor.start():
+                fut = executor.submit(multiprocessing_helper, executor=executor)
+                res = executor.wait(fut)
+
+            with open(call_file.name, "r") as g:
+                results = g.read()
 
         assert res.is_successful()
-        assert client.update_task_run_heartbeat.called
-        assert client.update_task_run_heartbeat.call_count >= 2
+        assert len(results.split()) >= 2
 
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
