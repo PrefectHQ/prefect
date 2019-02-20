@@ -180,6 +180,8 @@ class DockerEnvironment(Environment):
                 if no directory is specified is will be created in the current working directory
         """
 
+        directory = directory or "./"
+
         with open(os.path.join(directory, "Dockerfile"), "w+") as dockerfile:
 
             # Generate RUN pip install commands for python dependencies
