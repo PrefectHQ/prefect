@@ -77,8 +77,8 @@ Next we create our `scrape_dialogue` task, which will contain the logic for pars
 def scrape_dialogue(episode_html):
     """
     Given a string of html representing an episode page,
-    returns a tuple of (title, [(character, text)]) of the dialogue from that
-    episode
+    returns a tuple of (title, [(character, text)]) of the
+    dialogue from that episode
     """
 
     episode = BeautifulSoup(episode_html, 'html.parser')
@@ -105,7 +105,7 @@ with Flow("xfiles") as flow:
 flow.visualize()
 ```
 
-![simple flow](/simple_flow.svg) {.viz}
+![simple flow](/simple_flow.svg){.viz-xs .viz-padded}
 
 Awesome! We've constructed our flow and everything looks good; all that's left is to run it. When we call `flow.run()` we need to provide two keywords:
 
@@ -208,7 +208,6 @@ The `Parameter` class has a few useful settings that we need in the above exampl
 - `required`: a boolean specifying whether or not the parameter is required at flow runtime; if not provided, the default value will be used
   :::
 
-<a name="scrape_single_box"></a>
 :::tip Scraping a single episode
 To reproduce [the first example](#setting-up-the-flow-for-a-single-episode) we ran using our new flow, we could now run:
 
@@ -228,7 +227,7 @@ To highlight the benefits of `map`, note that we went from scraping a single epi
 flow.visualize()
 ```
 
-![full scrape flow](/full_scrape_flow.svg) {.viz}
+![full scrape flow](/full_scrape_flow.svg){.viz-md .viz-padded}
 
 ::: tip How mapped tasks are returned
 In a normal flow run, `flow_state.result[task]` returns the post-run `State` of the `task` (e.g., `Success("Task run succeeded")`). If, however, the task was the result of calling `.map()`, `flow_state.result[task]` will be a _list_ of states - one for each mapped instance.
@@ -344,7 +343,7 @@ You also might notice the special `upstream_tasks` keyword argument; this is not
 flow.visualize()
 ```
 
-![full db flow](/full_db_flow.svg) {.viz}
+![full db flow](/full_db_flow.svg){.viz-md .viz-padded}
 
 We are now ready to execute our flow! Of course, we have _already_ scraped all the dialogue - there's no real need to redo all that work. This is where our previous flow state (`scraped_state`) comes in handy! Recall that `scraped_state.result` will be a dictionary of tasks to their corresponding states; consequently we can feed this information to the next flow run via the `task_states` keyword argument. These states will then be used in determining whether each task should be run or whether they are already finished. Because we have added _new_ tasks to the flow, the new tasks will not have a corresponding state in this dictionary and will run as expected.
 
@@ -377,7 +376,7 @@ Disappointing, especially considering "The Springfield Files" was a Simpson's ep
 
 ## Reusability
 
-Suppose some time has passed, and a _new_ transcript has been uploaded - we've already put together all the necessary logic for going from a URL to the database, but how can we reuse that logic? Simple - we use the [same pattern we used for scraping a single episode above](#scrape_single_box)!
+Suppose some time has passed, and a _new_ transcript has been uploaded - we've already put together all the necessary logic for going from a URL to the database, but how can we reuse that logic? Simple - we use the same pattern we used for scraping a single episode above!
 
 Fun fact: The X-Files resulted in a spinoff TV series called "The Lone Gunmen"; the transcripts of this series are also [posted on the website we've been using](http://www.insidethex.co.uk/scripts.htm#tlg), so let's scrape Episode 5 using our already constructed flow; to do so, we'll utilize our custom `bypass` flag along with the `start_tasks` keyword argument for avoiding the initial scrape of the home page:
 

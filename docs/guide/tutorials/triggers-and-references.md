@@ -1,26 +1,25 @@
-
 # Triggers and Reference Tasks
 
 ::: tip Practice Makes Prefect
 A notebook containing all code presented in this tutorial can be downloaded [here](/notebooks/triggers-and-references.ipynb).
 :::
 
-In some cases, we explicitly _don't_ want to automate some portion of a system; in these cases the notion of a "Success" can be difficult or impossible to verify automatically, so instead we want a person to review the state of affairs and decide if it's safe to proceed with the work.  Othertimes user input is needed at _task_ runtime (as opposed to _flow_ runtime).
+In some cases, we explicitly _don't_ want to automate some portion of a system; in these cases the notion of a "Success" can be difficult or impossible to verify automatically, so instead we want a person to review the state of affairs and decide if it's safe to proceed with the work. Othertimes user input is needed at _task_ runtime (as opposed to _flow_ runtime).
 
 For example, imagine we have the following workflow:
 
-![workflow](/manual_approval.svg) {.viz .example}
+![manual approval workflow](/manual_approval.svg){.viz-sm .viz-padded}
 
 ### Triggers
 
-In Prefect, this workflow can be implemented through the use of `triggers`.  A `trigger` is a function which determines whether a task should run, fail, or be placed in some other state based on the state of its upstream dependencies.  The default task trigger is (naturally) `all_successful`.  To implement the workflow above, we will use two triggers:
+In Prefect, this workflow can be implemented through the use of `triggers`. A `trigger` is a function which determines whether a task should run, fail, or be placed in some other state based on the state of its upstream dependencies. The default task trigger is (naturally) `all_successful`. To implement the workflow above, we will use two triggers:
 
-- the `manual_only` trigger, which will cause the task which requires approval to be placed in a `Paused` state until explicitly requested as a `start_task` in a future call to `Flow.run()`
+- the `manual_only` trigger, which will cause the task which requires approval to be placed in a `Paused` state until it is explicitly placed in a `Resume` state by a user.
 - the `any_failed` trigger so that the complaint is only run if approval _fails_
 
 ### Reference Tasks
 
-Notice that in the example above, the terminal task is the complaint task.  Consequently, whenever this task _succeeds_ the overall flow will be considered a success (the default method for determining the overall state of the flow is by considering the states of its terminal tasks).  However, we have found ourselves in a situation where success of the terminal tasks actually implies flow _failure_ - the main objective was not achieved!  This is where `reference_tasks` come into play: `reference_tasks` can be set by the flow and are a list of tasks that will determine the overall state of the flow.  In this case, we have one reference task: the email.  Let's now proceed to set up the flow and walk through the constructs we have discussed.
+Notice that in the example above, the terminal task is the complaint task. Consequently, whenever this task _succeeds_ the overall flow will be considered a success (the default method for determining the overall state of the flow is by considering the states of its terminal tasks). However, we have found ourselves in a situation where success of the terminal tasks actually implies flow _failure_ - the main objective was not achieved! This is where `reference_tasks` come into play: `reference_tasks` can be set by the flow and are a list of tasks that will determine the overall state of the flow. In this case, we have one reference task: the email. Let's now proceed to set up the flow and walk through the constructs we have discussed.
 
 :::warning NOTE
 There are other legitimate implementations of this flow, for example by using `conditionals`.
@@ -86,10 +85,11 @@ print("Flow state: {}\n".format(flow_state))
 print(flow_state.result)
 
 ##    Flow state: Pending("Some terminal tasks are still pending.")
-  
+
 ##    Flow results: {
 ##     <Task: build_report>: Success("Task run succeeded."),
-##     <Task: email_report_to_board>: Paused("Trigger function is "manual_only""), 
+##     <Task: email_report_to_board>: Paused("Trigger function is
+##         "manual_only""),
 ##     <Task: complain_to_data_analyst>: Pending()
 ##     }
 ```
@@ -101,10 +101,10 @@ flow_state.result[report].result
 ### 'quality report'
 ```
 
-Looks good to me!  Since we aren't running this tutorial with Prefect Cloud, we now need to explicitly tell the flow to run beginning at the `board_email` task.
+Looks good to me! Since we aren't running this tutorial with Prefect Cloud, we now need to explicitly tell the flow to run beginning at the `board_email` task.
 
 :::tip
-Anytime a task is included in `start_tasks`, its trigger is ignored and it attempts to run.  
+Anytime a task is included in `start_tasks`, its trigger is ignored and it attempts to run.
 :::
 
 Note that in this case, the tasks represented by `data` and `report` will _not_ be run again - the necessary inputs required for `board_email` to run have been cached!
@@ -120,7 +120,9 @@ print(new_flow_state.result)
 ##    Flow state: Success("All reference tasks succeeded.")
 
 ##    Flow result: {
-##       <Task: email_report_to_board>: Success("Task run succeeded."), 
+##       <Task: email_report_to_board>: Success("Task run succeeded."),
 ##       <Task: complain_to_data_analyst>: TriggerFailed("Trigger was "any_failed" but none of the upstream tasks failed.")
+##       <Task: complain_to_data_analyst>: TriggerFailed("Trigger was
+##           "any_failed" but none of the upstream tasks failed.")
 ##       }
 ```

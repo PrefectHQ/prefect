@@ -1,5 +1,6 @@
 import cloudpickle
 import datetime
+import os
 import tempfile
 import time
 import uuid
@@ -11,7 +12,7 @@ import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
-from prefect.engine.result import NoResult, Result
+from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
     LocalResultHandler,
@@ -254,21 +255,71 @@ class TestHeartBeats:
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_task_runner_has_a_heartbeat(self, executor, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
-        )
+        with tempfile.NamedTemporaryFile() as call_file:
+            fname = call_file.name
 
-        @prefect.task
-        def sleeper():
-            time.sleep(0.2)
+            def update(*args, **kwargs):
+                with open(fname, "a") as f:
+                    f.write("called\n")
 
-        with set_temporary_config({"cloud.heartbeat_interval": 0.05}):
-            res = CloudTaskRunner(task=sleeper).run(executor=executor)
+            @prefect.task
+            def sleeper():
+                time.sleep(2)
+
+            def multiprocessing_helper(executor):
+                client = MagicMock()
+                monkeypatch.setattr(
+                    "prefect.engine.cloud.task_runner.Client",
+                    MagicMock(return_value=client),
+                )
+                runner = CloudTaskRunner(task=sleeper)
+                runner._heartbeat = update
+                with set_temporary_config({"cloud.heartbeat_interval": 0.025}):
+                    return runner.run(executor=executor)
+
+            with executor.start():
+                fut = executor.submit(multiprocessing_helper, executor=executor)
+                res = executor.wait(fut)
+
+            with open(call_file.name, "r") as g:
+                results = g.read()
 
         assert res.is_successful()
-        assert client.update_task_run_heartbeat.called
-        assert client.update_task_run_heartbeat.call_count >= 2
+        assert len(results.split()) >= 60
+
+    @pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
+    def test_task_runner_has_a_heartbeat_with_timeouts(self, executor, monkeypatch):
+        with tempfile.NamedTemporaryFile() as call_file:
+            fname = call_file.name
+
+            def update(*args, **kwargs):
+                with open(fname, "a") as f:
+                    f.write("called\n")
+
+            @prefect.task(timeout=1)
+            def sleeper():
+                time.sleep(2)
+
+            def multiprocessing_helper(executor):
+                client = MagicMock()
+                monkeypatch.setattr(
+                    "prefect.engine.cloud.task_runner.Client",
+                    MagicMock(return_value=client),
+                )
+                runner = CloudTaskRunner(task=sleeper)
+                runner._heartbeat = update
+                with set_temporary_config({"cloud.heartbeat_interval": 0.025}):
+                    return runner.run(executor=executor)
+
+            with executor.start():
+                fut = executor.submit(multiprocessing_helper, executor=executor)
+                res = executor.wait(fut)
+
+            with open(call_file.name, "r") as g:
+                results = g.read()
+
+        assert isinstance(res, TimedOut)
+        assert len(results.split()) >= 30
 
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
@@ -276,31 +327,41 @@ class TestHeartBeats:
     def test_task_runner_has_a_heartbeat_only_during_execution(
         self, executor, monkeypatch
     ):
-        client = MagicMock()
-        monkeypatch.setattr(
-            "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
-        )
+        with tempfile.NamedTemporaryFile() as call_file:
+            fname = call_file.name
 
-        with set_temporary_config({"cloud.heartbeat_interval": 0.05}):
-            runner = CloudTaskRunner(task=Task())
-            runner.cache_result = lambda *args, **kwargs: time.sleep(0.2)
-            res = runner.run(executor=executor)
+            def update(*args, **kwargs):
+                with open(fname, "a") as f:
+                    f.write("called\n")
 
-        assert client.update_task_run_heartbeat.called
-        assert client.update_task_run_heartbeat.call_count == 1
+            def multiprocessing_helper(executor):
+                client = MagicMock()
+                monkeypatch.setattr(
+                    "prefect.engine.cloud.task_runner.Client",
+                    MagicMock(return_value=client),
+                )
+                runner = CloudTaskRunner(task=Task())
+                runner.cache_result = lambda *args, **kwargs: time.sleep(0.2)
+                runner._heartbeat = update
+                with set_temporary_config({"cloud.heartbeat_interval": 0.05}):
+                    return runner.run(executor=executor)
 
-    @pytest.mark.parametrize(
-        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-    )
-    def test_task_runner_has_a_heartbeat_with_task_run_id(self, executor, monkeypatch):
+            with executor.start():
+                fut = executor.submit(multiprocessing_helper, executor=executor)
+                res = executor.wait(fut)
+
+            with open(call_file.name, "r") as g:
+                results = g.read()
+
+        assert len(results.split()) == 1
+
+    def test_task_runner_has_a_heartbeat_with_task_run_id(self, monkeypatch):
         client = MagicMock()
         monkeypatch.setattr(
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
         )
         task = Task(name="test")
-        res = CloudTaskRunner(task=task).run(
-            executor=executor, context={"task_run_id": 1234}
-        )
+        res = CloudTaskRunner(task=task).run(context={"task_run_id": 1234})
 
         assert res.is_successful()
         assert client.update_task_run_heartbeat.call_args[0][0] == 1234
@@ -314,7 +375,9 @@ class TestStateResultHandling:
         def add(x, y):
             return x + y
 
-        result = Result(1, handled=False, result_handler=JSONResultHandler())
+        result = Result(1, result_handler=JSONResultHandler())
+        assert result.safe_value is NoResult
+
         x_state, y_state = Success(result=result), Success(result=result)
 
         upstream_states = {
@@ -323,6 +386,7 @@ class TestStateResultHandling:
         }
 
         res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
+        assert result.safe_value != NoResult  # proves was handled
 
         ## assertions
         assert client.get_task_run_info.call_count == 0  # never called
@@ -334,16 +398,43 @@ class TestStateResultHandling:
         assert states[0].is_running()
         assert states[1].is_successful()
         assert isinstance(states[2], Cached)
-        assert states[2].cached_inputs == dict(x=result.write(), y=result.write())
-        assert states[2].result == "2"
+        assert states[2].cached_inputs == dict(x=result, y=result)
+        assert states[2].result == 2
+
+    def test_task_runner_sends_checkpointed_success_states_to_cloud(self, client):
+        handler = JSONResultHandler()
+
+        @prefect.task(checkpoint=True, result_handler=handler)
+        def add(x, y):
+            return x + y
+
+        x_state, y_state = Success(result=Result(1)), Success(result=Result(1))
+
+        upstream_states = {
+            Edge(Task(), Task(), key="x"): x_state,
+            Edge(Task(), Task(), key="y"): y_state,
+        }
+
+        res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
+
+        ## assertions
+        assert client.get_task_run_info.call_count == 0  # never called
+        assert (
+            client.set_task_run_state.call_count == 2
+        )  # Pending -> Running -> Successful
+
+        states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+        assert states[0].is_running()
+        assert states[1].is_successful()
+        assert states[1]._result.safe_value == SafeResult("2", result_handler=handler)
 
     def test_task_runner_handles_inputs_prior_to_setting_state(self, client):
         @prefect.task(max_retries=1, retry_delay=datetime.timedelta(days=1))
         def add(x, y):
             return x + y
 
-        x = Result(1, handled=False, result_handler=JSONResultHandler())
-        y = Result("0", handled=False, result_handler=JSONResultHandler())
+        x = Result(1, result_handler=JSONResultHandler())
+        y = Result("0", result_handler=JSONResultHandler())
         state = Pending(cached_inputs=dict(x=x, y=y))
         x_state = Success()
         y_state = Success()
@@ -354,6 +445,8 @@ class TestStateResultHandling:
         res = CloudTaskRunner(task=add).run(
             state=state, upstream_states=upstream_states
         )
+        assert x.safe_value != NoResult
+        assert y.safe_value != NoResult
 
         ## assertions
         assert client.get_task_run_info.call_count == 0  # never called
@@ -365,7 +458,7 @@ class TestStateResultHandling:
         assert states[0].is_running()
         assert states[1].is_failed()
         assert isinstance(states[2], Retrying)
-        assert states[2].cached_inputs == dict(x=x.write(), y=y.write())
+        assert states[2].cached_inputs == dict(x=x, y=y)
 
 
 def test_state_handler_failures_are_handled_appropriately(client):
@@ -385,4 +478,4 @@ def test_state_handler_failures_are_handled_appropriately(client):
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
     assert states[0].is_running()
     assert states[1].is_failed()
-    assert states[1].result == NoResult
+    assert isinstance(states[1].result, SyntaxError)

@@ -65,7 +65,7 @@ flow.run() # prints "Here's your data: [10, 20, 30]"
 
 If we call `flow.visualize()`, Prefect will draw the computational graph:
 
-![etl](/etl.png) {.viz .etl}
+![etl flow graph](/etl.png){.viz-sm}
 
 ## An Imperative Flow
 

@@ -1,6 +1,3 @@
-import copy
-
-from prefect.engine.result import NoResult
 from prefect.engine.state import State
 
 
@@ -15,14 +12,13 @@ def prepare_state_for_cloud(state: State) -> State:
     Returns:
         - State: a sanitized copy of the original state
     """
-    res = state._result
-    cloud_state = copy.copy(state)
-    cloud_state._result = res.write() if cloud_state.is_cached() else NoResult
+    if state.is_cached():
+        state._result.store_safe_value()
+
     if (
-        hasattr(cloud_state, "cached_inputs")
-        and cloud_state.cached_inputs is not None  # type: ignore
+        hasattr(state, "cached_inputs")
+        and state.cached_inputs is not None  # type: ignore
     ):
-        cloud_state.cached_inputs = {  # type: ignore
-            k: r.write() for k, r in cloud_state.cached_inputs.items()  # type: ignore
-        }
-    return cloud_state
+        for res in state.cached_inputs.values():  # type: ignore
+            res.store_safe_value()
+    return state
