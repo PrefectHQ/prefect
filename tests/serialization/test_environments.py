@@ -34,7 +34,7 @@ def test_deserialize_local_environment():
 
 
 def test_serialize_container_environment():
-    env = environments.ContainerEnvironment(
+    env = environments.DockerEnvironment(
         base_image="a",
         python_dependencies=["b", "c"],
         registry_url="f",
@@ -43,7 +43,6 @@ def test_serialize_container_environment():
     )
     serialized = DockerEnvironmentSchema().dump(env)
     assert serialized["base_image"] == "a"
-    assert serialized["python_dependencies"] == ["b", "c"]
     assert serialized["registry_url"] == "f"
     assert serialized["image_name"] == "g"
     assert serialized["image_tag"] == "h"
@@ -62,13 +61,12 @@ def test_deserialize_minimal_container_environment():
 
 
 def test_deserialize_container_environment():
-    env = environments.ContainerEnvironment(
+    env = environments.DockerEnvironment(
         base_image="a", python_dependencies=["b", "c"], registry_url="f"
     )
     serialized = DockerEnvironmentSchema().dump(env)
     deserialized = DockerEnvironmentSchema().load(serialized)
 
-    assert deserialized.python_dependencies == env.python_dependencies
     assert deserialized.base_image == env.base_image
     assert deserialized.registry_url == env.registry_url
 
@@ -82,12 +80,11 @@ def test_environment_schema_with_local_environment():
 
 
 def test_environment_schema_with_container_environment():
-    env = environments.ContainerEnvironment(
+    env = environments.DockerEnvironment(
         base_image="a", python_dependencies=["b", "c"], registry_url="f"
     )
     serialized = EnvironmentSchema().dump(env)
     deserialized = EnvironmentSchema().load(serialized)
-    assert isinstance(deserialized, environments.ContainerEnvironment)
-    assert deserialized.python_dependencies == env.python_dependencies
+    assert isinstance(deserialized, environments.DockerEnvironment)
     assert deserialized.registry_url == env.registry_url
     assert deserialized.base_image == env.base_image
