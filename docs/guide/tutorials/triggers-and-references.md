@@ -9,7 +9,7 @@ In some cases, we explicitly _don't_ want to automate some portion of a system; 
 
 For example, imagine we have the following workflow:
 
-![manual approval workflow](/manual_approval.svg){.viz}
+![manual approval workflow](/manual_approval.svg){.viz-sm .viz-padded}
 
 ### Triggers
 
