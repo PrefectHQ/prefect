@@ -19,7 +19,7 @@ class DockerOnKubernetesEnvironment(DockerEnvironment):
 
     (A future environment will allow for a minimal set up which does not require pip)
 
-    There is no set up requirements and execute creates a single job which has the role
+    There are no set up requirements, and execute creates a single job that has the role
     of running the flow.
     """
 
