@@ -319,14 +319,13 @@ if __name__ == "__main__":
     GIT_SHA = os.getenv("GIT_SHA", "n/a")
     SHORT_SHA = GIT_SHA[:7]
     auto_generated_footer = (
-        '\n<p class="auto-gen">This documentation was auto-generated '
-        "for Prefect {version} from commit "
+        '<p class="auto-gen">This documentation was auto-generated from commit '
         "<a href='https://github.com/PrefectHQ/prefect/commit/{git_sha}'>{short_sha}</a> "
-        "on {timestamp}</p>".format(
+        "</br>by Prefect {version} on {timestamp}</p>".format(
             short_sha=SHORT_SHA,
             git_sha=GIT_SHA,
             version=prefect.__version__,
-            timestamp=pendulum.now("utc").format("MMMM D, YYYY [at] HH:mm:ss [UTC]"),
+            timestamp=pendulum.now("utc").format("MMMM D, YYYY [at] HH:mm [UTC]"),
         )
     )
 
