@@ -32,12 +32,12 @@ class DockerEnvironmentSchema(ObjectSchema):
     image_tag = fields.String(allow_none=True)
 
 
-class LocalOnKubernetesEnvironment(DockerEnvironmentSchema):
+class LocalOnKubernetesEnvironmentSchema(DockerEnvironmentSchema):
     class Meta:
         object_class = prefect.environments.kubernetes.LocalOnKubernetesEnvironment
 
 
-class DockerOnKubernetesEnvironment(DockerEnvironmentSchema):
+class DockerOnKubernetesEnvironmentSchema(DockerEnvironmentSchema):
     class Meta:
         object_class = prefect.environments.kubernetes.DockerOnKubernetesEnvironment
 
@@ -51,6 +51,6 @@ class EnvironmentSchema(OneOfSchema):
     type_schemas = {
         "DockerEnvironment": DockerEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
-        "LocalOnKubernetesEnvironment": LocalOnKubernetesEnvironment,
-        "DockerOnKubernetesEnvironment": DockerOnKubernetesEnvironment,
+        "LocalOnKubernetesEnvironment": LocalOnKubernetesEnvironmentSchema,
+        "DockerOnKubernetesEnvironment": DockerOnKubernetesEnvironmentSchema,
     }

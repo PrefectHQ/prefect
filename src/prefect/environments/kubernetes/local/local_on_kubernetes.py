@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import logging
 from os import path
 import uuid
 
@@ -48,7 +49,10 @@ class LocalOnKubernetesEnvironment(DockerEnvironment):
             files=files,
         )
 
-        config.load_incluster_config()
+        try:
+            config.load_incluster_config()
+        except config.config_exception.ConfigException:
+            logging.warning("Environment not currently running inside a cluster.")
 
         self.identifier_label = str(uuid.uuid4())
 
