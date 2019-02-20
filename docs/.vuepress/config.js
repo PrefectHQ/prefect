@@ -159,12 +159,17 @@ module.exports = {
             'PINs/PIN-3-Agent-Environment',
             'PINs/PIN-4-Result-Objects'
           ]
+        },
+        {
+          title: 'Development',
+          collapsable: true,
+          children: [
+            'development/overview',
+            'development/style',
+            'development/documentation',
+            'development/tests'
+          ]
         }
-        // {
-        //   title: 'Comparisons',
-        //   collapsable: true,
-        //   children: ['comparisons/', 'comparisons/airflow']
-        // },
       ]
     }
   },
