@@ -5,6 +5,7 @@ from contextlib import closing
 
 import prefect
 from prefect import Task
+from prefect.utilities.tasks import defaults_from_attrs
 
 
 class SQLiteQueryTask(Task):
@@ -26,6 +27,7 @@ class SQLiteQueryTask(Task):
         self.query = query
         super().__init__(**kwargs)
 
+    @defaults_from_attrs(["query"])
     def run(self, query: str = None):
         """
         Args:
@@ -35,7 +37,6 @@ class SQLiteQueryTask(Task):
         Returns:
             - [Any]: the results of the query
         """
-        query = self.query if query is None else query
         with closing(sql.connect(self.db)) as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute(query)
@@ -61,13 +62,13 @@ class SQLiteScriptTask(Task):
         self.script = script
         super().__init__(**kwargs)
 
+    @defaults_from_attrs(["script"])
     def run(self, script: str = None):
         """
         Args:
             - script (str, optional): the optional script to execute at runtime;
                 if not provided, `self.script` will be used instead.
         """
-        script = self.script if script is None else script
         with closing(sql.connect(self.db)) as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.executescript(script)
