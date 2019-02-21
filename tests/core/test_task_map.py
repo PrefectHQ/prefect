@@ -386,27 +386,23 @@ def test_map_tracks_non_mapped_upstream_tasks(executor):
 def test_map_allows_for_retries(executor):
     ii = IdTask()
     ll = ListTask()
-    div = DivTask()
+    div = DivTask(max_retries=1, retry_delay=datetime.timedelta(0))
 
     with Flow() as f:
-        divved = div.map(ll(start=0))
+        l_res = ll(start=0)
+        divved = div.map(l_res)
         res = ii.map(divved)
 
-    states = f.run(return_tasks=[divved], executor=executor)
-    assert states.is_failed()  # division by zero
+    states = f.run(return_tasks=f.tasks, executor=executor)
+    assert states.is_running()  # division by zero caused map to retry
 
     old = states.result[divved]
     assert old.result[1:] == [1.0, 0.5]
-    assert isinstance(old.result[0], ZeroDivisionError)
-    assert old.map_states[0].is_failed()
+    assert isinstance(old.map_states[0], Retrying)
 
-    old.map_states[0] = prefect.engine.state.Success(result=100)
-    states = f.run(
-        return_tasks=[res],
-        start_tasks=[res],
-        task_states={divved: old},
-        executor=executor,
-    )
+    # update upstream result
+    states.result[l_res].result[0] = 0.01
+    states = f.run(return_tasks=[res], task_states=states.result, executor=executor)
     assert states.is_successful()  # no divison by 0
 
     new = states.result[res]
@@ -459,12 +455,9 @@ def test_map_behaves_like_zip_with_differing_length_results(executor):
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
-def test_map_works_with_retries_and_cached_states(executor):
+def test_map_allows_retries_2(executor):
     """
-    This test isn't meant to test the correct way of handling caching for mapped
-    tasks, but is meant to test the only way that works right now - instead of
-    passing in a list of states for the mapped task, we instead pass in a list of
-    states for the _upstream_ task to the mapped task.
+    Another test of mapping and retries
     """
 
     @prefect.task
@@ -476,26 +469,16 @@ def test_map_works_with_retries_and_cached_states(executor):
     with Flow() as f:
         res = div.map(x=ll)
 
-    s = f.run(return_tasks=[ll, res], executor=executor)
+    s = f.run(return_tasks=f.tasks, executor=executor)
     assert s.is_running()
     m = s.result[res]
     assert m.map_states[0].is_pending()
     assert m.map_states[1].is_successful()
     assert m.map_states[2].is_successful()
 
-    # this is the part that is non-standard
-    # we create a list of _new_ states for the _upstream_ tasks of res
-    ll_state = s.result[ll]
+    s.result[ll].result[0] = 10
 
-    # cached_state = [type(ll_state)(result=x) for x in ll_state.result]
-    ll_state.result[0] = 10
-
-    s = f.run(
-        return_tasks=[res],
-        executor=executor,
-        task_states={ll: ll_state},
-        start_tasks=[res],
-    )
+    s = f.run(return_tasks=[res], executor=executor, task_states=s.result)
     assert s.is_successful()
     assert s.result[res].result[0] == 1 / 10
 
