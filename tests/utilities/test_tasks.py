@@ -1,3 +1,4 @@
+import inspect
 import pytest
 
 from prefect.core import Flow, Task
@@ -203,7 +204,7 @@ class TestDefaultFromAttrs:
                 self.x = x
                 super().__init__()
 
-            @tasks.defaults_from_attrs(["x"])
+            @tasks.defaults_from_attrs("x")
             def run(self, x=None):
                 "Lil doc"
                 return x
@@ -218,7 +219,7 @@ class TestDefaultFromAttrs:
                 self.y = y
                 super().__init__()
 
-            @tasks.defaults_from_attrs(["x"])
+            @tasks.defaults_from_attrs("x")
             def run(self, x=None, y=None):
                 return x, y
 
@@ -251,6 +252,23 @@ class TestDefaultFromAttrs:
         b = multitask(x=1, y=2)
         assert b.run(y=3, x=55) == (55, 3)
 
+    def test_works_with_mutiple_attrs(self):
+        class TestTask(Task):
+            def __init__(self, x=None, y=None):
+                self.x = x
+                self.y = y
+                super().__init__()
+
+            @tasks.defaults_from_attrs("x", "y")
+            def run(self, x=None, y=None):
+                return x, y
+
+        task = TestTask(x=1, y=2)
+        assert task.run() == (1, 2)
+        assert task.run(x=4) == (4, 2)
+        assert task.run(y=99) == (1, 99)
+        assert task.run(x=None, y=None) == (None, None)
+
     def test_raises_if_attr_wasnt_set_at_init(self):
         """
         It would be nice to raise this at creation time, but unfortunately
@@ -258,7 +276,7 @@ class TestDefaultFromAttrs:
         """
 
         class Forgot(Task):
-            @tasks.defaults_from_attrs(["x"])
+            @tasks.defaults_from_attrs("x")
             def run(self, x=None):
                 return x
 

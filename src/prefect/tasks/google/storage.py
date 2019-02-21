@@ -107,7 +107,7 @@ class GCSDownloadTask(GCSBaseTask):
         )
 
     @defaults_from_attrs(
-        ["blob", "bucket", "project", "credentials_secret", "encryption_key_secret"]
+        "blob", "bucket", "project", "credentials_secret", "encryption_key_secret"
     )
     def run(
         self,
@@ -200,14 +200,12 @@ class GCSUploadTask(GCSBaseTask):
         )
 
     @defaults_from_attrs(
-        [
-            "bucket",
-            "blob",
-            "project",
-            "create_bucket",
-            "credentials_secret",
-            "encryption_key_secret",
-        ]
+        "bucket",
+        "blob",
+        "project",
+        "create_bucket",
+        "credentials_secret",
+        "encryption_key_secret",
     )
     def run(
         self,
