@@ -14,7 +14,29 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 class BigQueryTask(Task):
     """
-    Query can be provided and mapped over via params.
+    Task for executing queries against a Google BigQuery table and (optionally) returning
+    the results.  Note that _all_ initialization settings can be provided / overwritten at runtime.
+
+    Args:
+        - query (str, optional): a string of the query to execute
+        - query_params (list[tuple], optional): a list of 3-tuples specifying BigQuery query parameters
+        - project (str, optional): the project to initialize the BigQuery Client with; if not provided, 
+            will default to the one inferred from your credentials
+        - location (str, optional): location of the dataset which will be queried; defaults to "US"
+        - dry_run_max_bytes (int, optional): if provided, the maximum number of bytes the query is allowed
+            to process; this will be determined by executing a dry run and raising a `ValueError` if the
+            maximum is exceeded
+        - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
+            of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
+        - dataset_dest (str, optional): the optional name of a destination dataset to write the
+            query results to, if you don't want them returned; if provided, `table_dest` must also be
+            provided
+        - table_dest (str, optional): the optional name of a destination table to write the
+            query results to, if you don't want them returned; if provided, `dataset_dest` must also be
+            provided
+        - job_config (dict, optional): an optional dictionary of job configuration parameters; note that
+            the parameters provided here must be pickleable (e.g., dataset references will be rejected)
+        - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
     def __init__(
@@ -66,6 +88,34 @@ class BigQueryTask(Task):
     ):
         """
         Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
+
+        Args:
+            - query (str, optional): a string of the query to execute
+            - query_params (list[tuple], optional): a list of 3-tuples specifying BigQuery query parameters
+            - project (str, optional): the project to initialize the BigQuery Client with; if not provided, 
+                will default to the one inferred from your credentials
+            - location (str, optional): location of the dataset which will be queried; defaults to "US"
+            - dry_run_max_bytes (int, optional): if provided, the maximum number of bytes the query is allowed
+                to process; this will be determined by executing a dry run and raising a `ValueError` if the
+                maximum is exceeded
+            - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
+                of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
+            - dataset_dest (str, optional): the optional name of a destination dataset to write the
+                query results to, if you don't want them returned; if provided, `table_dest` must also be
+                provided
+            - table_dest (str, optional): the optional name of a destination table to write the
+                query results to, if you don't want them returned; if provided, `dataset_dest` must also be
+                provided
+            - job_config (dict, optional): an optional dictionary of job configuration parameters; note that
+                the parameters provided here must be pickleable (e.g., dataset references will be rejected)
+
+        Raises:
+            - ValueError: if the `query` is `None`
+            - ValueError: if only one of `dataset_dest` / `table_dest` is provided
+            - ValueError: if the query will execeed `dry_run_max_bytes`
+
+        Returns:
+            - list: a fully populated list of Query results, with one item per row
         """
         ## check for any argument inconsistencies
         if query is None:
@@ -107,4 +157,4 @@ class BigQueryTask(Task):
             job_config.destination = table_ref
 
         query_job = client.query(query, location=location, job_config=job_config)
-        return query_job.result()
+        return list(query_job.result())
