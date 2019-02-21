@@ -20,7 +20,7 @@ class BigQueryTask(Task):
     Args:
         - query (str, optional): a string of the query to execute
         - query_params (list[tuple], optional): a list of 3-tuples specifying BigQuery query parameters
-        - project (str, optional): the project to initialize the BigQuery Client with; if not provided, 
+        - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
             will default to the one inferred from your credentials
         - location (str, optional): location of the dataset which will be queried; defaults to "US"
         - dry_run_max_bytes (int, optional): if provided, the maximum number of bytes the query is allowed
@@ -92,7 +92,7 @@ class BigQueryTask(Task):
         Args:
             - query (str, optional): a string of the query to execute
             - query_params (list[tuple], optional): a list of 3-tuples specifying BigQuery query parameters
-            - project (str, optional): the project to initialize the BigQuery Client with; if not provided, 
+            - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
                 will default to the one inferred from your credentials
             - location (str, optional): location of the dataset which will be queried; defaults to "US"
             - dry_run_max_bytes (int, optional): if provided, the maximum number of bytes the query is allowed
@@ -119,7 +119,7 @@ class BigQueryTask(Task):
         """
         ## check for any argument inconsistencies
         if query is None:
-            raise ValueError("No query not provided.")
+            raise ValueError("No query provided.")
         if sum([dataset_dest is None, table_dest is None]) == 1:
             raise ValueError(
                 "Both `dataset_dest` and `table_dest` must be provided if writing to a destination table."
