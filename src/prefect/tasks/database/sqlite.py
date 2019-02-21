@@ -27,7 +27,7 @@ class SQLiteQueryTask(Task):
         self.query = query
         super().__init__(**kwargs)
 
-    @defaults_from_attrs(["query"])
+    @defaults_from_attrs("query")
     def run(self, query: str = None):
         """
         Args:
@@ -62,7 +62,7 @@ class SQLiteScriptTask(Task):
         self.script = script
         super().__init__(**kwargs)
 
-    @defaults_from_attrs(["script"])
+    @defaults_from_attrs("script")
     def run(self, script: str = None):
         """
         Args:

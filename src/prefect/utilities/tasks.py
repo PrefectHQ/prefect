@@ -208,11 +208,10 @@ def defaults_from_attrs(*attr_args: str) -> Callable:
     Task is called.
 
     Args:
-        - attr_args (Iterable[str]): an iterable of strings specifying which
+        - *attr_args (str): a splatted list of strings specifying which
             kwargs should fallback to attributes, if not provided at runtime. Note that
             the strings provided here must match keyword arguments in the `run` call signature,
             as well as the names of attributes of this Task.
-        - run_method (Callable): the `Task.run` method to implement the behavior for
 
     Returns:
         - Callable: the decorated / altered `Task.run` method
@@ -224,7 +223,7 @@ def defaults_from_attrs(*attr_args: str) -> Callable:
             self.a = a
             self.b = b
 
-        @defaults_from_attrs(['a', 'b'])
+        @defaults_from_attrs('a', 'b')
         def run(self, a=None, b=None):
             return a, b
 
