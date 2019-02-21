@@ -129,86 +129,6 @@ def test_flow_runner_with_invalid_return_tasks():
     assert state.is_failed()
 
 
-def test_flow_runner_with_return_tasks_that_arent_evaluated():
-    flow = Flow()
-    t1, t2, t3 = Task(), Task(), Task()
-    flow.add_edge(t1, t2)
-    flow.add_edge(t1, t3)
-
-    flow_runner = FlowRunner(flow=flow)
-    with raise_on_exception():
-        state = flow_runner.run(start_tasks=[t3], return_tasks=[t1])
-    assert state.result[t1].is_pending()
-    assert state.result[t1].message == "Task not evaluated by FlowRunner."
-
-
-def test_flow_runner_with_reference_tasks_that_arent_evaluated():
-    flow = Flow()
-    t1, t2, t3 = Task(), Task(), Task()
-    flow.add_edge(t1, t2)
-    flow.add_edge(t1, t3)
-    flow.set_reference_tasks([t1])
-
-    flow_runner = FlowRunner(flow=flow)
-    with raise_on_exception():
-        state = flow_runner.run(start_tasks=[t3], return_tasks=[t1])
-    assert state.result[t1].is_pending()
-    assert state.result[t1].message == "Task not evaluated by FlowRunner."
-
-
-def test_flow_runner_with_terminal_tasks_that_arent_evaluated():
-    flow = Flow()
-    t1, t2, t3 = Task(), Task(), Task()
-    flow.add_edge(t1, t2)
-    flow.add_edge(t1, t3)
-
-    flow_runner = FlowRunner(flow=flow)
-    with raise_on_exception():
-        state = flow_runner.run(start_tasks=[t3], return_tasks=[t2])
-    assert state.result[t2].is_pending()
-    assert state.result[t2].message == "Task not evaluated by FlowRunner."
-
-
-def test_flow_runner_with_return_tasks_that_arent_evaluated():
-    flow = Flow()
-    t1, t2, t3 = Task(), Task(), Task()
-    flow.add_edge(t1, t2)
-    flow.add_edge(t1, t3)
-
-    flow_runner = FlowRunner(flow=flow)
-    with raise_on_exception():
-        state = flow_runner.run(start_tasks=[t3], return_tasks=[t1])
-    assert state.result[t1].is_pending()
-    assert state.result[t1].message == "Task not evaluated by FlowRunner."
-
-
-def test_flow_runner_with_reference_tasks_that_arent_evaluated():
-    flow = Flow()
-    t1, t2, t3 = Task(), Task(), Task()
-    flow.add_edge(t1, t2)
-    flow.add_edge(t1, t3)
-    flow.set_reference_tasks([t1])
-
-    flow_runner = FlowRunner(flow=flow)
-    with raise_on_exception():
-        state = flow_runner.run(start_tasks=[t3], return_tasks=[t1])
-    assert state.result[t1].is_pending()
-    assert state.result[t1].message == "Task not evaluated by FlowRunner."
-
-
-def test_flow_runner_with_terminal_tasks_that_arent_evaluated():
-    flow = Flow()
-    t1, t2, t3 = Task(), Task(), Task()
-    flow.add_edge(t1, t2)
-    flow.add_edge(t1, t3)
-
-    flow_runner = FlowRunner(flow=flow)
-    with raise_on_exception():
-        state = flow_runner.run(start_tasks=[t3], return_tasks=[t2])
-    assert state.result[t2].is_pending()
-    assert state.result[t2].message == "Task not evaluated by FlowRunner."
-
-
 def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
     flow = Flow()
     task1 = SuccessTask()
@@ -533,7 +453,6 @@ class TestRunFlowStep:
             state=Running(),
             task_states={},
             task_contexts={},
-            start_tasks=[],
             return_tasks=set(),
             task_runner_state_handlers=[],
             executor=LocalExecutor(),
@@ -550,7 +469,6 @@ class TestRunFlowStep:
                 state=state,
                 task_states={},
                 task_contexts={},
-                start_tasks=[],
                 return_tasks=set(),
                 task_runner_state_handlers=[],
                 executor=Executor(),
@@ -566,66 +484,12 @@ class TestRunFlowStep:
             state=Running(),
             task_states={},
             task_contexts={},
-            start_tasks=[],
             return_tasks=set(),
             task_runner_state_handlers=[],
             executor=LocalExecutor(),
         )
         assert new_state.is_failed()
         assert new_state.message == "Very specific error message"
-
-
-class TestStartTasks:
-    def test_start_tasks_are_respected(self):
-        f = Flow()
-        t1, t2, t3 = Task(), Task(), Task()
-        f.add_edge(t1, t2)
-        f.add_edge(t2, t3)
-        state = FlowRunner(flow=f).run(start_tasks=[t3], return_tasks=[t1, t2, t3])
-
-        assert "Task not evaluated" in state.result[t1].message
-        assert "Task not evaluated" in state.result[t2].message
-        assert "Task not evaluated" not in state.result[t3].message
-
-    def test_invalid_start_task(self):
-        f = Flow()
-        t1 = Task()
-        f.add_task(t1)
-
-        state = FlowRunner(flow=f).run(start_tasks=["nope"])
-
-        assert state.is_failed()
-        assert "not found in Flow" in str(state.result)
-
-    def test_start_tasks_ignores_triggers(self):
-        f = Flow()
-        t1, t2 = SuccessTask(), SuccessTask()
-        f.add_edge(t1, t2)
-        with raise_on_exception():
-            state = FlowRunner(flow=f).run(task_states={t1: Failed()}, start_tasks=[t2])
-        assert isinstance(state, Success)
-
-    def test_can_start_from_mapped_tasks(self):
-        @prefect.task
-        def my_list():
-            return [1, 2, 3]
-
-        @prefect.task
-        def add(x):
-            return x + 1
-
-        with Flow() as f:
-            res = my_list()
-
-        state = FlowRunner(flow=f).run(return_tasks=[res])
-
-        with f:
-            final = add.map(res)
-
-        final_state = FlowRunner(flow=f).run(
-            return_tasks=[final], start_tasks=[final], task_states=state.result
-        )
-        assert final_state.result[final].result == [2, 3, 4]
 
 
 class TestInputCaching:
@@ -636,66 +500,81 @@ class TestInputCaching:
         with Flow() as f:
             a = CountTask()
             b = ReturnTask(max_retries=1, retry_delay=datetime.timedelta(0))
-            res = b(a())
+            a_res = a()
+            b_res = b(a_res)
 
-        first_state = FlowRunner(flow=f).run(executor=executor, return_tasks=[res])
+        first_state = FlowRunner(flow=f).run(executor=executor, return_tasks=f.tasks)
         assert first_state.is_running()
-        b_state = first_state.result[res]
+
+        a_state = first_state.result[a_res]
+        a_state.result = (
+            NoResult
+        )  # remove the result to see if the cached results are picked up
+        b_state = first_state.result[b_res]
         b_state.cached_inputs = dict(x=Result(2))  # artificially alter state
+
         with raise_on_exception():  # without caching we'd expect a KeyError
             second_state = FlowRunner(flow=f).run(
-                executor=executor,
-                return_tasks=[res],
-                start_tasks=[res],
-                task_states={res: b_state},
+                executor=executor, return_tasks=[b_res], task_states=first_state.result
             )
         assert isinstance(second_state, Success)
-        assert second_state.result[res].result == 1
+        assert second_state.result[b_res].result == 1
 
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
-    def test_retries_only_uses_cache_data(self, executor):
+    def test_retries_cache_parameters_as_well(self, executor):
         with Flow() as f:
-            t1 = Task()
-            t2 = AddTask()
-            f.add_edge(t1, t2)
-
-        state = FlowRunner(flow=f).run(
-            executor=executor,
-            task_states={t2: Retrying(cached_inputs=dict(x=Result(4), y=Result(1)))},
-            start_tasks=[t2],
-            return_tasks=[t2],
-        )
-        assert isinstance(state, Success)
-        assert state.result[t2].result == 5
-
-    @pytest.mark.parametrize(
-        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-    )
-    def test_retries_caches_parameters_as_well(self, executor):
-        with Flow() as f:
-            x = Parameter("x")
-            a = ReturnTask(max_retries=1, retry_delay=datetime.timedelta(0))
-            res = a(x)
+            a = Parameter("a")
+            b = ReturnTask(max_retries=1, retry_delay=datetime.timedelta(0))
+            a_res = a()
+            b_res = b(a_res)
 
         first_state = FlowRunner(flow=f).run(
-            executor=executor, parameters=dict(x=1), return_tasks=[res]
+            executor=executor, parameters=dict(a=1), return_tasks=f.tasks
         )
         assert first_state.is_running()
 
-        res_state = first_state.result[res]
-        res_state.cached_inputs = dict(x=Result(2))  # artificially alter state
+        a_state = first_state.result[a_res]
+        a_state.result = (
+            NoResult
+        )  # remove the result to see if the cached results are picked up
+        b_state = first_state.result[b_res]
+        b_state.cached_inputs = dict(x=Result(2))  # artificially alter state
 
-        second_state = FlowRunner(flow=f).run(
-            executor=executor,
-            parameters=dict(x=1),
-            return_tasks=[res],
-            start_tasks=[res],
-            task_states={res: first_state.result[res]},
-        )
+        with raise_on_exception():  # without caching we'd expect a KeyError
+            second_state = FlowRunner(flow=f).run(
+                executor=executor, return_tasks=[b_res], task_states=first_state.result
+            )
         assert isinstance(second_state, Success)
-        assert second_state.result[res].result == 1
+        assert second_state.result[b_res].result == 1
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_retries_ignore_cached_inputs_if_upstream_results_are_available(
+        self, executor
+    ):
+        with Flow() as f:
+            a = CountTask()
+            b = ReturnTask(max_retries=1, retry_delay=datetime.timedelta(0))
+            a_res = a()
+            b_res = b(a_res)
+
+        first_state = FlowRunner(flow=f).run(executor=executor, return_tasks=f.tasks)
+        assert first_state.is_running()
+
+        a_state = first_state.result[a_res]
+        a_state.result = 100  # modify the result
+        b_state = first_state.result[b_res]
+        b_state.cached_inputs = dict(x=Result(2))  # artificially alter state
+
+        with raise_on_exception():  # without caching we'd expect a KeyError
+            second_state = FlowRunner(flow=f).run(
+                executor=executor, return_tasks=[b_res], task_states=first_state.result
+            )
+        assert isinstance(second_state, Success)
+        assert second_state.result[b_res].result == 1 / 99
 
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
@@ -708,17 +587,18 @@ class TestInputCaching:
             res = t(x, inp)
 
         first_state = FlowRunner(flow=f).run(
-            executor=executor, parameters=dict(x=11), return_tasks=[res]
+            executor=executor, parameters=dict(x=11), return_tasks=f.tasks
         )
         assert first_state.is_running()
+
+        first_state.result.update(
+            {res: Resume(cached_inputs=first_state.result[res].cached_inputs)}
+        )
         second_state = FlowRunner(flow=f).run(
             executor=executor,
             parameters=dict(x=1),
             return_tasks=[res],
-            start_tasks=[res],
-            task_states={
-                res: Resume(cached_inputs=first_state.result[res].cached_inputs)
-            },
+            task_states=first_state.result,
         )
         assert isinstance(second_state, Success)
         assert second_state.result[res].result == 12
@@ -1363,32 +1243,6 @@ class TestMapping:
         assert state.is_running()
         assert state.result[ups].is_pending()
         assert state.result[res].is_pending()
-
-    @pytest.mark.parametrize(
-        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
-    )
-    def test_mapped_tasks_do_run_if_upstream_pending_and_they_are_start_tasks(
-        self, executor
-    ):
-        """
-        Tests that that the full “children” pipelines are generated even if it might look like they shouldn’t run;
-        in this case, a Retrying task is the upstream task and it hasn’t reached it’s scheduled time yet
-        So we expect that the mapped task parent properly skips its upstream checks if it is the start_task
-        and attempts to generate its children, which, in this case, will simply fail the pipeline.
-        """
-
-        with Flow() as flow:
-            ups = SuccessTask()
-            res = ReturnTask().map([ups])
-
-        state = FlowRunner(flow=flow).run(
-            return_tasks=flow.tasks,
-            executor=executor,
-            start_tasks=[res],
-            task_states={ups: Retrying(start_time=pendulum.now().add(hours=1))},
-        )
-        assert state.is_failed()
-        assert "object does not support indexing" in state.result[res].message
 
     @pytest.mark.parametrize(
         "executor", ["local", "mthread", "mproc", "sync"], indirect=True
