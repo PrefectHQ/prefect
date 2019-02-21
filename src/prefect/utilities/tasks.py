@@ -198,8 +198,7 @@ class unmapped:
         self.task = as_task(task)
 
 
-@curry
-def defaults_from_attrs(attr_args: Iterable[str], run_method: Callable) -> Callable:
+def defaults_from_attrs(*attr_args: str) -> Callable:
     """
     Helper decorator for dealing with Task classes with attributes which serve
     as defaults for `Task.run`.  Specifically, this decorator allows the author of a Task
@@ -237,10 +236,13 @@ def defaults_from_attrs(attr_args: Iterable[str], run_method: Callable) -> Calla
     ```
     """
 
-    @wraps(run_method)
-    def method(self, *args, **kwargs):
-        for attr in attr_args:
-            kwargs.setdefault(attr, getattr(self, attr))
-        return run_method(self, *args, **kwargs)
+    def wrapper(run_method):
+        @wraps(run_method)
+        def method(self, *args, **kwargs):
+            for attr in attr_args:
+                kwargs.setdefault(attr, getattr(self, attr))
+            return run_method(self, *args, **kwargs)
 
-    return method
+        return method
+
+    return wrapper
