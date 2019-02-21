@@ -9,4 +9,4 @@ Note that these tasks allow for a wide range of custom usage patterns, such as:
 """
 import prefect.tasks.google.storage
 
-from prefect.tasks.google.storage import GoogleCloudStorageTask
+from prefect.tasks.google.storage import GCSDownloadTask, GCSUploadTask
