@@ -132,7 +132,7 @@ functions = ["switch", "ifelse", "merge"]
 [pages.tasks.google]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.google"
-classes = ["GCSDownloadTask", "GCSUploadTask"]
+classes = ["GCSDownloadTask", "GCSUploadTask", "BigQueryTask"]
 
 [pages.tasks.sqlite]
 title = "SQLite Tasks"

@@ -117,3 +117,43 @@ class TestCredentialsandProjects:
         assert x[1]["project"] == "default"  ## pulled from credentials
         assert y[1]["project"] == "test-init"  ## pulled from init
         assert z[1]["project"] == "run-time"  ## pulled from run kwarg
+
+
+class TestDryRuns:
+    def test_dry_run_doesnt_raise_if_limit_not_exceeded(self, monkeypatch):
+        task = BigQueryTask(dry_run_max_bytes=1200)
+
+        client = MagicMock(
+            query=MagicMock(return_value=MagicMock(total_bytes_processed=1200))
+        )
+        monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", MagicMock())
+        monkeypatch.setattr(
+            "prefect.tasks.google.bigquery.bigquery.Client",
+            MagicMock(return_value=client),
+        )
+
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="{}")):
+                task.run(query="SELECT *")
+
+    def test_dry_run_raises_if_limit_is_exceeded(self, monkeypatch):
+        task = BigQueryTask(dry_run_max_bytes=1200)
+
+        client = MagicMock(
+            query=MagicMock(return_value=MagicMock(total_bytes_processed=21836427))
+        )
+        monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", MagicMock())
+        monkeypatch.setattr(
+            "prefect.tasks.google.bigquery.bigquery.Client",
+            MagicMock(return_value=client),
+        )
+
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="{}")):
+                with pytest.raises(ValueError) as exc:
+                    task.run(query="SELECT *")
+
+        assert (
+            "Query will process 21836427 bytes which is above the set maximum of 1200 for this task"
+            in str(exc.value)
+        )
