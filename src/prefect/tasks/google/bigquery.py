@@ -19,7 +19,8 @@ class BigQueryTask(Task):
 
     Args:
         - query (str, optional): a string of the query to execute
-        - query_params (list[tuple], optional): a list of 3-tuples specifying BigQuery query parameters
+        - query_params (list[tuple], optional): a list of 3-tuples specifying
+            BigQuery query parameters; currently only scalar query parameters are supported
         - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
             will default to the one inferred from your credentials
         - location (str, optional): location of the dataset which will be queried; defaults to "US"
@@ -77,7 +78,7 @@ class BigQueryTask(Task):
     def run(
         self,
         query: str = None,
-        query_params: List[tuple] = None,  # 3-tuples
+        query_params: List[tuple] = None,
         project: str = None,
         location: str = "US",
         dry_run_max_bytes: int = None,
@@ -91,7 +92,8 @@ class BigQueryTask(Task):
 
         Args:
             - query (str, optional): a string of the query to execute
-            - query_params (list[tuple], optional): a list of 3-tuples specifying BigQuery query parameters
+            - query_params (list[tuple], optional): a list of 3-tuples specifying
+                BigQuery query parameters; currently only scalar query parameters are supported
             - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
                 will default to the one inferred from your credentials
             - location (str, optional): location of the dataset which will be queried; defaults to "US"
@@ -133,6 +135,11 @@ class BigQueryTask(Task):
 
         ## setup jobconfig
         job_config = bigquery.QueryJobConfig(**job_config)
+        if query_params is not None:
+            hydrated_params = [
+                bigquery.ScalarQueryParameter(*qp) for qp in query_params
+            ]
+            job_config.query_parameters = hydrated_params
 
         ## perform dry_run if requested
         if dry_run_max_bytes is not None:
