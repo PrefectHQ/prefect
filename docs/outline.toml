@@ -12,11 +12,10 @@ module = "prefect.environments"
 classes = ["LocalEnvironment", "DockerEnvironment"]
 title = "Base Environments"
 
-# This should be broken up better
-[pages.environments.kubernetes]
+[pages.environments.kubernetes.docker_on_kubernetes]
 module = "prefect.environments.kubernetes"
-classes = ["LocalOnKubernetes", "DockerOnKubernetes"]
-title = "Kubernetes Environments"
+classes = ["DockerOnKubernetes"]
+title = "DockerOnKubernetes Environment"
 
 [pages.triggers]
 title = "Triggers"

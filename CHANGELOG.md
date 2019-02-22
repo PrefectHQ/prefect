@@ -20,7 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add timestamp to auto-generated API docs footer - [#639](https://github.com/PrefectHQ/prefect/pull/639)
 - Refactor `Result` interface into `Result` and `SafeResult` - [#649](https://github.com/PrefectHQ/prefect/pull/649)
 - The `manual_only` trigger will pass if `resume=True` is found in context, which indicates that a `Resume` state was passed - [#664](https://github.com/PrefectHQ/prefect/issues/664)
-- Added LocalOnKubernetes and DockerOnKubernetes environments (PIN-3) - [#670](https://github.com/PrefectHQ/prefect/pull/670)
+- Added DockerOnKubernetes environment (PIN-3) - [#670](https://github.com/PrefectHQ/prefect/pull/670)
 - Added Prefect docker image (PIN-3) - [#670](https://github.com/PrefectHQ/prefect/pull/670)
 
 ### Fixes

@@ -304,49 +304,7 @@ class TestLocalEnvironment:
 
 
 #################################
-##### LocalOnKubernetes Tests
-#################################
-
-
-class TestLocalOnKubernetesEnvironment:
-    def test_create_local_on_kubernetes_environment(self):
-        env = kubernetes.LocalOnKubernetesEnvironment()
-        assert env
-
-    def test_local_on_kubernetes_environment_has_default_image(self):
-        env = kubernetes.LocalOnKubernetesEnvironment()
-        assert env.base_image == "python:3.6"
-
-    def test_local_on_kubernetes_environment_variables(self):
-        env = kubernetes.LocalOnKubernetesEnvironment(registry_url="a")
-        assert env.base_image == "python:3.6"
-        assert env.registry_url == "a"
-        assert not env.python_dependencies
-        assert not env.image_name
-        assert not env.image_tag
-        assert not env.env_vars
-        assert not env.files
-
-    def test_local_on_kubernetes_environment_identifier_label(self):
-        env = kubernetes.LocalOnKubernetesEnvironment()
-        assert env.identifier_label
-
-    def test_local_on_kubernetes_environment_setup_does_nothing(self):
-        env = kubernetes.LocalOnKubernetesEnvironment()
-        env.setup()
-        assert env
-
-    def test_local_on_kubernetes_environment_execution_raises_error_out_of_cluster(
-        self
-    ):
-        env = kubernetes.LocalOnKubernetesEnvironment()
-        with pytest.raises(EnvironmentError) as exc:
-            env.execute()
-        assert "Environment not currently inside a cluster" in str(exc.value)
-
-
-#################################
-##### LocalOnKubernetes Tests
+##### DockerOnKubernetes Tests
 #################################
 
 

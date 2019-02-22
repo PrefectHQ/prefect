@@ -10,7 +10,6 @@ from prefect.serialization.environment import (
     DockerEnvironmentSchema,
     EnvironmentSchema,
     LocalEnvironmentSchema,
-    LocalOnKubernetesEnvironmentSchema,
     DockerOnKubernetesEnvironmentSchema,
 )
 
@@ -101,49 +100,6 @@ def test_environment_schema_with_docker_environment():
     serialized = EnvironmentSchema().dump(env)
     deserialized = EnvironmentSchema().load(serialized)
     assert isinstance(deserialized, environments.DockerEnvironment)
-    assert deserialized.registry_url == env.registry_url
-    assert deserialized.base_image == env.base_image
-
-
-#################################
-##### LocalOnKubernetes Tests
-#################################
-
-
-def test_serialize_local_on_kubernetes_environment():
-    env = environments.kubernetes.LocalOnKubernetesEnvironment(registry_url="f")
-    serialized = LocalOnKubernetesEnvironmentSchema().dump(env)
-    assert serialized["registry_url"] == "f"
-    assert serialized["__version__"] == prefect.__version__
-
-
-def test_deserialize_empty_local_on_kubernetes_environment():
-    schema = LocalOnKubernetesEnvironmentSchema()
-    with pytest.raises(marshmallow.ValidationError):
-        schema.load(schema.dump({}))
-
-
-def test_deserialize_minimal_local_on_kubernetes_environment():
-    schema = LocalOnKubernetesEnvironmentSchema()
-    assert schema.load(schema.dump({"base_image": "a", "registry_url": "b"}))
-
-
-def test_deserialize_local_on_kubernetes_environment():
-    env = environments.kubernetes.LocalOnKubernetesEnvironment(registry_url="f")
-    serialized = LocalOnKubernetesEnvironmentSchema().dump(env)
-    deserialized = LocalOnKubernetesEnvironmentSchema().load(serialized)
-
-    assert deserialized.base_image == env.base_image
-    assert deserialized.registry_url == env.registry_url
-
-
-def test_environment_schema_with_local_on_kubernetes_environment():
-    env = environments.kubernetes.LocalOnKubernetesEnvironment(registry_url="f")
-    serialized = LocalOnKubernetesEnvironmentSchema().dump(env)
-    deserialized = LocalOnKubernetesEnvironmentSchema().load(serialized)
-    assert isinstance(
-        deserialized, environments.kubernetes.LocalOnKubernetesEnvironment
-    )
     assert deserialized.registry_url == env.registry_url
     assert deserialized.base_image == env.base_image
 
