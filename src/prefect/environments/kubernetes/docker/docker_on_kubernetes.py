@@ -21,7 +21,9 @@ class DockerOnKubernetesEnvironment(DockerEnvironment):
     (A future environment will allow for a minimal set up which does not require pip)
 
     There are no set up requirements, and execute creates a single job that has the role
-    of running the flow.
+    of running the flow. The job created in the execute function does have the requirement in that
+    it needs to have an `identifier_label` set with a UUID so resources can be cleaned up
+    independently of other deployments.
     """
 
     def __init__(
