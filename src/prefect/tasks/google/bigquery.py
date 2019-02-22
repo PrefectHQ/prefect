@@ -20,7 +20,9 @@ class BigQueryTask(Task):
     Args:
         - query (str, optional): a string of the query to execute
         - query_params (list[tuple], optional): a list of 3-tuples specifying
-            BigQuery query parameters; currently only scalar query parameters are supported
+            BigQuery query parameters; currently only scalar query parameters are supported. See
+            [the Google documentation](https://cloud.google.com/bigquery/docs/parameterized-queries#bigquery-query-params-python)
+            for more details on how both the query and the query parameters should be formatted
         - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
             will default to the one inferred from your credentials
         - location (str, optional): location of the dataset which will be queried; defaults to "US"
@@ -93,7 +95,9 @@ class BigQueryTask(Task):
         Args:
             - query (str, optional): a string of the query to execute
             - query_params (list[tuple], optional): a list of 3-tuples specifying
-                BigQuery query parameters; currently only scalar query parameters are supported
+                BigQuery query parameters; currently only scalar query parameters are supported. See
+                [the Google documentation](https://cloud.google.com/bigquery/docs/parameterized-queries#bigquery-query-params-python)
+                for more details on how both the query and the query parameters should be formatted
             - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
                 will default to the one inferred from your credentials
             - location (str, optional): location of the dataset which will be queried; defaults to "US"
