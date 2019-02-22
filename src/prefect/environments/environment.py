@@ -68,7 +68,7 @@ class Environment:
         """
         raise NotImplementedError()
 
-    def run(self) -> "prefect.engine.state.State":
+    def run(self) -> "prefect.engine.state.State":  # type: ignore
         """
         Runs the `Flow` represented by this environment.
 
