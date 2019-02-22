@@ -15,7 +15,8 @@ from prefect.environments import DockerEnvironment
 class DockerOnKubernetesEnvironment(DockerEnvironment):
     """
     DockerOnKubernetes is an environment which deploys your image of choice on Kubernetes.
-    *Note*: Make sure the base image is able to pip install Prefect.
+    *Note*: Make sure the base image is able to pip install Prefect. The default image for this
+    environment is Python 3.6.
 
     (A future environment will allow for a minimal set up which does not require pip)
 
@@ -25,7 +26,7 @@ class DockerOnKubernetesEnvironment(DockerEnvironment):
 
     def __init__(
         self,
-        base_image: str,
+        base_image: str = "python:3.6",
         registry_url: str = None,
         python_dependencies: list = None,
         image_name: str = None,
