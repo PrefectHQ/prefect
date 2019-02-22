@@ -139,8 +139,8 @@ class DockerEnvironment(Environment):
         """Pull the image specified so it can be built.
 
         In order for the docker python library to use a base image it must be pulled
-        from either the main docker registry or a separate registry that must be set in
-        the environment variables.
+        from either the main docker registry or a separate registry that must be set as
+        `registry_url` on this class.
         """
         client = docker.APIClient(base_url="unix://var/run/docker.sock")
 
