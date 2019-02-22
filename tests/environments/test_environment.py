@@ -1,9 +1,6 @@
-
 import pytest
 
-from prefect.environments import (
-    Environment,
-)
+from prefect.environments import Environment
 
 #################################
 ##### Environment Tests

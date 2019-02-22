@@ -1,10 +1,7 @@
-
 import pytest
 
 import prefect
-from prefect.environments import (
-    kubernetes,
-)
+from prefect.environments import kubernetes
 
 #################################
 ##### DockerOnKubernetes Tests

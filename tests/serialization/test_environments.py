@@ -127,10 +127,7 @@ def test_serialize_docker_on_kubernetes_environment():
 
 def test_serialize_docker_on_kubernetes_environment_no_base_image():
     env = environments.kubernetes.DockerOnKubernetesEnvironment(
-        python_dependencies=["b", "c"],
-        registry_url="f",
-        image_name="g",
-        image_tag="h",
+        python_dependencies=["b", "c"], registry_url="f", image_name="g", image_tag="h"
     )
     serialized = DockerOnKubernetesEnvironmentSchema().dump(env)
     assert serialized["base_image"] == "python:3.6"
@@ -138,6 +135,7 @@ def test_serialize_docker_on_kubernetes_environment_no_base_image():
     assert serialized["image_name"] == "g"
     assert serialized["image_tag"] == "h"
     assert serialized["__version__"] == prefect.__version__
+
 
 def test_deserialize_empty_docker_on_kubernetes_environment():
     schema = DockerOnKubernetesEnvironmentSchema()
