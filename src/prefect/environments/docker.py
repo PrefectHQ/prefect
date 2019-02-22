@@ -19,9 +19,9 @@ from prefect.environments import LocalEnvironment
 
 class DockerEnvironment(Environment):
     """
-    This is a base environment which takes a flow, serialized it into a LocalEnvironment,
+    This is a base environment which takes a flow, serializes it into a LocalEnvironment,
     and places it inside of a Docker image. This image is then used in any environment
-    which depende on using Docker containers (e.g. the Kubernetes environments).
+    which depends on using Docker containers (e.g. the Kubernetes environments).
     """
 
     def __init__(
