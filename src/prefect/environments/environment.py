@@ -9,8 +9,8 @@ example, a `LocalEnvironment` runs a flow in the local process; a `DockerEnviron
 runs a flow in a Docker container.
 
 Environments that are written on top of a type of infrastructure also define how to
-set up and execute that environment. e.g. LocalOnKubernetes is an environment which
-runs a flow on Kubernetes using only the LocalEnvironment.
+set up and execute that environment. e.g. DockerOnKubernetes is an environment which
+runs a flow on Kubernetes using the DockerEnvironment.
 
 Some of the information that the environment requires to run a flow -- such as the flow
 itself -- may not available when the Environment class is instantiated. Therefore, Environments
