@@ -152,7 +152,6 @@ class TaskRunner(Runner):
         self,
         state: State = None,
         upstream_states: Dict[Edge, State] = None,
-        check_upstream: bool = True,
         context: Dict[str, Any] = None,
         executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
@@ -167,9 +166,6 @@ class TaskRunner(Runner):
             - upstream_states (Dict[Edge, State]): a dictionary
                 representing the states of any tasks upstream of this one. The keys of the
                 dictionary should correspond to the edges leading to the task.
-            - check_upstream (bool): boolean specifying whether to check upstream states
-                when deciding if the task should run. Defaults to `True`, but could be set to
-                `False` to force the task to run.
             - context (dict, optional): prefect Context to use for execution
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
@@ -201,7 +197,6 @@ class TaskRunner(Runner):
         )
 
         try:
-
             # initialize the run
             state, context = self.initialize_run(state, context)
 
@@ -214,19 +209,16 @@ class TaskRunner(Runner):
                 # check if the task has reached its scheduled time
                 state = self.check_task_reached_start_time(state)
 
-                if check_upstream:
-
-                    # Tasks never run if the upstream tasks haven't finished
-                    state = self.check_upstream_finished(
-                        state, upstream_states=upstream_states
-                    )
+                # Tasks never run if the upstream tasks haven't finished
+                state = self.check_upstream_finished(
+                    state, upstream_states=upstream_states
+                )
 
                 # if the task is mapped, process the mapped children and exit
                 if mapped:
                     state = self.run_mapped_task(
                         state=state,
                         upstream_states=upstream_states,
-                        check_upstream=check_upstream,
                         context=context,
                         executor=executor,
                     )
@@ -240,12 +232,10 @@ class TaskRunner(Runner):
                     )
                     raise ENDRUN(state)
 
-                if check_upstream:
-
-                    # check if any upstream tasks skipped (and if we need to skip)
-                    state = self.check_upstream_skipped(
-                        state, upstream_states=upstream_states
-                    )
+                # check if any upstream tasks skipped (and if we need to skip)
+                state = self.check_upstream_skipped(
+                    state, upstream_states=upstream_states
+                )
 
                 # retrieve task inputs from upstream and also explicitly passed inputs
                 task_inputs = self.get_task_inputs(
@@ -255,14 +245,10 @@ class TaskRunner(Runner):
                 # check to see if the task has a cached result
                 state = self.check_task_is_cached(state, inputs=task_inputs)
 
+                # check if the task's trigger passes
                 # triggers can raise Pauses, which require task_inputs to be available for caching
                 # so we run this after the previous step
-                if check_upstream:
-
-                    # check if the task's trigger passes
-                    state = self.check_task_trigger(
-                        state, upstream_states=upstream_states
-                    )
+                state = self.check_task_trigger(state, upstream_states=upstream_states)
 
                 # set the task state to running
                 state = self.set_task_to_running(state)
@@ -520,8 +506,7 @@ class TaskRunner(Runner):
             - State: the state of the task after performing the check
 
         Raises:
-            - ENDRUN: if the task is not a start task and Scheduled with a future
-                scheduled time
+            - ENDRUN: if the task is Scheduled with a future scheduled time
         """
         if isinstance(state, Scheduled):
             if state.start_time and state.start_time > pendulum.now("utc"):
@@ -607,7 +592,6 @@ class TaskRunner(Runner):
         self,
         state: State,
         upstream_states: Dict[Edge, State],
-        check_upstream: bool,
         context: Dict[str, Any],
         executor: "prefect.engine.executors.Executor",
     ) -> State:
@@ -617,9 +601,6 @@ class TaskRunner(Runner):
         Args:
             - state (State): the current task state
             - upstream_states (Dict[Edge, State]): the upstream states
-            - check_upstream (bool): boolean specifying whether to check upstream states
-                when deciding if the task should run. Defaults to `True`, but could be set to
-                `False` to force the task to run.
             - context (dict, optional): prefect Context to use for execution
             - executor (Executor): executor to use when performing computation
 
@@ -694,7 +675,6 @@ class TaskRunner(Runner):
                 upstream_states=upstream_states,
                 # if we set the state here, then it will not be processed by `initialize_run()`
                 state=state,
-                check_upstream=check_upstream,
                 context=map_context,
                 executor=executor,
             )

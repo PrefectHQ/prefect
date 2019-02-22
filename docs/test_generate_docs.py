@@ -15,8 +15,9 @@ from generate_docs import (
     get_class_methods,
     get_source,
 )
-from prefect import task
+from prefect import task, Task
 from prefect.engine.state import State
+from prefect.utilities.tasks import defaults_from_attrs
 
 pytest.mark.skipif(sys.version_info < (3, 6))
 pytestmark = pytest.mark.formatting
@@ -91,6 +92,12 @@ class A:
         pass
 
 
+class MyTask(Task):
+    @defaults_from_attrs("y", "z")
+    def run(self, x, y=None, z=None):
+        return x, y, z
+
+
 @pytest.mark.parametrize(
     "obj,exp",
     [
@@ -106,6 +113,7 @@ class A:
         (A.from_nothing, "stuff=None"),
         (CustomException, "x"),
         (NamedException, "*args, **kwargs"),
+        (MyTask.run, "x, y=None, z=None"),
     ],
 )
 def test_format_signature(obj, exp):
@@ -123,6 +131,7 @@ def test_format_signature(obj, exp):
         (varargs_no_default, "*args, iso, **kwargs"),
         (A.run, "*args, b=True, **kwargs"),
         (A.y, "*args, b, **kwargs"),
+        (MyTask.run, "x, y=None, z=None"),
     ],
 )
 def test_format_signature_with_curry(obj, exp):

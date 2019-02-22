@@ -177,7 +177,6 @@ class FlowRunner(Runner):
         self,
         state: State = None,
         task_states: Dict[Task, State] = None,
-        start_tasks: Iterable[Task] = None,
         return_tasks: Iterable[Task] = None,
         parameters: Dict[str, Any] = None,
         task_runner_state_handlers: Iterable[Callable] = None,
@@ -194,9 +193,6 @@ class FlowRunner(Runner):
                 `Pending`
             - task_states (dict, optional): dictionary of task states to begin
                 computation with, with keys being Tasks and values their corresponding state
-            - start_tasks ([Task], optional): list of Tasks to begin computation
-                from; if any `start_tasks` have upstream dependencies, their states may
-                need to be provided as well.
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
             - parameters (dict, optional): dictionary of any needed Parameter
@@ -243,7 +239,6 @@ class FlowRunner(Runner):
                     state,
                     task_states=task_states,
                     task_contexts=task_contexts,
-                    start_tasks=start_tasks,
                     return_tasks=return_tasks,
                     task_runner_state_handlers=task_runner_state_handlers,
                     executor=executor,
@@ -348,7 +343,6 @@ class FlowRunner(Runner):
         state: State,
         task_states: Dict[Task, State],
         task_contexts: Dict[Task, Dict[str, Any]],
-        start_tasks: Iterable[Task],
         return_tasks: Set[Task],
         task_runner_state_handlers: Iterable[Callable],
         executor: "prefect.engine.executors.base.Executor",
@@ -362,9 +356,6 @@ class FlowRunner(Runner):
             - task_states (dict): dictionary of task states to begin
                 computation with, with keys being Tasks and values their corresponding state
             - task_contexts (Dict[Task, Dict[str, Any]]): contexts that will be provided to each task
-            - start_tasks ([Task]): list of Tasks to begin computation
-                from; if any `start_tasks` have upstream dependencies, their states may need to be provided as well.
-                Defaults to `self.flow.root_tasks()`
             - return_tasks ([Task], optional): list of Tasks to include in the
                 final returned Flow state. Defaults to `None`
             - task_runner_state_handlers (Iterable[Callable]): A list of state change
@@ -382,10 +373,6 @@ class FlowRunner(Runner):
             self.logger.info("Flow is not in a Running state.")
             raise ENDRUN(state)
 
-        # make copies to avoid modifying the user-supplied values
-        start_tasks = list(start_tasks or [])
-
-        # don't make a copy to allow dynamic modification
         if return_tasks is None:
             return_tasks = set()
         if set(return_tasks).difference(self.flow.tasks):
@@ -395,7 +382,17 @@ class FlowRunner(Runner):
 
         with executor.start():
 
-            for task in self.flow.sorted_tasks(root_tasks=start_tasks):
+            for task in self.flow.sorted_tasks():
+
+                task_state = task_states.get(task)
+
+                # if the state is finished, don't run the task, just use the provided state
+                if (
+                    isinstance(task_state, State)
+                    and task_state.is_finished()
+                    and not task_state.is_mapped()
+                ):
+                    continue
 
                 upstream_states = {}  # type: Dict[Edge, Union[State, Iterable]]
 
@@ -410,10 +407,8 @@ class FlowRunner(Runner):
                 task_states[task] = executor.submit(
                     self.run_task,
                     task=task,
-                    state=task_states.get(task),
+                    state=task_state,
                     upstream_states=upstream_states,
-                    # if the task is a "start task", don't check its upstream dependencies
-                    check_upstream=(task not in start_tasks),
                     context=dict(prefect.context, **task_contexts.get(task, {})),
                     task_runner_state_handlers=task_runner_state_handlers,
                     executor=executor,
@@ -511,7 +506,6 @@ class FlowRunner(Runner):
         task: Task,
         state: State,
         upstream_states: Dict[Edge, State],
-        check_upstream: bool,
         context: Dict[str, Any],
         task_runner_state_handlers: Iterable[Callable],
         executor: "prefect.engine.executors.Executor",
@@ -526,7 +520,6 @@ class FlowRunner(Runner):
             - state (State): starting state for the Flow. Defaults to
                 `Pending`
             - upstream_states (Dict[Edge, State]): dictionary of upstream states
-            - check_upstream (bool): if False, the task will skip its upstream checks
             - context (Dict[str, Any]): a context dictionary for the task run
             - task_runner_state_handlers (Iterable[Callable]): A list of state change
                 handlers that will be provided to the task_runner, and called whenever a task changes
@@ -557,8 +550,6 @@ class FlowRunner(Runner):
         return task_runner.run(
             state=state,
             upstream_states=upstream_states,
-            # if the task is a "start task", don't check its upstream dependencies
-            check_upstream=check_upstream,
             context=context,
             executor=executor,
         )

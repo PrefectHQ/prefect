@@ -1280,7 +1280,6 @@ class TestRunMappedStep:
         state = TaskRunner(task=Task()).run_mapped_task(
             state=Pending(),
             upstream_states={},
-            check_upstream=True,
             context={},
             executor=prefect.engine.executors.LocalExecutor(),
         )
@@ -1290,7 +1289,6 @@ class TestRunMappedStep:
         state = TaskRunner(task=Task()).run_mapped_task(
             state=Pending(),
             upstream_states={},
-            check_upstream=True,
             context={},
             executor=prefect.engine.executors.LocalExecutor(),
         )
