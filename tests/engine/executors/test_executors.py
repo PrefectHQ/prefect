@@ -13,8 +13,7 @@ import pytest
 import prefect
 from prefect.engine.executors import Executor, LocalExecutor, SynchronousExecutor
 
-if sys.version_info >= (3, 5):
-    from prefect.engine.executors import DaskExecutor
+from prefect.engine.executors import DaskExecutor
 
 
 class TestBaseExecutor:
@@ -148,15 +147,6 @@ class TestLocalExecutor:
         assert res == []
 
 
-@pytest.mark.skipif(sys.version_info >= (3, 5), reason="Only raised in Python 3.4")
-def test_importing_dask_raises_informative_import_error():
-    with pytest.raises(ImportError) as exc:
-        from prefect.engine.executors.dask import DaskExecutor
-    assert (
-        exc.value.msg == "The DaskExecutor is only locally compatible with Python 3.5+"
-    )
-
-
 @pytest.mark.parametrize("executor", ["mproc", "mthread", "sync"], indirect=True)
 def test_submit_does_not_assume_pure_functions(executor):
     def random_fun():
@@ -179,9 +169,6 @@ def test_executor_has_compatible_timeout_handler(executor):
             )
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
-)
 def test_dask_processes_executor_raises_if_timeout_attempted(mproc):
     slow_fn = lambda: time.sleep(3)
     with mproc.start():
@@ -190,9 +177,6 @@ def test_dask_processes_executor_raises_if_timeout_attempted(mproc):
     assert "daemonic" in str(exc)
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
-)
 class TestDaskExecutor:
     @pytest.fixture(scope="class")
     def executors(self):

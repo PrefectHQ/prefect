@@ -47,7 +47,7 @@ Pefect's documentation -- including concepts, tutorials, and a full API referenc
 
 ### Requirements
 
-Prefect requires Python 3.4+. Dask execution requires Python 3.5+.
+Prefect requires Python 3.5+.
 
 ### Install latest release
 
