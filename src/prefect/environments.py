@@ -208,7 +208,7 @@ class ContainerEnvironment(Environment):
 
     Args:
         - base_image (str): The image to pull that is used as a base for the Docker container
-        *Note*: Images must include Python 3.4+ and `pip`.
+        *Note*: Images must include Python 3.5+ and `pip`.
         - registry_url (str, optional): The registry to push the image to (if not provided, this environment cannot be pushed)
         - python_dependencies (list, optional): The list of pip installable python packages
         that will be installed on build of the Docker container
