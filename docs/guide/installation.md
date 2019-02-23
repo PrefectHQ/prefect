@@ -7,7 +7,7 @@ title: Installation
 
 ## Requirements
 
-Prefect requires Python 3.4+, and Python 3.6 or higher is recommended.
+Prefect requires Python 3.5+, and Python 3.6 or higher is recommended.
 
 ## Installation
 
