@@ -40,6 +40,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Rename `Match` task (used inside control flow) to `CompareValue` - [#638](https://github.com/PrefectHQ/prefect/pull/638)
 - `Client.graphql()` now returns a response with up to two keys (`data` and `errors`). Previously the `data` key was automatically selected - [#642](https://github.com/PrefectHQ/prefect/pull/642)
 - Removed `start_tasks` argument from `FlowRunner.run()` and `check_upstream` argument from `TaskRunner.run()` - [#672](https://github.com/PrefectHQ/prefect/pull/672)
+- Remove support for Python 3.4 - [#671](https://github.com/PrefectHQ/prefect/issues/671)
 
 ## 0.4.1 <Badge text="beta" type="success"/>
 
