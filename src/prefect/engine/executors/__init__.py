@@ -26,13 +26,8 @@ Currently, the available executor options are:
 Which executor you choose depends on whether you intend to use things like parallelism
 of task execution.
 """
-import sys
-
-
 import prefect
 from prefect.engine.executors.base import Executor
+from prefect.engine.executors.dask import DaskExecutor
 from prefect.engine.executors.local import LocalExecutor
 from prefect.engine.executors.sync import SynchronousExecutor
-
-if sys.version_info >= (3, 5):
-    from prefect.engine.executors.dask import DaskExecutor

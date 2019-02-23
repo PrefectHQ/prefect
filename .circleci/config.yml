@@ -26,12 +26,12 @@ jobs:
           command: mypy src/
 
   # ----------------------------------
-  # Run unit tests in Python 3.4-3.7
+  # Run unit tests in Python 3.5-3.7
   # ----------------------------------
 
-  test-3.4:
+  test-3.5:
     docker:
-      - image: python:3.4
+      - image: python:3.5
 
     # store steps as an alias to reuse them with different python versions
     steps: &run_test_steps
@@ -48,11 +48,6 @@ jobs:
       - run:
           name: Run tests
           command: pytest
-
-  test-3.5:
-    docker:
-      - image: python:3.5
-    steps: *run_test_steps
 
   test-3.6:
     docker:
@@ -87,7 +82,6 @@ workflows:
   run_all:
     jobs:
       - check_formatting
-      - test-3.4
       - test-3.5
       - test-3.6
       - test-3.7

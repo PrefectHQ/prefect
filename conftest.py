@@ -7,9 +7,8 @@ import prefect
 from prefect.engine.executors import LocalExecutor, SynchronousExecutor
 from prefect.utilities import debug
 
-if sys.version_info >= (3, 5):
-    from prefect.engine.executors import DaskExecutor
-    from distributed import Client
+from prefect.engine.executors import DaskExecutor
+from distributed import Client
 
 # ----------------
 # set up executor fixtures
@@ -19,11 +18,8 @@ if sys.version_info >= (3, 5):
 @pytest.fixture(scope="session")
 def mthread():
     "Multi-threaded executor"
-    if sys.version_info >= (3, 5):
-        with Client(processes=False) as client:
-            yield DaskExecutor(client.scheduler.address)
-    else:
-        yield
+    with Client(processes=False) as client:
+        yield DaskExecutor(client.scheduler.address)
 
 
 @pytest.fixture()
@@ -41,11 +37,8 @@ def sync():
 @pytest.fixture(scope="session")
 def mproc():
     "Multi-processing executor"
-    if sys.version_info >= (3, 5):
-        with Client(processes=True) as client:
-            yield DaskExecutor(client.scheduler.address, local_processes=True)
-    else:
-        yield
+    with Client(processes=True) as client:
+        yield DaskExecutor(client.scheduler.address, local_processes=True)
 
 
 @pytest.fixture()
@@ -72,13 +65,6 @@ def executor(request, _switch):
         ```
     or with some subset of executors that you want to use.
     """
-    if sys.version_info < (3, 5) and request.param in ["mthread", "mproc"]:
-        request.applymarker(
-            pytest.mark.xfail(
-                run=False,
-                reason="dask.distributed does not officially support Python 3.4",
-            )
-        )
     return _switch(request.param)
 
 

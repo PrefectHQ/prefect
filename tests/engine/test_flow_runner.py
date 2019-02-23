@@ -874,9 +874,6 @@ def test_flow_runner_handles_timeouts(executor):
     assert isinstance(state.result[res].result, TimeoutError)
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 5), reason="dask.distributed does not support Python 3.4"
-)
 def test_flow_runner_handles_timeout_error_with_mproc(mproc):
     "daemonic processes are not allowed to have children"
     sleeper = SlowTask(timeout=1)
