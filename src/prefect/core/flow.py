@@ -873,6 +873,10 @@ class Flow:
             )  # type: prefect.engine.state.State
             now = pendulum.now("utc")
             naptime = max((next_run_time - now).total_seconds(), 0)
+            if naptime > 0:
+                self.logger.info(
+                    "Waiting for next scheduled run at {}".format(next_run_time)
+                )
             time.sleep(naptime)
 
             ## begin a single flow run
@@ -893,6 +897,12 @@ class Flow:
                 ## wait until first task is ready for retry
                 now = pendulum.now("utc")
                 naptime = max((earliest_start - now).total_seconds(), 0)
+                if naptime > 0:
+                    self.logger.info(
+                        "Waiting for next available Task run at {}".format(
+                            earliest_start
+                        )
+                    )
                 time.sleep(naptime)
         return flow_state  # to appease mypy
 
