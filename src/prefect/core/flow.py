@@ -914,7 +914,7 @@ class Flow:
             - on_schedule (bool, optional): if `True`, this command will block and
                 run this Flow on its schedule indefinitely; note that all task states will be stored
                 in memory, and task retries will not occur until every Task in the Flow has had a chance
-                to run (this differs from Prefect Cloud execution)
+                to run
             - **kwargs: additional keyword arguments; if any provided keywords
                 match known parameter names, they will be used as such. Otherwise they will be passed to the
                 `FlowRunner.run()` method
