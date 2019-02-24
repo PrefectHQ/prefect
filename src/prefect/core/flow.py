@@ -9,6 +9,7 @@ import pendulum
 import tempfile
 import time
 import uuid
+import warnings
 from collections import Counter
 from typing import (
     Any,
@@ -860,7 +861,11 @@ class Flow:
         kwargs["return_tasks"] = self.tasks
 
         while True:  # run indefinitely
-            end = self.schedule.next(1)[0]
+            try:
+                end = self.schedule.next(1)[0]
+            except IndexError:
+                warnings.warn("Flow has no more scheduled runs.")
+                return None  # type: ignore
             while True:
                 now = pendulum.now("utc")
                 dur = (end - now).total_seconds()
