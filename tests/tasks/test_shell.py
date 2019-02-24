@@ -122,3 +122,19 @@ def test_shell_task_handles_multiline_commands():
 
     assert out.is_successful()
     assert out.result[task].result == b"this is a test"
+
+
+def test_shell_sources_helper_fns_correctly():
+    helper = """
+    say_hi() {
+        echo $1
+    }
+    """
+    task = ShellTask(helper_fns=[helper])
+
+    with Flow() as f:
+        res = task(command="say_hi chris")
+
+    out = f.run(return_tasks=[res])
+    assert out.is_successful()
+    assert out.result[res].result == b"chris\n"

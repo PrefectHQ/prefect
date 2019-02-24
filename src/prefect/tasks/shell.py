@@ -1,7 +1,7 @@
 import os
 import subprocess
 import tempfile
-from typing import Any
+from typing import Any, List
 
 import prefect
 from prefect.utilities.tasks import defaults_from_attrs
@@ -16,6 +16,9 @@ class ShellTask(prefect.Task):
             provided post-initialization by calling this task instance
         - env (dict, optional): dictionary of environment variables to use for
             the subprocess; can also be provided at runtime
+        - helper_fns (List[str], optional): a list of strings, each of which
+            defines a shell function when executed by the shell; will be made available to
+            the executed command
         - shell (string, optional): shell to run the command with; defaults to "bash"
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
@@ -33,10 +36,16 @@ class ShellTask(prefect.Task):
     """
 
     def __init__(
-        self, command: str = None, env: dict = None, shell: str = "bash", **kwargs: Any
+        self,
+        command: str = None,
+        env: dict = None,
+        helper_fns: List[str] = None,
+        shell: str = "bash",
+        **kwargs: Any
     ):
         self.command = command
         self.env = env
+        self.helper_fns = helper_fns or []
         self.shell = shell
         super().__init__(**kwargs)
 
@@ -65,6 +74,8 @@ class ShellTask(prefect.Task):
         current_env = os.environ.copy()
         current_env.update(env or {})
         with tempfile.NamedTemporaryFile(prefix="prefect-") as tmp:
+            if self.helper_fns:
+                tmp.write("\n".join(self.helper_fns).encode())
             tmp.write(command.encode())
             tmp.flush()
             try:
