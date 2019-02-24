@@ -282,7 +282,7 @@ class TestOneTimeSchedule:
     def test_onetime_schedule_next_n_with_after_argument(self):
         start_date = pendulum.today("utc").add(days=1)
         s = schedules.OneTimeSchedule(start_date)
-        assert s.next(1, after=start_date) == [start_date]
+        assert s.next(1, after=start_date - timedelta(seconds=1)) == [start_date]
         assert s.next(1, after=start_date.add(days=-1)) == [start_date]
         assert s.next(1, after=start_date.add(days=1)) == []
 
@@ -291,7 +291,7 @@ class TestOneTimeSchedule:
         s = schedules.OneTimeSchedule(start_date=start_date)
         assert s.next(0) == []
 
-    def test_onetime_schedule_n_equals_0(self):
+    def test_onetime_schedule_n_negative(self):
         start_date = pendulum.today("utc").add(days=1)
         s = schedules.OneTimeSchedule(start_date=start_date)
         assert s.next(-3) == []

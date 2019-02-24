@@ -177,7 +177,7 @@ class CronSchedule(Schedule):
         return dates
 
 
-class OneTimeSchedule(Schedule):
+class OneTimeSchedule(IntervalSchedule):
     """
     Schedule for a single date.
 
@@ -187,32 +187,6 @@ class OneTimeSchedule(Schedule):
     """
 
     def __init__(self, start_date: datetime):
-        if not isinstance(start_date, datetime):
-            raise TypeError("`start_date` must be a datetime.")
-        super().__init__(start_date=start_date, end_date=start_date)
-
-    def next(self, n: int, after: datetime = None) -> List[datetime]:
-        """
-        Retrieve next scheduled dates.
-
-        Args:
-            - n (int): the number of future scheduled dates to return
-            - after (datetime, optional): the first result will be after this date
-
-        Returns:
-            - list: list of next scheduled dates
-        """
-        if n <= 0:
-            return []
-
-        if after is None:
-            after = pendulum.now("utc")
-
-        assert isinstance(after, datetime)  # mypy assertion
-        assert isinstance(self.start_date, datetime)  # mypy assertion
-
-        after = ensure_tz_aware(after)
-        if after <= self.start_date:
-            return [self.start_date]
-        else:
-            return []
+        super().__init__(
+            start_date=start_date, interval=timedelta(days=1), end_date=start_date
+        )
