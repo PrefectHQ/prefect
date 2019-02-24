@@ -25,6 +25,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - `defaults_from_attrs` now accepts a splatted list of arguments - [#676](https://github.com/PrefectHQ/prefect/issues/676)
 - Add retry functionality to `flow.run(on_schedule=True)` for local execution - [#680](https://github.com/PrefectHQ/prefect/pull/680)
 - Add `helper_fns` keyword to `ShellTask` for pre-populating helper functions to commands - [#681](https://github.com/PrefectHQ/prefect/pull/681)
+- Convert a few DEBUG level logs to INFO level logs - [#682](https://github.com/PrefectHQ/prefect/issues/682)
 
 ### Fixes
 
