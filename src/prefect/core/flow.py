@@ -860,24 +860,22 @@ class Flow:
 
         kwargs["return_tasks"] = self.tasks
 
-        while True:  # run indefinitely
+        ## run this flow indefinitely, so long as its schedule has future dates
+        while True:
+            ## wait until next scheduled run time
             try:
-                end = self.schedule.next(1)[0]
+                next_run_time = self.schedule.next(1)[0]
             except IndexError:
                 warnings.warn("Flow has no more scheduled runs.")
                 return None  # type: ignore
-            while True:
-                now = pendulum.now("utc")
-                dur = (end - now).total_seconds()
-                if dur <= 0:
-                    break
-                time.sleep(dur / 2)
+            flow_state = prefect.engine.state.Scheduled(
+                start_time=next_run_time, result={}
+            )  # type: prefect.engine.state.State
+            now = pendulum.now("utc")
+            naptime = max((next_run_time - now).total_seconds(), 0)
+            time.sleep(naptime)
 
             ## begin a single flow run
-            flow_state = (
-                prefect.engine.state.Pending()
-            )  # type: prefect.engine.state.State
-            flow_state.result = {}
             while not flow_state.is_finished():
                 flow_state = self.run(
                     on_schedule=False,
@@ -893,12 +891,9 @@ class Flow:
                 )
 
                 ## wait until first task is ready for retry
-                while True:
-                    now = pendulum.now("utc")
-                    dur = (earliest_start - now).total_seconds()
-                    if dur <= 0:
-                        break
-                    time.sleep(dur / 2)
+                now = pendulum.now("utc")
+                naptime = max((earliest_start - now).total_seconds(), 0)
+                time.sleep(naptime)
         return flow_state  # to appease mypy
 
     def run(
