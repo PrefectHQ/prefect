@@ -11,11 +11,13 @@ class ShellTask(prefect.Task):
     Task for running arbitrary shell commands.
 
     Args:
-        - shell (string, optional): shell to run the command with; defaults to "bash"
-        - cd (string, optional): string specifying the absolute path to a
-            directory to run the `command` from
         - command (string, optional): shell command to be executed; can also be
             provided post-initialization by calling this task instance
+        - cd (string, optional): string specifying the absolute path to a
+            directory to run the `command` from
+        - env (dict, optional): dictionary of environment variables to use for
+            the subprocess; can also be provided at runtime
+        - shell (string, optional): shell to run the command with; defaults to "bash"
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -32,14 +34,20 @@ class ShellTask(prefect.Task):
     """
 
     def __init__(
-        self, shell: str = "bash", cd: str = None, command: str = None, **kwargs: Any
+        self,
+        command: str = None,
+        cd: str = None,
+        env: dict = None,
+        shell: str = "bash",
+        **kwargs: Any
     ):
-        self.shell = shell
-        self.cd = cd
         self.command = command
+        self.cd = cd
+        self.env = env
+        self.shell = shell
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("command")
+    @defaults_from_attrs("command", "env")
     def run(self, command: str = None, env: dict = None) -> bytes:  # type: ignore
         """
         Run the shell command.
