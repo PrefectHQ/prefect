@@ -851,6 +851,46 @@ class Flow:
 
     # Execution  ---------------------------------------------------------------
 
+    def _run_on_schedule(self, **kwargs: Any) -> "prefect.engine.state.State":
+        if self.schedule is None:
+            raise ValueError(
+                "Flow must have a schedule in order to run with `on_schedule=True`"
+            )
+
+        kwargs["return_tasks"] = self.tasks
+
+        ## run this flow indefinitely, so long as its schedule has future dates
+        while True:
+            ## wait until next scheduled run time
+            next_run_time = self.schedule.next(1)[0]
+            flow_state = prefect.engine.state.Scheduled(
+                start_time=next_run_time, result={}
+            )  # type: prefect.engine.state.State
+            now = pendulum.now("utc")
+            naptime = max((next_run_time - now).total_seconds(), 0)
+            time.sleep(naptime)
+
+            ## begin a single flow run
+            while not flow_state.is_finished():
+                flow_state = self.run(
+                    on_schedule=False,
+                    state=flow_state,
+                    task_states=flow_state.result,
+                    **kwargs
+                )
+                task_states = list(flow_state.result.values())
+                for s in filter(lambda x: x.is_mapped(), task_states):
+                    task_states.extend(s.map_states)
+                earliest_start = min(
+                    [s.start_time for s in task_states if s.is_scheduled()], default=now
+                )
+
+                ## wait until first task is ready for retry
+                now = pendulum.now("utc")
+                naptime = max((earliest_start - now).total_seconds(), 0)
+                time.sleep(naptime)
+        return flow_state  # to appease mypy
+
     def run(
         self,
         parameters: Dict[str, Any] = None,
@@ -867,7 +907,9 @@ class Flow:
             - return_tasks ([Task], optional): list of tasks which return state
             - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
             - on_schedule (bool, optional): if `True`, this command will block and
-                run this Flow on its schedule indefinitely; note that no stateful execution occurs (e.g., retries)
+                run this Flow on its schedule indefinitely; note that all task states will be stored
+                in memory, and task retries will not occur until every Task in the Flow has had a chance
+                to run (this differs from Prefect Cloud execution)
             - **kwargs: additional keyword arguments; if any provided keywords
                 match known parameter names, they will be used as such. Otherwise they will be passed to the
                 `FlowRunner.run()` method
@@ -876,24 +918,12 @@ class Flow:
             - State of the flow after it is run resulting from it's return tasks
         """
         if on_schedule is True:
-            if self.schedule is None:
-                raise ValueError(
-                    "Flow must have a schedule in order to run with `on_schedule=True`"
-                )
-            while True:  # run indefinitely
-                end = self.schedule.next(1)[0]
-                while True:
-                    now = pendulum.now("utc")
-                    dur = (end - now).total_seconds()
-                    if dur <= 0:
-                        break
-                    time.sleep(dur / 2)
-                self.run(
-                    parameters=parameters,
-                    runner_cls=runner_cls,
-                    on_schedule=False,
-                    **kwargs
-                )
+            return self._run_on_schedule(
+                parameters=parameters,
+                return_tasks=return_tasks,
+                runner_cls=runner_cls,
+                **kwargs
+            )
 
         if runner_cls is None:
             runner_cls = prefect.engine.get_default_flow_runner_class()

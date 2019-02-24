@@ -25,6 +25,13 @@ class CronScheduleSchema(ObjectSchema):
     cron = fields.String(required=True)
 
 
+class OneTimeScheduleSchema(ObjectSchema):
+    class Meta:
+        object_class = prefect.schedules.OneTimeSchedule
+
+    start_date = fields.DateTime(required=True)
+
+
 class ScheduleSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -34,4 +41,5 @@ class ScheduleSchema(OneOfSchema):
     type_schemas = {
         "IntervalSchedule": IntervalScheduleSchema,
         "CronSchedule": CronScheduleSchema,
+        "OneTimeSchedule": OneTimeScheduleSchema,
     }

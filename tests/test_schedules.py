@@ -259,7 +259,54 @@ class TestCronSchedule:
         assert s.next(-3) == []
 
 
+class TestOneTimeSchedule:
+    def test_create_onetime_schedule(self):
+        schedule = schedules.OneTimeSchedule(start_date=pendulum.now("utc"))
+        assert schedule.start_date == schedule.end_date
+
+    def test_start_date_must_be_provided(self):
+        with pytest.raises(TypeError):
+            schedules.OneTimeSchedule()
+
+    def test_start_date_must_be_datetime(self):
+        with pytest.raises(TypeError):
+            schedules.OneTimeSchedule(start_date=None)
+
+    def test_onetime_schedule_next_n(self):
+        """Test that default after is *now*"""
+        start_date = pendulum.today("utc").add(days=1)
+        s = schedules.OneTimeSchedule(start_date)
+        assert s.next(3) == [start_date]
+        assert s.next(1) == [start_date]
+
+    def test_onetime_schedule_next_n_with_after_argument(self):
+        start_date = pendulum.today("utc").add(days=1)
+        s = schedules.OneTimeSchedule(start_date)
+        assert s.next(1, after=start_date - timedelta(seconds=1)) == [start_date]
+        assert s.next(1, after=start_date.add(days=-1)) == [start_date]
+        assert s.next(1, after=start_date.add(days=1)) == []
+
+    def test_onetime_schedule_n_equals_0(self):
+        start_date = pendulum.today("utc").add(days=1)
+        s = schedules.OneTimeSchedule(start_date=start_date)
+        assert s.next(0) == []
+
+    def test_onetime_schedule_n_negative(self):
+        start_date = pendulum.today("utc").add(days=1)
+        s = schedules.OneTimeSchedule(start_date=start_date)
+        assert s.next(-3) == []
+
+
 class TestSerialization:
+    def test_serialize_onetime_schedule(self):
+        start_date = pendulum.datetime(1986, 9, 20)
+        schedule = schedules.OneTimeSchedule(start_date=start_date)
+        assert schedule.serialize() == {
+            "start_date": str(start_date),
+            "type": "OneTimeSchedule",
+            "__version__": __version__,
+        }
+
     def test_serialize_cron_schedule(self):
         schedule = schedules.CronSchedule("0 0 * * *")
         assert schedule.serialize() == {

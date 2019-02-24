@@ -1321,6 +1321,45 @@ def test_schedule_kwarg_runs_on_schedule():
     assert t.call_count == 2
 
 
+def test_schedule_kwarg_handles_retries():
+    class MockSchedule(prefect.schedules.Schedule):
+        call_count = 0
+
+        def next(self, n):
+            if self.call_count < 1:
+                self.call_count += 1
+                return [pendulum.now("utc")]
+            else:
+                raise SyntaxError("Cease scheduling!")
+
+    class StatefulTask(Task):
+        call_count = 0
+
+        def run(self):
+            self.call_count += 1
+            if self.call_count == 1:
+                raise OSError("I need to run again.")
+
+    state_history = []
+
+    def handler(task, old, new):
+        state_history.append(new)
+        return new
+
+    t = StatefulTask(
+        max_retries=1,
+        retry_delay=datetime.timedelta(minutes=0),
+        state_handlers=[handler],
+    )
+    schedule = MockSchedule()
+    f = Flow(tasks=[t], schedule=schedule)
+    with pytest.raises(SyntaxError) as exc:
+        f.run(on_schedule=True)
+    assert "Cease" in str(exc.value)
+    assert t.call_count == 2
+    assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
+
+
 @pytest.mark.parametrize("return_tasks", [False, True])
 def test_bad_flow_runner_code_still_returns_state_obj(return_tasks):
     class BadFlowRunner(prefect.engine.flow_runner.FlowRunner):
