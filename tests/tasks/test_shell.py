@@ -61,14 +61,6 @@ def test_shell_task_accepts_env():
     assert out.result[task].result == b"test"
 
 
-def test_shell_task_doesnt_inherit_if_env_is_provided():
-    with Flow() as f:
-        task = ShellTask()(command="echo -n $HOME", env=dict(MYTESTVAR="test"))
-    out = f.run(return_tasks=[task])
-    assert out.is_successful()
-    assert out.result[task].result == b""
-
-
 def test_shell_returns_stderr_as_well():
     with Flow() as f:
         task = ShellTask()(command="ls surely_a_dir_that_doesnt_exist || exit 0")

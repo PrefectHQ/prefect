@@ -3,6 +3,7 @@ import subprocess
 from typing import Any
 
 import prefect
+from prefect.utilities.tasks import defaults_from_attrs
 
 
 class ShellTask(prefect.Task):
@@ -38,6 +39,7 @@ class ShellTask(prefect.Task):
         self.command = command
         super().__init__(**kwargs)
 
+    @defaults_from_attrs("command")
     def run(self, command: str = None, env: dict = None) -> bytes:  # type: ignore
         """
         Run the shell command.
@@ -46,8 +48,7 @@ class ShellTask(prefect.Task):
             - command (string): shell command to be executed; can also be
                 provided at task initialization
             - env (dict, optional): dictionary of environment variables to use for
-                the subprocess; if provided, will override all other environment variables present
-                on the system
+                the subprocess
 
         Returns:
             - stdout + stderr (bytes): anything printed to standard out /
@@ -57,14 +58,14 @@ class ShellTask(prefect.Task):
             - prefect.engine.signals.FAIL: if command has an exit code other
                 than 0
         """
-        command = command or self.command
         if command is None:
             raise TypeError("run() missing required argument: 'command'")
 
         if self.cd is not None:
             command = "cd {} && ".format(self.cd) + command
 
-        current_env = env or os.environ.copy()
+        current_env = os.environ.copy()
+        current_env.update(env or {})
         try:
             out = subprocess.check_output(
                 [self.shell, "-c", command], stderr=subprocess.STDOUT, env=current_env
