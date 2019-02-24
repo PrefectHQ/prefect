@@ -24,6 +24,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - The `manual_only` trigger will pass if `resume=True` is found in context, which indicates that a `Resume` state was passed - [#664](https://github.com/PrefectHQ/prefect/issues/664)
 - `defaults_from_attrs` now accepts a splatted list of arguments - [#676](https://github.com/PrefectHQ/prefect/issues/676)
 - Add retry functionality to `flow.run(on_schedule=True)` for local execution - [#680](https://github.com/PrefectHQ/prefect/pull/680)
+- Add `helper_fns` keyword to `ShellTask` for pre-populating helper functions to commands - [#681](https://github.com/PrefectHQ/prefect/pull/681)
 
 ### Fixes
 
