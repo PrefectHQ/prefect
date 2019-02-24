@@ -1,5 +1,6 @@
 import os
 import subprocess
+import tempfile
 from typing import Any
 
 import prefect
@@ -13,8 +14,6 @@ class ShellTask(prefect.Task):
     Args:
         - command (string, optional): shell command to be executed; can also be
             provided post-initialization by calling this task instance
-        - cd (string, optional): string specifying the absolute path to a
-            directory to run the `command` from
         - env (dict, optional): dictionary of environment variables to use for
             the subprocess; can also be provided at runtime
         - shell (string, optional): shell to run the command with; defaults to "bash"
@@ -25,7 +24,7 @@ class ShellTask(prefect.Task):
         from prefect import Flow
         from prefect.tasks.shell import ShellTask
 
-        task = ShellTask(cd='/usr/bin')
+        task = ShellTask()
         with Flow() as f:
             res = task(command='ls')
 
@@ -34,15 +33,9 @@ class ShellTask(prefect.Task):
     """
 
     def __init__(
-        self,
-        command: str = None,
-        cd: str = None,
-        env: dict = None,
-        shell: str = "bash",
-        **kwargs: Any
+        self, command: str = None, env: dict = None, shell: str = "bash", **kwargs: Any
     ):
         self.command = command
-        self.cd = cd
         self.env = env
         self.shell = shell
         super().__init__(**kwargs)
@@ -69,18 +62,18 @@ class ShellTask(prefect.Task):
         if command is None:
             raise TypeError("run() missing required argument: 'command'")
 
-        if self.cd is not None:
-            command = "cd {} && ".format(self.cd) + command
-
         current_env = os.environ.copy()
         current_env.update(env or {})
-        try:
-            out = subprocess.check_output(
-                [self.shell, "-c", command], stderr=subprocess.STDOUT, env=current_env
-            )
-        except subprocess.CalledProcessError as exc:
-            msg = "Command failed with exit code {0}: {1}".format(
-                exc.returncode, exc.output
-            )
-            raise prefect.engine.signals.FAIL(msg) from None
+        with tempfile.NamedTemporaryFile(prefix="prefect-") as tmp:
+            tmp.write(command.encode())
+            tmp.flush()
+            try:
+                out = subprocess.check_output(
+                    [self.shell, tmp.name], stderr=subprocess.STDOUT, env=current_env
+                )
+            except subprocess.CalledProcessError as exc:
+                msg = "Command failed with exit code {0}: {1}".format(
+                    exc.returncode, exc.output
+                )
+                raise prefect.engine.signals.FAIL(msg) from None
         return out
