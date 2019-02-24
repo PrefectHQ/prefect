@@ -61,6 +61,14 @@ def test_shell_task_accepts_env():
     assert out.result[task].result == b"test"
 
 
+def test_shell_task_env_can_be_set_at_init():
+    with Flow() as f:
+        task = ShellTask(env=dict(MYTESTVAR="test"))(command="echo -n $MYTESTVAR")
+    out = f.run(return_tasks=[task])
+    assert out.is_successful()
+    assert out.result[task].result == b"test"
+
+
 def test_shell_returns_stderr_as_well():
     with Flow() as f:
         task = ShellTask()(command="ls surely_a_dir_that_doesnt_exist || exit 0")
