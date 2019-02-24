@@ -298,6 +298,15 @@ class TestOneTimeSchedule:
 
 
 class TestSerialization:
+    def test_serialize_onetime_schedule(self):
+        start_date = pendulum.datetime(1986, 9, 20)
+        schedule = schedules.OneTimeSchedule(start_date=start_date)
+        assert schedule.serialize() == {
+            "start_date": str(start_date),
+            "type": "OneTimeSchedule",
+            "__version__": __version__,
+        }
+
     def test_serialize_cron_schedule(self):
         schedule = schedules.CronSchedule("0 0 * * *")
         assert schedule.serialize() == {
