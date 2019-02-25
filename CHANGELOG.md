@@ -9,7 +9,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add `checkpoint` option for individual `Task`s, as well as a global `checkpoint` config setting for storing the results of Tasks using their result handlers - [#649](https://github.com/PrefectHQ/prefect/pull/649)
 - Add `defaults_from_attrs` decorator to easily construct `Task`s whose attributes serve as defaults for `Task.run` - [#293](https://github.com/PrefectHQ/prefect/issues/293)
 - Add `GCSUploadTask` and `GCSDownloadTask` for uploading / retrieving string data to / from Google Cloud Storage - [#673](https://github.com/PrefectHQ/prefect/pull/673)
-- Add `BigQueryTask` for executing queries against BigQuery tables - [#678](https://github.com/PrefectHQ/prefect/pull/678)
+- Add `BigQueryTask` and `BigQueryInsertTask` for executing queries against BigQuery tables and inserting data - [#678](https://github.com/PrefectHQ/prefect/pull/678), [#685](https://github.com/PrefectHQ/prefect/pull/685)
 - Add `OneTimeSchedule` for one-time execution at a specified time - [#680](https://github.com/PrefectHQ/prefect/pull/680)
 
 ### Enhancements
