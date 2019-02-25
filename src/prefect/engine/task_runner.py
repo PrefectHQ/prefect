@@ -192,7 +192,7 @@ class TaskRunner(Runner):
         mapped = any([e.mapped for e in upstream_states]) and map_index is None
         task_inputs = {}  # type: Dict[str, Any]
 
-        self.logger.debug(
+        self.logger.info(
             "Task '{name}': Starting task run...".format(name=context["task_full_name"])
         )
 
@@ -284,7 +284,7 @@ class TaskRunner(Runner):
             if prefect.context.get("raise_on_exception"):
                 raise exc
 
-        self.logger.debug(
+        self.logger.info(
             "Task '{name}': finished task run for task with final state: '{state}'".format(
                 name=context["task_full_name"], state=type(state).__name__
             )
