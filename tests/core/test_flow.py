@@ -1295,6 +1295,17 @@ def test_schedule_kwarg_raises_if_no_schedule():
     assert "must have a schedule" in str(exc.value)
 
 
+def test_schedule_kwarg_returns_and_warns_if_no_next_in_schedule():
+    f = Flow(
+        schedule=prefect.schedules.OneTimeSchedule(
+            start_date=pendulum.now("utc").add(days=-1)
+        )
+    )
+    with pytest.warns(UserWarning) as warn:
+        f.run(on_schedule=True)
+    assert "no more scheduled" in str(warn.list[0].message)
+
+
 def test_schedule_kwarg_runs_on_schedule():
     class MockSchedule(prefect.schedules.Schedule):
         call_count = 0

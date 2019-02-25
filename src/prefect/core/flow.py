@@ -9,6 +9,7 @@ import pendulum
 import tempfile
 import time
 import uuid
+import warnings
 from collections import Counter
 from typing import (
     Any,
@@ -862,7 +863,11 @@ class Flow:
         ## run this flow indefinitely, so long as its schedule has future dates
         while True:
             ## wait until next scheduled run time
-            next_run_time = self.schedule.next(1)[0]
+            try:
+                next_run_time = self.schedule.next(1)[0]
+            except IndexError:
+                warnings.warn("Flow has no more scheduled runs.")
+                return None  # type: ignore
             flow_state = prefect.engine.state.Scheduled(
                 start_time=next_run_time, result={}
             )  # type: prefect.engine.state.State
@@ -909,7 +914,7 @@ class Flow:
             - on_schedule (bool, optional): if `True`, this command will block and
                 run this Flow on its schedule indefinitely; note that all task states will be stored
                 in memory, and task retries will not occur until every Task in the Flow has had a chance
-                to run (this differs from Prefect Cloud execution)
+                to run
             - **kwargs: additional keyword arguments; if any provided keywords
                 match known parameter names, they will be used as such. Otherwise they will be passed to the
                 `FlowRunner.run()` method
