@@ -173,8 +173,8 @@ class BigQueryTask(Task):
 
 class BigQueryInsertTask(Task):
     """
-    Task for insert records in a Google BigQuery table via the streaming API. Note that
-    all of these settings can optionally be provided or overwritten at runtime.
+    Task for insert records in a Google BigQuery table via [the streaming API](https://cloud.google.com/bigquery/streaming-data-into-bigquery).
+    Note that all of these settings can optionally be provided or overwritten at runtime.
 
     Args:
         - dataset_id (str, optional): the id of a destination dataset to write the
@@ -234,7 +234,9 @@ class BigQueryInsertTask(Task):
             - location (str, optional): location of the dataset which will be queried; defaults to "US"
             - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
                 of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
-            - **kwargs (optional): additional kwargs to pass to the `insert_rows_json` method
+            - **kwargs (optional): additional kwargs to pass to the
+                `insert_rows_json` method; see the documentation here:
+                https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.client.Client.html
 
         Raises:
             - ValueError: if all required arguments haven't been provided
