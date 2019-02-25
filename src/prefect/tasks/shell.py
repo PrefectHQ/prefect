@@ -16,9 +16,10 @@ class ShellTask(prefect.Task):
             provided post-initialization by calling this task instance
         - env (dict, optional): dictionary of environment variables to use for
             the subprocess; can also be provided at runtime
-        - helper_fns (List[str], optional): a list of strings, each of which
-            defines a shell function when executed by the shell; will be made available to
-            the executed command
+        - helper_script (str, optional): a string representing a shell script, which
+            will be executed prior to the `command` in the same process. Can be used to
+            change directories, define helper functions, etc. when re-using this Task
+            for different commands in a Flow
         - shell (string, optional): shell to run the command with; defaults to "bash"
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
@@ -27,11 +28,13 @@ class ShellTask(prefect.Task):
         from prefect import Flow
         from prefect.tasks.shell import ShellTask
 
-        task = ShellTask()
+        task = ShellTask(helper_script="cd ~")
         with Flow() as f:
-            res = task(command='ls')
+            # both tasks will be executed in home directory
+            contents = task(command='ls')
+            mv_file = task(command='mv .vimrc /.vimrc')
 
-        out = f.run(return_tasks=[res])
+        out = f.run(return_tasks=[contents])
         ```
     """
 
@@ -39,13 +42,13 @@ class ShellTask(prefect.Task):
         self,
         command: str = None,
         env: dict = None,
-        helper_fns: List[str] = None,
+        helper_script: str = None,
         shell: str = "bash",
         **kwargs: Any
     ):
         self.command = command
         self.env = env
-        self.helper_fns = helper_fns or []
+        self.helper_script = helper_script
         self.shell = shell
         super().__init__(**kwargs)
 
@@ -56,7 +59,9 @@ class ShellTask(prefect.Task):
 
         Args:
             - command (string): shell command to be executed; can also be
-                provided at task initialization
+                provided at task initialization. Any variables / functions defined in
+                `self.helper_script` will be available in the same process this command
+                runs in
             - env (dict, optional): dictionary of environment variables to use for
                 the subprocess
 
@@ -74,8 +79,8 @@ class ShellTask(prefect.Task):
         current_env = os.environ.copy()
         current_env.update(env or {})
         with tempfile.NamedTemporaryFile(prefix="prefect-") as tmp:
-            if self.helper_fns:
-                tmp.write("\n".join(self.helper_fns).encode())
+            if self.helper_script:
+                tmp.write(self.helper_script.encode())
             tmp.write(command.encode())
             tmp.flush()
             try:
