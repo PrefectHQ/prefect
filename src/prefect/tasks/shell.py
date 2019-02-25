@@ -48,7 +48,7 @@ class ShellTask(prefect.Task):
     ):
         self.command = command
         self.env = env
-        self.helper_script = helper_script or ""
+        self.helper_script = helper_script
         self.shell = shell
         super().__init__(**kwargs)
 
