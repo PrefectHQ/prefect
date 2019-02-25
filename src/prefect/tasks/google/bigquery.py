@@ -4,7 +4,7 @@ import uuid
 from google.oauth2.service_account import Credentials
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
-from typing import Any, List
+from typing import List
 
 from prefect import context
 from prefect.client import Secret
@@ -53,7 +53,7 @@ class BigQueryTask(Task):
         dataset_dest: str = None,
         table_dest: str = None,
         job_config: dict = None,
-        **kwargs,
+        **kwargs
     ):
         self.query = query
         self.query_params = query_params
@@ -196,7 +196,7 @@ class BigQueryInsertTask(Task):
         project: str = None,
         location: str = "US",
         credentials_secret: str = None,
-        **kwargs,
+        **kwargs
     ):
         self.dataset_id = dataset_id
         self.table = table
@@ -216,7 +216,7 @@ class BigQueryInsertTask(Task):
         project: str = None,
         location: str = "US",
         credentials_secret: str = None,
-        **kwargs: Any,
+        **kwargs
     ):
         """
         Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
