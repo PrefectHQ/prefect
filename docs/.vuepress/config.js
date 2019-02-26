@@ -159,6 +159,7 @@ module.exports = {
             'PINs/PIN-2-Result-Handlers',
             'PINs/PIN-3-Agent-Environment',
             'PINs/PIN-4-Result-Objects'
+            'PINs/PIN-5-Combining-Tasks'
           ]
         },
         {
