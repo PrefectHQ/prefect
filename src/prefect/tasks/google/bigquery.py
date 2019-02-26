@@ -169,3 +169,106 @@ class BigQueryTask(Task):
 
         query_job = client.query(query, location=location, job_config=job_config)
         return list(query_job.result())
+
+
+class BigQueryStreamingInsertTask(Task):
+    """
+    Task for insert records in a Google BigQuery table via [the streaming API](https://cloud.google.com/bigquery/streaming-data-into-bigquery).
+    Note that all of these settings can optionally be provided or overwritten at runtime.
+
+    Args:
+        - dataset_id (str, optional): the id of a destination dataset to write the
+            records to
+        - table (str, optional): the name of a destination table to write the
+            records to
+        - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
+            will default to the one inferred from your credentials
+        - location (str, optional): location of the dataset which will be queried; defaults to "US"
+        - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
+            of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
+        - **kwargs (optional): additional kwargs to pass to the `Task` constructor
+    """
+
+    def __init__(
+        self,
+        dataset_id: str = None,
+        table: str = None,
+        project: str = None,
+        location: str = "US",
+        credentials_secret: str = None,
+        **kwargs
+    ):
+        self.dataset_id = dataset_id
+        self.table = table
+        self.project = project
+        self.location = location
+        self.credentials_secret = credentials_secret or "GOOGLE_APPLICATION_CREDENTIALS"
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs(
+        "dataset_id", "table", "project", "location", "credentials_secret"
+    )
+    def run(
+        self,
+        records: List[dict],
+        dataset_id: str = None,
+        table: str = None,
+        project: str = None,
+        location: str = "US",
+        credentials_secret: str = None,
+        **kwargs
+    ):
+        """
+        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
+
+        Args:
+            - records (list[dict]): the list of records to insert as rows into
+                the BigQuery table; each item in the list should be a dictionary whose keys correspond
+                to columns in the table
+            - dataset_id (str, optional): the id of a destination dataset to write the
+                records to; if not provided here, will default to the one provided at initialization
+            - table (str, optional): the name of a destination table to write the
+                records to; if not provided here, will default to the one provided at initialization
+            - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
+                will default to the one inferred from your credentials
+            - location (str, optional): location of the dataset which will be queried; defaults to "US"
+            - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
+                of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
+            - **kwargs (optional): additional kwargs to pass to the
+                `insert_rows_json` method; see the documentation here:
+                https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.client.Client.html
+
+        Raises:
+            - ValueError: if all required arguments haven't been provided
+            - ValueError: if any of the records result in errors
+
+        Returns:
+            - the response from `insert_rows_json`
+        """
+        ## check for any argument inconsistencies
+        if dataset_id is None or table is None:
+            raise ValueError("Both dataset_id and table must be provided.")
+
+        ## create client
+        creds = json.loads(Secret(credentials_secret).get())
+        credentials = Credentials.from_service_account_info(creds)
+        project = project or credentials.project_id
+        client = bigquery.Client(project=project, credentials=credentials)
+
+        ## get table reference
+        table_ref = client.dataset(dataset_id).table(table)
+
+        ## stream data in
+        response = client.insert_rows_json(table=table_ref, json_rows=records, **kwargs)
+
+        errors = []
+        output = []
+        for row in response:
+            output.append(row)
+            if "errors" in row:
+                errors.append(row["errors"])
+
+        if errors:
+            raise ValueError(errors)
+
+        return output
