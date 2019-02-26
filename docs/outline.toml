@@ -127,6 +127,7 @@ classes = ["CloudFlowRunner", "CloudTaskRunner", "CloudResultHandler"]
 [pages.tasks.control_flow]
 title = "Control Flow"
 module = "prefect.tasks.control_flow"
+classes = ["FilterTask"]
 functions = ["switch", "ifelse", "merge"]
 
 [pages.tasks.google]
