@@ -3,7 +3,8 @@ import pytest
 import prefect
 from prefect import Flow, Task, task
 from prefect.engine.state import Skipped, Success
-from prefect.tasks.control_flow import ifelse, merge, switch
+from prefect.engine.result import NoResult
+from prefect.tasks.control_flow import ifelse, merge, switch, FilterTask
 from prefect.tasks.core.constants import Constant
 
 
@@ -184,3 +185,32 @@ def test_merge_with_list():
     with prefect.context(CONDITION=True):
         state = flow.run(return_tasks=flow.tasks)
         assert state.result[merge_task].result == [1, 2]
+
+
+class TestFilterTask:
+    def test_empty_initialization(self):
+        task = FilterTask()
+        assert task.name == "FilterTask"
+        assert task.skip_on_upstream_skip is False
+        assert task.trigger == prefect.triggers.all_finished
+
+    def test_skip_on_upstream_skip_can_be_overwritten(self):
+        task = FilterTask(skip_on_upstream_skip=True)
+        assert task.skip_on_upstream_skip is True
+
+    def test_trigger_can_be_overwritten(self):
+        task = FilterTask(trigger=prefect.triggers.manual_only)
+        assert task.trigger == prefect.triggers.manual_only
+
+    def test_default_filter_func_filters_noresults_and_exceptions(self):
+        task = FilterTask()
+        res = task.run([NoResult, NoResult, 0, 1, 5, "", ValueError()])
+        assert len(res) == 4
+        assert res == [0, 1, 5, ""]
+
+    def test_filter_func_can_be_changed(self):
+        task = FilterTask(filter_func=lambda r: r != 5)
+        exc = ValueError()
+        res = task.run([NoResult, NoResult, 0, 1, 5, "", exc])
+        assert len(res) == 6
+        assert res == [NoResult, NoResult, 0, 1, "", exc]
