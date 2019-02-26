@@ -10,4 +10,4 @@ Note that these tasks allow for a wide range of custom usage patterns, such as:
 import prefect.tasks.google.storage
 
 from prefect.tasks.google.storage import GCSDownloadTask, GCSUploadTask
-from prefect.tasks.google.bigquery import BigQueryTask, BigQueryInsertTask
+from prefect.tasks.google.bigquery import BigQueryTask, BigQueryStreamingInsertTask
