@@ -269,7 +269,7 @@ docker run -it 0f3b0851148b python
 and then load the environment from a file:
 
 ```python
-from prefect.environments import from_file
+from prefect.utilities.environments import from_file
 
 local_env = from_file('/root/.prefect/flow_env.prefect')
 flow = local_env.deserialize_flow_from_bytes(local_env.serialized_flow)
