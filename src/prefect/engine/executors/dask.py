@@ -3,15 +3,9 @@
 import datetime
 import logging
 import queue
-import sys
 import warnings
 from contextlib import contextmanager
 from typing import Any, Callable, Iterable, Iterator, List
-
-if sys.version_info < (3, 5):
-    raise ImportError(
-        """The DaskExecutor is only locally compatible with Python 3.5+"""
-    )
 
 from distributed import Client, Future, Queue, fire_and_forget, worker_client
 

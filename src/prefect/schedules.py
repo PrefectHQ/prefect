@@ -175,3 +175,18 @@ class CronSchedule(Schedule):
             dates.append(next_date)
 
         return dates
+
+
+class OneTimeSchedule(IntervalSchedule):
+    """
+    Schedule for a single date.
+
+    Args:
+        - start_date (datetime): the start date for the schedule, which will
+            also serve as the `end_date`
+    """
+
+    def __init__(self, start_date: datetime):
+        super().__init__(
+            start_date=start_date, interval=timedelta(days=1), end_date=start_date
+        )

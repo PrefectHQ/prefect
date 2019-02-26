@@ -87,6 +87,24 @@ def test_serialize_interval_schedule(interval_schedule):
     }
 
 
+def test_serialize_onetime_schedule():
+    schema = schemas.OneTimeScheduleSchema()
+    schedule = schedules.OneTimeSchedule(start_date=pendulum.today("utc"))
+    assert schema.dump(schedule) == {
+        "__version__": __version__,
+        "start_date": schedule.start_date.isoformat(),
+    }
+
+
+def test_roundtrip_onetime_schedule():
+    schema = schemas.OneTimeScheduleSchema()
+    schedule = schedules.OneTimeSchedule(start_date=pendulum.today("utc"))
+    new = schema.load(schema.dump(schedule))
+    assert isinstance(new, schedules.OneTimeSchedule)
+    assert new.start_date == schedule.start_date
+    assert new.end_date == schedule.start_date
+
+
 def test_serialize_interval_at_microsecond_resolution():
     schedule = schedules.IntervalSchedule(
         start_date=pendulum.now("utc"),

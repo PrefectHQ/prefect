@@ -61,12 +61,12 @@ def test_shell_task_accepts_env():
     assert out.result[task].result == b"test"
 
 
-def test_shell_task_doesnt_inherit_if_env_is_provided():
+def test_shell_task_env_can_be_set_at_init():
     with Flow() as f:
-        task = ShellTask()(command="echo -n $HOME", env=dict(MYTESTVAR="test"))
+        task = ShellTask(env=dict(MYTESTVAR="test"))(command="echo -n $MYTESTVAR")
     out = f.run(return_tasks=[task])
     assert out.is_successful()
-    assert out.result[task].result == b""
+    assert out.result[task].result == b"test"
 
 
 def test_shell_returns_stderr_as_well():
@@ -101,35 +101,40 @@ def test_shell_task_raises_fail_if_cmd_fails():
     assert "Command failed with exit code" in str(out.result[task].message)
 
 
-def test_shell_task_accepts_and_uses_cd_kwarg_at_init():
+def test_shell_task_handles_multiline_commands():
     with tempfile.TemporaryDirectory() as tempdir:
+        cmd = """
+        cd {}
+        for file in $(ls)
+        do
+            cat $file
+        done
+        """.format(
+            tempdir
+        )
         with open(tempdir + "/testfile.txt", "w") as f:
             f.write("this is a test")
 
         with Flow() as f:
-            task = ShellTask(cd=tempdir)(command="ls")
-        out = f.run(return_tasks=[task])
-
-    assert out.is_successful()
-    assert out.result[task].result == b"testfile.txt\n"
-
-
-def test_shell_task_cd_kwarg_handles_multiline_commands():
-    cmd = """
-    for file in $(ls)
-    do
-        cat $file
-    done
-    """
-
-    with tempfile.TemporaryDirectory() as tempdir:
-        with open(tempdir + "/testfile.txt", "w") as f:
-            f.write("this is a test")
-
-        with Flow() as f:
-            task = ShellTask(cd=tempdir)(command=cmd)
+            task = ShellTask()(command=cmd)
 
         out = f.run(return_tasks=[task])
 
     assert out.is_successful()
     assert out.result[task].result == b"this is a test"
+
+
+def test_shell_sources_helper_script_correctly():
+    helper = """
+    say_hi() {
+        echo $1
+    }
+    """
+    task = ShellTask(helper_script=helper)
+
+    with Flow() as f:
+        res = task(command="say_hi chris")
+
+    out = f.run(return_tasks=[res])
+    assert out.is_successful()
+    assert out.result[res].result == b"chris\n"

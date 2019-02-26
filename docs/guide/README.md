@@ -33,9 +33,7 @@ Happy engineering!
 ## Installation
 
 :::tip Requirements
-Please note Prefect requires Python 3.4 or higher.
-
-We recommend Python 3.5+, as Dask does not support 3.4.
+Please note Prefect requires Python 3.5 or higher.
 :::
 
 To install Prefect with visualization support:
