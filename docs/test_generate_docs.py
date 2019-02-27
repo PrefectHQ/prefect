@@ -404,6 +404,20 @@ def test_format_doc_correctly_handles_code_blocks_outside_of_tables():
     assert sub_string in res
 
 
+def test_format_doc_escapes_asteriks_inside_tables():
+    def my_doc():
+        """
+        See:
+            ```python
+            my_doc(**kwargs)
+            ```
+        """
+        pass
+
+    res = format_doc(my_doc, in_table=True)
+    assert res.count(">\*<") == 2
+
+
 @pytest.mark.parametrize(
     "fn", [fn for page in OUTLINE for fn in page.get("functions", [])]
 )
