@@ -22,6 +22,15 @@ class DockerEnvironment(Environment):
     This is a base environment which takes a flow, serializes it into a LocalEnvironment,
     and places it inside of a Docker image. This image is then used in any environment
     which depends on using Docker containers (e.g. the Kubernetes environments).
+
+    Args:
+        - base_image (string): the base image for this environment (e.g. `python:3.6`)
+        - registry_url (string, optional): URL of a registry to push the image to; image will not be pushed if not provided
+        - python_dependencies (list, optional): list of pip installable dependencies for the image
+        - image_name (string, optional): name of the image to use when building, defaults to a UUID
+        - image_tag (string, optional): tag of the image to use when building, defaults to a UUID
+        - env_vars (dict, optional): a dictionary of environment variables to use when building
+        - files (dict, optional): a dictionary of files to copy into the image when building
     """
 
     def __init__(

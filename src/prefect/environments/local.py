@@ -14,6 +14,10 @@ class LocalEnvironment(Environment):
     """
     LocalEnvironment is an encrypted and serializable environment for simply packaging
     up flows so they can be stored and transported.
+
+    Args:
+        - encryption_key (bytes): key to use in serialization or deserialization of the environment
+        - serialized_flow (bytes): a Prefect Flow object that is serialized
     """
 
     def __init__(self, encryption_key: bytes = None, serialized_flow: bytes = None):
@@ -63,10 +67,10 @@ class LocalEnvironment(Environment):
         Deserializes a Flow to binary.
 
         Args:
-            - flow (Flow): the Flow to serialize
+            - serialized_flow (bytes): the Flow to deserialize
 
         Returns:
-            - bytes: the serialized Flow
+            - Flow: the deserialized Flow
         """
         decoded_pickle = base64.b64decode(serialized_flow)
         decrypted_pickle = Fernet(self.encryption_key).decrypt(decoded_pickle)
@@ -83,6 +87,9 @@ class LocalEnvironment(Environment):
             - start_task_ids (List[str]): A list of Task ids that will be converted to the
                 `start_tasks` argument of the `FlowRunner`
             - runner_kwargs (dict): Any arguments for `FlowRunner.run()`.
+
+        Returns:
+            - State: the state from the flow run
         """
 
         runner_kwargs = runner_kwargs or {}
