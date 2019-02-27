@@ -25,7 +25,7 @@ and also a serialized `LocalEnvironment`. When the `DockerEnvironment` is deploy
 the container in turn runs the `LocalEnvironment`.
 """
 
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 import json
 
 import prefect

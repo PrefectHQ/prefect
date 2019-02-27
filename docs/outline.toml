@@ -2,7 +2,7 @@ extension = ".md"
 
 [pages]
 
-[pages.environments]
+[pages.environments.environment]
 module = "prefect.environments"
 classes = ["Environment"]
 title = "Environments"
@@ -14,7 +14,7 @@ title = "Base Environments"
 
 [pages.environments.kubernetes.docker_on_kubernetes]
 module = "prefect.environments.kubernetes"
-classes = ["DockerOnKubernetes"]
+classes = ["DockerOnKubernetesEnvironment"]
 title = "DockerOnKubernetes Environment"
 
 [pages.triggers]
@@ -185,6 +185,11 @@ classes = ["Context"]
 title = "Debugging Tools"
 module = "prefect.utilities.debug"
 functions = ["is_serializable", "raise_on_exception", "make_return_failed_handler"]
+
+[pages.utilities.environments]
+title = "Environments"
+module = "prefect.utilities.environments"
+functions = ["from_file"]
 
 [pages.utilities.executors]
 title = "Executors"
