@@ -9,7 +9,7 @@ Date: 2019-02-20
 Author: Chris White
 
 # Status
-Proposed
+Declined (_see bottom of page for reason_)
 
 # Context
 Imagine the following typical scenario: a data engineer wants to create a Prefect Flow which routinely migrates some data from S3 to Google Cloud Storage (along with other things).  In our current framework, we implicitly recommend the user do something like (pseudo-code):
@@ -59,3 +59,6 @@ This PIN proposes we only support combining _two_ tasks, with our target use cas
 The largest user-facing consequence is that, if a user uses this pattern, they lose any prefect hooks which may occur between the two tasks, such as trigger checks, notifications, state handlers, etc.  In my view, this is perfectly OK in certain situations such as this, where the goal is to _move_ data.  If something fails, the data is still sitting in S3, and the user just needs the error to debug.
 
 Exposing this pattern to users will certainly appease many of the data engineers we've talked to, as well as reduce the load on our system.  Additionally, it would allow us to utilize a shared (temporary) filesystem for these connected / combined tasks and connect to different hooks that otherwise wouldn't be available to us.
+
+# Reason for declining
+Designing simple syntax for creating combined tasks off-the-shelf proved to be overly complicated.  Tracking all the necessary input dependencies, and knowing which tasks needed to be combined started to run into recreating a "sub-flow" for the two tasks.  Given this, we have decided not to provide sugar for this construction, but instead write clear documentation for how to build individual "combined" tasks for individual use cases.  We might revisit this "sub-flow" idea in the future, but are tabling it for now.
