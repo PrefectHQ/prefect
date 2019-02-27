@@ -221,11 +221,11 @@ Note that `flow.replace` preserves edges - this means the old and new tasks need
 
 ### Locally check your Flow's environment
 
-Another reason a Flow might unexpectedly break in production (or fail to run at all) is if its environment is broken (e.g., if you forget a Python dependency in defining your `ContainerEnvironment` for the Flow).  Luckily, checking `ContainerEnvironment`s locally is easy!  Let's walk through an example:
+Another reason a Flow might unexpectedly break in production (or fail to run at all) is if its environment is broken (e.g., if you forget a Python dependency in defining your `DockerEnvironment` for the Flow).  Luckily, checking `DockerEnvironment`s locally is easy!  Let's walk through an example:
 
 ```python
 from prefect import task, Flow
-from prefect.environments import ContainerEnvironment
+from prefect.environments import DockerEnvironment
 
 # import a non-prefect package used for scraping reddit
 import praw
@@ -241,11 +241,11 @@ def whoami():
     return reddit.user.me()
 
 
-env = ContainerEnvironment(base_image="python:3.6", registry_url="http://my.personal.registry")
+env = DockerEnvironment(base_image="python:3.6", registry_url="http://my.personal.registry")
 flow = Flow("reddit-flow", environment=env, tasks=[whoami])
 ```
 
-If you were to deploy this Flow to Cloud, you wouldn't hear from it again.  Why?  Let's find out - first, build the `ContainerEnvironment` locally _without_ pushing to a registry:
+If you were to deploy this Flow to Cloud, you wouldn't hear from it again.  Why?  Let's find out - first, build the `DockerEnvironment` locally _without_ pushing to a registry:
 
 ```python
 # note that this will require either a valid registry_url, or no registry_url
@@ -269,7 +269,7 @@ docker run -it 0f3b0851148b python
 and then load the environment from a file:
 
 ```python
-from prefect.environments import from_file
+from prefect.utilities.environments import from_file
 
 local_env = from_file('/root/.prefect/flow_env.prefect')
 flow = local_env.deserialize_flow_from_bytes(local_env.serialized_flow)
@@ -287,4 +287,4 @@ Traceback (most recent call last):
 ModuleNotFoundError: No module named 'praw'
 ```
 
-In this particular case, we forgot to include `praw` in our `python_dependencies` for the `ContainerEnvironment`; in general, this is one way to ensure your Flow makes it through the deployment process uncorrupted.
+In this particular case, we forgot to include `praw` in our `python_dependencies` for the `DockerEnvironment`; in general, this is one way to ensure your Flow makes it through the deployment process uncorrupted.

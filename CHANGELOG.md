@@ -8,6 +8,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add `checkpoint` option for individual `Task`s, as well as a global `checkpoint` config setting for storing the results of Tasks using their result handlers - [#649](https://github.com/PrefectHQ/prefect/pull/649)
 - Add `defaults_from_attrs` decorator to easily construct `Task`s whose attributes serve as defaults for `Task.run` - [#293](https://github.com/PrefectHQ/prefect/issues/293)
+- Environments follow new hierarchy (PIN-3) - [#670](https://github.com/PrefectHQ/prefect/pull/670)
 - Add `GCSUploadTask` and `GCSDownloadTask` for uploading / retrieving string data to / from Google Cloud Storage - [#673](https://github.com/PrefectHQ/prefect/pull/673)
 - Add `BigQueryTask` and `BigQueryInsertTask` for executing queries against BigQuery tables and inserting data - [#678](https://github.com/PrefectHQ/prefect/pull/678), [#685](https://github.com/PrefectHQ/prefect/pull/685)
 - Add `OneTimeSchedule` for one-time execution at a specified time - [#680](https://github.com/PrefectHQ/prefect/pull/680)
@@ -23,6 +24,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add timestamp to auto-generated API docs footer - [#639](https://github.com/PrefectHQ/prefect/pull/639)
 - Refactor `Result` interface into `Result` and `SafeResult` - [#649](https://github.com/PrefectHQ/prefect/pull/649)
 - The `manual_only` trigger will pass if `resume=True` is found in context, which indicates that a `Resume` state was passed - [#664](https://github.com/PrefectHQ/prefect/issues/664)
+- Added DockerOnKubernetes environment (PIN-3) - [#670](https://github.com/PrefectHQ/prefect/pull/670)
+- Added Prefect docker image (PIN-3) - [#670](https://github.com/PrefectHQ/prefect/pull/670)
 - `defaults_from_attrs` now accepts a splatted list of arguments - [#676](https://github.com/PrefectHQ/prefect/issues/676)
 - Add retry functionality to `flow.run(on_schedule=True)` for local execution - [#680](https://github.com/PrefectHQ/prefect/pull/680)
 - Add `helper_fns` keyword to `ShellTask` for pre-populating helper functions to commands - [#681](https://github.com/PrefectHQ/prefect/pull/681)
@@ -45,6 +48,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Upstream state results now take precedence for task inputs over `cached_inputs` - [#591](https://github.com/PrefectHQ/prefect/issues/591)
 - Rename `Match` task (used inside control flow) to `CompareValue` - [#638](https://github.com/PrefectHQ/prefect/pull/638)
 - `Client.graphql()` now returns a response with up to two keys (`data` and `errors`). Previously the `data` key was automatically selected - [#642](https://github.com/PrefectHQ/prefect/pull/642)
+- `ContainerEnvironment` was changed to `DockerEnvironment` - [#670](https://github.com/PrefectHQ/prefect/pull/670)
+- The environment `from_file` was moved to `utilities.environments` - [#670](https://github.com/PrefectHQ/prefect/pull/670)
 - Removed `start_tasks` argument from `FlowRunner.run()` and `check_upstream` argument from `TaskRunner.run()` - [#672](https://github.com/PrefectHQ/prefect/pull/672)
 - Remove support for Python 3.4 - [#671](https://github.com/PrefectHQ/prefect/issues/671)
 

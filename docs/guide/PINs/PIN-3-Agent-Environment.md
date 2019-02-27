@@ -11,7 +11,7 @@ Author: Josh Meek
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -58,18 +58,6 @@ The platform agent will be a tiny deployment process which will look for flow ru
 
 __Environment metadata__:
 The environment metadata contains information about the environment itself that was present on the flow which acts as a serializable set of instructions on how to recreate the environment.
-
----
-
-### Process Outline
-
-Next this proposal will outline the entire high-level process of execution and then it will delve into specifics.
-
-1. Agent reaches out to the Prefect GraphQL API and sees a new flow run that needs to be executed
-2. Agent retrieves the flow run and the environment metadata associated with that flow
-3. Agent spins up the latest Prefect docker image and provides it with the agruments mentioned above
-4. Prefect container calls the environment's `run` function and all environment pre/during processing occurs
-5. Once the job running the flow flow enters a finished state resources pertaining to this flow run will be town down
 
 ---
 

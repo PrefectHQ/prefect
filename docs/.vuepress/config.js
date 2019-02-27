@@ -39,7 +39,7 @@ module.exports = {
         {
           title: 'prefect',
           collapsable: true,
-          children: ['environments', 'triggers', 'schedules']
+          children: ['triggers', 'schedules']
         },
         {
           title: 'prefect.client',
@@ -67,6 +67,15 @@ module.exports = {
           ]
         },
         {
+          title: 'prefect.environments',
+          collapsable: true,
+          children: [
+            'environments/environment',
+            'environments/base_environment',
+            'environments/kubernetes/docker_on_kubernetes'
+          ]
+        },
+        {
           title: 'prefect.tasks',
           collapsable: true,
           children: [
@@ -86,6 +95,7 @@ module.exports = {
             'utilities/configuration',
             'utilities/context',
             'utilities/debug',
+            'utilities/environments',
             'utilities/executors',
             'utilities/graphql',
             'utilities/logging',
