@@ -25,12 +25,13 @@ and also a serialized `LocalEnvironment`. When the `DockerEnvironment` is deploy
 the container in turn runs the `LocalEnvironment`.
 """
 
+from abc import ABCMeta
 import json
 
 import prefect
 
 
-class Environment:
+class Environment(metaclass=ABCMeta):
     """
     Base class for Environments.
 
@@ -66,8 +67,9 @@ class Environment:
         """
         Executes the environment on any infrastructure created during setup
         """
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def run(self) -> "prefect.engine.state.State":  # type: ignore
         """
         Runs the `Flow` represented by this environment.
@@ -81,7 +83,7 @@ class Environment:
         """
         Sets up the infrastructure needed for this environment
         """
-        raise NotImplementedError()
+        pass
 
     def serialize(self) -> dict:
         """
