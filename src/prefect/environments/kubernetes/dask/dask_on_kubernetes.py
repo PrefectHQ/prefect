@@ -12,6 +12,7 @@ import yaml
 import prefect
 from prefect.environments import DockerEnvironment
 
+
 class DaskOnKubernetesEnvironment(DockerEnvironment):
 
     # Add dask related config options to the init
@@ -37,6 +38,32 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
         self.identifier_label = str(uuid.uuid4())
 
+    def _populate_worker_pod_yaml(self, yaml_obj: dict) -> dict:
+        """"""
+        # set identifier labels
+        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
+
+        # set environment variables
+        yaml_obj["spec"]["containers"][0]["env"][0][
+            "value"
+        ] = prefect.config.cloud.graphql
+        yaml_obj["spec"]["containers"][0]["env"][1]["value"] = prefect.config.cloud.log
+        yaml_obj["spec"]["containers"][0]["env"][2][
+            "value"
+        ] = prefect.config.cloud.result_handler
+        yaml_obj["spec"]["containers"][0]["env"][3][
+            "value"
+        ] = prefect.config.cloud.auth_token
+        yaml_obj["spec"]["containers"][0]["env"][4]["value"] = prefect.context.get(
+            "flow_run_id", ""
+        )
+
+        # set image
+        yaml_obj["spec"]["containers"][0]["image"] = "{}:{}".format(
+            path.join(self.registry_url, self.image_name),  # type: ignore
+            self.image_tag,
+        )
+
     def execute(self) -> None:
         """
         Create a single Kubernetes job on the default namespace that runs a flow. This also
@@ -60,7 +87,14 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         """
         ASDF
         """
-        pass
+        with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
+            worker_pod = yaml.safe_load(pod_file)
+            worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
+
+        cluster = KubeCluster.from_dict(worker_pod)
+        cluster.scale_up(1)
+
+        # Spin everything up, make sure the scheduler and worker start, block inside execute
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
