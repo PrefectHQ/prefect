@@ -22,15 +22,19 @@ class LocalEnvironmentSchema(ObjectSchema):
     serialized_flow = Bytes(allow_none=True)
 
 
-class ContainerEnvironmentSchema(ObjectSchema):
+class DockerEnvironmentSchema(ObjectSchema):
     class Meta:
-        object_class = prefect.environments.ContainerEnvironment
+        object_class = prefect.environments.DockerEnvironment
 
     base_image = fields.String(required=True)
     registry_url = fields.String(required=True)
     image_name = fields.String(allow_none=True)
     image_tag = fields.String(allow_none=True)
-    python_dependencies = fields.List(fields.String(), allow_none=True)
+
+
+class DockerOnKubernetesEnvironmentSchema(DockerEnvironmentSchema):
+    class Meta:
+        object_class = prefect.environments.kubernetes.DockerOnKubernetesEnvironment
 
 
 class EnvironmentSchema(OneOfSchema):
@@ -40,6 +44,7 @@ class EnvironmentSchema(OneOfSchema):
 
     # map class name to schema
     type_schemas = {
-        "ContainerEnvironment": ContainerEnvironmentSchema,
+        "DockerEnvironment": DockerEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
+        "DockerOnKubernetesEnvironment": DockerOnKubernetesEnvironmentSchema,
     }
