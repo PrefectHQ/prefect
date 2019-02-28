@@ -112,6 +112,8 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         batch_client = client.BatchV1Api()
 
         while True:
+            time.sleep(5)
+
             job = batch_client.read_namespaced_job_status(
                 name="prefect-dask-job-{}".format(self.identifier_label),
                 namespace="default",
@@ -119,8 +121,6 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
             if not job or job.status.failed != 0 or job.status.succeeded != 0:
                 return
-
-            time.sleep(5)
 
     def execute(self) -> None:
         """
