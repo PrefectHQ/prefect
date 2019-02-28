@@ -13,6 +13,8 @@ from prefect.utilities.serialization import (
     to_qualified_name,
 )
 
+# Base Environments
+
 
 class LocalEnvironmentSchema(ObjectSchema):
     class Meta:
@@ -32,9 +34,17 @@ class DockerEnvironmentSchema(ObjectSchema):
     image_tag = fields.String(allow_none=True)
 
 
+# Kubernetes Environments
+
+
 class DockerOnKubernetesEnvironmentSchema(DockerEnvironmentSchema):
     class Meta:
         object_class = prefect.environments.kubernetes.DockerOnKubernetesEnvironment
+
+
+class DaskOnKubernetesEnvironmentSchema(DockerEnvironmentSchema):
+    class Meta:
+        object_class = prefect.environments.kubernetes.DaskOnKubernetesEnvironment
 
 
 class EnvironmentSchema(OneOfSchema):
@@ -47,4 +57,5 @@ class EnvironmentSchema(OneOfSchema):
         "DockerEnvironment": DockerEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
         "DockerOnKubernetesEnvironment": DockerOnKubernetesEnvironmentSchema,
+        "DaskOnKubernetesEnvironment": DaskOnKubernetesEnvironmentSchema,
     }
