@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prefect-docker-job
+  labels:
+    app: prefect-docker-job
+spec:
+  template:
+    metadata:
+      labels:
+        app: prefect-docker-job
+    spec:
+      containers:
+        - name: flow
+          image: gcr.io/prefect-dev/prefect
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args: ["prefect run /root/.prefect/flow_env.prefect"]
+          env:
+            - name: PREFECT__CLOUD__GRAPHQL
+              value: $PREFECT__CLOUD__GRAPHQL
+            - name: PREFECT__CLOUD__LOG
+              value: PREFECT__CLOUD__LOG
+            - name: PREFECT__CLOUD__RESULT_HANDLER
+              value: PREFECT__CLOUD__RESULT_HANDLER
+            - name: PREFECT__CLOUD__AUTH_TOKEN
+              value: PREFECT__CLOUD__AUTH_TOKEN
+            - name: PREFECT__CONTEXT__FLOW_RUN_ID
+              value: PREFECT__CONTEXT__FLOW_RUN_ID
+            - name: PREFECT__CLOUD__USE_LOCAL_SECRETS
+              value: "false"
+            - name: PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS
+              value: "prefect.engine.cloud.CloudFlowRunner"
+            - name: PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
+              value: "prefect.engine.cloud.CloudTaskRunner"
+            - name: PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS
+              value: "prefect.engine.executors.LocalExecutor"
+            - name: PREFECT__LOGGING__LOG_TO_CLOUD
+              value: "true"
+            - name: PREFECT__LOGGING__LEVEL
+              value: "DEBUG"
+            - name: PREFECT__DEBUG
+              value: "true"
+      restartPolicy: Never
