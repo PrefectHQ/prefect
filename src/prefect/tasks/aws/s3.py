@@ -33,7 +33,12 @@ class S3DownloadTask(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("aws_credentials_secret", "bucket")
-    def run(self, key: str, aws_credentials_secret: str = None, bucket: str = None):
+    def run(
+        self,
+        key: str,
+        aws_credentials_secret: str = "AWS_CREDENTIALS",
+        bucket: str = None,
+    ):
         """
         Task run method.
 
@@ -100,7 +105,7 @@ class S3UploadTask(Task):
         self,
         data: str,
         key: str = None,
-        aws_credentials_secret: str = None,
+        aws_credentials_secret: str = "AWS_CREDENTIALS",
         bucket: str = None,
     ):
         """

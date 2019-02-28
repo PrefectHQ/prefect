@@ -70,6 +70,7 @@ module.exports = {
           title: 'prefect.tasks',
           collapsable: true,
           children: [
+            'tasks/aws',
             'tasks/control_flow',
             'tasks/function',
             'tasks/google',
