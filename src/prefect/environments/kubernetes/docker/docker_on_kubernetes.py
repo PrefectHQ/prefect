@@ -129,7 +129,7 @@ class DockerOnKubernetesEnvironment(DockerEnvironment):
         self, flow: "prefect.Flow", push: bool = True
     ) -> "prefect.environments.DockerEnvironment":
         """
-        Build the Docker container. Returns a Container Environment with the appropriate
+        Build the Docker container. Returns a DockerEnvironment with the appropriate
         image_name and image_tag set.
 
         Args:
