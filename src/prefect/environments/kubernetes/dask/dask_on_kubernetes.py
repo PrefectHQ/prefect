@@ -2,6 +2,7 @@
 
 import logging
 from os import path
+import time
 import uuid
 
 from dask_kubernetes import KubeCluster
@@ -106,6 +107,20 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
         return yaml_obj
 
+    def _wait_for_dask_job(self) -> None:
+        """"""
+        batch_client = client.BatchV1Api()
+
+        while True:
+            job = batch_client.read_namespaced_job_status(
+                name="prefect-dask-job-{}".format(self.identifier_label),
+                namespace="default",
+            )
+
+            if job.status.failed != 0 or job.status.succeeded != 0:
+                return
+
+            time.sleep(5)
 
     def execute(self) -> None:
         """
@@ -126,10 +141,10 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             # Create Job
             batch_client.create_namespaced_job(namespace="default", body=job)
 
+        self._wait_for_dask_job()
+
     def setup(self) -> None:
-        """
-        ASDF
-        """
+        """"""
         with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
             worker_pod = yaml.safe_load(pod_file)
             worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
@@ -138,8 +153,6 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             cluster.scale_up(1)
 
             self.scheduler_address = cluster.scheduler_address
-
-        # Spin everything up, make sure the scheduler and worker start, block inside execute
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
