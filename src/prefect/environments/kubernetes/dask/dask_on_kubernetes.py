@@ -4,6 +4,7 @@ import logging
 from os import path
 import uuid
 
+from dask_kubernetes import KubeCluster
 import docker
 from kubernetes import client, config
 import yaml
