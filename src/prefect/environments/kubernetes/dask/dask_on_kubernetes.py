@@ -70,7 +70,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
     def _populate_job_yaml(self, yaml_obj: dict) -> dict:
         """"""
         # set identifier labels
-        yaml_obj["metadata"]["name"] = "prefect-local-job-{}".format(
+        yaml_obj["metadata"]["name"] = "prefect-dask-job-{}".format(
             self.identifier_label
         )
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label

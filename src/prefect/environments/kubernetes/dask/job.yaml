@@ -1,14 +1,14 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: prefect-docker-job
+  name: prefect-dask-job
   labels:
-    app: prefect-docker-job
+    app: prefect-dask-job
 spec:
   template:
     metadata:
       labels:
-        app: prefect-docker-job
+        app: prefect-dask-job
     spec:
       containers:
         - name: flow
