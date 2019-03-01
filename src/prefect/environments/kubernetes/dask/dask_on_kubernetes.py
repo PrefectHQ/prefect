@@ -46,6 +46,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
 
         # set environment variables
+        yaml_obj["spec"]["containers"][0]["args"][1] = "{}:8786".format(self.scheduler_address)
         yaml_obj["spec"]["containers"][0]["env"][0][
             "value"
         ] = prefect.config.cloud.graphql
@@ -209,6 +210,8 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
             self.scheduler_address = service.spec.cluster_ip
 
+            print("Address: {}".format(self.scheduler_address))
+
         # Make workers
         with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
             worker_pod = yaml.safe_load(pod_file)
@@ -217,7 +220,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             print(worker_pod)
 
             cluster = KubeCluster.from_dict(
-                worker_pod, host=self.scheduler_address, port="8786"
+                worker_pod, port="8786"
             )
             cluster.scale_up(1)
 
