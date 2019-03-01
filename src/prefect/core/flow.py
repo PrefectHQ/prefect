@@ -904,7 +904,8 @@ class Flow:
                 for s in filter(lambda x: x.is_mapped(), task_states):
                     task_states.extend(s.map_states)
                 earliest_start = min(
-                    [s.start_time for s in task_states if s.is_scheduled()], default=now
+                    [s.start_time for s in task_states if s.is_scheduled()],
+                    default=pendulum.now("utc"),
                 )
 
                 ## wait until first task is ready for retry
