@@ -119,7 +119,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
                 namespace="default",
             )
 
-            if not job or job.status.failed != 0 or job.status.succeeded != 0:
+            if not job or job.status.failed or job.status.succeeded:
                 print("Dask job is", job.status)
                 return
 
