@@ -110,7 +110,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         ] = prefect.context.get("flow_run_id", "")
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"][5][
             "value"
-        ] = "tcp://{}:8786".format(self.scheduler_address)
+        ] = "{}:8786".format(self.scheduler_address)
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = "{}:{}".format(
