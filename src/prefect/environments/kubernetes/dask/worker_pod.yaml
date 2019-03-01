@@ -7,7 +7,7 @@ spec:
   containers:
   - image: gcr.io/prefect-dev/prefect
     imagePullPolicy: IfNotPresent
-    args: [dask-worker, --nthreads, '2', --no-bokeh, --death-timeout, '60']
+    args: [dask-worker, --no-bokeh]
     name: dask-worker
     env:
       - name: PREFECT__CLOUD__GRAPHQL
