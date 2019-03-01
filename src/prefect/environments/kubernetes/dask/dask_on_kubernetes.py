@@ -172,13 +172,41 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
     def setup(self) -> None:
         """"""
+        # Make service
+        with open(
+            path.join(path.dirname(__file__), "scheduler_service.yaml")
+        ) as svc_file:
+
+            core_client = client.CoreV1Api()
+
+            # Populate
+            scheduler_service = yaml.safe_load(svc_file)
+            scheduler_service = self._populate_scheduler_service_yaml(
+                yaml_obj=scheduler_service
+            )
+
+            print(scheduler_service)
+
+            # Create
+            core_client.create_namespaced_service(
+                namespace="default", body=scheduler_service
+            )
+
+            service = core_client.read_namespaced_service(
+                namespace="default", name=service_name
+            )
+
+            self.scheduler_address = service.spec.cluster_ip
+
         with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
             worker_pod = yaml.safe_load(pod_file)
             worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
 
             print(worker_pod)
 
-            cluster = KubeCluster.from_dict(worker_pod, port="8786")
+            cluster = KubeCluster.from_dict(
+                worker_pod, host=self.scheduler_address, port="8786"
+            )
             cluster.scale_up(1)
 
         # Make service
