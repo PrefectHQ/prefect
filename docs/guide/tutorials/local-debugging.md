@@ -96,15 +96,11 @@ Note that this utility doesn't require you know anything about where the error o
 ### Re-raising Execeptions post-hoc
 
 Suppose you want to let the full pipeline run and don't want to raise the trapped error at runtime. Assuming your error was trapped and placed in a `Failed` state, the full exception is stored in the `result` attribute of the task state. Knowing this, you can re-raise it locally and debug from there!
-::: tip Knowing what failed
-Sometimes, you aren't immediately sure which task(s) failed. Because `flow.run()` doesn't return any task states by default, you might wonder how to get the correct task state to inspect the error message. Prefect provides a convenient debug `state_handler` that will return any tasks which failed during execution so you don't have to know which to request beforehand! (Note: this state handler only works with the `LocalExecutor`)
-:::
 
 To demonstrate:
 
 ```python
 from prefect import Flow, task
-from prefect.utilities.debug import make_return_failed_handler
 
 
 @task
@@ -118,11 +114,7 @@ def gotcha():
 
 flow = Flow(tasks=[gotcha])
 
-# here, we use a special state_handler to automatically populate the `return_tasks` set.
-return_tasks = set()
-state = flow.run(
-    return_tasks=return_tasks,
-    task_runner_state_handlers=[make_return_failed_handler(return_tasks)])
+state = flow.run()
 state.result # {<Task: gotcha>: Failed("Unexpected error")}
 
 failed_state = state.result[gotcha]
