@@ -1363,3 +1363,12 @@ def test_bad_flow_runner_code_still_returns_state_obj():
     assert isinstance(res, State)
     assert res.is_failed()
     assert isinstance(res.result, ImportError)
+
+
+@pytest.mark.parametrize("kwarg", ["return_tasks", "state"])
+def test_flow_run_raises_informative_error_for_certain_kwargs(kwarg):
+    f = Flow()
+    with pytest.raises(ValueError) as exc:
+        f.run(**{kwarg: True})
+    assert kwarg in str(exc.value)
+    assert "FlowRunner" in str(exc.value)
