@@ -179,7 +179,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             print(worker_pod)
 
             cluster = KubeCluster.from_dict(worker_pod, port="8786")
-            cluster.scale_up(10)
+            cluster.scale_up(1)
 
         # Make service
         with open(
