@@ -7,7 +7,7 @@ spec:
   containers:
   - image: gcr.io/prefect-dev/prefect
     imagePullPolicy: IfNotPresent
-    args: [dask-worker, --nthreads, '2', --no-bokeh, --memory-limit, 6GB, --death-timeout, '600']
+    args: [dask-worker, --no-bokeh, --death-timeout, '600']
     name: dask-worker
     env:
       - name: PREFECT__CLOUD__GRAPHQL
@@ -36,10 +36,3 @@ spec:
         value: "true"
       - name: EXTRA_PIP_PACKAGES
         value: fastparquet
-    resources:
-      limits:
-        cpu: "2"
-        memory: 6G
-      requests:
-        cpu: "2"
-        memory: 6G
