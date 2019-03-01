@@ -189,7 +189,7 @@ classes = ["Context"]
 [pages.utilities.debug]
 title = "Debugging Tools"
 module = "prefect.utilities.debug"
-functions = ["is_serializable", "raise_on_exception", "make_return_failed_handler"]
+functions = ["is_serializable", "raise_on_exception"]
 
 [pages.utilities.environments]
 title = "Environments"
