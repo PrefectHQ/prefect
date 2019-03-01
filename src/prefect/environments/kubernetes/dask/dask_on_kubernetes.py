@@ -146,7 +146,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
 
             cluster = KubeCluster.from_dict(worker_pod)
-            cluster.scale_up(2)
+            cluster.adapt(minumum=1, maximum=5)
 
             time.sleep(30)
 
