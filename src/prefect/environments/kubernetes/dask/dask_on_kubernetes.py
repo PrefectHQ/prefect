@@ -12,6 +12,7 @@ from kubernetes import client, config
 import yaml
 
 import prefect
+from prefect.engine.executors import DaskExecutor
 from prefect.environments import DockerEnvironment
 
 
@@ -156,8 +157,11 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             with open("/root/.prefect/flow_env.prefect", "r") as f:
                 environment = schema.load(json.load(f))
 
-                environment.run()
-
+                environment.run(
+                    runner_kwargs={
+                        "executor": DaskExecutor(address=cluster.scheduler_address)
+                    }
+                )
 
     def execute(self) -> None:
         """
