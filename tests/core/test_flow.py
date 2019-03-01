@@ -18,6 +18,7 @@ from prefect.engine.signals import PrefectError
 from prefect.engine.state import (
     Failed,
     Finished,
+    Pending,
     Mapped,
     Skipped,
     State,
@@ -1417,6 +1418,16 @@ def test_flow_run_raises_informative_error_for_certain_kwargs():
     assert "FlowRunner" in str(exc.value)
 
 
+def test_flow_run_raises_if_no_more_scheduled_runs():
+    schedule = prefect.schedules.OneTimeSchedule(
+        start_date=pendulum.now("utc").add(days=-1)
+    )
+    f = Flow(schedule=schedule)
+    with pytest.raises(ValueError) as exc:
+        f.run()
+    assert "no more scheduled runs" in str(exc.value)
+
+
 def test_flow_run_respects_state_kwarg():
     f = Flow()
     state = f.run(state=Failed("Unique."))
@@ -1432,3 +1443,10 @@ def test_flow_run_respects_task_state_kwarg():
     assert flow_state.result[t].is_failed()
     assert flow_state.result[t].message == "unique."
     assert flow_state.result[s].is_successful()
+
+
+def test_flow_run_handles_error_states_when_initial_state_is_provided():
+    with Flow() as f:
+        res = AddTask()("5", 5)
+    state = f.run(state=Pending())
+    assert state.is_failed()
