@@ -150,7 +150,9 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         service_name = "prefect-job-{}".format(job_identifier)
 
         core_client = client.CoreV1Api()
-        service = core_client.read_namespaced_service(name=service_name)
+        service = core_client.read_namespaced_service(
+            namespace="default", name=service_name
+        )
 
         self.scheduler_address = service.spec.cluster_ip
         print("Scheduler address {}".format(self.scheduler_address))
