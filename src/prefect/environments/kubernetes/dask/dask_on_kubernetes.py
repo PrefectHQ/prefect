@@ -43,7 +43,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
     def _populate_worker_pod_yaml(self, yaml_obj: dict) -> dict:
         """"""
         # set identifier labels
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
+        # yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
 
         # set environment variables
         yaml_obj["spec"]["containers"][0]["env"][0][
