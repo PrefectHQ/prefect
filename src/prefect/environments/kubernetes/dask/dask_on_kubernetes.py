@@ -68,6 +68,19 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
         return yaml_obj
 
+    def _populate_scheduler_service_yaml(self, yaml_obj: dict) -> dict:
+        """"""
+        # set identifier labels
+        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
+
+        job_identifier = prefect.context.get("job_identifier", "")
+
+        yaml_obj["metadata"]["name"] = "prefect-job-{}".format(job_identifier)
+        yaml_obj["metadata"]["labels"]["app"] = "prefect-job-{}".format(job_identifier)
+        yaml_obj["spec"]["selector"]["app"] = "prefect-job-{}".format(job_identifier)
+
+        return yaml_obj
+
     def _populate_job_yaml(self, yaml_obj: dict) -> dict:
         """"""
         # set identifier labels
@@ -97,7 +110,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         ] = prefect.context.get("flow_run_id", "")
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"][5][
             "value"
-        ] = self.scheduler_address
+        ] = "tcp://{}:8786".format(self.scheduler_address)
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = "{}:{}".format(
@@ -133,11 +146,22 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         except config.config_exception.ConfigException:
             raise EnvironmentError("Environment not currently inside a cluster")
 
+        job_identifier = prefect.context.get("job_identifier", "")
+        service_name = "prefect-job-{}".format(job_identifier)
+
+        core_client = client.CoreV1Api()
+        service = core_client.read_namespaced_service(name=service_name)
+
+        self.scheduler_address = service.spec.cluster_ip
+        print("Scheduler address {}".format(self.scheduler_address))
+
         batch_client = client.BatchV1Api()
 
         with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
             job = yaml.safe_load(job_file)
             job = self._populate_job_yaml(yaml_obj=job)
+
+            print(job)
 
             # Create Job
             batch_client.create_namespaced_job(namespace="default", body=job)
@@ -152,10 +176,28 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
             print(worker_pod)
 
-            cluster = KubeCluster.from_dict(worker_pod)
+            cluster = KubeCluster.from_dict(worker_pod, port="8786")
             cluster.scale_up(10)
 
-            self.scheduler_address = cluster.scheduler_address
+        # Make service
+        with open(
+            path.join(path.dirname(__file__), "scheduler_service.yaml")
+        ) as svc_file:
+
+            core_client = client.CoreV1Api()
+
+            # Populate
+            scheduler_service = yaml.safe_load(svc_file)
+            scheduler_service = self._populate_scheduler_service_yaml(
+                yaml_obj=scheduler_service
+            )
+
+            print(scheduler_service)
+
+            # Create
+            core_client.create_namespaced_service(
+                namespace="default", body=scheduler_service
+            )
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
