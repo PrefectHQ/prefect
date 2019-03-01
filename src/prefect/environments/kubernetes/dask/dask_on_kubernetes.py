@@ -12,7 +12,6 @@ from kubernetes import client, config
 import yaml
 
 import prefect
-from prefect.engine.executors import DaskExecutor
 from prefect.environments import DockerEnvironment
 
 
@@ -144,6 +143,8 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
     # Make run method?
     def create_dask_cluster(self) -> None:
+        from prefect.engine.executors import DaskExecutor
+
         with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
             worker_pod = yaml.safe_load(pod_file)
             worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
