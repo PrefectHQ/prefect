@@ -15,7 +15,15 @@ from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
 from prefect.engine.signals import PrefectError
-from prefect.engine.state import Failed, Mapped, Skipped, State, Success, TriggerFailed
+from prefect.engine.state import (
+    Failed,
+    Finished,
+    Mapped,
+    Skipped,
+    State,
+    Success,
+    TriggerFailed,
+)
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task, unmapped
@@ -1381,6 +1389,12 @@ def test_scheduled_runs_handle_mapped_retries():
     assert all([s.is_successful() for s in flow_state.result[res].map_states])
     assert res.call_count == 4
     assert len(state_history) == 11
+
+
+def test_flow_run_accepts_state_kwarg():
+    f = Flow()
+    state = f.run(state=Finished())
+    assert state.is_finished()
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():

@@ -856,9 +856,19 @@ class Flow:
         self, parameters: Dict[str, Any], runner_cls: type, **kwargs: Any
     ) -> "prefect.engine.state.State":
 
-        flow_state = prefect.engine.state.Pending(
-            "Waiting for Flow run to be scheduled."
-        )  # type: prefect.engine.state.State
+        ## determine time of first run
+        try:
+            if self.schedule is not None:
+                next_run_time = self.schedule.next(1)[0]
+            else:
+                next_run_time = pendulum.now("utc")
+        except IndexError:
+            raise ValueError("Flow has no more scheduled runs.") from None
+
+        ## setup initial states
+        flow_state = prefect.engine.state.Scheduled(
+            start_time=next_run_time, result={}
+        )  # type: ignore
         flow_state = kwargs.pop("state", flow_state)
         if not isinstance(flow_state.result, dict):
             flow_state.result = {}
@@ -867,27 +877,15 @@ class Flow:
 
         ## run this flow indefinitely, so long as its schedule has future dates
         while True:
-            ## wait until next scheduled run time
-            try:
-                if self.schedule is not None:
-                    next_run_time = self.schedule.next(1)[0]
-                else:
-                    if flow_state.is_pending():
-                        next_run_time = pendulum.now("utc")
-                    else:
-                        break
-            except IndexError:
-                break
-            flow_state = prefect.engine.state.Scheduled(
-                start_time=next_run_time, result=flow_state.result
-            )  # type: ignore
-            now = pendulum.now("utc")
-            naptime = max((next_run_time - now).total_seconds(), 0)
-            if naptime > 0:
-                self.logger.info(
-                    "Waiting for next scheduled run at {}".format(next_run_time)
-                )
-            time.sleep(naptime)
+            if flow_state.is_scheduled():
+                next_run_time = flow_state.start_time
+                now = pendulum.now("utc")
+                naptime = max((next_run_time - now).total_seconds(), 0)
+                if naptime > 0:
+                    self.logger.info(
+                        "Waiting for next scheduled run at {}".format(next_run_time)
+                    )
+                time.sleep(naptime)
 
             ## begin a single flow run
             while not flow_state.is_finished():
@@ -919,6 +917,18 @@ class Flow:
                         )
                     )
                 time.sleep(naptime)
+
+            ## create next scheduled run
+            try:
+                if self.schedule is not None:
+                    next_run_time = self.schedule.next(1)[0]
+                else:
+                    break
+            except IndexError:
+                break
+            flow_state = prefect.engine.state.Scheduled(
+                start_time=next_run_time, result={}
+            )  # type: ignore
         return flow_state
 
     def run(
@@ -938,6 +948,10 @@ class Flow:
             - **kwargs: additional keyword arguments; if any provided keywords
                 match known parameter names, they will be used as such. Otherwise they will be passed to the
                 `FlowRunner.run()` method
+
+        Raises:
+            - ValueError: if this Flow has a Schedule with no more scheduled runs
+            - ValueError: if the `return_tasks` keyword argument is provided
 
         Returns:
             - State: the state of the flow after its final run
