@@ -891,6 +891,7 @@ class Flow:
                     parameters=parameters,
                     return_tasks=self.tasks,
                     state=flow_state,
+                    task_states=flow_state.result,
                     **kwargs
                 )
                 if not isinstance(flow_state.result, dict):
@@ -936,13 +937,9 @@ class Flow:
         Returns:
             - State: the state of the flow after its final run
         """
-        if "return_tasks" in kwargs:
+        if any(["return_tasks" in kwargs, "state" in kwargs, "task_states" in kwargs]):
             raise ValueError(
-                "The return_tasks keyword cannot be provided to flow.run; use a FlowRunner directly."
-            )
-        if "state" in kwargs:
-            raise ValueError(
-                "The state keyword cannot be provided to flow.run; use a FlowRunner directly."
+                "The following keywords cannot be provided to `flow.run`: `return_tasks`, `state`, `task_states`. Use a FlowRunner directly."
             )
         if runner_cls is None:
             runner_cls = prefect.engine.get_default_flow_runner_class()
