@@ -193,6 +193,8 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             )
             time.sleep(10)
 
+            job_identifier = prefect.context.get("job_identifier", "")
+            service_name = "prefect-job-{}".format(job_identifier)
             service = core_client.read_namespaced_service(
                 namespace="default", name=service_name
             )
