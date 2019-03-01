@@ -4,12 +4,10 @@ metadata:
   name: prefect-job
   labels:
     app: prefect-job
-    component: flow
 spec:
   ports:
   - port: 8786
     targetPort: 8786
   selector:
     app: prefect-job
-    component: flow
   type: ClusterIP
