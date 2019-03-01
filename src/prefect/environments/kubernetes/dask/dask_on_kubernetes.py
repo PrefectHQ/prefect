@@ -67,18 +67,18 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
         return yaml_obj
 
-    def _populate_scheduler_service_yaml(self, yaml_obj: dict) -> dict:
-        """"""
-        # set identifier labels
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
+    # def _populate_scheduler_service_yaml(self, yaml_obj: dict) -> dict:
+    #     """"""
+    #     # set identifier labels
+    #     yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
 
-        job_identifier = prefect.context.get("job_identifier", "")
+    #     job_identifier = prefect.context.get("job_identifier", "")
 
-        yaml_obj["metadata"]["name"] = "prefect-job-{}".format(job_identifier)
-        yaml_obj["metadata"]["labels"]["app"] = "prefect-job-{}".format(job_identifier)
-        yaml_obj["spec"]["selector"]["app"] = "prefect-job-{}".format(job_identifier)
+    #     yaml_obj["metadata"]["name"] = "prefect-job-{}".format(job_identifier)
+    #     yaml_obj["metadata"]["labels"]["app"] = "prefect-job-{}".format(job_identifier)
+    #     yaml_obj["spec"]["selector"]["app"] = "prefect-job-{}".format(job_identifier)
 
-        return yaml_obj
+    #     return yaml_obj
 
     def _populate_job_yaml(self, yaml_obj: dict) -> dict:
         """"""
@@ -125,21 +125,21 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
         return yaml_obj
 
-    def _wait_for_dask_job(self) -> None:
-        """"""
-        batch_client = client.BatchV1Api()
+    # def _wait_for_dask_job(self) -> None:
+    #     """"""
+    #     batch_client = client.BatchV1Api()
 
-        while True:
-            time.sleep(5)
+    #     while True:
+    #         time.sleep(5)
 
-            job = batch_client.read_namespaced_job_status(
-                name="prefect-dask-job-{}".format(self.identifier_label),
-                namespace="default",
-            )
+    #         job = batch_client.read_namespaced_job_status(
+    #             name="prefect-dask-job-{}".format(self.identifier_label),
+    #             namespace="default",
+    #         )
 
-            if not job or job.status.failed or job.status.succeeded:
-                print("Dask job is", job.status)
-                return
+    #         if not job or job.status.failed or job.status.succeeded:
+    #             print("Dask job is", job.status)
+    #             return
 
     # Make run method?
     def create_dask_cluster(self) -> None:
@@ -151,8 +151,6 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
             cluster = KubeCluster.from_dict(worker_pod)
             cluster.adapt(minimum=1, maximum=5)
-
-            time.sleep(30)
 
             schema = prefect.serialization.environment.EnvironmentSchema()
             with open("/root/.prefect/flow_env.prefect", "r") as f:
@@ -238,15 +236,15 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
         #     print("Address: {}".format(self.scheduler_address))
 
-        # Make workers
-        with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
-            worker_pod = yaml.safe_load(pod_file)
-            worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
+        # # Make workers
+        # with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
+        #     worker_pod = yaml.safe_load(pod_file)
+        #     worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
 
-            print(worker_pod)
+        #     print(worker_pod)
 
-            cluster = KubeCluster.from_dict(worker_pod, port="8786")
-            cluster.scale_up(1)
+        #     cluster = KubeCluster.from_dict(worker_pod, port="8786")
+        #     cluster.scale_up(1)
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
