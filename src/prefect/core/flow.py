@@ -853,7 +853,7 @@ class Flow:
     # Execution  ---------------------------------------------------------------
 
     def _run_on_schedule(
-        self, parameters: Dict[str, Any] = None, runner_cls: type = None, **kwargs: Any
+        self, parameters: Dict[str, Any], runner_cls: type, **kwargs: Any
     ) -> "prefect.engine.state.State":
 
         flow_state = prefect.engine.state.Pending(
@@ -875,7 +875,7 @@ class Flow:
                 break
             flow_state = prefect.engine.state.Scheduled(
                 start_time=next_run_time, result={}
-            )  # type: prefect.engine.state.State
+            )  # type: ignore
             now = pendulum.now("utc")
             naptime = max((next_run_time - now).total_seconds(), 0)
             if naptime > 0:
@@ -919,15 +919,16 @@ class Flow:
         self, parameters: Dict[str, Any] = None, runner_cls: type = None, **kwargs: Any
     ) -> "prefect.engine.state.State":
         """
-        Run the flow using an instance of a FlowRunner
+        Run the flow on its schedule using an instance of a FlowRunner.  If the Flow has no schedule,
+        a single stateful run will occur (including retries).
+
+        Note that this command will block and run this Flow on its schedule indefinitely (if it has one);
+        all task states will be stored in memory, and task retries will not occur until every Task in the Flow has had a chance
+        to run.
 
         Args:
             - parameters (Dict[str, Any], optional): values to pass into the runner
             - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
-            - on_schedule (bool, optional): if `True`, this command will block and
-                run this Flow on its schedule indefinitely; note that all task states will be stored
-                in memory, and task retries will not occur until every Task in the Flow has had a chance
-                to run
             - **kwargs: additional keyword arguments; if any provided keywords
                 match known parameter names, they will be used as such. Otherwise they will be passed to the
                 `FlowRunner.run()` method
