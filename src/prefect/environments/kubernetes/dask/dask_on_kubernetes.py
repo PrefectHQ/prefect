@@ -120,6 +120,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             )
 
             if not job or job.status.failed != 0 or job.status.succeeded != 0:
+                print("Dask job is", job.status)
                 return
 
     def execute(self) -> None:
@@ -148,6 +149,8 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
             worker_pod = yaml.safe_load(pod_file)
             worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
+
+            print(worker_pod)
 
             cluster = KubeCluster.from_dict(worker_pod)
             cluster.scale_up(1)
