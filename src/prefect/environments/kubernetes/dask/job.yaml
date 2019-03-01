@@ -15,7 +15,7 @@ spec:
           image: gcr.io/prefect-dev/prefect
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
-          args: ["prefect run /root/.prefect/flow_env.prefect"]
+          args: ['python -c "from prefect.environments.kubernetes.dask_on_kubernetes import DaskOnKubernetesEnvironment; DaskOnKubernetesEnvironment.create_dask_cluster()" && prefect run /root/.prefect/flow_env.prefect']
           env:
             - name: PREFECT__CLOUD__GRAPHQL
               value: $PREFECT__CLOUD__GRAPHQL
@@ -27,8 +27,8 @@ spec:
               value: PREFECT__CLOUD__AUTH_TOKEN
             - name: PREFECT__CONTEXT__FLOW_RUN_ID
               value: PREFECT__CONTEXT__FLOW_RUN_ID
-            - name: PREFECT__ENGINE__EXECUTOR__DASK__ADDRESS
-              value: PREFECT__ENGINE__EXECUTOR__DASK__ADDRESS
+            - name: PREFECT__CONTEXT__IMAGE
+              value: PREFECT__CONTEXT__IMAGE
             - name: PREFECT__CLOUD__USE_LOCAL_SECRETS
               value: "false"
             - name: PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS
