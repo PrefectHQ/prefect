@@ -43,7 +43,8 @@ templated_command = JinjaTemplateTask(
 schedule = IntervalSchedule(start_date=datetime(2015, 6, 1), interval=timedelta(days=1))
 
 ## create Flow and specify dependencies using functional API
-with Flow("tutorial", schedule=schedule) as flow:
+## we don't actually attach the schedule to this Flow so it only runs once
+with Flow("tutorial") as flow:
     my_param = Parameter("my_param")
     t2(upstream_tasks=[t1])
     t3 = templated_command(

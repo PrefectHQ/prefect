@@ -893,6 +893,9 @@ class Flow:
                     state=flow_state,
                     **kwargs
                 )
+                if not isinstance(flow_state.result, dict):
+                    return flow_state  # something went wrong
+
                 task_states = list(flow_state.result.values())
                 for s in filter(lambda x: x.is_mapped(), task_states):
                     task_states.extend(s.map_states)
@@ -920,7 +923,6 @@ class Flow:
 
         Args:
             - parameters (Dict[str, Any], optional): values to pass into the runner
-            - return_tasks ([Task], optional): list of tasks which return state
             - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
             - on_schedule (bool, optional): if `True`, this command will block and
                 run this Flow on its schedule indefinitely; note that all task states will be stored
