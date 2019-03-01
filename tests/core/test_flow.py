@@ -1353,6 +1353,36 @@ def test_scheduled_runs_handle_retries():
     assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
 
 
+def test_scheduled_runs_handle_mapped_retries():
+    class StatefulTask(Task):
+        call_count = 0
+
+        def run(self):
+            self.call_count += 1
+            if self.call_count == 1:
+                raise OSError("I need to run again.")
+
+    state_history = []
+
+    def handler(task, old, new):
+        state_history.append(new)
+        return new
+
+    t = StatefulTask(
+        max_retries=1,
+        retry_delay=datetime.timedelta(minutes=0),
+        state_handlers=[handler],
+    )
+    with Flow() as f:
+        res = t.map(upstream_tasks=[[1, 2, 3]])
+
+    flow_state = f.run()
+    assert flow_state.is_successful()
+    assert all([s.is_successful() for s in flow_state.result[res].map_states])
+    assert res.call_count == 4
+    assert len(state_history) == 11
+
+
 def test_bad_flow_runner_code_still_returns_state_obj():
     class BadFlowRunner(prefect.engine.flow_runner.FlowRunner):
         def initialize_run(self, *args, **kwargs):
@@ -1365,10 +1395,26 @@ def test_bad_flow_runner_code_still_returns_state_obj():
     assert isinstance(res.result, ImportError)
 
 
-@pytest.mark.parametrize("kwarg", ["return_tasks", "state", "task_states"])
-def test_flow_run_raises_informative_error_for_certain_kwargs(kwarg):
+def test_flow_run_raises_informative_error_for_certain_kwargs():
     f = Flow()
     with pytest.raises(ValueError) as exc:
-        f.run(**{kwarg: True})
-    assert kwarg in str(exc.value)
+        f.run(return_tasks=f.tasks)
+    assert "return_tasks" in str(exc.value)
     assert "FlowRunner" in str(exc.value)
+
+
+def test_flow_run_respects_state_kwarg():
+    f = Flow()
+    state = f.run(state=Failed("Unique."))
+    assert state.is_failed()
+    assert state.message == "Unique."
+
+
+def test_flow_run_respects_task_state_kwarg():
+    t, s = Task(), Task()
+    f = Flow(tasks=[t, s])
+    flow_state = f.run(task_states={t: Failed("unique.")})
+    assert flow_state.is_failed()
+    assert flow_state.result[t].is_failed()
+    assert flow_state.result[t].message == "unique."
+    assert flow_state.result[s].is_successful()

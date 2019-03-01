@@ -857,8 +857,13 @@ class Flow:
     ) -> "prefect.engine.state.State":
 
         flow_state = prefect.engine.state.Pending(
-            "Waiting for Flow run to be scheduled.", result={}
+            "Waiting for Flow run to be scheduled."
         )  # type: prefect.engine.state.State
+        flow_state = kwargs.pop("state", flow_state)
+        if not isinstance(flow_state.result, dict):
+            flow_state.result = {}
+        task_states = kwargs.pop("task_states", {})
+        flow_state.result.update(task_states)
 
         ## run this flow indefinitely, so long as its schedule has future dates
         while True:
@@ -874,7 +879,7 @@ class Flow:
             except IndexError:
                 break
             flow_state = prefect.engine.state.Scheduled(
-                start_time=next_run_time, result={}
+                start_time=next_run_time, result=flow_state.result
             )  # type: ignore
             now = pendulum.now("utc")
             naptime = max((next_run_time - now).total_seconds(), 0)
@@ -937,9 +942,9 @@ class Flow:
         Returns:
             - State: the state of the flow after its final run
         """
-        if any(["return_tasks" in kwargs, "state" in kwargs, "task_states" in kwargs]):
+        if "return_tasks" in kwargs:
             raise ValueError(
-                "The following keywords cannot be provided to `flow.run`: `return_tasks`, `state`, `task_states`. Use a FlowRunner directly."
+                "The `return_tasks` keywords cannot be provided to `flow.run`; all task states are always returned.  If you wish to only work with a subset, use a FlowRunner directly."
             )
         if runner_cls is None:
             runner_cls = prefect.engine.get_default_flow_runner_class()

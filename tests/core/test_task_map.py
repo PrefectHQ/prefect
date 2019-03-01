@@ -472,7 +472,7 @@ def test_map_allows_retries_2(executor):
     with Flow() as f:
         res = div.map(x=ll)
 
-    s = f.run(executor=executor)
+    s = FlowRunner(flow=f).run(executor=executor, return_tasks=f.tasks)
     assert s.is_running()
     m = s.result[res]
     assert m.map_states[0].is_pending()
@@ -481,7 +481,9 @@ def test_map_allows_retries_2(executor):
 
     s.result[ll].result[0] = 10
 
-    s = f.run(executor=executor, task_states=s.result)
+    s = FlowRunner(flow=f).run(
+        executor=executor, task_states=s.result, return_tasks=f.tasks
+    )
     assert s.is_successful()
     assert s.result[res].result[0] == 1 / 10
 
@@ -691,7 +693,7 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
         s = get_sum(y)
 
     # first run with a missing result from `n` but map_states for `x`
-    state = f.run(
+    state = FlowRunner(flow=f).run(
         executor=executor,
         task_states={
             n: Success(),
@@ -701,13 +703,14 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
                 ]
             ),
         },
+        return_tasks=f.tasks,
     )
 
     assert state.is_successful()
     assert state.result[s].result == 12
 
     # next run with missing results for n and x
-    state = f.run(
+    state = FlowRunner(flow=f).run(
         executor=executor,
         task_states={
             n: Success(),
@@ -720,13 +723,14 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
                 ]
             ),
         },
+        return_tasks=f.tasks,
     )
 
     assert state.is_successful()
     assert state.result[s].result == 12
 
     # next run with missing results for n, x, and y
-    state = f.run(
+    state = FlowRunner(flow=f).run(
         executor=executor,
         task_states={
             n: Success(),
@@ -735,6 +739,7 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
                 map_states=[Success(result=3), Success(result=4), Success(result=5)]
             ),
         },
+        return_tasks=f.tasks,
     )
 
     assert state.is_successful()
