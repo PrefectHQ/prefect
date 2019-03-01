@@ -202,8 +202,8 @@ def test_binding_a_task_to_two_different_flows_is_ok():
     with Flow() as g:
         t.bind(7, 8)
 
-    f_res = f.run(return_tasks=[t]).result[t].result
-    g_res = g.run(return_tasks=[t]).result[t].result
+    f_res = f.run().result[t].result
+    g_res = g.run().result[t].result
     assert f_res == 6
     assert g_res == 15
 
@@ -241,7 +241,7 @@ def test_calling_a_task_returns_a_copy():
     assert isinstance(t2, AddTask)
     assert t != t2
 
-    res = f.run(return_tasks=[t, t2]).result
+    res = f.run().result
     assert res[t].result == 6
     assert res[t2].result == 9
 
@@ -726,10 +726,10 @@ def test_flow_raises_for_irrelevant_user_provided_parameters():
         f.add_task(t)
 
     with pytest.raises(TypeError):
-        state = f.run(return_tasks=[t], parameters=dict(x=10, y=3, z=9))
+        state = f.run(parameters=dict(x=10, y=3, z=9))
 
     with pytest.raises(TypeError):
-        state = f.run(return_tasks=[t], x=10, y=3, z=9)
+        state = f.run(x=10, y=3, z=9)
 
 
 def test_validate_cycles():
@@ -1173,11 +1173,11 @@ class TestReplace:
             x, y = Parameter("x"), Parameter("y")
             res = add(x, y)
 
-        state = f.run(return_tasks=[res], x=10, y=11)
+        state = f.run(x=10, y=11)
         assert state.result[res].result == 21
 
         f.replace(res, sub)
-        state = f.run(return_tasks=[sub], x=10, y=11)
+        state = f.run(x=10, y=11)
         assert state.result[sub].result == -1
 
     def test_replace_converts_new_to_task(self):
@@ -1187,7 +1187,7 @@ class TestReplace:
             res = add(x, y)
         f.replace(x, 55)
         assert len(f.tasks) == 3
-        state = f.run(return_tasks=[res], y=6)
+        state = f.run(y=6)
         assert state.is_successful()
         assert state.result[res].result == 61
 
@@ -1288,25 +1288,7 @@ class TestSerialize:
                 assert f.read()
 
 
-def test_schedule_kwarg_raises_if_no_schedule():
-    f = Flow()
-    with pytest.raises(ValueError) as exc:
-        f.run(on_schedule=True)
-    assert "must have a schedule" in str(exc.value)
-
-
-def test_schedule_kwarg_returns_and_warns_if_no_next_in_schedule():
-    f = Flow(
-        schedule=prefect.schedules.OneTimeSchedule(
-            start_date=pendulum.now("utc").add(days=-1)
-        )
-    )
-    with pytest.warns(UserWarning) as warn:
-        f.run(on_schedule=True)
-    assert "no more scheduled" in str(warn.list[0].message)
-
-
-def test_schedule_kwarg_runs_on_schedule():
+def test_flow_dot_run_runs_on_schedule():
     class MockSchedule(prefect.schedules.Schedule):
         call_count = 0
 
@@ -1327,12 +1309,12 @@ def test_schedule_kwarg_runs_on_schedule():
     schedule = MockSchedule()
     f = Flow(tasks=[t], schedule=schedule)
     with pytest.raises(SyntaxError) as exc:
-        f.run(on_schedule=True)
+        f.run()
     assert "Cease" in str(exc.value)
     assert t.call_count == 2
 
 
-def test_schedule_kwarg_handles_retries():
+def test_scheduled_runs_handle_retries():
     class MockSchedule(prefect.schedules.Schedule):
         call_count = 0
 
@@ -1365,20 +1347,19 @@ def test_schedule_kwarg_handles_retries():
     schedule = MockSchedule()
     f = Flow(tasks=[t], schedule=schedule)
     with pytest.raises(SyntaxError) as exc:
-        f.run(on_schedule=True)
+        f.run()
     assert "Cease" in str(exc.value)
     assert t.call_count == 2
     assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
 
 
-@pytest.mark.parametrize("return_tasks", [False, True])
-def test_bad_flow_runner_code_still_returns_state_obj(return_tasks):
+def test_bad_flow_runner_code_still_returns_state_obj():
     class BadFlowRunner(prefect.engine.flow_runner.FlowRunner):
         def initialize_run(self, *args, **kwargs):
             import blig  # will raise ImportError
 
     f = Flow(tasks=[Task()])
-    res = f.run(return_tasks=f.tasks if return_tasks else [], runner_cls=BadFlowRunner)
+    res = f.run(runner_cls=BadFlowRunner)
     assert isinstance(res, State)
     assert res.is_failed()
     assert isinstance(res.result, ImportError)
