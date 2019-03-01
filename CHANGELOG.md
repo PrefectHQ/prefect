@@ -14,6 +14,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add `OneTimeSchedule` for one-time execution at a specified time - [#680](https://github.com/PrefectHQ/prefect/pull/680)
 - Add `FilterTask` for filtering out lists of results - [#637](https://github.com/PrefectHQ/prefect/issues/637)
 - Add `S3DownloadTask` and `S3UploadTask` for interacting with data stored on AWS S3 - [#692](https://github.com/PrefectHQ/prefect/issues/692)
+- `flow.run` is now a blocking call which will run the Flow, on its schedule, and execute full state-based execution (including retries) - [#690](https://github.com/PrefectHQ/prefect/issues/690)
 
 ### Enhancements
 
@@ -53,6 +54,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - The environment `from_file` was moved to `utilities.environments` - [#670](https://github.com/PrefectHQ/prefect/pull/670)
 - Removed `start_tasks` argument from `FlowRunner.run()` and `check_upstream` argument from `TaskRunner.run()` - [#672](https://github.com/PrefectHQ/prefect/pull/672)
 - Remove support for Python 3.4 - [#671](https://github.com/PrefectHQ/prefect/issues/671)
+- `flow.run` is now a blocking call which will run the Flow, on its schedule, and execute full state-based execution (including retries) - [#690](https://github.com/PrefectHQ/prefect/issues/690)
+- Remove `make_return_failed_handler` as `flow.run` now returns all task states - [#693](https://github.com/PrefectHQ/prefect/pull/693)
 
 ## 0.4.1 <Badge text="beta" type="success"/>
 

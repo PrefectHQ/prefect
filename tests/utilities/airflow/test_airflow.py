@@ -27,7 +27,7 @@ def airflow_settings():
 
 def test_trigger_rules_dag(airflow_settings):
     flow = AirFlow(dag_id="trigger_rules", **airflow_settings)
-    res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
+    res = flow.run(execution_date="2018-09-20")
     assert res.is_failed()
     for task, state in res.result.items():
         if "3" in task.name:
@@ -52,7 +52,7 @@ def test_airflow_creates_sqlite_db_if_none_provided():
 
 def test_example_branch_operator(airflow_settings):
     flow = AirFlow(dag_id="example_branch_operator", **airflow_settings)
-    res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
+    res = flow.run(execution_date="2018-09-20")
     assert res.is_successful()
 
     branch_tasks, follow_tasks = [], []
@@ -80,7 +80,7 @@ def test_example_branch_operator(airflow_settings):
 
 def test_example_xcom(airflow_settings):
     flow = AirFlow(dag_id="example_xcom", **airflow_settings)
-    res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
+    res = flow.run(execution_date="2018-09-20")
     assert res.is_successful()
 
     for task, state in res.result.items():
@@ -97,7 +97,7 @@ def test_example_xcom(airflow_settings):
 
 def test_example_short_circuit_operator(airflow_settings):
     flow = AirFlow(dag_id="example_short_circuit_operator", **airflow_settings)
-    res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
+    res = flow.run(execution_date="2018-09-20")
     assert res.is_successful()
 
     for task, state in res.result.items():
@@ -111,7 +111,7 @@ def test_example_short_circuit_operator(airflow_settings):
 
 def test_example_bash_operator(airflow_settings):
     flow = AirFlow(dag_id="example_bash_operator", **airflow_settings)
-    res = flow.run(execution_date="2018-09-20", return_tasks=flow.tasks)
+    res = flow.run(execution_date="2018-09-20")
     assert res.is_successful()
 
     for task, state in res.result.items():
@@ -124,7 +124,7 @@ def test_extending_airflow_dag_with_prefect_task(airflow_settings):
     with flow:
         t1 = Task(trigger=triggers.all_failed)(upstream_tasks=[run_task0])
 
-    res = flow.run(execution_date="2018-09-21", return_tasks=flow.tasks)
+    res = flow.run(execution_date="2018-09-21")
     assert res.is_failed()
 
     for task, state in res.result.items():
