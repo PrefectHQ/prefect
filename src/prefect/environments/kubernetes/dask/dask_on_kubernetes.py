@@ -191,6 +191,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             core_client.create_namespaced_service(
                 namespace="default", body=scheduler_service
             )
+            time.sleep(10)
 
             service = core_client.read_namespaced_service(
                 namespace="default", name=service_name
@@ -210,26 +211,25 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             cluster.scale_up(1)
 
         # Make service
-        with open(
-            path.join(path.dirname(__file__), "scheduler_service.yaml")
-        ) as svc_file:
+        # with open(
+        #     path.join(path.dirname(__file__), "scheduler_service.yaml")
+        # ) as svc_file:
 
-            core_client = client.CoreV1Api()
+        #     core_client = client.CoreV1Api()
 
-            # Populate
-            scheduler_service = yaml.safe_load(svc_file)
-            scheduler_service = self._populate_scheduler_service_yaml(
-                yaml_obj=scheduler_service
-            )
+        #     # Populate
+        #     scheduler_service = yaml.safe_load(svc_file)
+        #     scheduler_service = self._populate_scheduler_service_yaml(
+        #         yaml_obj=scheduler_service
+        #     )
 
-            print(scheduler_service)
+        #     print(scheduler_service)
 
-            # Create
-            core_client.create_namespaced_service(
-                namespace="default", body=scheduler_service
-            )
+        #     # Create
+        #     core_client.create_namespaced_service(
+        #         namespace="default", body=scheduler_service
+        #     )
 
-        time.sleep(10)
 
     def build(
         self, flow: "prefect.Flow", push: bool = True
