@@ -32,7 +32,7 @@ class TestCollections:
         l = collections.List()
         with Flow() as f:
             l.bind(1, 2)
-        assert f.run(return_tasks=[l]).result[l].result == [1, 2]
+        assert f.run().result[l].result == [1, 2]
 
     def test_list_binds_varargs(self):
         t1 = Task()
@@ -49,7 +49,7 @@ class TestCollections:
         l = collections.Tuple()
         with Flow() as f:
             l.bind(1, 2)
-        assert f.run(return_tasks=[l]).result[l].result == (1, 2)
+        assert f.run().result[l].result == (1, 2)
 
     def test_tuple_binds_varargs(self):
         t1 = Task()
@@ -66,7 +66,7 @@ class TestCollections:
         l = collections.Set()
         with Flow() as f:
             l.bind(1, 2)
-        assert f.run(return_tasks=[l]).result[l].result == set([1, 2])
+        assert f.run().result[l].result == set([1, 2])
 
     def test_set_binds_varargs(self):
         t1 = Task()
@@ -83,7 +83,7 @@ class TestCollections:
         l = collections.Dict()
         with Flow() as f:
             l.bind(a=1, b=2)
-        assert f.run(return_tasks=[l]).result[l].result == dict(a=1, b=2)
+        assert f.run().result[l].result == dict(a=1, b=2)
 
     def test_list_automatically_applied_to_callargs(self):
         x = Parameter("x")
@@ -91,7 +91,7 @@ class TestCollections:
         identity = IdentityTask()
         with Flow() as f:
             identity.bind(x=[x, y])
-        state = f.run(parameters=dict(x=1, y=2), return_tasks=[identity])
+        state = f.run(parameters=dict(x=1, y=2))
 
         assert len(f.tasks) == 4
         assert sum(isinstance(t, collections.List) for t in f.tasks) == 1
@@ -103,7 +103,7 @@ class TestCollections:
         identity = IdentityTask()
         with Flow() as f:
             identity.bind(x=(x, y))
-        state = f.run(parameters=dict(x=1, y=2), return_tasks=[identity])
+        state = f.run(parameters=dict(x=1, y=2))
 
         assert len(f.tasks) == 4
         assert sum(isinstance(t, collections.Tuple) for t in f.tasks) == 1
@@ -115,7 +115,7 @@ class TestCollections:
         identity = IdentityTask()
         with Flow() as f:
             identity.bind(x=set([x, y]))
-        state = f.run(parameters=dict(x=1, y=2), return_tasks=[identity])
+        state = f.run(parameters=dict(x=1, y=2))
 
         assert len(f.tasks) == 4
         assert sum(isinstance(t, collections.Set) for t in f.tasks) == 1
@@ -127,7 +127,7 @@ class TestCollections:
         identity = IdentityTask()
         with Flow() as f:
             identity.bind(x=dict(a=x, b=y))
-        state = f.run(parameters=dict(x=1, y=2), return_tasks=[identity])
+        state = f.run(parameters=dict(x=1, y=2))
 
         assert len(f.tasks) == 4
         assert sum(isinstance(t, collections.Dict) for t in f.tasks) == 1
@@ -139,7 +139,7 @@ class TestCollections:
         identity = IdentityTask()
         with Flow() as f:
             identity.bind(x=dict(a=[x, dict(y=y)], b=(y, set([x]))))
-        state = f.run(parameters=dict(x=1, y=2), return_tasks=[identity])
+        state = f.run(parameters=dict(x=1, y=2))
 
         assert len(f.tasks) == 8
         assert state.result[identity].result == dict(a=[1, dict(y=2)], b=(2, set([1])))

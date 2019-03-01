@@ -852,46 +852,60 @@ class Flow:
 
     # Execution  ---------------------------------------------------------------
 
-    def _run_on_schedule(self, **kwargs: Any) -> "prefect.engine.state.State":
-        if self.schedule is None:
-            raise ValueError(
-                "Flow must have a schedule in order to run with `on_schedule=True`"
-            )
+    def _run_on_schedule(
+        self, parameters: Dict[str, Any], runner_cls: type, **kwargs: Any
+    ) -> "prefect.engine.state.State":
 
-        kwargs["return_tasks"] = self.tasks
+        ## determine time of first run
+        try:
+            if self.schedule is not None:
+                next_run_time = self.schedule.next(1)[0]
+            else:
+                next_run_time = pendulum.now("utc")
+        except IndexError:
+            raise ValueError("Flow has no more scheduled runs.") from None
+
+        ## setup initial states
+        flow_state = prefect.engine.state.Scheduled(
+            start_time=next_run_time, result={}
+        )  # type: ignore
+        flow_state = kwargs.pop("state", flow_state)
+        if not isinstance(flow_state.result, dict):
+            flow_state.result = {}
+        task_states = kwargs.pop("task_states", {})
+        flow_state.result.update(task_states)
 
         ## run this flow indefinitely, so long as its schedule has future dates
         while True:
-            ## wait until next scheduled run time
-            try:
-                next_run_time = self.schedule.next(1)[0]
-            except IndexError:
-                warnings.warn("Flow has no more scheduled runs.")
-                return None  # type: ignore
-            flow_state = prefect.engine.state.Scheduled(
-                start_time=next_run_time, result={}
-            )  # type: prefect.engine.state.State
-            now = pendulum.now("utc")
-            naptime = max((next_run_time - now).total_seconds(), 0)
-            if naptime > 0:
-                self.logger.info(
-                    "Waiting for next scheduled run at {}".format(next_run_time)
-                )
-            time.sleep(naptime)
+            if flow_state.is_scheduled():
+                next_run_time = flow_state.start_time
+                now = pendulum.now("utc")
+                naptime = max((next_run_time - now).total_seconds(), 0)
+                if naptime > 0:
+                    self.logger.info(
+                        "Waiting for next scheduled run at {}".format(next_run_time)
+                    )
+                time.sleep(naptime)
 
             ## begin a single flow run
             while not flow_state.is_finished():
-                flow_state = self.run(
-                    on_schedule=False,
+                runner = runner_cls(flow=self)
+                flow_state = runner.run(
+                    parameters=parameters,
+                    return_tasks=self.tasks,
                     state=flow_state,
                     task_states=flow_state.result,
                     **kwargs
                 )
+                if not isinstance(flow_state.result, dict):
+                    return flow_state  # something went wrong
+
                 task_states = list(flow_state.result.values())
                 for s in filter(lambda x: x.is_mapped(), task_states):
                     task_states.extend(s.map_states)
                 earliest_start = min(
-                    [s.start_time for s in task_states if s.is_scheduled()], default=now
+                    [s.start_time for s in task_states if s.is_scheduled()],
+                    default=pendulum.now("utc"),
                 )
 
                 ## wait until first task is ready for retry
@@ -904,46 +918,52 @@ class Flow:
                         )
                     )
                 time.sleep(naptime)
-        return flow_state  # to appease mypy
+
+            ## create next scheduled run
+            try:
+                if self.schedule is not None:
+                    next_run_time = self.schedule.next(1)[0]
+                else:
+                    break
+            except IndexError:
+                break
+            flow_state = prefect.engine.state.Scheduled(
+                start_time=next_run_time, result={}
+            )  # type: ignore
+        return flow_state
 
     def run(
-        self,
-        parameters: Dict[str, Any] = None,
-        return_tasks: Iterable[Task] = None,
-        runner_cls: type = None,
-        on_schedule: bool = False,
-        **kwargs: Any
+        self, parameters: Dict[str, Any] = None, runner_cls: type = None, **kwargs: Any
     ) -> "prefect.engine.state.State":
         """
-        Run the flow using an instance of a FlowRunner
+        Run the flow on its schedule using an instance of a FlowRunner.  If the Flow has no schedule,
+        a single stateful run will occur (including retries).
+
+        Note that this command will block and run this Flow on its schedule indefinitely (if it has one);
+        all task states will be stored in memory, and task retries will not occur until every Task in the Flow has had a chance
+        to run.
 
         Args:
             - parameters (Dict[str, Any], optional): values to pass into the runner
-            - return_tasks ([Task], optional): list of tasks which return state
             - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
-            - on_schedule (bool, optional): if `True`, this command will block and
-                run this Flow on its schedule indefinitely; note that all task states will be stored
-                in memory, and task retries will not occur until every Task in the Flow has had a chance
-                to run
             - **kwargs: additional keyword arguments; if any provided keywords
                 match known parameter names, they will be used as such. Otherwise they will be passed to the
                 `FlowRunner.run()` method
 
-        Returns:
-            - State of the flow after it is run resulting from it's return tasks
-        """
-        if on_schedule is True:
-            return self._run_on_schedule(
-                parameters=parameters,
-                return_tasks=return_tasks,
-                runner_cls=runner_cls,
-                **kwargs
-            )
+        Raises:
+            - ValueError: if this Flow has a Schedule with no more scheduled runs
+            - ValueError: if the `return_tasks` keyword argument is provided
 
+        Returns:
+            - State: the state of the flow after its final run
+        """
+        if "return_tasks" in kwargs:
+            raise ValueError(
+                "The `return_tasks` keywords cannot be provided to `flow.run`; all task states are always returned.  If you wish to only work with a subset, use a FlowRunner directly."
+            )
         if runner_cls is None:
             runner_cls = prefect.engine.get_default_flow_runner_class()
 
-        runner = runner_cls(flow=self)
         parameters = parameters or {}
         unknown_params = [
             p for p in parameters if p not in self.parameters(names_only=True)
@@ -963,8 +983,8 @@ class Flow:
             elif p in parameters:
                 passed_parameters[p] = parameters[p]
 
-        state = runner.run(
-            parameters=passed_parameters, return_tasks=return_tasks, **kwargs
+        state = self._run_on_schedule(
+            parameters=passed_parameters, runner_cls=runner_cls, **kwargs
         )
 
         # state always should return a dict of tasks. If it's NoResult (meaning the run was
@@ -979,7 +999,7 @@ class Flow:
             )
             return state
 
-        for task in return_tasks or []:
+        for task in self.tasks or []:
             if task not in state.result:
                 state.result[task] = prefect.engine.state.Pending(
                     message="Task not run."

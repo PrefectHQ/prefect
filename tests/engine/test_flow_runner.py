@@ -244,7 +244,7 @@ def test_flow_run_method_returns_task_states_even_if_it_doesnt_run():
 
     flow.add_edge(task1, task2)
 
-    flow_state = flow.run(state=Success(), return_tasks=[task1, task2])
+    flow_state = flow.run(state=Success())
     assert flow_state.is_successful()
     assert flow_state.result[task1].is_pending()
     assert flow_state.result[task2].is_pending()
@@ -269,7 +269,7 @@ def test_flow_runner_doesnt_return_by_default():
     task1 = SuccessTask()
     task2 = SuccessTask()
     flow.add_edge(task1, task2)
-    res = flow.run()
+    res = FlowRunner(flow=flow).run()
     assert res.result == {}
 
 
@@ -319,7 +319,7 @@ def test_flow_run_state_determined_by_reference_tasks():
     flow.add_edge(t1, t2)
 
     flow.set_reference_tasks([t1])
-    flow_state = flow.run(return_tasks=[t1, t2])
+    flow_state = flow.run()
     assert isinstance(flow_state, Failed)
     assert isinstance(flow_state.result[t1], Failed)
     assert isinstance(flow_state.result[t2], Success)
@@ -332,7 +332,7 @@ def test_flow_run_state_not_determined_by_reference_tasks_if_terminal_tasks_are_
     flow.add_edge(t1, t2)
 
     flow.set_reference_tasks([t1])
-    flow_state = flow.run(return_tasks=[t1, t2])
+    flow_state = FlowRunner(flow=flow).run(return_tasks=flow.tasks)
     assert flow_state.is_running()
     assert flow_state.result[t1].is_failed()
     assert isinstance(flow_state.result[t2], Retrying)
@@ -356,12 +356,14 @@ def test_flow_with_multiple_retry_tasks_doesnt_run_them_early():
     flow.add_edge(t1, t2)
     flow.add_edge(t1, t3)
 
-    state1 = flow.run(return_tasks=flow.tasks)
+    state1 = FlowRunner(flow=flow).run(return_tasks=flow.tasks)
 
     assert isinstance(state1.result[t2], Retrying)
     assert isinstance(state1.result[t3], Retrying)
 
-    state2 = flow.run(return_tasks=flow.tasks, task_states=state1.result)
+    state2 = FlowRunner(flow=flow).run(
+        return_tasks=flow.tasks, task_states=state1.result
+    )
 
     assert isinstance(state2.result[t2], Retrying)
     assert state2.result[t2] == state1.result[t2]  # state is not modified at all
@@ -377,7 +379,7 @@ def test_flow_runner_makes_copy_of_task_results_dict():
     flow.add_edge(t1, t2)
 
     task_states = {t1: Pending()}
-    state = flow.run(task_states=task_states, return_tasks=[t1])
+    state = flow.run(task_states=task_states)
     assert state.result[t1] == Success(result=None)
     assert task_states == {t1: Pending()}
 
@@ -845,7 +847,7 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
 
     flow = Flow(name="test-dummy", tasks=[flow_name, my_name])
     with prefect.context(my_name="marvin"):
-        res = flow.run(executor=executor, return_tasks=flow.tasks)
+        res = flow.run(executor=executor)
 
     assert res.result[flow_name].result == "test-dummy"
     assert res.result[my_name].result == "marvin"
@@ -854,7 +856,7 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
         tt = flow_name.map(upstream_tasks=[my_name])
 
     with prefect.context(my_name="mapped-marvin"):
-        res = f.run(executor=executor, return_tasks=f.tasks)
+        res = f.run(executor=executor)
 
     assert res.result[my_name].result == "mapped-marvin"
     assert res.result[tt].result[0] == "test-map"
@@ -1292,7 +1294,7 @@ def test_paused_tasks_stay_paused_when_run():
     t = Task()
     f = Flow(tasks=[t])
 
-    state = f.run(task_states={t: Paused()}, return_tasks=[t])
+    state = FlowRunner(flow=f).run(task_states={t: Paused()}, return_tasks=[t])
     assert state.is_running()
     assert isinstance(state.result[t], Paused)
 
@@ -1303,7 +1305,7 @@ def test_flow_runner_provides_scheduled_start_time():
         return prefect.context.get("scheduled_start_time")
 
     f = Flow(tasks=[return_scheduled_start_time])
-    res = f.run(return_tasks=f.tasks)
+    res = f.run()
 
     assert res.is_successful()
     assert res.result[return_scheduled_start_time].is_successful()
@@ -1316,7 +1318,7 @@ def test_flow_runner_doesnt_override_scheduled_start_time():
         return prefect.context.get("scheduled_start_time")
 
     f = Flow(tasks=[return_scheduled_start_time])
-    res = f.run(return_tasks=f.tasks, context=dict(scheduled_start_time=42))
+    res = f.run(context=dict(scheduled_start_time=42))
 
     assert res.is_successful()
     assert res.result[return_scheduled_start_time].is_successful()
