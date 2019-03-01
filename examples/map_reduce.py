@@ -32,5 +32,5 @@ with Flow("Map / Reduce 🤓") as flow:
 # ------------------------------------
 # run the flow
 
-state = flow.run(return_tasks=flow.tasks)
+state = flow.run()
 assert state.result[reduction].result == 12

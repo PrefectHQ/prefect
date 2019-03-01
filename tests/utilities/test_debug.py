@@ -10,11 +10,7 @@ import prefect
 from prefect.core import Flow, Task
 from prefect.engine import FlowRunner, TaskRunner, state
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.debug import (
-    is_serializable,
-    make_return_failed_handler,
-    raise_on_exception,
-)
+from prefect.utilities.debug import is_serializable, raise_on_exception
 
 
 class SuccessTask(Task):
@@ -179,106 +175,3 @@ def test_is_serializable_with_raise_is_informative():
         """
     )
     assert_script_runs(script)
-
-
-class TestReturnFailedStateHandler:
-    @pytest.fixture(autouse=True)
-    def use_local_executor(self):
-        with set_temporary_config(
-            {"engine.executor.default_class": prefect.engine.executors.LocalExecutor}
-        ):
-            yield
-
-    def test_return_failed_works_when_all_fail(self):
-        with Flow() as f:
-            e = ErrorTask()
-            s1 = Task()
-            s2 = Task()
-            s1.set_upstream(e)
-            s2.set_upstream(s1)
-        return_tasks = set()
-        state = FlowRunner(flow=f).run(
-            return_tasks=return_tasks,
-            task_runner_state_handlers=[make_return_failed_handler(return_tasks)],
-        )
-        assert state.is_failed()
-        assert e in state.result
-        assert s1 in state.result
-        assert s2 in state.result
-        assert return_tasks == set([e, s1, s2])
-
-    def test_return_failed_works_when_all_fail_from_flow_run_method(self):
-        with Flow() as f:
-            e = ErrorTask()
-            s1 = Task()
-            s2 = Task()
-            s1.set_upstream(e)
-            s2.set_upstream(s1)
-        return_tasks = set()
-        state = f.run(
-            return_tasks=return_tasks,
-            task_runner_state_handlers=[make_return_failed_handler(return_tasks)],
-        )
-        assert state.is_failed()
-        assert e in state.result
-        assert s1 in state.result
-        assert s2 in state.result
-        assert return_tasks == set([e, s1, s2])
-
-    def test_return_failed_works_when_non_terminal_fails(self):
-        with Flow() as f:
-            e = ErrorTask()
-            t = Task(trigger=prefect.triggers.always_run)
-            t.set_upstream(e)
-        return_tasks = set()
-        state = FlowRunner(flow=f).run(
-            return_tasks=return_tasks,
-            task_runner_state_handlers=[make_return_failed_handler(return_tasks)],
-        )
-        assert state.is_successful()
-        assert e in state.result
-        assert t not in state.result
-        assert return_tasks == set([e])
-
-    def test_return_failed_works_with_mapping(self):
-        @prefect.task
-        def div(x):
-            return 1 / x
-
-        @prefect.task
-        def gimme(x):
-            return x
-
-        with Flow() as f:
-            d = div.map(x=[1, 0, 42])
-            res = gimme.map(d)
-
-        return_tasks = set()
-        state = FlowRunner(flow=f).run(
-            return_tasks=return_tasks,
-            task_runner_state_handlers=[make_return_failed_handler(return_tasks)],
-        )
-        assert state.is_failed()
-        assert res in state.result
-        assert d in state.result
-
-        # we return the full mapped task
-        assert state.result[d].is_mapped()
-        assert any(s.is_failed() for s in state.result[d].map_states)
-        assert state.result[res].is_mapped()
-        assert any(s.is_failed() for s in state.result[res].map_states)
-
-    def test_return_failed_works_for_retries(self):
-
-        with Flow() as f:
-            e = ErrorTask(max_retries=1, retry_delay=timedelta(0))
-            s1 = Task(max_retries=1, retry_delay=timedelta(0))
-            s1.set_upstream(e)
-        return_tasks = set()
-        state = FlowRunner(flow=f).run(
-            return_tasks=return_tasks,
-            task_runner_state_handlers=[make_return_failed_handler(return_tasks)],
-        )
-        assert state.is_running()
-        assert e in state.result
-        assert s1 not in state.result
