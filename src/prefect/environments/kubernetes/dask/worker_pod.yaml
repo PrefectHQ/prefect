@@ -36,3 +36,10 @@ spec:
         value: "true"
       - name: EXTRA_PIP_PACKAGES
         value: fastparquet
+    resources:
+      limits:
+        cpu: "2"
+        memory: 6G
+      requests:
+        cpu: "2"
+        memory: 6G
