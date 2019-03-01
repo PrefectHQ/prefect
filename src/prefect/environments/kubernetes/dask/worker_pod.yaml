@@ -3,7 +3,7 @@ metadata:
   labels:
     app: prefect-dask-worker
 spec:
-  restartPolicy: Never
+  restartPolicy: Always
   containers:
   - image: gcr.io/prefect-dev/prefect
     imagePullPolicy: IfNotPresent
