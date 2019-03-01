@@ -1,5 +1,6 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
 
+import json
 import logging
 from os import path
 import time
@@ -140,6 +141,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
                 print("Dask job is", job.status)
                 return
 
+    # Make run method?
     def create_dask_cluster(self) -> None:
         with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
             worker_pod = yaml.safe_load(pod_file)
@@ -149,6 +151,13 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             cluster.adapt(minumum=1, maximum=5)
 
             time.sleep(30)
+
+            schema = prefect.serialization.environment.EnvironmentSchema()
+            with open("/root/.prefect/flow_env.prefect", "r") as f:
+                environment = schema.load(json.load(f))
+
+                environment.run()
+
 
     def execute(self) -> None:
         """
