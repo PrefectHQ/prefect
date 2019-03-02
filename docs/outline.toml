@@ -140,6 +140,11 @@ module = "prefect.tasks.control_flow"
 classes = ["FilterTask"]
 functions = ["switch", "ifelse", "merge"]
 
+[pages.tasks.aws]
+title = "AWS Tasks"
+module = "prefect.tasks.aws"
+classes = ["S3DownloadTask", "S3UploadTask"]
+
 [pages.tasks.google]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.google"
