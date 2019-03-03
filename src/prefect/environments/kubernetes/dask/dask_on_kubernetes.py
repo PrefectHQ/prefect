@@ -27,6 +27,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         image_tag: str = None,
         env_vars: dict = None,
         files: dict = None,
+        max_workers: int = 1,
     ) -> None:
         super().__init__(
             base_image=base_image,
@@ -37,6 +38,8 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             env_vars=env_vars,
             files=files,
         )
+
+        self.max_workers = max_workers
 
         self.identifier_label = str(uuid.uuid4())
         self.scheduler_address = None
@@ -66,19 +69,6 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         )
 
         return yaml_obj
-
-    # def _populate_scheduler_service_yaml(self, yaml_obj: dict) -> dict:
-    #     """"""
-    #     # set identifier labels
-    #     yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-
-    #     job_identifier = prefect.context.get("job_identifier", "")
-
-    #     yaml_obj["metadata"]["name"] = "prefect-job-{}".format(job_identifier)
-    #     yaml_obj["metadata"]["labels"]["app"] = "prefect-job-{}".format(job_identifier)
-    #     yaml_obj["spec"]["selector"]["app"] = "prefect-job-{}".format(job_identifier)
-
-    #     return yaml_obj
 
     def _populate_job_yaml(self, yaml_obj: dict) -> dict:
         """"""
@@ -113,9 +103,6 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             path.join(self.registry_url, self.image_name),  # type: ignore
             self.image_tag,
         )
-        # yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"][5][
-        #     "value"
-        # ] = "{}:8786".format(self.scheduler_address)
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = "{}:{}".format(
@@ -125,24 +112,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
 
         return yaml_obj
 
-    # def _wait_for_dask_job(self) -> None:
-    #     """"""
-    #     batch_client = client.BatchV1Api()
-
-    #     while True:
-    #         time.sleep(5)
-
-    #         job = batch_client.read_namespaced_job_status(
-    #             name="prefect-dask-job-{}".format(self.identifier_label),
-    #             namespace="default",
-    #         )
-
-    #         if not job or job.status.failed or job.status.succeeded:
-    #             print("Dask job is", job.status)
-    #             return
-
-    # Make run method?
-    def create_dask_cluster(self) -> None:
+    def run(self) -> "prefect.engine.state.State":
         from prefect.engine.executors import DaskExecutor
 
         with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
@@ -150,13 +120,15 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
 
             cluster = KubeCluster.from_dict(worker_pod)
-            cluster.adapt(minimum=1, maximum=5)
+            cluster.adapt(minimum=1, maximum=self.max_workers)
 
             schema = prefect.serialization.environment.EnvironmentSchema()
             with open("/root/.prefect/flow_env.prefect", "r") as f:
                 environment = schema.load(json.load(f))
 
-                environment.run(
+                # Add local environment check
+
+                return environment.run(
                     runner_kwargs={
                         "executor": DaskExecutor(address=cluster.scheduler_address)
                     }
@@ -172,17 +144,6 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         except config.config_exception.ConfigException:
             raise EnvironmentError("Environment not currently inside a cluster")
 
-        # job_identifier = prefect.context.get("job_identifier", "")
-        # service_name = "prefect-job-{}".format(job_identifier)
-
-        # core_client = client.CoreV1Api()
-        # service = core_client.read_namespaced_service(
-        #     namespace="default", name=service_name
-        # )
-
-        # self.scheduler_address = service.spec.cluster_ip
-        # print("Scheduler address {}".format(self.scheduler_address))
-
         batch_client = client.BatchV1Api()
 
         with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
@@ -197,54 +158,6 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
     def setup(self) -> None:
         """"""
         pass
-        # try:
-        #     config.load_incluster_config()
-        # except config.config_exception.ConfigException:
-        #     raise EnvironmentError("Environment not currently inside a cluster")
-
-        # # Make service
-        # with open(
-        #     path.join(path.dirname(__file__), "scheduler_service.yaml")
-        # ) as svc_file:
-
-        #     core_client = client.CoreV1Api()
-
-        #     # Populate
-        #     scheduler_service = yaml.safe_load(svc_file)
-        #     scheduler_service = self._populate_scheduler_service_yaml(
-        #         yaml_obj=scheduler_service
-        #     )
-
-        #     print(scheduler_service)
-
-        #     # Create
-        #     core_client.create_namespaced_service(
-        #         namespace="default", body=scheduler_service
-        #     )
-
-        #     time.sleep(10)
-
-        #     job_identifier = prefect.context.get("job_identifier", "")
-        #     service_name = "prefect-job-{}".format(job_identifier)
-
-        #     core_client = client.CoreV1Api()
-        #     service = core_client.read_namespaced_service(
-        #         namespace="default", name=service_name
-        #     )
-
-        #     self.scheduler_address = service.spec.cluster_ip
-
-        #     print("Address: {}".format(self.scheduler_address))
-
-        # # Make workers
-        # with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
-        #     worker_pod = yaml.safe_load(pod_file)
-        #     worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
-
-        #     print(worker_pod)
-
-        #     cluster = KubeCluster.from_dict(worker_pod, port="8786")
-        #     cluster.scale_up(1)
 
     def build(
         self, flow: "prefect.Flow", push: bool = True

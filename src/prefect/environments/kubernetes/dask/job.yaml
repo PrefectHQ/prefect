@@ -15,7 +15,7 @@ spec:
           image: gcr.io/prefect-dev/prefect
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
-          args: ['python -c "from prefect.environments.kubernetes import DaskOnKubernetesEnvironment; DaskOnKubernetesEnvironment().create_dask_cluster()"']
+          args: ['python -c "from prefect.environments.kubernetes import DaskOnKubernetesEnvironment; DaskOnKubernetesEnvironment().run()"']
           env:
             - name: PREFECT__CLOUD__GRAPHQL
               value: $PREFECT__CLOUD__GRAPHQL
