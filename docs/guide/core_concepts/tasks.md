@@ -118,7 +118,7 @@ with Flow() as flow:
 These operators automatically add new tasks to the active flow context.
 
 ::: warning Operator validation
-Because Prefect flows are not executed at runtime, Prefect can not validate that operators are being applied to compatible types. For example, you could subtract a task that produces a list from a task that produces an integer. This would create an error at runtime, but not during task definition.
+Because Prefect flows are not executed when you create them, Prefect can not validate that operators are being applied to compatible types. For example, you could subtract a task that produces a list from a task that produces an integer. This would create an error at runtime, but not during task definition.
 :::
 
 ## Collections
