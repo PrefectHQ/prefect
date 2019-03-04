@@ -72,7 +72,8 @@ module.exports = {
           children: [
             'environments/environment',
             'environments/base_environment',
-            'environments/kubernetes/docker_on_kubernetes'
+            'environments/kubernetes/docker_on_kubernetes',
+            'environments/kubernetes/dask_on_kubernetes'
           ]
         },
         {

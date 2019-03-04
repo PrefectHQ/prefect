@@ -77,15 +77,11 @@ class LocalEnvironment(Environment):
         flow = cloudpickle.loads(decrypted_pickle)
         return flow
 
-    def run(
-        self, start_task_ids: List[str] = None, runner_kwargs: dict = None
-    ) -> "prefect.engine.state.State":
+    def run(self, runner_kwargs: dict = None) -> "prefect.engine.state.State":
         """
         Runs the `Flow` represented by this environment.
 
         Args:
-            - start_task_ids (List[str]): A list of Task ids that will be converted to the
-                `start_tasks` argument of the `FlowRunner`
             - runner_kwargs (dict): Any arguments for `FlowRunner.run()`.
 
         Returns:
@@ -99,10 +95,7 @@ class LocalEnvironment(Environment):
                 "No serialized flow found! Has this environment been built?"
             )
         flow = self.deserialize_flow_from_bytes(self.serialized_flow)
-        if start_task_ids is not None:
-            if set(start_task_ids).difference(flow.task_ids):
-                raise ValueError("Invalid start_task_ids.")
-            runner_kwargs["start_tasks"] = [flow.task_ids[i] for i in start_task_ids]
+
         runner_cls = prefect.engine.get_default_flow_runner_class()
         runner = runner_cls(flow=flow)
         return runner.run(**runner_kwargs)

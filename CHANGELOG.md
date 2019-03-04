@@ -32,6 +32,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add retry functionality to `flow.run(on_schedule=True)` for local execution - [#680](https://github.com/PrefectHQ/prefect/pull/680)
 - Add `helper_fns` keyword to `ShellTask` for pre-populating helper functions to commands - [#681](https://github.com/PrefectHQ/prefect/pull/681)
 - Convert a few DEBUG level logs to INFO level logs - [#682](https://github.com/PrefectHQ/prefect/issues/682)
+- Added DaskOnKubernetes environment (PIN-3) - [#695](https://github.com/PrefectHQ/prefect/pull/695)
 
 ### Fixes
 
