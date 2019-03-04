@@ -39,6 +39,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         - files (dict, optional): a dictionary of files to copy into the image when building
         - max_workers (int, optional): the maximum amount of dask workers (as Kubernetes pods); defaults to a single worker.
     """
+
     def __init__(
         self,
         base_image: str = "python:3.6",

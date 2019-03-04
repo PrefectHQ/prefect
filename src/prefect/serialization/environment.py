@@ -48,6 +48,7 @@ class DaskOnKubernetesEnvironmentSchema(DockerEnvironmentSchema):
 
     max_workers = fields.Integer(required=True)
 
+
 class EnvironmentSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas

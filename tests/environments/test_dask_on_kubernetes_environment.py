@@ -26,7 +26,7 @@ class TestDaskOnKubernetesEnvironment:
             image_tag="e",
             env_vars={"f": "g"},
             files={"/": "/"},
-            max_workers=5
+            max_workers=5,
         )
         assert env.base_image == "a"
         assert env.registry_url == "b"
@@ -54,9 +54,7 @@ class TestDaskOnKubernetesEnvironment:
         env.setup()
         assert env
 
-    def test_dask_on_kubernetes_environment_execution_raises_error_out_of_cluster(
-        self
-    ):
+    def test_dask_on_kubernetes_environment_execution_raises_error_out_of_cluster(self):
         env = kubernetes.DaskOnKubernetesEnvironment(base_image="a")
         with pytest.raises(EnvironmentError) as exc:
             env.execute()

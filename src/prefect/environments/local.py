@@ -77,9 +77,7 @@ class LocalEnvironment(Environment):
         flow = cloudpickle.loads(decrypted_pickle)
         return flow
 
-    def run(
-        self, runner_kwargs: dict = None
-    ) -> "prefect.engine.state.State":
+    def run(self, runner_kwargs: dict = None) -> "prefect.engine.state.State":
         """
         Runs the `Flow` represented by this environment.
 

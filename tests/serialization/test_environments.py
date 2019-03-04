@@ -11,7 +11,7 @@ from prefect.serialization.environment import (
     EnvironmentSchema,
     LocalEnvironmentSchema,
     DockerOnKubernetesEnvironmentSchema,
-    DaskOnKubernetesEnvironmentSchema
+    DaskOnKubernetesEnvironmentSchema,
 )
 
 FERNET_KEY = b"1crderTHVJ7vvVJj79Zns81_1opaTID0HRZoOzqIpOA="
@@ -185,7 +185,7 @@ def test_serialize_dask_on_kubernetes_environment():
         registry_url="f",
         image_name="g",
         image_tag="h",
-        max_workers=5
+        max_workers=5,
     )
     serialized = DaskOnKubernetesEnvironmentSchema().dump(env)
     assert serialized["base_image"] == "a"
@@ -198,7 +198,11 @@ def test_serialize_dask_on_kubernetes_environment():
 
 def test_serialize_dask_on_kubernetes_environment_no_base_image():
     env = environments.kubernetes.DaskOnKubernetesEnvironment(
-        python_dependencies=["b", "c"], registry_url="f", image_name="g", image_tag="h", max_workers=5
+        python_dependencies=["b", "c"],
+        registry_url="f",
+        image_name="g",
+        image_tag="h",
+        max_workers=5,
     )
     serialized = DaskOnKubernetesEnvironmentSchema().dump(env)
     assert serialized["base_image"] == "python:3.6"
@@ -207,6 +211,7 @@ def test_serialize_dask_on_kubernetes_environment_no_base_image():
     assert serialized["image_tag"] == "h"
     assert serialized["__version__"] == prefect.__version__
     assert serialized["max_workers"] == 5
+
 
 def test_serialize_dask_on_kubernetes_environment_defaults():
     env = environments.kubernetes.DaskOnKubernetesEnvironment()
@@ -247,8 +252,6 @@ def test_environment_schema_with_dask_on_kubernetes_environment():
     )
     serialized = DaskOnKubernetesEnvironmentSchema().dump(env)
     deserialized = DaskOnKubernetesEnvironmentSchema().load(serialized)
-    assert isinstance(
-        deserialized, environments.kubernetes.DaskOnKubernetesEnvironment
-    )
+    assert isinstance(deserialized, environments.kubernetes.DaskOnKubernetesEnvironment)
     assert deserialized.registry_url == env.registry_url
     assert deserialized.base_image == env.base_image
