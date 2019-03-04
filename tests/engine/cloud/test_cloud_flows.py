@@ -102,6 +102,7 @@ class MockedCloudClient(MagicMock):
 
         return FlowRunInfoResult(
             parameters={},
+            context=None,
             version=flow_run.version,
             scheduled_start_time=pendulum.parse("2019-01-25T19:15:58.632412+00:00"),
             state=flow_run.state,
