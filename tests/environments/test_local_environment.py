@@ -123,12 +123,3 @@ class TestLocalEnvironment:
         env = LocalEnvironment().build(error_flow())
         s = env.serialize()
         assert isinstance(s, dict)
-
-    def test_invalid_start_task_ids(self):
-
-        flow = prefect.Flow()
-
-        env = LocalEnvironment()
-        with pytest.raises(ValueError) as exc:
-            env.build(flow).run(start_task_ids=["nope"])
-        assert "Invalid start_task_ids" in str(exc.value)

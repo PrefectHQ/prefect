@@ -46,7 +46,7 @@ class DaskOnKubernetesEnvironmentSchema(DockerEnvironmentSchema):
     class Meta:
         object_class = prefect.environments.kubernetes.DaskOnKubernetesEnvironment
 
-    max_workers = fields.Integer(required=True)
+    max_workers = fields.Integer(allow_none=True)
 
 
 class EnvironmentSchema(OneOfSchema):
