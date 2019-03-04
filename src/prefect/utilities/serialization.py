@@ -1,4 +1,4 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
 
 import base64
 import json

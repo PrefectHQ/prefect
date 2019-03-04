@@ -1,4 +1,4 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
 
 """
 Environments are JSON-serializable objects that fully describe how to run a flow. Serialization

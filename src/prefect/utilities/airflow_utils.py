@@ -1,4 +1,4 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
 """
 This module contains utilities for migrating Airflow workflows into Prefect. Using these requires `airflow` to be installed.
 

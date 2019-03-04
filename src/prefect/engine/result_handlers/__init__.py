@@ -1,4 +1,4 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/alpha-eula
+# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
 """
 Result handler is simply a specific implementation of a `read` / `write` interface for handling data.
 The only requirement for a Result handler implementation is that the `write` method returns a JSON-compatible object.

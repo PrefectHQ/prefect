@@ -16,7 +16,7 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
 <router-link to="agreement.html">Get the code</router-link>
 </button>
 
-Prefect is alpha software under active development by Prefect Technologies, Inc. This early preview is being provided to a limited number of partners to assist with development. By accessing or using the code or documentation, you are agreeing to the [alpha software end user license agreement](/license.html)\.
+Prefect is beta software under active development by Prefect Technologies, Inc. This early preview is being provided to a limited number of partners to assist with development. By accessing or using the code or documentation, you are agreeing to the [beta software end user license agreement](/license.html)\.
 {.disclaimer}
 
 </div>
