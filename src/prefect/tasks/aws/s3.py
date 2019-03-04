@@ -144,7 +144,7 @@ class S3UploadTask(Task):
 
         ## create key if not provided
         if key is None:
-            key = uuid.uuid4()
+            key = str(uuid.uuid4())
 
         ## upload
         s3_client.upload_fileobj(stream, Bucket=bucket, Key=key)

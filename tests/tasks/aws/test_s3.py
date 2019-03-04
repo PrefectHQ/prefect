@@ -54,6 +54,20 @@ class TestS3UploadTask:
             task.run(data="")
         assert "bucket" in str(exc.value)
 
+    def test_generated_key_is_str(self, monkeypatch):
+        task = S3UploadTask(bucket="test")
+        client = MagicMock()
+        boto3 = MagicMock(client=MagicMock(return_value=client))
+        monkeypatch.setattr("prefect.tasks.aws.s3.boto3", boto3)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(
+                    AWS_CREDENTIALS='{"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}'
+                )
+            ):
+                task.run(data="")
+        assert type(client.upload_fileobj.call_args[1]["Key"]) == str
+
     def test_creds_are_pulled_from_secret(self, monkeypatch):
         task = S3UploadTask(bucket="bob")
         client = MagicMock()
