@@ -17,6 +17,11 @@ module = "prefect.environments.kubernetes"
 classes = ["DockerOnKubernetesEnvironment"]
 title = "DockerOnKubernetes Environment"
 
+[pages.environments.kubernetes.dask_on_kubernetes]
+module = "prefect.environments.kubernetes"
+classes = ["DaskOnKubernetesEnvironment"]
+title = "DaskOnKubernetes Environment"
+
 [pages.triggers]
 title = "Triggers"
 module = "prefect.triggers"

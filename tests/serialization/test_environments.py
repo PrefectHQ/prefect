@@ -11,6 +11,7 @@ from prefect.serialization.environment import (
     EnvironmentSchema,
     LocalEnvironmentSchema,
     DockerOnKubernetesEnvironmentSchema,
+    DaskOnKubernetesEnvironmentSchema,
 )
 
 FERNET_KEY = b"1crderTHVJ7vvVJj79Zns81_1opaTID0HRZoOzqIpOA="
@@ -168,5 +169,89 @@ def test_environment_schema_with_docker_on_kubernetes_environment():
     assert isinstance(
         deserialized, environments.kubernetes.DockerOnKubernetesEnvironment
     )
+    assert deserialized.registry_url == env.registry_url
+    assert deserialized.base_image == env.base_image
+
+
+#################################
+##### DaskOnKubernetes Tests
+#################################
+
+
+def test_serialize_dask_on_kubernetes_environment():
+    env = environments.kubernetes.DaskOnKubernetesEnvironment(
+        base_image="a",
+        python_dependencies=["b", "c"],
+        registry_url="f",
+        image_name="g",
+        image_tag="h",
+        max_workers=5,
+    )
+    serialized = DaskOnKubernetesEnvironmentSchema().dump(env)
+    assert serialized["base_image"] == "a"
+    assert serialized["registry_url"] == "f"
+    assert serialized["image_name"] == "g"
+    assert serialized["image_tag"] == "h"
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["max_workers"] == 5
+
+
+def test_serialize_dask_on_kubernetes_environment_no_base_image():
+    env = environments.kubernetes.DaskOnKubernetesEnvironment(
+        python_dependencies=["b", "c"],
+        registry_url="f",
+        image_name="g",
+        image_tag="h",
+        max_workers=5,
+    )
+    serialized = DaskOnKubernetesEnvironmentSchema().dump(env)
+    assert serialized["base_image"] == "python:3.6"
+    assert serialized["registry_url"] == "f"
+    assert serialized["image_name"] == "g"
+    assert serialized["image_tag"] == "h"
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["max_workers"] == 5
+
+
+def test_serialize_dask_on_kubernetes_environment_defaults():
+    env = environments.kubernetes.DaskOnKubernetesEnvironment()
+    serialized = DaskOnKubernetesEnvironmentSchema().dump(env)
+    assert serialized["base_image"] == "python:3.6"
+    assert serialized["registry_url"] == None
+    assert serialized["image_name"] == None
+    assert serialized["image_tag"] == None
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["max_workers"] == 1
+
+
+def test_deserialize_empty_dask_on_kubernetes_environment():
+    schema = DaskOnKubernetesEnvironmentSchema()
+    with pytest.raises(marshmallow.ValidationError):
+        schema.load(schema.dump({}))
+
+
+def test_deserialize_minimal_dask_on_kubernetes_environment():
+    schema = DaskOnKubernetesEnvironmentSchema()
+    assert schema.load(schema.dump({"base_image": "a", "registry_url": "b"}))
+
+
+def test_deserialize_dask_on_kubernetes_environment():
+    env = environments.kubernetes.DaskOnKubernetesEnvironment(
+        base_image="a", python_dependencies=["b", "c"], registry_url="f"
+    )
+    serialized = DaskOnKubernetesEnvironmentSchema().dump(env)
+    deserialized = DaskOnKubernetesEnvironmentSchema().load(serialized)
+
+    assert deserialized.base_image == env.base_image
+    assert deserialized.registry_url == env.registry_url
+
+
+def test_environment_schema_with_dask_on_kubernetes_environment():
+    env = environments.kubernetes.DaskOnKubernetesEnvironment(
+        base_image="a", python_dependencies=["b", "c"], registry_url="f"
+    )
+    serialized = DaskOnKubernetesEnvironmentSchema().dump(env)
+    deserialized = DaskOnKubernetesEnvironmentSchema().load(serialized)
+    assert isinstance(deserialized, environments.kubernetes.DaskOnKubernetesEnvironment)
     assert deserialized.registry_url == env.registry_url
     assert deserialized.base_image == env.base_image

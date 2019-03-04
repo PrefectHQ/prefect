@@ -7,7 +7,7 @@ import os
 import shutil
 import tempfile
 import textwrap
-from typing import Iterable
+from typing import Iterable, List
 import uuid
 
 import docker
@@ -26,7 +26,7 @@ class DockerEnvironment(Environment):
     Args:
         - base_image (string): the base image for this environment (e.g. `python:3.6`)
         - registry_url (string, optional): URL of a registry to push the image to; image will not be pushed if not provided
-        - python_dependencies (list, optional): list of pip installable dependencies for the image
+        - python_dependencies (List[str], optional): list of pip installable dependencies for the image
         - image_name (string, optional): name of the image to use when building, defaults to a UUID
         - image_tag (string, optional): tag of the image to use when building, defaults to a UUID
         - env_vars (dict, optional): a dictionary of environment variables to use when building
@@ -37,7 +37,7 @@ class DockerEnvironment(Environment):
         self,
         base_image: str,
         registry_url: str = None,
-        python_dependencies: list = None,
+        python_dependencies: List[str] = None,
         image_name: str = None,
         image_tag: str = None,
         env_vars: dict = None,
@@ -254,7 +254,7 @@ class DockerEnvironment(Environment):
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
-                RUN git clone -b environments https://{access_token}@github.com/PrefectHQ/prefect.git
+                RUN git clone https://{access_token}@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
                 """.format(
                     base_image=self.base_image,
