@@ -2,6 +2,7 @@
 
 import logging
 from os import path
+from typing import List
 import uuid
 
 import docker
@@ -28,7 +29,7 @@ class DockerOnKubernetesEnvironment(DockerEnvironment):
     Args:
         - base_image (string, optional): the base image for this environment (e.g. `python:3.6`), defaults to `python:3.6`
         - registry_url (string, optional): URL of a registry to push the image to; image will not be pushed if not provided
-        - python_dependencies (list, optional): list of pip installable dependencies for the image
+        - python_dependencies (List[str], optional): list of pip installable dependencies for the image
         - image_name (string, optional): name of the image to use when building, defaults to a UUID
         - image_tag (string, optional): tag of the image to use when building, defaults to a UUID
         - env_vars (dict, optional): a dictionary of environment variables to use when building
@@ -39,7 +40,7 @@ class DockerOnKubernetesEnvironment(DockerEnvironment):
         self,
         base_image: str = "python:3.6",
         registry_url: str = None,
-        python_dependencies: list = None,
+        python_dependencies: List[str] = None,
         image_name: str = None,
         image_tag: str = None,
         env_vars: dict = None,
@@ -77,21 +78,13 @@ class DockerOnKubernetesEnvironment(DockerEnvironment):
         ] = self.identifier_label
 
         # set environment variables
-        yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"][0][
-            "value"
-        ] = prefect.config.cloud.graphql
-        yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"][1][
-            "value"
-        ] = prefect.config.cloud.log
-        yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"][2][
-            "value"
-        ] = prefect.config.cloud.result_handler
-        yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"][3][
-            "value"
-        ] = prefect.config.cloud.auth_token
-        yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"][4][
-            "value"
-        ] = prefect.context.get("flow_run_id", "")
+        env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+
+        env[0]["value"] = prefect.config.cloud.graphql
+        env[1]["value"] = prefect.config.cloud.log
+        env[2]["value"] = prefect.config.cloud.result_handler
+        env[3]["value"] = prefect.config.cloud.auth_token
+        env[4]["value"] = prefect.context.get("flow_run_id", "")
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = "{}:{}".format(
