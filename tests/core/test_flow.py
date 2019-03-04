@@ -15,7 +15,16 @@ from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
 from prefect.engine.signals import PrefectError
-from prefect.engine.state import Failed, Mapped, Skipped, State, Success, TriggerFailed
+from prefect.engine.state import (
+    Failed,
+    Finished,
+    Pending,
+    Mapped,
+    Skipped,
+    State,
+    Success,
+    TriggerFailed,
+)
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task, unmapped
@@ -202,8 +211,8 @@ def test_binding_a_task_to_two_different_flows_is_ok():
     with Flow() as g:
         t.bind(7, 8)
 
-    f_res = f.run(return_tasks=[t]).result[t].result
-    g_res = g.run(return_tasks=[t]).result[t].result
+    f_res = f.run().result[t].result
+    g_res = g.run().result[t].result
     assert f_res == 6
     assert g_res == 15
 
@@ -241,7 +250,7 @@ def test_calling_a_task_returns_a_copy():
     assert isinstance(t2, AddTask)
     assert t != t2
 
-    res = f.run(return_tasks=[t, t2]).result
+    res = f.run().result
     assert res[t].result == 6
     assert res[t2].result == 9
 
@@ -726,10 +735,10 @@ def test_flow_raises_for_irrelevant_user_provided_parameters():
         f.add_task(t)
 
     with pytest.raises(TypeError):
-        state = f.run(return_tasks=[t], parameters=dict(x=10, y=3, z=9))
+        state = f.run(parameters=dict(x=10, y=3, z=9))
 
     with pytest.raises(TypeError):
-        state = f.run(return_tasks=[t], x=10, y=3, z=9)
+        state = f.run(x=10, y=3, z=9)
 
 
 def test_validate_cycles():
@@ -1173,11 +1182,11 @@ class TestReplace:
             x, y = Parameter("x"), Parameter("y")
             res = add(x, y)
 
-        state = f.run(return_tasks=[res], x=10, y=11)
+        state = f.run(x=10, y=11)
         assert state.result[res].result == 21
 
         f.replace(res, sub)
-        state = f.run(return_tasks=[sub], x=10, y=11)
+        state = f.run(x=10, y=11)
         assert state.result[sub].result == -1
 
     def test_replace_converts_new_to_task(self):
@@ -1187,7 +1196,7 @@ class TestReplace:
             res = add(x, y)
         f.replace(x, 55)
         assert len(f.tasks) == 3
-        state = f.run(return_tasks=[res], y=6)
+        state = f.run(y=6)
         assert state.is_successful()
         assert state.result[res].result == 61
 
@@ -1288,25 +1297,7 @@ class TestSerialize:
                 assert f.read()
 
 
-def test_schedule_kwarg_raises_if_no_schedule():
-    f = Flow()
-    with pytest.raises(ValueError) as exc:
-        f.run(on_schedule=True)
-    assert "must have a schedule" in str(exc.value)
-
-
-def test_schedule_kwarg_returns_and_warns_if_no_next_in_schedule():
-    f = Flow(
-        schedule=prefect.schedules.OneTimeSchedule(
-            start_date=pendulum.now("utc").add(days=-1)
-        )
-    )
-    with pytest.warns(UserWarning) as warn:
-        f.run(on_schedule=True)
-    assert "no more scheduled" in str(warn.list[0].message)
-
-
-def test_schedule_kwarg_runs_on_schedule():
+def test_flow_dot_run_runs_on_schedule():
     class MockSchedule(prefect.schedules.Schedule):
         call_count = 0
 
@@ -1327,12 +1318,12 @@ def test_schedule_kwarg_runs_on_schedule():
     schedule = MockSchedule()
     f = Flow(tasks=[t], schedule=schedule)
     with pytest.raises(SyntaxError) as exc:
-        f.run(on_schedule=True)
+        f.run()
     assert "Cease" in str(exc.value)
     assert t.call_count == 2
 
 
-def test_schedule_kwarg_handles_retries():
+def test_scheduled_runs_handle_retries():
     class MockSchedule(prefect.schedules.Schedule):
         call_count = 0
 
@@ -1365,20 +1356,97 @@ def test_schedule_kwarg_handles_retries():
     schedule = MockSchedule()
     f = Flow(tasks=[t], schedule=schedule)
     with pytest.raises(SyntaxError) as exc:
-        f.run(on_schedule=True)
+        f.run()
     assert "Cease" in str(exc.value)
     assert t.call_count == 2
     assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
 
 
-@pytest.mark.parametrize("return_tasks", [False, True])
-def test_bad_flow_runner_code_still_returns_state_obj(return_tasks):
+def test_scheduled_runs_handle_mapped_retries():
+    class StatefulTask(Task):
+        call_count = 0
+
+        def run(self):
+            self.call_count += 1
+            if self.call_count == 1:
+                raise OSError("I need to run again.")
+
+    state_history = []
+
+    def handler(task, old, new):
+        state_history.append(new)
+        return new
+
+    t = StatefulTask(
+        max_retries=1,
+        retry_delay=datetime.timedelta(minutes=0),
+        state_handlers=[handler],
+    )
+    with Flow() as f:
+        res = t.map(upstream_tasks=[[1, 2, 3]])
+
+    flow_state = f.run()
+    assert flow_state.is_successful()
+    assert all([s.is_successful() for s in flow_state.result[res].map_states])
+    assert res.call_count == 4
+    assert len(state_history) == 11
+
+
+def test_flow_run_accepts_state_kwarg():
+    f = Flow()
+    state = f.run(state=Finished())
+    assert state.is_finished()
+
+
+def test_bad_flow_runner_code_still_returns_state_obj():
     class BadFlowRunner(prefect.engine.flow_runner.FlowRunner):
         def initialize_run(self, *args, **kwargs):
             import blig  # will raise ImportError
 
     f = Flow(tasks=[Task()])
-    res = f.run(return_tasks=f.tasks if return_tasks else [], runner_cls=BadFlowRunner)
+    res = f.run(runner_cls=BadFlowRunner)
     assert isinstance(res, State)
     assert res.is_failed()
     assert isinstance(res.result, ImportError)
+
+
+def test_flow_run_raises_informative_error_for_certain_kwargs():
+    f = Flow()
+    with pytest.raises(ValueError) as exc:
+        f.run(return_tasks=f.tasks)
+    assert "return_tasks" in str(exc.value)
+    assert "FlowRunner" in str(exc.value)
+
+
+def test_flow_run_raises_if_no_more_scheduled_runs():
+    schedule = prefect.schedules.OneTimeSchedule(
+        start_date=pendulum.now("utc").add(days=-1)
+    )
+    f = Flow(schedule=schedule)
+    with pytest.raises(ValueError) as exc:
+        f.run()
+    assert "no more scheduled runs" in str(exc.value)
+
+
+def test_flow_run_respects_state_kwarg():
+    f = Flow()
+    state = f.run(state=Failed("Unique."))
+    assert state.is_failed()
+    assert state.message == "Unique."
+
+
+def test_flow_run_respects_task_state_kwarg():
+    t, s = Task(), Task()
+    f = Flow(tasks=[t, s])
+    flow_state = f.run(task_states={t: Failed("unique.")})
+    assert flow_state.is_failed()
+    assert flow_state.result[t].is_failed()
+    assert flow_state.result[t].message == "unique."
+    assert flow_state.result[s].is_successful()
+
+
+def test_flow_run_handles_error_states_when_initial_state_is_provided():
+    with Flow() as f:
+        res = AddTask()("5", 5)
+    state = f.run(state=Pending())
+    assert state.is_failed()

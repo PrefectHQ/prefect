@@ -6,6 +6,7 @@ import pytest
 
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
+from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.result import NoResult, Result
 from prefect.engine.state import Mapped, Success, Pending, Retrying
 from prefect.utilities.debug import raise_on_exception
@@ -62,7 +63,7 @@ def test_map_spawns_new_tasks(executor):
     with Flow() as f:
         res = a.map(ll)
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert m.is_mapped()
@@ -82,7 +83,7 @@ def test_map_over_parameters(executor):
         ll = Parameter("list")
         res = a.map(ll)
 
-    s = f.run(return_tasks=f.tasks, executor=executor, parameters=dict(list=[1, 2, 3]))
+    s = f.run(executor=executor, parameters=dict(list=[1, 2, 3]))
     m = s.result[res]
     assert s.is_successful()
     assert m.is_mapped()
@@ -104,7 +105,7 @@ def test_map_composition(executor):
         r2 = a.map(r1)
 
     with raise_on_exception():
-        s = f.run(return_tasks=f.tasks, executor=executor)
+        s = f.run(executor=executor)
     m1 = s.result[r1]
     m2 = s.result[r2]
     assert s.is_successful()
@@ -134,7 +135,7 @@ def test_deep_map_composition(executor):
         for _ in range(10):
             res = a.map(res)  # [2 + 10, 3 + 10, 4 + 10]
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert m.is_mapped()
@@ -153,7 +154,7 @@ def test_multiple_map_arguments(executor):
     with Flow() as f:
         res = a.map(x=ll, y=ll())
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert isinstance(m.map_states, list)
@@ -173,7 +174,7 @@ def test_map_failures_dont_leak_out(executor):
     with Flow() as f:
         res = ii.map(div.map(a.map(ll(start=-1))))
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_failed()
     assert isinstance(m.map_states, list)
@@ -199,7 +200,7 @@ def test_map_skips_return_exception_as_result(executor):
     with Flow() as f:
         res = add.map(ll)
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert isinstance(m.map_states, list)
@@ -225,7 +226,7 @@ def test_map_skips_dont_leak_out(executor):
     with Flow() as f:
         res = add.map(add.map(ll))
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert isinstance(m.map_states, list)
@@ -248,7 +249,7 @@ def test_map_handles_upstream_empty(executor):
         res = a.map(make_list)
         terminal = a.map(res)
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     res_state = s.result[res]
     terminal_state = s.result[terminal]
     assert s.is_successful()
@@ -273,7 +274,7 @@ def test_map_handles_non_keyed_upstream_empty(executor):
     with Flow() as f:
         res = return_1.map(upstream_tasks=[make_list])
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     res_state = s.result[res]
     assert s.is_successful()
     assert res_state.is_mapped()
@@ -290,7 +291,7 @@ def test_map_can_handle_fixed_kwargs(executor):
     with Flow() as f:
         res = a.map(ll, y=unmapped(5))
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert isinstance(m.map_states, list)
@@ -307,7 +308,7 @@ def test_map_can_handle_nonkeyed_upstreams(executor):
     with Flow() as f:
         res = ll.map(upstream_tasks=[ll()])
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert isinstance(m.map_states, list)
@@ -326,7 +327,7 @@ def test_map_can_handle_nonkeyed_mapped_upstreams(executor):
         mapped = ii.map(ll())  # 1, 2, 3
         res = ll.map(upstream_tasks=[mapped])
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert isinstance(m.map_states, list)
@@ -344,7 +345,7 @@ def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args(executor):
     with Flow() as f:
         res = ll.map(start=ll(), upstream_tasks=[unmapped(ii(5))])
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert isinstance(m.map_states, list)
@@ -369,7 +370,7 @@ def test_map_tracks_non_mapped_upstream_tasks(executor):
     with Flow() as f:
         res = register.map(div.map(zeros()), upstream_tasks=[unmapped(div(1))])
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     assert s.is_failed()
     assert all([sub.is_failed() for sub in s.result[res].map_states])
     assert all(
@@ -393,7 +394,7 @@ def test_map_allows_for_retries(executor):
         divved = div.map(l_res)
         res = ii.map(divved)
 
-    states = f.run(return_tasks=f.tasks, executor=executor)
+    states = FlowRunner(flow=f).run(executor=executor, return_tasks=f.tasks)
     assert states.is_running()  # division by zero caused map to retry
 
     old = states.result[divved]
@@ -402,7 +403,9 @@ def test_map_allows_for_retries(executor):
 
     # update upstream result
     states.result[l_res].result[0] = 0.01
-    states = f.run(return_tasks=[res], task_states=states.result, executor=executor)
+    states = FlowRunner(flow=f).run(
+        task_states=states.result, executor=executor, return_tasks=f.tasks
+    )
     assert states.is_successful()  # no divison by 0
 
     new = states.result[res]
@@ -420,7 +423,7 @@ def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args(executor):
         mapped = ii.map(ll())  # 1, 2, 3
         res = ll.map(start=ll(), upstream_tasks=[mapped])
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert isinstance(m.map_states, list)
@@ -444,7 +447,7 @@ def test_map_behaves_like_zip_with_differing_length_results(executor):
         res = add.map(x=ll(3), y=ll(2))
 
     with raise_on_exception():
-        s = f.run(return_tasks=[res], executor=executor)
+        s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert isinstance(m.map_states, list)
@@ -469,7 +472,7 @@ def test_map_allows_retries_2(executor):
     with Flow() as f:
         res = div.map(x=ll)
 
-    s = f.run(return_tasks=f.tasks, executor=executor)
+    s = FlowRunner(flow=f).run(executor=executor, return_tasks=f.tasks)
     assert s.is_running()
     m = s.result[res]
     assert m.map_states[0].is_pending()
@@ -478,7 +481,9 @@ def test_map_allows_retries_2(executor):
 
     s.result[ll].result[0] = 10
 
-    s = f.run(return_tasks=[res], executor=executor, task_states=s.result)
+    s = FlowRunner(flow=f).run(
+        executor=executor, task_states=s.result, return_tasks=f.tasks
+    )
     assert s.is_successful()
     assert s.result[res].result[0] == 1 / 10
 
@@ -508,7 +513,7 @@ def test_reduce_task_honors_trigger_across_all_mapped_states(executor):
         d = div.map(ll)
         s = take_sum(d)
 
-    state = f.run(executor=executor, return_tasks=f.tasks)
+    state = f.run(executor=executor)
     assert state.is_failed()
     assert state.result[s].is_failed()
     assert isinstance(state.result[s], prefect.engine.state.TriggerFailed)
@@ -535,7 +540,7 @@ def test_task_map_downstreams_handle_single_failures(executor):
         big_list = append_four(dived)  # this task should fail
         again = div.map(dived)
 
-    state = f.run(executor=executor, return_tasks=f.tasks)
+    state = f.run(executor=executor)
     assert state.is_failed()
     assert len(state.result[dived].result) == 3
     assert isinstance(state.result[big_list], prefect.engine.state.TriggerFailed)
@@ -566,7 +571,7 @@ def test_task_map_can_be_passed_to_upstream_with_and_without_map(executor):
         big_list = append_four(added)
         again = add.map(added)
 
-    state = f.run(executor=executor, return_tasks=f.tasks)
+    state = f.run(executor=executor)
 
     assert state.is_successful()
     assert len(state.result[added].result) == 3
@@ -589,7 +594,7 @@ def test_task_map_doesnt_assume_purity_of_functions(executor):
     with Flow() as f:
         res = zz.map(ll)
 
-    state = f.run(executor=executor, return_tasks=[res])
+    state = f.run(executor=executor)
     assert state.is_successful()
     assert len(state.result[res].result) == 3
 
@@ -613,7 +618,7 @@ def test_map_reduce(executor):
     with Flow() as f:
         res = reduce_sum(add.map(add.map(numbers())))
 
-    state = f.run(executor=executor, return_tasks=[res])
+    state = f.run(executor=executor)
     assert state.is_successful()
     assert state.result[res].result == 12
 
@@ -638,7 +643,7 @@ def test_map_over_map_and_unmapped(executor):
         n = numbers()
         res = add_two.map(x=n, y=add.map(n))
 
-    state = f.run(executor=executor, return_tasks=[res])
+    state = f.run(executor=executor)
     assert state.is_successful()
     assert state.result[res].result == [3, 5, 7]
 
@@ -652,7 +657,7 @@ def test_task_map_with_all_inputs_unmapped(x, y, out):
     with Flow() as f:
         res = add.map(unmapped(x), unmapped(y))
 
-    flow_state = f.run(return_tasks=f.tasks)
+    flow_state = f.run()
     assert flow_state.is_successful()
     assert flow_state.result[res].is_successful()
     assert flow_state.result[res].result == out
@@ -688,9 +693,8 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
         s = get_sum(y)
 
     # first run with a missing result from `n` but map_states for `x`
-    state = f.run(
+    state = FlowRunner(flow=f).run(
         executor=executor,
-        return_tasks=f.tasks,
         task_states={
             n: Success(),
             x: Mapped(
@@ -699,15 +703,15 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
                 ]
             ),
         },
+        return_tasks=f.tasks,
     )
 
     assert state.is_successful()
     assert state.result[s].result == 12
 
     # next run with missing results for n and x
-    state = f.run(
+    state = FlowRunner(flow=f).run(
         executor=executor,
-        return_tasks=f.tasks,
         task_states={
             n: Success(),
             x: Mapped(map_states=[Success(), Success(), Success()]),
@@ -719,15 +723,15 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
                 ]
             ),
         },
+        return_tasks=f.tasks,
     )
 
     assert state.is_successful()
     assert state.result[s].result == 12
 
     # next run with missing results for n, x, and y
-    state = f.run(
+    state = FlowRunner(flow=f).run(
         executor=executor,
-        return_tasks=f.tasks,
         task_states={
             n: Success(),
             x: Mapped(map_states=[Success(), Success(), Success()]),
@@ -735,6 +739,7 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
                 map_states=[Success(result=3), Success(result=4), Success(result=5)]
             ),
         },
+        return_tasks=f.tasks,
     )
 
     assert state.is_successful()
@@ -763,7 +768,7 @@ def test_all_tasks_only_called_once(capsys, executor):
         split_one = add_one.map(first_level)
         split_two = add_one.map(first_level)
 
-    state = f.run(return_tasks=f.tasks)
+    state = f.run()
 
     captured = capsys.readouterr()
     printed_lines = [line for line in captured.out.split("\n") if line != ""]

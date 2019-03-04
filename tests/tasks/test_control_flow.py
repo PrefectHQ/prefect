@@ -29,7 +29,7 @@ def test_ifelse(condition_value):
         assert len(flow.tasks) == 5
 
     with prefect.context(CONDITION=condition_value):
-        state = flow.run(return_tasks=flow.tasks)
+        state = flow.run()
 
     assert isinstance(
         state.result[true_branch], Success if condition_value is True else Skipped
@@ -52,7 +52,7 @@ def test_switch(condition_value):
         assert len(flow.tasks) == 9
 
     with prefect.context(CONDITION=condition_value):
-        state = flow.run(return_tasks=flow.tasks)
+        state = flow.run()
         assert isinstance(
             state.result[a_branch], Success if condition_value == "a" else Skipped
         )
@@ -86,7 +86,7 @@ def test_merging_diamond_flow():
         merge_task = merge(true_branch[-1], false_branch[-1])
 
     with prefect.context(CONDITION=True):
-        state = flow.run(return_tasks=flow.tasks)
+        state = flow.run()
 
         for t in true_branch:
             assert isinstance(state.result[t], Success)
@@ -110,14 +110,14 @@ def test_list_of_tasks():
             ifelse(condition, true_branch, false_branch)
 
     with prefect.context(CONDITION=True):
-        state = flow.run(return_tasks=flow.tasks)
+        state = flow.run()
 
         for t in true_branch:
             assert isinstance(state.result[t], Success)
         assert isinstance(state.result[false_branch], Skipped)
 
     with prefect.context(CONDITION=False):
-        state = flow.run(return_tasks=flow.tasks)
+        state = flow.run()
 
         for t in true_branch:
             # the tasks in the list ran becuase they have no upstream dependencies.
@@ -146,15 +146,15 @@ def test_merge_diamond_flow_with_results():
         merge_task = merge(true_branch, false_branch)
 
     with prefect.context(CONDITION=True):
-        state = flow.run(return_tasks=flow.tasks)
+        state = flow.run()
         assert state.result[merge_task].result == 1
 
     with prefect.context(CONDITION=False):
-        state = flow.run(return_tasks=flow.tasks)
+        state = flow.run()
         assert state.result[merge_task].result == 0
 
     with prefect.context(CONDITION=None):
-        state = flow.run(return_tasks=flow.tasks)
+        state = flow.run()
         assert state.result[merge_task].result is None
 
 
@@ -168,7 +168,7 @@ def test_merge_can_distinguish_between_a_none_result_and_an_unrun_task():
         merge_task = merge(true_branch, false_branch)
 
     with prefect.context(CONDITION=True):
-        state = flow.run(return_tasks=flow.tasks)
+        state = flow.run()
         assert state.result[merge_task].result is None
 
 
@@ -183,7 +183,7 @@ def test_merge_with_list():
         merge_task = merge(true_branch, false_branch)
 
     with prefect.context(CONDITION=True):
-        state = flow.run(return_tasks=flow.tasks)
+        state = flow.run()
         assert state.result[merge_task].result == [1, 2]
 
 
