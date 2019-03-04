@@ -201,6 +201,42 @@ def test_flow_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
     assert states == [Running(), Success(result={})]
 
 
+def test_flow_runner_loads_parameters_from_cloud(monkeypatch):
+
+    flow = prefect.Flow(name="test")
+    get_flow_run_info = MagicMock(return_value=MagicMock(parameters={"a": 1}))
+    set_flow_run_state = MagicMock()
+    client = MagicMock(
+        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
+    )
+    res = CloudFlowRunner(flow=flow).initialize_run(
+        state=Pending(), task_states={}, context={}, task_contexts={}, parameters={}
+    )
+
+    assert res.context["parameters"]["a"] == 1
+
+
+def test_flow_runner_loads_context_from_cloud(monkeypatch):
+
+    flow = prefect.Flow(name="test")
+    get_flow_run_info = MagicMock(return_value=MagicMock(context={"a": 1}))
+    set_flow_run_state = MagicMock()
+    client = MagicMock(
+        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
+    )
+    res = CloudFlowRunner(flow=flow).initialize_run(
+        state=Pending(), task_states={}, context={}, task_contexts={}, parameters={}
+    )
+
+    assert res.context["a"] == 1
+
+
 def test_client_is_always_called_even_during_failures(client):
     @prefect.task
     def raise_me(x, y):
