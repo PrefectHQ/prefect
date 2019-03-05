@@ -157,6 +157,7 @@ class DockerEnvironment(Environment):
         for line in output:
             if line.get("progress"):
                 print(line.get("status"), line.get("progress"), end="\r")
+        print("")
 
     def push_image(self, image_name: str, image_tag: str) -> None:
         """Push this environment to a registry
@@ -173,6 +174,7 @@ class DockerEnvironment(Environment):
         for line in output:
             if line.get("progress"):
                 print(line.get("status"), line.get("progress"), end="\r")
+        print("")
 
     def create_dockerfile(self, flow: "prefect.Flow", directory: str = None) -> None:
         """Creates a dockerfile to use as the container.
