@@ -38,6 +38,7 @@ FlowRunInfoResult = NamedTuple(
     "FlowRunInfoResult",
     [
         ("parameters", Dict[str, Any]),
+        ("context", Dict[str, Any]),
         ("version", int),
         ("scheduled_start_time", datetime.datetime),
         ("state", "prefect.engine.state.State"),
@@ -441,6 +442,7 @@ class Client:
             "query": {
                 with_args("flow_run_by_pk", {"id": flow_run_id}): {
                     "parameters": True,
+                    "context": True,
                     "version": True,
                     "scheduled_start_time": True,
                     "serialized_state": True,
