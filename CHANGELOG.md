@@ -40,6 +40,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix bug in which exceptions raised within flow runner state handlers could not be sent to Cloud - [#628](https://github.com/PrefectHQ/prefect/pull/628)
 - Fix issue wherein heartbeats were not being called on a fixed interval - [#669](https://github.com/PrefectHQ/prefect/pull/669)
 - Fix issue wherein code blocks inside of method docs couldn't use `**kwargs` - [#658](https://github.com/PrefectHQ/prefect/issues/658)
+- Fix local issue wherein dask would occasionally attempt to pickle context and would fail - [#703](https://github.com/PrefectHQ/prefect/pull/703)
 
 ### Breaking Changes
 

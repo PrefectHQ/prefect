@@ -338,7 +338,7 @@ class Flow:
         return self
 
     def __exit__(self, _type, _value, _tb) -> None:  # type: ignore
-        del prefect.context.flow
+        del prefect.context.flow  # type: ignore
         if self.__previous_flow is not None:
             prefect.context.update(flow=self.__previous_flow)
 

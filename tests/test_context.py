@@ -1,3 +1,4 @@
+import cloudpickle
 from typing import Any
 
 import pytest
@@ -107,3 +108,13 @@ def test_context_loads_secrets_from_config(monkeypatch):
     fresh_context = Context()
     assert "secrets" in fresh_context
     assert fresh_context.secrets == secrets_dict
+
+
+def test_context_is_picklable():
+    with context(spicy_key="value"):
+        binary = cloudpickle.dumps(context)
+    new_context = cloudpickle.loads(binary)
+
+    assert isinstance(new_context, Context)
+    assert "spicy_key" in new_context
+    assert new_context.spicy_key == "value"

@@ -17,14 +17,13 @@ print (prefect.context.a) # undefined
 """
 
 import contextlib
-import threading
 from typing import Any, Iterator, MutableMapping
 
 from prefect.configuration import config
 from prefect.utilities.collections import DotDict
 
 
-class Context(DotDict, threading.local):
+class Context(DotDict):
     """
     A thread safe context store for Prefect data.
 
