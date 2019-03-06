@@ -9,7 +9,6 @@ from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.result import NoResult, Result
 from prefect.engine.state import Mapped, Success, Pending, Retrying
-from prefect.utilities.debug import raise_on_exception
 from prefect.utilities.tasks import task, unmapped
 
 
@@ -104,8 +103,7 @@ def test_map_composition(executor):
         r1 = a.map(ll)
         r2 = a.map(r1)
 
-    with raise_on_exception():
-        s = f.run(executor=executor)
+    s = f.run(executor=executor)
     m1 = s.result[r1]
     m2 = s.result[r2]
     assert s.is_successful()
@@ -446,8 +444,7 @@ def test_map_behaves_like_zip_with_differing_length_results(executor):
     with Flow() as f:
         res = add.map(x=ll(3), y=ll(2))
 
-    with raise_on_exception():
-        s = f.run(executor=executor)
+    s = f.run(executor=executor)
     m = s.result[res]
     assert s.is_successful()
     assert isinstance(m.map_states, list)
