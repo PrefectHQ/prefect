@@ -25,7 +25,7 @@ from prefect.utilities.collections import DotDict
 
 class Context(DotDict):
     """
-    A thread safe context store for Prefect data.
+    A context store for Prefect data.
 
     The `Context` is a `DotDict` subclass, and can be instantiated the same way.
 
