@@ -33,6 +33,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add `helper_fns` keyword to `ShellTask` for pre-populating helper functions to commands - [#681](https://github.com/PrefectHQ/prefect/pull/681)
 - Convert a few DEBUG level logs to INFO level logs - [#682](https://github.com/PrefectHQ/prefect/issues/682)
 - Added DaskOnKubernetes environment (PIN-3) - [#695](https://github.com/PrefectHQ/prefect/pull/695)
+- Load `context` from Cloud when running flows - [#699](https://github.com/PrefectHQ/prefect/pull/699)
 
 ### Fixes
 
@@ -40,6 +41,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix bug in which exceptions raised within flow runner state handlers could not be sent to Cloud - [#628](https://github.com/PrefectHQ/prefect/pull/628)
 - Fix issue wherein heartbeats were not being called on a fixed interval - [#669](https://github.com/PrefectHQ/prefect/pull/669)
 - Fix issue wherein code blocks inside of method docs couldn't use `**kwargs` - [#658](https://github.com/PrefectHQ/prefect/issues/658)
+- Fix bug in which Prefect-generated Keys for S3 buckets were not properly converted to strings - [#698](https://github.com/PrefectHQ/prefect/pull/698)
+- Fix next line after Docker Environment push/pull from overwriting progress bar - [#702](https://github.com/PrefectHQ/prefect/pull/702)
 - Fix local issue wherein dask would occasionally attempt to pickle context and would fail - [#703](https://github.com/PrefectHQ/prefect/pull/703)
 
 ### Breaking Changes

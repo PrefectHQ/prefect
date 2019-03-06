@@ -138,10 +138,12 @@ class CloudFlowRunner(FlowRunner):
             - NamedTuple: a tuple of initialized objects:
                 `(state, task_states, context, task_contexts)`
         """
+
+        # load id from context
+        flow_run_id = prefect.context.get("flow_run_id")
+
         try:
-            flow_run_info = self.client.get_flow_run_info(
-                flow_run_id=prefect.context.get("flow_run_id", "")
-            )
+            flow_run_info = self.client.get_flow_run_info(flow_run_id)
         except Exception as exc:
             self.logger.debug(
                 "Failed to retrieve flow state with error: {}".format(repr(exc))
@@ -152,9 +154,11 @@ class CloudFlowRunner(FlowRunner):
                 )
             raise ENDRUN(state=state)
 
-        context.update(
-            scheduled_start_time=flow_run_info.scheduled_start_time,
+        updated_context = context or {}
+        updated_context.update(flow_run_info.context or {})
+        updated_context.update(
             flow_run_version=flow_run_info.version,
+            scheduled_start_time=flow_run_info.scheduled_start_time,
         )
 
         # update task states and contexts
@@ -175,7 +179,7 @@ class CloudFlowRunner(FlowRunner):
         return super().initialize_run(
             state=state,
             task_states=task_states,
-            context=context,
+            context=updated_context,
             task_contexts=task_contexts,
             parameters=updated_parameters,
         )

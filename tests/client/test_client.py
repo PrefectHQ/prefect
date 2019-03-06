@@ -305,6 +305,7 @@ def test_get_flow_run_info(monkeypatch):
     "flow_run_by_pk": {
         "version": 0,
         "parameters": {},
+        "context": null,
         "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
         "serialized_state": {
             "type": "Pending",
