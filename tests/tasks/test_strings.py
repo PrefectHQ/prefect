@@ -1,10 +1,11 @@
 import os
+import pendulum
 import subprocess
 import tempfile
 
 import pytest
 
-from prefect import Flow
+from prefect import context, Flow
 from prefect.engine import signals
 from prefect.tasks.templates import JinjaTemplateTask, StringFormatterTask
 from prefect.utilities.debug import raise_on_exception
@@ -82,3 +83,13 @@ def test_jinja_template_partially_formats():
     res = f.run()
     assert res.is_successful()
     assert res.result[ans].result == "Ford is from "
+
+
+def test_jinja_template_can_execute_python_code():
+    date = pendulum.parse("1986-09-20")
+    task = JinjaTemplateTask(template='{{ date.strftime("%Y-%d") }} is a date.')
+    f = Flow(tasks=[task])
+    res = f.run(context={"date": date})
+
+    assert res.is_successful()
+    assert res.result[task].result == "1986-20 is a date."

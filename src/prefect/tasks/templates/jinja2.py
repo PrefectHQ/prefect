@@ -13,7 +13,7 @@ class JinjaTemplateTask(Task):
     This task contains a Jinja template which is formatted with the results of any
     upstream tasks and returned.
 
-    Variables from `prefect.context` are also available for rendering.
+    Variables from `prefect.context` will also be used for rendering.
 
     Args:
         - template (str, optional): the optional _default_ template string to render at runtime;
@@ -33,7 +33,8 @@ class JinjaTemplateTask(Task):
         Args:
             - template (str, optional): the template string to render; if not
                 provided, `self.template` will be used
-            - **format_kwargs (optional): keyword arguments to use for rendering
+            - **format_kwargs (optional): keyword arguments to use for
+                rendering; note that variables from `prefect.context` will also be used
 
         Returns:
             - str: the rendered string

@@ -14,6 +14,20 @@ with prefect.context(a=1, b=2):
     print(prefect.context.a) # 1
 print (prefect.context.a) # undefined
 ```
+
+Prefect provides various key / value pairs in context that are always available during task runs:
+
+| Variable | Description |
+| :--- | --- |
+| `scheduled_start_time` | an actual datetime object representing the scheduled start time for the Flow run; falls back to `now` for unscheduled runs |
+| `date` | an actual datetime object representing the current time |
+| `today` | the current date formatted as `YYYY-MM-DD`|
+| `today_nodash` | the current date formatted as `YYYYMMDD`|
+| `yesterday` | yesterday's date formatted as `YYYY-MM-DD`|
+| `yesterday_nodash` | yesterday's date formatted as `YYYYMMDD`|
+| `tomorrow` | tomorrow's date formatted as `YYYY-MM-DD`|
+| `tomorrow_nodash` | tomorrow's date formatted as `YYYYMMDD`|
+| `task_name` | the name of the current task |
 """
 
 import contextlib
@@ -31,8 +45,9 @@ class Context(DotDict, threading.local):
     The `Context` is a `DotDict` subclass, and can be instantiated the same way.
 
     Args:
-        - *args (Any):
-        - *kwargs (Any):
+        - *args (Any): arguments to provide to the `DotDict` constructor (e.g.,
+            an initial dictionary)
+        - *kwargs (Any): any key / value pairs to initialize this context with
     """
 
     def __init__(self, *args, **kwargs) -> None:
