@@ -89,8 +89,7 @@ def test_jinja_template_can_execute_python_code():
     date = pendulum.parse("1986-09-20")
     task = JinjaTemplateTask(template='{{ date.strftime("%Y-%d") }} is a date.')
     f = Flow(tasks=[task])
-    with context(date=date):
-        res = f.run()
+    res = f.run(context={"date": date})
 
     assert res.is_successful()
     assert res.result[task].result == "1986-20 is a date."
