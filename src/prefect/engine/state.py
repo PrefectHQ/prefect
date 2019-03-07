@@ -280,9 +280,8 @@ class Submitted(State):
     Args:
         - message (string): a message for the state.
         - result (Any, optional): Defaults to `None`.
-        - state (Scheduled): the `Scheduled` state that has been marked as
-            "submitted". The message of the `Submitted` state will be taken from this
-            `state`.
+        - state (State): the `State` state that has been marked as
+            "submitted".
 
     """
 
@@ -291,6 +290,18 @@ class Submitted(State):
     ):
         super().__init__(message=message, result=result)
         self.state = state
+
+
+class Queued(Submitted):
+    """
+    The `Queued` state is used to indicate that another state could not transition to a
+    `Running` state for some reason, often a lack of available resources.
+
+    Queued states, like Submitted states, wrap another state so they can easily restore
+    the pre-queue details.
+    """
+
+    pass
 
 
 class Resume(Scheduled):

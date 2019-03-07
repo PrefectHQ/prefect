@@ -28,6 +28,7 @@ from prefect.engine.state import (
     Mapped,
     Paused,
     Pending,
+    Queued,
     Resume,
     Retrying,
     Running,
@@ -377,6 +378,13 @@ class TestInitializeRun:
         state = Scheduled()
         result = TaskRunner(Task()).initialize_run(
             state=Submitted(state=state), context={}
+        )
+        assert result.state is state
+
+    def test_unwrap_queued_states(self):
+        state = Retrying(run_count=1)
+        result = TaskRunner(Task()).initialize_run(
+            state=Queued(state=state), context={}
         )
         assert result.state is state
 
