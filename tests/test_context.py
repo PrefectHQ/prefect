@@ -1,6 +1,5 @@
 from typing import Any
 
-import datetime
 import pytest
 
 import prefect
@@ -108,27 +107,3 @@ def test_context_loads_secrets_from_config(monkeypatch):
     fresh_context = Context()
     assert "secrets" in fresh_context
     assert fresh_context.secrets == secrets_dict
-
-
-@pytest.mark.parametrize("date", ["today", "tomorrow", "yesterday"])
-def test_context_contains_date_formats(date):
-    ctx = Context()
-    assert date in ctx
-    assert isinstance(ctx[date], str)
-    assert len(ctx[date]) == 10
-
-
-@pytest.mark.parametrize(
-    "date", ["today_nodash", "tomorrow_nodash", "yesterday_nodash"]
-)
-def test_context_contains_nodash_date_formats(date):
-    ctx = Context()
-    assert date in ctx
-    assert isinstance(ctx[date], str)
-    assert len(ctx[date]) == 8
-
-
-def test_context_includes_date():
-    ctx = Context()
-    assert "date" in ctx
-    assert isinstance(ctx["date"], datetime.datetime)

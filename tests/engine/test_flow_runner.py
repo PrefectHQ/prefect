@@ -1299,27 +1299,74 @@ def test_paused_tasks_stay_paused_when_run():
     assert isinstance(state.result[t], Paused)
 
 
-def test_flow_runner_provides_scheduled_start_time():
-    @prefect.task
-    def return_scheduled_start_time():
-        return prefect.context.get("scheduled_start_time")
+class TestContext:
+    def test_flow_runner_provides_scheduled_start_time(self):
+        @prefect.task
+        def return_scheduled_start_time():
+            return prefect.context.get("scheduled_start_time")
 
-    f = Flow(tasks=[return_scheduled_start_time])
-    res = f.run()
+        f = Flow(tasks=[return_scheduled_start_time])
+        res = f.run()
 
-    assert res.is_successful()
-    assert res.result[return_scheduled_start_time].is_successful()
-    assert isinstance(res.result[return_scheduled_start_time].result, datetime.datetime)
+        assert res.is_successful()
+        assert res.result[return_scheduled_start_time].is_successful()
+        assert isinstance(
+            res.result[return_scheduled_start_time].result, datetime.datetime
+        )
 
+    def test_flow_runner_doesnt_override_scheduled_start_time(self):
+        @prefect.task
+        def return_scheduled_start_time():
+            return prefect.context.get("scheduled_start_time")
 
-def test_flow_runner_doesnt_override_scheduled_start_time():
-    @prefect.task
-    def return_scheduled_start_time():
-        return prefect.context.get("scheduled_start_time")
+        f = Flow(tasks=[return_scheduled_start_time])
+        res = f.run(context=dict(scheduled_start_time=42))
 
-    f = Flow(tasks=[return_scheduled_start_time])
-    res = f.run(context=dict(scheduled_start_time=42))
+        assert res.is_successful()
+        assert res.result[return_scheduled_start_time].is_successful()
+        assert res.result[return_scheduled_start_time].result == 42
 
-    assert res.is_successful()
-    assert res.result[return_scheduled_start_time].is_successful()
-    assert res.result[return_scheduled_start_time].result == 42
+    @pytest.mark.parametrize(
+        "date", ["today_nodash", "tomorrow_nodash", "yesterday_nodash"]
+    )
+    def test_context_contains_nodash_date_formats(self, date):
+        @prefect.task
+        def return_ctx_key():
+            return prefect.context.get(date)
+
+        f = Flow(tasks=[return_ctx_key])
+        res = f.run()
+
+        assert res.is_successful()
+
+        output = res.result[return_ctx_key].result
+        assert isinstance(output, str)
+        assert len(output) == 8
+
+    @pytest.mark.parametrize("date", ["today", "tomorrow", "yesterday"])
+    def test_context_contains_date_formats(self, date):
+        @prefect.task
+        def return_ctx_key():
+            return prefect.context.get(date)
+
+        f = Flow(tasks=[return_ctx_key])
+        res = f.run()
+
+        assert res.is_successful()
+
+        output = res.result[return_ctx_key].result
+        assert isinstance(output, str)
+        assert len(output) == 10
+
+    def test_context_includes_date(self):
+        @prefect.task
+        def return_ctx_key():
+            return prefect.context.get("date")
+
+        f = Flow(tasks=[return_ctx_key])
+        res = f.run()
+
+        assert res.is_successful()
+
+        output = res.result[return_ctx_key].result
+        assert isinstance(output, datetime.datetime)

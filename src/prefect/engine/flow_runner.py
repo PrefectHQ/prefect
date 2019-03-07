@@ -161,6 +161,19 @@ class FlowRunner(Runner):
         context.update(flow_name=self.flow.name)
         context.setdefault("scheduled_start_time", pendulum.now("utc"))
 
+        # add various formatted dates to context
+        now = pendulum.now("utc")
+        dates = {
+            "date": now,
+            "today": now.strftime("%Y-%m-%d"),
+            "yesterday": now.add(days=-1).strftime("%Y-%m-%d"),
+            "tomorrow": now.add(days=1).strftime("%Y-%m-%d"),
+            "today_nodash": now.strftime("%Y%m%d"),
+            "yesterday_nodash": now.add(days=-1).strftime("%Y%m%d"),
+            "tomorrow_nodash": now.add(days=1).strftime("%Y%m%d"),
+        }
+        context.update(dates)
+
         for task in self.flow.tasks:
             task_contexts.setdefault(task, {}).update(
                 task_id=task.id, task_name=task.name, task_slug=task.slug
