@@ -31,7 +31,6 @@ Prefect provides various key / value pairs in context that are always available 
 """
 
 import contextlib
-import pendulum
 import threading
 from typing import Any, Iterator, MutableMapping
 
@@ -55,19 +54,6 @@ class Context(DotDict, threading.local):
         super().__init__(*args, **kwargs)
         if "context" in config:
             self.update(config.context)
-
-        # add various formatted dates to context
-        now = pendulum.now("utc")
-        dates = {
-            "date": now,
-            "today": now.strftime("%Y-%m-%d"),
-            "yesterday": now.add(days=-1).strftime("%Y-%m-%d"),
-            "tomorrow": now.add(days=1).strftime("%Y-%m-%d"),
-            "today_nodash": now.strftime("%Y%m%d"),
-            "yesterday_nodash": now.add(days=-1).strftime("%Y%m%d"),
-            "tomorrow_nodash": now.add(days=1).strftime("%Y%m%d"),
-        }
-        self.update(dates)
 
     def __repr__(self) -> str:
         return "<Context>"
