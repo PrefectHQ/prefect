@@ -20,6 +20,7 @@ Prefect provides various key / value pairs in context that are always available 
 | Variable | Description |
 | :--- | --- |
 | `scheduled_start_time` | an actual datetime object representing the scheduled start time for the Flow run; falls back to `now` for unscheduled runs |
+| `date` | an actual datetime object representing the current time |
 | `today` | the current date formatted as `YYYY-MM-DD`|
 | `today_nodash` | the current date formatted as `YYYYMMDD`|
 | `yesterday` | yesterday's date formatted as `YYYY-MM-DD`|
@@ -58,6 +59,7 @@ class Context(DotDict, threading.local):
         # add various formatted dates to context
         now = pendulum.now("utc")
         dates = {
+            "date": now,
             "today": now.strftime("%Y-%m-%d"),
             "yesterday": now.add(days=-1).strftime("%Y-%m-%d"),
             "tomorrow": now.add(days=1).strftime("%Y-%m-%d"),

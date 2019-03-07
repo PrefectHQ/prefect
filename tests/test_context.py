@@ -1,5 +1,6 @@
 from typing import Any
 
+import datetime
 import pytest
 
 import prefect
@@ -125,3 +126,9 @@ def test_context_contains_nodash_date_formats(date):
     assert date in ctx
     assert isinstance(ctx[date], str)
     assert len(ctx[date]) == 8
+
+
+def test_context_includes_date():
+    ctx = Context()
+    assert "date" in ctx
+    assert isinstance(ctx["date"], datetime.datetime)
