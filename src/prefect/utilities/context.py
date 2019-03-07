@@ -26,6 +26,7 @@ Prefect provides various key / value pairs in context that are always available 
 | `yesterday_nodash` | yesterday's date formatted as `YYYYMMDD`|
 | `tomorrow` | tomorrow's date formatted as `YYYY-MM-DD`|
 | `tomorrow_nodash` | tomorrow's date formatted as `YYYYMMDD`|
+| `task_name` | the name of the current task |
 """
 
 import contextlib
