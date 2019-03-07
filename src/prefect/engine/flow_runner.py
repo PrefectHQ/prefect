@@ -172,7 +172,8 @@ class FlowRunner(Runner):
             "yesterday_nodash": now.add(days=-1).strftime("%Y%m%d"),
             "tomorrow_nodash": now.add(days=1).strftime("%Y%m%d"),
         }
-        context.update(dates)
+        for key, val in dates.items():
+            context.setdefault(key, val)
 
         for task in self.flow.tasks:
             task_contexts.setdefault(task, {}).update(
