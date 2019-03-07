@@ -88,6 +88,10 @@ class TestInitializeRun:
             state.Submitted(state=state.Retrying()),
             state.Submitted(state=state.Scheduled()),
             state.Submitted(state=state.Resume()),
+            state.Queued(state=state.Pending()),
+            state.Queued(state=state.Retrying()),
+            state.Queued(state=state.Scheduled()),
+            state.Queued(state=state.Resume()),
         ],
     )
     def test_initialize_run_gets_wrapped_state_from_submitted_states(self, state):
