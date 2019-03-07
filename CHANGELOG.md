@@ -35,6 +35,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Convert a few DEBUG level logs to INFO level logs - [#682](https://github.com/PrefectHQ/prefect/issues/682)
 - Added DaskOnKubernetes environment (PIN-3) - [#695](https://github.com/PrefectHQ/prefect/pull/695)
 - Load `context` from Cloud when running flows - [#699](https://github.com/PrefectHQ/prefect/pull/699)
+- Add `Queued` state - [#705](https://github.com/PrefectHQ/prefect/issues/705)
 
 ### Fixes
 
