@@ -1,15 +1,14 @@
-import cloudpickle
 import datetime
 import tempfile
 import uuid
+from collections import defaultdict
 
+import cloudpickle
 import pendulum
 import pytest
 
-from collections import defaultdict
-
 import prefect
-from prefect.engine.result import Result, NoResult, SafeResult
+from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cached,
@@ -18,6 +17,7 @@ from prefect.engine.state import (
     Mapped,
     Paused,
     Pending,
+    Queued,
     Resume,
     Retrying,
     Running,
@@ -347,6 +347,18 @@ class TestStateMethods:
 
     def test_state_type_methods_with_submitted_state(self):
         state = Submitted()
+        assert not state.is_cached()
+        assert not state.is_pending()
+        assert not state.is_running()
+        assert not state.is_finished()
+        assert not state.is_skipped()
+        assert not state.is_scheduled()
+        assert not state.is_successful()
+        assert not state.is_failed()
+        assert not state.is_mapped()
+
+    def test_state_type_methods_with_queued_state(self):
+        state = Queued()
         assert not state.is_cached()
         assert not state.is_pending()
         assert not state.is_running()

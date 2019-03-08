@@ -63,6 +63,11 @@ class SubmittedSchema(BaseStateSchema):
     state = fields.Nested("StateSchema", allow_none=True)
 
 
+class QueuedSchema(SubmittedSchema):
+    class Meta:
+        object_class = state.Queued
+
+
 class ScheduledSchema(PendingSchema):
     class Meta:
         object_class = state.Scheduled
@@ -175,6 +180,7 @@ class StateSchema(OneOfSchema):
         "Mapped": MappedSchema,
         "Paused": PausedSchema,
         "Pending": PendingSchema,
+        "Queued": QueuedSchema,
         "Resume": ResumeSchema,
         "Retrying": RetryingSchema,
         "Running": RunningSchema,
