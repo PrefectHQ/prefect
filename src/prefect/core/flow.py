@@ -1138,7 +1138,7 @@ class Flow:
                 flow=self
             )  # type: Optional[Environment]
         else:
-            environment = None
+            environment = self.environment
 
         serialized.update(
             schema(only=["environment"]).dump({"environment": environment})
