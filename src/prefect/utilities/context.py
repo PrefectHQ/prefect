@@ -10,9 +10,11 @@ Example:
 
 ```python
 import prefect.context
+
 with prefect.context(a=1, b=2):
     print(prefect.context.a) # 1
-print (prefect.context.a) # undefined
+
+print(prefect.context.a) # undefined
 ```
 
 Prefect provides various key / value pairs in context that are always available during task runs:
