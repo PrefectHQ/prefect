@@ -1281,12 +1281,13 @@ class TestSerialize:
         f = Flow()
         assert isinstance(f.environment, prefect.environments.LocalEnvironment)
 
-    def test_serialize_builds_environment(self):
+    def test_serialize_includes_environment(self):
         f = Flow(environment=prefect.environments.LocalEnvironment())
         s_no_build = f.serialize()
         s_build = f.serialize(build=True)
 
-        assert s_no_build["environment"] is None
+        assert s_no_build["environment"]["type"] == "LocalEnvironment"
+        assert s_no_build["environment"]["serialized_flow"] is None
         assert s_build["environment"]["type"] == "LocalEnvironment"
 
     def test_to_environment_file_writes_data(self):

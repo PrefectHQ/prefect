@@ -1122,8 +1122,8 @@ class Flow:
         Creates a serialized representation of the flow.
 
         Args:
-            - build (bool, optional): if `True`, the flow's environment is built and included
-                in the serialized flow. Otherwise, the environment is not included.
+            - build (bool, optional): if `True`, the flow's environment is built
+                prior to serialization
 
         Returns:
             - dict representing the flow
@@ -1138,7 +1138,7 @@ class Flow:
                 flow=self
             )  # type: Optional[Environment]
         else:
-            environment = None
+            environment = self.environment
 
         serialized.update(
             schema(only=["environment"]).dump({"environment": environment})
