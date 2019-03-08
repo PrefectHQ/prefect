@@ -285,6 +285,8 @@ class Submitted(State):
 
     """
 
+    color = "#b0c4de"
+
     def __init__(
         self, message: str = None, result: Any = NoResult, state: State = None
     ):
@@ -301,7 +303,7 @@ class Queued(Submitted):
     the pre-queue details.
     """
 
-    pass
+    color = "#b0c4de"
 
 
 class Resume(Scheduled):
