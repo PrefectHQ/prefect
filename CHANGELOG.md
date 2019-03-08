@@ -44,6 +44,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix issue wherein code blocks inside of method docs couldn't use `**kwargs` - [#658](https://github.com/PrefectHQ/prefect/issues/658)
 - Fix bug in which Prefect-generated Keys for S3 buckets were not properly converted to strings - [#698](https://github.com/PrefectHQ/prefect/pull/698)
 - Fix next line after Docker Environment push/pull from overwriting progress bar - [#702](https://github.com/PrefectHQ/prefect/pull/702)
+- Fix issue with `JinjaTemplateTask` not being pickleable - [#710](https://github.com/PrefectHQ/prefect/pull/710)
 
 ### Breaking Changes
 

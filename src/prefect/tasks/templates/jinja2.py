@@ -6,6 +6,7 @@ from jinja2 import Template
 
 import prefect
 from prefect import Task
+from prefect.utilities.tasks import defaults_from_attrs
 
 
 class JinjaTemplateTask(Task):
@@ -23,9 +24,10 @@ class JinjaTemplateTask(Task):
     """
 
     def __init__(self, template: str = None, **kwargs: Any):
-        self.template = Template(template or "")
+        self.template = template or ""
         super().__init__(**kwargs)
 
+    @defaults_from_attrs("template")
     def run(self, template: str = None, **format_kwargs: Any) -> str:  # type: ignore
         """
         Formats the Jinja Template with the provided kwargs.
@@ -39,6 +41,6 @@ class JinjaTemplateTask(Task):
         Returns:
             - str: the rendered string
         """
-        template = self.template if template is None else Template(template)
+        template = Template(template)
         with prefect.context(**format_kwargs) as data:
             return template.render(**data)
