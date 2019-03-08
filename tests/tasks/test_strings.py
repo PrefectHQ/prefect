@@ -1,3 +1,4 @@
+import cloudpickle
 import os
 import pendulum
 import subprocess
@@ -93,3 +94,11 @@ def test_jinja_template_can_execute_python_code():
 
     assert res.is_successful()
     assert res.result[task].result == "1986-20 is a date."
+
+
+def test_jinja_task_is_pickleable():
+    task = JinjaTemplateTask(template="string")
+    new = cloudpickle.loads(cloudpickle.dumps(task))
+
+    assert isinstance(new, JinjaTemplateTask)
+    assert new.template == "string"
