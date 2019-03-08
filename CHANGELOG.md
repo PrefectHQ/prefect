@@ -36,6 +36,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Added DaskOnKubernetes environment (PIN-3) - [#695](https://github.com/PrefectHQ/prefect/pull/695)
 - Load `context` from Cloud when running flows - [#699](https://github.com/PrefectHQ/prefect/pull/699)
 - Add `Queued` state - [#705](https://github.com/PrefectHQ/prefect/issues/705)
+- `flow.serialize()` will always serialize its environment, regardless of `build` - [#696](https://github.com/PrefectHQ/prefect/issues/696)
 
 ### Fixes
 
