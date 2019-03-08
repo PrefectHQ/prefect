@@ -10,9 +10,11 @@ Example:
 
 ```python
 import prefect.context
+
 with prefect.context(a=1, b=2):
     print(prefect.context.a) # 1
-print (prefect.context.a) # undefined
+
+print(prefect.context.a) # undefined
 ```
 
 Prefect provides various key / value pairs in context that are always available during task runs:
@@ -28,6 +30,8 @@ Prefect provides various key / value pairs in context that are always available 
 | `tomorrow` | tomorrow's date formatted as `YYYY-MM-DD`|
 | `tomorrow_nodash` | tomorrow's date formatted as `YYYYMMDD`|
 | `task_name` | the name of the current task |
+
+Users can also provide values to context at runtime.
 """
 
 import contextlib
