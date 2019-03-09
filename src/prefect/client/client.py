@@ -640,13 +640,15 @@ class Client:
 
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason
+            - ValueError: if the secret-setting was unsuccessful
         """
         mutation = {
-            "mutation": {
-                with_args("setSecret", {"input": dict(name=name, value=value)}): {
-                    "success"
-                }
+            "mutation($input: setSecretInput!)": {
+                "setSecret(input: $input)": {"success"}
             }
         }
 
-        self.graphql(mutation)  # type: Any
+        result = self.graphql(mutation, input=dict(name=name, value=value))  # type: Any
+
+        if not result.data.setSecret.success:
+            raise ValueError("Setting secret failed.")
