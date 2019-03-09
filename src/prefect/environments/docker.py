@@ -15,6 +15,7 @@ import docker
 import prefect
 from prefect.environments import Environment
 from prefect.environments import LocalEnvironment
+from prefect.utilities.exceptions import SerializationError
 
 
 class DockerEnvironment(Environment):
@@ -133,6 +134,10 @@ class DockerEnvironment(Environment):
                 path=tempdir, tag="{}:{}".format(full_name, image_tag), forcerm=True
             )
             self._parse_generator_output(output)
+            if len(client.images(name=full_name)) == 0:
+                raise SerializationError(
+                    "Your flow failed to deserialize in the container; please ensure that all necessary files and dependencies have been included."
+                )
 
             if push:
                 self.push_image(full_name, image_tag)
