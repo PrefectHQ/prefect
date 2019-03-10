@@ -2,10 +2,11 @@
 
 import json
 import os
-from typing import Optional
+from typing import Optional, Any
 
 import prefect
 from prefect.client.client import Client
+from prefect.utilities.collections import as_nested_dict
 
 
 class Secret:
@@ -23,7 +24,7 @@ class Secret:
     def __init__(self, name: str):
         self.name = name
 
-    def get(self) -> Optional[str]:
+    def get(self) -> Optional[Any]:
         """
         Retrieve the secret value.
 
@@ -37,12 +38,12 @@ class Secret:
             return secrets.get(self.name)
         else:
             client = Client()
-            result = client.graphql(  # type: ignore
+            result = client.graphql(
                 """
                 query($name: String!) {
                     secretValue(name: $name)
                 }
                 """,
                 name=self.name,
-            )
-            return result.data.secretValue  # type: ignore
+            )  # type: Any
+            return as_nested_dict(result.data.secretValue, dict)
