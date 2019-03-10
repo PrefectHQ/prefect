@@ -15,6 +15,7 @@ import docker
 import prefect
 from prefect.environments import Environment
 from prefect.environments import LocalEnvironment
+from prefect.utilities.exceptions import SerializationError
 
 
 class DockerEnvironment(Environment):
@@ -133,6 +134,10 @@ class DockerEnvironment(Environment):
                 path=tempdir, tag="{}:{}".format(full_name, image_tag), forcerm=True
             )
             self._parse_generator_output(output)
+            if len(client.images(name=full_name)) == 0:
+                raise SerializationError(
+                    "Your flow failed to deserialize in the container; please ensure that all necessary files and dependencies have been included."
+                )
 
             if push:
                 self.push_image(full_name, image_tag)
@@ -233,6 +238,21 @@ class DockerEnvironment(Environment):
             flow_path = os.path.join(directory, "flow_env.prefect")
             local_environment.to_file(flow_path)
 
+            # write a healthcheck script into the image
+            healthcheck = textwrap.dedent(
+                """\
+            print('Beginning health check...')
+            from prefect.utilities.environments import from_file
+
+            local_env = from_file('/root/.prefect/flow_env.prefect')
+            flow = local_env.deserialize_flow_from_bytes(local_env.serialized_flow)
+            print('Healthcheck: OK')
+            """
+            )
+
+            with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
+                health_file.write(healthcheck)
+
             # Due to prefect being a private repo it currently will require a
             # personal access token. Once pip installable this will change and there won't
             # be a need for the personal access token or git anymore.
@@ -250,6 +270,7 @@ class DockerEnvironment(Environment):
 
                 RUN mkdir /root/.prefect/
                 COPY flow_env.prefect /root/.prefect/flow_env.prefect
+                COPY healthcheck.py /root/.prefect/healthcheck.py
                 {copy_files}
 
                 ENV PREFECT_ENVIRONMENT_FILE="/root/.prefect/flow_env.prefect"
@@ -258,6 +279,7 @@ class DockerEnvironment(Environment):
 
                 RUN git clone https://{access_token}@github.com/PrefectHQ/prefect.git
                 RUN pip install ./prefect
+                RUN python /root/.prefect/healthcheck.py
                 """.format(
                     base_image=self.base_image,
                     pip_installs=pip_installs,

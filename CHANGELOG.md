@@ -37,6 +37,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Load `context` from Cloud when running flows - [#699](https://github.com/PrefectHQ/prefect/pull/699)
 - Add `Queued` state - [#705](https://github.com/PrefectHQ/prefect/issues/705)
 - `flow.serialize()` will always serialize its environment, regardless of `build` - [#696](https://github.com/PrefectHQ/prefect/issues/696)
+- `flow.deploy()` now raises an informative error if your container cannot deserialize the Flow - [#711](https://github.com/PrefectHQ/prefect/issues/711)
 
 ### Fixes
 
