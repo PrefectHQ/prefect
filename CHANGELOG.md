@@ -48,6 +48,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix bug in which Prefect-generated Keys for S3 buckets were not properly converted to strings - [#698](https://github.com/PrefectHQ/prefect/pull/698)
 - Fix next line after Docker Environment push/pull from overwriting progress bar - [#702](https://github.com/PrefectHQ/prefect/pull/702)
 - Fix issue with `JinjaTemplateTask` not being pickleable - [#710](https://github.com/PrefectHQ/prefect/pull/710)
+- Fix issue with creating secrets from JSON documents using the Core Client - [#715](https://github.com/PrefectHQ/prefect/pull/715)
 
 ### Breaking Changes
 
