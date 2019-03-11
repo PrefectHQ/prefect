@@ -1,5 +1,4 @@
 import boto3
-import json
 import io
 import uuid
 
@@ -56,7 +55,7 @@ class S3DownloadTask(Task):
             raise ValueError("A bucket name must be provided.")
 
         ## get AWS credentials
-        aws_credentials = json.loads(Secret(aws_credentials_secret).get())
+        aws_credentials = Secret(aws_credentials_secret).get()
         aws_access_key = aws_credentials["ACCESS_KEY"]
         aws_secret_access_key = aws_credentials["SECRET_ACCESS_KEY"]
         s3_client = boto3.client(
@@ -127,7 +126,7 @@ class S3UploadTask(Task):
             raise ValueError("A bucket name must be provided.")
 
         ## get AWS credentials
-        aws_credentials = json.loads(Secret(aws_credentials_secret).get())
+        aws_credentials = Secret(aws_credentials_secret).get()
         aws_access_key = aws_credentials["ACCESS_KEY"]
         aws_secret_access_key = aws_credentials["SECRET_ACCESS_KEY"]
         s3_client = boto3.client(

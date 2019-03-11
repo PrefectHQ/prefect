@@ -30,7 +30,7 @@ class TestS3DownloadTask:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
-                    AWS_CREDENTIALS='{"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}'
+                    AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
                 )
             ):
                 task.run(key="")
@@ -62,7 +62,7 @@ class TestS3UploadTask:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
-                    AWS_CREDENTIALS='{"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}'
+                    AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
                 )
             ):
                 task.run(data="")
@@ -76,7 +76,7 @@ class TestS3UploadTask:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
-                    AWS_CREDENTIALS='{"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}'
+                    AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
                 )
             ):
                 task.run(data="")
