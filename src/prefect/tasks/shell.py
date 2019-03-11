@@ -34,7 +34,7 @@ class ShellTask(prefect.Task):
             contents = task(command='ls')
             mv_file = task(command='mv .vimrc /.vimrc')
 
-        out = f.run(return_tasks=[contents])
+        out = f.run()
         ```
     """
 
