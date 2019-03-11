@@ -1,4 +1,3 @@
-import json
 import uuid
 
 from google.oauth2.service_account import Credentials
@@ -35,7 +34,7 @@ class GCSBaseTask(Task):
 
     def _load_client(self, project, credentials_secret):
         "Creates and returns a GCS Client instance"
-        creds = json.loads(Secret(credentials_secret).get())
+        creds = Secret(credentials_secret).get()
         credentials = Credentials.from_service_account_info(creds)
         project = project or credentials.project_id
         client = storage.Client(project=project, credentials=credentials)
@@ -77,7 +76,7 @@ class GCSDownloadTask(GCSBaseTask):
         - project (str, optional): default Google Cloud project to work within; can be overwritten at runtime.
             If not provided, will be inferred from your Google Cloud credentials
         - credentials_secret (str, optional): the name of the Prefect Secret
-            which stores a string represenation of JSON Google Cloud credentials; can be overwritten at runtime.
+            which stores a JSON representation of your Google Cloud credentials; can be overwritten at runtime.
             Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
         - encryption_key_secret (str, optional): the name of the Prefect Secret
             storing an optional `encryption_key` to be used when downloading the Blob; can be overwritten at runtime
@@ -128,7 +127,7 @@ class GCSDownloadTask(GCSBaseTask):
             - project (str, optional): Google Cloud project to work within.
                 If not provided here or at initialization, will be inferred from your Google Cloud credentials
             - credentials_secret (str, optional): the name of the Prefect Secret
-                which stores a string represenation of JSON Google Cloud credentials; if not provided here or at initialization,
+                which stores a JSON represenation of your Google Cloud credentials; if not provided here or at initialization,
                 `GOOGLE_APPLICATION_CREDENTIALS` will be used.
             - encryption_key_secret (str, optional): the name of the Prefect Secret
                 storing an optional `encryption_key` to be used when uploading the Blob; if not provided here, will default to the
@@ -166,7 +165,7 @@ class GCSUploadTask(GCSBaseTask):
         - project (str, optional): default Google Cloud project to work within; can be overwritten at runtime.
             If not provided, will be inferred from your Google Cloud credentials
         - credentials_secret (str, optional): the name of the Prefect Secret
-            which stores a string represenation of JSON Google Cloud credentials; can be overwritten at runtime.
+            which stores a JSON represenation of your Google Cloud credentials; can be overwritten at runtime.
             Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
         - create_bucket (bool, optional): boolean specifying whether to create the bucket if it does not exist,
             otherwise an Exception is raised; can be overwritten at runtime. Defaults to `False`.
@@ -229,7 +228,7 @@ class GCSUploadTask(GCSBaseTask):
             - project (str, optional): Google Cloud project to work within.
                 If not provided here or at initialization, will be inferred from your Google Cloud credentials
             - credentials_secret (str, optional): the name of the Prefect Secret
-                which stores a string represenation of JSON Google Cloud credentials; if not provided here or at initialization,
+                which stores a JSON represenation of your Google Cloud credentials; if not provided here or at initialization,
                 `GOOGLE_APPLICATION_CREDENTIALS` will be used.
             - create_bucket (bool, optional): boolean specifying whether to create the bucket if it does not exist,
                 otherwise an Exception is raised; if not provided here, will default to the value provided at initialization.

@@ -69,7 +69,7 @@ class TestCredentialsandProjects:
         monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", MagicMock())
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="42")):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
                 task.run(**{run_arg: "empty"})
 
         assert creds_loader.from_service_account_info.call_args[0][0] == 42
@@ -83,12 +83,12 @@ class TestCredentialsandProjects:
         monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", MagicMock())
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(TEST="42", RUN="{}")):
+            with prefect.context(secrets=dict(TEST="42", RUN={})):
                 task.run(**{run_arg: "empty"})
                 task.run(**{run_arg: "empty", "credentials_secret": "RUN"})
 
         first_call, second_call = creds_loader.from_service_account_info.call_args_list
-        assert first_call[0][0] == 42
+        assert first_call[0][0] == "42"
         assert second_call[0][0] == {}
 
     def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
@@ -107,7 +107,7 @@ class TestCredentialsandProjects:
         monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", client)
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="{}")):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
                 task.run(**{run_arg: "empty"})
                 task_proj.run(**{run_arg: "empty"})
                 task_proj.run(**{run_arg: "empty", "project": "run-time"})
@@ -132,7 +132,7 @@ class TestBuckets:
         )
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="{}")):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
                 task.run(**{run_arg: "empty"})
                 task.run(**{run_arg: "empty", "bucket": "run"})
 
@@ -152,7 +152,7 @@ class TestBuckets:
         )
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="{}")):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
                 with pytest.raises(NotFound) as exc:
                     task.run(**{run_arg: "empty"})
 
@@ -169,7 +169,7 @@ class TestBuckets:
         )
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="{}")):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
                 task.run(data="empty")
                 task.run(data="empty", bucket="run")
 
@@ -193,7 +193,7 @@ class TestBlob:
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
-                secrets=dict(encrypt="42", two="2", GOOGLE_APPLICATION_CREDENTIALS="{}")
+                secrets=dict(encrypt="42", two="2", GOOGLE_APPLICATION_CREDENTIALS={})
             ):
                 task.run(**{run_arg: "empty"})
                 task.run(**{run_arg: "empty", "encryption_key_secret": "two"})
@@ -215,7 +215,7 @@ class TestBlob:
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
-                secrets=dict(encrypt="42", GOOGLE_APPLICATION_CREDENTIALS="{}")
+                secrets=dict(encrypt="42", GOOGLE_APPLICATION_CREDENTIALS={})
             ):
                 task.run(data="empty")
                 task.run(data="empty", blob="run-time")
@@ -237,7 +237,7 @@ class TestBlob:
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
-                secrets=dict(encrypt="42", GOOGLE_APPLICATION_CREDENTIALS="{}")
+                secrets=dict(encrypt="42", GOOGLE_APPLICATION_CREDENTIALS={})
             ):
                 task.run(blob="run-time")
 
