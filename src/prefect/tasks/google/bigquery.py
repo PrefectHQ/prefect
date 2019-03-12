@@ -1,4 +1,3 @@
-import json
 import uuid
 
 from google.oauth2.service_account import Credentials
@@ -132,7 +131,7 @@ class BigQueryTask(Task):
             )
 
         ## create client
-        creds = json.loads(Secret(credentials_secret).get())
+        creds = Secret(credentials_secret).get()
         credentials = Credentials.from_service_account_info(creds)
         project = project or credentials.project_id
         client = bigquery.Client(project=project, credentials=credentials)
@@ -250,7 +249,7 @@ class BigQueryStreamingInsertTask(Task):
             raise ValueError("Both dataset_id and table must be provided.")
 
         ## create client
-        creds = json.loads(Secret(credentials_secret).get())
+        creds = Secret(credentials_secret).get()
         credentials = Credentials.from_service_account_info(creds)
         project = project or credentials.project_id
         client = bigquery.Client(project=project, credentials=credentials)
