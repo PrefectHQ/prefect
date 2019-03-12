@@ -102,10 +102,12 @@ class TestBigQueryCredentialsandProjects:
         )
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="42")):
+            with prefect.context(
+                secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})
+            ):
                 task.run(query="SELECT *")
 
-        assert creds_loader.from_service_account_info.call_args[0][0] == 42
+        assert creds_loader.from_service_account_info.call_args[0][0] == {"key": 42}
 
     def test_creds_secret_name_can_be_overwritten_at_anytime(self, monkeypatch):
         task = BigQueryTask(credentials_secret="TEST")
@@ -117,12 +119,12 @@ class TestBigQueryCredentialsandProjects:
         )
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(TEST="42", RUN="{}")):
+            with prefect.context(secrets=dict(TEST=dict(key="42"), RUN=dict())):
                 task.run(query="SELECT *")
                 task.run(query="SELECT *", credentials_secret="RUN")
 
         first_call, second_call = creds_loader.from_service_account_info.call_args_list
-        assert first_call[0][0] == 42
+        assert first_call[0][0] == {"key": "42"}
         assert second_call[0][0] == {}
 
     def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
@@ -140,7 +142,7 @@ class TestBigQueryCredentialsandProjects:
         monkeypatch.setattr("prefect.tasks.google.bigquery.bigquery.Client", client)
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="{}")):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=dict())):
                 task.run(query="SELECT *")
                 task_proj.run(query="SELECT *")
                 task_proj.run(query="SELECT *", project="run-time")
@@ -163,7 +165,7 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
         )
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="42")):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
                 task.run(records=[])
 
         assert creds_loader.from_service_account_info.call_args[0][0] == 42
@@ -180,12 +182,12 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
         )
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(TEST="42", RUN="{}")):
+            with prefect.context(secrets=dict(TEST="42", RUN={})):
                 task.run(records=[])
                 task.run(records=[], credentials_secret="RUN")
 
         first_call, second_call = creds_loader.from_service_account_info.call_args_list
-        assert first_call[0][0] == 42
+        assert first_call[0][0] == "42"
         assert second_call[0][0] == {}
 
     def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
@@ -205,7 +207,7 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
         monkeypatch.setattr("prefect.tasks.google.bigquery.bigquery.Client", client)
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="{}")):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
                 task.run(records=[])
                 task_proj.run(records=[])
                 task_proj.run(records=[], project="run-time")
@@ -231,7 +233,7 @@ class TestDryRuns:
         )
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="{}")):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
                 task.run(query="SELECT *")
 
     def test_dry_run_raises_if_limit_is_exceeded(self, monkeypatch):
@@ -247,7 +249,7 @@ class TestDryRuns:
         )
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="{}")):
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
                 with pytest.raises(ValueError) as exc:
                     task.run(query="SELECT *")
 
