@@ -111,8 +111,23 @@ module.exports = {
       '/license': [],
       '/guide/': [
         '/guide/',
-        'installation',
-        'getting_started',
+        {
+          title: 'Welcome',
+          collapsable: false,
+          children: [
+            'welcome/what_is_prefect',
+            'welcome/why_prefect',
+            'welcome/prefect_design',
+          ]
+        },
+        {
+          title: 'Getting Started',
+          collapsable: true,
+          children: [
+            'getting_started/installation',
+            'getting_started/getting_started',
+          ]
+        },
         {
           title: 'Core Concepts',
           collapsable: true,
