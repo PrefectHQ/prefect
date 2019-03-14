@@ -59,7 +59,7 @@ A proper automation framework has three critical components:
 
 ### Workflow Definition
 
-Defining the workflow is, in many ways, the easiest part. This is the opportunity to describe all of the negative engineering: how tasks depend on each other, under what circumstances they run, and any infrastructure requirements.
+Defining the workflow is, in many ways, the easiest part. This is the opportunity to describe all of the negative engineering: how tasks depend on each other, under what circumstances they should run, and any infrastructure requirements.
 
 Many workflow systems expect workflows to be defined in config files or verbose data structures. Across all of the user research we performed while designing Prefect, not once did anyone say they wanted more explicit workflow definitions. Not once did we hear a request for more YAML configs. Not once did anyone volunteer to rewrite their code to comply with a workflow system's API.
 
