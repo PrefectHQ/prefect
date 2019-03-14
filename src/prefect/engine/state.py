@@ -21,7 +21,6 @@ import prefect
 from prefect.engine.result import Result, NoResult, ResultInterface, SafeResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.utilities.collections import DotDict
-from prefect.utilities.datetimes import ensure_tz_aware
 
 
 class State:
@@ -263,7 +262,7 @@ class Scheduled(Pending):
         cached_inputs: Dict[str, Result] = None,
     ):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
-        self.start_time = ensure_tz_aware(start_time or pendulum.now("utc"))
+        self.start_time = pendulum.instance(start_time or pendulum.now("utc"))
 
 
 class Submitted(State):
@@ -439,7 +438,7 @@ class Cached(Success):
         self.cached_inputs = cached_inputs
         self.cached_parameters = cached_parameters  # type: Optional[Dict[str, Any]]
         if cached_result_expiration is not None:
-            cached_result_expiration = ensure_tz_aware(cached_result_expiration)
+            cached_result_expiration = pendulum.instance(cached_result_expiration)
         self.cached_result_expiration = (
             cached_result_expiration
         )  # type: Optional[datetime.datetime]

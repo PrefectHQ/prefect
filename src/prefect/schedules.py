@@ -6,8 +6,6 @@ from typing import Iterable, List
 import pendulum
 from croniter import croniter
 
-from prefect.utilities.datetimes import ensure_tz_aware
-
 
 class Schedule:
     """
@@ -20,9 +18,9 @@ class Schedule:
 
     def __init__(self, start_date: datetime = None, end_date: datetime = None):
         if start_date is not None:
-            start_date = ensure_tz_aware(start_date)
+            start_date = pendulum.instance(start_date)
         if end_date is not None:
-            end_date = ensure_tz_aware(end_date)
+            end_date = pendulum.instance(end_date)
         self.start_date = start_date
         self.end_date = end_date
 
@@ -89,7 +87,7 @@ class IntervalSchedule(Schedule):
         assert isinstance(after, datetime)  # mypy assertion
         assert isinstance(self.start_date, datetime)  # mypy assertion
 
-        after = ensure_tz_aware(after)
+        after = pendulum.instance(after)
 
         # Use the difference between the `after` date and the `start_date` to calc the
         # number of intervals we can skip over
@@ -158,7 +156,7 @@ class CronSchedule(Schedule):
             after = max(after, self.start_date - timedelta(seconds=1))
 
         assert isinstance(after, datetime)  # mypy assertion
-        after = ensure_tz_aware(after)
+        after = pendulum.instance(after)
         assert isinstance(after, pendulum.DateTime)  # mypy assertion
 
         cron = croniter(self.cron, after.in_tz("utc"))
