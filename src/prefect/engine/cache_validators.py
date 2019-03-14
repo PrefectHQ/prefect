@@ -164,13 +164,12 @@ def partial_parameters_only(
         runtime = Parameter("runtime")
         db_state = daily_db_refresh(nrows, runtime)
 
-    state1 = f.run(parameters=dict(nrows=1000, runtime=pendulum.now('utc')),
-                  return_tasks=[db_state])
+    state1 = f.run(parameters=dict(nrows=1000, runtime=pendulum.now('utc')))
 
     ## the second run will use the cache contained within state1.result[db_state]
     ## even though `runtime` has changed
     state2 = f.run(parameters=dict(nrows=1000, runtime=pendulum.now('utc')),
-                   return_tasks=[db_state], task_states={result: state1.result[db_state]})
+                   task_states={result: state1.result[db_state]})
     ```
     """
     parameters = parameters or {}
@@ -233,11 +232,10 @@ def partial_inputs_only(
     with Flow() as f:
         ans = add(1, 2, rand_bool())
 
-    state1 = f.run(return_tasks=[ans])
+    state1 = f.run()
     ## the second run will use the cache contained within state1.result[ans]
     ## even though `rand_bool` might change
-    state2 = f.run(return_tasks=[ans],
-                   task_states={result: state1.result[ans]})
+    state2 = f.run(task_states={result: state1.result[ans]})
     ```
     """
     inputs = inputs or {}

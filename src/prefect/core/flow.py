@@ -957,10 +957,14 @@ class Flow:
         Returns:
             - State: the state of the flow after its final run
         """
+        # protect against old behavior
         if "return_tasks" in kwargs:
             raise ValueError(
-                "The `return_tasks` keywords cannot be provided to `flow.run`; all task states are always returned.  If you wish to only work with a subset, use a FlowRunner directly."
+                "The `return_tasks` keyword cannot be provided to `flow.run()`; "
+                "all task states are always returned. If you want to receive a subset "
+                "of task states, use a FlowRunner directly."
             )
+
         if runner_cls is None:
             runner_cls = prefect.engine.get_default_flow_runner_class()
 
