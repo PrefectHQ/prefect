@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import prefect
 from prefect.engine import signals
-from prefect.engine.state import Failed, Pending, State, Submitted
+from prefect.engine.state import Failed, Pending, State
 from prefect.utilities import logging
 
 
@@ -110,19 +110,23 @@ class Runner:
         """
         Initializes the Task run by initializing state and context appropriately.
 
-        If the provided state is a Submitted state, the state it wraps is extracted.
+        If the provided state is a meta state, the state it wraps is extracted.
 
         Args:
-            - state (State): the proposed initial state of the flow run; can be `None`
+            - state (Optional[State]): the initial state of the run
             - context (dict): the context to be updated with relevant information
 
         Returns:
             - tuple: a tuple of the updated state and context objects
         """
-        if isinstance(state, Submitted):
-            state = state.state
-        state = state or Pending()
-        return state, context
+
+        initialized_state = state or Pending()  # type: State
+
+        # extract possibly nested meta states -> for example a Submitted( Queued( Retry ) )
+        while initialized_state.is_meta_state():
+            initialized_state = initialized_state.state  # type: ignore
+
+        return initialized_state, context
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
