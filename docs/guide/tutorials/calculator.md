@@ -26,7 +26,7 @@ def run(flow, **parameters):
     that task's result.
     """
     task = list(flow.terminal_tasks())[0]
-    state = flow.run(parameters=parameters, return_tasks=[task])
+    state = flow.run(parameters=parameters)
     return state.result[task].result
 ```
 

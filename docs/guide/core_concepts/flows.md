@@ -100,16 +100,12 @@ with Flow() as flow:
 flow.run() # prints "Hello, world!"
 ```
 
-This will return a `State` object representing the outcome of the run. To receive task states as well, supply a `return_tasks` argument to `flow.run()`:
+This will return a `State` object representing the outcome of the run, including the `States` of all tasks.
 
 ```python
-state = flow.run(return_tasks=[h])
+state = flow.run()
 state.result[h] # the task state of the say_hello task
 ```
-
-:::tip Task classes vs Task instances
-Notice that we passed `return_tasks=[h]`, not `return_tasks=[say_hello]`. This is because `h` represents a specific instance of a task that is contained inside the flow, whereas `say_hello` is just a generator of such tasks. Similarly, with a custom subclass, we would pass the task instance rather than the subclass itself.
-:::
 
 ## Schedules
 
