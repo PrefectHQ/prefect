@@ -43,7 +43,7 @@ And they're right: it should be.
 
 But negative engineering requirements compound. The more things the positive code does, the more complex the negative engineering challenge becomes.
 
-The trend among workflow systems is to tackle this complexity by exposing it to the user. This has led to a proliferation of of configuration files and obscure data structures that "only an engineer could love."
+The trend among workflow systems is to tackle this complexity by exposing it to the user. This has led to a proliferation of configuration files and obscure data structures that "only an engineer could love."
 
 Unlike other tools, Prefect doesn't require you to know (or care) about every single automation detail. Prefect has a common-sense default for everything, informed by extensive user research. If you just want to run a function at 8am every day, then that's the only bit of information you need to provide. Prefect will handle everything else. On the other hand, if you ARE the type of person who loves to introspect a complex DAG data structure, it's got you covered. Prefect is the most complete automation framework available.
 
