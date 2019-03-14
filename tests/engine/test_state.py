@@ -11,6 +11,7 @@ import prefect
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
+    _MetaState,
     Cached,
     Failed,
     Finished,
@@ -36,7 +37,9 @@ all_states = sorted(
     set(
         cls
         for cls in prefect.engine.state.__dict__.values()
-        if isinstance(cls, type) and issubclass(cls, prefect.engine.state.State)
+        if isinstance(cls, type)
+        and issubclass(cls, prefect.engine.state.State)
+        and not cls is _MetaState
     ),
     key=lambda c: c.__name__,
 )
