@@ -79,4 +79,4 @@ Arguably, Prefect's chief innovation isn't a streamlined workflow definition sys
 
 Most workflow systems have an "implicit success" criteria. This means that if a task stops without crashing, it is considered "succesful"; otherwise, it "fails". This is an incredibly limiting view of the world. What if you wanted to skip a task? What if you wanted to pause it? If the entire system fails, can you restore it just as it was? Can you guarantee that a task will only run once, even if multiple systems in disjoint environments are attempting to run it?
 
-By embuing every task and workflow with a strong notion of "state", Prefect enables a rich vocabulary to describe a workflow at any moment before, during, or after its execution.
+By imbuing every task and workflow with a strong notion of "state", Prefect enables a rich vocabulary to describe a workflow at any moment before, during, or after its execution.
