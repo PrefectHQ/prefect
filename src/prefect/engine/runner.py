@@ -120,13 +120,13 @@ class Runner:
             - tuple: a tuple of the updated state and context objects
         """
 
-        initialized_state = state or Pending()  # type: State
-
         # extract possibly nested meta states -> for example a Submitted( Queued( Retry ) )
-        while initialized_state.is_meta_state():
-            initialized_state = initialized_state.state  # type: ignore
+        while isinstance(state, State) and state.is_meta_state():
+            state = state.state  # type: ignore
 
-        return initialized_state, context
+        state = state or Pending()
+
+        return state, context
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """

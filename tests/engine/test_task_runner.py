@@ -391,7 +391,8 @@ class TestInitializeRun:
     def test_unwrap_nested_meta_states(self):
         state = Retrying(run_count=1)
         result = TaskRunner(Task()).initialize_run(
-            state=Submitted(Queued(Submitted(Queued(state)))), context={}
+            state=Submitted(state=Queued(state=Submitted(state=Queued(state=state)))),
+            context={},
         )
         assert result.state is state
 
