@@ -100,10 +100,10 @@ def pause_task(message: str = None):
         with Flow() as f:
             res = add(4, 4)
 
-        state = f.run(return_tasks=[res])
+        state = f.run()
         state.result[res] # a Paused state
 
-        state = f.run(return_tasks=[res], task_states={res: Resume()})
+        state = f.run(task_states={res: Resume()})
         state.result[res] # a Success state
         ```
     """

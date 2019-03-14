@@ -79,7 +79,7 @@ f.set_reference_tasks([board_email])
 We are now ready to run the flow:
 
 ```python
-flow_state = f.run(return_tasks=[report, board_email, complaint])
+flow_state = f.run()
 
 print("Flow state: {}\n".format(flow_state))
 print(flow_state.result)
@@ -111,8 +111,7 @@ Note that in this case, the tasks represented by `data` and `report` will _not_ 
 
 ```python
 new_flow_state = f.run(task_states=flow_state.result,
-                       start_tasks=[board_email],
-                       return_tasks=[board_email, complaint])
+                       start_tasks=[board_email])
 
 print("Flow state: {}\n".format(new_flow_state))
 print(new_flow_state.result)
