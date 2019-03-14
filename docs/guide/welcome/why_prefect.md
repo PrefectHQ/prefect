@@ -14,7 +14,7 @@ However, in order to execute code in an automated way, we need to answer an enor
 - where should it run?
 - what dependencies does it require?
 - what inputs does it require?
-- can it be paused?
+- can it be paused and resumed seamlessly?
 - what logs does it produce?
 - what outputs does it produce?
 - where are outputs stored?
