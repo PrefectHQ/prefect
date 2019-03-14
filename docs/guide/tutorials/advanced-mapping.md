@@ -110,14 +110,12 @@ flow.visualize()
 Awesome! We've constructed our flow and everything looks good; all that's left is to run it. When we call `flow.run()` we need to provide two keywords:
 
 - `parameters`: a dictionary of the required parameter values (in our case, `url`)
-- `return_tasks`: a list of the tasks we want returned in the flow's state; in this case we ask for the `dialogue` task so we can see if our scraping worked as intended
 
 We then print the first five spoken lines of the episode.
 
 ```python
 episode_url = "http://www.insidethex.co.uk/transcrp/scrp320.htm"
-outer_space = flow.run(parameters={"url": episode_url},
-                       return_tasks=[dialogue])
+outer_space = flow.run(parameters={"url": episode_url})
 
 state = outer_space.result[dialogue] # the `State` object for the dialogue task
 first_five_spoken_lines = state.result[1][:5] # state.result is a tuple (episode_name, [dialogue])
@@ -214,8 +212,7 @@ To reproduce [the first example](#setting-up-the-flow-for-a-single-episode) we r
 ```python
 episode_url = "http://www.insidethex.co.uk/transcrp/scrp320.htm"
 outer_space = flow.run(parameters={"url": episode_url, "bypass": True},
-                       start_tasks=[bypass, episodes, url],
-                       return_tasks=[dialogue])
+                       start_tasks=[bypass, episodes, url])
 ```
 
 In this case, we provide `bypass=True` so that the full episode list is not scraped; morever, we explicitly tell the flow to begin execution with the Parameters and the `create_episode_list` task, avoiding the task which would retrieve the homepage html. See the diagram above to better understand what is occuring here - we'll see this pattern again shortly.
@@ -237,7 +234,7 @@ Now let's run our flow, time its execution, and print the states for the first f
 
 ```python
 %%time
-scraped_state = flow.run(parameters={"url": "http://www.insidethex.co.uk/"}, return_tasks=[dialogue])
+scraped_state = flow.run(parameters={"url": "http://www.insidethex.co.uk/"})
 #    CPU times: user 7.48 s, sys: 241 ms, total: 7.73 s
 #    Wall time: 4min 46s
 
@@ -272,7 +269,6 @@ executor = DaskExecutor(local_processes=True)
 
 %%time
 scraped_state = flow.run(parameters={"url": "http://www.insidethex.co.uk/"},
-               return_tasks=flow.tasks,
                executor=executor)
 
 #    CPU times: user 9.7 s, sys: 1.67 s, total: 11.4 s

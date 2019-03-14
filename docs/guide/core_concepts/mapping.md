@@ -45,7 +45,7 @@ with Flow() as flow:
     mapped_result = map_fn.map(numbers)
     reduced_result = reduce_fn(mapped_result)
 
-state = flow.run(return_tasks=[reduced_result])
+state = flow.run()
 assert state.result[reduced_result].result == 9
 ```
 

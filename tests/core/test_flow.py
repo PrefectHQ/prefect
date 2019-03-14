@@ -1415,8 +1415,7 @@ def test_flow_run_raises_informative_error_for_certain_kwargs():
     f = Flow()
     with pytest.raises(ValueError) as exc:
         f.run(return_tasks=f.tasks)
-    assert "return_tasks" in str(exc.value)
-    assert "FlowRunner" in str(exc.value)
+    assert "`return_tasks` keyword cannot be provided" in str(exc.value)
 
 
 def test_flow_run_raises_if_no_more_scheduled_runs():

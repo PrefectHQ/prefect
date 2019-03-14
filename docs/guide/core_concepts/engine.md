@@ -10,10 +10,6 @@ The flow runner takes a flow and attempts to run all of its tasks. It collects t
 
 Flow runners loop over all of the tasks one time. If tasks remain unfinished after that pass -- for example, if one of them needs to be retried -- then a second loop will be required to attempt to finish them. There is no limit to the number of attempts it may take to move all tasks (and therefore the flow itself) into a finished state.
 
-### Return tasks
-
-When a flow is run, users can set `return_tasks`. The runner will return states for all requested tasks; by default, it returns states for no tasks.
-
 ### Parameters
 
 Flows that have parameters may require parameter values (if those parameters have no defaults). Parameter values must be passed to the flow runner when it runs.
