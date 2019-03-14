@@ -166,7 +166,7 @@ When we execute this, we expect to see two print statements:
 ```python
 from prefect.utilities.debug import raise_on_exception
 
-flow_state = flow.run(execution_date='2018-09-20', return_tasks=flow.tasks)
+flow_state = flow.run(execution_date='2018-09-20')
 #    branch_b
 #    None
 flow.visualize(flow_state=flow_state)

@@ -66,18 +66,18 @@ with Flow(name="retry example") as f:
 
 Now that we have created our flow `f`, we could continue to add tasks and dependencies to it through a variety of methods such as `add_task` and `set_dependencies`, or inspect its current state with methods such as `visualize` and `terminal_tasks`.
 
-To actually perform the computation, we call `f.run()` and specify which tasks we want returned for inspection. For the first run, we ensure that the request fails by artificially injecting a `"fail"` key into the `prefect.context` (see the docs for more information on context) which the task will look for. If you look back at the definition of the `ping_external_services` task, we explicitly look for this key to determine whether the task should fail or succeed.
+To actually perform the computation, we call `f.run()`. For the first run, we ensure that the request fails by artificially injecting a `"fail"` key into the `prefect.context` (see the docs for more information on context) which the task will look for. If you look back at the definition of the `ping_external_services` task, we explicitly look for this key to determine whether the task should fail or succeed.
 
 ```python
 %%time
 with prefect.context(fail=True) as ctx:
-    flow_state = f.run(return_tasks=f.tasks, context=ctx)
+    flow_state = f.run(context=ctx)
 
 ##    CPU times: user 5.65 ms, sys: 1.46 ms, total: 7.12 ms
 ##    Wall time: 5.01 s
 ```
 
-As expected, the flow run took 5 seconds due to the `create_payload` task. We can now inspect both the state of the flow as well as the state of the requested `return_tasks`.
+As expected, the flow run took 5 seconds due to the `create_payload` task. We can now inspect both the state of the flow as well as the state of its tasks.
 
 ```python
 print("Flow state: {}\n".format(flow_state))
@@ -104,8 +104,7 @@ Providing states to the `run` method will be handled by the server on the actual
 
 ```python
 %%time
-new_flow_state = f.run(return_tasks=[text],
-                       task_states={text: flow_state.result[text]},
+new_flow_state = f.run(task_states={text: flow_state.result[text]},
                        start_tasks=[text])
 
 ##    CPU times: user 15.5 ms, sys: 5.91 ms, total: 21.4 ms

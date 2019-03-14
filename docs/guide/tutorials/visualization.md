@@ -80,7 +80,7 @@ f.root_tasks()
 # {<Parameter: x>, <Parameter: y>, <Task: 6>}
 ```
 
-These are the tasks the flow will execute first (by default); consequently, the task "6" will be run _regardless_ of whether the `Div` task is skipped by the switch condition.  If, instead of merely returning the number 6, this task performed a lot of computation, we might want it executed _only if_ the switch condition passes; in this case we would need to rearrange our flow.  
+These are the tasks the flow will execute first (by default); consequently, the task "6" will be run _regardless_ of whether the `Div` task is skipped by the switch condition.  If, instead of merely returning the number 6, this task performed a lot of computation, we might want it executed _only if_ the switch condition passes; in this case we would need to rearrange our flow.
 
 ::: tip Note
 Notice that we have identified this situation and possibly remediated it _all without executing our code_!
@@ -91,7 +91,7 @@ Notice that we have identified this situation and possibly remediated it _all wi
 In addition to viewing the structure of our DAG, Prefect allows you to easily visualize the post-run states of your tasks as well. Using our flow from above, suppose we were curious about how states would propagate if we set `x=1` and `y=1` (a condition not handled by the `switch`).  In this case, we can first execute the flow, and then provide all the task states to the `flow.visualize` method to see how the states propagated!
 
 ```python
-flow_state = f.run(return_tasks=f.tasks) # ask for all tasks to be returned
+flow_state = f.run()
 f.visualize(flow_state=flow_state)
 ```
 
