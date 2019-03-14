@@ -150,7 +150,7 @@ result = Result(value=value, serialized=False, serializer=task.serializer)
 Despite all of this, the FlowRunner would require no changes. It would return an object that could still be accessed in the exact same way we do today:
 
 ```python
-state = flow.run(return_tasks=flow.tasks)
+state = flow.run()
 
 # the value returned by task "x"
 state.result[x].result
