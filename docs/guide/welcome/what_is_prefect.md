@@ -16,15 +16,16 @@ Prefect is a framework for taking any code and transforming it into a robust, di
 Along with **Prefect Cloud** (coming soon), the Prefect platform represents a full negative engineering solution for data scientists and engineers.
 
 ## Positive and negative engineering
+
 As data scientists and engineers, we distinguish between [**positive** and **negative** engineering](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d).
 
-**Positive engineering** refers to all the code we *want* to write: the analysis, the model, the ETL, the transformation, the orchestration, the request, etc. Broadly, these are *things we need to do to achieve an objective*.
+**Positive engineering** refers to all the code we _want_ to write: the analysis, the model, the ETL, the transformation, the orchestration, the request, etc. Broadly, these are _things we need to do to achieve an objective_.
 
-**Negative engineering** is all the code we write to make sure the positive code runs: the scheduling, the error trapping, the logging, the parameterization, the retries, the lineage, the infrastructure, the data serialization, and the API. These are *things we need to make sure our code runs and defend against unexpected failures*.
+**Negative engineering** is all the code we write to make sure the positive code runs: the scheduling, the parameterization, the execution, the logging, the error trapping, the alerts, the retries, the lineage, the infrastructure, the data serialization, and the API. These are _things we need to make sure our code runs and defend against unexpected failures_.
 
 Prefect is a framework for negative engineering. It takes any code and transforms it into a robust workflow.
 
-As a negative engineering framework, Prefect is agnostic to  positive engineering use cases. It plays nicely with any third-party code or external systems. Here are a few ways in which Prefect has been deployed:
+As a negative engineering framework, Prefect is agnostic to positive engineering use cases. It plays nicely with any third-party code or external systems. Here are a few ways in which Prefect has been deployed:
 
 - turning on a coffee machine every morning
 - parsing terabytes of satellite imagery
