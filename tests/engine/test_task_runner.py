@@ -388,6 +388,13 @@ class TestInitializeRun:
         )
         assert result.state is state
 
+    def test_unwrap_nested_meta_states(self):
+        state = Retrying(run_count=1)
+        result = TaskRunner(Task()).initialize_run(
+            state=Submitted(Queued(Submitted(Queued(state)))), context={}
+        )
+        assert result.state is state
+
 
 class TestCheckUpstreamFinished:
     def test_with_empty(self):
