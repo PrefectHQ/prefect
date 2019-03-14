@@ -63,7 +63,7 @@ Defining the workflow is, in many ways, the easiest part. This is the opportunit
 
 Many workflow systems expect workflows to be defined in config files or verbose data structures. Across all of the user research we performed while designing Prefect, not once did anyone say they wanted more explicit workflow definitions. Not once did we hear a request for more YAML configs. Not once did anyone volunteer to rewrite their code to comply with a workflow system's API.
 
-Therefore, Prefect views these approaches as design failures. While Prefect builds a fully introspectable and customizable DAG definition for every workflow, users are never required to interact with it if they don't want to. Instead, _Python is the API_. Users define functions and call them as they would in any script, and Prefect does the work to figure out the workflow structure.
+Therefore, Prefect views these approaches to workflow definition as design failures. While Prefect builds a fully introspectable and customizable DAG definition for every workflow, users are never required to interact with it if they don't want to. Instead, _Python is the API_. Users define functions and call them as they would in any script, and Prefect does the work to figure out the workflow structure.
 
 ### Workflow Engine
 
