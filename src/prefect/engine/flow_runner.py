@@ -140,7 +140,7 @@ class FlowRunner(Runner):
         If the provided state is a Submitted state, the state it wraps is extracted.
 
         Args:
-            - state (State): the proposed initial state of the flow run; can be `None`
+            - state (Optional[State]): the initial state of the run
             - task_states (Dict[Task, State]): a dictionary of any initial task states
             - context (Dict[str, Any], optional): prefect.Context to use for execution
                 to use for each Task run

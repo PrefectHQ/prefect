@@ -85,7 +85,7 @@ class State:
 
     def is_pending(self) -> bool:
         """
-        Checks if the object is currently in a pending state
+        Checks if the state is currently in a pending state
 
         Returns:
             - bool: `True` if the state is pending, `False` otherwise
@@ -95,7 +95,7 @@ class State:
 
     def is_running(self) -> bool:
         """
-        Checks if the object is currently in a running state
+        Checks if the state is currently in a running state
 
         Returns:
             - bool: `True` if the state is running, `False` otherwise
@@ -104,7 +104,7 @@ class State:
 
     def is_cached(self) -> bool:
         """
-        Checks if the object is currently in a Cached state
+        Checks if the state is currently in a Cached state
 
         Returns:
             - bool: `True` if the state is Cached, `False` otherwise
@@ -113,7 +113,7 @@ class State:
 
     def is_finished(self) -> bool:
         """
-        Checks if the object is currently in a finished state
+        Checks if the state is currently in a finished state
 
         Returns:
             - bool: `True` if the state is finished, `False` otherwise
@@ -122,7 +122,7 @@ class State:
 
     def is_scheduled(self) -> bool:
         """
-        Checks if the object is currently in a scheduled state, which includes retrying.
+        Checks if the state is currently in a scheduled state, which includes retrying.
 
         Returns:
             - bool: `True` if the state is skipped, `False` otherwise
@@ -131,7 +131,7 @@ class State:
 
     def is_skipped(self) -> bool:
         """
-        Checks if the object is currently in a skipped state
+        Checks if the state is currently in a skipped state
 
         Returns:
             - bool: `True` if the state is skipped, `False` otherwise
@@ -140,7 +140,7 @@ class State:
 
     def is_successful(self) -> bool:
         """
-        Checks if the object is currently in a successful state
+        Checks if the state is currently in a successful state
 
         Returns:
             - bool: `True` if the state is successful, `False` otherwise
@@ -149,7 +149,7 @@ class State:
 
     def is_failed(self) -> bool:
         """
-        Checks if the object is currently in a failed state
+        Checks if the state is currently in a failed state
 
         Returns:
             - bool: `True` if the state is failed, `False` otherwise
@@ -158,12 +158,21 @@ class State:
 
     def is_mapped(self) -> bool:
         """
-        Checks if the object is currently in a mapped state
+        Checks if the state is currently in a mapped state
 
         Returns:
             - bool: `True` if the state is mapped, `False` otherwise
         """
         return isinstance(self, Mapped)
+
+    def is_meta_state(self) -> bool:
+        """
+        Checks if the state is a meta state that wraps another state
+
+        Returns:
+            - bool: `True` if the state is a meta state, `False` otherwise
+        """
+        return isinstance(self, _MetaState)
 
     @staticmethod
     def deserialize(json_blob: dict) -> "State":
@@ -265,7 +274,26 @@ class Scheduled(Pending):
         self.start_time = pendulum.instance(start_time or pendulum.now("utc"))
 
 
-class Submitted(State):
+class _MetaState(State):
+    """
+    Meta states are used to provide meta-information about other states. For example,
+    the Submitted state wraps another state to show that it has been handled. The Queued
+    state wraps states to show that they have been queued for execution.
+
+    This parent class should NOT generally be used, but allows all meta states to be
+    easily identified.
+    """
+
+    color = "#b0c4de"
+
+    def __init__(
+        self, message: str = None, result: Any = NoResult, state: State = None
+    ):
+        super().__init__(message=message, result=result)
+        self.state = state
+
+
+class Submitted(_MetaState):
     """
     The `Submitted` state is used to indicate that another state, usually a `Scheduled`
     state, has been handled. For example, if a task is in a `Retrying` state, then at
@@ -284,25 +312,13 @@ class Submitted(State):
 
     """
 
-    color = "#b0c4de"
 
-    def __init__(
-        self, message: str = None, result: Any = NoResult, state: State = None
-    ):
-        super().__init__(message=message, result=result)
-        self.state = state
-
-
-class Queued(Submitted):
+class Queued(_MetaState):
     """
     The `Queued` state is used to indicate that another state could not transition to a
     `Running` state for some reason, often a lack of available resources.
 
-    Queued states, like Submitted states, wrap another state so they can easily restore
-    the pre-queue details.
     """
-
-    color = "#b0c4de"
 
 
 class Resume(Scheduled):
