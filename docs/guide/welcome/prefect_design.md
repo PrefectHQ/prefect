@@ -6,7 +6,7 @@ sidebarDepth: 0
 
 ## Tasks are functions
 
-In a simple sense, Prefect tasks are simply functions that have special rules about when they should run: they optionally take inputs, perform some work, and optionally return an output. Each task receives metadata about its upstream dependencies before it runs, giving it an opportunity to change its behavior depending on the state of the flow.
+In a simple sense, Prefect tasks are simply functions that have special rules about when they should run: they optionally take inputs, perform some work, and optionally return an output. Tasks can process data directly, or orchestrate external systems, or call out to other environments or even languages -- there are almost no restrictions on what a task can do. Furthermore, each task receives metadata about its upstream dependencies before it runs, even if it doesn't receive any explicit data inputs, giving it an opportunity to change its behavior depending on the state of the flow.
 
 Because Prefect is a negative engineering framework, it is agnostic to the code each task runs. There are no restrictions on what inputs and outputs can be.
 
