@@ -110,7 +110,7 @@ class CloudTaskRunner(TaskRunner):
         Initializes the Task run by initializing state and context appropriately.
 
         Args:
-            - state (State): the proposed initial state of the flow run; can be `None`
+            - state (Optional[State]): the initial state of the run
             - context (Dict[str, Any]): the context to be updated with relevant information
 
         Returns:
