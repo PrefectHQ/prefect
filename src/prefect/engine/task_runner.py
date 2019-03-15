@@ -128,7 +128,7 @@ class TaskRunner(Runner):
         Also, if the task is being resumed through a `Resume` state, updates context to have `resume=True`.
 
         Args:
-            - state (State): the proposed initial state of the flow run; can be `None`
+            - state (Optional[State]): the initial state of the run
             - context (Dict[str, Any]): the context to be updated with relevant information
 
         Returns:

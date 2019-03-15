@@ -21,7 +21,7 @@ all_states = sorted(
         for cls in state.__dict__.values()
         if isinstance(cls, type)
         and issubclass(cls, state.State)
-        and cls is not state.State
+        and cls not in (state.State, state._MetaState)
     ),
     key=lambda c: c.__name__,
 )
