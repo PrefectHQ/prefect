@@ -56,14 +56,16 @@ class PendingSchema(BaseStateSchema):
     )
 
 
-class SubmittedSchema(BaseStateSchema):
-    class Meta:
-        object_class = state.Submitted
-
+class MetaStateSchema(BaseStateSchema):
     state = fields.Nested("StateSchema", allow_none=True)
 
 
-class QueuedSchema(SubmittedSchema):
+class SubmittedSchema(MetaStateSchema):
+    class Meta:
+        object_class = state.Submitted
+
+
+class QueuedSchema(MetaStateSchema):
     class Meta:
         object_class = state.Queued
 
