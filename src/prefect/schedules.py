@@ -85,7 +85,7 @@ class IntervalSchedule(Schedule):
             after = pendulum.now("utc")
 
         assert isinstance(after, datetime)  # mypy assertion
-        assert isinstance(self.start_date, datetime)  # mypy assertion
+        assert isinstance(self.start_date, pendulum.DateTime)  # mypy assertion
 
         after = pendulum.instance(after)
 
@@ -106,7 +106,12 @@ class IntervalSchedule(Schedule):
         dates = []
 
         for i in range(n):
-            next_date = self.start_date + self.interval * (skip + i)
+            interval = self.interval * (skip + i)
+            # in order to handle daylight savings time boundries, we consider the interval
+            # "days" separate from "seconds"; this allows Pendulum DST logic to work
+            days = interval.days
+            seconds = interval.total_seconds() - (days * 24 * 60 * 60)
+            next_date = self.start_date.add(days=days, seconds=seconds)
             if self.end_date and next_date > self.end_date:
                 break
             dates.append(next_date)
@@ -116,7 +121,8 @@ class IntervalSchedule(Schedule):
 
 class CronSchedule(Schedule):
     """
-    Cron scheduler.
+    Cron scheduler. Note that this schedule operates entirely in UTC and has no notion of daylight
+    savings time.
 
     Args:
         - cron (str): a valid cron string

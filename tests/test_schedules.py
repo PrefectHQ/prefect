@@ -4,6 +4,7 @@ import pendulum
 import pytest
 
 from prefect import __version__, schedules
+from prefect.serialization.schedule import ScheduleSchema
 
 START_DATE = pendulum.datetime(2018, 1, 1)
 DATES = [
@@ -26,10 +27,15 @@ def test_base_schedule_next_no_implemented():
         s.next(1)
 
 
+def serialize_fmt(dt):
+    p_dt = pendulum.instance(dt)
+    return dict(dt=p_dt.naive().to_iso8601_string(), tz=p_dt.tzinfo.name)
+
+
 class TestIntervalSchedule:
     def test_create_interval_schedule(self):
         assert schedules.IntervalSchedule(
-            start_date=pendulum.now("utc"), interval=timedelta(days=1)
+            start_date=pendulum.now("UTC"), interval=timedelta(days=1)
         )
 
     def test_start_date_must_be_datetime(self):
@@ -39,66 +45,48 @@ class TestIntervalSchedule:
     def test_interval_schedule_interval_must_be_positive(self):
         with pytest.raises(ValueError):
             schedules.IntervalSchedule(
-                pendulum.now("utc"), interval=timedelta(hours=-1)
+                pendulum.now("UTC"), interval=timedelta(hours=-1)
             )
 
     def test_interval_schedule_interval_must_be_more_than_one_minute(self):
         with pytest.raises(ValueError):
             schedules.IntervalSchedule(
-                pendulum.now("utc"), interval=timedelta(seconds=59)
+                pendulum.now("UTC"), interval=timedelta(seconds=59)
             )
         with pytest.raises(ValueError):
             schedules.IntervalSchedule(
-                pendulum.now("utc"), interval=timedelta(microseconds=59999999)
+                pendulum.now("UTC"), interval=timedelta(microseconds=59999999)
             )
         with pytest.raises(ValueError):
-            schedules.IntervalSchedule(pendulum.now("utc"), interval=timedelta(0))
+            schedules.IntervalSchedule(pendulum.now("UTC"), interval=timedelta(0))
 
     def test_interval_schedule_can_be_exactly_one_minute(self):
         assert schedules.IntervalSchedule(
-            pendulum.now("utc"), interval=timedelta(minutes=1)
+            pendulum.now("UTC"), interval=timedelta(minutes=1)
         )
         assert schedules.IntervalSchedule(
-            pendulum.now("utc"), interval=timedelta(seconds=60)
+            pendulum.now("UTC"), interval=timedelta(seconds=60)
         )
         assert schedules.IntervalSchedule(
-            pendulum.now("utc"), interval=timedelta(microseconds=60000000)
+            pendulum.now("UTC"), interval=timedelta(microseconds=60000000)
         )
 
     def test_interval_schedule_next_n(self):
         """Test that default after is *now*"""
         start_date = pendulum.datetime(2018, 1, 1)
-        today = pendulum.today("utc")
+        today = pendulum.today("UTC")
         s = schedules.IntervalSchedule(start_date, timedelta(days=1))
         assert s.next(3) == [today.add(days=1), today.add(days=2), today.add(days=3)]
 
     def test_interval_schedule_next_n_with_after_argument(self):
         start_date = pendulum.datetime(2018, 1, 1)
-        today = pendulum.today("utc")
+        today = pendulum.today("UTC")
         s = schedules.IntervalSchedule(start_date, timedelta(days=1))
         assert s.next(3, after=today) == [
             today.add(days=1),
             today.add(days=2),
             today.add(days=3),
         ]
-
-    def test_interval_schedule_start_daylight_savings_time(self):
-        """
-        On 3/11/2018, at 2am, EST switched clocks forward an hour.
-        """
-        dt = pendulum.datetime(2018, 3, 11, tz="America/New_York")
-        s = schedules.IntervalSchedule(dt, timedelta(hours=1))
-        next_4 = s.next(4, after=dt)
-        assert [t.in_tz("utc").hour for t in next_4] == [6, 7, 8, 9]
-
-    def test_interval_schedule_daylight_savings_time(self):
-        """
-        11/4/2018, at 2am, EST switched clocks back an hour.
-        """
-        dt = pendulum.datetime(2018, 11, 4, tz="America/New_York")
-        s = schedules.IntervalSchedule(dt, timedelta(hours=1))
-        next_4 = s.next(4, after=dt)
-        assert [t.in_tz("utc").hour for t in next_4] == [5, 6, 7, 8]
 
     def test_interval_schedule_end_date(self):
         start_date = pendulum.datetime(2018, 1, 1)
@@ -160,6 +148,114 @@ class TestIntervalSchedule:
         assert s.next(-3) == []
 
 
+class TestIntervalScheduleDaylightSavingsTime:
+    """
+    Tests that DST boundaries are respected and also serialized appropriately
+
+    If serialize = True, the schedule is serialized and deserialized to ensure that TZ info
+    survives.
+    """
+
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_interval_schedule_hourly_daylight_savings_time_forward_ignored_with_UTC(
+        self, serialize
+    ):
+        """
+        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
+        """
+        dt = pendulum.datetime(2018, 3, 10, 23, tz="America/New_York")
+        s = schedules.IntervalSchedule(dt.in_tz("UTC"), timedelta(hours=1))
+        if serialize:
+            s = ScheduleSchema().load(s.serialize())
+        next_4 = s.next(4, after=dt)
+        # skip 2am
+        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        # constant hourly schedule in utc time
+        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_interval_schedule_hourly_daylight_savings_time_backward(self, serialize):
+        """
+        11/4/2018, at 2am, America/New_York switched clocks back an hour.
+        """
+        dt = pendulum.datetime(2018, 11, 3, 23, tz="America/New_York")
+        s = schedules.IntervalSchedule(dt, timedelta(hours=1))
+        if serialize:
+            s = ScheduleSchema().load(s.serialize())
+        next_4 = s.next(4, after=dt)
+        # repeat the 1am run in local time
+        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 1, 2]
+        # runs every hour UTC
+        assert [t.in_tz("UTC").hour for t in next_4] == [4, 5, 6, 7]
+
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_interval_schedule_hourly_daylight_savings_time_forward(self, serialize):
+        """
+        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
+        """
+        dt = pendulum.datetime(2018, 3, 10, 23, tz="America/New_York")
+        s = schedules.IntervalSchedule(dt, timedelta(hours=1))
+        if serialize:
+            s = ScheduleSchema().load(s.serialize())
+        next_4 = s.next(4, after=dt)
+        # skip 2am
+        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        # constant hourly schedule in utc time
+        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_interval_schedule_hourly_daylight_savings_time_backward(self, serialize):
+        """
+        11/4/2018, at 2am, America/New_York switched clocks back an hour.
+        """
+        dt = pendulum.datetime(2018, 11, 3, 23, tz="America/New_York")
+        s = schedules.IntervalSchedule(dt, timedelta(hours=1))
+        if serialize:
+            s = ScheduleSchema().load(s.serialize())
+        next_4 = s.next(4, after=dt)
+        # repeat the 1am run in local time
+        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 1, 2]
+        # runs every hour UTC
+        assert [t.in_tz("UTC").hour for t in next_4] == [4, 5, 6, 7]
+
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_interval_schedule_daily_start_daylight_savings_time_forward(
+        self, serialize
+    ):
+        """
+        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
+
+        Confirm that a schedule for 9am America/New_York stays 9am through the switch.
+        """
+        dt = pendulum.datetime(2018, 3, 8, 9, tz="America/New_York")
+        s = schedules.IntervalSchedule(dt, timedelta(days=1))
+        if serialize:
+            s = ScheduleSchema().load(s.serialize())
+        next_4 = s.next(4, after=dt)
+        # constant 9am start
+        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
+        # utc time shifts
+        assert [t.in_tz("UTC").hour for t in next_4] == [14, 14, 13, 13]
+
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_interval_schedule_daily_start_daylight_savings_time_backward(
+        self, serialize
+    ):
+        """
+        On 11/4/2018, at 2am, America/New_York switched clocks back an hour.
+
+        Confirm that a schedule for 9am America/New_York stays 9am through the switch.
+        """
+        dt = pendulum.datetime(2018, 11, 1, 9, tz="America/New_York")
+        s = schedules.IntervalSchedule(dt, timedelta(days=1))
+        if serialize:
+            s = ScheduleSchema().load(s.serialize())
+        next_4 = s.next(4, after=dt)
+        # constant 9am start
+        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
+        assert [t.in_tz("UTC").hour for t in next_4] == [13, 13, 14, 14]
+
+
 class TestCronSchedule:
     def test_create_cron_schedule(self):
         assert schedules.CronSchedule("* * * * *")
@@ -178,9 +274,9 @@ class TestCronSchedule:
         every_day = "0 0 * * *"
         s = schedules.CronSchedule(every_day)
         assert s.next(3) == [
-            pendulum.today("utc").add(days=1),
-            pendulum.today("utc").add(days=2),
-            pendulum.today("utc").add(days=3),
+            pendulum.today("UTC").add(days=1),
+            pendulum.today("UTC").add(days=2),
+            pendulum.today("UTC").add(days=3),
         ]
 
     def test_cron_schedule_next_n_with_after_argument(self):
@@ -196,24 +292,24 @@ class TestCronSchedule:
 
     def test_cron_schedule_start_daylight_savings_time(self):
         """
-        On 3/11/2018, at 2am, EST switched clocks forward an hour.
+        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
         """
         dt = pendulum.datetime(2018, 3, 11, tz="America/New_York")
         every_hour = "0 * * * *"
         s = schedules.CronSchedule(every_hour)
         next_4 = s.next(4, after=dt)
 
-        assert [t.in_tz("utc").hour for t in next_4] == [6, 7, 8, 9]
+        assert [t.in_tz("UTC").hour for t in next_4] == [6, 7, 8, 9]
 
     def test_cron_schedule_end_daylight_savings_time(self):
         """
-        11/4/2018, at 2am, EST switched clocks back an hour.
+        11/4/2018, at 2am, America/New_York switched clocks back an hour.
         """
         dt = pendulum.datetime(2018, 11, 4, tz="America/New_York")
         every_hour = "0 * * * *"
         s = schedules.CronSchedule(every_hour)
         next_4 = s.next(4, after=dt)
-        assert [t.in_tz("utc").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
 
     def test_cron_schedule_start_date(self):
         every_day = "0 0 * * *"
@@ -261,7 +357,7 @@ class TestCronSchedule:
 
 class TestOneTimeSchedule:
     def test_create_onetime_schedule(self):
-        schedule = schedules.OneTimeSchedule(start_date=pendulum.now("utc"))
+        schedule = schedules.OneTimeSchedule(start_date=pendulum.now("UTC"))
         assert schedule.start_date == schedule.end_date
 
     def test_start_date_must_be_provided(self):
@@ -274,25 +370,25 @@ class TestOneTimeSchedule:
 
     def test_onetime_schedule_next_n(self):
         """Test that default after is *now*"""
-        start_date = pendulum.today("utc").add(days=1)
+        start_date = pendulum.today("UTC").add(days=1)
         s = schedules.OneTimeSchedule(start_date)
         assert s.next(3) == [start_date]
         assert s.next(1) == [start_date]
 
     def test_onetime_schedule_next_n_with_after_argument(self):
-        start_date = pendulum.today("utc").add(days=1)
+        start_date = pendulum.today("UTC").add(days=1)
         s = schedules.OneTimeSchedule(start_date)
         assert s.next(1, after=start_date - timedelta(seconds=1)) == [start_date]
         assert s.next(1, after=start_date.add(days=-1)) == [start_date]
         assert s.next(1, after=start_date.add(days=1)) == []
 
     def test_onetime_schedule_n_equals_0(self):
-        start_date = pendulum.today("utc").add(days=1)
+        start_date = pendulum.today("UTC").add(days=1)
         s = schedules.OneTimeSchedule(start_date=start_date)
         assert s.next(0) == []
 
     def test_onetime_schedule_n_negative(self):
-        start_date = pendulum.today("utc").add(days=1)
+        start_date = pendulum.today("UTC").add(days=1)
         s = schedules.OneTimeSchedule(start_date=start_date)
         assert s.next(-3) == []
 
@@ -302,7 +398,7 @@ class TestSerialization:
         start_date = pendulum.datetime(1986, 9, 20)
         schedule = schedules.OneTimeSchedule(start_date=start_date)
         assert schedule.serialize() == {
-            "start_date": str(start_date),
+            "start_date": serialize_fmt(start_date),
             "type": "OneTimeSchedule",
             "__version__": __version__,
         }
@@ -322,8 +418,8 @@ class TestSerialization:
         ed = pendulum.datetime(2010, 1, 1)
         schedule = schedules.CronSchedule("0 0 * * *", start_date=sd, end_date=ed)
         assert schedule.serialize() == {
-            "end_date": str(ed),
-            "start_date": str(sd),
+            "start_date": serialize_fmt(sd),
+            "end_date": serialize_fmt(ed),
             "type": "CronSchedule",
             "cron": "0 0 * * *",
             "__version__": __version__,
@@ -336,7 +432,7 @@ class TestSerialization:
         )
         assert schedule.serialize() == {
             "type": "IntervalSchedule",
-            "start_date": str(sd),
+            "start_date": serialize_fmt(sd),
             "end_date": None,
             "interval": 3600000000,
             "__version__": __version__,
@@ -351,8 +447,8 @@ class TestSerialization:
         )
         assert schedule.serialize() == {
             "type": "IntervalSchedule",
-            "start_date": str(sd),
-            "end_date": str(ed),
+            "start_date": serialize_fmt(sd),
+            "end_date": serialize_fmt(ed),
             "interval": 3600000000,
             "__version__": __version__,
         }
