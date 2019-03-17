@@ -499,12 +499,12 @@ class Task(metaclass=SignatureValidator):
         inputs = {}
         for name, parameter in inspect.signature(self.run).parameters.items():
             input_type = parameter.annotation
-            if input_type is inspect._empty:
+            if input_type is inspect._empty:  # type: ignore
                 input_type = Any
 
             input_default = parameter.default
             input_required = False
-            if input_default is inspect._empty:
+            if input_default is inspect._empty:  # type: ignore
                 input_required = True
                 input_default = None
 
@@ -522,7 +522,7 @@ class Task(metaclass=SignatureValidator):
             - Any
         """
         return_annotation = inspect.signature(self.run).return_annotation
-        if return_annotation is inspect._empty:
+        if return_annotation is inspect._empty:  # type: ignore
             return_annotation = Any
         return return_annotation
 
