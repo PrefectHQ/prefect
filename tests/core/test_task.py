@@ -2,13 +2,14 @@ import json
 import logging
 import uuid
 from datetime import timedelta
+from typing import Any, Union
 
 import pytest
 
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.cache_validators import all_inputs, duration_only, never_use
-from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
+from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task
 
@@ -212,9 +213,34 @@ def test_tags():
         assert t5.tags == set(["test1", "test2", "test3"])
 
 
-def test_inputs():
-    """ Test inferring input names """
-    assert AddTask().inputs() == ("x", "y")
+class TestInputsOutputs:
+    class add(Task):
+        def run(self, x, y: int = 1) -> int:
+            return x + y
+
+    @task
+    def mult(x, y: int = 1) -> int:
+        return x * y
+
+    def test_inputs(self):
+        assert self.add().inputs() == dict(
+            x=dict(type=Any, required=True, default=None),
+            y=dict(type=int, required=False, default=1),
+        )
+
+    def test_inputs_task_decorator(self):
+        with Flow("test"):
+            assert self.mult(x=1).inputs() == dict(
+                x=dict(type=Any, required=True, default=None),
+                y=dict(type=int, required=False, default=1),
+            )
+
+    def test_outputs(self):
+        assert self.add().outputs() == int
+
+    def test_outputs_task_decorator(self):
+        with Flow("test"):
+            assert self.mult(x=1).outputs() == int
 
 
 def test_copy_copies():
