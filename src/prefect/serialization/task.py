@@ -35,16 +35,16 @@ class TaskMethodsMixin:
             return super().get_attribute(obj, key, default)
 
     def load_inputs(self, task):
-        inputs = {}
         if not isinstance(task, prefect.core.Task):
-            return inputs
+            return self.get_attribute(task, "inputs", None)
+        inputs = {}
         for k, v in task.inputs().items():
             inputs[k] = dict(required=v["required"], type=str(v["type"]))
         return inputs
 
     def load_outputs(self, task):
         if not isinstance(task, prefect.core.Task):
-            return {}
+            return self.get_attribute(task, "outputs", None)
         return str(task.outputs())
 
     @post_load
