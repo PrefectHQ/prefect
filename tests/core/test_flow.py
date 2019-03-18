@@ -56,7 +56,6 @@ class TestCreateFlow:
     def test_create_flow_with_name(self):
         with pytest.raises(TypeError):
             f1 = Flow()
-            assert f1.name
 
         f2 = Flow(name="test")
         assert f2.name == "test"
