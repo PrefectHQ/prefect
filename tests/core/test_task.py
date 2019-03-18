@@ -185,7 +185,7 @@ def test_tags_are_added_when_arguments_are_bound():
     t2 = AddTask(tags=["math"])
 
     with prefect.context(tags=["test"]):
-        with Flow():
+        with Flow(name="test"):
             t1.bind(1, 2)
             t3 = t2(1, 2)
 
@@ -241,12 +241,12 @@ def test_copy_warns_if_dependencies_in_active_flow():
     t1 = Task()
     t2 = Task()
 
-    with Flow():
+    with Flow(name="test"):
         t1.set_dependencies(downstream_tasks=[t2])
         with pytest.warns(UserWarning):
             t1.copy()
 
-        with Flow():
+        with Flow(name="test"):
             # no dependencies in this flow
             t1.copy()
 
@@ -281,14 +281,14 @@ class TestDependencies:
     """
 
     def test_set_downstream(self):
-        with Flow() as f:
+        with Flow(name="test") as f:
             t1 = Task()
             t2 = Task()
             t1.set_downstream(t2)
             assert Edge(t1, t2) in f.edges
 
     def test_set_upstream(self):
-        with Flow() as f:
+        with Flow(name="test") as f:
             t1 = Task()
             t2 = Task()
             t2.set_upstream(t1)
