@@ -169,7 +169,9 @@ class TestTriggerDAG:
             dag_id="tutorial", execution_date="1986-09-20", env=airflow_settings
         )
         check_task = ShellTask(
-            command="airflow list_dag_runs tutorial", helper_script=task.helper_script
+            command="airflow list_dag_runs tutorial",
+            helper_script=task.helper_script,
+            env=airflow_settings,
         )
 
         with Flow(name="tutorial") as flow:
