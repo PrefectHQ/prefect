@@ -20,7 +20,7 @@ class TestConstant:
         assert y.run() == 100
 
     def test_automatic_create_constant_task(self):
-        with Flow() as flow:
+        with Flow(name="test") as flow:
             t = Task()
             t.set_dependencies(upstream_tasks=[4])
         assert len(flow.tasks) == 2
@@ -30,7 +30,7 @@ class TestConstant:
 class TestCollections:
     def test_list_returns_a_list(self):
         l = collections.List()
-        with Flow() as f:
+        with Flow(name="test") as f:
             l.bind(1, 2)
         assert f.run().result[l].result == [1, 2]
 
@@ -38,7 +38,7 @@ class TestCollections:
         t1 = Task()
         t2 = Task()
         l = collections.List()
-        with Flow() as f:
+        with Flow(name="test") as f:
             l.bind(t1, t2)
 
         assert set([t1, t2, l]) == f.tasks
@@ -47,7 +47,7 @@ class TestCollections:
 
     def test_tuple_returns_a_tuple(self):
         l = collections.Tuple()
-        with Flow() as f:
+        with Flow(name="test") as f:
             l.bind(1, 2)
         assert f.run().result[l].result == (1, 2)
 
@@ -55,7 +55,7 @@ class TestCollections:
         t1 = Task()
         t2 = Task()
         l = collections.Tuple()
-        with Flow() as f:
+        with Flow(name="test") as f:
             l.bind(t1, t2)
 
         assert set([t1, t2, l]) == f.tasks
@@ -64,7 +64,7 @@ class TestCollections:
 
     def test_set_returns_a_set(self):
         l = collections.Set()
-        with Flow() as f:
+        with Flow(name="test") as f:
             l.bind(1, 2)
         assert f.run().result[l].result == set([1, 2])
 
@@ -72,7 +72,7 @@ class TestCollections:
         t1 = Task()
         t2 = Task()
         l = collections.Set()
-        with Flow() as f:
+        with Flow(name="test") as f:
             l.bind(t1, t2)
 
         assert set([t1, t2, l]) == f.tasks
@@ -81,7 +81,7 @@ class TestCollections:
 
     def test_dict_returns_a_dict(self):
         l = collections.Dict()
-        with Flow() as f:
+        with Flow(name="test") as f:
             l.bind(a=1, b=2)
         assert f.run().result[l].result == dict(a=1, b=2)
 
@@ -89,7 +89,7 @@ class TestCollections:
         x = Parameter("x")
         y = Parameter("y")
         identity = IdentityTask()
-        with Flow() as f:
+        with Flow(name="test") as f:
             identity.bind(x=[x, y])
         state = f.run(parameters=dict(x=1, y=2))
 
@@ -101,7 +101,7 @@ class TestCollections:
         x = Parameter("x")
         y = Parameter("y")
         identity = IdentityTask()
-        with Flow() as f:
+        with Flow(name="test") as f:
             identity.bind(x=(x, y))
         state = f.run(parameters=dict(x=1, y=2))
 
@@ -113,7 +113,7 @@ class TestCollections:
         x = Parameter("x")
         y = Parameter("y")
         identity = IdentityTask()
-        with Flow() as f:
+        with Flow(name="test") as f:
             identity.bind(x=set([x, y]))
         state = f.run(parameters=dict(x=1, y=2))
 
@@ -125,7 +125,7 @@ class TestCollections:
         x = Parameter("x")
         y = Parameter("y")
         identity = IdentityTask()
-        with Flow() as f:
+        with Flow(name="test") as f:
             identity.bind(x=dict(a=x, b=y))
         state = f.run(parameters=dict(x=1, y=2))
 
@@ -137,7 +137,7 @@ class TestCollections:
         x = Parameter("x")
         y = Parameter("y")
         identity = IdentityTask()
-        with Flow() as f:
+        with Flow(name="test") as f:
             identity.bind(x=dict(a=[x, dict(y=y)], b=(y, set([x]))))
         state = f.run(parameters=dict(x=1, y=2))
 
