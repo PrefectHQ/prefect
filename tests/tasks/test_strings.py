@@ -14,7 +14,7 @@ from prefect.utilities.debug import raise_on_exception
 
 def test_string_formatter_simply_formats():
     task = StringFormatterTask(template="{name} is from {place}")
-    with Flow() as f:
+    with Flow(name="test") as f:
         ans = task(name="Ford", place="Betelgeuse")
     res = f.run()
     assert res.is_successful()
@@ -23,7 +23,7 @@ def test_string_formatter_simply_formats():
 
 def test_string_formatter_can_be_provided_template_at_runtime():
     task = StringFormatterTask()
-    with Flow() as f:
+    with Flow(name="test") as f:
         ans = task(template="{name} is from {place}", name="Ford", place="Betelgeuse")
     res = f.run()
     assert res.is_successful()
@@ -32,7 +32,7 @@ def test_string_formatter_can_be_provided_template_at_runtime():
 
 def test_string_formatter_formats_from_context():
     task = StringFormatterTask(template="I am {task_name}", name="foo")
-    f = Flow(tasks=[task])
+    f = Flow(name="test", tasks=[task])
     res = f.run()
     assert res.is_successful()
     assert res.result[task].result == "I am foo"
@@ -41,7 +41,7 @@ def test_string_formatter_formats_from_context():
 def test_string_formatter_fails_in_expected_ways():
     t1 = StringFormatterTask(template="{name} is from {place}")
     t2 = StringFormatterTask(template="{0} is from {1}")
-    f = Flow(tasks=[t1, t2])
+    f = Flow(name="test", tasks=[t1, t2])
     res = f.run()
 
     assert res.is_failed()
@@ -51,7 +51,7 @@ def test_string_formatter_fails_in_expected_ways():
 
 def test_jinja_template_simply_formats():
     task = JinjaTemplateTask(template="{{ name }} is from {{ place }}")
-    with Flow() as f:
+    with Flow(name="test") as f:
         ans = task(name="Ford", place="Betelgeuse")
     res = f.run()
     assert res.is_successful()
@@ -60,7 +60,7 @@ def test_jinja_template_simply_formats():
 
 def test_jinja_template_can_be_provided_template_at_runtime():
     task = JinjaTemplateTask()
-    with Flow() as f:
+    with Flow(name="test") as f:
         ans = task(
             template="{{ name }} is from {{ place }}", name="Ford", place="Betelgeuse"
         )
@@ -71,7 +71,7 @@ def test_jinja_template_can_be_provided_template_at_runtime():
 
 def test_jinja_template_formats_from_context():
     task = JinjaTemplateTask(template="I am {{ task_name }}", name="foo")
-    f = Flow(tasks=[task])
+    f = Flow(name="test", tasks=[task])
     res = f.run()
     assert res.is_successful()
     assert res.result[task].result == "I am foo"
@@ -79,7 +79,7 @@ def test_jinja_template_formats_from_context():
 
 def test_jinja_template_partially_formats():
     task = JinjaTemplateTask(template="{{ name }} is from {{ place }}")
-    with Flow() as f:
+    with Flow(name="test") as f:
         ans = task(name="Ford")
     res = f.run()
     assert res.is_successful()
@@ -89,7 +89,7 @@ def test_jinja_template_partially_formats():
 def test_jinja_template_can_execute_python_code():
     date = pendulum.parse("1986-09-20")
     task = JinjaTemplateTask(template='{{ date.strftime("%Y-%d") }} is a date.')
-    f = Flow(tasks=[task])
+    f = Flow(name="test", tasks=[task])
     res = f.run(context={"date": date})
 
     assert res.is_successful()
