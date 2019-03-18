@@ -1,5 +1,6 @@
 import datetime
 
+from typing import Any
 import marshmallow
 import pytest
 
@@ -172,3 +173,19 @@ def test_unknown_cache_validator():
         t2 = TaskSchema().load(TaskSchema().dump(t))
     assert isinstance(t2.cache_validator, str)
     assert t2.cache_validator.endswith("hello")
+
+
+def test_inputs_outputs():
+    class TestTask(Task):
+        def run(self, x, y: int = 1) -> int:
+            pass
+
+    serialized = TaskSchema().dump(TestTask())
+
+    assert serialized["inputs"] == dict(
+        x=dict(type=str(Any), required=True), y=dict(type=str(int), required=False)
+    )
+
+    assert serialized["outputs"] == str(int)
+
+    assert isinstance(TaskSchema().load(serialized), Task)
