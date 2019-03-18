@@ -49,7 +49,7 @@ def try_unlock():
     else:
         raise signals.FAIL()
 
-with Flow("My Flow") as flow:
+with Flow('Using Context') as flow:
     try_unlock()
 
 flow.run() # this run fails

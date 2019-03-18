@@ -59,7 +59,7 @@ def complain_to_data_analyst():
     pass
 
 
-with Flow("My Flow") as f:
+with Flow('Reference Tasks Example') as f:
     data = pull_critical_data()
     report = build_report(data)
     board_email = email_report_to_board(report)
