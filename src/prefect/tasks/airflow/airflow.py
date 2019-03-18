@@ -30,6 +30,8 @@ def custom_query(db: str, query: str) -> List:
 
 class AirflowTask(prefect.tasks.shell.ShellTask):
     """
+        - env (dict, optional): dictionary of environment variables to use for
+            the subprocess; can also be provided at runtime
     ignore flags
     """
 
@@ -39,14 +41,14 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
         dag_id: str,
         cli_flags: List[str] = None,
         airflow_env: str = "airflow",
+        env: dict = None,
         execution_date: str = None,
         db_conn: str = None,
         **kwargs: Any
     ):
         if cli_flags is None:
             cli_flags = []
-        base_cmd = "airflow run ".format(" ".join(cli_flags))
-        cmd = base_cmd + " {0} {1} {2}"
+        cmd = "airflow run " + " ".join(cli_flags) + " {0} {1} {2}"
         self.db_conn = db_conn or os.path.expanduser("~/airflow/airflow.db")
         self.dag_id = dag_id
         self.task_id = task_id
@@ -54,38 +56,42 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
         kwargs.setdefault("name", task_id)
         super().__init__(
             command=cmd,
+            env=env,
             helper_script="source deactivate && source activate {}".format(airflow_env),
             **kwargs
         )
+
+    def _state_conversion(self, query: List) -> None:
+        if query:
+            status = query[0][0]
+            if status == "skipped":
+                raise prefect.engine.signals.SKIP(
+                    "Airflow task state marked as 'skipped' in airflow db"
+                )
+            elif status != "success":
+                raise prefect.engine.signals.FAIL(
+                    "Airflow task state marked as {} in airflow db".format(
+                        status.rstrip()
+                    )
+                )
 
     def pre_check(self, execution_date: str) -> None:
         check_query = "select state from task_instance where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
         status = custom_query(
             self.db_conn, check_query.format(self.task_id, self.dag_id, execution_date)
         )
-        if status and status[0][0] == "skipped":
-            raise prefect.engine.signals.SKIP("Task marked as 'skipped' in airflow db")
+        self._state_conversion(status)
 
     def post_check(self, execution_date: str) -> None:
         check_query = "select state from task_instance where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
-        query = custom_query(
+        status = custom_query(
             self.db_conn, check_query.format(self.task_id, self.dag_id, execution_date)
         )
-
-        if query:
-            status = query[0][0]
-        else:
+        if not status:
             raise prefect.engine.signals.SKIP(
                 "Airflow task state not present in airflow db, was skipped."
             )
-        if status == "skipped":
-            raise prefect.engine.signals.SKIP(
-                "Airflow task state marked as 'skipped' in airflow db"
-            )
-        elif status != "success":
-            raise prefect.engine.signals.FAIL(
-                "Airflow task state marked as {} in airflow db".format(status.rstrip())
-            )
+        self._state_conversion(status)
 
     def pull_xcom(self, execution_date: str) -> Any:
         check_query = "select value from xcom where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"

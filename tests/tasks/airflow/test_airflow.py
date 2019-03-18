@@ -5,7 +5,6 @@ import tempfile
 import pytest
 
 from prefect import Task, task, Flow, triggers
-from prefect.engine.state import Failed, Skipped, Success, TriggerFailed
 from prefect.tasks.airflow import AirflowTask
 
 # pytestmark = pytest.mark.airflow
@@ -18,6 +17,7 @@ def airflow_settings():
     ) as tmp:
         env = os.environ.copy()
         env["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "sqlite:///" + tmp.name
+        env["db_conn"] = tmp.name
         dag_folder = os.path.join(os.path.dirname(__file__), "dags")
         env["AIRFLOW__CORE__DAGS_FOLDER"] = dag_folder
         status = subprocess.check_output(
@@ -28,7 +28,9 @@ def airflow_settings():
             ],
             env=env,
         )
-        yield env
+        yield {
+            k: v for k, v in env.items() if k.startswith("AIRFLOW") or k == "db_conn"
+        }
 
 
 class TestTaskStructure:
@@ -49,11 +51,29 @@ class TestTaskStructure:
         t2 = AirflowTask(task_id="test-task", dag_id="blob", name="unique")
         assert t2.name == "unique"
 
+    def test_command_responds_to_env_name(self):
+        t1 = AirflowTask(task_id="test-task", dag_id="blob")
+        assert t1.helper_script == "source deactivate && source activate airflow"
+
+        t2 = AirflowTask(
+            task_id="test-task", dag_id="blob", airflow_env="airflow_conda_env"
+        )
+        assert (
+            t2.helper_script == "source deactivate && source activate airflow_conda_env"
+        )
+
+    def test_command_responds_to_cli_flags(self):
+        t1 = AirflowTask(task_id="test-task", dag_id="blob", cli_flags=["--force"])
+        assert t1.command.startswith("airflow run --force")
+
 
 class TestSingleTaskRuns:
     def test_airflow_task_successfully_runs_a_task(self, airflow_settings):
         task = AirflowTask(
-            task_id="also_run_this", dag_id="example_bash_operator", cli_flags=["-m"]
+            db_conn=airflow_settings["db_conn"],
+            task_id="also_run_this",
+            dag_id="example_bash_operator",
+            env=airflow_settings,
         )
 
         with Flow(name="test single task") as flow:
@@ -64,111 +84,79 @@ class TestSingleTaskRuns:
         assert flow_state.result[res].is_successful()
         assert flow_state.result[res].result is None
 
+    def test_airflow_task_uses_its_own_trigger_rules_by_default(self, airflow_settings):
+        task = AirflowTask(
+            db_conn=airflow_settings["db_conn"],
+            task_id="run_this_last",
+            dag_id="example_bash_operator",
+            env=airflow_settings,
+        )
 
-def test_trigger_rules_dag(airflow_settings):
-    flow = AirFlow(dag_id="trigger_rules", **airflow_settings)
-    res = flow.run(execution_date="2018-09-20")
-    assert res.is_failed()
-    for task, state in res.result.items():
-        if "3" in task.name:
-            assert isinstance(state, TriggerFailed)
-        else:
-            assert state.is_successful()
+        with Flow(name="test single task") as flow:
+            res = task(execution_date="2011-01-01")
+        flow_state = flow.run()
 
+        assert flow_state.is_successful()
+        assert flow_state.result[res].is_skipped()
 
-def test_airflow_accepts_existing_sqlite_db():
-    flow = AirFlow(dag_id="example_bash_operator", db_file="test_doesnt_exist")
-    assert (
-        flow.env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN") == "sqlite:///test_doesnt_exist"
-    )
+    def test_airflow_task_uses_cli_flags(self, airflow_settings):
+        task = AirflowTask(
+            db_conn=airflow_settings["db_conn"],
+            task_id="run_this_last",
+            dag_id="example_bash_operator",
+            cli_flags=["-A"],
+            env=airflow_settings,
+        )
 
+        with Flow(name="test single task") as flow:
+            res = task(execution_date="2011-01-02")
+        flow_state = flow.run()
 
-def test_airflow_creates_sqlite_db_if_none_provided():
-    flow = AirFlow(dag_id="example_bash_operator")
-    sql_conn = flow.env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")
-    assert sql_conn.startswith("sqlite:///")
-    assert sql_conn.endswith("prefect-airflow.db")
+        assert flow_state.is_successful()
+        assert flow_state.result[res].is_successful()
+        assert not flow_state.result[res].is_skipped()
+        assert flow_state.result[res].result is None
 
+    def test_airflow_task_checks_db_state_prior_to_execution(self, airflow_settings):
+        pass
 
-def test_example_branch_operator(airflow_settings):
-    flow = AirFlow(dag_id="example_branch_operator", **airflow_settings)
-    res = flow.run(execution_date="2018-09-20")
-    assert res.is_successful()
+    def test_airflow_task_converts_xcoms_to_return_values(self, airflow_settings):
+        puller = AirflowTask(
+            db_conn=airflow_settings["db_conn"],
+            task_id="puller",
+            dag_id="example_xcom",
+            env=airflow_settings,
+            execution_date="1999-09-20",
+        )
+        push = AirflowTask(
+            db_conn=airflow_settings["db_conn"],
+            task_id="push",
+            dag_id="example_xcom",
+            env=airflow_settings,
+            execution_date="1999-09-20",
+        )
+        push_by_returning = AirflowTask(
+            db_conn=airflow_settings["db_conn"],
+            task_id="push_by_returning",
+            dag_id="example_xcom",
+            env=airflow_settings,
+            execution_date="1999-09-20",
+        )
 
-    branch_tasks, follow_tasks = [], []
-    for task, state in res.result.items():
-        if task.name in ["run_this_first", "branching", "join"]:
-            assert state.is_successful()
-            assert state.result is None
-        elif "follow" in task.name:
-            follow_tasks.append((task, state))
-        elif "branch" in task.name:
-            branch_tasks.append((task, state))
+        with Flow(name="") as flow:
+            res = puller(upstream_tasks=[push, push_by_returning])
 
-    run_branches = list(filter(lambda x: not isinstance(x[1], Skipped), branch_tasks))
-    assert len(run_branches) == 1
-    branch, state = run_branches.pop()
-    assert state.is_successful()
-    assert all([isinstance(s, Skipped) for t, s in branch_tasks if t != branch])
-    assert all(
-        [isinstance(s, Skipped) for t, s in follow_tasks if (branch.name not in t.name)]
-    )
-    assert all(
-        [isinstance(s, Success) for t, s in follow_tasks if (branch.name in t.name)]
-    )
+        flow_state = flow.run()
+        assert flow_state.is_successful()
 
+        # puller
+        assert flow_state.result[res].is_successful()
+        assert flow_state.result[res].result is None
 
-def test_example_xcom(airflow_settings):
-    flow = AirFlow(dag_id="example_xcom", **airflow_settings)
-    res = flow.run(execution_date="2018-09-20")
-    assert res.is_successful()
+        # push
+        assert flow_state.result[push].is_successful()
+        assert flow_state.result[push].result == [1, 2, 3]
 
-    for task, state in res.result.items():
-        if task.name == "puller":
-            assert state.is_successful()
-            assert state.result is None
-        elif task.name == "push":
-            assert state.is_successful()
-            assert state.result == [1, 2, 3]
-        if task.name == "push_by_returning":
-            assert state.is_successful()
-            assert state.result == {"a": "b"}
-
-
-def test_example_short_circuit_operator(airflow_settings):
-    flow = AirFlow(dag_id="example_short_circuit_operator", **airflow_settings)
-    res = flow.run(execution_date="2018-09-20")
-    assert res.is_successful()
-
-    for task, state in res.result.items():
-        if "condition" in task.name:
-            assert isinstance(state, Success)
-        elif "false" in task.name:
-            assert isinstance(state, Skipped)
-        elif "true" in task.name:
-            assert isinstance(state, Success)
-
-
-def test_example_bash_operator(airflow_settings):
-    flow = AirFlow(dag_id="example_bash_operator", **airflow_settings)
-    res = flow.run(execution_date="2018-09-20")
-    assert res.is_successful()
-
-    for task, state in res.result.items():
-        assert isinstance(state, Success)
-
-
-def test_extending_airflow_dag_with_prefect_task(airflow_settings):
-    flow = AirFlow(dag_id="example_bash_operator", **airflow_settings)
-    run_task0 = flow.get_tasks(name="runme_0")
-    with flow:
-        t1 = Task(trigger=triggers.all_failed)(upstream_tasks=[run_task0])
-
-    res = flow.run(execution_date="2018-09-21")
-    assert res.is_failed()
-
-    for task, state in res.result.items():
-        if task == t1:
-            assert isinstance(state, TriggerFailed)
-        else:
-            assert isinstance(state, Success)
+        # push_by_returning
+        assert flow_state.result[push_by_returning].is_successful()
+        assert flow_state.result[push_by_returning].result == {"a": "b"}
