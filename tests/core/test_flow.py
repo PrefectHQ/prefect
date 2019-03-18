@@ -50,8 +50,8 @@ class TestCreateFlow:
 
     def test_create_flow_with_no_args(self):
         # name is required
-        with pytest.raises(TypeError):
-            assert Flow()
+        f1 = Flow("f1")
+        assert f1.name
 
     def test_create_flow_with_name(self):
         with pytest.raises(TypeError):
