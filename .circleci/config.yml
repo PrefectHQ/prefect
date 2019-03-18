@@ -66,8 +66,8 @@ jobs:
       - checkout
       - setup_remote_docker
       - run:
-          name: Install zsh for tests
-          command: apt-get update && apt-get install -y zsh
+          name: Install gcc
+          command: apt-get update && apt-get install -y gcc
 
       - run:
           name: Create Airflow conda environment
