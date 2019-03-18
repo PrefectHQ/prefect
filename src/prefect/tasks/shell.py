@@ -81,6 +81,7 @@ class ShellTask(prefect.Task):
         with tempfile.NamedTemporaryFile(prefix="prefect-") as tmp:
             if self.helper_script:
                 tmp.write(self.helper_script.encode())
+                tmp.write("\n".encode())
             tmp.write(command.encode())
             tmp.flush()
             try:

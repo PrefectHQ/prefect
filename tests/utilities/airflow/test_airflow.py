@@ -4,12 +4,11 @@ import tempfile
 
 import pytest
 
-from prefect import Task, task, triggers
+from prefect import Task, task, Flow, triggers
 from prefect.engine.state import Failed, Skipped, Success, TriggerFailed
-from prefect.utilities.airflow_utils import AirFlow
+from prefect.tasks.airflow import AirflowTask
 
-airflow = pytest.importorskip("airflow")
-pytestmark = pytest.mark.airflow
+# pytestmark = pytest.mark.airflow
 
 
 @pytest.fixture(scope="module")
@@ -21,8 +20,49 @@ def airflow_settings():
         env["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "sqlite:///" + tmp.name
         dag_folder = os.path.join(os.path.dirname(__file__), "dags")
         env["AIRFLOW__CORE__DAGS_FOLDER"] = dag_folder
-        status = subprocess.check_output(["bash", "-c", "airflow initdb"], env=env)
-        yield dict(db_file=tmp.name, dag_folder=dag_folder)
+        status = subprocess.check_output(
+            [
+                "bash",
+                "-c",
+                "source deactivate && source activate airflow && airflow initdb",
+            ],
+            env=env,
+        )
+        yield env
+
+
+class TestTaskStructure:
+    def test_init_requires_task_and_dag_id(self):
+        with pytest.raises(TypeError):
+            task = AirflowTask()
+
+        with pytest.raises(TypeError):
+            task = AirflowTask(task_id="task name")
+
+        with pytest.raises(TypeError):
+            task = AirflowTask(dag_id="dag name")
+
+    def test_name_defaults_to_task_id_but_can_be_changed(self):
+        t1 = AirflowTask(task_id="test-task", dag_id="blob")
+        assert t1.name == "test-task"
+
+        t2 = AirflowTask(task_id="test-task", dag_id="blob", name="unique")
+        assert t2.name == "unique"
+
+
+class TestSingleTaskRuns:
+    def test_airflow_task_successfully_runs_a_task(self, airflow_settings):
+        task = AirflowTask(
+            task_id="also_run_this", dag_id="example_bash_operator", cli_flags=["-m"]
+        )
+
+        with Flow(name="test single task") as flow:
+            res = task(execution_date="2018-01-01")
+        flow_state = flow.run()
+
+        assert flow_state.is_successful()
+        assert flow_state.result[res].is_successful()
+        assert flow_state.result[res].result is None
 
 
 def test_trigger_rules_dag(airflow_settings):
