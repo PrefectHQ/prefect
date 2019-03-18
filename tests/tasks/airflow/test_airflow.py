@@ -7,7 +7,7 @@ import pytest
 from prefect import Task, task, Flow, triggers
 from prefect.tasks.airflow import AirflowTask
 
-# pytestmark = pytest.mark.airflow
+pytestmark = pytest.mark.airflow
 
 
 @pytest.fixture(scope="module")
