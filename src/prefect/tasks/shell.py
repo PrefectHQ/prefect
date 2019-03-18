@@ -29,7 +29,7 @@ class ShellTask(prefect.Task):
         from prefect.tasks.shell import ShellTask
 
         task = ShellTask(helper_script="cd ~")
-        with Flow() as f:
+        with Flow("My Flow") as f:
             # both tasks will be executed in home directory
             contents = task(command='ls')
             mv_file = task(command='mv .vimrc /.vimrc')

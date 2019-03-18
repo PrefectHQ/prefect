@@ -85,7 +85,7 @@ from prefect import Flow, task
 def add(x, y):
     return x + y
 
-with Flow() as flow:
+with Flow("My Flow") as flow:
     add(1, 2)
 
 assert len(flow) == 3
@@ -105,7 +105,7 @@ from prefect import Flow, task
 def a_number():
     return random.randint(0, 100)
 
-with Flow() as flow:
+with Flow("My Flow") as flow:
     a = a_number()
     b = a_number()
 
@@ -137,7 +137,7 @@ def a_number():
 def get_sum(x):
     return sum(x)
 
-with Flow() as flow:
+with Flow("My Flow") as flow:
     a = a_number()
     b = a_number()
     s = get_sum([a, b])
@@ -159,7 +159,7 @@ def fn():
     return {'a': 1, 'b': 2}
 
 
-with Flow() as flow:
+with Flow("My Flow") as flow:
     x = fn()
     y = x['a']
 ```
