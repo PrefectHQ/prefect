@@ -145,6 +145,11 @@ module = "prefect.tasks.control_flow"
 classes = ["FilterTask"]
 functions = ["switch", "ifelse", "merge"]
 
+[pages.tasks.airflow]
+title = "Airflow Tasks"
+module = "prefect.tasks.airflow"
+classes = ["AirflowTask"]
+
 [pages.tasks.aws]
 title = "AWS Tasks"
 module = "prefect.tasks.aws"
@@ -232,8 +237,3 @@ functions = ["to_qualified_name", "from_qualified_name"]
 title = "Tasks"
 module = "prefect.utilities.tasks"
 functions = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
-
-[pages.utilities.airflow]
-title = "Airflow Conversion Tools"
-module = "prefect.utilities.airflow_utils"
-classes = ["AirFlow"]
