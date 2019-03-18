@@ -6,7 +6,7 @@ import inspect
 import uuid
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Set, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Set, Tuple, Union
 
 import prefect
 import prefect.engine.cache_validators
@@ -487,14 +487,44 @@ class Task(metaclass=SignatureValidator):
         """
         self.set_dependencies(downstream_tasks=[task])
 
-    def inputs(self) -> Tuple[str, ...]:
+    def inputs(self) -> Dict[str, Dict]:
         """
-        Get the inputs for this task
+        Describe the inputs for this task. The result is a dictionary that maps each input to
+        a `type`, `required`, and `default`. All values are inferred from the `run()`
+        signature; this method can be overloaded for more precise control.
 
         Returns:
-            - tuple of strings representing the inputs for this task
+            - dict
         """
-        return tuple(inspect.signature(self.run).parameters.keys())
+        inputs = {}
+        for name, parameter in inspect.signature(self.run).parameters.items():
+            input_type = parameter.annotation
+            if input_type is inspect._empty:  # type: ignore
+                input_type = Any
+
+            input_default = parameter.default
+            input_required = False
+            if input_default is inspect._empty:  # type: ignore
+                input_required = True
+                input_default = None
+
+            inputs[name] = dict(
+                type=input_type, default=input_default, required=input_required
+            )
+
+        return inputs
+
+    def outputs(self) -> Any:
+        """
+        Get the output types for this task.
+
+        Returns:
+            - Any
+        """
+        return_annotation = inspect.signature(self.run).return_annotation
+        if return_annotation is inspect._empty:  # type: ignore
+            return_annotation = Any
+        return return_annotation
 
     # Serialization ------------------------------------------------------------
 
