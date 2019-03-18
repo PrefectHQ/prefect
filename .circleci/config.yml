@@ -61,7 +61,7 @@ jobs:
 
   test-airflow:
     docker:
-      - image: python:3.6
+      - image: continuumio/miniconda3
     steps:
       - checkout
       - setup_remote_docker
@@ -70,8 +70,16 @@ jobs:
           command: apt-get update && apt-get install -y zsh
 
       - run:
-          name: Install prefect and airflow
-          command: pip install ".[all_extras]" && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow
+          name: Create Airflow conda environment
+          command: conda create -n airflow python=3.6 pip -y
+
+      - run:
+          name: Install Airflow 
+          command: source activate airflow && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow && source deactivate
+
+      - run:
+          name: Install prefect
+          command: pip install ".[all_extras]"
 
       - run:
           name: Run tests w/ airflow
