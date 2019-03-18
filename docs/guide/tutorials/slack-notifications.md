@@ -28,7 +28,7 @@ def add(x):
     return x + 1
 
 
-with Flow() as f:
+with Flow("My Flow") as f:
     res = div(x=add(-1))
 
 

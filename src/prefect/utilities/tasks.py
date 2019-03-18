@@ -27,7 +27,7 @@ def tags(*tags: str) -> Iterator[None]:
     def add(x, y):
         return x + y
 
-    with Flow() as f:
+    with Flow("My Flow") as f:
         with tags("math", "function"):
             result = add(1, 5)
 
@@ -97,7 +97,7 @@ def pause_task(message: str = None):
                 pause_task()
             return x + y
 
-        with Flow() as f:
+        with Flow("My Flow") as f:
             res = add(4, 4)
 
         state = f.run()
@@ -139,7 +139,7 @@ def task(
     def hello(name):
         print('hello, {}'.format(name))
 
-    with Flow() as flow:
+    with Flow("My Flow") as flow:
         t1 = hello('foo')
         t2 = hello('bar')
 
@@ -158,7 +158,7 @@ def task(
         return x
 
     # both tasks work inside a functional flow context
-    with Flow():
+    with Flow("My Flow"):
         fn_without_args()
         fn_with_args(1)
     ```
@@ -187,7 +187,7 @@ class unmapped:
             def run(self):
                 return [1, 2, 3]
 
-        with Flow():
+        with Flow("My Flow"):
             add = AddTask()
             ll = ListTask()
             result = add.map(x=ll, y=unmapped(5), upstream_tasks=[unmapped(Task())])

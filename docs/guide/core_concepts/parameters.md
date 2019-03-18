@@ -9,7 +9,7 @@ from prefect import task, Flow, Parameter
 def print_plus_one(x):
     print(x + 1)
 
-with Flow() as flow:
+with Flow("My Flow") as flow:
     x = Parameter('x')
     print_plus_one(x=x)
 

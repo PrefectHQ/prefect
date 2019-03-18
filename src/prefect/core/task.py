@@ -83,7 +83,7 @@ class Task(metaclass=SignatureValidator):
 
     a = AddTask()
 
-    with Flow() as f:
+    with Flow("My Flow") as f:
         t1 = a(1, 2) # t1 != a
         t2 = a(5, 7) # t2 != a
     ```
