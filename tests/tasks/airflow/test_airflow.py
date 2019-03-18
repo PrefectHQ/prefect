@@ -5,7 +5,8 @@ import tempfile
 import pytest
 
 from prefect import Task, task, Flow, triggers
-from prefect.tasks.airflow import AirflowTask
+from prefect.tasks.airflow import AirflowTask, AirflowTriggerDAG
+from prefect.tasks.shell import ShellTask
 
 pytestmark = pytest.mark.airflow
 
@@ -160,3 +161,27 @@ class TestSingleTaskRuns:
         # push_by_returning
         assert flow_state.result[push_by_returning].is_successful()
         assert flow_state.result[push_by_returning].result == {"a": "b"}
+
+
+class TestTriggerDAG:
+    def test_basic_trigger_dag_triggers(self, airflow_settings):
+        task = AirflowTriggerDAG(
+            dag_id="tutorial", execution_date="1986-09-20", env=airflow_settings
+        )
+        check_task = ShellTask(
+            command="airflow list_dag_runs tutorial", helper_script=task.helper_script
+        )
+
+        with Flow(name="tutorial") as flow:
+            res = check_task(upstream_tasks=[task])
+
+        flow_state = flow.run()
+        assert flow_state.is_successful()
+
+        check_state = flow_state.result[res]
+        assert check_state.is_successful()
+
+        # check CLI output
+        assert "manual__1986-09-20T00:00:00+00:00" in check_state.result.decode()
+        assert "running" in check_state.result.decode()
+        assert "1986-09-20T00:00:00+00:00" in check_state.result.decode()
