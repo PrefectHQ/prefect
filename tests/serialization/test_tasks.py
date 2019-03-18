@@ -180,7 +180,7 @@ def test_inputs_outputs():
         def run(self, x, y: int = 1) -> int:
             pass
 
-    serialized = TestTask().serialize()
+    serialized = TaskSchema().dump(TestTask())
 
     assert serialized["inputs"] == dict(
         x=dict(type=str(Any), required=True), y=dict(type=str(int), required=False)
