@@ -30,9 +30,59 @@ def custom_query(db: str, query: str) -> List:
 
 class AirflowTask(prefect.tasks.shell.ShellTask):
     """
+    Task wrapper for executing individual Airflow tasks.
+
+    Successful execution of this task requires a separate conda environment in which `airflow` is installed.
+    Any XComs this task pushes will be converted to return values for this task.
+    Unless certain CLI flags are provided (e.g., `-A`), execution of this task will respect Airflow trigger rules.
+
+    Args:
+        - task_id (string): the Airflow `task_id` to execute at runtime
+        - dag_id (string): the Airflow `dag_id` containing the given `task_id`
+        - airflow_env (str, optional): the name of the conda environment in which `airflow` is installed;
+            defaults to `"airflow"`
+        - cli_flags (List[str], optional): a list of CLI flags to provide to `airflow run` at runtime;
+            see [the airflow docs](https://airflow.apache.org/cli.html#run) for options.  This can be used to ignore Airflow trigger rules
+            by providing `cli_flags=['-A']`
         - env (dict, optional): dictionary of environment variables to use for
-            the subprocess; can also be provided at runtime
-    ignore flags
+            the subprocess (e.g., )
+        - execution_date (str, optional): the execution date for this task run; can also be provided to the run method;
+            if not provided here or to `run()`, will be pulled from context
+        - db_conn (str, optional): the location of the airflow database; currently only SQLite DBs are supported;
+            defaults to `~/airflow/airflow.db`; used for pulling XComs and inspecting task states
+        - **kwargs: additional keyword arguments to pass to the Task constructor
+
+    Example:
+        ```python
+        from prefect import Flow
+        from prefect.tasks.airflow import AirflowTask
+
+        # compare with https://github.com/apache/airflow/blob/master/airflow/example_dags/example_xcom.py
+        puller = AirflowTask(
+            task_id="puller",
+            dag_id="example_xcom",
+            execution_date="1999-09-20",
+        )
+        push = AirflowTask(
+            task_id="push",
+            dag_id="example_xcom",
+            execution_date="1999-09-20",
+        )
+        push_by_returning = AirflowTask(
+            task_id="push_by_returning",
+            dag_id="example_xcom",
+            execution_date="1999-09-20",
+        )
+
+        with Flow(name="example_xcom") as flow:
+            res = puller(upstream_tasks=[push, push_by_returning])
+
+        flow_state = flow.run()
+
+        # XComs auto-convert to return values
+        assert flow_state.result[push].result == [1, 2, 3]
+        assert flow_state.result[push_by_returning].result == {"a": "b"}
+        ```
     """
 
     def __init__(
@@ -75,14 +125,14 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
                     )
                 )
 
-    def pre_check(self, execution_date: str) -> None:
+    def _pre_check(self, execution_date: str) -> None:
         check_query = "select state from task_instance where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
         status = custom_query(
             self.db_conn, check_query.format(self.task_id, self.dag_id, execution_date)
         )
         self._state_conversion(status)
 
-    def post_check(self, execution_date: str) -> None:
+    def _post_check(self, execution_date: str) -> None:
         check_query = "select state from task_instance where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
         status = custom_query(
             self.db_conn, check_query.format(self.task_id, self.dag_id, execution_date)
@@ -93,7 +143,7 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
             )
         self._state_conversion(status)
 
-    def pull_xcom(self, execution_date: str) -> Any:
+    def _pull_xcom(self, execution_date: str) -> Any:
         check_query = "select value from xcom where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
         data = custom_query(
             self.db_conn, check_query.format(self.task_id, self.dag_id, execution_date)
@@ -103,14 +153,27 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
 
     @prefect.utilities.tasks.defaults_from_attrs("execution_date")
     def run(self, execution_date: str = None) -> Any:  # type: ignore
+        """
+        Executes `airflow run` for the provided `task_id`, `dag_id` and `execution_date`.
+
+        Args:
+            - execution_date (str, optional): the execution date for this task run;
+                if not provided here or at initialization, will be pulled from context
+
+        Raises:
+            - prefect.engine.signals.PrefectStateSignal: depending on the state of the task_instance in the Airflow DB
+
+        Returns:
+            - Any: any data this task pushes as an XCom
+        """
         execution_date = prefect.context.get("execution_date", execution_date)
-        self.pre_check(execution_date)
+        self._pre_check(execution_date)
         self.command = self.command.format(  # type: ignore
             self.dag_id, self.task_id, execution_date
         )
         res = super().run()
         if "Task is not able to be run" in res.decode():
             raise prefect.engine.signals.SKIP("Airflow task was not run.")
-        self.post_check(execution_date)
-        data = self.pull_xcom(execution_date)
+        self._post_check(execution_date)
+        data = self._pull_xcom(execution_date)
         return data
