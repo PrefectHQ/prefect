@@ -63,7 +63,8 @@ class TestCreateFlow:
 
     def test_create_flow_with_edges(self):
         f1 = Flow(
-            name="test", edges=[Edge(upstream_task=Task(), downstream_task=AddTask(), key="x")]
+            name="test",
+            edges=[Edge(upstream_task=Task(), downstream_task=AddTask(), key="x")],
         )
         assert len(f1.edges) == 1
         assert len(f1.tasks) == 2

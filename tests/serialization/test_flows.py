@@ -133,7 +133,9 @@ def test_serialize_container_environment():
     env = prefect.environments.DockerEnvironment(
         base_image="a", python_dependencies=["b", "c"], registry_url="f"
     )
-    deserialized = FlowSchema().load(FlowSchema().dump(Flow(name="test", environment=env)))
+    deserialized = FlowSchema().load(
+        FlowSchema().dump(Flow(name="test", environment=env))
+    )
     assert isinstance(deserialized.environment, prefect.environments.DockerEnvironment)
     assert deserialized.environment.base_image == env.base_image
     assert deserialized.environment.registry_url == env.registry_url

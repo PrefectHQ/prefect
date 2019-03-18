@@ -402,13 +402,19 @@ class TestCheckScheduledStep:
     @pytest.mark.parametrize("state", [Failed(), Pending(), Running(), Success()])
     def test_non_scheduled_states(self, state):
         assert (
-            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(state=state) is state
+            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(
+                state=state
+            )
+            is state
         )
 
     def test_scheduled_states_without_start_time(self):
         state = Scheduled(start_time=None)
         assert (
-            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(state=state) is state
+            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(
+                state=state
+            )
+            is state
         )
 
     def test_scheduled_states_with_future_start_time(self):
@@ -416,7 +422,9 @@ class TestCheckScheduledStep:
             start_time=pendulum.now("utc") + datetime.timedelta(minutes=10)
         )
         with pytest.raises(ENDRUN) as exc:
-            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(state=state)
+            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(
+                state=state
+            )
         assert exc.value.state is state
 
     def test_scheduled_states_with_past_start_time(self):
@@ -424,7 +432,10 @@ class TestCheckScheduledStep:
             start_time=pendulum.now("utc") - datetime.timedelta(minutes=1)
         )
         assert (
-            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(state=state) is state
+            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(
+                state=state
+            )
+            is state
         )
 
 
@@ -984,7 +995,8 @@ class TestFlowRunnerStateHandlers:
 
     def test_multiple_task_runner_handlers_are_called(self):
         FlowRunner(
-            flow=Flow(name="test"), state_handlers=[flow_runner_handler, flow_runner_handler]
+            flow=Flow(name="test"),
+            state_handlers=[flow_runner_handler, flow_runner_handler],
         ).run()
         # each flow changed state twice: Pending -> Running -> Success
         assert handler_results["FlowRunner"] == 4
@@ -996,7 +1008,8 @@ class TestFlowRunnerStateHandlers:
         with pytest.raises(AssertionError):
             with prefect.utilities.debug.raise_on_exception():
                 FlowRunner(
-                    flow=Flow(name="test"), state_handlers=[lambda *a: None, flow_runner_handler]
+                    flow=Flow(name="test"),
+                    state_handlers=[lambda *a: None, flow_runner_handler],
                 ).run()
 
     def test_task_runner_handler_that_doesnt_return_state(self):
@@ -1004,7 +1017,9 @@ class TestFlowRunnerStateHandlers:
         # doesn't exist on None
         with pytest.raises(AttributeError):
             with prefect.utilities.debug.raise_on_exception():
-                FlowRunner(flow=Flow(name="test"), state_handlers=[lambda *a: None]).run()
+                FlowRunner(
+                    flow=Flow(name="test"), state_handlers=[lambda *a: None]
+                ).run()
 
     def test_task_handler_that_raises_signal_is_trapped(self):
         def handler(flow, old, new):
