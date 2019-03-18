@@ -46,7 +46,9 @@ class TestLocalEnvironment:
         assert "Invalid encryption key" in str(exc)
 
     def test_serialize_flow(self):
-        assert isinstance(LocalEnvironment().serialize_flow_to_bytes(Flow(name="test")), bytes)
+        assert isinstance(
+            LocalEnvironment().serialize_flow_to_bytes(Flow(name="test")), bytes
+        )
 
     def test_deserialize_flow(self):
         f = Flow(name="test")
