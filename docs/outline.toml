@@ -148,7 +148,7 @@ functions = ["switch", "ifelse", "merge"]
 [pages.tasks.airflow]
 title = "Airflow Tasks"
 module = "prefect.tasks.airflow"
-classes = ["AirflowTask"]
+classes = ["AirflowTask", "AirflowTriggerDAG"]
 
 [pages.tasks.aws]
 title = "AWS Tasks"

@@ -1,10 +1,4 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-"""
-This module contains tasks for migrating Airflow workflows into Prefect. Using these requires `airflow` to be installed.
-
-For more details, see [the Airflow conversion tutorial](../../guide/tutorials/airflow_migration.html).
-"""
-
 import os
 import pickle
 import sqlite3
@@ -18,7 +12,7 @@ from typing import Any, Dict, List
 import prefect
 
 
-__all__ = ["AirflowTask"]
+__all__ = ["AirflowTask", "AirflowTriggerDAG"]
 
 
 def custom_query(db: str, query: str) -> List:
@@ -45,7 +39,7 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
             see [the airflow docs](https://airflow.apache.org/cli.html#run) for options.  This can be used to ignore Airflow trigger rules
             by providing `cli_flags=['-A']`
         - env (dict, optional): dictionary of environment variables to use for
-            the subprocess (e.g., )
+            the subprocess (e.g., `AIRFLOW__CORE__DAGS_FOLDER`)
         - execution_date (str, optional): the execution date for this task run; can also be provided to the run method;
             if not provided here or to `run()`, will be pulled from context
         - db_conn (str, optional): the location of the airflow database; currently only SQLite DBs are supported;
@@ -177,3 +171,69 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
         self._post_check(execution_date)
         data = self._pull_xcom(execution_date)
         return data
+
+
+class AirflowTriggerDAG(prefect.tasks.shell.ShellTask):
+    """
+    Task wrapper for triggering an Airflow DAG run.
+
+    Successful execution of this task requires a separate conda environment in which `airflow` is installed.
+
+    Args:
+        - dag_id (string): the Airflow `dag_id` containing the given `task_id`
+        - airflow_env (str, optional): the name of the conda environment in which `airflow` is installed;
+            defaults to `"airflow"`
+        - execution_date (str, optional): the execution date for this task run;
+            if not provided here or at initialization, will be pulled from context
+        - cli_flags (List[str], optional): a list of CLI flags to provide to `airflow trigger_dag` at runtime;
+            this can be used to provide `execution_date` via `["-e 1999-01-01"]`.  For a complete list of available options,
+            see the [corresponding Airflow documentation](https://airflow.apache.org/cli.html#trigger_dag)
+        - env (dict, optional): dictionary of environment variables to use for
+            the subprocess (e.g., `AIRFLOW__CORE__DAGS_FOLDER`)
+        - **kwargs: additional keyword arguments to pass to the Task constructor
+    """
+
+    def __init__(
+        self,
+        dag_id: str,
+        airflow_env: str = "airflow",
+        execution_date: str = None,
+        cli_flags: List[str] = None,
+        env: dict = None,
+        **kwargs
+    ):
+        if cli_flags is None:
+            cli_flags = []
+        self.cli_flags = cli_flags
+        self.dag_id = dag_id
+        self.execution_date = execution_date
+        kwargs.setdefault("name", dag_id)
+        super().__init__(
+            env=env,
+            helper_script="source deactivate && source activate {}".format(airflow_env),
+            **kwargs
+        )
+
+    @prefect.utilities.tasks.defaults_from_attrs("execution_date")
+    def run(self, execution_date: str = None) -> Any:  # type: ignore
+        """
+        Executes `airflow trigger_dag` for the provided `dag_id` with the provided options.
+
+        Args:
+            - execution_date (str, optional): the execution date for this task run;
+                if not provided here or at initialization, will be pulled from context
+
+        Raises:
+            - prefect.engine.signals.PrefectStateSignal: depending on the state of the task_instance in the Airflow DB
+
+        Returns:
+            - Any: any data this task pushes as an XCom
+        """
+        execution_date = prefect.context.get("execution_date", execution_date)
+        if execution_date is not None:
+            cli_flags = self.cli_flags + ["-e {}".format(execution_date)]
+        else:
+            cli_flags = self.cli_flags
+        cmd = "airflow trigger_dag " + " ".join(cli_flags) + " {0}".format(self.dag_id)
+        res = super().run(command=cmd)
+        return res
