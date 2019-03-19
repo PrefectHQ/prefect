@@ -46,10 +46,12 @@ class TestLocalEnvironment:
         assert "Invalid encryption key" in str(exc)
 
     def test_serialize_flow(self):
-        assert isinstance(LocalEnvironment().serialize_flow_to_bytes(Flow()), bytes)
+        assert isinstance(
+            LocalEnvironment().serialize_flow_to_bytes(Flow(name="test")), bytes
+        )
 
     def test_deserialize_flow(self):
-        f = Flow()
+        f = Flow(name="test")
         f.add_task(Task())
         f.add_task(Parameter("x"))
 
@@ -62,14 +64,14 @@ class TestLocalEnvironment:
         assert {p.name for p in deserialized.parameters()} == {"x"}
 
     def test_deserialize_flow_fails_if_not_same_environment(self):
-        serialized = LocalEnvironment().serialize_flow_to_bytes(Flow())
+        serialized = LocalEnvironment().serialize_flow_to_bytes(Flow(name="test"))
         with pytest.raises(InvalidToken):
             LocalEnvironment().deserialize_flow_from_bytes(serialized)
 
     def test_deserialize_flow_succeeds_with_same_key(self):
         key = Fernet.generate_key()
         serialized = LocalEnvironment(encryption_key=key).serialize_flow_to_bytes(
-            Flow()
+            Flow(name="test")
         )
         deserialized = LocalEnvironment(encryption_key=key).deserialize_flow_from_bytes(
             serialized
@@ -78,7 +80,7 @@ class TestLocalEnvironment:
 
     def test_build_local_environment(self):
         env = LocalEnvironment()
-        new_env = env.build(Flow())
+        new_env = env.build(Flow(name="test"))
         assert isinstance(new_env, LocalEnvironment)
         assert env.serialized_flow is None
         assert new_env.serialized_flow is not None
@@ -93,7 +95,7 @@ class TestLocalEnvironment:
         monkeypatch.setattr("prefect.engine.flow_runner.FlowRunner", x)
 
         env = LocalEnvironment()
-        built_env = env.build(prefect.Flow())
+        built_env = env.build(prefect.Flow(name="test"))
         with prefect.utilities.configuration.set_temporary_config(
             {"engine.flow_runner.default_class": "prefect.engine.x"}
         ):

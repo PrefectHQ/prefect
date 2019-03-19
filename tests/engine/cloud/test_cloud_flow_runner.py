@@ -63,7 +63,7 @@ def client(monkeypatch):
 
 
 def test_task_runner_cls_is_cloud_task_runner():
-    fr = CloudFlowRunner(flow=prefect.Flow())
+    fr = CloudFlowRunner(flow=prefect.Flow(name="test"))
     assert fr.task_runner_cls is CloudTaskRunner
 
 
@@ -139,7 +139,7 @@ def test_client_is_always_called_even_during_state_handler_failures(client):
     def handler(task, old, new):
         1 / 0
 
-    flow = prefect.Flow(tasks=[prefect.Task()], state_handlers=[handler])
+    flow = prefect.Flow(name="test", tasks=[prefect.Task()], state_handlers=[handler])
 
     ## flow run setup
     res = flow.run(state=Pending())
@@ -284,7 +284,7 @@ def test_client_is_always_called_even_during_failures(client):
     def raise_me(x, y):
         raise SyntaxError("Aggressively weird error")
 
-    with prefect.Flow() as flow:
+    with prefect.Flow(name="test") as flow:
         final = raise_me(4, 7)
 
     assert len(flow.tasks) == 3
@@ -358,7 +358,7 @@ def test_state_handler_failures_are_handled_appropriately(client):
     def do_nothing():
         raise ValueError("This task failed somehow")
 
-    f = prefect.Flow(tasks=[do_nothing], on_failure=bad)
+    f = prefect.Flow(name="test", tasks=[do_nothing], on_failure=bad)
     res = CloudFlowRunner(flow=f).run()
     assert res.is_failed()
     assert "SyntaxError" in res.message
