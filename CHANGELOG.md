@@ -41,6 +41,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - `flow.serialize()` will always serialize its environment, regardless of `build` - [#696](https://github.com/PrefectHQ/prefect/issues/696)
 - `flow.deploy()` now raises an informative error if your container cannot deserialize the Flow - [#711](https://github.com/PrefectHQ/prefect/issues/711)
 - Add `_MetaState` as a parent class for states that modify other states - [#726](https://github.com/PrefectHQ/prefect/pull/726)
+- Add daylight saving time support for `CronSchedule` - [#729](https://github.com/PrefectHQ/prefect/pull/729)
 
 ### Fixes
 
@@ -53,7 +54,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix issue with `JinjaTemplateTask` not being pickleable - [#710](https://github.com/PrefectHQ/prefect/pull/710)
 - Fix issue with creating secrets from JSON documents using the Core Client - [#715](https://github.com/PrefectHQ/prefect/pull/715)
 - Fix issue with deserialization of JSON secrets unnecessarily calling `json.loads` - [#716](https://github.com/PrefectHQ/prefect/pull/716)
-- Fix issue where `IntervalSchedules` didn't respect daylight savings time after serialization - [#729](https://github.com/PrefectHQ/prefect/pull/729)
+- Fix issue where `IntervalSchedules` didn't respect daylight saving time after serialization - [#729](https://github.com/PrefectHQ/prefect/pull/729)
 
 ### Breaking Changes
 
