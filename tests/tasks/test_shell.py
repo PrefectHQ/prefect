@@ -124,6 +124,16 @@ def test_shell_task_handles_multiline_commands():
     assert out.result[task].result == b"this is a test"
 
 
+def test_shell_adds_newline_to_helper_script():
+    helper = "cd ~"
+    task = ShellTask(helper_script=helper)
+    with Flow("test") as f:
+        res = task(command="ls")
+
+    out = f.run()
+    assert out.is_successful()
+
+
 def test_shell_sources_helper_script_correctly():
     helper = """
     say_hi() {

@@ -80,6 +80,7 @@ module.exports = {
           title: 'prefect.tasks',
           collapsable: true,
           children: [
+            'tasks/airflow',
             'tasks/aws',
             'tasks/control_flow',
             'tasks/function',
@@ -104,7 +105,6 @@ module.exports = {
             'utilities/notifications',
             'utilities/serialization',
             'utilities/tasks',
-            'utilities/airflow'
           ]
         }
       ],
