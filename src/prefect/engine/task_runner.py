@@ -111,7 +111,7 @@ class TaskRunner(Runner):
             )
         )
         for handler in self.task.state_handlers:
-            new_state = handler(self.task, old_state, new_state)
+            new_state = handler(self.task, old_state, new_state) or new_state
 
         return new_state
 

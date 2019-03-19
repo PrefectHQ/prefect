@@ -1161,6 +1161,19 @@ class TestTaskStateHandlers:
         # the task changed state three times: Pending -> Running -> Failed -> Retry
         assert task_handler.call_count == 3
 
+    def test_task_handlers_can_return_none(self):
+        task_handler = MagicMock(side_effect=lambda t, o, n: None)
+
+        @prefect.task(
+            state_handlers=[task_handler], max_retries=1, retry_delay=timedelta(0)
+        )
+        def fn():
+            1 / 0
+
+        TaskRunner(task=fn).run()
+        # the task changed state three times: Pending -> Running -> Failed -> Retry
+        assert task_handler.call_count == 3
+
     def test_task_handlers_are_called_on_failure(self):
         task_handler = MagicMock(side_effect=lambda t, o, n: n)
 

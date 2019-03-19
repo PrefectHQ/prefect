@@ -122,7 +122,7 @@ class FlowRunner(Runner):
             )
         )
         for handler in self.flow.state_handlers:
-            new_state = handler(self.flow, old_state, new_state)
+            new_state = handler(self.flow, old_state, new_state) or new_state
 
         return new_state
 
