@@ -15,10 +15,10 @@ import prefect
 __all__ = ["AirflowTask", "AirflowTriggerDAG"]
 
 
-def custom_query(db: str, query: str) -> List:
+def custom_query(db: str, query: str, *params: str) -> List:
     with closing(sqlite3.connect(db)) as connection:
         with closing(connection.cursor()) as cursor:
-            cursor.execute(query)
+            cursor.execute(query, params)
             return cursor.fetchall()
 
 
@@ -117,16 +117,24 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
                 )
 
     def _pre_check(self, execution_date: str) -> None:
-        check_query = "select state from task_instance where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
+        check_query = "select state from task_instance where task_id=? and dag_id=? and execution_date like ?"
         status = custom_query(
-            self.db_conn, check_query.format(self.task_id, self.dag_id, execution_date)
+            self.db_conn,
+            check_query,
+            self.task_id,
+            self.dag_id,
+            "%{}%".format(execution_date),
         )
         self._state_conversion(status)
 
     def _post_check(self, execution_date: str) -> None:
-        check_query = "select state from task_instance where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
+        check_query = "select state from task_instance where task_id=? and dag_id=? and execution_date like ?"
         status = custom_query(
-            self.db_conn, check_query.format(self.task_id, self.dag_id, execution_date)
+            self.db_conn,
+            check_query,
+            self.task_id,
+            self.dag_id,
+            "%{}%".format(execution_date),
         )
         if not status:
             raise prefect.engine.signals.SKIP(
@@ -135,9 +143,13 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
         self._state_conversion(status)
 
     def _pull_xcom(self, execution_date: str) -> Any:
-        check_query = "select value from xcom where task_id='{0}' and dag_id='{1}' and execution_date like '%{2}%'"
+        check_query = "select value from xcom where task_id=? and dag_id=? and execution_date like ?"
         data = custom_query(
-            self.db_conn, check_query.format(self.task_id, self.dag_id, execution_date)
+            self.db_conn,
+            check_query,
+            self.task_id,
+            self.dag_id,
+            "%{}%".format(execution_date),
         )
         if data:
             return pickle.loads(data[0][0])
