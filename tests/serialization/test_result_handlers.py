@@ -90,7 +90,7 @@ class TestCloudResultHandler:
 class TestGCSResultHandler:
     @pytest.fixture
     def google_client(self, monkeypatch):
-        with patch.dict("sys.modules", {"google.cloud.storage": MagicMock()}):
+        with patch.dict("sys.modules", {"google.cloud": MagicMock()}):
             yield
 
     def test_serialize(self, google_client):
