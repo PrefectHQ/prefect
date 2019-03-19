@@ -313,7 +313,7 @@ class Task(metaclass=SignatureValidator):
         for attr, val in task_args.items():
             if not hasattr(new, attr):
                 raise AttributeError(
-                    "Tasks do not have {} as an attribute".format(attr)
+                    "{0} does not have {1} as an attribute".format(self, attr)
                 )
             else:
                 setattr(new, attr, val)
