@@ -24,13 +24,13 @@ class TestDockerEnvironment:
         docker = DockerEnvironment(
             base_image="python:3.6", image_tag="tag", registry_url=""
         )
-        image = docker.build(Flow())
+        image = docker.build(Flow(name="test"))
         assert image
 
     def test_basic_create_dockerfile(self):
         docker = DockerEnvironment(base_image="python:3.6", registry_url="")
         with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
-            docker.create_dockerfile(Flow(), directory=tmp)
+            docker.create_dockerfile(Flow(name="test"), directory=tmp)
             with open(os.path.join(tmp, "Dockerfile"), "r") as f:
                 dockerfile = f.read()
 
@@ -46,7 +46,7 @@ class TestDockerEnvironment:
             env_vars=dict(X=2, Y='"/a/quoted/string/path"'),
         )
         with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
-            docker.create_dockerfile(Flow(), directory=tmp)
+            docker.create_dockerfile(Flow(name="test"), directory=tmp)
             with open(os.path.join(tmp, "Dockerfile"), "r") as f:
                 dockerfile = f.read()
 
@@ -67,7 +67,7 @@ class TestDockerEnvironment:
             base1, base2 = os.path.basename(t1.name), os.path.basename(t2.name)
 
             with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
-                docker.create_dockerfile(Flow(), directory=tmp)
+                docker.create_dockerfile(Flow(name="test"), directory=tmp)
 
                 ## ensure create_dockerfile copied the files over
                 assert os.path.exists(os.path.join(tmp, base1))
@@ -93,7 +93,7 @@ class TestDockerEnvironment:
 
             with tempfile.TemporaryDirectory(prefix="prefect-tests") as tmp:
                 shutil.copy(t1.name, os.path.join(tmp, base1))
-                docker.create_dockerfile(Flow(), directory=tmp)
+                docker.create_dockerfile(Flow(name="test"), directory=tmp)
 
     def test_create_dockerfile_with_copy_files_raises_if_file_exists_and_different(
         self
@@ -113,7 +113,7 @@ class TestDockerEnvironment:
                 with open(new_file, "w+") as f:
                     f.write("a few lines\n")
                 with pytest.raises(ValueError) as exc:
-                    docker.create_dockerfile(Flow(), directory=tmp)
+                    docker.create_dockerfile(Flow(name="test"), directory=tmp)
 
         assert "already exists" in str(exc.value)
 

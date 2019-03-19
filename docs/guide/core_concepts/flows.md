@@ -43,7 +43,7 @@ class PlusOneTask(Task):
     def run(self, x):
         return x + 1
 
-with Flow():
+with Flow('Plus One Flow'):
     task = PlusOneTask() # first create the Task instance
     result = task(10) # then call it with arguments
 ```
@@ -94,7 +94,7 @@ from prefect import task, Flow
 def say_hello():
     print('Hello, world!')
 
-with Flow() as flow:
+with Flow('Run Me') as flow:
     h = say_hello()
 
 flow.run() # prints "Hello, world!"
@@ -133,7 +133,7 @@ When a flow runs, its state is determined by the state of its reference tasks. B
 
 ```python
 
-with Flow() as flow:
+with Flow('Reference Task Flow') as flow:
     a, b, c = Task(), Task(), Task()
     flow.add_edge(a, b)
     flow.add_edge(b, c)

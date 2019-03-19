@@ -46,7 +46,7 @@ def test_edge_hashes_match():
 
 
 def test_new_edge_objects_can_test_membership_in_flow():
-    flow = Flow()
+    flow = Flow(name="test")
     t1 = TaskWithKey()
     t2 = TaskWithKey()
     flow.add_edge(t1, t2, key="a_key")

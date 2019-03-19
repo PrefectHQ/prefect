@@ -37,7 +37,7 @@ def test_map_returns_a_task_copy():
     ll = ListTask()
     a = AddTask()
 
-    with Flow():
+    with Flow(name="test"):
         res = a.map(ll)
 
     assert res != a
@@ -47,7 +47,7 @@ def test_calling_map_with_bind_returns_self():
     ll = ListTask()
     a = AddTask()
 
-    with Flow():
+    with Flow(name="test"):
         res = a.bind(ll, mapped=True)
 
     assert res is a
@@ -60,7 +60,7 @@ def test_map_spawns_new_tasks(executor):
     ll = ListTask()
     a = AddTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = a.map(ll)
 
     s = f.run(executor=executor)
@@ -79,7 +79,7 @@ def test_map_spawns_new_tasks(executor):
 def test_map_over_parameters(executor):
     a = AddTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         ll = Parameter("list")
         res = a.map(ll)
 
@@ -100,7 +100,7 @@ def test_map_composition(executor):
     ll = ListTask()
     a = AddTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         r1 = a.map(ll)
         r2 = a.map(r1)
 
@@ -130,7 +130,7 @@ def test_deep_map_composition(executor):
     ll = ListTask()
     a = AddTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = a.map(ll)  # [2, 3, 4]
         for _ in range(10):
             res = a.map(res)  # [2 + 10, 3 + 10, 4 + 10]
@@ -151,7 +151,7 @@ def test_multiple_map_arguments(executor):
     ll = ListTask()
     a = AddTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = a.map(x=ll, y=ll())
 
     s = f.run(executor=executor)
@@ -171,7 +171,7 @@ def test_map_failures_dont_leak_out(executor):
     a = AddTask()
     div = DivTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = ii.map(div.map(a.map(ll(start=-1))))
 
     s = f.run(executor=executor)
@@ -197,7 +197,7 @@ def test_map_skips_return_exception_as_result(executor):
         else:
             return x + 1
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = add.map(ll)
 
     s = f.run(executor=executor)
@@ -223,7 +223,7 @@ def test_map_skips_dont_leak_out(executor):
         else:
             return x + 1
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = add.map(add.map(ll))
 
     s = f.run(executor=executor)
@@ -245,7 +245,7 @@ def test_map_handles_upstream_empty(executor):
 
     a = AddTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = a.map(make_list)
         terminal = a.map(res)
 
@@ -271,7 +271,7 @@ def test_map_handles_non_keyed_upstream_empty(executor):
     def return_1():
         return 1
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = return_1.map(upstream_tasks=[make_list])
 
     s = f.run(executor=executor)
@@ -288,7 +288,7 @@ def test_map_can_handle_fixed_kwargs(executor):
     ll = ListTask()
     a = AddTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = a.map(ll, y=unmapped(5))
 
     s = f.run(executor=executor)
@@ -305,7 +305,7 @@ def test_map_can_handle_fixed_kwargs(executor):
 def test_map_can_handle_nonkeyed_upstreams(executor):
     ll = ListTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = ll.map(upstream_tasks=[ll()])
 
     s = f.run(executor=executor)
@@ -323,7 +323,7 @@ def test_map_can_handle_nonkeyed_mapped_upstreams(executor):
     ii = IdTask()
     ll = ListTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         mapped = ii.map(ll())  # 1, 2, 3
         res = ll.map(upstream_tasks=[mapped])
 
@@ -342,7 +342,7 @@ def test_map_can_handle_nonkeyed_nonmapped_upstreams_and_mapped_args(executor):
     ii = IdTask()
     ll = ListTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = ll.map(start=ll(), upstream_tasks=[unmapped(ii(5))])
 
     s = f.run(executor=executor)
@@ -367,7 +367,7 @@ def test_map_tracks_non_mapped_upstream_tasks(executor):
     def register(x):
         return True
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = register.map(div.map(zeros()), upstream_tasks=[unmapped(div(1))])
 
     s = f.run(executor=executor)
@@ -389,7 +389,7 @@ def test_map_allows_for_retries(executor):
     ll = ListTask()
     div = DivTask(max_retries=1, retry_delay=datetime.timedelta(0))
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         l_res = ll(start=0)
         divved = div.map(l_res)
         res = ii.map(divved)
@@ -419,7 +419,7 @@ def test_map_can_handle_nonkeyed_mapped_upstreams_and_mapped_args(executor):
     ii = IdTask()
     ll = ListTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         mapped = ii.map(ll())  # 1, 2, 3
         res = ll.map(start=ll(), upstream_tasks=[mapped])
 
@@ -443,7 +443,7 @@ def test_map_behaves_like_zip_with_differing_length_results(executor):
 
     add = AddTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = add.map(x=ll(3), y=ll(2))
 
     with raise_on_exception():
@@ -469,7 +469,7 @@ def test_map_allows_retries_2(executor):
 
     div = DivTask(max_retries=1, retry_delay=datetime.timedelta(0))
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = div.map(x=ll)
 
     s = FlowRunner(flow=f).run(executor=executor, return_tasks=f.tasks)
@@ -509,7 +509,7 @@ def test_reduce_task_honors_trigger_across_all_mapped_states(executor):
     def take_sum(x):
         return sum(x)
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         d = div.map(ll)
         s = take_sum(d)
 
@@ -535,7 +535,7 @@ def test_task_map_downstreams_handle_single_failures(executor):
     def append_four(l):
         return l + [4]
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         dived = div.map(ll)  # middle task fails
         big_list = append_four(dived)  # this task should fail
         again = div.map(dived)
@@ -566,7 +566,7 @@ def test_task_map_can_be_passed_to_upstream_with_and_without_map(executor):
     def append_four(l):
         return l + [4]
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         added = add.map(ll)
         big_list = append_four(added)
         again = add.map(added)
@@ -591,7 +591,7 @@ def test_task_map_doesnt_assume_purity_of_functions(executor):
     def zz(s):
         return round(random.random(), 6)
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = zz.map(ll)
 
     state = f.run(executor=executor)
@@ -615,7 +615,7 @@ def test_map_reduce(executor):
     def reduce_sum(x):
         return sum(x)
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = reduce_sum(add.map(add.map(numbers())))
 
     state = f.run(executor=executor)
@@ -639,7 +639,7 @@ def test_map_over_map_and_unmapped(executor):
     def add_two(x, y):
         return x + y
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         n = numbers()
         res = add_two.map(x=n, y=add.map(n))
 
@@ -654,7 +654,7 @@ def test_task_map_with_all_inputs_unmapped(x, y, out):
     def add(x, y):
         return x + y
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = add.map(unmapped(x), unmapped(y))
 
     flow_state = f.run()
@@ -686,7 +686,7 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
     def get_sum(x):
         return sum(x)
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         n = numbers()
         x = plus_one.map(n)
         y = plus_one.map(x)
@@ -763,7 +763,7 @@ def test_all_tasks_only_called_once(capsys, executor):
         print("adding one to {}".format(x))
         return x + 1
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         first_level = add_one.map(my_list)
         split_one = add_one.map(first_level)
         split_two = add_one.map(first_level)
