@@ -19,7 +19,7 @@ class TestTaskDecorator:
         def fun(x, y):
             return x + y
 
-        with Flow():
+        with Flow(name="test"):
             res1 = fun(1, 2)
             res2 = fun(1, 2)
         assert isinstance(res1, Task)
@@ -43,7 +43,7 @@ class TestTaskDecorator:
         with pytest.raises(ValueError):
             fn()
 
-        with Flow():
+        with Flow(name="test"):
             assert isinstance(fn(), Task)
 
     def test_task_decorator_with_default_args_must_be_called_inside_flow_context(self):
@@ -54,7 +54,7 @@ class TestTaskDecorator:
         with pytest.raises(ValueError):
             fn()
 
-        with Flow():
+        with Flow(name="test"):
             assert isinstance(fn(), Task)
 
     def test_task_decorator_with_required_args_must_be_called_with_args(self):
@@ -62,7 +62,7 @@ class TestTaskDecorator:
         def fn(x):
             return x
 
-        with Flow():
+        with Flow(name="test"):
             with pytest.raises(TypeError):
                 fn()
 
@@ -97,7 +97,7 @@ def test_tag_contextmanager_works_with_task_decorator():
     def tagged_task():
         pass
 
-    with Flow():
+    with Flow(name="test"):
         with tasks.tags("chris"):
             res = mytask()
             other = tagged_task()
@@ -107,7 +107,7 @@ def test_tag_contextmanager_works_with_task_decorator():
 
 
 def test_copying_then_setting_tags_doesnt_leak_backwards():
-    with Flow():
+    with Flow(name="test"):
         t1 = Task()
         with tasks.tags("init-tag"):
             t2 = t1.copy()
@@ -120,7 +120,7 @@ def test_setting_tags_then_calling_copies_tags():
     with tasks.tags("init-tag"):
         t1 = Task()
 
-    with Flow():
+    with Flow(name="test"):
         t2 = t1()
 
     assert t2.tags == {"init-tag"}
@@ -170,7 +170,7 @@ class TestPauseTask:
                     tasks.pause_task("test message")
                 return x + y
 
-        with Flow() as f:
+        with Flow(name="test") as f:
             t1 = AddTask()(1, 1)
         res = FlowRunner(flow=f).run(return_tasks=[t1])
         assert isinstance(res.result[t1], Paused)
@@ -188,7 +188,7 @@ class TestPauseTask:
                     tasks.pause_task()
                 return x + y
 
-        with Flow() as f:
+        with Flow(name="test") as f:
             t1 = AddTask()(1, 1)
             t2 = OneTask()(upstream_tasks=[t1])
 

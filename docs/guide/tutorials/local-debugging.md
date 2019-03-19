@@ -59,7 +59,7 @@ from prefect.utilities.debug import raise_on_exception
 def div(x):
     return 1 / x
 
-with Flow() as f:
+with Flow("My Flow") as f:
     val = div(0)
 
 with raise_on_exception():
@@ -82,7 +82,7 @@ ZeroDivisionError                         Traceback (most recent call last)
       6 def div(x):
 ----> 7     return 1 / x
       8
-      9 with Flow() as f:
+      9 with Flow("My Flow") as f:
 
 
 ZeroDivisionError: division by zero

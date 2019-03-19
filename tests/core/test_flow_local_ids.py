@@ -51,7 +51,7 @@ def flow_from_chains(*chains):
     The tasks in the returned flow are all completely identical.
     """
 
-    flow = Flow()
+    flow = Flow(name="test")
     for chain in chains:
         for name in chain:
             flow.add_task(get_task(name))
@@ -61,14 +61,14 @@ def flow_from_chains(*chains):
 
 
 def test_no_tasks_returns_empty_dict():
-    assert Flow().generate_local_task_ids() == {}
+    assert Flow(name="test").generate_local_task_ids() == {}
 
 
 def test_flow_id_does_not_affect_task_ids():
-    f = Flow()
+    f = Flow(name="test")
     f.add_task(get_task("x"))
 
-    f2 = Flow()
+    f2 = Flow(name="test")
     f2.add_task(get_task("x"))
 
     f3 = Flow(name="foo")
@@ -79,7 +79,7 @@ def test_flow_id_does_not_affect_task_ids():
 
 
 def test_modify_task_changes_hash():
-    f = Flow()
+    f = Flow(name="test")
     t = Task()
     f.add_task(t)
     hash1 = f.generate_local_task_ids()
@@ -99,7 +99,7 @@ def test_one_task():
 
     A single task
     """
-    f = Flow()
+    f = Flow(name="test")
     f.add_task(get_task("x1"))
     steps = f.generate_local_task_ids(_debug_steps=True)
 
@@ -117,7 +117,7 @@ def test_two_independent_tasks():
 
     Two identical but independent tasks
     """
-    f = Flow()
+    f = Flow(name="test")
     f.add_task(get_task("x1"))
     f.add_task(get_task("x2"))
 
@@ -146,7 +146,7 @@ def test_ten_independent_tasks():
 
     Ten identical but independent tasks
     """
-    f = Flow()
+    f = Flow(name="test")
     for i in range(1, 11):
         f.add_task(get_task("x{}".format(i)))
 
@@ -175,7 +175,7 @@ def test_ten_different_tasks():
 
     Ten non-identical and independent tasks
     """
-    f = Flow()
+    f = Flow(name="test")
     for i in range(1, 11):
         f.add_task(Task(name=str(i)))
 
@@ -194,7 +194,7 @@ def test_two_dependent_tasks():
 
     Two identical tasks in a row
     """
-    f = Flow()
+    f = Flow(name="test")
     f.add_edge(get_task("x1"), get_task("x2"))
     steps = f.generate_local_task_ids(_debug_steps=True)
 

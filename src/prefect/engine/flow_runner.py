@@ -82,7 +82,7 @@ class FlowRunner(Runner):
     def say_hello():
         print('hello')
 
-    with Flow() as f:
+    with Flow("My Flow") as f:
         say_hello()
 
     fr = FlowRunner(flow=f)

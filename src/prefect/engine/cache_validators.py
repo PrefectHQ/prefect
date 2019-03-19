@@ -159,7 +159,7 @@ def partial_parameters_only(
     def daily_db_refresh(nrows, runtime):
         pass
 
-    with Flow() as f:
+    with Flow("My Flow") as f:
         nrows = Parameter("nrows", default=500)
         runtime = Parameter("runtime")
         db_state = daily_db_refresh(nrows, runtime)
@@ -229,7 +229,7 @@ def partial_inputs_only(
     def rand_bool():
         return random.random() > 0.5
 
-    with Flow() as f:
+    with Flow("My Flow") as f:
         ans = add(1, 2, rand_bool())
 
     state1 = f.run()
