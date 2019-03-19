@@ -6,7 +6,6 @@ from typing import List
 import uuid
 
 import docker
-from kubernetes import client, config
 import yaml
 
 import prefect
@@ -98,6 +97,8 @@ class DockerOnKubernetesEnvironment(DockerEnvironment):
         """
         Create a single Kubernetes job on the default namespace that runs a flow
         """
+        from kubernetes import client, config
+
         try:
             config.load_incluster_config()
         except config.config_exception.ConfigException:
