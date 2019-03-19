@@ -30,6 +30,8 @@ flow = Flow(
 flow.schedule.next(5)
 ```
 
+NOTE: IntervalSchedules respect daylight saving time for intervals greater than 24 hours. An hourly schedule will fire every UTC hour, even during daylight saving boundaries. This means when clocks are set back, the interval schedule will appear to have two runs scheduled for 1am local time, but these are actually 60 minutes apart. However, for longer intervals, like a daily schedule, the interval schedule will adjust for daylight saving time boundaries so that the clock-hour remains constant. A 9am schedule followed by a 24-hour interval will fire at 9am the following day, even if a daylight saving boundary means the true interval is 23 hours or 25 hours.
+
 ## Cron schedules
 
 Prefect also includes a `CronSchedule`, which can be instantiated with a cron string.
@@ -45,3 +47,5 @@ flow = Flow(
 
 flow.schedule.next(5)
 ```
+
+NOTE: the schedule will respect the timezone of its `start_date`, including daylight savings time. CRON's rules for daylight saving time are based on clock times, not elapsed times. For example, an hourly cron schedule will have a two hour pause when clocks are set backward, because the schedule will fire *the first time* 1am is reached and *the second time* 2am is reached, resulting in a 2 hour pause (but firing each clock hour). This behavior is DIFFERENT from interval schedules, which observe elapsed times for intervals of less than 24 hours over DST boundaries.
