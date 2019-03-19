@@ -103,7 +103,7 @@ class Flow:
     ```
 
     Args:
-        - name (str): The name of the flow
+        - name (str): The name of the flow. Cannot be `None` or an empty string
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
             type that the flow should be run in. If None, a LocalEnvironment will be created.
@@ -150,6 +150,9 @@ class Flow:
         self.id = str(uuid.uuid4())
 
         self.logger = logging.get_logger("Flow")
+
+        if not name:
+            raise ValueError("A name must be provided for the flow.")
 
         self.name = name
         self.schedule = schedule
