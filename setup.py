@@ -14,12 +14,17 @@ extras = {
     "dev": dev_requires,
     "viz": ["graphviz >= 0.8.3"],
     "templates": ["jinja2 >= 2.0, < 3.0"],
+    "aws": ["boto3 >= 1.9, < 2.0"],
+    "google": [
+        "google-cloud-bigquery >= 1.6.0, < 2.0",
+        "google-cloud-storage >= 1.13, < 2.0",
+    ],
 }
 
 if sys.version_info >= (3, 6):
     extras["dev"] += ["black"]
 
-extras["all_extras"] = extras["dev"] + extras["viz"] + extras["templates"]
+extras["all_extras"] = sum(extras.values(), [])
 
 
 setup(
