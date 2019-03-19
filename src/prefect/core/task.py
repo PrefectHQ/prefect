@@ -277,6 +277,16 @@ class Task(metaclass=SignatureValidator):
     def copy(self, **task_args: Any) -> "Task":
         """
         Creates and returns a copy of the current Task.
+
+        Args:
+            - **task_args (dict, optional): a dictionary of task attribute keyword arguments, these attributes
+                will be set on the new copy
+
+        Raises:
+            - AttributeError: if any passed `task_args` are not attributes of the original
+
+        Returns:
+            - Task: a copy of the current Task, with any attributes updated from `task_args`
         """
 
         flow = prefect.context.get("flow", None)
@@ -330,8 +340,8 @@ class Task(metaclass=SignatureValidator):
                 with the specified keyword arguments; defaults to `False`.
                 If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
                 container will _not_ be mapped over.
-            - task_args (dict, optional): a dictionary of task initialization keyword arguments, to be passed
-                to the initilization of the copied instance
+            - task_args (dict, optional): a dictionary of task attribute keyword arguments, these attributes
+                will be set on the new copy
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 for the new task.  This kwarg can be used to functionally specify
                 dependencies without binding their result to `run()`
