@@ -37,7 +37,7 @@ class AddTask(Task):
 
 @pytest.fixture
 def add_flow():
-    with Flow() as f:
+    with Flow(name="test") as f:
         x = Parameter("x")
         y = Parameter("y", default=10)
         z = AddTask()
@@ -49,52 +49,67 @@ class TestCreateFlow:
     """ Test various Flow constructors """
 
     def test_create_flow_with_no_args(self):
-        # name is not required
-        assert Flow()
+        # name is required
+        f1 = Flow("f1")
+        assert f1.name
+
+    def test_create_flow_with_no_name(self):
+        with pytest.raises(TypeError):
+            f1 = Flow()
+
+    def test_create_flow_with_name_as_none(self):
+        with pytest.raises(ValueError):
+            f1 = Flow(name=None)
+
+    def test_create_flow_with_name_as_empty_string(self):
+        with pytest.raises(ValueError):
+            f1 = Flow(name="")
+
+    def test_create_flow_with_name_as_false(self):
+        with pytest.raises(ValueError):
+            f1 = Flow(name=False)
 
     def test_create_flow_with_name(self):
-        f1 = Flow()
-        assert f1.name is "Flow"
-
         f2 = Flow(name="test")
         assert f2.name == "test"
 
     def test_create_flow_with_edges(self):
         f1 = Flow(
-            edges=[Edge(upstream_task=Task(), downstream_task=AddTask(), key="x")]
+            name="test",
+            edges=[Edge(upstream_task=Task(), downstream_task=AddTask(), key="x")],
         )
         assert len(f1.edges) == 1
         assert len(f1.tasks) == 2
 
     def test_create_flow_with_schedule(self):
-        f1 = Flow()
+        f1 = Flow(name="test")
         assert f1.schedule is None
 
         cron = prefect.schedules.CronSchedule("* * * * *")
-        f2 = Flow(schedule=cron)
+        f2 = Flow(name="test", schedule=cron)
         assert f2.schedule == cron
 
     def test_create_flow_without_state_handler(self):
-        assert Flow().state_handlers == []
+        assert Flow(name="test").state_handlers == []
 
     def test_create_flow_with_on_failure(self):
-        f = Flow(on_failure=lambda *args: None)
+        f = Flow(name="test", on_failure=lambda *args: None)
         assert len(f.state_handlers) == 1
 
     @pytest.mark.parametrize("handlers", [[lambda *a: 1], [lambda *a: 1, lambda *a: 2]])
     def test_create_flow_with_state_handler(self, handlers):
-        assert Flow(state_handlers=handlers).state_handlers == handlers
+        assert Flow(name="test", state_handlers=handlers).state_handlers == handlers
 
     def test_create_flow_illegal_handler(self):
         with pytest.raises(TypeError):
-            Flow(state_handlers=lambda *a: 1)
+            Flow(name="test", state_handlers=lambda *a: 1)
 
     def test_flow_has_logger(self):
-        f = Flow()
+        f = Flow(name="test")
         assert isinstance(f.logger, logging.Logger)
 
     def test_create_flow_with_result_handler(self):
-        f = Flow(result_handler=LocalResultHandler())
+        f = Flow(name="test", result_handler=LocalResultHandler())
         assert isinstance(f.result_handler, ResultHandler)
         assert isinstance(f.result_handler, LocalResultHandler)
 
@@ -104,33 +119,33 @@ class TestCreateFlow:
                 "engine.result_handler.default_class": "prefect.engine.result_handlers.local_result_handler.LocalResultHandler"
             }
         ):
-            f = Flow()
+            f = Flow(name="test")
             assert isinstance(f.result_handler, LocalResultHandler)
 
 
 def test_add_task_to_flow():
-    f = Flow()
+    f = Flow(name="test")
     t = Task()
     f.add_task(t)
     assert t in f.tasks
 
 
 def test_add_task_returns_task():
-    f = Flow()
+    f = Flow(name="test")
     t = Task()
     t2 = f.add_task(t)
     assert t2 is t
 
 
 def test_add_task_raise_an_error_if_the_task_is_not_a_task_class():
-    f = Flow()
+    f = Flow(name="test")
 
     with pytest.raises(TypeError):
         f.add_task(1)
 
 
 def test_set_dependencies_adds_all_arguments_to_flow():
-    f = Flow()
+    f = Flow(name="test")
 
     class ArgTask(Task):
         def run(self, x):
@@ -153,7 +168,7 @@ def test_set_dependencies_converts_arguments_to_tasks():
         def run(self, x):
             return x
 
-    f = Flow()
+    f = Flow(name="test")
     t1 = ArgTask()
     t2 = 2
     t3 = 3
@@ -168,7 +183,7 @@ def test_set_dependencies_converts_arguments_to_tasks():
 def test_set_dependencies_creates_mapped_edges():
     t1 = Task()
     t2 = Task()
-    f = Flow()
+    f = Flow(name="test")
 
     f.set_dependencies(task=t1, upstream_tasks=[t2], mapped=True)
     assert len(f.edges) == 1
@@ -179,7 +194,7 @@ def test_set_dependencies_creates_mapped_edges():
 def test_set_dependencies_respects_unmapped():
     t1 = Task()
     t2 = Task()
-    f = Flow()
+    f = Flow(name="test")
 
     f.set_dependencies(task=t1, upstream_tasks=[unmapped(t2)], mapped=True)
     assert len(f.edges) == 1
@@ -188,7 +203,7 @@ def test_set_dependencies_respects_unmapped():
 
 
 def test_binding_a_task_in_context_adds_it_to_flow():
-    with Flow() as flow:
+    with Flow(name="test") as flow:
         t = Task()
         assert t not in flow.tasks
         t.bind()
@@ -196,7 +211,7 @@ def test_binding_a_task_in_context_adds_it_to_flow():
 
 
 def test_adding_a_task_to_a_flow_twice_is_ok():
-    f = Flow()
+    f = Flow(name="test")
     t = Task()
     f.add_task(t)
     f.add_task(t)
@@ -205,10 +220,10 @@ def test_adding_a_task_to_a_flow_twice_is_ok():
 def test_binding_a_task_to_two_different_flows_is_ok():
     t = AddTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         t.bind(4, 2)
 
-    with Flow() as g:
+    with Flow(name="test") as g:
         t.bind(7, 8)
 
     f_res = f.run().result[t].result
@@ -227,7 +242,7 @@ def test_binding_a_task_with_var_kwargs_expands_the_kwargs():
     t3 = Task()
     kw = KwargsTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         kw.bind(a=t1, b=t2, c=t3)
 
     assert t1 in f.tasks
@@ -242,7 +257,7 @@ def test_binding_a_task_with_var_kwargs_expands_the_kwargs():
 def test_calling_a_task_returns_a_copy():
     t = AddTask()
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         t.bind(4, 2)
         with pytest.warns(UserWarning):
             t2 = t(9, 0)
@@ -258,16 +273,16 @@ def test_calling_a_task_returns_a_copy():
 def test_calling_a_slugged_task_in_different_flows_is_ok():
     t = AddTask(slug="add")
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         three = t(1, 2)
 
-    with Flow() as g:
+    with Flow(name="test") as g:
         four = t(1, 3)
 
 
 def test_calling_a_slugged_task_twice_warns_error():
     t = AddTask(slug="add")
-    with Flow() as f:
+    with Flow(name="test") as f:
         t.bind(4, 2)
         with pytest.warns(UserWarning), pytest.raises(ValueError):
             t2 = t(9, 0)
@@ -277,8 +292,8 @@ def test_context_manager_is_properly_applied_to_tasks():
     t1 = Task()
     t2 = Task()
     t3 = Task()
-    with Flow() as f1:
-        with Flow() as f2:
+    with Flow(name="test") as f1:
+        with Flow(name="test") as f2:
             t2.bind()
         t1.bind()
 
@@ -291,16 +306,16 @@ def test_context_manager_is_properly_applied_to_tasks():
 
 def test_that_flow_adds_and_removes_itself_from_prefect_context():
     assert "flow" not in prefect.context
-    with Flow() as f1:
+    with Flow(name="test") as f1:
         assert prefect.context.flow is f1
-        with Flow() as f2:
+        with Flow(name="test") as f2:
             assert prefect.context.flow is f2
         assert prefect.context.flow is f1
     assert "flow" not in prefect.context
 
 
 def test_add_edge():
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task()
     t2 = Task()
     f.add_edge(upstream_task=t1, downstream_task=t2)
@@ -312,7 +327,7 @@ def test_add_edge():
 
 
 def test_add_edge_returns_edge():
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task()
     t2 = Task()
     edge = Edge(t1, t2)
@@ -324,7 +339,7 @@ def test_add_edge_returns_edge():
 
 
 def test_chain():
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task()
     t2 = Task()
     t3 = Task()
@@ -340,7 +355,7 @@ def test_splatting_chain_works_in_flow_context_without_duplication():
     def do_nothing():
         pass
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         f.chain(*[do_nothing() for _ in range(10)])
 
     assert len(f.tasks) == 10
@@ -352,7 +367,7 @@ def test_chain_works_in_flow_context_without_duplication():
     def do_nothing():
         pass
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         f.chain(do_nothing(), do_nothing(), do_nothing(), Task())
 
     assert len(f.tasks) == 4
@@ -363,7 +378,7 @@ def test_iter():
     """
     Tests that iterating over a Flow yields the tasks in order
     """
-    with Flow("test") as f:
+    with Flow(name="test") as f:
         t1 = Task()
         t2 = Task()
         f.add_edge(upstream_task=t2, downstream_task=t1)
@@ -371,7 +386,7 @@ def test_iter():
 
 
 def test_detect_cycle():
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task()
     t2 = Task()
 
@@ -384,7 +399,7 @@ def test_eager_cycle_detection_defaults_false():
 
     assert not prefect.config.flows.eager_edge_validation
 
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task()
     t2 = Task()
     f.add_edge(t1, t2)
@@ -398,7 +413,7 @@ def test_eager_cycle_detection_defaults_false():
 def test_eager_cycle_detection_works():
 
     with set_temporary_config({"flows.eager_edge_validation": True}):
-        f = Flow()
+        f = Flow(name="test")
         t1 = Task()
         t2 = Task()
 
@@ -410,7 +425,7 @@ def test_eager_cycle_detection_works():
 
 
 def test_id_must_be_valid_uuid():
-    f = Flow()
+    f = Flow(name="test")
 
     with pytest.raises(ValueError):
         f.id = 1
@@ -422,7 +437,7 @@ def test_id_must_be_valid_uuid():
 
 
 def test_copy():
-    with Flow() as f:
+    with Flow(name="test") as f:
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -441,13 +456,13 @@ def test_copy():
 
 
 def test_copy_creates_new_id():
-    f = Flow()
+    f = Flow(name="test")
     f2 = f.copy()
     assert f.id != f2.id
 
 
 def test_infer_root_tasks():
-    with Flow() as f:
+    with Flow(name="test") as f:
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -459,7 +474,7 @@ def test_infer_root_tasks():
 
 
 def test_infer_terminal_tasks():
-    with Flow() as f:
+    with Flow(name="test") as f:
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -473,7 +488,7 @@ def test_infer_terminal_tasks():
 
 
 def test_reference_tasks_are_terminal_tasks_by_default():
-    with Flow() as f:
+    with Flow(name="test") as f:
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -487,7 +502,7 @@ def test_reference_tasks_are_terminal_tasks_by_default():
 
 
 def test_set_reference_tasks():
-    with Flow() as f:
+    with Flow(name="test") as f:
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -504,23 +519,23 @@ def test_set_reference_tasks():
 def test_set_reference_tasks_at_init_with_empty_flow_raises_error():
 
     with pytest.raises(ValueError) as exc:
-        Flow(reference_tasks=[Task()])
+        Flow(name="test", reference_tasks=[Task()])
     assert "must be part of the flow" in str(exc.value)
 
 
 def test_set_reference_tasks_at_init():
     t1 = Task()
-    f = Flow(reference_tasks=[t1], tasks=[t1])
+    f = Flow(name="test", reference_tasks=[t1], tasks=[t1])
     assert f.reference_tasks() == set([t1]) == f.tasks == f.terminal_tasks()
 
     t2 = Task()
-    f = Flow(reference_tasks=[t2], tasks=[t1, t2])
+    f = Flow(name="test", reference_tasks=[t2], tasks=[t1, t2])
     assert f.reference_tasks() == set([t2])
 
 
 def test_reset_reference_tasks_to_terminal_tasks():
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -535,14 +550,14 @@ def test_reset_reference_tasks_to_terminal_tasks():
 
 
 def test_key_states_raises_error_if_not_part_of_flow():
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task()
     with pytest.raises(ValueError):
         f.set_reference_tasks([t1])
 
 
 def test_key_states_raises_error_if_not_iterable():
-    with Flow() as f:
+    with Flow(name="test") as f:
         t1 = Task()
         f.add_task(t1)
         with pytest.raises(TypeError):
@@ -551,8 +566,8 @@ def test_key_states_raises_error_if_not_iterable():
 
 class TestEquality:
     def test_equality_based_on_tasks(self):
-        f1 = Flow()
-        f2 = Flow()
+        f1 = Flow(name="test")
+        f2 = Flow(name="test")
 
         t1 = Task()
         t2 = Task()
@@ -567,8 +582,8 @@ class TestEquality:
         assert f1 != f2
 
     def test_equality_based_on_edges(self):
-        f1 = Flow()
-        f2 = Flow()
+        f1 = Flow(name="test")
+        f2 = Flow(name="test")
 
         t1 = Task()
         t2 = Task()
@@ -588,8 +603,8 @@ class TestEquality:
         assert f1 != f2
 
     def test_equality_based_on_reference_tasks(self):
-        f1 = Flow()
-        f2 = Flow()
+        f1 = Flow(name="test")
+        f2 = Flow(name="test")
 
         t1 = Task()
         t2 = Task()
@@ -606,8 +621,8 @@ class TestEquality:
 
 
 def test_merge():
-    f1 = Flow()
-    f2 = Flow()
+    f1 = Flow(name="test")
+    f2 = Flow(name="test")
 
     t1 = Task()
     t2 = Task()
@@ -622,7 +637,7 @@ def test_merge():
 
 
 def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():
-    f = Flow()
+    f = Flow(name="test")
     t = Task()
 
     with pytest.raises(ValueError) as e:
@@ -646,7 +661,7 @@ def test_sorted_tasks():
     """
     t1 -> t2 -> t3 -> t4
     """
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task("1")
     t2 = Task("2")
     t3 = Task("3")
@@ -667,7 +682,7 @@ def test_sorted_tasks_with_ambiguous_sort():
            bottleneck -> t6
     """
 
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task("1")
     t2 = Task("2")
     t3 = Task("3")
@@ -693,7 +708,7 @@ def test_sorted_tasks_with_start_task():
     t1 -> t2 -> t3 -> t4
                   t3 -> t5
     """
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task("1")
     t2 = Task("2")
     t3 = Task("3")
@@ -712,7 +727,7 @@ def test_sorted_tasks_with_invalid_start_task():
     t1 -> t2 -> t3 -> t4
                   t3 -> t5
     """
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task("1")
     t2 = Task("2")
     t3 = Task("3")
@@ -728,7 +743,7 @@ def test_flow_raises_for_irrelevant_user_provided_parameters():
         def run(self):
             return prefect.context.get("parameters")
 
-    with Flow() as f:
+    with Flow(name="test") as f:
         x = Parameter("x")
         t = ParameterTask()
         f.add_task(x)
@@ -742,7 +757,7 @@ def test_flow_raises_for_irrelevant_user_provided_parameters():
 
 
 def test_validate_cycles():
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task()
     t2 = Task()
     f.add_edge(t1, t2)
@@ -753,7 +768,7 @@ def test_validate_cycles():
 
 
 def test_validate_missing_edge_downstream_tasks():
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task()
     t2 = Task()
     f.add_edge(t1, t2)
@@ -764,7 +779,7 @@ def test_validate_missing_edge_downstream_tasks():
 
 
 def test_validate_missing_edge_upstream_tasks():
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task()
     t2 = Task()
     f.add_edge(t1, t2)
@@ -775,7 +790,7 @@ def test_validate_missing_edge_upstream_tasks():
 
 
 def test_validate_missing_reference_tasks():
-    f = Flow()
+    f = Flow(name="test")
     t1 = Task()
     t2 = Task()
     f.add_task(t1)
@@ -788,7 +803,7 @@ def test_validate_missing_reference_tasks():
 
 
 def test_validate_edges_kwarg():
-    f = Flow()
+    f = Flow(name="test")
     t1, t2 = Task(), Task()  # these tasks don't support keyed edges
     with pytest.raises(TypeError):
         f.add_edge(t1, t2, key="x", validate=True)
@@ -796,14 +811,14 @@ def test_validate_edges_kwarg():
 
 def test_validate_edges():
     with set_temporary_config({"flows.eager_edge_validation": True}):
-        f = Flow()
+        f = Flow(name="test")
         t1, t2 = Task(), Task()  # these tasks don't support keyed edges
         with pytest.raises(TypeError):
             f.add_edge(t1, t2, key="x")
 
 
 def test_skip_validate_edges():
-    f = Flow()
+    f = Flow(name="test")
     t1, t2 = Task(), Task()  # these tasks don't support keyed edges
     f.add_edge(t1, t2, key="x", validate=False)
     f.add_edge(t2, t1, validate=False)  # this introduces a cycle
@@ -813,16 +828,16 @@ def test_skip_validation_in_init_with_kwarg():
     t1, t2 = Task(), Task()  # these tasks don't support keyed edges
     e1, e2 = Edge(t1, t2), Edge(t2, t1)
     with pytest.raises(ValueError):
-        Flow(edges=[e1, e2], validate=True)
+        Flow(name="test", edges=[e1, e2], validate=True)
 
-    assert Flow(edges=[e1, e2], validate=False)
+    assert Flow(name="test", edges=[e1, e2], validate=False)
 
 
 class TestFlowVisualize:
     def test_visualize_raises_informative_importerror_without_graphviz(
         self, monkeypatch
     ):
-        f = Flow()
+        f = Flow(name="test")
         f.add_task(Task())
 
         with monkeypatch.context() as m:
@@ -839,7 +854,7 @@ class TestFlowVisualize:
             get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
         )
         with patch.dict("sys.modules", IPython=ipython):
-            f = Flow()
+            f = Flow(name="test")
             f.add_task(Task(name="a_nice_task"))
             graph = f.visualize()
         assert "label=a_nice_task" in graph.source
@@ -850,7 +865,7 @@ class TestFlowVisualize:
             get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
         )
         with patch.dict("sys.modules", IPython=ipython):
-            with Flow() as f:
+            with Flow(name="test") as f:
                 res = AddTask(name="a_nice_task").map(x=Task(name="a_list_task"), y=8)
             graph = f.visualize()
         assert 'label="a_nice_task <map>" shape=box' in graph.source
@@ -867,7 +882,7 @@ class TestFlowVisualize:
         )
         with patch.dict("sys.modules", IPython=ipython):
             t = Task(name="a_nice_task")
-            f = Flow()
+            f = Flow(name="test")
             f.add_task(t)
             graph = f.visualize(flow_state=Success(result={t: state}))
         assert "label=a_nice_task" in graph.source
@@ -883,7 +898,7 @@ class TestFlowVisualize:
 
         map_state = Mapped(map_states=[Success(), Failed()])
         with patch.dict("sys.modules", IPython=ipython):
-            with Flow() as f:
+            with Flow(name="test") as f:
                 res = add.map(x=list_task, y=8)
             graph = f.visualize(
                 flow_state=Success(result={res: map_state, list_task: Success()})
@@ -911,7 +926,7 @@ class TestFlowVisualize:
         map_state2 = Mapped(map_states=[Success(), Failed()])
 
         with patch.dict("sys.modules", IPython=ipython):
-            with Flow() as f:
+            with Flow(name="test") as f:
                 first_res = add.map(x=list_task, y=8)
                 with pytest.warns(
                     UserWarning
@@ -948,19 +963,19 @@ class TestFlowVisualize:
         graphviz = MagicMock()
         ipython = MagicMock(get_ipython=MagicMock(side_effect=error))
         with patch.dict("sys.modules", graphviz=graphviz, IPython=ipython):
-            with Flow() as f:
+            with Flow(name="test") as f:
                 res = AddTask(name="a_nice_task").map(x=Task(name="a_list_task"), y=8)
             f.visualize()
 
 
 class TestCache:
     def test_cache_created(self):
-        f = Flow()
+        f = Flow(name="test")
         assert isinstance(f._cache, dict)
         assert len(f._cache) == 0
 
     def test_cache_sorted_tasks(self):
-        f = Flow()
+        f = Flow(name="test")
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -979,7 +994,7 @@ class TestCache:
         assert f.sorted_tasks() == (t1, t2, t3)
 
     def test_cache_sorted_tasks_with_args(self):
-        f = Flow()
+        f = Flow(name="test")
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -999,7 +1014,7 @@ class TestCache:
         assert f.sorted_tasks([t2]) == (t2, t3)
 
     def test_cache_root_tasks(self):
-        f = Flow()
+        f = Flow(name="test")
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -1019,7 +1034,7 @@ class TestCache:
         assert f.root_tasks() == set([t1])
 
     def test_cache_task_ids(self):
-        f = Flow()
+        f = Flow(name="test")
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -1039,7 +1054,7 @@ class TestCache:
         assert len(f.task_ids) == 3
 
     def test_cache_terminal_tasks(self):
-        f = Flow()
+        f = Flow(name="test")
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -1059,7 +1074,7 @@ class TestCache:
         assert f.terminal_tasks() == set([t3])
 
     def test_cache_parameters(self):
-        f = Flow()
+        f = Flow(name="test")
         t1 = Parameter("t1")
         t2 = Task()
         t3 = Task()
@@ -1079,7 +1094,7 @@ class TestCache:
         assert f.parameters() == {t1}
 
     def test_cache_all_upstream_edges(self):
-        f = Flow()
+        f = Flow(name="test")
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -1094,7 +1109,7 @@ class TestCache:
         assert f.all_upstream_edges() != 1
 
     def test_cache_all_downstream_edges(self):
-        f = Flow()
+        f = Flow(name="test")
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -1108,7 +1123,7 @@ class TestCache:
         assert f.all_downstream_edges() != 1
 
     def test_cache_survives_pickling(self):
-        f = Flow()
+        f = Flow(name="test")
         t1 = Task()
         t2 = Task()
         t3 = Task()
@@ -1124,19 +1139,19 @@ class TestCache:
         assert f2.sorted_tasks() != 1
 
     def test_adding_task_clears_cache(self):
-        f = Flow()
+        f = Flow(name="test")
         f._cache[1] = 2
         f.add_task(Task())
         assert 1 not in f._cache
 
     def test_adding_edge_clears_cache(self):
-        f = Flow()
+        f = Flow(name="test")
         f._cache[1] = 2
         f.add_edge(Task(), Task())
         assert 1 not in f._cache
 
     def test_setting_reference_tasks_clears_cache(self):
-        f = Flow()
+        f = Flow(name="test")
         t1 = Task()
         f.add_task(t1)
         f._cache[1] = 2
@@ -1146,7 +1161,7 @@ class TestCache:
 
 class TestReplace:
     def test_replace_replaces_all_the_things(self):
-        with Flow() as f:
+        with Flow(name="test") as f:
             t1 = Task(name="t1")()
             t2 = Task(name="t2")(upstream_tasks=[t1])
         t3 = Task(name="t3")
@@ -1163,7 +1178,7 @@ class TestReplace:
             f.edges_to(t1)
 
     def test_replace_complains_about_tasks_not_in_flow(self):
-        with Flow() as f:
+        with Flow(name="test") as f:
             t1 = Task(name="t1")()
         t3 = Task(name="t3")
         with pytest.raises(ValueError):
@@ -1178,7 +1193,7 @@ class TestReplace:
 
         sub = SubTask()
 
-        with Flow() as f:
+        with Flow(name="test") as f:
             x, y = Parameter("x"), Parameter("y")
             res = add(x, y)
 
@@ -1191,7 +1206,7 @@ class TestReplace:
 
     def test_replace_converts_new_to_task(self):
         add = AddTask()
-        with Flow() as f:
+        with Flow(name="test") as f:
             x, y = Parameter("x"), Parameter("y")
             res = add(x, y)
         f.replace(x, 55)
@@ -1204,24 +1219,24 @@ class TestReplace:
 class TestGetTasks:
     def test_get_tasks_defaults_to_return_everything(self):
         t1, t2 = Task(name="t1"), Task(name="t2")
-        f = Flow(tasks=[t1, t2])
+        f = Flow(name="test", tasks=[t1, t2])
         assert f.get_tasks() == [t1, t2]
 
     def test_get_tasks_defaults_to_name(self):
         t1, t2 = Task(name="t1"), Task(name="t2")
-        f = Flow(tasks=[t1, t2])
+        f = Flow(name="test", tasks=[t1, t2])
         assert f.get_tasks("t1") == [t1]
 
     def test_get_tasks_takes_intersection(self):
         t1, t2 = Task(name="t1", slug="11"), Task(name="t1", slug="22")
-        f = Flow(tasks=[t1, t2])
+        f = Flow(name="test", tasks=[t1, t2])
         assert f.get_tasks(name="t1") == [t1, t2]
         assert f.get_tasks(name="t1", slug="11") == [t1]
         assert f.get_tasks(name="t1", slug="11", tags=["atag"]) == []
 
     def test_get_tasks_accepts_tags_and_requires_all_tags(self):
         t1, t2 = Task(name="t1", tags=["a", "b"]), Task(name="t1", tags=["a"])
-        f = Flow(tasks=[t1, t2])
+        f = Flow(name="test", tasks=[t1, t2])
         assert f.get_tasks(tags=["a", "b"]) == [t1]
 
     def test_get_tasks_can_check_types(self):
@@ -1229,7 +1244,7 @@ class TestGetTasks:
             pass
 
         t1, t2 = Task(name="t1", tags=["a", "b"]), Specific(name="t1", tags=["a"])
-        f = Flow(tasks=[t1, t2])
+        f = Flow(name="test", tasks=[t1, t2])
         assert f.get_tasks(task_type=Specific) == [t2]
 
 
@@ -1237,7 +1252,7 @@ class TestSerialize:
     def test_serialization(self):
         p1, t2, t3, = Parameter("1"), Task("2"), Task("3")
 
-        f = Flow(tasks=[p1, t2, t3])
+        f = Flow(name="test", tasks=[p1, t2, t3])
         f.add_edge(p1, t2)
         f.add_edge(p1, t3)
 
@@ -1268,7 +1283,7 @@ class TestSerialize:
 
     def test_serialize_validates_invalid_flows(self):
         t1, t2 = Task(), Task()
-        f = Flow()
+        f = Flow(name="test")
         f.add_edge(t1, t2)
         # default settings should allow this even though it's illegal
         f.add_edge(t2, t1)
@@ -1278,11 +1293,11 @@ class TestSerialize:
         assert "cycle found" in str(exc).lower()
 
     def test_default_environment_is_local_environment(self):
-        f = Flow()
+        f = Flow(name="test")
         assert isinstance(f.environment, prefect.environments.LocalEnvironment)
 
     def test_serialize_includes_environment(self):
-        f = Flow(environment=prefect.environments.LocalEnvironment())
+        f = Flow(name="test", environment=prefect.environments.LocalEnvironment())
         s_no_build = f.serialize()
         s_build = f.serialize(build=True)
 
@@ -1291,7 +1306,7 @@ class TestSerialize:
         assert s_build["environment"]["type"] == "LocalEnvironment"
 
     def test_to_environment_file_writes_data(self):
-        f = Flow()
+        f = Flow(name="test")
         with tempfile.NamedTemporaryFile() as tmp:
             f.to_environment_file(tmp.name)
             with open(tmp.name, "r") as f:
@@ -1317,7 +1332,7 @@ def test_flow_dot_run_runs_on_schedule():
 
     t = StatefulTask()
     schedule = MockSchedule()
-    f = Flow(tasks=[t], schedule=schedule)
+    f = Flow(name="test", tasks=[t], schedule=schedule)
     with pytest.raises(SyntaxError) as exc:
         f.run()
     assert "Cease" in str(exc.value)
@@ -1355,7 +1370,7 @@ def test_scheduled_runs_handle_retries():
         state_handlers=[handler],
     )
     schedule = MockSchedule()
-    f = Flow(tasks=[t], schedule=schedule)
+    f = Flow(name="test", tasks=[t], schedule=schedule)
     with pytest.raises(SyntaxError) as exc:
         f.run()
     assert "Cease" in str(exc.value)
@@ -1383,7 +1398,7 @@ def test_scheduled_runs_handle_mapped_retries():
         retry_delay=datetime.timedelta(minutes=0),
         state_handlers=[handler],
     )
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = t.map(upstream_tasks=[[1, 2, 3]])
 
     flow_state = f.run()
@@ -1394,7 +1409,7 @@ def test_scheduled_runs_handle_mapped_retries():
 
 
 def test_flow_run_accepts_state_kwarg():
-    f = Flow()
+    f = Flow(name="test")
     state = f.run(state=Finished())
     assert state.is_finished()
 
@@ -1404,7 +1419,7 @@ def test_bad_flow_runner_code_still_returns_state_obj():
         def initialize_run(self, *args, **kwargs):
             import blig  # will raise ImportError
 
-    f = Flow(tasks=[Task()])
+    f = Flow(name="test", tasks=[Task()])
     res = f.run(runner_cls=BadFlowRunner)
     assert isinstance(res, State)
     assert res.is_failed()
@@ -1412,7 +1427,7 @@ def test_bad_flow_runner_code_still_returns_state_obj():
 
 
 def test_flow_run_raises_informative_error_for_certain_kwargs():
-    f = Flow()
+    f = Flow(name="test")
     with pytest.raises(ValueError) as exc:
         f.run(return_tasks=f.tasks)
     assert "`return_tasks` keyword cannot be provided" in str(exc.value)
@@ -1422,14 +1437,14 @@ def test_flow_run_raises_if_no_more_scheduled_runs():
     schedule = prefect.schedules.OneTimeSchedule(
         start_date=pendulum.now("utc").add(days=-1)
     )
-    f = Flow(schedule=schedule)
+    f = Flow(name="test", schedule=schedule)
     with pytest.raises(ValueError) as exc:
         f.run()
     assert "no more scheduled runs" in str(exc.value)
 
 
 def test_flow_run_respects_state_kwarg():
-    f = Flow()
+    f = Flow(name="test")
     state = f.run(state=Failed("Unique."))
     assert state.is_failed()
     assert state.message == "Unique."
@@ -1437,7 +1452,7 @@ def test_flow_run_respects_state_kwarg():
 
 def test_flow_run_respects_task_state_kwarg():
     t, s = Task(), Task()
-    f = Flow(tasks=[t, s])
+    f = Flow(name="test", tasks=[t, s])
     flow_state = f.run(task_states={t: Failed("unique.")})
     assert flow_state.is_failed()
     assert flow_state.result[t].is_failed()
@@ -1446,7 +1461,7 @@ def test_flow_run_respects_task_state_kwarg():
 
 
 def test_flow_run_handles_error_states_when_initial_state_is_provided():
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = AddTask()("5", 5)
     state = f.run(state=Pending())
     assert state.is_failed()

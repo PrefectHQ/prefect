@@ -46,7 +46,7 @@ run_in_bash = ShellTask(name='run a command in bash')
 # Open a Flow context and use the functional API (if possible)
 #--------------------------------------------------------------
 
-with Flow() as flow:
+with Flow('Best Practices') as flow:
     # store the result of each task call, even if you don't use the result again
     two = plus_one(1)
 
