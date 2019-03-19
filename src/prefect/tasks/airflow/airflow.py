@@ -41,7 +41,7 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
         - env (dict, optional): dictionary of environment variables to use for
             the subprocess (e.g., `AIRFLOW__CORE__DAGS_FOLDER`)
         - execution_date (str, optional): the execution date for this task run; can also be provided to the run method;
-            if not provided here or to `run()`, will be pulled from context
+            if not provided here or to `run()`, the value of `today` in context will be used
         - db_conn (str, optional): the location of the airflow database; currently only SQLite DBs are supported;
             defaults to `~/airflow/airflow.db`; used for pulling XComs and inspecting task states
         - **kwargs: additional keyword arguments to pass to the Task constructor
@@ -55,17 +55,14 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
         puller = AirflowTask(
             task_id="puller",
             dag_id="example_xcom",
-            execution_date="1999-09-20",
         )
         push = AirflowTask(
             task_id="push",
             dag_id="example_xcom",
-            execution_date="1999-09-20",
         )
         push_by_returning = AirflowTask(
             task_id="push_by_returning",
             dag_id="example_xcom",
-            execution_date="1999-09-20",
         )
 
         with Flow(name="example_xcom") as flow:
@@ -152,7 +149,7 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
 
         Args:
             - execution_date (str, optional): the execution date for this task run;
-                if not provided here or at initialization, will be pulled from context
+                if not provided here or at initialization, the value of `today` in context will be used
 
         Raises:
             - prefect.engine.signals.PrefectStateSignal: depending on the state of the task_instance in the Airflow DB
@@ -160,7 +157,8 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
         Returns:
             - Any: any data this task pushes as an XCom
         """
-        execution_date = prefect.context.get("execution_date", execution_date)
+        if execution_date is None:
+            execution_date = prefect.context.get("today")
         self._pre_check(execution_date)
         self.command = self.command.format(  # type: ignore
             self.dag_id, self.task_id, execution_date
@@ -183,8 +181,8 @@ class AirflowTriggerDAG(prefect.tasks.shell.ShellTask):
         - dag_id (string): the Airflow `dag_id` containing the given `task_id`
         - airflow_env (str, optional): the name of the conda environment in which `airflow` is installed;
             defaults to `"airflow"`
-        - execution_date (str, optional): the execution date for this task run;
-            if not provided here or at initialization, will be pulled from context
+        - execution_date (str, optional): the execution date for this task run; can also be provided to the run method;
+            if not provided here or to `run()`, the value of `today` in context will be used
         - cli_flags (List[str], optional): a list of CLI flags to provide to `airflow trigger_dag` at runtime;
             this can be used to provide `execution_date` via `["-e 1999-01-01"]`.  For a complete list of available options,
             see the [corresponding Airflow documentation](https://airflow.apache.org/cli.html#trigger_dag)
@@ -221,7 +219,7 @@ class AirflowTriggerDAG(prefect.tasks.shell.ShellTask):
 
         Args:
             - execution_date (str, optional): the execution date for this task run;
-                if not provided here or at initialization, will be pulled from context
+                if not provided here or at initialization, the value of `today` in context will be used
 
         Raises:
             - prefect.engine.signals.PrefectStateSignal: depending on the state of the task_instance in the Airflow DB
@@ -229,11 +227,9 @@ class AirflowTriggerDAG(prefect.tasks.shell.ShellTask):
         Returns:
             - Any: any data this task pushes as an XCom
         """
-        execution_date = prefect.context.get("execution_date", execution_date)
-        if execution_date is not None:
-            cli_flags = self.cli_flags + ["-e {}".format(execution_date)]
-        else:
-            cli_flags = self.cli_flags
+        if execution_date is None:
+            execution_date = prefect.context.get("today")
+        cli_flags = self.cli_flags + ["-e {}".format(execution_date)]
         cmd = "airflow trigger_dag " + " ".join(cli_flags) + " {0}".format(self.dag_id)
         res = super().run(command=cmd)
         return res
