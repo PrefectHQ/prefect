@@ -49,7 +49,7 @@ def assert_script_runs(script):
 
 
 def test_raise_on_exception_raises_basic_error():
-    flow = Flow()
+    flow = Flow(name="test")
     flow.add_task(MathTask())
     with pytest.raises(ZeroDivisionError):
         with raise_on_exception():
@@ -57,7 +57,7 @@ def test_raise_on_exception_raises_basic_error():
 
 
 def test_raise_on_exception_raises_basic_prefect_signal():
-    flow = Flow()
+    flow = Flow(name="test")
     flow.add_task(BusinessTask())
     with pytest.raises(prefect.engine.signals.FAIL) as error:
         with raise_on_exception():
@@ -90,7 +90,7 @@ def test_that_bad_code_in_flow_runner_is_caught():
         def get_flow_run_state(self, *args, **kwargs):
             raise RuntimeError("I represent bad code in the flow runner.")
 
-    flow = Flow()
+    flow = Flow(name="test")
     flow.add_task(MathTask())
     flow_state = BadFlowRunner(flow=flow).run()
     assert isinstance(flow_state, state.Failed)
@@ -108,7 +108,7 @@ def test_that_bad_code_in_task_runner_is_caught():
         def get_task_run_state(self, *args, **kwargs):
             raise RuntimeError("I represent bad code in the task runner.")
 
-    flow = Flow()
+    flow = Flow(name="test")
     math_task = MathTask()
     flow.add_task(math_task)
     flow_state = FlowRunner(flow=flow, task_runner_cls=BadTaskRunner).run(
@@ -122,7 +122,7 @@ def test_that_bad_code_in_task_runner_is_caught():
 
 
 def test_raise_on_exception_plays_well_with_context():
-    flow = Flow()
+    flow = Flow(name="test")
     flow.add_task(MathTask())
     try:
         assert "raise_on_exception" not in prefect.context

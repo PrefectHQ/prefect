@@ -176,7 +176,7 @@ def test_simple_two_task_flow(monkeypatch, executor):
     task_run_id_1 = str(uuid.uuid4())
     task_run_id_2 = str(uuid.uuid4())
 
-    with prefect.Flow() as flow:
+    with prefect.Flow(name="test") as flow:
         t1 = prefect.Task()
         t2 = prefect.Task()
         t2.set_upstream(t1)
@@ -207,7 +207,7 @@ def test_scheduled_start_time_is_in_context(monkeypatch, executor):
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
 
-    flow = prefect.Flow(tasks=[whats_the_time])
+    flow = prefect.Flow(name="test", tasks=[whats_the_time])
 
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
@@ -237,7 +237,7 @@ def test_simple_two_task_flow_with_final_task_set_to_fail(monkeypatch, executor)
     task_run_id_1 = str(uuid.uuid4())
     task_run_id_2 = str(uuid.uuid4())
 
-    with prefect.Flow() as flow:
+    with prefect.Flow(name="test") as flow:
         t1 = prefect.Task()
         t2 = prefect.Task()
         t2.set_upstream(t1)
@@ -273,7 +273,7 @@ def test_simple_two_task_flow_with_final_task_already_running(monkeypatch, execu
     task_run_id_1 = str(uuid.uuid4())
     task_run_id_2 = str(uuid.uuid4())
 
-    with prefect.Flow() as flow:
+    with prefect.Flow(name="test") as flow:
         t1 = prefect.Task()
         t2 = prefect.Task()
         t2.set_upstream(t1)
@@ -317,7 +317,7 @@ def test_simple_three_task_flow_with_one_failing_task(monkeypatch, executor):
     task_run_id_2 = str(uuid.uuid4())
     task_run_id_3 = str(uuid.uuid4())
 
-    with prefect.Flow() as flow:
+    with prefect.Flow(name="test") as flow:
         t1 = prefect.Task()
         t2 = prefect.Task()
         t3 = error()
@@ -365,7 +365,7 @@ def test_simple_three_task_flow_with_first_task_retrying(monkeypatch, executor):
     task_run_id_2 = str(uuid.uuid4())
     task_run_id_3 = str(uuid.uuid4())
 
-    with prefect.Flow() as flow:
+    with prefect.Flow(name="test") as flow:
         t1 = error()
         t2 = prefect.Task()
         t3 = prefect.Task()
@@ -404,7 +404,7 @@ def test_simple_map(monkeypatch, executor):
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
 
-    with prefect.Flow() as flow:
+    with prefect.Flow(name="test") as flow:
         t1 = plus_one.map([0, 1, 2])
 
     client = MockedCloudClient(
@@ -438,7 +438,7 @@ def test_deep_map(monkeypatch, executor):
     task_run_id_2 = str(uuid.uuid4())
     task_run_id_3 = str(uuid.uuid4())
 
-    with prefect.Flow() as flow:
+    with prefect.Flow(name="test") as flow:
         t1 = plus_one.map([0, 1, 2])
         t2 = plus_one.map(t1)
         t3 = plus_one.map(t2)
@@ -482,7 +482,7 @@ def test_deep_map_with_a_failure(monkeypatch, executor):
     task_run_id_2 = str(uuid.uuid4())
     task_run_id_3 = str(uuid.uuid4())
 
-    with prefect.Flow() as flow:
+    with prefect.Flow(name="test") as flow:
         t1 = plus_one.map([-1, 0, 1])
         t2 = invert_fail_once.map(t1)
         t3 = plus_one.map(t2)
@@ -546,7 +546,7 @@ def test_deep_map_with_a_retry(monkeypatch):
     task_run_id_2 = str(uuid.uuid4())
     task_run_id_3 = str(uuid.uuid4())
 
-    with prefect.Flow() as flow:
+    with prefect.Flow(name="test") as flow:
         t1 = plus_one.map([-1, 0, 1])
         t2 = invert_fail_once.map(t1)
         t3 = plus_one.map(t2)

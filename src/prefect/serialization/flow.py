@@ -36,7 +36,7 @@ class FlowSchema(ObjectSchema):
 
     id = fields.String()
     project = fields.String(allow_none=True)
-    name = fields.String(allow_none=True)
+    name = fields.String(required=True, allow_none=True)
     version = fields.String(allow_none=True)
     description = fields.String(allow_none=True)
     type = fields.Function(lambda flow: to_qualified_name(type(flow)), lambda x: x)
