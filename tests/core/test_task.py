@@ -302,23 +302,50 @@ def test_task_id_must_be_uuid():
 
 
 class TestDependencies:
-    """
-    Most dependnecy tests are done in test_flow.py.
-    """
 
     def test_set_downstream(self):
+        f = Flow(name="test")
+        t1 = Task()
+        t2 = Task()
+        t1.set_downstream(t2, flow=f)
+        assert Edge(t1, t2) in f.edges
+
+    def test_set_downstream_context(self):
         with Flow(name="test") as f:
             t1 = Task()
             t2 = Task()
             t1.set_downstream(t2)
             assert Edge(t1, t2) in f.edges
 
+    def test_set_downstream_no_flow(self):
+        f = Flow(name="test")
+        t1 = Task()
+        t2 = Task()
+        with pytest.raises(ValueError) as exc:
+            t1.set_downstream(t2)
+        assert "No Flow was passed" in str(exc.value)
+
     def test_set_upstream(self):
+        f = Flow(name="test")
+        t1 = Task()
+        t2 = Task()
+        t2.set_upstream(t1, flow=f)
+        assert Edge(t1, t2) in f.edges
+
+    def test_set_upstream_context(self):
         with Flow(name="test") as f:
             t1 = Task()
             t2 = Task()
             t2.set_upstream(t1)
             assert Edge(t1, t2) in f.edges
+
+    def test_set_upstream_no_flow(self):
+        f = Flow(name="test")
+        t1 = Task()
+        t2 = Task()
+        with pytest.raises(ValueError) as exc:
+            t2.set_upstream(t1)
+        assert "No Flow was passed" in str(exc.value)
 
 
 class TestSerialization:
