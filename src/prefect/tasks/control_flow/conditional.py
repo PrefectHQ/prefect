@@ -126,7 +126,7 @@ def merge(*tasks: Task) -> Task:
 
     Example:
         ```python
-        with Flow():
+        with Flow("My Flow"):
             true_branch = ActionIfTrue()
             false_branch = ActionIfFalse()
             ifelse(CheckCondition(), true_branch, false_branch)

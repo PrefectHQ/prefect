@@ -26,7 +26,7 @@ def airflow_settings():
 
 
 def test_trigger_rules_dag(airflow_settings):
-    flow = AirFlow(dag_id="trigger_rules", **airflow_settings)
+    flow = AirFlow(dag_id="trigger_rules", **airflow_settings, name="test")
     res = flow.run(execution_date="2018-09-20")
     assert res.is_failed()
     for task, state in res.result.items():
@@ -37,21 +37,23 @@ def test_trigger_rules_dag(airflow_settings):
 
 
 def test_airflow_accepts_existing_sqlite_db():
-    flow = AirFlow(dag_id="example_bash_operator", db_file="test_doesnt_exist")
+    flow = AirFlow(
+        dag_id="example_bash_operator", db_file="test_doesnt_exist", name="test"
+    )
     assert (
         flow.env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN") == "sqlite:///test_doesnt_exist"
     )
 
 
 def test_airflow_creates_sqlite_db_if_none_provided():
-    flow = AirFlow(dag_id="example_bash_operator")
+    flow = AirFlow(dag_id="example_bash_operator", name="test")
     sql_conn = flow.env.get("AIRFLOW__CORE__SQL_ALCHEMY_CONN")
     assert sql_conn.startswith("sqlite:///")
     assert sql_conn.endswith("prefect-airflow.db")
 
 
 def test_example_branch_operator(airflow_settings):
-    flow = AirFlow(dag_id="example_branch_operator", **airflow_settings)
+    flow = AirFlow(dag_id="example_branch_operator", **airflow_settings, name="test")
     res = flow.run(execution_date="2018-09-20")
     assert res.is_successful()
 
@@ -79,7 +81,7 @@ def test_example_branch_operator(airflow_settings):
 
 
 def test_example_xcom(airflow_settings):
-    flow = AirFlow(dag_id="example_xcom", **airflow_settings)
+    flow = AirFlow(dag_id="example_xcom", **airflow_settings, name="test")
     res = flow.run(execution_date="2018-09-20")
     assert res.is_successful()
 
@@ -96,7 +98,9 @@ def test_example_xcom(airflow_settings):
 
 
 def test_example_short_circuit_operator(airflow_settings):
-    flow = AirFlow(dag_id="example_short_circuit_operator", **airflow_settings)
+    flow = AirFlow(
+        dag_id="example_short_circuit_operator", **airflow_settings, name="test"
+    )
     res = flow.run(execution_date="2018-09-20")
     assert res.is_successful()
 
@@ -110,7 +114,7 @@ def test_example_short_circuit_operator(airflow_settings):
 
 
 def test_example_bash_operator(airflow_settings):
-    flow = AirFlow(dag_id="example_bash_operator", **airflow_settings)
+    flow = AirFlow(dag_id="example_bash_operator", **airflow_settings, name="test")
     res = flow.run(execution_date="2018-09-20")
     assert res.is_successful()
 
@@ -119,7 +123,7 @@ def test_example_bash_operator(airflow_settings):
 
 
 def test_extending_airflow_dag_with_prefect_task(airflow_settings):
-    flow = AirFlow(dag_id="example_bash_operator", **airflow_settings)
+    flow = AirFlow(dag_id="example_bash_operator", **airflow_settings, name="test")
     run_task0 = flow.get_tasks(name="runme_0")
     with flow:
         t1 = Task(trigger=triggers.all_failed)(upstream_tasks=[run_task0])
