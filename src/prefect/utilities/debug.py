@@ -80,7 +80,7 @@ def raise_on_exception() -> Iterator:
         def div(x):
             return 1 / x
 
-        with Flow() as f:
+        with Flow("My Flow") as f:
             res = div(0)
 
         with raise_on_exception():

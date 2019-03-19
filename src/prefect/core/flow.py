@@ -103,7 +103,7 @@ class Flow:
     ```
 
     Args:
-        - name (str, optional): The name of the flow
+        - name (str): The name of the flow. Cannot be `None` or an empty string
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
             type that the flow should be run in. If None, a LocalEnvironment will be created.
@@ -133,7 +133,7 @@ class Flow:
 
     def __init__(
         self,
-        name: str = None,
+        name: str,
         schedule: prefect.schedules.Schedule = None,
         environment: Environment = None,
         tasks: Iterable[Task] = None,
@@ -151,7 +151,10 @@ class Flow:
 
         self.logger = logging.get_logger("Flow")
 
-        self.name = name or type(self).__name__
+        if not name:
+            raise ValueError("A name must be provided for the flow.")
+
+        self.name = name
         self.schedule = schedule
         self.environment = environment or prefect.environments.LocalEnvironment()
         self.result_handler = (

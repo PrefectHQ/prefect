@@ -33,21 +33,21 @@ class TestSQLiteQueryTask:
             task = SQLiteQueryTask()
 
     def test_sqlite_query_task_initializes_and_runs_basic_query(self, database):
-        with Flow() as f:
+        with Flow(name="test") as f:
             task = SQLiteQueryTask(db=database)(query="SELECT * FROM TEST")
         out = f.run()
         assert out.is_successful()
         assert out.result[task].result == [(11, "first"), (12, "second"), (13, "third")]
 
     def test_sqlite_query_task_initializes_with_query_and_runs(self, database):
-        with Flow() as f:
+        with Flow(name="test") as f:
             task = SQLiteQueryTask(db=database, query="SELECT * FROM TEST")()
         out = f.run()
         assert out.is_successful()
         assert out.result[task].result == [(11, "first"), (12, "second"), (13, "third")]
 
     def test_sqlite_error_results_in_failed_state(self, database):
-        with Flow() as f:
+        with Flow(name="test") as f:
             task = SQLiteQueryTask(db=database, query="SELECT * FROM FOOBAR")()
         out = f.run()
         assert out.is_failed()
@@ -55,7 +55,7 @@ class TestSQLiteQueryTask:
 
     def test_only_single_statement_queries_allowed(self, database):
         query = """INSERT INTO TEST (NUMBER, DATA) VALUES\n(88, "other");\nSELECT * FROM TEST;"""
-        with Flow() as f:
+        with Flow(name="test") as f:
             task = SQLiteQueryTask(db=database, query=query)()
         out = f.run()
         assert out.is_failed()
@@ -68,21 +68,21 @@ class TestSQLiteScriptTask:
             task = SQLiteScriptTask()
 
     def test_sqlite_script_task_initializes_and_runs_basic_script(self, database):
-        with Flow() as f:
+        with Flow(name="test") as f:
             task = SQLiteScriptTask(db=database)(script="SELECT * FROM TEST;")
         out = f.run()
         assert out.is_successful()
         assert out.result[task].result is None
 
     def test_sqlite_script_task_initializes_with_script_and_runs(self, database):
-        with Flow() as f:
+        with Flow(name="test") as f:
             task = SQLiteScriptTask(db=database, script="SELECT * FROM TEST;")()
         out = f.run()
         assert out.is_successful()
         assert out.result[task].result is None
 
     def test_sqlite_error_results_in_failed_state(self, database):
-        with Flow() as f:
+        with Flow(name="test") as f:
             task = SQLiteScriptTask(db=database)(script="SELECT * FROM FOOBAR;")
         out = f.run()
         assert out.is_failed()
@@ -91,7 +91,7 @@ class TestSQLiteScriptTask:
 
 def test_composition_of_tasks(database):
     script = """CREATE TABLE TEST2 (NUM INTEGER, DATA TEXT); INSERT INTO TEST2 (NUM, DATA) VALUES\n(88, "other"); ALTER TABLE TEST2\n ADD status TEXT;"""
-    with Flow() as f:
+    with Flow(name="test") as f:
         alter = SQLiteScriptTask(db=database)(script=script)
         task = SQLiteQueryTask(db=database, query="SELECT * FROM TEST2")(
             upstream_tasks=[alter]
