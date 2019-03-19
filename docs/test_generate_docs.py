@@ -4,17 +4,23 @@ from functools import partial, wraps
 import pytest
 from toolz import curry
 
-from generate_docs import (
-    OUTLINE,
-    create_absolute_path,
-    format_doc,
-    format_lists,
-    format_signature,
-    format_subheader,
-    get_call_signature,
-    get_class_methods,
-    get_source,
-)
+try:
+    from generate_docs import (
+        OUTLINE,
+        create_absolute_path,
+        format_doc,
+        format_lists,
+        format_signature,
+        format_subheader,
+        get_call_signature,
+        get_class_methods,
+        get_source,
+    )
+except ImportError:
+    pytestmark = pytest.skip(
+        "Documentation requirements not installed.", allow_module_level=True
+    )
+
 from prefect import task, Task
 from prefect.engine.state import State
 from prefect.utilities.tasks import defaults_from_attrs
