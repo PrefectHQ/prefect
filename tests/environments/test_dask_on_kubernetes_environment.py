@@ -54,6 +54,7 @@ class TestDaskOnKubernetesEnvironment:
         env.setup()
         assert env
 
+    @pytest.mark.xfail(raises=ImportError)
     def test_dask_on_kubernetes_environment_execution_raises_error_out_of_cluster(self):
         env = kubernetes.DaskOnKubernetesEnvironment(base_image="a")
         with pytest.raises(EnvironmentError) as exc:

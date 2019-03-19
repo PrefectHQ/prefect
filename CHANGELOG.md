@@ -72,6 +72,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Remove `make_return_failed_handler` as `flow.run` now returns all task states - [#693](https://github.com/PrefectHQ/prefect/pull/693)
 - Refactor Airflow migration tools into a single `AirflowTask` in the task library for running individual Airflow tasks - [#735](https://github.com/PrefectHQ/prefect/issues/735)
 - `name` is now required on all Flow objects - [#732](https://github.com/PrefectHQ/prefect/pull/732)
+- Separate installation "extras" packages into multiple, smaller extras - [#739](https://github.com/PrefectHQ/prefect/issues/739)
 
 ## 0.4.1 <Badge text="beta" type="success"/>
 
