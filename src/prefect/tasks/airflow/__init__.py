@@ -1,5 +1,5 @@
 """
-This module contains tasks which help migrate Airflow workflows into Prefect. Using these requires `airflow` to be installed in a separate conda environment.
+This module contains tasks that help migrate Airflow workflows into Prefect. Using these requires `airflow` to be installed in a separate conda environment.
 
 Note that by default, external Airflow dependencies and triggers will be respected; these can be ignored by passing `-A` as a CLI flag to the `AirflowTask`.
 
