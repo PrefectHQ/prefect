@@ -105,7 +105,7 @@ class TestGCSResultHandler:
 
         client = MagicMock()
         storage = MagicMock(Client=MagicMock(return_value=client))
-        with patch.dict("sys.modules", {"google.cloud.storage": storage}):
+        with patch.dict("sys.modules", {"google.cloud": MagicMock(storage=storage)}):
             yield client
 
     def test_gcs_init(self, google_client):
