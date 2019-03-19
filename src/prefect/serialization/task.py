@@ -34,6 +34,19 @@ class TaskMethodsMixin:
         else:
             return super().get_attribute(obj, key, default)
 
+    def load_inputs(self, task):
+        if not isinstance(task, prefect.core.Task):
+            return self.get_attribute(task, "inputs", None)
+        inputs = {}
+        for k, v in task.inputs().items():
+            inputs[k] = dict(required=v["required"], type=str(v["type"]))
+        return inputs
+
+    def load_outputs(self, task):
+        if not isinstance(task, prefect.core.Task):
+            return self.get_attribute(task, "outputs", None)
+        return str(task.outputs())
+
     @post_load
     def create_object(self, data):
         """
@@ -57,7 +70,7 @@ class TaskMethodsMixin:
 class TaskSchema(TaskMethodsMixin, ObjectSchema):
     class Meta:
         object_class = lambda: prefect.core.Task
-        exclude_fields = ["id", "type"]
+        exclude_fields = ["id", "type", "inputs", "outputs"]
 
     id = UUID()
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
@@ -67,6 +80,8 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
     tags = fields.List(fields.String())
     max_retries = fields.Integer(allow_none=True)
     retry_delay = fields.TimeDelta(allow_none=True)
+    inputs = fields.Method("load_inputs", allow_none=True)
+    outputs = fields.Method("load_outputs", allow_none=True)
     timeout = fields.Integer(allow_none=True)
     trigger = FunctionReference(
         valid_functions=[
@@ -102,7 +117,7 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
 class ParameterSchema(TaskMethodsMixin, ObjectSchema):
     class Meta:
         object_class = lambda: prefect.core.task.Parameter
-        exclude_fields = ["id", "type"]
+        exclude_fields = ["id", "type", "outputs"]
 
     id = UUID()
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
@@ -111,3 +126,4 @@ class ParameterSchema(TaskMethodsMixin, ObjectSchema):
     required = fields.Boolean(allow_none=True)
     description = fields.String(allow_none=True)
     tags = fields.List(fields.String())
+    outputs = fields.Method("load_outputs", allow_none=True)
