@@ -35,7 +35,7 @@ def _validate_run_signature(run: Callable) -> None:
             "to *args."
         )
 
-    reserved_kwargs = ["upstream_tasks", "mapped"]
+    reserved_kwargs = ["upstream_tasks", "mapped", "task_args"]
     violations = [kw for kw in reserved_kwargs if kw in run_sig.args]
     if violations:
         msg = "Tasks cannot have the following argument names: {}.".format(
@@ -274,7 +274,7 @@ class Task(metaclass=SignatureValidator):
 
     # Dependencies -------------------------------------------------------------
 
-    def copy(self) -> "Task":
+    def copy(self, **task_args: Any) -> "Task":
         """
         Creates and returns a copy of the current Task.
         """
@@ -304,6 +304,7 @@ class Task(metaclass=SignatureValidator):
         self,
         *args: Any,
         mapped: bool = False,
+        task_args: dict = None,
         upstream_tasks: Iterable[Any] = None,
         **kwargs: Any
     ) -> "Task":
@@ -319,6 +320,8 @@ class Task(metaclass=SignatureValidator):
                 with the specified keyword arguments; defaults to `False`.
                 If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
                 container will _not_ be mapped over.
+            - task_args (dict, optional): a dictionary of task initialization keyword arguments, to be passed
+                to the initilization of the copied instance
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 for the new task.  This kwarg can be used to functionally specify
                 dependencies without binding their result to `run()`
@@ -327,7 +330,13 @@ class Task(metaclass=SignatureValidator):
             - Task: a new Task instance
         """
         new = self.copy()
-        new.bind(*args, mapped=mapped, upstream_tasks=upstream_tasks, **kwargs)
+        new.bind(
+            *args,
+            mapped=mapped,
+            task_args=task_args,
+            upstream_tasks=upstream_tasks,
+            **kwargs
+        )
         return new
 
     def bind(
