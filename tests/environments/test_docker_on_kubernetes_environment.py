@@ -44,6 +44,7 @@ class TestDockerOnKubernetesEnvironment:
         env.setup()
         assert env
 
+    @pytest.mark.xfail(raises=ImportError)
     def test_docker_on_kubernetes_environment_execution_raises_error_out_of_cluster(
         self
     ):
