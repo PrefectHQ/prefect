@@ -469,7 +469,6 @@ class Task(metaclass=SignatureValidator):
             - flow (Flow, optional): The flow to set dependencies on, defaults to the current
                 flow in context if no flow is specified
 
-
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
