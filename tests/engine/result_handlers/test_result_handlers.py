@@ -2,7 +2,7 @@ import json
 import os
 import pendulum
 import tempfile
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -97,15 +97,16 @@ def test_result_handlers_must_implement_read_and_write_to_work():
     assert "abstract methods write" in str(exc.value)
 
 
+@pytest.mark.xfail(raises=ImportError)
 class TestGCSResultHandler:
     @pytest.fixture
     def google_client(self, monkeypatch):
+        import google.cloud.storage
+
         client = MagicMock()
         storage = MagicMock(Client=MagicMock(return_value=client))
-        monkeypatch.setattr(
-            "prefect.engine.result_handlers.gcs_result_handler.storage", storage
-        )
-        yield client
+        with patch.dict("sys.modules", {"google.cloud.storage": storage}):
+            yield client
 
     def test_gcs_init(self, google_client):
         handler = GCSResultHandler(bucket="bob")
