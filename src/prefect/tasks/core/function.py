@@ -25,7 +25,7 @@ class FunctionTask(prefect.Task):
     ```python
     task = FunctionTask(lambda x: x - 42, name="Subtract 42")
 
-    with Flow() as f:
+    with Flow("My Flow") as f:
         result = task(42)
     ```
     """
