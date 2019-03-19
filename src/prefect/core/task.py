@@ -70,7 +70,8 @@ class Task(metaclass=SignatureValidator):
             return x + y
     ```
 
-    *Note:* The implemented `run` method cannot have `*args` in its signature.
+    *Note:* The implemented `run` method cannot have `*args` in its signature. In addition,
+    the following keywords are reserved: `upstream_tasks`, `task_args` and `mapped`.
 
     An instance of a `Task` can be used functionally to generate other task instances
     with the same attributes but with different values bound to their `run` methods.
@@ -253,6 +254,12 @@ class Task(metaclass=SignatureValidator):
     def run(self) -> None:
         """
         The `run()` method is called (with arguments, if appropriate) to run a task.
+
+        *Note:* The implemented `run` method cannot have `*args` in its signature. In addition,
+        the following keywords are reserved: `upstream_tasks`, `task_args` and `mapped`.
+
+        If a task has arguments in its `run()` method, these can be bound either by using the functional
+        API and _calling_ the task instance, or by using `self.bind` directly.
 
         In addition to running arbitrary functions, tasks can interact with Prefect in a few ways:
         <ul><li> Return an optional result. When this function runs successfully,
