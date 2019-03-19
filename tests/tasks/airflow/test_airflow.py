@@ -77,13 +77,12 @@ class TestSingleTaskRuns:
             env=airflow_settings,
         )
 
-        with Flow(name="test single task") as flow:
-            res = task(execution_date="2018-01-01")
+        flow = Flow(name="test single task", tasks=[task])
         flow_state = flow.run()
 
         assert flow_state.is_successful()
-        assert flow_state.result[res].is_successful()
-        assert flow_state.result[res].result is None
+        assert flow_state.result[task].is_successful()
+        assert flow_state.result[task].result is None
 
     def test_airflow_task_uses_its_own_trigger_rules_by_default(self, airflow_settings):
         task = AirflowTask(

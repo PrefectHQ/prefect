@@ -13,17 +13,14 @@ from prefect.tasks.airflow import AirflowTask
 puller = AirflowTask(
     task_id="puller",
     dag_id="example_xcom",
-    execution_date="1999-09-20",
 )
 push = AirflowTask(
     task_id="push",
     dag_id="example_xcom",
-    execution_date="1999-09-20",
 )
 push_by_returning = AirflowTask(
     task_id="push_by_returning",
     dag_id="example_xcom",
-    execution_date="1999-09-20",
 )
 
 with Flow(name="example_xcom") as flow:
