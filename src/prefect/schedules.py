@@ -1,4 +1,5 @@
 # Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
+import pytz
 import itertools
 from datetime import datetime, timedelta
 from typing import Iterable, List
@@ -48,6 +49,15 @@ class IntervalSchedule(Schedule):
     A schedule formed by adding `timedelta` increments to a start_date.
 
     IntervalSchedules only support intervals of one minute or greater.
+
+    NOTE: IntervalSchedules respect daylight saving time for intervals greater than 24 hours.
+    An hourly schedule will fire every UTC hour, even during daylight saving boundaries. This
+    means when clocks are set back, the interval schedule will appear to have two runs scheduled
+    for 1am local time, but these are actually 60 minutes apart. However, for longer intervals,
+    like a daily schedule, the interval schedule will adjust for daylight saving time boundaries
+    so that the clock-hour remains constant. A 9am schedule followed by a 24-hour interval will fire
+    at 9am the following day, even if a daylight saving boundary means the true interval
+    is 23 hours or 25 hours.
 
     Args:
         - start_date (datetime): first date of schedule
@@ -107,7 +117,7 @@ class IntervalSchedule(Schedule):
 
         for i in range(n):
             interval = self.interval * (skip + i)
-            # in order to handle daylight savings time boundries, we consider the interval
+            # in order to handle daylight saving time boundries, we consider the interval
             # "days" separate from "seconds"; this allows Pendulum DST logic to work
             days = interval.days
             seconds = interval.total_seconds() - (days * 24 * 60 * 60)
@@ -121,8 +131,15 @@ class IntervalSchedule(Schedule):
 
 class CronSchedule(Schedule):
     """
-    Cron scheduler. Note that this schedule operates entirely in UTC and has no notion of daylight
-    savings time.
+    Cron scheduler.
+
+    NOTE: the schedule will respect the timezone of its `start_date`, including daylight
+    savings time. CRON's rules for daylight saving time are based on clock times, not
+    elapsed times. For example, an hourly cron schedule will have a two hour pause when
+    clocks are set backward, because the schedule will fire *the first time* 1am is reached
+    and *the second time* 2am is reached, resulting in a 2 hour pause (but firing each clock
+    hour). This behavior is DIFFERENT from interval schedules, which observe elapsed times
+    for intervals of less than 24 hours over DST boundaries.
 
     Args:
         - cron (str): a valid cron string
@@ -153,11 +170,14 @@ class CronSchedule(Schedule):
         Returns:
             - list: list of next scheduled dates
         """
+        tz = getattr(self.start_date, "tz", "UTC")
         if after is None:
-            after = pendulum.now("utc")
+            after = pendulum.now(tz)
+        else:
+            after = pendulum.instance(after).in_tz(tz)
 
         # if there is a start date, advance to at least one second before the start (so that
-        # the start date itself will be registered as a value schedule date)
+        # the start date itself will be registered as a valid schedule date)
         if self.start_date is not None:
             after = max(after, self.start_date - timedelta(seconds=1))
 
@@ -165,15 +185,29 @@ class CronSchedule(Schedule):
         after = pendulum.instance(after)
         assert isinstance(after, pendulum.DateTime)  # mypy assertion
 
-        cron = croniter(self.cron, after.in_tz("utc"))
+        # croniter's DST logic interferes with all other datetime libraries except pytz
+        after_localized = pytz.timezone(after.tz.name).localize(
+            datetime(
+                year=after.year,
+                month=after.month,
+                day=after.day,
+                hour=after.hour,
+                minute=after.minute,
+                second=after.second,
+                microsecond=after.microsecond,
+            )
+        )
+        cron = croniter(self.cron, after_localized)
         dates = []
 
         for i in range(n):
             next_date = pendulum.instance(cron.get_next(datetime))
             # because of croniter's rounding behavior, we want to avoid
-            # issuing the after date
-            if next_date == after:
+            # issuing the after date; we also want to avoid duplicates caused by
+            # DST boundary issues
+            if next_date.in_tz("UTC") == after.in_tz("UTC") or next_date in dates:
                 next_date = pendulum.instance(cron.get_next(datetime))
+
             if self.end_date and next_date > self.end_date:
                 break
             dates.append(next_date)

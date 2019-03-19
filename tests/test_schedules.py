@@ -157,7 +157,7 @@ class TestIntervalScheduleDaylightSavingsTime:
     """
 
     @pytest.mark.parametrize("serialize", [True, False])
-    def test_interval_schedule_hourly_daylight_savings_time_forward_ignored_with_UTC(
+    def test_interval_schedule_hourly_daylight_savings_time_forward_with_UTC(
         self, serialize
     ):
         """
@@ -172,21 +172,6 @@ class TestIntervalScheduleDaylightSavingsTime:
         assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
         # constant hourly schedule in utc time
         assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
-
-    @pytest.mark.parametrize("serialize", [True, False])
-    def test_interval_schedule_hourly_daylight_savings_time_backward(self, serialize):
-        """
-        11/4/2018, at 2am, America/New_York switched clocks back an hour.
-        """
-        dt = pendulum.datetime(2018, 11, 3, 23, tz="America/New_York")
-        s = schedules.IntervalSchedule(dt, timedelta(hours=1))
-        if serialize:
-            s = ScheduleSchema().load(s.serialize())
-        next_4 = s.next(4, after=dt)
-        # repeat the 1am run in local time
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 1, 2]
-        # runs every hour UTC
-        assert [t.in_tz("UTC").hour for t in next_4] == [4, 5, 6, 7]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_schedule_hourly_daylight_savings_time_forward(self, serialize):
@@ -353,6 +338,96 @@ class TestCronSchedule:
         start_date = pendulum.datetime(2018, 1, 1)
         s = schedules.CronSchedule(start_date=start_date, cron="0 0 * * *")
         assert s.next(-3) == []
+
+
+class TestCronScheduleDaylightSavingsTime:
+    """
+    Tests that DST boundaries are respected and also serialized appropriately
+
+    If serialize = True, the schedule is serialized and deserialized to ensure that TZ info
+    survives.
+    """
+
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_cron_schedule_hourly_daylight_savings_time_forward_ignored_with_UTC(
+        self, serialize
+    ):
+        """
+        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
+        """
+        dt = pendulum.datetime(2018, 3, 10, 23, tz="America/New_York")
+        s = schedules.CronSchedule("0 * * * *", dt.in_tz("UTC"))
+        if serialize:
+            s = ScheduleSchema().load(s.serialize())
+
+        next_4 = s.next(4, after=dt)
+        # skip 2am
+        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        # constant hourly schedule in utc time
+        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_cron_schedule_hourly_daylight_savings_time_forward(self, serialize):
+        """
+        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
+        """
+        dt = pendulum.datetime(2018, 3, 10, 23, tz="America/New_York")
+        s = schedules.CronSchedule("0 * * * *", dt)
+        if serialize:
+            s = ScheduleSchema().load(s.serialize())
+        next_4 = s.next(4, after=dt)
+        # skip 2am
+        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        # constant hourly schedule in utc time
+        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_cron_schedule_hourly_daylight_savings_time_backward(self, serialize):
+        """
+        11/4/2018, at 2am, America/New_York switched clocks back an hour.
+        """
+        dt = pendulum.datetime(2018, 11, 3, 23, tz="America/New_York")
+        s = schedules.CronSchedule("0 * * * *", dt)
+        if serialize:
+            s = ScheduleSchema().load(s.serialize())
+        next_4 = s.next(4, after=dt)
+        # repeat the 1am run in local time
+        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 2, 3]
+        # runs every hour UTC
+        assert [t.in_tz("UTC").hour for t in next_4] == [4, 6, 7, 8]
+
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_cron_schedule_daily_start_daylight_savings_time_forward(self, serialize):
+        """
+        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
+
+        Confirm that a schedule for 9am America/New_York stays 9am through the switch.
+        """
+        dt = pendulum.datetime(2018, 3, 8, 9, tz="America/New_York")
+        s = schedules.CronSchedule("0 9 * * *", dt)
+        if serialize:
+            s = ScheduleSchema().load(s.serialize())
+        next_4 = s.next(4, after=dt)
+        # constant 9am start
+        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
+        # utc time shifts
+        assert [t.in_tz("UTC").hour for t in next_4] == [14, 14, 13, 13]
+
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_cron_schedule_daily_start_daylight_savings_time_backward(self, serialize):
+        """
+        On 11/4/2018, at 2am, America/New_York switched clocks back an hour.
+
+        Confirm that a schedule for 9am America/New_York stays 9am through the switch.
+        """
+        dt = pendulum.datetime(2018, 11, 1, 9, tz="America/New_York")
+        s = schedules.CronSchedule("0 9 * * *", dt)
+        if serialize:
+            s = ScheduleSchema().load(s.serialize())
+        next_4 = s.next(4, after=dt)
+        # constant 9am start
+        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
+        assert [t.in_tz("UTC").hour for t in next_4] == [13, 13, 14, 14]
 
 
 class TestOneTimeSchedule:
