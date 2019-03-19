@@ -108,6 +108,7 @@ workflows:
   run_all:
     jobs:
       - check_formatting
+      - test-vanilla-prefect
       - test-3.5
       - test-3.6
       - test-3.7
