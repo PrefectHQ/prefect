@@ -949,6 +949,15 @@ class TestFlowStateHandlers:
         # the flow changed state twice: Pending -> Running -> Success
         assert handler_results["Flow"] == 2
 
+    def test_flow_handlers_can_return_none(self):
+        flow_handler = MagicMock(side_effect=lambda t, o, n: None)
+        flow = Flow(name="test", state_handlers=[flow_handler])
+        flow_state = FlowRunner(flow=flow).run()
+        assert flow_state.is_successful()
+
+        # the flow changed state twice: Pending -> Running -> Success
+        assert flow_handler.call_count == 2
+
     def test_flow_on_failure_is_not_called(self):
         on_failure = MagicMock()
         flow = Flow(name="test", on_failure=on_failure, tasks=[Task()])
