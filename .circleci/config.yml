@@ -45,7 +45,7 @@ jobs:
 
       - run:
           name: Install testing packages
-          command: pip install pytest==3.10.1 pytest-env
+          command: pip install black pytest==3.10.1 pytest-env
 
       - run:
           name: Run tests
