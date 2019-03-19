@@ -14,6 +14,8 @@ Schedules may also have a `start_date` and `end_date`. Some schedules require on
 
 The most basic Prefect schedule is the `IntervalSchedule`. It takes a `start_date` and an `interval` and produces new runs on a regular basis.
 
+Prefect does not support sub-minute schedules.
+
 For example:
 
 ```python
