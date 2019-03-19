@@ -40,6 +40,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - `flow.serialize()` will always serialize its environment, regardless of `build` - [#696](https://github.com/PrefectHQ/prefect/issues/696)
 - `flow.deploy()` now raises an informative error if your container cannot deserialize the Flow - [#711](https://github.com/PrefectHQ/prefect/issues/711)
 - Add `_MetaState` as a parent class for states that modify other states - [#726](https://github.com/PrefectHQ/prefect/pull/726)
+- Add `flow` keyword argument to `Task.set_upstream()` and `Task.set_downstream()` - [#749](https://github.com/PrefectHQ/prefect/pull/749)
 
 ### Fixes
 
