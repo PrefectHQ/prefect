@@ -143,7 +143,7 @@ class TestSingleTaskRuns:
             execution_date="1999-09-20",
         )
 
-        with Flow(name="") as flow:
+        with Flow(name="xcom") as flow:
             res = puller(upstream_tasks=[push, push_by_returning])
 
         flow_state = flow.run()
