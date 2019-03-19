@@ -53,6 +53,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix issue with `JinjaTemplateTask` not being pickleable - [#710](https://github.com/PrefectHQ/prefect/pull/710)
 - Fix issue with creating secrets from JSON documents using the Core Client - [#715](https://github.com/PrefectHQ/prefect/pull/715)
 - Fix issue with deserialization of JSON secrets unnecessarily calling `json.loads` - [#716](https://github.com/PrefectHQ/prefect/pull/716)
+- Fix issue where `IntervalSchedules` didn't respect daylight savings time after serialization - [#729](https://github.com/PrefectHQ/prefect/pull/729)
 
 ### Breaking Changes
 
