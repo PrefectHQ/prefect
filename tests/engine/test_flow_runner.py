@@ -96,12 +96,12 @@ class SlowTask(Task):
 
 
 def test_flow_runner_has_logger():
-    r = FlowRunner(Flow())
+    r = FlowRunner(Flow(name="test"))
     assert r.logger.name == "prefect.FlowRunner"
 
 
 def test_flow_runner_runs_basic_flow_with_1_task():
-    flow = Flow()
+    flow = Flow(name="test")
     task = SuccessTask()
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
@@ -113,7 +113,7 @@ def test_flow_runner_with_no_return_tasks():
     """
     Make sure FlowRunner accepts return_tasks=None and doesn't raise early error
     """
-    flow = Flow()
+    flow = Flow(name="test")
     task = SuccessTask()
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
@@ -121,7 +121,7 @@ def test_flow_runner_with_no_return_tasks():
 
 
 def test_flow_runner_with_invalid_return_tasks():
-    flow = Flow()
+    flow = Flow(name="test")
     task = SuccessTask()
     flow.add_task(task)
     flow_runner = FlowRunner(flow=flow)
@@ -130,7 +130,7 @@ def test_flow_runner_with_invalid_return_tasks():
 
 
 def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = SuccessTask()
     task2 = SuccessTask()
 
@@ -144,7 +144,7 @@ def test_flow_runner_runs_basic_flow_with_2_independent_tasks():
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks():
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = SuccessTask()
     task2 = SuccessTask()
 
@@ -157,7 +157,7 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks():
 
 
 def test_flow_runner_runs_base_task_class():
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = Task()
     task2 = Task()
     flow.add_edge(task1, task2)
@@ -168,7 +168,7 @@ def test_flow_runner_runs_base_task_class():
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails():
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = ErrorTask()
     task2 = SuccessTask()
 
@@ -181,7 +181,7 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails
 
 
 def test_flow_runner_runs_flow_with_2_dependent_tasks_and_first_task_fails_and_second_has_trigger():
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = ErrorTask()
     task2 = SuccessTask(trigger=prefect.triggers.all_failed)
 
@@ -196,7 +196,7 @@ def test_flow_runner_runs_flow_with_2_dependent_tasks_and_first_task_fails_and_s
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails_with_FAIL():
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = RaiseFailTask()
     task2 = SuccessTask()
 
@@ -210,7 +210,7 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_first_task_fails
 
 
 def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fails():
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = SuccessTask()
     task2 = ErrorTask()
 
@@ -223,7 +223,7 @@ def test_flow_runner_runs_basic_flow_with_2_dependent_tasks_and_second_task_fail
 
 
 def test_flow_runner_does_not_return_task_states_when_it_doesnt_run():
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = SuccessTask()
     task2 = ErrorTask()
 
@@ -238,7 +238,7 @@ def test_flow_runner_does_not_return_task_states_when_it_doesnt_run():
 
 def test_flow_run_method_returns_task_states_even_if_it_doesnt_run():
     # https://github.com/PrefectHQ/prefect/issues/19
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = SuccessTask()
     task2 = ErrorTask()
 
@@ -252,7 +252,7 @@ def test_flow_run_method_returns_task_states_even_if_it_doesnt_run():
 
 def test_flow_runner_remains_running_if_tasks_are_retrying():
     # https://github.com/PrefectHQ/prefect/issues/19
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = SuccessTask()
     task2 = ErrorTask(max_retries=1, retry_delay=datetime.timedelta(0))
 
@@ -265,7 +265,7 @@ def test_flow_runner_remains_running_if_tasks_are_retrying():
 
 
 def test_flow_runner_doesnt_return_by_default():
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = SuccessTask()
     task2 = SuccessTask()
     flow.add_edge(task1, task2)
@@ -274,7 +274,7 @@ def test_flow_runner_doesnt_return_by_default():
 
 
 def test_flow_runner_does_return_tasks_when_requested():
-    flow = Flow()
+    flow = Flow(name="test")
     task1 = SuccessTask()
     task2 = SuccessTask()
     flow.add_edge(task1, task2)
@@ -284,7 +284,7 @@ def test_flow_runner_does_return_tasks_when_requested():
 
 
 def test_required_parameters_must_be_provided():
-    flow = Flow()
+    flow = Flow(name="test")
     y = prefect.Parameter("y")
     flow.add_task(y)
     flow_state = FlowRunner(flow=flow).run(return_tasks=[y])
@@ -294,7 +294,7 @@ def test_required_parameters_must_be_provided():
 
 
 def test_parameters_are_placed_into_context():
-    flow = Flow()
+    flow = Flow(name="test")
     y = prefect.Parameter("y", default=99)
     flow.add_task(y)
     flow_state = FlowRunner(flow=flow).run(return_tasks=[y], parameters=dict(y=42))
@@ -303,7 +303,7 @@ def test_parameters_are_placed_into_context():
 
 
 def test_parameters_are_placed_into_context_and_override_current_context():
-    flow = Flow()
+    flow = Flow(name="test")
     y = prefect.Parameter("y", default=99)
     flow.add_task(y)
     with prefect.context(parameters=dict(y=88, z=55)):
@@ -313,7 +313,7 @@ def test_parameters_are_placed_into_context_and_override_current_context():
 
 
 def test_flow_run_state_determined_by_reference_tasks():
-    flow = Flow()
+    flow = Flow(name="test")
     t1 = ErrorTask()
     t2 = SuccessTask(trigger=prefect.triggers.all_finished)
     flow.add_edge(t1, t2)
@@ -326,7 +326,7 @@ def test_flow_run_state_determined_by_reference_tasks():
 
 
 def test_flow_run_state_not_determined_by_reference_tasks_if_terminal_tasks_are_not_finished():
-    flow = Flow()
+    flow = Flow(name="test")
     t1 = ErrorTask()
     t2 = RaiseRetryTask(trigger=prefect.triggers.all_finished)
     flow.add_edge(t1, t2)
@@ -349,7 +349,7 @@ def test_flow_with_multiple_retry_tasks_doesnt_run_them_early():
 
     This tests a check on the TaskRunner, but which matters in Flows like this.
     """
-    flow = Flow()
+    flow = Flow(name="test")
     t1 = Task()
     t2 = ErrorTask(retry_delay=datetime.timedelta(minutes=10), max_retries=1)
     t3 = ErrorTask(retry_delay=datetime.timedelta(minutes=0), max_retries=1)
@@ -374,7 +374,7 @@ def test_flow_runner_makes_copy_of_task_results_dict():
     """
     Ensure the flow runner copies the task_results dict rather than modifying it inplace
     """
-    flow = Flow()
+    flow = Flow(name="test")
     t1, t2 = Task(), Task()
     flow.add_edge(t1, t2)
 
@@ -387,13 +387,13 @@ def test_flow_runner_makes_copy_of_task_results_dict():
 class TestCheckFlowPendingOrRunning:
     @pytest.mark.parametrize("state", [Pending(), Running(), Retrying(), Scheduled()])
     def test_pending_or_running_are_ok(self, state):
-        flow = Flow(tasks=[Task()])
+        flow = Flow(name="test", tasks=[Task()])
         new_state = FlowRunner(flow=flow).check_flow_is_pending_or_running(state=state)
         assert new_state is state
 
     @pytest.mark.parametrize("state", [Finished(), Success(), Failed(), Skipped()])
     def test_not_pending_or_running_raise_endrun(self, state):
-        flow = Flow(tasks=[Task()])
+        flow = Flow(name="test", tasks=[Task()])
         with pytest.raises(ENDRUN):
             FlowRunner(flow=flow).check_flow_is_pending_or_running(state=state)
 
@@ -402,13 +402,19 @@ class TestCheckScheduledStep:
     @pytest.mark.parametrize("state", [Failed(), Pending(), Running(), Success()])
     def test_non_scheduled_states(self, state):
         assert (
-            FlowRunner(flow=Flow()).check_flow_reached_start_time(state=state) is state
+            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(
+                state=state
+            )
+            is state
         )
 
     def test_scheduled_states_without_start_time(self):
         state = Scheduled(start_time=None)
         assert (
-            FlowRunner(flow=Flow()).check_flow_reached_start_time(state=state) is state
+            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(
+                state=state
+            )
+            is state
         )
 
     def test_scheduled_states_with_future_start_time(self):
@@ -416,7 +422,9 @@ class TestCheckScheduledStep:
             start_time=pendulum.now("utc") + datetime.timedelta(minutes=10)
         )
         with pytest.raises(ENDRUN) as exc:
-            FlowRunner(flow=Flow()).check_flow_reached_start_time(state=state)
+            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(
+                state=state
+            )
         assert exc.value.state is state
 
     def test_scheduled_states_with_past_start_time(self):
@@ -424,33 +432,36 @@ class TestCheckScheduledStep:
             start_time=pendulum.now("utc") - datetime.timedelta(minutes=1)
         )
         assert (
-            FlowRunner(flow=Flow()).check_flow_reached_start_time(state=state) is state
+            FlowRunner(flow=Flow(name="test")).check_flow_reached_start_time(
+                state=state
+            )
+            is state
         )
 
 
 class TestSetFlowToRunning:
     @pytest.mark.parametrize("state", [Pending(), Retrying()])
     def test_pending_becomes_running(self, state):
-        flow = Flow(tasks=[Task()])
+        flow = Flow(name="test", tasks=[Task()])
         new_state = FlowRunner(flow=flow).set_flow_to_running(state=state)
         assert new_state.is_running()
 
     def test_running_stays_running(self):
         state = Running()
-        flow = Flow(tasks=[Task()])
+        flow = Flow(name="test", tasks=[Task()])
         new_state = FlowRunner(flow=flow).set_flow_to_running(state=state)
         assert new_state.is_running()
 
     @pytest.mark.parametrize("state", [Finished(), Success(), Failed(), Skipped()])
     def test_other_states_raise_endrun(self, state):
-        flow = Flow(tasks=[Task()])
+        flow = Flow(name="test", tasks=[Task()])
         with pytest.raises(ENDRUN):
             FlowRunner(flow=flow).set_flow_to_running(state=state)
 
 
 class TestRunFlowStep:
     def test_running_state_finishes(self):
-        flow = Flow(tasks=[Task()])
+        flow = Flow(name="test", tasks=[Task()])
         new_state = FlowRunner(flow=flow).get_flow_run_state(
             state=Running(),
             task_states={},
@@ -465,7 +476,7 @@ class TestRunFlowStep:
         "state", [Pending(), Retrying(), Finished(), Success(), Failed(), Skipped()]
     )
     def test_other_states_raise_endrun(self, state):
-        flow = Flow(tasks=[Task()])
+        flow = Flow(name="test", tasks=[Task()])
         with pytest.raises(ENDRUN):
             FlowRunner(flow=flow).get_flow_run_state(
                 state=state,
@@ -481,7 +492,7 @@ class TestRunFlowStep:
             def determine_final_state(self, *args, **kwargs):
                 return Failed("Very specific error message")
 
-        flow = Flow(tasks=[Task()])
+        flow = Flow(name="test", tasks=[Task()])
         new_state = MyFlowRunner(flow=flow).get_flow_run_state(
             state=Running(),
             task_states={},
@@ -499,7 +510,7 @@ class TestInputCaching:
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_retries_use_cached_inputs(self, executor):
-        with Flow() as f:
+        with Flow(name="test") as f:
             a = CountTask()
             b = ReturnTask(max_retries=1, retry_delay=datetime.timedelta(0))
             a_res = a()
@@ -526,7 +537,7 @@ class TestInputCaching:
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_retries_cache_parameters_as_well(self, executor):
-        with Flow() as f:
+        with Flow(name="test") as f:
             a = Parameter("a")
             b = ReturnTask(max_retries=1, retry_delay=datetime.timedelta(0))
             a_res = a()
@@ -557,7 +568,7 @@ class TestInputCaching:
     def test_retries_ignore_cached_inputs_if_upstream_results_are_available(
         self, executor
     ):
-        with Flow() as f:
+        with Flow(name="test") as f:
             a = CountTask()
             b = ReturnTask(max_retries=1, retry_delay=datetime.timedelta(0))
             a_res = a()
@@ -582,7 +593,7 @@ class TestInputCaching:
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_manual_only_trigger_caches_inputs(self, executor):
-        with Flow() as f:
+        with Flow(name="test") as f:
             x = Parameter("x")
             inp = SuccessTask()
             t = AddTask(trigger=manual_only)
@@ -618,7 +629,7 @@ class TestOutputCaching:
                 self.call_count += 1
                 return self.call_count
 
-        with Flow() as f:
+        with Flow(name="test") as f:
             y = TestTask(
                 cache_validator=duration_only, cache_for=datetime.timedelta(days=1)
             )
@@ -643,14 +654,14 @@ class TestOutputCaching:
 
 class TestInitializeRun:
     def test_initialize_sets_none_to_pending(self):
-        result = FlowRunner(Flow()).initialize_run(
+        result = FlowRunner(Flow(name="test")).initialize_run(
             state=None, task_states={}, context={}, task_contexts={}, parameters={}
         )
         assert result.state.is_pending()
 
     @pytest.mark.parametrize("state", [Pending(), Running()])
     def test_initialize_returns_state_if_provided(self, state):
-        result = FlowRunner(Flow()).initialize_run(
+        result = FlowRunner(Flow(name="test")).initialize_run(
             state=state, task_states={}, context={}, task_contexts={}, parameters={}
         )
         assert result.state is state
@@ -658,7 +669,7 @@ class TestInitializeRun:
     def test_initialize_sets_task_contexts(self):
         t1 = Task(name="t1")
         t2 = Parameter(name="x")
-        flow = Flow(tasks=[t1, t2])
+        flow = Flow(name="test", tasks=[t1, t2])
 
         result = FlowRunner(flow).initialize_run(
             state=Pending(), task_states={}, context={}, task_contexts={}, parameters={}
@@ -670,7 +681,7 @@ class TestInitializeRun:
 
     def test_initialize_puts_parameters_in_context(self):
         x = Parameter(name="x")
-        flow = Flow(tasks=[x])
+        flow = Flow(name="test", tasks=[x])
 
         result = FlowRunner(flow).initialize_run(
             state=Pending(),
@@ -683,7 +694,7 @@ class TestInitializeRun:
 
     def test_parameter_precedance(self):
         x = Parameter(name="x")
-        flow = Flow(tasks=[x])
+        flow = Flow(name="test", tasks=[x])
 
         result = FlowRunner(flow).initialize_run(
             state=Pending(),
@@ -697,7 +708,7 @@ class TestInitializeRun:
 
 class TestRunCount:
     def test_run_count_updates_after_each_retry(self):
-        flow = Flow()
+        flow = Flow(name="test")
         t1 = ErrorTask(max_retries=2, retry_delay=datetime.timedelta(0))
         flow.add_task(t1)
 
@@ -710,7 +721,7 @@ class TestRunCount:
         assert state2.result[t1].run_count == 2
 
     def test_run_count_tracked_via_retry_states(self):
-        flow = Flow()
+        flow = Flow(name="test")
         t1 = ErrorTask(max_retries=1, retry_delay=datetime.timedelta(0))
         t2 = ErrorTask(max_retries=2, retry_delay=datetime.timedelta(0))
         flow.add_task(t1)
@@ -744,7 +755,7 @@ class TestRunCount:
 
 def test_flow_runner_uses_user_provided_executor():
     t = SuccessTask()
-    with Flow() as f:
+    with Flow(name="test") as f:
         result = t()
     with raise_on_exception():
         with pytest.raises(NotImplementedError):
@@ -759,7 +770,7 @@ def test_flow_runner_captures_and_exposes_dask_errors(executor):
     def put():
         q.put(55)
 
-    f = Flow(tasks=[put])
+    f = Flow(name="test", tasks=[put])
     state = f.run(executor=executor)
 
     assert state.is_failed()
@@ -783,7 +794,7 @@ def test_flow_runner_allows_for_parallelism_with_prints(capsys, executor):
         for _ in range(75):
             print("bob")
 
-    with Flow() as flow:
+    with Flow(name="test") as flow:
         alice(), bob()
 
     state = flow.run(executor=executor)
@@ -815,7 +826,7 @@ def test_flow_runner_allows_for_parallelism_with_times(executor):
             res.append(time.time())
         return res
 
-    with Flow() as flow:
+    with Flow(name="test") as flow:
         a, b = record_times(), record_times()
 
     state = flow.run(executor=executor, return_tasks=[a, b])
@@ -866,7 +877,7 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
 def test_flow_runner_handles_timeouts(executor):
     sleeper = SlowTask(timeout=1)
 
-    with Flow() as flow:
+    with Flow(name="test") as flow:
         res = sleeper(3)
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
@@ -880,7 +891,7 @@ def test_flow_runner_handles_timeout_error_with_mproc(mproc):
     "daemonic processes are not allowed to have children"
     sleeper = SlowTask(timeout=1)
 
-    with Flow() as flow:
+    with Flow(name="test") as flow:
         res = sleeper(3)
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=mproc)
@@ -892,7 +903,7 @@ def test_flow_runner_handles_timeout_error_with_mproc(mproc):
 def test_flow_runner_handles_mapped_timeouts(executor):
     sleeper = SlowTask(timeout=1)
 
-    with Flow() as flow:
+    with Flow(name="test") as flow:
         res = sleeper.map([0, 2, 3])
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
@@ -933,27 +944,27 @@ def flow_runner_handler(flow_runner, old_state, new_state):
 
 class TestFlowStateHandlers:
     def test_flow_handlers_are_called(self):
-        flow = Flow(state_handlers=[flow_handler])
+        flow = Flow(name="test", state_handlers=[flow_handler])
         FlowRunner(flow=flow).run()
         # the flow changed state twice: Pending -> Running -> Success
         assert handler_results["Flow"] == 2
 
     def test_flow_on_failure_is_not_called(self):
         on_failure = MagicMock()
-        flow = Flow(on_failure=on_failure, tasks=[Task()])
+        flow = Flow(name="test", on_failure=on_failure, tasks=[Task()])
         FlowRunner(flow=flow).run()
         assert not on_failure.called
 
     def test_task_on_failure_is_called(self):
         on_failure = MagicMock()
-        flow = Flow(tasks=[ErrorTask()], on_failure=on_failure)
+        flow = Flow(name="test", tasks=[ErrorTask()], on_failure=on_failure)
         FlowRunner(flow=flow).run()
         assert on_failure.call_count == 1
         assert on_failure.call_args[0][0] is flow
         assert on_failure.call_args[0][1].is_failed()
 
     def test_multiple_flow_handlers_are_called(self):
-        flow = Flow(state_handlers=[flow_handler, flow_handler])
+        flow = Flow(name="test", state_handlers=[flow_handler, flow_handler])
         FlowRunner(flow=flow).run()
         # each flow changed state twice: Pending -> Running -> Success
         assert handler_results["Flow"] == 4
@@ -962,13 +973,13 @@ class TestFlowStateHandlers:
         # the second flow handler will assert the result of the first flow handler is a state
         # and raise an error, as long as the flow_handlers are called in sequence on the
         # previous result
-        flow = Flow(state_handlers=[lambda *a: None, flow_handler])
+        flow = Flow(name="test", state_handlers=[lambda *a: None, flow_handler])
         with pytest.raises(AssertionError):
             with prefect.utilities.debug.raise_on_exception():
                 FlowRunner(flow=flow).run()
 
     def test_task_handler_that_doesnt_return_state(self):
-        flow = Flow(state_handlers=[lambda *a: None])
+        flow = Flow(name="test", state_handlers=[lambda *a: None])
         # raises an attribute error because it tries to access a property of the state that
         # doesn't exist on None
         with pytest.raises(AttributeError):
@@ -978,13 +989,14 @@ class TestFlowStateHandlers:
 
 class TestFlowRunnerStateHandlers:
     def test_task_runner_handlers_are_called(self):
-        FlowRunner(flow=Flow(), state_handlers=[flow_runner_handler]).run()
+        FlowRunner(flow=Flow(name="test"), state_handlers=[flow_runner_handler]).run()
         # the flow changed state twice: Pending -> Running -> Success
         assert handler_results["FlowRunner"] == 2
 
     def test_multiple_task_runner_handlers_are_called(self):
         FlowRunner(
-            flow=Flow(), state_handlers=[flow_runner_handler, flow_runner_handler]
+            flow=Flow(name="test"),
+            state_handlers=[flow_runner_handler, flow_runner_handler],
         ).run()
         # each flow changed state twice: Pending -> Running -> Success
         assert handler_results["FlowRunner"] == 4
@@ -996,7 +1008,8 @@ class TestFlowRunnerStateHandlers:
         with pytest.raises(AssertionError):
             with prefect.utilities.debug.raise_on_exception():
                 FlowRunner(
-                    flow=Flow(), state_handlers=[lambda *a: None, flow_runner_handler]
+                    flow=Flow(name="test"),
+                    state_handlers=[lambda *a: None, flow_runner_handler],
                 ).run()
 
     def test_task_runner_handler_that_doesnt_return_state(self):
@@ -1004,13 +1017,15 @@ class TestFlowRunnerStateHandlers:
         # doesn't exist on None
         with pytest.raises(AttributeError):
             with prefect.utilities.debug.raise_on_exception():
-                FlowRunner(flow=Flow(), state_handlers=[lambda *a: None]).run()
+                FlowRunner(
+                    flow=Flow(name="test"), state_handlers=[lambda *a: None]
+                ).run()
 
     def test_task_handler_that_raises_signal_is_trapped(self):
         def handler(flow, old, new):
             raise signals.FAIL()
 
-        flow = Flow(state_handlers=[handler])
+        flow = Flow(name="test", state_handlers=[handler])
         state = FlowRunner(flow=flow).run()
         assert state.is_failed()
 
@@ -1018,7 +1033,7 @@ class TestFlowRunnerStateHandlers:
         def handler(flow, old, new):
             1 / 0
 
-        flow = Flow(state_handlers=[handler])
+        flow = Flow(name="test", state_handlers=[handler])
         state = FlowRunner(flow=flow).run()
         assert state.is_failed()
 
@@ -1026,7 +1041,7 @@ class TestFlowRunnerStateHandlers:
 def test_improper_use_of_unmapped_fails_gracefully():
     add = AddTask()
     x = Parameter("x", default=[1, 2, 3])
-    with Flow() as f:
+    with Flow(name="test") as f:
         res = add.map(x, y=8)  # incorrect, should use `unmapped`
 
     state = FlowRunner(flow=f).run(return_tasks=f.tasks)
@@ -1052,7 +1067,7 @@ def test_all_pipeline_method_steps_are_called():
         "get_flow_run_state",
     ]
 
-    runner = FlowRunner(Flow())
+    runner = FlowRunner(Flow(name="test"))
 
     for method in pipeline:
         setattr(runner, method, MagicMock())
@@ -1075,7 +1090,7 @@ def test_endrun_raised_in_initialize_is_caught_correctly():
         def initialize_run(self, *args, **kwargs):
             raise ENDRUN(state=Pending())
 
-    res = BadInitializeRunner(Flow()).run()
+    res = BadInitializeRunner(Flow(name="test")).run()
     assert res.is_pending()
 
 
@@ -1098,21 +1113,21 @@ def test_flow_run_uses_default_flow_runner(monkeypatch):
         {"engine.flow_runner.default_class": "prefect.engine.x"}
     ):
         with pytest.warns(UserWarning):
-            Flow().run()
+            Flow(name="test").run()
 
     assert x.call_count == 1
 
 
 def test_parameters_can_be_set_in_context_if_none_passed():
     x = prefect.Parameter("x")
-    f = FlowRunner(Flow(tasks=[x]))
+    f = FlowRunner(Flow(name="test", tasks=[x]))
     state = f.run(parameters={}, context={"parameters": {"x": 5}}, return_tasks=[x])
     assert state.result[x].result == 5
 
 
 def test_parameters_overwrite_context():
     x = prefect.Parameter("x")
-    f = FlowRunner(Flow(tasks=[x]))
+    f = FlowRunner(Flow(name="test", tasks=[x]))
     state = f.run(
         parameters={"x": 2}, context={"parameters": {"x": 5}}, return_tasks=[x]
     )
@@ -1122,7 +1137,7 @@ def test_parameters_overwrite_context():
 def test_parameters_overwrite_context_only_if_key_matches():
     x = prefect.Parameter("x")
     y = prefect.Parameter("y")
-    f = FlowRunner(Flow(tasks=[x, y]))
+    f = FlowRunner(Flow(name="test", tasks=[x, y]))
     state = f.run(
         parameters={"x": 2},
         context={"parameters": {"x": 5, "y": 6}},
@@ -1132,14 +1147,14 @@ def test_parameters_overwrite_context_only_if_key_matches():
 
 def test_parameters_can_be_set_in_context_if_none_passed():
     x = prefect.Parameter("x")
-    f = FlowRunner(Flow(tasks=[x]))
+    f = FlowRunner(Flow(name="test", tasks=[x]))
     state = f.run(parameters={}, context={"parameters": {"x": 5}}, return_tasks=[x])
     assert state.result[x].result == 5
 
 
 def test_parameters_overwrite_context():
     x = prefect.Parameter("x")
-    f = FlowRunner(Flow(tasks=[x]))
+    f = FlowRunner(Flow(name="test", tasks=[x]))
     state = f.run(
         parameters={"x": 2}, context={"parameters": {"x": 5}}, return_tasks=[x]
     )
@@ -1149,7 +1164,7 @@ def test_parameters_overwrite_context():
 def test_parameters_overwrite_context_only_if_key_matches():
     x = prefect.Parameter("x")
     y = prefect.Parameter("y")
-    f = FlowRunner(Flow(tasks=[x, y]))
+    f = FlowRunner(Flow(name="test", tasks=[x, y]))
     state = f.run(
         parameters={"x": 2},
         context={"parameters": {"x": 5, "y": 6}},
@@ -1165,7 +1180,7 @@ class TestMapping:
     )
     def test_terminal_mapped_states_are_used_for_flow_state(self, executor):
 
-        with Flow() as flow:
+        with Flow(name="test") as flow:
             res = ReturnTask().map([0, 1])
         state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
         assert state.is_failed()
@@ -1177,7 +1192,7 @@ class TestMapping:
     )
     def test_mapped_will_use_existing_map_states_if_available(self, executor):
 
-        with Flow() as flow:
+        with Flow(name="test") as flow:
             res = ReturnTask().map([0, 1])
 
         state = FlowRunner(flow=flow).run(
@@ -1194,7 +1209,7 @@ class TestMapping:
     )
     def test_mapped_will_use_partial_existing_map_states_if_available(self, executor):
 
-        with Flow() as flow:
+        with Flow(name="test") as flow:
             res = ReturnTask().map([1, 1])
 
         state = FlowRunner(flow=flow).run(
@@ -1212,7 +1227,7 @@ class TestMapping:
     )
     def test_mapped_will_use_partial_existing_map_states_if_incomplete(self, executor):
 
-        with Flow() as flow:
+        with Flow(name="test") as flow:
             res = ReturnTask().map([1, 1])
 
         state = FlowRunner(flow=flow).run(
@@ -1230,7 +1245,7 @@ class TestMapping:
     )
     def test_mapped_tasks_dont_run_if_upstream_pending(self, executor):
 
-        with Flow() as flow:
+        with Flow(name="test") as flow:
             ups = SuccessTask()
             res = ReturnTask().map([ups])
 
@@ -1248,7 +1263,7 @@ class TestMapping:
     )
     def test_mapped_task_can_be_scheduled(self, executor):
 
-        with Flow() as flow:
+        with Flow(name="test") as flow:
             res = ReturnTask().map([0, 0])
 
         state = FlowRunner(flow=flow).run(
@@ -1263,7 +1278,7 @@ class TestMapping:
     )
     def test_mapped_task_can_be_scheduled_for_future(self, executor):
 
-        with Flow() as flow:
+        with Flow(name="test") as flow:
             res = ReturnTask().map([0, 0])
 
         state = FlowRunner(flow=flow).run(
@@ -1280,7 +1295,7 @@ def test_task_contexts_are_provided_to_tasks():
     def return_context():
         return prefect.context.to_dict()
 
-    with Flow() as flow:
+    with Flow(name="test") as flow:
         rc = return_context()
     state = FlowRunner(flow=flow).run(return_tasks=[rc])
     ctx = state.result[rc].result
@@ -1292,7 +1307,7 @@ def test_task_contexts_are_provided_to_tasks():
 
 def test_paused_tasks_stay_paused_when_run():
     t = Task()
-    f = Flow(tasks=[t])
+    f = Flow(name="test", tasks=[t])
 
     state = FlowRunner(flow=f).run(task_states={t: Paused()}, return_tasks=[t])
     assert state.is_running()
@@ -1305,7 +1320,7 @@ class TestContext:
         def return_scheduled_start_time():
             return prefect.context.get("scheduled_start_time")
 
-        f = Flow(tasks=[return_scheduled_start_time])
+        f = Flow(name="test", tasks=[return_scheduled_start_time])
         res = f.run()
 
         assert res.is_successful()
@@ -1319,7 +1334,7 @@ class TestContext:
         def return_scheduled_start_time():
             return prefect.context.get("scheduled_start_time")
 
-        f = Flow(tasks=[return_scheduled_start_time])
+        f = Flow(name="test", tasks=[return_scheduled_start_time])
         res = f.run(context=dict(scheduled_start_time=42))
 
         assert res.is_successful()
@@ -1334,7 +1349,7 @@ class TestContext:
         def return_ctx_key():
             return prefect.context.get(date)
 
-        f = Flow(tasks=[return_ctx_key])
+        f = Flow(name="test", tasks=[return_ctx_key])
         res = f.run()
 
         assert res.is_successful()
@@ -1349,7 +1364,7 @@ class TestContext:
         def return_ctx_key():
             return prefect.context.get(date)
 
-        f = Flow(tasks=[return_ctx_key])
+        f = Flow(name="test", tasks=[return_ctx_key])
         res = f.run()
 
         assert res.is_successful()
@@ -1363,7 +1378,7 @@ class TestContext:
         def return_ctx_key():
             return prefect.context.get("date")
 
-        f = Flow(tasks=[return_ctx_key])
+        f = Flow(name="test", tasks=[return_ctx_key])
         res = f.run()
 
         assert res.is_successful()
@@ -1376,7 +1391,7 @@ class TestContext:
         def return_ctx_key():
             return prefect.context.get("date")
 
-        f = Flow(tasks=[return_ctx_key])
+        f = Flow(name="test", tasks=[return_ctx_key])
         res = f.run(context={"date": "42"})
 
         assert res.is_successful()
