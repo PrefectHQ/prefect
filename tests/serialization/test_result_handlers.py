@@ -1,6 +1,6 @@
 import pytest
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from prefect.client import Client
 from prefect.engine.cloud.result_handler import CloudResultHandler
@@ -86,13 +86,12 @@ class TestCloudResultHandler:
         assert obj._client is None
 
 
+@pytest.mark.xfail(raises=ImportError)
 class TestGCSResultHandler:
     @pytest.fixture
     def google_client(self, monkeypatch):
-        monkeypatch.setattr(
-            "prefect.engine.result_handlers.gcs_result_handler.storage", MagicMock()
-        )
-        yield
+        with patch.dict("sys.modules", {"google.cloud.storage": MagicMock()}):
+            yield
 
     def test_serialize(self, google_client):
         handler = GCSResultHandler(bucket="my-bucket")
