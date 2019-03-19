@@ -256,44 +256,51 @@ class TestInputsOutputs:
             assert self.mult(x=1).outputs() == int
 
 
-def test_copy_copies():
-    class CopyTask(Task):
-        class_attr = 42
+class TestTaskCopy:
+    def test_copy_copies(self):
+        class CopyTask(Task):
+            class_attr = 42
 
-        def __init__(self, instance_val, **kwargs):
-            self.instance_val = instance_val
-            super().__init__(**kwargs)
+            def __init__(self, instance_val, **kwargs):
+                self.instance_val = instance_val
+                super().__init__(**kwargs)
 
-        def run(self, run_val):
-            return (run_val, self.class_attr, self.instance_val)
+            def run(self, run_val):
+                return (run_val, self.class_attr, self.instance_val)
 
-    ct = CopyTask("username")
-    other = ct.copy()
-    assert isinstance(other, CopyTask)
-    assert ct is not other
-    assert hash(ct) != hash(other)
-    assert ct != other
-    assert other.run("pass") == ("pass", 42, "username")
+        ct = CopyTask("username")
+        other = ct.copy()
+        assert isinstance(other, CopyTask)
+        assert ct is not other
+        assert hash(ct) != hash(other)
+        assert ct != other
+        assert other.run("pass") == ("pass", 42, "username")
 
-
-def test_copy_warns_if_dependencies_in_active_flow():
-    t1 = Task()
-    t2 = Task()
-
-    with Flow(name="test"):
-        t1.set_dependencies(downstream_tasks=[t2])
-        with pytest.warns(UserWarning):
-            t1.copy()
+    def test_copy_warns_if_dependencies_in_active_flow(self):
+        t1 = Task()
+        t2 = Task()
 
         with Flow(name="test"):
-            # no dependencies in this flow
-            t1.copy()
+            t1.set_dependencies(downstream_tasks=[t2])
+            with pytest.warns(UserWarning):
+                t1.copy()
 
+            with Flow(name="test"):
+                # no dependencies in this flow
+                t1.copy()
 
-def test_copy_changes_id():
-    t1 = Task()
-    t2 = t1.copy()
-    assert t1.id != t2.id
+    def test_copy_changes_id(self):
+        t1 = Task()
+        t2 = t1.copy()
+        assert t1.id != t2.id
+
+    def test_copy_accepts_task_args(self):
+        t = Task()
+        t2 = t.copy(name="new-task")
+        t3 = t.copy(**{"max_retries": 4200})
+
+        assert t2.name == "new-task"
+        assert t3.max_retries == 4200
 
 
 def test_task_has_id():
@@ -386,3 +393,41 @@ class TestSerialization:
         assert p2.name == p.name
         assert p2.required == p.required
         assert p2.default == p.default
+
+
+class TestTaskArgs:
+    def test_task_args_raises_for_non_attrs(self):
+        t = Task()
+        with Flow(name="test") as f:
+            with pytest.raises(AttributeError) as exc:
+                res = t(task_args={"foo": "bar"})
+
+        assert "foo" in str(exc.value)
+
+    @pytest.mark.parametrize(
+        "attr,val",
+        [
+            ("name", "foo-bar"),
+            ("slug", "foo-bar"),
+            ("max_retries", 4200),
+            ("retry_delay", timedelta(seconds=1)),
+            ("timeout", 12),
+            ("skip_on_upstream_skip", False),
+            ("cache_for", timedelta(seconds=1)),
+        ],
+    )
+    def test_task_args_sets_new_attrs(self, attr, val):
+        t = Task()
+        with Flow(name="test") as f:
+            res = t(task_args={attr: val})
+
+        assert getattr(f.tasks.pop(), attr) == val
+
+    def test_tags_are_appended_to_when_updating_with_task_args(self):
+        t = AddTask(tags=["math"])
+
+        with prefect.context(tags=["test"]):
+            with Flow(name="test"):
+                t2 = t(1, 2, task_args={"name": "test-tags", "tags": ["new-tag"]})
+
+        assert t2.tags == {"math", "test", "new-tag"}

@@ -291,10 +291,20 @@ class Task(metaclass=SignatureValidator):
             )
 
         new = copy.copy(self)
+
+        # check task_args
+        for attr, val in task_args.items():
+            if not hasattr(new, attr):
+                raise AttributeError(
+                    "Tasks do not have {} as an attribute".format(attr)
+                )
+            else:
+                setattr(new, attr, val)
+
         # assign new id
         new.id = str(uuid.uuid4())
 
-        new.tags = copy.deepcopy(self.tags)
+        new.tags = copy.deepcopy(self.tags).union(set(new.tags))
         tags = set(prefect.context.get("tags", set()))
         new.tags.update(tags)
 
@@ -329,14 +339,8 @@ class Task(metaclass=SignatureValidator):
         Returns:
             - Task: a new Task instance
         """
-        new = self.copy()
-        new.bind(
-            *args,
-            mapped=mapped,
-            task_args=task_args,
-            upstream_tasks=upstream_tasks,
-            **kwargs
-        )
+        new = self.copy(**(task_args or {}))
+        new.bind(*args, mapped=mapped, upstream_tasks=upstream_tasks, **kwargs)
         return new
 
     def bind(

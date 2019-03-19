@@ -17,6 +17,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - `flow.run` is now a blocking call which will run the Flow, on its schedule, and execute full state-based execution (including retries) - [#690](https://github.com/PrefectHQ/prefect/issues/690)
 - Pre-populate `prefect.context` with various formatted date strings during execution - [#704](https://github.com/PrefectHQ/prefect/pull/704)
 - Add `AirflowTask` and `AirflowTriggerDAG` tasks to the task library for running individual Airflow tasks / DAGs - [#735](https://github.com/PrefectHQ/prefect/issues/735)
+- Add ability to overwrite task attributes such as "name" when calling tasks in the functional API - [#717](https://github.com/PrefectHQ/prefect/issues/717)
 
 ### Enhancements
 
