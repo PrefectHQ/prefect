@@ -113,7 +113,7 @@ class IntervalSchedule(Schedule):
         else:
             skip = int(skip + 1)
 
-        dates = []
+        dates = []  # type: List[datetime]
 
         for i in range(n):
             interval = self.interval * (skip + i)
@@ -198,7 +198,7 @@ class CronSchedule(Schedule):
             )
         )
         cron = croniter(self.cron, after_localized)
-        dates = []
+        dates = []  # type: List[datetime]
 
         for i in range(n):
             next_date = pendulum.instance(cron.get_next(datetime))
