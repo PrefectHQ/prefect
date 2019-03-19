@@ -69,6 +69,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Remove support for Python 3.4 - [#671](https://github.com/PrefectHQ/prefect/issues/671)
 - `flow.run` is now a blocking call which will run the Flow, on its schedule, and execute full state-based execution (including retries) - [#690](https://github.com/PrefectHQ/prefect/issues/690)
 - Remove `make_return_failed_handler` as `flow.run` now returns all task states - [#693](https://github.com/PrefectHQ/prefect/pull/693)
+- `name` is now required on all Flow objects - [#732](https://github.com/PrefectHQ/prefect/pull/732)
 
 ## 0.4.1 <Badge text="beta" type="success"/>
 

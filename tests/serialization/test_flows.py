@@ -13,10 +13,6 @@ def test_serialize_empty_dict():
     assert FlowSchema().dump({})
 
 
-def test_deserialize_empty_dict():
-    assert isinstance(FlowSchema().load({}), Flow)
-
-
 def test_serialize_flow():
     serialized = FlowSchema().dump(Flow(name="n"))
     assert serialized["name"] == "n"
@@ -33,7 +29,7 @@ def test_deserialize_flow_subclass_is_flow_but_not_flow_subclass():
     class NewFlow(Flow):
         pass
 
-    serialized = FlowSchema().dump(NewFlow())
+    serialized = FlowSchema().dump(NewFlow(name="test"))
     assert serialized["type"].endswith("<locals>.NewFlow")
 
     deserialized = FlowSchema().load(serialized)
@@ -43,14 +39,14 @@ def test_deserialize_flow_subclass_is_flow_but_not_flow_subclass():
 
 def test_deserialize_schedule():
     schedule = prefect.schedules.CronSchedule("0 0 * * *")
-    f = Flow(schedule=schedule)
+    f = Flow(name="test", schedule=schedule)
     serialized = FlowSchema().dump(f)
     deserialized = FlowSchema().load(serialized)
     assert deserialized.schedule.next(5) == f.schedule.next(5)
 
 
 def test_deserialize_id():
-    f = Flow()
+    f = Flow(name="test")
     serialized = FlowSchema().dump(f)
     deserialized = FlowSchema().load(serialized)
     assert deserialized.id == f.id
@@ -58,7 +54,7 @@ def test_deserialize_id():
 
 def test_deserialize_tasks():
     tasks = [Task(n) for n in ["a", "b", "c"]]
-    f = Flow(tasks=tasks)
+    f = Flow(name="test", tasks=tasks)
     serialized = FlowSchema().dump(f)
     deserialized = FlowSchema().load(serialized)
     assert len(deserialized.tasks) == len(f.tasks)
@@ -76,7 +72,7 @@ def test_deserialize_edges():
         def run(self, x):
             return x
 
-    f = Flow()
+    f = Flow(name="test")
     t1, t2, t3 = Task("a"), Task("b"), ArgTask("c")
 
     f.add_edge(t1, t2)
@@ -95,7 +91,7 @@ def test_deserialize_edges():
 
 
 def test_parameters():
-    f = Flow()
+    f = Flow(name="test")
     x = Parameter("x")
     y = Parameter("y", default=5)
     f.add_task(x)
@@ -110,7 +106,7 @@ def test_parameters():
 
 
 def test_deserialize_with_parameters_key():
-    f = Flow()
+    f = Flow(name="test")
     x = Parameter("x")
     f.add_task(x)
 
@@ -125,7 +121,7 @@ def test_reference_tasks():
     x = Task("x")
     y = Task("y")
     z = Task("z")
-    f = Flow(tasks=[x, y, z])
+    f = Flow(name="test", tasks=[x, y, z])
 
     f.set_reference_tasks([y])
     assert f.reference_tasks() == {y}
@@ -137,14 +133,16 @@ def test_serialize_container_environment():
     env = prefect.environments.DockerEnvironment(
         base_image="a", python_dependencies=["b", "c"], registry_url="f"
     )
-    deserialized = FlowSchema().load(FlowSchema().dump(Flow(environment=env)))
+    deserialized = FlowSchema().load(
+        FlowSchema().dump(Flow(name="test", environment=env))
+    )
     assert isinstance(deserialized.environment, prefect.environments.DockerEnvironment)
     assert deserialized.environment.base_image == env.base_image
     assert deserialized.environment.registry_url == env.registry_url
 
 
 def test_deserialize_serialized_flow_after_build():
-    flow = Flow(environment=prefect.environments.LocalEnvironment())
+    flow = Flow(name="test", environment=prefect.environments.LocalEnvironment())
     serialized_flow = flow.serialize(build=True)
     deserialized = FlowSchema().load(serialized_flow)
     assert isinstance(deserialized, Flow)
