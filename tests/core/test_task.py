@@ -302,7 +302,6 @@ def test_task_id_must_be_uuid():
 
 
 class TestDependencies:
-
     def test_set_downstream(self):
         f = Flow(name="test")
         t1 = Task()
