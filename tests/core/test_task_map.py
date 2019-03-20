@@ -37,10 +37,22 @@ def test_map_returns_a_task_copy():
     ll = ListTask()
     a = AddTask()
 
-    with Flow(name="test"):
+    with Flow(name="test") as flow:
         res = a.map(ll)
 
     assert res != a
+    assert res in flow.tasks
+
+
+def test_map_returns_a_task_copy_without_context():
+    ll = ListTask()
+    a = AddTask()
+
+    flow = Flow(name="test")
+    res = a.map(ll, flow=flow)
+
+    assert res != a
+    assert res in flow.tasks
 
 
 def test_calling_map_with_bind_returns_self():

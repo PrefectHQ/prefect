@@ -210,6 +210,20 @@ def test_binding_a_task_in_context_adds_it_to_flow():
         assert t in flow.tasks
 
 
+def test_binding_a_task_adds_it_to_flow():
+    flow = Flow(name="test")
+    t = Task()
+    assert t not in flow.tasks
+    t.bind(flow=flow)
+    assert t in flow.tasks
+
+
+def test_binding_a_task_no_with_flow_raises_error():
+    t = Task()
+    with pytest.raises(ValueError):
+        t.bind()
+
+
 def test_adding_a_task_to_a_flow_twice_is_ok():
     f = Flow(name="test")
     t = Task()
@@ -252,6 +266,21 @@ def test_binding_a_task_with_var_kwargs_expands_the_kwargs():
     assert Edge(t1, kw, key="a") in f.edges
     assert Edge(t2, kw, key="b") in f.edges
     assert Edge(t3, kw, key="c") in f.edges
+
+
+def test_calling_a_task_without_context_returns_a_copy():
+    t = AddTask()
+
+    f = Flow(name="test")
+    t.bind(4, 2, flow=f)
+    t2 = t(9, 0, flow=f)
+
+    assert isinstance(t2, AddTask)
+    assert t != t2
+
+    res = f.run().result
+    assert res[t].result == 6
+    assert res[t2].result == 9
 
 
 def test_calling_a_task_returns_a_copy():
@@ -749,11 +778,21 @@ def test_flow_raises_for_irrelevant_user_provided_parameters():
         f.add_task(x)
         f.add_task(t)
 
-    with pytest.raises(TypeError):
+    # errors because of the invalid parameter
+    with pytest.raises(ValueError):
         state = f.run(parameters=dict(x=10, y=3, z=9))
 
+    # errors because the parameter is passed to FlowRunner.run() as an invalid kwarg
     with pytest.raises(TypeError):
         state = f.run(x=10, y=3, z=9)
+
+
+def test_flow_raises_for_missing_required_parameters():
+    with Flow(name="test") as f:
+        f.add_task(Parameter("x"))
+
+    with pytest.raises(ValueError):
+        f.run()
 
 
 def test_validate_cycles():
@@ -1073,26 +1112,6 @@ class TestCache:
 
         f.add_edge(t2, t3)
         assert f.terminal_tasks() == set([t3])
-
-    def test_cache_parameters(self):
-        f = Flow(name="test")
-        t1 = Parameter("t1")
-        t2 = Task()
-        t3 = Task()
-        f.add_edge(t1, t2)
-
-        f.parameters()
-
-        # check that cache holds result
-        key = ("parameters", ())
-        assert f._cache[key] == {t1}
-
-        # check that cache is read
-        f._cache[key] = 1
-        assert f.parameters() == 1
-
-        f.add_edge(t2, t3)
-        assert f.parameters() == {t1}
 
     def test_cache_all_upstream_edges(self):
         f = Flow(name="test")
