@@ -69,7 +69,7 @@ class TaskRunner(Runner):
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
             will be passed the task runner instance, the old (prior) state, and the new
-            (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
+            (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> Optional[State]`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - result_handler (ResultHandler, optional): the handler to use for
@@ -111,7 +111,7 @@ class TaskRunner(Runner):
             )
         )
         for handler in self.task.state_handlers:
-            new_state = handler(self.task, old_state, new_state)
+            new_state = handler(self.task, old_state, new_state) or new_state
 
         return new_state
 
