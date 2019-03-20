@@ -32,7 +32,6 @@ query {
 mutation {
   createProject(input: { name: "My Project" }) {
     id
-    error
   }
 }
 ```
