@@ -115,7 +115,6 @@ We could have raised an error if the POST request returned a non-200 status code
 Conversely, you can take advantage of raising errors inside state handlers by raising special Prefect exceptions called "signals" which contain state information.  This can be used to forcefully assert a Task should be in a certain state, if the state handler determines certain conditions are met.  We will see an example of this in the next section.
 :::
 
-- handlers can use secrets
 
 ## Responding to State
 Most of our examples so far simply inform the user if and when a task enters a certain state.  Prefect State objects contain rich information, and allow us to get more creative than that!  Let's revisit our `post_to_slack` notifier and have it alert us if the task enters a `Retrying` state, and how long we have to wait for the retry to occur:
@@ -205,3 +204,7 @@ post_to_slack = callback_factory(send_post, lambda s: s.is_retrying())
 You can check that this state handler has identical behavior to the first one we implemented.  This factory method allows users to mix and match pieces of logic using a simple API.
 
 An incredibly common check is whether or not the state is `Failed`.  For this reason, Prefect provides an even higher level API for constructing on failure callbacks.  In particular, given a function with signature `def f(obj: Union[Task, Flow], state: State) -> None`, one can use the `on_failure` keyword argument to both Tasks and Flows for automatically creating the appropriate state handler.
+
+::: tip Handlers can use Prefect Secrets
+Lastly, most notification systems will require some form of authentication.  Don't despair - state handlers can retrieve Prefect Secrets just like Tasks.
+:::
