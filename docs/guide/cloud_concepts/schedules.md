@@ -9,7 +9,7 @@ You can turn auto-scheduling on or off at any time:
 ```graphql
 mutation {
   setFlowScheduleState(input: {flowId: "<flow id>", setActive: <true>/<false>}) {
-    error
+      success
   }
 }
 ```
