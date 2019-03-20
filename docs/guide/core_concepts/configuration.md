@@ -2,7 +2,7 @@
 
 Prefect's settings are stored in a configuration file called `config.toml`. In general, you should not edit this file directly to modify Prefect's settings. Instead, you should use [environment variables](#environment-variables) for temporary settings, or create a [user configuration file](#user-configuration) for permanent settings.
 
-The configuration file is parsed when Prefect starts and available as `prefect.config`. To access any value, simply use dot-notation (for example, `prefect.config.tasks.defaults.checkpoint`).
+The configuration file is parsed when Prefect is first imported and is available as a live object in `prefect.config`. To access any value, simply use dot-notation (for example, `prefect.config.tasks.defaults.checkpoint`).
 
 ## Environment variables
 
