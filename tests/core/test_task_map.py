@@ -411,7 +411,7 @@ def test_map_allows_for_retries(executor):
 
     old = states.result[divved]
     assert old.result[1:] == [1.0, 0.5]
-    assert isinstance(old.map_states[0], Retrying)
+    assert old.map_states[0].is_retrying()
 
     # update upstream result
     states.result[l_res].result[0] = 0.01
