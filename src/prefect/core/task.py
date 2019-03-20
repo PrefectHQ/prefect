@@ -333,6 +333,7 @@ class Task(metaclass=SignatureValidator):
         mapped: bool = False,
         task_args: dict = None,
         upstream_tasks: Iterable[Any] = None,
+        flow: "Flow" = None,
         **kwargs: Any
     ) -> "Task":
         """
@@ -352,12 +353,16 @@ class Task(metaclass=SignatureValidator):
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 for the new task.  This kwarg can be used to functionally specify
                 dependencies without binding their result to `run()`
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+                flow in context if no flow is specified
 
         Returns:
             - Task: a new Task instance
         """
         new = self.copy(**(task_args or {}))
-        new.bind(*args, mapped=mapped, upstream_tasks=upstream_tasks, **kwargs)
+        new.bind(
+            *args, mapped=mapped, upstream_tasks=upstream_tasks, flow=flow, **kwargs
+        )
         return new
 
     def bind(
@@ -365,6 +370,7 @@ class Task(metaclass=SignatureValidator):
         *args: Any,
         mapped: bool = False,
         upstream_tasks: Iterable[Any] = None,
+        flow: "Flow" = None,
         **kwargs: Any
     ) -> "Task":
         """
@@ -385,9 +391,12 @@ class Task(metaclass=SignatureValidator):
                 container will _not_ be mapped over.
             - upstream_tasks ([Task], optional): a list of upstream dependencies for the
                 current task.
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+                flow in context if no flow is specified
             - **kwargs: keyword arguments to bind to the current Task's `run` method
 
-        Returns: - Task: the current Task instance
+        Returns:
+            - Task: the current Task instance
         """
 
         # this will raise an error if callargs weren't all provided
@@ -402,7 +411,7 @@ class Task(metaclass=SignatureValidator):
         if var_kw_arg:
             callargs.update(callargs.pop(var_kw_arg.name, {}))
 
-        flow = prefect.context.get("flow", None)
+        flow = flow or prefect.context.get("flow", None)
         if not flow:
             raise ValueError("Could not infer an active Flow context.")
 
@@ -419,7 +428,11 @@ class Task(metaclass=SignatureValidator):
         return self
 
     def map(
-        self, *args: Any, upstream_tasks: Iterable[Any] = None, **kwargs: Any
+        self,
+        *args: Any,
+        upstream_tasks: Iterable[Any] = None,
+        flow: "Flow" = None,
+        **kwargs: Any
     ) -> "Task":
         """
         Map the Task elementwise across one or more Tasks. Arguments which should _not_ be mapped over
@@ -436,12 +449,16 @@ class Task(metaclass=SignatureValidator):
             - *args: arguments to map over, which will elementwise be bound to the Task's `run` method
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 to map over
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+                flow in context if no flow is specified
             - **kwargs: keyword arguments to map over, which will elementwise be bound to the Task's `run` method
 
         Returns: - Task: a new Task instance
         """
         new = self.copy()
-        return new.bind(*args, mapped=True, upstream_tasks=upstream_tasks, **kwargs)
+        return new.bind(
+            *args, mapped=True, upstream_tasks=upstream_tasks, flow=flow, **kwargs
+        )
 
     def set_dependencies(
         self,
