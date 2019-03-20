@@ -862,6 +862,7 @@ def test_skip_validation_in_init_with_kwarg():
     assert Flow(name="test", edges=[e1, e2], validate=False)
 
 
+@pytest.mark.xfail(raises=ImportError)
 class TestFlowVisualize:
     def test_visualize_raises_informative_importerror_without_graphviz(
         self, monkeypatch
