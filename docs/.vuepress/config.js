@@ -144,6 +144,7 @@ module.exports = {
             'core_concepts/results',
             'core_concepts/environments',
             'core_concepts/schedules',
+            'core_concepts/configuration',
             'core_concepts/best-practices',
             'core_concepts/common-pitfalls'
           ]
