@@ -77,6 +77,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Refactor Airflow migration tools into a single `AirflowTask` in the task library for running individual Airflow tasks - [#735](https://github.com/PrefectHQ/prefect/issues/735)
 - `name` is now required on all Flow objects - [#732](https://github.com/PrefectHQ/prefect/pull/732)
 - Separate installation "extras" packages into multiple, smaller extras - [#739](https://github.com/PrefectHQ/prefect/issues/739)
+- `Flow.parameters()` always returns a set of parameters - [#756](https://github.com/PrefectHQ/prefect/pull/756)
 
 ## 0.4.1 <Badge text="beta" type="success"/>
 
