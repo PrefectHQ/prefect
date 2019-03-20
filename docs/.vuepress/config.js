@@ -171,7 +171,6 @@ module.exports = {
             'tutorials/triggers-and-references',
             'tutorials/visualization',
             'tutorials/advanced-mapping',
-            'tutorials/airflow_migration',
             'tutorials/slack-notifications'
           ]
         },

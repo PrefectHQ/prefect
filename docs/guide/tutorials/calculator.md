@@ -6,10 +6,6 @@ sidebarDepth: 0
 
 > Can your data engineering framework do this?
 
-::: tip Practice Makes Prefect
-A notebook containing all code presented in this tutorial can be downloaded [here](/notebooks/calculator.ipynb).
-:::
-
 Prefect is a heavy-duty data workflow system, but it handles lightweight applications just as well.
 
 To illustrate that, let's build a simple calculator.
