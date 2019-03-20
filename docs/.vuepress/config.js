@@ -136,6 +136,7 @@ module.exports = {
             'core_concepts/mapping',
             'core_concepts/engine',
             'core_concepts/execution',
+            'core_concepts/notifications',
             'core_concepts/results',
             'core_concepts/environments',
             'core_concepts/schedules',
@@ -193,7 +194,8 @@ module.exports = {
             'development/overview',
             'development/style',
             'development/documentation',
-            'development/tests'
+            'development/tests',
+            'development/contributing'
           ]
         }
       ]

@@ -91,6 +91,16 @@ class State:
 
         return isinstance(self, Pending)
 
+    def is_retrying(self) -> bool:
+        """
+        Checks if the state is currently in a retrying state
+
+        Returns:
+            - bool: `True` if the state is retrying, `False` otherwise
+        """
+
+        return isinstance(self, Retrying)
+
     def is_running(self) -> bool:
         """
         Checks if the state is currently in a running state

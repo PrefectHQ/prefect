@@ -23,3 +23,4 @@ We know you can write amazing code! This section of the docs will help make sure
 - To learn how to style your code, see the [style guide](style.md).
 - To learn how to document your code, see the [docs guide](documentation.md).
 - To learn how to test your code, see the [tests guide](tests.md).
+- To learn about contributing, see the [contribution guide](contributing.md).
