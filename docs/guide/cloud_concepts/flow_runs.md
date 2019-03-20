@@ -10,7 +10,19 @@ To create a flow run for a specific flow, issue the following GraphQL:
 mutation {
   createFlowRun(input: { flowId: "<flow id>" }) {
     id
-    error
+  }
+}
+```
+
+### Idempotent run creation
+
+If you provide an `idempotencyKey` when creating a flow run, you can safely attempt to recreate that run again without actually recreating it. This is helpful when you have a substandard network connection or when you're worried about redundancy in your run triggers. Idempotency is preserved for 24 hours, after which time a new run will be created for the same key. Each idempotent request refreshes the cache for an additional 24 hours.
+
+
+```graphql
+mutation {
+  createFlowRun(input: { flowId: "<flow id>", idempotencyKey: "any-key" }) {
+    id
   }
 }
 ```
@@ -24,8 +36,7 @@ mutation {
   createFlowRun(
     input: { flowId: "<flow id>", scheduledStartTime: "<YYYY-MM-DD HH:MM:SS>" }
   ) {
-    id
-    error
+      id
   }
 }
 ```
