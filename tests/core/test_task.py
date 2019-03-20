@@ -111,6 +111,19 @@ class TestCreateTask:
                 def run(self, x, mapped=None):
                     pass
 
+    def test_class_instantiation_rejects_mapped_kwarg_decorator(self):
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, mapped):
+                pass
+
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, mapped=None):
+                pass
+
     def test_class_instantiation_rejects_upstream_tasks_kwarg(self):
         with pytest.raises(ValueError):
 
@@ -124,6 +137,45 @@ class TestCreateTask:
                 def run(self, x, upstream_tasks=None):
                     pass
 
+    def test_class_instantiation_rejects_upstream_tasks_kwarg_decorator(self):
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, upstream_tasks):
+                pass
+
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, upstream_tasks=None):
+                pass
+
+    def test_class_instantiation_rejects_flow_kwarg(self):
+        with pytest.raises(ValueError):
+
+            class FlowTasks(Task):
+                def run(self, x, flow):
+                    pass
+
+        with pytest.raises(ValueError):
+
+            class FlowTasks(Task):
+                def run(self, x, flow=None):
+                    pass
+
+    def test_class_instantiation_rejects_flow_kwarg_decorator(self):
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, flow):
+                pass
+
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, flow=None):
+                pass
+
     def test_class_instantiation_rejects_task_args_kwarg(self):
         with pytest.raises(ValueError):
 
@@ -136,6 +188,19 @@ class TestCreateTask:
             class TaskArgs(Task):
                 def run(self, x, task_args=None):
                     pass
+
+    def test_class_instantiation_rejects_task_args_kwarg_decorator(self):
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, task_args):
+                pass
+
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, task_args=None):
+                pass
 
     def test_create_task_with_and_without_cache_for(self):
         t1 = Task()
@@ -322,23 +387,49 @@ def test_task_id_must_be_uuid():
 
 
 class TestDependencies:
-    """
-    Most dependnecy tests are done in test_flow.py.
-    """
-
     def test_set_downstream(self):
+        f = Flow(name="test")
+        t1 = Task()
+        t2 = Task()
+        t1.set_downstream(t2, flow=f)
+        assert Edge(t1, t2) in f.edges
+
+    def test_set_downstream_context(self):
         with Flow(name="test") as f:
             t1 = Task()
             t2 = Task()
             t1.set_downstream(t2)
             assert Edge(t1, t2) in f.edges
 
+    def test_set_downstream_no_flow(self):
+        f = Flow(name="test")
+        t1 = Task()
+        t2 = Task()
+        with pytest.raises(ValueError) as exc:
+            t1.set_downstream(t2)
+        assert "No Flow was passed" in str(exc.value)
+
     def test_set_upstream(self):
+        f = Flow(name="test")
+        t1 = Task()
+        t2 = Task()
+        t2.set_upstream(t1, flow=f)
+        assert Edge(t1, t2) in f.edges
+
+    def test_set_upstream_context(self):
         with Flow(name="test") as f:
             t1 = Task()
             t2 = Task()
             t2.set_upstream(t1)
             assert Edge(t1, t2) in f.edges
+
+    def test_set_upstream_no_flow(self):
+        f = Flow(name="test")
+        t1 = Task()
+        t2 = Task()
+        with pytest.raises(ValueError) as exc:
+            t2.set_upstream(t1)
+        assert "No Flow was passed" in str(exc.value)
 
 
 class TestSerialization:
