@@ -1199,14 +1199,14 @@ class TestTaskStateHandlers:
         # the second task handler will assert the result of the first task handler is a state
         # and raise an error, as long as the task_handlers are called in sequence on the
         # previous result
-        task = Task(state_handlers=[lambda *a: None, task_handler])
+        task = Task(state_handlers=[lambda *a: True, task_handler])
         with pytest.raises(AssertionError):
             with prefect.utilities.debug.raise_on_exception():
                 TaskRunner(task=task).run()
 
-    def test_task_handler_that_doesnt_return_state(self):
+    def test_task_handler_that_doesnt_return_state_or_none(self):
         # this will raise an error because no state is returned
-        task = Task(state_handlers=[lambda *a: None])
+        task = Task(state_handlers=[lambda *a: True])
         with pytest.raises(AttributeError):
             with prefect.utilities.debug.raise_on_exception():
                 TaskRunner(task=task).run()
@@ -1277,11 +1277,11 @@ class TestTaskRunnerStateHandlers:
                     state_handlers=[lambda *a: Ellipsis, task_runner_handler],
                 ).run()
 
-    def test_task_runner_handler_that_doesnt_return_state(self):
+    def test_task_runner_handler_that_doesnt_return_state_or_none(self):
         # raises an error because the state handler doesn't return a state
         with pytest.raises(AttributeError):
             with prefect.utilities.debug.raise_on_exception():
-                TaskRunner(task=Task(), state_handlers=[lambda *a: None]).run()
+                TaskRunner(task=Task(), state_handlers=[lambda *a: True]).run()
 
     def test_task_handler_that_raises_signal_is_trapped(self):
         def handler(task, old, new):
