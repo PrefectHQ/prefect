@@ -57,19 +57,3 @@ def retry_delay(
             return interval * scale
 
     return retry_delay
-
-
-def ensure_tz_aware(dt: datetime.datetime) -> datetime.datetime:
-    """
-    Ensures that a datetime has a timezone. If it does not (it is timezone-naive), converts
-    it to UTC.
-
-    Args
-        - dt (datetime): the datetime which should be timezone-aware
-
-    Returns
-        - datetime: a timezone-aware datetime
-    """
-    if dt.tzinfo is None:
-        return pendulum.timezone("utc").convert(dt)
-    return dt
