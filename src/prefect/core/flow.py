@@ -370,28 +370,14 @@ class Flow:
         """
         return set(t for t in self.tasks if not self.edges_from(t))
 
-    @cache
-    def parameters(
-        self, names_only: bool = False, only_required: bool = False
-    ) -> Set[Union[str, Parameter]]:
+    def parameters(self) -> Set[Parameter]:
         """
-        Get details about any Parameters in this flow.
-
-        Args:
-            - names_only (bool, optional): Whether or not to only return
-            parameter names
-            - only_required (bool, optional): Whether or not to only get
-            required parameters; defaults to `False`
+        Returns any parameters of the flow.
 
         Returns:
-            - dict: of `{task.name: task}` for all tasks in the flow which are
-            Parameters
+            - set: a set of any Parameters in this flow
         """
-        return {
-            t.name if names_only else t
-            for t in self.tasks
-            if isinstance(t, Parameter) and (t.required if only_required else True)
-        }
+        return {p for p in self.tasks if isinstance(p, Parameter)}
 
     def reference_tasks(self) -> Set[Task]:
         """
