@@ -124,6 +124,19 @@ class TestCreateTask:
                 def run(self, x, upstream_tasks=None):
                     pass
 
+    def test_class_instantiation_rejects_flow_kwarg(self):
+        with pytest.raises(ValueError):
+
+            class FlowTasks(Task):
+                def run(self, x, flow):
+                    pass
+
+        with pytest.raises(ValueError):
+
+            class FlowTasks(Task):
+                def run(self, x, flow=None):
+                    pass
+
     def test_create_task_with_and_without_cache_for(self):
         t1 = Task()
         assert t1.cache_validator is never_use

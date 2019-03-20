@@ -35,7 +35,7 @@ def _validate_run_signature(run: Callable) -> None:
             "to *args."
         )
 
-    reserved_kwargs = ["upstream_tasks", "mapped"]
+    reserved_kwargs = ["upstream_tasks", "mapped", "flow"]
     violations = [kw for kw in reserved_kwargs if kw in run_sig.args]
     if violations:
         msg = "Tasks cannot have the following argument names: {}.".format(
