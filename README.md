@@ -72,3 +72,7 @@ git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
 pip install -e ".[viz]"
 ```
+
+## License
+
+Prefect Core is licensed under the Apache Software License 2.0.
