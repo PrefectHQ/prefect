@@ -28,10 +28,14 @@ Prefect will look for the user configuration at a location specified by `prefect
 
 You can automatically generate a user configuration file at the default location by running `prefect make-user-config` from the CLI.
 
+
 ::: tip Changing the user config location
 Since you shouldn't change the default settings directly, if you want to change the configuration location, set an environment variable `PREFECT__USER_CONFIG_PATH` appropriately.
 :::
 
+### Configuration precedence
+
+Configuration values set via environment variable have the highest priority; they will be respected even if a user configuration exists. User configuration files, in turn, have precedence over the default values.
 
 
 ## TOML
