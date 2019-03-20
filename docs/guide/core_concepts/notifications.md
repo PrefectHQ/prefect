@@ -16,7 +16,7 @@ State handlers are intimately connected with Prefect's concept of "State".  We r
 
 Let's start with the definition of a state handler:
 ```python
-def state_handler(obj: Union[Task, Flow], old_state: State, new_state: State) -> State:
+def state_handler(obj: Union[Task, Flow], old_state: State, new_state: State) -> Optional[State]:
     """
     Any function with this signature can serve as a state handler.
 
@@ -27,7 +27,7 @@ def state_handler(obj: Union[Task, Flow], old_state: State, new_state: State) ->
         - new_state (State): the proposed new state of this object
 
     Returns:
-        - State: the new state of this object (typically this is just `new_state`)
+        - Optional[State]: the new state of this object (typically this is just `new_state`)
     """
     pass
 ```
@@ -40,10 +40,8 @@ from prefect import Task, Flow
 
 
 def my_state_handler(obj, old_state, new_state):
-    msg = "\nHandling state change for {0}:\n{1} to {2}\n"
+    msg = "\nCalling my custom state handler on {0}:\n{1} to {2}\n"
     print(msg.format(obj, old_state, new_state))
-
-    # strictly speaking this isn't necessary, but it is good practice
     return new_state
 
 
@@ -55,10 +53,10 @@ my_flow.run()
 
 Ignoring logs, this should output:
 ```
-Handling state change for <Flow: name=state-handler-demo>:
+Calling my custom state handler on <Flow: name=state-handler-demo>:
 Scheduled() to Running("Running flow.")
 
-Handling state change for <Flow: name=state-handler-demo>:
+Calling my custom state handler on <Flow: name=state-handler-demo>:
 Running("Running flow.") to Success("All reference tasks succeeded.")
 ```
 
@@ -71,10 +69,10 @@ flow.run()
 
 Once again ignoring logs, this should output:
 ```
-Handling state change for <Task: Task>:
+Calling my custom state handler on <Task: Task>:
 Pending() to Running("Starting task run.")
 
-Handling state change for <Task: Task>:
+Calling my custom state handler on <Task: Task>:
 Running("Starting task run.") to Success("Task run succeeded.")
 ```
 
@@ -204,4 +202,8 @@ post_to_slack = callback_factory(send_post, lambda s: s.is_retrying())
 ```
 You can check that this state handler has identical behavior to the first one we implemented.  This factory method allows users to mix and match pieces of logic using a simple API.
 
-An incredibly common check is whether or not the state is `Failed`.  For this reason, Prefect provides an even higher level API for constructing on failure callbacks.  In particular, given a function with signature `def f(obj: Union[Task, Flow], state: State) -> None`, one can use the `on_failure` keyword argument to both Tasks and Flows for automatically creating the appropriate state handler.
+An incredibly common check is whether or not the state is `Failed`.  For this reason, Prefect provides an even higher level API for constructing on failure callbacks.  In particular, given a function with signature 
+```python
+def f(obj: Union[Task, Flow], state: State) -> None
+```
+one can use the `on_failure` keyword argument to both Tasks and Flows for automatically creating the appropriate state handler.

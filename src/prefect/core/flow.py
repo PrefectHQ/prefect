@@ -116,7 +116,7 @@ class Flow:
             opportunity to inspect or modify the new state. The handler
             will be passed the flow instance, the old (prior) state, and the new
             (current) state, with the following signature:
-                `state_handler(flow: Flow, old_state: State, new_state: State) -> State`
+                `state_handler(flow: Flow, old_state: State, new_state: State) -> Optional[State]`
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - on_failure (Callable, optional): A function with signature `fn(flow: Flow, state: State) -> None`
