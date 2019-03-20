@@ -144,13 +144,13 @@ def test_task_that_fails_gets_retried_up_to_max_retry_time():
 
     # first run should be retry
     state = task_runner.run()
-    assert isinstance(state, Retrying)
+    assert state.is_retrying()
     assert isinstance(state.start_time, datetime)
     assert state.run_count == 1
 
     # second run should retry
     state = task_runner.run(state=state)
-    assert isinstance(state, Retrying)
+    assert state.is_retrying()
     assert isinstance(state.start_time, datetime)
     assert state.run_count == 2
 
@@ -171,11 +171,11 @@ def test_task_that_raises_retry_has_start_time_recognized():
             raise signals.RETRY(start_time=now + timedelta(minutes=5))
 
     state = TaskRunner(task=RetryNow()).run()
-    assert isinstance(state, Retrying)
+    assert state.is_retrying()
     assert now - state.start_time < timedelta(seconds=0.1)
 
     state = TaskRunner(task=Retry5Min()).run()
-    assert isinstance(state, Retrying)
+    assert state.is_retrying()
     assert state.start_time == now + timedelta(minutes=5)
 
 
@@ -188,7 +188,7 @@ def test_task_that_raises_retry_with_naive_datetime_is_assumed_UTC():
             raise signals.RETRY(start_time=now + timedelta(minutes=5))
 
     state = TaskRunner(task=Retry5Min()).run()
-    assert isinstance(state, Retrying)
+    assert state.is_retrying()
     assert state.start_time == pendulum.instance(now, tz="UTC") + timedelta(minutes=5)
     assert state.start_time.tzinfo
 
@@ -203,14 +203,14 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
     # first run should be retrying
     with prefect.context(task_run_count=1):
         state = task_runner.run()
-    assert isinstance(state, Retrying)
+    assert state.is_retrying()
     assert isinstance(state.start_time, datetime)
 
     # second run should also be retry because the task raises it explicitly
 
     with prefect.context(task_run_count=2):
         state = task_runner.run(state=state)
-    assert isinstance(state, Retrying)
+    assert state.is_retrying()
 
 
 def test_task_that_raises_skip_gets_skipped():
@@ -980,7 +980,7 @@ class TestCheckRetryStep:
         new_state = TaskRunner(
             task=Task(max_retries=1, retry_delay=timedelta(0))
         ).check_for_retry(state=state, inputs={})
-        assert isinstance(new_state, Retrying)
+        assert new_state.is_retrying()
         assert new_state.run_count == 1
 
     def test_failed_one_max_retry_second_run(self):
@@ -997,7 +997,7 @@ class TestCheckRetryStep:
         new_state = TaskRunner(
             task=Task(max_retries=1, retry_delay=timedelta(0))
         ).check_for_retry(state=state, inputs={"x": Result(1)})
-        assert isinstance(new_state, Retrying)
+        assert new_state.is_retrying()
         assert new_state.cached_inputs == {"x": Result(1)}
 
     def test_retrying_when_run_count_greater_than_max_retries(self):
@@ -1161,6 +1161,19 @@ class TestTaskStateHandlers:
         # the task changed state three times: Pending -> Running -> Failed -> Retry
         assert task_handler.call_count == 3
 
+    def test_task_handlers_can_return_none(self):
+        task_handler = MagicMock(side_effect=lambda t, o, n: None)
+
+        @prefect.task(
+            state_handlers=[task_handler], max_retries=1, retry_delay=timedelta(0)
+        )
+        def fn():
+            1 / 0
+
+        TaskRunner(task=fn).run()
+        # the task changed state three times: Pending -> Running -> Failed -> Retry
+        assert task_handler.call_count == 3
+
     def test_task_handlers_are_called_on_failure(self):
         task_handler = MagicMock(side_effect=lambda t, o, n: n)
 
@@ -1186,14 +1199,14 @@ class TestTaskStateHandlers:
         # the second task handler will assert the result of the first task handler is a state
         # and raise an error, as long as the task_handlers are called in sequence on the
         # previous result
-        task = Task(state_handlers=[lambda *a: None, task_handler])
+        task = Task(state_handlers=[lambda *a: True, task_handler])
         with pytest.raises(AssertionError):
             with prefect.utilities.debug.raise_on_exception():
                 TaskRunner(task=task).run()
 
-    def test_task_handler_that_doesnt_return_state(self):
+    def test_task_handler_that_doesnt_return_state_or_none(self):
         # this will raise an error because no state is returned
-        task = Task(state_handlers=[lambda *a: None])
+        task = Task(state_handlers=[lambda *a: True])
         with pytest.raises(AttributeError):
             with prefect.utilities.debug.raise_on_exception():
                 TaskRunner(task=task).run()
@@ -1215,7 +1228,7 @@ class TestTaskRunnerStateHandlers:
 
         state = TaskRunner(task=fn, state_handlers=[task_runner_handler]).run()
         # the task changed state three times: Pending -> Running -> Failed -> Retry
-        assert isinstance(state, Retrying)
+        assert state.is_retrying()
         assert task_runner_handler.call_count == 3
 
     def test_task_runner_handlers_are_called_on_triggerfailed(self):
@@ -1264,11 +1277,11 @@ class TestTaskRunnerStateHandlers:
                     state_handlers=[lambda *a: Ellipsis, task_runner_handler],
                 ).run()
 
-    def test_task_runner_handler_that_doesnt_return_state(self):
+    def test_task_runner_handler_that_doesnt_return_state_or_none(self):
         # raises an error because the state handler doesn't return a state
         with pytest.raises(AttributeError):
             with prefect.utilities.debug.raise_on_exception():
-                TaskRunner(task=Task(), state_handlers=[lambda *a: None]).run()
+                TaskRunner(task=Task(), state_handlers=[lambda *a: True]).run()
 
     def test_task_handler_that_raises_signal_is_trapped(self):
         def handler(task, old, new):
@@ -1418,7 +1431,7 @@ def test_retry_has_updated_metadata():
         }
     )
 
-    assert isinstance(state, Retrying)
+    assert state.is_retrying()
     assert state.cached_inputs == dict(x=Result(15), y=Result("abc"))
 
 

@@ -41,6 +41,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - `flow.serialize()` will always serialize its environment, regardless of `build` - [#696](https://github.com/PrefectHQ/prefect/issues/696)
 - `flow.deploy()` now raises an informative error if your container cannot deserialize the Flow - [#711](https://github.com/PrefectHQ/prefect/issues/711)
 - Add `_MetaState` as a parent class for states that modify other states - [#726](https://github.com/PrefectHQ/prefect/pull/726)
+- Add `is_retrying()` helper method to all `State` objects - [#753](https://github.com/PrefectHQ/prefect/pull/753)
+- Allow for state handlers which return `None` - [#753](https://github.com/PrefectHQ/prefect/pull/753)
 - Add daylight saving time support for `CronSchedule` - [#729](https://github.com/PrefectHQ/prefect/pull/729)
 
 ### Fixes
