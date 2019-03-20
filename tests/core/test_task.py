@@ -111,6 +111,19 @@ class TestCreateTask:
                 def run(self, x, mapped=None):
                     pass
 
+    def test_class_instantiation_rejects_mapped_kwarg_decorator(self):
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, mapped):
+                pass
+
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, mapped=None):
+                pass
+
     def test_class_instantiation_rejects_upstream_tasks_kwarg(self):
         with pytest.raises(ValueError):
 
@@ -123,6 +136,19 @@ class TestCreateTask:
             class UpstreamTasks(Task):
                 def run(self, x, upstream_tasks=None):
                     pass
+
+    def test_class_instantiation_rejects_upstream_tasks_kwarg_decorator(self):
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, upstream_tasks):
+                pass
+
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, upstream_tasks=None):
+                pass
 
     def test_class_instantiation_rejects_flow_kwarg(self):
         with pytest.raises(ValueError):
@@ -137,6 +163,19 @@ class TestCreateTask:
                 def run(self, x, flow=None):
                     pass
 
+    def test_class_instantiation_rejects_flow_kwarg_decorator(self):
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, flow):
+                pass
+
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, flow=None):
+                pass
+
     def test_class_instantiation_rejects_task_args_kwarg(self):
         with pytest.raises(ValueError):
 
@@ -149,6 +188,19 @@ class TestCreateTask:
             class TaskArgs(Task):
                 def run(self, x, task_args=None):
                     pass
+
+    def test_class_instantiation_rejects_task_args_kwarg_decorator(self):
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, task_args):
+                pass
+
+        with pytest.raises(ValueError):
+
+            @task
+            def run(x, task_args=None):
+                pass
 
     def test_create_task_with_and_without_cache_for(self):
         t1 = Task()
