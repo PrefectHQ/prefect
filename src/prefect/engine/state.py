@@ -326,6 +326,15 @@ class Queued(_MetaState):
     The `Queued` state is used to indicate that another state could not transition to a
     `Running` state for some reason, often a lack of available resources.
 
+    The `Queued` state should be initialized with another state, which it wraps. The
+    wrapped state is extracted at the beginning of a task run.
+
+    Args:
+        - message (string): a message for the state.
+        - result (Any, optional): Defaults to `None`.
+        - state (State): the `State` state that has been marked as
+            "queued".
+
     """
 
 
