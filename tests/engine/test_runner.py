@@ -52,6 +52,18 @@ def test_call_runner_target_handlers_calls_handlers_appropriately():
     assert my_handler.call_args[0][1:] == (state.Pending(), state.Running())
 
 
+def test_call_runner_target_handlers_allows_for_none_return_values():
+    class TestRunner(Runner):
+        def call_runner_target_handlers(self, old_state, new_state):
+            return new_state
+
+    my_handler = MagicMock(return_value=None)
+    res = TestRunner(state_handlers=[my_handler]).handle_state_change(
+        state.Pending(), state.Running()
+    )
+    assert res == state.Running()
+
+
 def test_runner_has_logger():
     r = Runner()
     assert r.logger.name == "prefect.Runner"

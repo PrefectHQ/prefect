@@ -171,7 +171,7 @@ class Runner:
 
             # call runner's own handlers
             for handler in self.state_handlers:
-                new_state = handler(self, old_state, new_state)
+                new_state = handler(self, old_state, new_state) or new_state
 
         # raise pauses and ENDRUNs
         except (signals.PAUSE, ENDRUN):
