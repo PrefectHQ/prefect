@@ -33,7 +33,7 @@ def _validate_run_signature(run: Callable) -> None:
             "to *args."
         )
 
-    reserved_kwargs = ["upstream_tasks", "mapped", "task_args"]
+    reserved_kwargs = ["upstream_tasks", "mapped", "task_args", "flow"]
     violations = [kw for kw in reserved_kwargs if kw in run_sig.args]
     if violations:
         msg = "Tasks cannot have the following argument names: {}.".format(
@@ -502,7 +502,7 @@ class Task(metaclass=SignatureValidator):
             mapped=mapped,
         )
 
-    def set_upstream(self, task: object) -> None:
+    def set_upstream(self, task: object, flow: "Flow" = None) -> None:
         """
         Sets the provided task as an upstream dependency of this task.
 
@@ -511,13 +511,15 @@ class Task(metaclass=SignatureValidator):
         Args:
             - task (object): A task or object that will be converted to a task that will be set
                 as a upstream dependency of this task.
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+                flow in context if no flow is specified
 
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
-        self.set_dependencies(upstream_tasks=[task])
+        self.set_dependencies(flow=flow, upstream_tasks=[task])
 
-    def set_downstream(self, task: object) -> None:
+    def set_downstream(self, task: object, flow: "Flow" = None) -> None:
         """
         Sets the provided task as a downstream dependency of this task.
 
@@ -526,11 +528,13 @@ class Task(metaclass=SignatureValidator):
         Args:
             - task (object): A task or object that will be converted to a task that will be set
                 as a downstream dependency of this task.
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+                flow in context if no flow is specified
 
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
-        self.set_dependencies(downstream_tasks=[task])
+        self.set_dependencies(flow=flow, downstream_tasks=[task])
 
     def inputs(self) -> Dict[str, Dict]:
         """
