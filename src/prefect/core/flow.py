@@ -370,28 +370,14 @@ class Flow:
         """
         return set(t for t in self.tasks if not self.edges_from(t))
 
-    @cache
-    def parameters(
-        self, names_only: bool = False, only_required: bool = False
-    ) -> Set[Union[str, Parameter]]:
+    def parameters(self) -> Set[Parameter]:
         """
-        Get details about any Parameters in this flow.
-
-        Args:
-            - names_only (bool, optional): Whether or not to only return
-            parameter names
-            - only_required (bool, optional): Whether or not to only get
-            required parameters; defaults to `False`
+        Returns any parameters of the flow.
 
         Returns:
-            - dict: of `{task.name: task}` for all tasks in the flow which are
-            Parameters
+            - set: a set of any Parameters in this flow
         """
-        return {
-            t.name if names_only else t
-            for t in self.tasks
-            if isinstance(t, Parameter) and (t.required if only_required else True)
-        }
+        return {p for p in self.tasks if isinstance(p, Parameter)}
 
     def reference_tasks(self) -> Set[Task]:
         """
@@ -971,27 +957,36 @@ class Flow:
         if runner_cls is None:
             runner_cls = prefect.engine.get_default_flow_runner_class()
 
+        # build parameters from passed dictionary and also kwargs
         parameters = parameters or {}
+        for p in self.parameters():
+            if p.name in kwargs:
+                parameters[p.name] = kwargs.pop(p.name)
+
+        # check for parameters that don't match the flow
         unknown_params = [
-            p for p in parameters if p not in self.parameters(names_only=True)
+            p for p in parameters if p not in {fp.name for fp in self.parameters()}
         ]
         if unknown_params:
             fmt_params = ", ".join(unknown_params)
-            raise TypeError(
+            raise ValueError(
                 "Flow.run received the following unexpected parameters: {}".format(
                     fmt_params
                 )
             )
 
-        passed_parameters = {}
-        for p in self.parameters(names_only=True):
-            if p in kwargs:
-                passed_parameters[p] = kwargs.pop(p)
-            elif p in parameters:
-                passed_parameters[p] = parameters[p]
+        # check for parameters that are required by the flow, but weren't passed
+        missing_params = [p.name for p in self.parameters() if p.name not in parameters]
+        if missing_params:
+            fmt_params = ", ".join(missing_params)
+            raise ValueError(
+                "Flow.run did not receive the following required parameters: {}".format(
+                    fmt_params
+                )
+            )
 
         state = self._run_on_schedule(
-            parameters=passed_parameters, runner_cls=runner_cls, **kwargs
+            parameters=parameters, runner_cls=runner_cls, **kwargs
         )
 
         # state always should return a dict of tasks. If it's NoResult (meaning the run was

@@ -318,7 +318,7 @@ class Client:
         Raises:
             - ClientError: if the deploy failed
         """
-        required_parameters = flow.parameters(only_required=True)
+        required_parameters = {p for p in flow.parameters() if p.required}
         if flow.schedule is not None and required_parameters:
             raise ClientError(
                 "Flows with required parameters can not be scheduled automatically."

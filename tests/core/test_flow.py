@@ -778,11 +778,21 @@ def test_flow_raises_for_irrelevant_user_provided_parameters():
         f.add_task(x)
         f.add_task(t)
 
-    with pytest.raises(TypeError):
+    # errors because of the invalid parameter
+    with pytest.raises(ValueError):
         state = f.run(parameters=dict(x=10, y=3, z=9))
 
+    # errors because the parameter is passed to FlowRunner.run() as an invalid kwarg
     with pytest.raises(TypeError):
         state = f.run(x=10, y=3, z=9)
+
+
+def test_flow_raises_for_missing_required_parameters():
+    with Flow(name="test") as f:
+        f.add_task(Parameter("x"))
+
+    with pytest.raises(ValueError):
+        f.run()
 
 
 def test_validate_cycles():
@@ -1102,26 +1112,6 @@ class TestCache:
 
         f.add_edge(t2, t3)
         assert f.terminal_tasks() == set([t3])
-
-    def test_cache_parameters(self):
-        f = Flow(name="test")
-        t1 = Parameter("t1")
-        t2 = Task()
-        t3 = Task()
-        f.add_edge(t1, t2)
-
-        f.parameters()
-
-        # check that cache holds result
-        key = ("parameters", ())
-        assert f._cache[key] == {t1}
-
-        # check that cache is read
-        f._cache[key] = 1
-        assert f.parameters() == 1
-
-        f.add_edge(t2, t3)
-        assert f.parameters() == {t1}
 
     def test_cache_all_upstream_edges(self):
         f = Flow(name="test")
