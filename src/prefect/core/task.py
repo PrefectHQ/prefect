@@ -35,7 +35,7 @@ def _validate_run_signature(run: Callable) -> None:
             "to *args."
         )
 
-    reserved_kwargs = ["upstream_tasks", "mapped", "flow"]
+    reserved_kwargs = ["upstream_tasks", "mapped", "task_args", "flow"]
     violations = [kw for kw in reserved_kwargs if kw in run_sig.args]
     if violations:
         msg = "Tasks cannot have the following argument names: {}.".format(
@@ -70,7 +70,8 @@ class Task(metaclass=SignatureValidator):
             return x + y
     ```
 
-    *Note:* The implemented `run` method cannot have `*args` in its signature.
+    *Note:* The implemented `run` method cannot have `*args` in its signature. In addition,
+    the following keywords are reserved: `upstream_tasks`, `task_args` and `mapped`.
 
     An instance of a `Task` can be used functionally to generate other task instances
     with the same attributes but with different values bound to their `run` methods.
@@ -254,6 +255,12 @@ class Task(metaclass=SignatureValidator):
         """
         The `run()` method is called (with arguments, if appropriate) to run a task.
 
+        *Note:* The implemented `run` method cannot have `*args` in its signature. In addition,
+        the following keywords are reserved: `upstream_tasks`, `task_args` and `mapped`.
+
+        If a task has arguments in its `run()` method, these can be bound either by using the functional
+        API and _calling_ the task instance, or by using `self.bind` directly.
+
         In addition to running arbitrary functions, tasks can interact with Prefect in a few ways:
         <ul><li> Return an optional result. When this function runs successfully,
             the task is considered successful and the result (if any) can be
@@ -274,9 +281,19 @@ class Task(metaclass=SignatureValidator):
 
     # Dependencies -------------------------------------------------------------
 
-    def copy(self) -> "Task":
+    def copy(self, **task_args: Any) -> "Task":
         """
         Creates and returns a copy of the current Task.
+
+        Args:
+            - **task_args (dict, optional): a dictionary of task attribute keyword arguments, these attributes
+                will be set on the new copy
+
+        Raises:
+            - AttributeError: if any passed `task_args` are not attributes of the original
+
+        Returns:
+            - Task: a copy of the current Task, with any attributes updated from `task_args`
         """
 
         flow = prefect.context.get("flow", None)
@@ -291,10 +308,20 @@ class Task(metaclass=SignatureValidator):
             )
 
         new = copy.copy(self)
+
+        # check task_args
+        for attr, val in task_args.items():
+            if not hasattr(new, attr):
+                raise AttributeError(
+                    "{0} does not have {1} as an attribute".format(self, attr)
+                )
+            else:
+                setattr(new, attr, val)
+
         # assign new id
         new.id = str(uuid.uuid4())
 
-        new.tags = copy.deepcopy(self.tags)
+        new.tags = copy.deepcopy(self.tags).union(set(new.tags))
         tags = set(prefect.context.get("tags", set()))
         new.tags.update(tags)
 
@@ -304,6 +331,7 @@ class Task(metaclass=SignatureValidator):
         self,
         *args: Any,
         mapped: bool = False,
+        task_args: dict = None,
         upstream_tasks: Iterable[Any] = None,
         **kwargs: Any
     ) -> "Task":
@@ -319,6 +347,8 @@ class Task(metaclass=SignatureValidator):
                 with the specified keyword arguments; defaults to `False`.
                 If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
                 container will _not_ be mapped over.
+            - task_args (dict, optional): a dictionary of task attribute keyword arguments, these attributes
+                will be set on the new copy
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 for the new task.  This kwarg can be used to functionally specify
                 dependencies without binding their result to `run()`
@@ -326,7 +356,7 @@ class Task(metaclass=SignatureValidator):
         Returns:
             - Task: a new Task instance
         """
-        new = self.copy()
+        new = self.copy(**(task_args or {}))
         new.bind(*args, mapped=mapped, upstream_tasks=upstream_tasks, **kwargs)
         return new
 
