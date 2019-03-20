@@ -1,7 +1,7 @@
 # Notifications and State Handlers
 
 Alerts, notifications, and dynamically responding to task state are important features of any workflow tool.  For this reason, Prefect
-introduces a flexible concept of "state handler", which can be attached to individual tasks or flows.  At a high level, a state handler is 
+introduces a flexible concept called "state handlers", which can be attached to individual tasks or flows.  At a high level, a state handler is 
 simply a function which is called on every change of state for the underlying object; these can be used for sending alerts upon failure, 
 emails upon success, or more nuanced handling based on the information contained in both the old and new states.
 
