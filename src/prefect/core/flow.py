@@ -197,7 +197,7 @@ class Flow:
         return False
 
     def __repr__(self) -> str:
-        template = "<{cls}: name={self.name}>"
+        template = '<{cls}: name="{self.name}">'
         return template.format(cls=type(self).__name__, self=self)
 
     def __iter__(self) -> Iterable[Task]:
