@@ -210,6 +210,20 @@ def test_binding_a_task_in_context_adds_it_to_flow():
         assert t in flow.tasks
 
 
+def test_binding_a_task_adds_it_to_flow():
+    flow = Flow(name="test")
+    t = Task()
+    assert t not in flow.tasks
+    t.bind(flow=flow)
+    assert t in flow.tasks
+
+
+def test_binding_a_task_no_with_flow_raises_error():
+    t = Task()
+    with pytest.raises(ValueError):
+        t.bind()
+
+
 def test_adding_a_task_to_a_flow_twice_is_ok():
     f = Flow(name="test")
     t = Task()
@@ -252,6 +266,21 @@ def test_binding_a_task_with_var_kwargs_expands_the_kwargs():
     assert Edge(t1, kw, key="a") in f.edges
     assert Edge(t2, kw, key="b") in f.edges
     assert Edge(t3, kw, key="c") in f.edges
+
+
+def test_calling_a_task_without_context_returns_a_copy():
+    t = AddTask()
+
+    f = Flow(name="test")
+    t.bind(4, 2, flow=f)
+    t2 = t(9, 0, flow=f)
+
+    assert isinstance(t2, AddTask)
+    assert t != t2
+
+    res = f.run().result
+    assert res[t].result == 6
+    assert res[t2].result == 9
 
 
 def test_calling_a_task_returns_a_copy():
