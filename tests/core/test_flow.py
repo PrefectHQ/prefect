@@ -273,8 +273,7 @@ def test_calling_a_task_without_context_returns_a_copy():
 
     f = Flow(name="test")
     t.bind(4, 2, flow=f)
-    with pytest.warns(UserWarning):
-        t2 = t(9, 0, flow=f)
+    t2 = t(9, 0, flow=f)
 
     assert isinstance(t2, AddTask)
     assert t != t2
