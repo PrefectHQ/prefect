@@ -37,6 +37,7 @@ Prefect tasks can optionally receive inputs and produce outputs. To take advanta
 def add(x, y=1):
     return x + y
 ```
+
 We could also enhance our "Hello, world!" task to say hello to a specific person:
 
 ```python
@@ -51,7 +52,7 @@ Notice how we used Python 3 annotations to tell Prefect our input and output typ
 
 ### Task classes
 
-Sometimes, you'll need to design classes that are more complex than a single function. For this, you can subclass the Prefect `Task` class and implement its `run()` method. Here's how our `add` task might look if we wanted it to have a customizable default:
+Sometimes, you'll need to design classes that are more complex than a single function. For this, you can subclass the Prefect `Task` class and implement its `__init__()` and `run()` methods. Here's how our `add` task might look if we wanted it to have a customizable default:
 
 ```python
 from prefect import Task
@@ -67,8 +68,11 @@ class AddTask(Task):
             y = self.default
         return x + y
 
+# initialize the task instance
 add = AddTask(default=1)
 ```
+
+Notice subclassing a task is more powerful, but requires more explicit code. As demonstrated above, we must initialize the task instance in order to use it. When we used the `@task` decorator, it returned a task object that was already initialized.
 
 ## Flows
 
@@ -76,9 +80,9 @@ In Prefect, **flows** are used to describe the dependencies between tasks, such 
 
 ### Functional API
 
-The easiest way to build a flow is with Prefect's **functional API**. Simply create a flow as a context manager and call your tasks on each other as if they were regular functions. Prefect will track each function call and build up a computational graph that represents your workflow. Critically, _no task code is actually executed at this time_.
+The easiest way to build a flow is with Prefect's **functional API**. Simply create a flow as a context manager and call your tasks on each other as if they were regular functions. Prefect will track each function call and build up a computational graph that represents your workflow. Critically, _no tasks are actually executed at this time_.
 
-Here is a flow that uses the add task we wrote earlier to add a few numbers together. Notice how we can provide both numbers and tasks results as the inputs to the task function:
+Here is a flow that uses the add task we wrote earlier to add a few numbers together. Notice how we can provide both numbers and tasks results as the inputs to the task function. In addition, notice how we call `add` twice, generating two distinct copies of our task in the flow:
 
 ```python
 from prefect import Flow
@@ -90,7 +94,7 @@ with Flow("My first flow!") as flow:
 
 ### Parameters
 
-Sometimes, it's useful to provide information to a flow at runtime. Prefect provides a special task called a `Paramater` for this purpose. Let's use a parameter to write a flow that says hello to someone:
+Sometimes, it's useful to provide information to a flow at runtime. Prefect provides a special task called a `Parameter` for this purpose. Let's use a parameter to write a flow that says hello to someone:
 
 ```python
 from prefect import Parameter
@@ -111,29 +115,35 @@ flow.run(name="Marvin")
 ```
 
 ### Imperative API
-The functional API makes it extremely easy to define data dependencies between tasks, but sometimes we want tasks to depend on each other without exchanging data. For this, it's best to use Prefect's **imperative API**.
+
+The functional API makes it easy to define workflows in a script-like style. Sometimes, you may prefer to build flows in a more programmatic or explicit way. For this, we can use Prefect's **imperative API**.
 
 ```python
-# opening a flow context is not always necessary, but simplifies the API
-with Flow("My imperative flow!") as flow:
+flow = Flow("My imperative flow!")
 
-    # define some new tasks
-    name = Parameter("name")
-    second_add = add.copy()
+# define some new tasks
+name = Parameter("name")
+second_add = add.copy()
 
-    # add our tasks to the flow
-    flow.add_task(add)
-    flow.add_task(second_add)
-    flow.add_task(say_hello)
+# add our tasks to the flow
+flow.add_task(add)
+flow.add_task(second_add)
+flow.add_task(say_hello)
 
-    # create non-data dependencies so that `say_hello` waits for `second_add` to finish.
-    say_hello.set_upstream(second_add)
+# create non-data dependencies so that `say_hello` waits for `second_add` to finish.
+say_hello.set_upstream(second_add, flow=flow)
 
-    # create data bindings
-    add.bind(x=1, y=2)
-    second_add.bind(x=add, y=100)
-    say_hello.bind(name=name)
+# create data bindings
+add.bind(x=1, y=2, flow=flow)
+second_add.bind(x=add, y=100, flow=flow)
+say_hello.bind(name=name, flow=flow)
 
 ```
 
 This flow combines our addition tasks with the "say hello" task, using a state dependency (a non-data dependency) to specify that the "say hello" task shouldn't run until the second addition task is finished.
+
+It's possible to create state-dependencies with Prefect's functional API, as well. When calling a task as if it was a function, simply pass a list of tasks to a special `upstream_tasks` keyword argument; Prefect will automatically call `set_upstream()` on each one.
+
+::: tip Mix-and-match
+You can switch between the functional API and the imperative API at any time. For example, half way through the previous code block, we could have called `with flow:` and entered a flow context in which the functional API was available. At a minimum, this would remove the need to pass `flow=flow` to each bind instruction.
+:::
