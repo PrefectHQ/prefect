@@ -2,7 +2,7 @@
 
 Welcome to Prefect!
 
-These docs will give you a gentle introduction to building data applications in Prefect Core.
+These docs will give you a gentle introduction to building data applications in Prefect.
 
 ## Thinking Prefectly
 
