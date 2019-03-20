@@ -81,16 +81,20 @@ classes = [
             "State",
             "Pending",
             "Paused",
-            "Resume",
-            "Cached",
             "Scheduled",
+            "Resume",
             "Retrying",
+            "Submitted",
+            "Queued",
             "Running",
             "Finished",
             "Success",
+            "Cached",
+            "Mapped",
+            "Skipped",
             "Failed",
             "TriggerFailed",
-            "Skipped",
+            "TimedOut",
         ]
 
 [pages.engine.signals]
