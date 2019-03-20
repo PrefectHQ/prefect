@@ -196,7 +196,8 @@ module.exports = {
             'development/overview',
             'development/style',
             'development/documentation',
-            'development/tests'
+            'development/tests',
+            'development/contributing'
           ]
         }
       ]
