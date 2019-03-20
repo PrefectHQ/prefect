@@ -59,7 +59,8 @@ def test_client_initializes_and_prioritizes_kwargs():
 def test_client_token_initializes_from_file(monkeypatch):
     monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
     monkeypatch.setattr("builtins.open", mock_open(read_data="TOKEN"))
-    client = Client()
+    with set_temporary_config({"cloud.auth_token": None}):
+        client = Client()
     assert client.token == "TOKEN"
 
 
@@ -145,7 +146,9 @@ def test_client_raises_if_login_fails(monkeypatch):
 def test_client_posts_raises_with_no_token(monkeypatch):
     post = MagicMock()
     monkeypatch.setattr("requests.post", post)
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": None}
+    ):
         client = Client()
     with pytest.raises(AuthorizationError) as exc:
         result = client.post("/foo/bar")
