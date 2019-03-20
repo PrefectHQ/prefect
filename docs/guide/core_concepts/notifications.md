@@ -1,9 +1,7 @@
 # Notifications and State Handlers
 
-Alerts, notifications, and dynamically responding to task state are important features of any workflow tool.  For this reason, Prefect
-introduces a flexible concept called "state handlers", which can be attached to individual tasks or flows.  At a high level, a state handler is 
-simply a function which is called on every change of state for the underlying object; these can be used for sending alerts upon failure, 
-emails upon success, or more nuanced handling based on the information contained in both the old and new states.
+Alerts, notifications, and dynamically responding to task state are important features of any workflow tool.  Using Prefect primitives, users can create Tasks which 
+send notifications after certain tasks run or fail using Prefect's trigger logic.  This will work, but does not cover more subtle uses of notification logic (e.g., receiving a notification if a task _retries_).  For this reason, Prefect introduces a flexible concept called "state handlers", which can be attached to individual tasks or flows.  At a high level, a state handler is  simply a function which is called on every change of state for the underlying object; these can be used for sending alerts upon failure, emails upon success, or more nuanced handling based on the information contained in both the old and new states.
 
 In addition to working with the `state_handler` API directly, Prefect provides higher level wrappers for implementing common use cases
 such as failure callbacks.
