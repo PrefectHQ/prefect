@@ -2,6 +2,11 @@
 
 Prefect Cloud exposes a full GraphQL API for querying and interacting with the system.
 
+## GraphQL
+
+GraphQL is a flexible query language. Most importantly for an infrastructure system like Prefect Cloud, it gives users the power to request exactly the information they require. You can think of a GraphQL query as representing the "keys" of a JSON document you'd like the server to provide values for.
+
+
 ## Authorization
 
 In order to use the GraphQL API, you will need to authenticate and then use the `login` route to get a Prefect authorization token. This token should be included as the `Authorization` header on every request, with the format `Bearer <auth token>`.
