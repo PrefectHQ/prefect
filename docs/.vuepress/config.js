@@ -24,10 +24,6 @@ module.exports = {
         link: '/api/'
       },
       {
-        text: "License",
-        link: '/license.html'
-      },
-      {
         text: "Log Out",
         link: '/logout.html'
       }
@@ -108,7 +104,6 @@ module.exports = {
           ]
         }
       ],
-      '/license': [],
       '/guide/': [
         '/guide/',
         {
