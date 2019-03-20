@@ -18,7 +18,6 @@ To deploy a flow via the Prefect Cloud API, use the following GraphQL mutation:
 mutation($flow: JSON!) {
   createFlow(input: { serializedFlow: $flow, projectId: "<project id>" }) {
     id
-    error
   }
 }
 ```
