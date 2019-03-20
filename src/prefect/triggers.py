@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 """
 Triggers are functions that determine if task state should change based on
 the state of preceding tasks.
