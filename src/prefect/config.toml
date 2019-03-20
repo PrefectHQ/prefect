@@ -36,18 +36,18 @@ eager_edge_validation = false
 
 [tasks]
 
-[tasks.defaults]
+    [tasks.defaults]
 
-# whether all tasks should checkpoint their outputs
-checkpoint = false
+    # whether all tasks should checkpoint their outputs
+    checkpoint = false
 
-# the number of times tasks retry before they fail.
-# false indicates that tasks should never retry (equivalent to max_retries = 0)
-max_retries = false
+    # the number of times tasks retry before they fail.
+    # false indicates that tasks should never retry (equivalent to max_retries = 0)
+    max_retries = false
 
-# the amount of time tasks should wait before retrying, in seconds.
-# false indicates that tasks have no default value (users must specify one to set it)
-retry_delay = false
+    # the amount of time tasks should wait before retrying, in seconds.
+    # false indicates that tasks have no default value (users must specify one to set it)
+    retry_delay = false
 
 
 [engine]
