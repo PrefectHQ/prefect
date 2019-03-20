@@ -408,8 +408,9 @@ class Client:
             - scheduled_start_time (datetime, optional): the time to schedule the execution for; if not provided, defaults to now
             - idempotency_key (str, optional): an idempotency key; if provided, this run will be cached for 24
                 hours. Any subsequent attempts to create a run with the same idempotency key
-                will return the originally created run. An error will be raised if parameters or
-                context don't match. Each subsequent request will reset the TTL for 24 hours.
+                will return the ID of the originally created run (no new run will be created after the first).
+                An error will be raised if parameters or context are provided and don't match the original.
+                Each subsequent request will reset the TTL for 24 hours.
 
         Returns:
             - str: the ID of the newly-created flow run
