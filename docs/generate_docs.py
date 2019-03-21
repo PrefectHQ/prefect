@@ -20,6 +20,7 @@ import subprocess
 import textwrap
 import warnings
 from functools import partial
+from slugify import slugify
 
 import nbformat as nbf
 import pendulum
@@ -241,7 +242,7 @@ def get_source(obj):
 def format_subheader(obj, level=1, in_table=False):
     class_sig = format_signature(obj)
     if inspect.isclass(obj):
-        header = ""
+        header = "## {}\n".format(obj.__name__)
     elif not in_table:
         header = "##" + "#" * level
     else:
@@ -249,7 +250,7 @@ def format_subheader(obj, level=1, in_table=False):
     is_class = '<p class="prefect-sig">class </p>' if inspect.isclass(obj) else ""
     class_name = f'<p class="prefect-class">{create_absolute_path(obj)}</p>'
     div_class = "class-sig" if is_class else "method-sig"
-    div_tag = f"<div class='{div_class}'>"
+    div_tag = f"<div class='{div_class}' id='{slugify(create_absolute_path(obj))}'>"
 
     call_sig = f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>\n\n"
     return call_sig
@@ -332,7 +333,7 @@ if __name__ == "__main__":
     front_matter = textwrap.dedent(
         """
         ---
-        sidebarDepth: 1
+        sidebarDepth: 2
         editLink: false
         ---
         """
@@ -404,7 +405,7 @@ if __name__ == "__main__":
             if top_doc_obj is not None:
                 top_doc = inspect.getdoc(top_doc_obj)
                 if top_doc is not None:
-                    f.write(top_doc)
+                    f.write(top_doc + "\n")
             for obj in classes:
                 f.write(format_subheader(obj))
 
