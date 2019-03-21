@@ -10,7 +10,7 @@ class CreateNamespacedDeployment(Task):
     Task for creating a namespaced deployment on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -30,7 +30,7 @@ class CreateNamespacedDeployment(Task):
         - namespace (str, optional): The Kubernetes namespace to create this deployment in,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -72,7 +72,7 @@ class CreateNamespacedDeployment(Task):
             - namespace (str, optional): The Kubernetes namespace to create this deployment in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -109,7 +109,7 @@ class DeleteNamespacedDeployment(Task):
     Task for deleting a namespaced deployment on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -128,7 +128,7 @@ class DeleteNamespacedDeployment(Task):
         - namespace (str, optional): The Kubernetes namespace to delete this deployment from,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -169,7 +169,7 @@ class DeleteNamespacedDeployment(Task):
             - namespace (str, optional): The Kubernetes namespace to delete this deployment in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -206,7 +206,7 @@ class ListNamespacedDeployment(Task):
     Task for listing namespaced deployments on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -224,7 +224,7 @@ class ListNamespacedDeployment(Task):
         - namespace (str, optional): The Kubernetes namespace to list deployments from,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"field_selector": "...", "label_selector": "..."})
+            Kubernetes API (e.g. `{"field_selector": "...", "label_selector": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -259,7 +259,7 @@ class ListNamespacedDeployment(Task):
             - namespace (str, optional): The Kubernetes namespace to list deployments from,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"field_selector": "...", "label_selector": "..."})
+                Kubernetes API (e.g. `{"field_selector": "...", "label_selector": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -292,7 +292,7 @@ class PatchNamespacedDeployment(Task):
     Task for patching a namespaced deployment on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -313,7 +313,7 @@ class PatchNamespacedDeployment(Task):
         - namespace (str, optional): The Kubernetes namespace to patch this deployment in,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -363,7 +363,7 @@ class PatchNamespacedDeployment(Task):
             - namespace (str, optional): The Kubernetes namespace to patch this deployment in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -403,7 +403,7 @@ class ReadNamespacedDeployment(Task):
     Task for reading a namespaced deployment on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -422,7 +422,7 @@ class ReadNamespacedDeployment(Task):
         - namespace (str, optional): The Kubernetes namespace to read this deployment from,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "exact": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "exact": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -463,7 +463,7 @@ class ReadNamespacedDeployment(Task):
             - namespace (str, optional): The Kubernetes namespace to read this deployment in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "exact": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "exact": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -501,7 +501,7 @@ class ReplaceNamespacedDeployment(Task):
     Task for replacing a namespaced deployment on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -522,7 +522,7 @@ class ReplaceNamespacedDeployment(Task):
         - namespace (str, optional): The Kubernetes namespace to patch this deployment in,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -572,7 +572,7 @@ class ReplaceNamespacedDeployment(Task):
             - namespace (str, optional): The Kubernetes namespace to patch this deployment in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format

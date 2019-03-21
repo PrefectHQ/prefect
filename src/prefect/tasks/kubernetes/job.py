@@ -10,7 +10,7 @@ class CreateNamespacedJob(Task):
     Task for creating a namespaced job on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -30,7 +30,7 @@ class CreateNamespacedJob(Task):
         - namespace (str, optional): The Kubernetes namespace to create this job in,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -72,7 +72,7 @@ class CreateNamespacedJob(Task):
             - namespace (str, optional): The Kubernetes namespace to create this job in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -105,7 +105,7 @@ class DeleteNamespacedJob(Task):
     Task for deleting a namespaced job on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -124,7 +124,7 @@ class DeleteNamespacedJob(Task):
         - namespace (str, optional): The Kubernetes namespace to delete this job from,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -165,7 +165,7 @@ class DeleteNamespacedJob(Task):
             - namespace (str, optional): The Kubernetes namespace to delete this job in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -202,7 +202,7 @@ class ListNamespacedJob(Task):
     Task for listing namespaced jobs on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -220,7 +220,7 @@ class ListNamespacedJob(Task):
         - namespace (str, optional): The Kubernetes namespace to list jobs from,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"field_selector": "...", "label_selector": "..."})
+            Kubernetes API (e.g. `{"field_selector": "...", "label_selector": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -255,7 +255,7 @@ class ListNamespacedJob(Task):
             - namespace (str, optional): The Kubernetes namespace to list jobs from,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"field_selector": "...", "label_selector": "..."})
+                Kubernetes API (e.g. `{"field_selector": "...", "label_selector": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -287,7 +287,7 @@ class PatchNamespacedJob(Task):
     Task for patching a namespaced job on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -308,7 +308,7 @@ class PatchNamespacedJob(Task):
         - namespace (str, optional): The Kubernetes namespace to patch this job in,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -354,7 +354,7 @@ class PatchNamespacedJob(Task):
             - namespace (str, optional): The Kubernetes namespace to patch this job in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -394,7 +394,7 @@ class ReadNamespacedJob(Task):
     Task for reading a namespaced job on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -413,7 +413,7 @@ class ReadNamespacedJob(Task):
         - namespace (str, optional): The Kubernetes namespace to read this job from,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "exact": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "exact": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -454,7 +454,7 @@ class ReadNamespacedJob(Task):
             - namespace (str, optional): The Kubernetes namespace to read this job in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "exact": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "exact": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -491,7 +491,7 @@ class ReplaceNamespacedJob(Task):
     Task for replacing a namespaced job on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -512,7 +512,7 @@ class ReplaceNamespacedJob(Task):
         - namespace (str, optional): The Kubernetes namespace to patch this job in,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -558,7 +558,7 @@ class ReplaceNamespacedJob(Task):
             - namespace (str, optional): The Kubernetes namespace to patch this job in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
