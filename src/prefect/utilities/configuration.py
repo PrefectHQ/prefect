@@ -1,4 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
 from contextlib import contextmanager
 from typing import Iterator
 

@@ -25,10 +25,6 @@ module.exports = {
         link: '/api/'
       },
       {
-        text: "License",
-        link: '/license.html'
-      },
-      {
         text: "Log Out",
         link: '/logout.html'
       }
@@ -85,6 +81,7 @@ module.exports = {
             'tasks/aws',
             'tasks/control_flow',
             'tasks/function',
+            'tasks/github',
             'tasks/google',
             'tasks/shell',
             'tasks/sqlite',
@@ -109,7 +106,6 @@ module.exports = {
           ]
         }
       ],
-      '/license': [],
       '/guide/': [
         '/guide/',
         {
