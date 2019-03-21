@@ -11,7 +11,8 @@ module.exports = {
   ],
   ga: "UA-115585378-1",
   themeConfig: {
-    repo: 'PrefectHQ/prefect/tree/master/docs',
+    repo: 'PrefectHQ/prefect',
+    docsDir: 'docs',
     editLinks: true,
     // repoLabel: 'GitHub',
     logo: '/assets/logomark-color.svg',
