@@ -1,46 +1,52 @@
 # GraphQL API
 
-Prefect Cloud exposes a full GraphQL API for querying and interacting with the system.
+Prefect Cloud exposes a full GraphQL API for querying and interacting with the platform.
 
-## GraphQL
+We've designed this API to be clear but powerful. It is not merely a way to send instructions to Cloud; it allows users to fully introspect every piece of their infrastructure and relevant data.
 
-GraphQL is a flexible query language. Most importantly for an infrastructure system like Prefect Cloud, it gives users the power to request exactly the information they require. You can think of a GraphQL query as representing the "keys" of a JSON document you'd like the server to provide values for.
-
-
-## Authorization
-
-In order to use the GraphQL API, you will need to authenticate and then use the `login` route to get a Prefect authorization token. This token should be included as the `Authorization` header on every request, with the format `Bearer <auth token>`.
+Throughout these docs, sections directly related to the GraphQL API will be noted with a <Badge text="GQL" vertical="middle"/> badge.
 
 ## Queries
 
-All Prefect Cloud data may be queried via GraphQL. See the interactive schema for complete details on available fields.
+All Prefect Cloud data may be queried via GraphQL. You can view the interactive GraphQL schema browser for an API reference and complete details on available fields. In general, Cloud exposes a SQL-like interface for accessing data.
 
-For example, the following query retrieves all flows whose names end with "flow"; the state of their most recent flow run; and the state history of five of that run's task runs, ordered alphabetically.
+For example, the following query retrieves the id and name of all flows with names ending in "train", as well as the state of their most recent flow run:
 
 ```graphql
 query {
-  flow(where: { name: { _ilike: "%flow" } }) {
+  flow(where: { name: { _ilike: "%train" } }) {
     id
     name
     flow_run(order_by: { start_time: desc }, limit: 1) {
       id
       state
-      task_run(limit: 5, order_by: { name: asc }) {
-        states {
-          timestamp
-          state
-        }
-      }
     }
+  }
+}
+```
+
+In this example, we retrieve the name, start time, and end time of the 5 task runs that failed
+most recently:
+
+```graphql
+query {
+  task_run(
+    where: { state: { _eq: "Failed" } }
+    order_by: { timestamp: desc }
+    limit: 5
+  ) {
+    name
+    start_time
+    end_time
   }
 }
 ```
 
 ## Mutations
 
-In order to interact with Prefect Cloud, users can issue mutations. See the interactive schema for complete details on available fields.
+In order to interact with Prefect Cloud, users can issue "mutations," which represent various actions. You can view the interactive GraphQL schema browser for an API reference and complete details on available fields.
 
-Most sections of the concepts docs show examples of relevant mutations.
+Most sections of these concepts docs show examples of relevant mutations.
 
 ## Formatting
 
