@@ -84,6 +84,7 @@ module.exports = {
             'tasks/aws',
             'tasks/control_flow',
             'tasks/function',
+            'tasks/github',
             'tasks/google',
             'tasks/shell',
             'tasks/sqlite',
