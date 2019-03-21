@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 import sqlite3 as sql
 from contextlib import closing
 

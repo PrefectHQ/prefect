@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 """
 Result Handlers provide the hooks that Prefect uses to store task results in production; a `ResultHandler` can be provided to a `Flow` at creation.
 
