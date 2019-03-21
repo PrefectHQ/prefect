@@ -182,19 +182,22 @@ class DeleteNamespacedDeployment(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
+            api_client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
                 config.load_kube_config()
 
-            self.client = client.ExtensionsV1beta1Api()
+            api_client = client.ExtensionsV1beta1Api()
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        self.client.delete_namespaced_deployment(
-            name=deployment_name, namespace=namespace, **kube_kwargs
+        api_client.delete_namespaced_deployment(
+            name=deployment_name,
+            namespace=namespace,
+            body=api_client.V1DeleteOptions(),
+            **kube_kwargs
         )
 
 
@@ -270,20 +273,18 @@ class ListNamespacedDeployment(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
+            api_client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
                 config.load_kube_config()
 
-            self.client = client.ExtensionsV1beta1Api()
+            api_client = client.ExtensionsV1beta1Api()
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        return self.client.list_namespaced_deployment(
-            namespace=namespace, **kube_kwargs
-        )
+        return api_client.list_namespaced_deployment(namespace=namespace, **kube_kwargs)
 
 
 class PatchNamespacedDeployment(Task):
@@ -380,19 +381,19 @@ class PatchNamespacedDeployment(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
+            api_client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
                 config.load_kube_config()
 
-            self.client = client.ExtensionsV1beta1Api()
+            api_client = client.ExtensionsV1beta1Api()
 
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        self.client.patch_namespaced_deployment(
+        api_client.patch_namespaced_deployment(
             name=deployment_name, namespace=namespace, body=body, **kube_kwargs
         )
 
@@ -479,18 +480,18 @@ class ReadNamespacedDeployment(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
+            api_client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
                 config.load_kube_config()
 
-            self.client = client.ExtensionsV1beta1Api()
+            api_client = client.ExtensionsV1beta1Api()
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        return self.client.read_namespaced_deployment(
+        return api_client.read_namespaced_deployment(
             name=deployment_name, namespace=namespace, **kube_kwargs
         )
 
@@ -589,18 +590,18 @@ class ReplaceNamespacedDeployment(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
+            api_client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
                 config.load_kube_config()
 
-            self.client = client.ExtensionsV1beta1Api()
+            api_client = client.ExtensionsV1beta1Api()
 
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        self.client.replace_namespaced_deployment(
+        api_client.replace_namespaced_deployment(
             name=deployment_name, namespace=namespace, body=body, **kube_kwargs
         )
