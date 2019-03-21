@@ -6,13 +6,6 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 
 class CreateNamespacedJob(Task):
-    """
-    Task for creating a namespaces job on Kubernetes.
-    Note that _all_ initialization settings can be provided / overwritten at runtime.
-
-    Args:
-        - body (dict, optional)
-    """
     def __init__(
         self,
         body: dict = None,
@@ -47,7 +40,7 @@ class CreateNamespacedJob(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.BatchV1Api(kubernetes.client.ApiClient(configuration))
+            self.client = client.BatchV1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
@@ -56,8 +49,24 @@ class CreateNamespacedJob(Task):
 
             self.client = client.BatchV1Api()
 
-        self.body.update(body)
+        self.body.update(body or {})
+        self.kube_kwargs.update(kube_kwargs or {})
 
-        return self.client.create_namespaced_job(
+        self.client.create_namespaced_job(
             namespace=namespace, body=self.body, **kube_kwargs
         )
+
+class DeleteNamespacedJob(Task):
+    pass
+
+class ListNamespacedJob(Task):
+    pass
+
+class PatchNamespacedJob(Task):
+    pass
+
+class ReadNamespacedJob(Task):
+    pass
+
+class ReplaceNamespacedJob(Task):
+    pass
