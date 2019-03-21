@@ -5,7 +5,14 @@ from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class CreateNamespacedJobTask(Task):
+class CreateNamespacedJob(Task):
+    """
+    Task for creating a namespaces job on Kubernetes.
+    Note that _all_ initialization settings can be provided / overwritten at runtime.
+
+    Args:
+        - body (dict, optional)
+    """
     def __init__(
         self,
         body: dict = None,
