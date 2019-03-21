@@ -1,4 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
 """
 Results represent Prefect Task inputs and outputs.  In particular, anytime a Task runs, its output
 is encapsulated in a `Result` object.  This object retains information about what the data is, and how to "handle" it

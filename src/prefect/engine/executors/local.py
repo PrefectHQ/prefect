@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 import datetime
 from typing import Any, Callable, Iterable, List
 

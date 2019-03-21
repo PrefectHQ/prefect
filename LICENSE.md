@@ -1,53 +1,201 @@
-_This license is also available at [https://www.prefect.io/licenses/beta-eula](https://www.prefect.io/licenses/beta-eula)_
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
 
-# BETA SOFTWARE END USER LICENSE AGREEMENT
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
 
-PLEASE READ THIS END USER LICENSE AGREEMENT (“EULA”) CAREFULLY BEFORE INSTALLING OR OTHERWISE USING THE PREFECT SOFTWARE (THE “SOFTWARE”) AND ACCOMPANYING DOCUMENTATION (THE “DOCUMENTATION”) DELIVERED TO YOU BY OR OTHERWISE RETRIEVED FROM PREFECT TECHNOLOGIES, INC., A DELAWARE CORPORATION WITH AN ADDRESS AT 1301 K ST NW, MINDSPACE SW313, WASHINGTON DC 20005 (“LICENSOR”). BY DOWNLOADING AND/OR USING THE SOFTWARE, YOU ARE AFFIRMATIVELY STATING (1) YOU HAVE READ THIS EULA, AGREE TO ALL OF ITS TERMS, CONSENT TO BE BOUND BY AND ARE BECOMING A PARTY TO THIS EULA, AND (2) YOU HAVE DOWNLOADED AND/OR ARE MAKING USE OF THE SOFTWARE. IF YOU DO NOT AGREE TO ALL OF THE TERMS OF THIS EULA, DO NOT DOWNLOAD OR USE THE SOFTWARE.
-IF YOU ARE ACCEPTING THIS EULA ON BEHALF OF ANOTHER ENTITY THAT YOU REPRESENT, YOU REPRESENT AND WARRANT THAT: (I) YOU HAVE FULL LEGAL AUTHORITY TO BIND SUCH ENTITY TO THIS EULA; (II) YOU HAVE READ AND UNDERSTAND THIS EULA; AND (III) YOU AGREE ON BEHALF OF SUCH ENTITY TO BE BOUND BY THIS EULA.
-ACCEPTANCE OF THIS EULA IS REQUIRED AS A CONDITION PRECEDENT TO ACCESS AND USE OF THE SOFTWARE AND DOCUMENTATION. IF YOU DO NOT AGREE TO ALL OF THE TERMS AND CONDITIONS OF THIS EULA, OR IF YOU DO NOT HAVE THE LEGAL AUTHORITY TO ACCEPT THIS EULA ON BEHALF OF ANOTHER ENTITY THAT YOU REPRESENT, YOU MUST IMMEDIATELY RETURN OR DESTROY THE SOFTWARE AND DOCUMENTATION.
-AS USED IN THIS EULA, THE TERM “LICENSEE” MEANS YOU AND/OR ANOTHER ENTITY THAT YOU REPRESENT AND ON BEHALF OF WHOM YOU ACCEPT THIS EULA.
+   1. Definitions.
 
-## Description
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
 
-The Software is an early preview of Licensor’s open-source Python toolkit (the “Framework”) for building and testing workflows. This Framework is designed to allow Licensee to design workflows with a clean and minimal API. This EULA covers Licensee’s use of the Software and Documentation as set forth herein.
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
 
-## License Grant
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
 
-The Software and Documentation are provided to Licensee at no charge and are licensed, not sold to Licensee. No ownership interest in any part of either the Software or Documentation is hereby transferred to Licensee and Licensor shall at all times retain all right, title and interest in and to the Software and Documentation. Subject to the terms and conditions of this EULA, Licensor hereby grants Licensee a limited, personal, non-assignable, non-transferable and non-exclusive license to install, access and use the Software and Documentation for Licensee’s internal business purposes only and not for publication or distribution in any form outside of Licensee’s internal business. All rights relating to the Software and Documentation that are not expressly granted by this EULA, whether now existing or which may hereafter come into existence, are expressly reserved for Licensor. Licensee shall not remove, obscure, or alter any proprietary rights notices (including without limitation copyright and trademark notices), which may be affixed to or contained within the Software or Documentation.
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
 
-## Ownership by Licensor; Acknowledgments by Licensee.
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
 
-Licensor shall exclusively own all right, title, and interest, including all related Intellectual Property rights in and to the Software and Documentation, including, but not limited to, all patents, copyrights, trade secret rights, trademarks, trade names and other proprietary rights embodied therein or associated therewith, whether registered or unregistered, as well as in and to any suggestions, enhancement requests, feedback, recommendations, or other information provided by Licensee regarding or relating to the Software or Documentation. Licensee acknowledges it will not in any way, directly or indirectly, do or cause to be done, any act or thing contesting or which would reasonably be understood as impairing or tending to impair any part of Licensor’s (and, where applicable, its licensors’) right, title and interest in connection with Licensor’s Intellectual Property rights in the Software and Documentation. Licensee shall not represent that it has any ownership in Licensor’s Intellectual Property rights in the Software and Documentation. Licensee agrees that it shall not, directly or indirectly, during the term of this EULA or thereafter, attack the validity of Licensor’s ownership of Intellectual Property rights in the Software or Documentation or attack the validity of the License granted herein.
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
 
-## Restrictions
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
 
-Licensee will not, directly or indirectly, (a) copy the Software or Documentation in any manner or for any purpose; (b) install, access or use any component of the Software or Documentation for any purpose not expressly granted in Section 2 above; (c) resell, distribute, publicly display or publicly perform the Software or Documentation or any component thereof, including by way of example and not limitation on a website, blog, vlog or channel accessible through a distributed computer network (such as the Internet), by transfer, lease, loan or any other means, or make it available for use by others in any time-sharing, service bureau or similar arrangement; (d) disassemble, decrypt, extract, reverse engineer or reverse compile the Software, or otherwise attempt to discover the source code, confidential algorithms or techniques incorporated in the Software; (e) export the Software or Documentation in violation of any applicable laws or regulations; (f) modify, translate, adapt, or create derivative works of or from the Software or Documentation; (g) circumvent, disable or otherwise interfere with security-related features of the Software or Documentation; (h) use the Software or Documentation for any illegal purpose, in any manner that is inconsistent with the terms of this EULA, or to engage in illegal activity; (i) remove or alter any trademark, logo, copyright or other proprietary notices, legends, symbols or labels on, or embedded in, the Software or Documentation; or (j) provide access to the Software or Documentation to third parties.
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
 
-## Term
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
 
-Licensor may terminate this EULA and support provided hereunder with or without notice at any time for any reason, including without limitation if Licensee materially breaches this EULA or takes any action in derogation of Licensor’s rights in or to any component, module or other aspect of the Software or Documentation.
-Upon termination, Licensee shall cease all use of the Software and Documentation. All provisions of Sections 3, 4, 5b, 6, 7, 8 and 9 of this EULA shall survive termination.
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
 
-## Warranty Disclaimer
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
 
-LICENSEE RECOGNIZES THAT THE SOFTWARE AND DOCUMENTATION ARE NECESSARILY INCOMPLETE AND PROVIDED “AS IS”. LICENSOR MAKES NO AND DISCLAIMS ANY AND ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE OR NONINFRINGEMENT OF THIRD PARTIES’ INTELLECTUAL PROPERTY RIGHTS OR OTHER PROPRIETARY RIGHTS. NEITHER THIS EULA NOR ANY DOCUMENTATION FURNISHED UNDER IT IS INTENDED TO EXPRESS OR IMPLY ANY WARRANTY THAT THE OPERATION OF THE SOFTWARE WILL BE UNINTERRUPTED, TIMELY, OR ERROR-FREE, OR THAT THE SOFTWARE WILL CONFORM TO LICENSEE’S REQUIREMENTS OR NEEDS.
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
 
-## Limitation of Liability
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
 
-IN NO EVENT WILL LICENSOR BE LIABLE FOR ANY LOST PROFITS, REVENUE OR DATA, OR OTHER INCIDENTAL, SPECIAL, PUNITIVE, EXEMPLARY, INDIRECT OR CONSEQUENTIAL DAMAGES UNDER THIS EULA, INCLUDING WITHOUT LIMITATION ARISING OUT OF OR RELATED TO THE SOFTWARE OR DOCUMENTATION OR THE USE THEREOF. FURTHER, IN NO EVENT SHALL LICENSOR’S TOTAL LIABILITY TO LICENSEE, WHETHER IN CONTRACT, TORT (INCLUDING NEGLIGENCE), OR OTHERWISE, EXCEED ONE HUNDRED DOLLARS (\$100). THE FOREGOING LIMITATIONS OF LIABILITY SHALL APPLY, EVEN IF LICENSOR HAS BEEN ADVISED, OR IS OTHERWISE AWARE, OF THE POSSIBILITY OF DAMAGES OR IS NEGLIGENT. LICENSEE AND LICENSOR AGREE THAT THE DISCLAIMERS OF SECTION 6 AND THE LIMITATION OF LIABILITY OF THIS SECTION 7 ARE REASONABLE IN VIEW OF THE NATURE OF THE SOFTWARE.
-SOME STATES DO NOT ALLOW EXCLUSION OF IMPLIED WARRANTIES OR LIMITATION OF LIABILITY FOR INCIDENTAL, SPECIAL, PUNITIVE, OR OTHER INDIRECT OR CONSEQUENTIAL DAMAGES, SO THE LIMITATIONS OR EXCLUSIONS OF SECTIONS 6 AND 7 OF THE EULA MAY NOT APPLY TO LICENSEE. IN SUCH STATES, THE LIABILITY OF LICENSOR SHALL BE LIMITED TO THE GREATEST EXTENT PERMITTED BY LAW.
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
 
-## Confidentiality; Security
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
 
-The Software and Documentation (collectively, “Confidential Information”) constitute Licensor’s proprietary and confidential information, whether or not identified in writing as “Confidential.” Licensee will not (i) use any such Confidential Information in any way, for its own account or the account of any third party, except as expressly permitted under this EULA, or (ii) disclose any such Confidential Information to any third party, other than furnishing such Confidential Information to its employees who are required to have access to the Confidential Information in connection with the performance of this EULA, provided, that such employees are bound by written confidentiality obligations consistent with the terms and conditions of this Section. Licensee will not allow any unauthorized person to access the Confidential Information, and Licensee will take all action reasonably necessary to protect the confidentiality of such Confidential Information, including implementing and enforcing procedures to minimize the possibility of unauthorized access, use or copying of such Confidential Information. In the event that Licensee is required by law to make any disclosure of any of the Confidential Information, by subpoena, judicial or administrative order or otherwise, Licensee will first give written notice of such requirement to Licensor, and will permit Licensor to intervene in any relevant proceedings to protect its interests in the Confidential Information, providing full cooperation and assistance to Licensor in seeking to obtain such protection. Information will not be deemed Confidential Information hereunder to the extent that Licensee can demonstrate that such information: (a) is known to Licensee prior to receipt from Licensor directly or indirectly from a source other than one having an obligation of confidentiality to Licensor; (b) becomes known (independently of disclosure by Licensor) to Licensee directly or indirectly from a source other than one having an obligation of confidentiality to Licensor; or (c) becomes publicly known or otherwise ceases to be secret or confidential, except through a breach of this EULA by Licensee. Because the unauthorized access, use, transfer or dissemination of any Confidential Information provided by Licensor to Licensee may diminish substantially the value of such materials and may irreparably harm Licensor, if Licensee breaches the provisions of this Section, Licensor will, without limiting its other rights or remedies, be entitled to equitable relief, including but not limited to injunctive relief, without the necessity of posting any bond.
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
 
-## Miscellaneous
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
 
-- If any term or condition of this EULA is deemed to be illegal or unenforceable under any rule of law, all other terms shall remain in force. Furthermore, such provision will be reformed only to the extent necessary to make it enforceable and the term or condition which is held to be illegal or unenforceable shall remain in effect as far as possible in accordance with the intention of the parties.
-- The parties are independent contractors and nothing in this EULA shall be construed to place the parties hereto in an agency, employment, franchise, joint venture, or partnership relationship. Neither party will have the authority to obligate or bind the other in any manner, and nothing herein contained shall give rise or is intended to give rise to any rights of any kind to any third parties, nor create any third-party beneficiaries. Neither party will represent to the contrary, either expressly, implicitly or otherwise.
-- All disputes, claims or controversies arising out of this EULA, or the negotiation, validity or performance of this EULA, or the transactions contemplated hereby shall be governed by and construed in accordance with the laws in force in the State of Delaware without regard to its rules of conflict of laws. Each of the parties hereto hereby irrevocably and unconditionally consents to submit to the sole and exclusive jurisdiction of the courts of State of Delaware and of the United States of America located in the State of Delaware (the “Delaware Courts”) for any litigation among the parties hereto arising out of or relating to this EULA, or the negotiation, validity or performance of this EULA, waives any objection to the laying of venue of any such litigation in the Delaware Courts and agrees not to plead or claim in any Delaware Courts that such litigation brought therein has been brought in any inconvenient forum or that there are indispensable parties to such litigation that are not subject to the jurisdiction of the Delaware Courts. The United Nations Convention on Contracts for the International Sale of Goods is hereby excluded and shall not apply.
-- Licensee may not assign this EULA without the prior written consent of Licensor. Any purported assignment in contravention of this section is null and void ab initio. A transfer of a controlling interest in the equity of Licensee shall be deemed an assignment for purposes of this subsection. Subject to the foregoing, this EULA will bind and inure to the benefit of any successors or assigns.
-- Licensee acknowledges that portions of the Software may be subject to US export control laws, including the US Export Administration Act and its associated regulations, and may be subject to export or import regulations in other countries. Licensee agrees to comply strictly with all such laws and regulations.
-- The Software, other than any Open Source Software included in a later release of the Software, was developed at private expense and consists of “commercial computer software” and “commercial computer software documentation,” respectively, as such terms are used in Section 12.212 of the Federal Acquisition Regulation and Section 227.7202 of the Defense Federal Acquisition Regulation Supplement. Accordingly, any use, duplication or disclosure by the Government or any of its authorized users is governed solely by the terms of this EULA. If for any reason, Sections 12.212 or 227.7202 are deemed not applicable, then the Government’s rights to use, duplicate or disclose the Software are limited to “Restricted Rights” as defined in 48 CFR Section 52.227-19 or DFARS 252.227-7014, as applicable.
-- This EULA constitutes the entire agreement between the parties regarding the subject matter hereof, and it supersedes and replaces all prior or contemporaneous understandings or agreements, written or oral, regarding such subject matter, and prevails over any conflicting terms or conditions contained on printed forms submitted with purchase orders, sales acknowledgments or quotations. This EULA may not be modified or waived, in whole or part, except in writing and signed by an officer or duly authorized representative of both parties. Failure or delay by either party to enforce any provision of this EULA will not be deemed a waiver of future enforcement of that or any other provision.
-- Any notice of communication from one party to the other will be by email, addressed to Licensor at [help@prefect.io](mailto:help@prefect.io).
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright 2019- Prefect Technologies, Inc.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
