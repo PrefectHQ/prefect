@@ -18,13 +18,15 @@ pr_task = CreateGitHubPR(
     repo="PrefectHQ/cloud",
     base="master",
     head="dev",
-    body="Bi-weekly Release",
+    title="Bi-weekly Release",
     max_retries=1,
     retry_delay=datetime.timedelta(minutes=1),
 )
 
 
-prepare_exception = task(repr, name="prepare_exception", trigger=any_failed)
+@task(trigger=any_failed)
+def prepare_exception(exc):
+    return repr(exc)
 
 
 issue_task = OpenGitHubIssue(
@@ -45,4 +47,5 @@ with Flow("Biweekly Cloud Release", schedule=biweekly_schedule) as flow:
     issue = issue_task(body=exc)
 
 
+flow.set_reference_tasks([pr_task])
 flow.run()
