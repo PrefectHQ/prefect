@@ -154,6 +154,7 @@ module.exports = {
             'task_library/function',
             'task_library/github',
             'task_library/google',
+            'task_library/kubernetes',
             'task_library/notifications',
             'task_library/shell',
             'task_library/sqlite',
