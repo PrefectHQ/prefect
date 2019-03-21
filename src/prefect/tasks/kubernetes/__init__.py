@@ -4,6 +4,7 @@ from prefect.tasks.kubernetes.job import (
     DeleteNamespacedJob,
     ListNamespacedJob,
     PatchNamespacedJob,
+    ReadNamespacedJob,
     ReplaceNamespacedJob,
 )
 from prefect.tasks.kubernetes.pod import CreateNamespacedPodTask
