@@ -83,8 +83,8 @@ class CreateGitHubPR(Task):
             "AUTHORIZATION": "token {}".format(token),
             "Accept": "application/vnd.github.v3+json",
         }
-        issue = {"title": title, "body": body, "head": head, "base": base}
+        pr = {"title": title, "body": body, "head": head, "base": base}
 
         ## send the request
-        resp = requests.post(url, data=json.dumps(issue), headers=headers)
+        resp = requests.post(url, data=json.dumps(pr), headers=headers)
         resp.raise_for_status()
