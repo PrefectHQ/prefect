@@ -11,7 +11,8 @@ module.exports = {
   ],
   ga: "UA-115585378-1",
   themeConfig: {
-    repo: 'PrefectHQ/prefect/tree/master/docs',
+    repo: 'PrefectHQ/prefect',
+    docsDir: 'docs',
     editLinks: true,
     // repoLabel: 'GitHub',
     logo: '/assets/logomark-color.svg',
@@ -121,8 +122,24 @@ module.exports = {
           collapsable: true,
           children: [
             'getting_started/installation',
-            'getting_started/introduction',
-            'getting_started/getting_started',
+            'getting_started/welcome',
+            'getting_started/next-steps',
+          ]
+        },
+        {
+          title: 'Tutorials',
+          collapsable: true,
+          children: [
+
+            'tutorials/',
+            'tutorials/etl',
+            'tutorials/calculator',
+            'tutorials/local-debugging',
+            'tutorials/task-retries',
+            'tutorials/triggers-and-references',
+            'tutorials/visualization',
+            'tutorials/advanced-mapping',
+            'tutorials/slack-notifications'
           ]
         },
         {
@@ -150,29 +167,14 @@ module.exports = {
           title: 'Cloud Concepts',
           collapsable: true,
           children: [
-            // 'concepts/',
+            'cloud_concepts/auth',
+            'cloud_concepts/ui',
             'cloud_concepts/graphql',
             'cloud_concepts/projects',
             'cloud_concepts/flows',
-            'cloud_concepts/schedules',
             'cloud_concepts/flow_runs',
+            'cloud_concepts/scheduled-flows',
             'cloud_concepts/secrets'
-          ]
-        },
-        {
-          title: 'Tutorials',
-          collapsable: true,
-          children: [
-
-            'tutorials/',
-            'tutorials/etl',
-            'tutorials/calculator',
-            'tutorials/local-debugging',
-            'tutorials/task-retries',
-            'tutorials/triggers-and-references',
-            'tutorials/visualization',
-            'tutorials/advanced-mapping',
-            'tutorials/slack-notifications'
           ]
         },
         {
@@ -197,7 +199,7 @@ module.exports = {
             'development/tests',
             'development/contributing'
           ]
-        }
+        },
       ]
     }
   },
