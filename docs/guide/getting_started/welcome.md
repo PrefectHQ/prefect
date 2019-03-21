@@ -1,6 +1,9 @@
-# Introduction
+---
+title: Welcome
+---
 
-Welcome to Prefect!
+# Welcome!
+
 
 These docs will give you a gentle introduction to building data applications in Prefect.
 
