@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 import prefect.utilities.logging
 import prefect.utilities.collections
 import prefect.utilities.configuration
