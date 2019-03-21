@@ -83,6 +83,7 @@ module.exports = {
             'tasks/function',
             'tasks/github',
             'tasks/google',
+            'tasks/kubernetes',
             'tasks/shell',
             'tasks/sqlite',
             'tasks/strings'
