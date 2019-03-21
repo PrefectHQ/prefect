@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
 
 import click
 import json

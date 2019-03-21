@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 """
 Environments are JSON-serializable objects that fully describe how to run a flow. Serialization
 schemas are contained in `prefect.serialization.environment.py`.
