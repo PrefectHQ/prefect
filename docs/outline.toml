@@ -169,6 +169,11 @@ title = "Google Cloud Tasks"
 module = "prefect.tasks.google"
 classes = ["GCSDownloadTask", "GCSUploadTask", "BigQueryTask", "BigQueryStreamingInsertTask"]
 
+[pages.tasks.notifications]
+title = "Notifications"
+module = "prefect.tasks.notifications"
+classes = ["EmailTask"]
+
 [pages.tasks.sqlite]
 title = "SQLite Tasks"
 module = "prefect.tasks.database"
