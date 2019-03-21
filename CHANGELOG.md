@@ -16,6 +16,10 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add `S3DownloadTask` and `S3UploadTask` for interacting with data stored on AWS S3 - [#692](https://github.com/PrefectHQ/prefect/issues/692)
 - `flow.run` is now a blocking call which will run the Flow, on its schedule, and execute full state-based execution (including retries) - [#690](https://github.com/PrefectHQ/prefect/issues/690)
 - Pre-populate `prefect.context` with various formatted date strings during execution - [#704](https://github.com/PrefectHQ/prefect/pull/704)
+- Add `AirflowTask` and `AirflowTriggerDAG` tasks to the task library for running individual Airflow tasks / DAGs - [#735](https://github.com/PrefectHQ/prefect/issues/735)
+- Add ability to overwrite task attributes such as "name" when calling tasks in the functional API - [#717](https://github.com/PrefectHQ/prefect/issues/717)
+- Release Prefect Core under the Apache 2.0 license - [#762](https://github.com/PrefectHQ/prefect/pull/762)
+- Add `OpenGitHubIssue` and `CreateGitHubPR` tasks for interacting with GitHub repositories - [#771](https://github.com/PrefectHQ/prefect/pull/771)
 
 ### Enhancements
 
@@ -39,6 +43,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - `flow.serialize()` will always serialize its environment, regardless of `build` - [#696](https://github.com/PrefectHQ/prefect/issues/696)
 - `flow.deploy()` now raises an informative error if your container cannot deserialize the Flow - [#711](https://github.com/PrefectHQ/prefect/issues/711)
 - Add `_MetaState` as a parent class for states that modify other states - [#726](https://github.com/PrefectHQ/prefect/pull/726)
+- Add `flow` keyword argument to `Task.set_upstream()` and `Task.set_downstream()` - [#749](https://github.com/PrefectHQ/prefect/pull/749)
+- Add `is_retrying()` helper method to all `State` objects - [#753](https://github.com/PrefectHQ/prefect/pull/753)
+- Allow for state handlers which return `None` - [#753](https://github.com/PrefectHQ/prefect/pull/753)
+- Add daylight saving time support for `CronSchedule` - [#729](https://github.com/PrefectHQ/prefect/pull/729)
+- Add `idempotency_key` and `context` arguments to `Client.create_flow_run` - [#757](https://github.com/PrefectHQ/prefect/issues/757)
 
 ### Fixes
 
@@ -51,6 +60,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix issue with `JinjaTemplateTask` not being pickleable - [#710](https://github.com/PrefectHQ/prefect/pull/710)
 - Fix issue with creating secrets from JSON documents using the Core Client - [#715](https://github.com/PrefectHQ/prefect/pull/715)
 - Fix issue with deserialization of JSON secrets unnecessarily calling `json.loads` - [#716](https://github.com/PrefectHQ/prefect/pull/716)
+- Fix issue where `IntervalSchedules` didn't respect daylight saving time after serialization - [#729](https://github.com/PrefectHQ/prefect/pull/729)
 
 ### Breaking Changes
 
@@ -68,7 +78,10 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Remove support for Python 3.4 - [#671](https://github.com/PrefectHQ/prefect/issues/671)
 - `flow.run` is now a blocking call which will run the Flow, on its schedule, and execute full state-based execution (including retries) - [#690](https://github.com/PrefectHQ/prefect/issues/690)
 - Remove `make_return_failed_handler` as `flow.run` now returns all task states - [#693](https://github.com/PrefectHQ/prefect/pull/693)
+- Refactor Airflow migration tools into a single `AirflowTask` in the task library for running individual Airflow tasks - [#735](https://github.com/PrefectHQ/prefect/issues/735)
 - `name` is now required on all Flow objects - [#732](https://github.com/PrefectHQ/prefect/pull/732)
+- Separate installation "extras" packages into multiple, smaller extras - [#739](https://github.com/PrefectHQ/prefect/issues/739)
+- `Flow.parameters()` always returns a set of parameters - [#756](https://github.com/PrefectHQ/prefect/pull/756)
 
 ## 0.4.1 <Badge text="beta" type="success"/>
 

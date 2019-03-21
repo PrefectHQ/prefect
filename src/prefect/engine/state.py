@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 """
 State is the main currency in the Prefect platform. It is used to represent the current
 status of a flow or task.
@@ -21,7 +19,6 @@ import prefect
 from prefect.engine.result import Result, NoResult, ResultInterface, SafeResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.utilities.collections import DotDict
-from prefect.utilities.datetimes import ensure_tz_aware
 
 
 class State:
@@ -93,6 +90,16 @@ class State:
         """
 
         return isinstance(self, Pending)
+
+    def is_retrying(self) -> bool:
+        """
+        Checks if the state is currently in a retrying state
+
+        Returns:
+            - bool: `True` if the state is retrying, `False` otherwise
+        """
+
+        return isinstance(self, Retrying)
 
     def is_running(self) -> bool:
         """
@@ -272,7 +279,7 @@ class Scheduled(Pending):
         cached_inputs: Dict[str, Result] = None,
     ):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
-        self.start_time = ensure_tz_aware(start_time or pendulum.now("utc"))
+        self.start_time = pendulum.instance(start_time or pendulum.now("utc"))
 
 
 class _MetaState(State):
@@ -318,6 +325,15 @@ class Queued(_MetaState):
     """
     The `Queued` state is used to indicate that another state could not transition to a
     `Running` state for some reason, often a lack of available resources.
+
+    The `Queued` state should be initialized with another state, which it wraps. The
+    wrapped state is extracted at the beginning of a task run.
+
+    Args:
+        - message (string): a message for the state.
+        - result (Any, optional): Defaults to `None`.
+        - state (State): the `State` state that has been marked as
+            "queued".
 
     """
 
@@ -455,7 +471,7 @@ class Cached(Success):
         self.cached_inputs = cached_inputs
         self.cached_parameters = cached_parameters  # type: Optional[Dict[str, Any]]
         if cached_result_expiration is not None:
-            cached_result_expiration = ensure_tz_aware(cached_result_expiration)
+            cached_result_expiration = pendulum.instance(cached_result_expiration)
         self.cached_result_expiration = (
             cached_result_expiration
         )  # type: Optional[datetime.datetime]

@@ -1,20 +1,23 @@
-import json
+import datetime
 import uuid
 
 import marshmallow
+import pendulum
 import pytest
+import pytz
 
+import prefect
 from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
     UUID,
     Bytes,
+    DateTimeTZ,
     FunctionReference,
     JSONCompatible,
     Nested,
     ObjectSchema,
     OneOfSchema,
 )
-import prefect
 
 json_test_values = [
     1,
@@ -120,6 +123,41 @@ class TestUUIDField:
         u = str(uuid.uuid4())
         deserialized = self.Schema().load(dict(u=u))
         assert deserialized["u"] == u
+
+
+class TestDateTimeTZField:
+
+    test_dates = [
+        pendulum.now("utc"),
+        pendulum.now("America/New_York"),
+        datetime.datetime(2000, 1, 1),
+        datetime.datetime(2000, 1, 1, tzinfo=pytz.timezone("US/Arizona")),
+        pendulum.datetime(2018, 3, 11, 9, tz="UTC"),
+        pendulum.datetime(2018, 3, 11, 9, tz="America/New_York"),
+        pendulum.datetime(2018, 3, 11, 9, tz="US/Arizona"),
+    ]
+
+    class Schema(marshmallow.Schema):
+        dt = DateTimeTZ()
+
+    @pytest.mark.parametrize("dt", test_dates)
+    def test_serialize_datetime(self, dt):
+        serialized = self.Schema().dump(dict(dt=dt))
+        pdt = pendulum.instance(dt)
+        expected = dict(dt=str(pdt.naive()), tz=pdt.tzinfo.name)
+        assert serialized["dt"] == expected
+
+    @pytest.mark.parametrize("dt", test_dates)
+    def test_deserialize_datetime(self, dt):
+        schema = self.Schema()
+        deserialized = schema.load(schema.dump(dict(dt=dt)))
+        assert deserialized["dt"] == pendulum.instance(dt)
+
+    def test_deserialize_respects_dst(self):
+        dt = pendulum.datetime(2018, 3, 11, tz="America/New_York")
+        schema = self.Schema()
+        deserialized_dt = schema.load(schema.dump(dict(dt=dt)))["dt"]
+        assert deserialized_dt.add(hours=4).hour == 5
 
 
 def fn():

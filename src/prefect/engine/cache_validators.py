@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 """
 Cache validators are functions that determine if a task's output cache
 is still valid, or whether that task should be re-run; they are provided at

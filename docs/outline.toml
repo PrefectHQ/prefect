@@ -81,16 +81,20 @@ classes = [
             "State",
             "Pending",
             "Paused",
-            "Resume",
-            "Cached",
             "Scheduled",
+            "Resume",
             "Retrying",
+            "Submitted",
+            "Queued",
             "Running",
             "Finished",
             "Success",
+            "Cached",
+            "Mapped",
+            "Skipped",
             "Failed",
             "TriggerFailed",
-            "Skipped",
+            "TimedOut",
         ]
 
 [pages.engine.signals]
@@ -145,10 +149,20 @@ module = "prefect.tasks.control_flow"
 classes = ["FilterTask"]
 functions = ["switch", "ifelse", "merge"]
 
+[pages.tasks.airflow]
+title = "Airflow Tasks"
+module = "prefect.tasks.airflow"
+classes = ["AirflowTask", "AirflowTriggerDAG"]
+
 [pages.tasks.aws]
 title = "AWS Tasks"
 module = "prefect.tasks.aws"
 classes = ["S3DownloadTask", "S3UploadTask"]
+
+[pages.tasks.github]
+title = "GitHub Tasks"
+module = "prefect.tasks.github"
+classes = ["CreateGitHubPR", "OpenGitHubIssue"]
 
 [pages.tasks.google]
 title = "Google Cloud Tasks"
@@ -232,8 +246,3 @@ functions = ["to_qualified_name", "from_qualified_name"]
 title = "Tasks"
 module = "prefect.utilities.tasks"
 functions = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
-
-[pages.utilities.airflow]
-title = "Airflow Conversion Tools"
-module = "prefect.utilities.airflow_utils"
-classes = ["AirFlow"]

@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 import json
 import logging
 from os import path
@@ -7,9 +5,7 @@ import time
 from typing import List
 import uuid
 
-from dask_kubernetes import KubeCluster
 import docker
-from kubernetes import client, config
 import yaml
 
 import prefect
@@ -154,6 +150,7 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
             - prefect.engine.state.State: the state of the flow run
         """
         from prefect.engine.executors import DaskExecutor
+        from dask_kubernetes import KubeCluster
 
         with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
             worker_pod = yaml.safe_load(pod_file)
@@ -177,6 +174,8 @@ class DaskOnKubernetesEnvironment(DockerEnvironment):
         Create a single Kubernetes job on the default namespace that spins up a dask scheduler,
         dynamically creates worker pods, and runs the flow.
         """
+        from kubernetes import client, config
+
         try:
             config.load_incluster_config()
         except config.config_exception.ConfigException:
