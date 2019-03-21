@@ -159,6 +159,11 @@ title = "AWS Tasks"
 module = "prefect.tasks.aws"
 classes = ["S3DownloadTask", "S3UploadTask"]
 
+[pages.tasks.github]
+title = "GitHub Tasks"
+module = "prefect.tasks.github"
+classes = ["CreateGitHubPR", "OpenGitHubIssue"]
+
 [pages.tasks.google]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.google"
