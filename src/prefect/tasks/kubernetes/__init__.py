@@ -22,4 +22,11 @@ from prefect.tasks.kubernetes.pod import (
     ReadNamespacedPod,
     ReplaceNamespacedPod,
 )
-from prefect.tasks.kubernetes.service import CreateNamespacedServiceTask
+from prefect.tasks.kubernetes.service import (
+    CreateNamespacedService,
+    DeleteNamespacedService,
+    ListNamespacedService,
+    PatchNamespacedService,
+    ReadNamespacedService,
+    ReplaceNamespacedService,
+)
