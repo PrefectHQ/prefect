@@ -29,14 +29,14 @@ prepare_exception = task(repr, name="prepare_exception", trigger=any_failed)
 
 issue_task = OpenGitHubIssue(
     name="Open Release Issue",
-    repo="PrefectHQ/prefect",
+    repo="PrefectHQ/cloud",
     title="Release Cycle is Broken",
     labels=["release", "bug"],
 )
 
 
 biweekly_schedule = IntervalSchedule(
-    start_date=pendulum.parse("2019-03-18"), interval=datetime.timedelta(days=7)
+    start_date=pendulum.parse("2019-03-18"), interval=datetime.timedelta(days=14)
 )
 
 
