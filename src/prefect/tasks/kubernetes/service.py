@@ -180,19 +180,22 @@ class DeleteNamespacedService(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.CoreV1Api(client.ApiClient(configuration))
+            api_client = client.CoreV1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
                 config.load_kube_config()
 
-            self.client = client.CoreV1Api()
+            api_client = client.CoreV1Api()
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        self.client.delete_namespaced_service(
-            name=service_name, namespace=namespace, **kube_kwargs
+        api_client.delete_namespaced_service(
+            name=service_name,
+            namespace=namespace,
+            body=api_client.V1DeleteOptions(),
+            **kube_kwargs
         )
 
 
@@ -267,18 +270,18 @@ class ListNamespacedService(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.CoreV1Api(client.ApiClient(configuration))
+            api_client = client.CoreV1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
                 config.load_kube_config()
 
-            self.client = client.CoreV1Api()
+            api_client = client.CoreV1Api()
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        return self.client.list_namespaced_service(namespace=namespace, **kube_kwargs)
+        return api_client.list_namespaced_service(namespace=namespace, **kube_kwargs)
 
 
 class PatchNamespacedService(Task):
@@ -371,19 +374,19 @@ class PatchNamespacedService(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.CoreV1Api(client.ApiClient(configuration))
+            api_client = client.CoreV1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
                 config.load_kube_config()
 
-            self.client = client.CoreV1Api()
+            api_client = client.CoreV1Api()
 
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        self.client.patch_namespaced_service(
+        api_client.patch_namespaced_service(
             name=service_name, namespace=namespace, body=body, **kube_kwargs
         )
 
@@ -469,18 +472,18 @@ class ReadNamespacedService(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.CoreV1Api(client.ApiClient(configuration))
+            api_client = client.CoreV1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
                 config.load_kube_config()
 
-            self.client = client.CoreV1Api()
+            api_client = client.CoreV1Api()
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        return self.client.read_namespaced_service(
+        return api_client.read_namespaced_service(
             name=service_name, namespace=namespace, **kube_kwargs
         )
 
@@ -573,18 +576,18 @@ class ReplaceNamespacedService(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.CoreV1Api(client.ApiClient(configuration))
+            api_client = client.CoreV1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
                 config.load_kube_config()
 
-            self.client = client.CoreV1Api()
+            api_client = client.CoreV1Api()
 
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        self.client.replace_namespaced_service(
+        api_client.replace_namespaced_service(
             name=service_name, namespace=namespace, body=body, **kube_kwargs
         )
