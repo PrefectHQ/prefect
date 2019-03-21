@@ -123,7 +123,7 @@ Prefect also includes a great deal of "concept" documentation, which covers feat
 
 To write concept docs, simply add Markdown files to the `docs/guide` directory (or one of its subdirectories). To ensure that your page is displayed in the navigation, edit `docs/.vuepress/config.js` to include a reference to it.
 
-## Previewing docs
+## Previewing docs locally
 
 Documentation (including both concepts and API references) is built and deployed with every merge to Prefect's master branch. Prior to merge, a GitHub check will allow you to see a hosted version of the documentation associated with every PR.
 
