@@ -164,6 +164,16 @@ title = "GitHub Tasks"
 module = "prefect.tasks.github"
 classes = ["CreateGitHubPR", "OpenGitHubIssue"]
 
+[pages.tasks.kubernetes]
+title = "Kubernetes Tasks"
+module = "prefect.tasks.kubernetes"
+classes = [
+        "CreateNamespacedDeployment", "DeleteNamespacedDeployment", "ListNamespacedDeployment", "PatchNamespacedDeployment", "ReadNamespacedDeployment", "ReplaceNamespacedDeployment",
+        "CreateNamespacedJob", "DeleteNamespacedJob", "ListNamespacedJob", "PatchNamespacedJob", "ReadNamespacedJob", "ReplaceNamespacedJob",
+        "CreateNamespacedPod", "DeleteNamespacedPod", "ListNamespacedPod", "PatchNamespacedPod", "ReadNamespacedPod", "ReplaceNamespacedPod",
+        "CreateNamespacedService", "DeleteNamespacedService", "ListNamespacedService", "PatchNamespacedService", "ReadNamespacedService", "ReplaceNamespacedService"
+        ]
+
 [pages.tasks.google]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.google"
