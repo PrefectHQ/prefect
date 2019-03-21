@@ -124,7 +124,7 @@ class DeleteNamespacedJob(Task):
     and runtime will be replaced with the runtime value.
 
     Args:
-        - name (str, optional): The name of a job to delete
+        - job_name (str, optional): The name of a job to delete
         - namespace (str, optional): The Kubernetes namespace to delete this job from,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
@@ -138,13 +138,13 @@ class DeleteNamespacedJob(Task):
 
     def __init__(
         self,
-        name: str = None,
+        job_name: str = None,
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
         **kwargs
     ):
-        self.name = name
+        self.job_name = job_name
         self.namespace = namespace
         self.kube_kwargs = kube_kwargs or {}
         self.kubernetes_api_key_secret = kubernetes_api_key_secret
@@ -152,11 +152,11 @@ class DeleteNamespacedJob(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "name", "namespace", "kube_kwargs", "kubernetes_api_key_secret"
+        "job_name", "namespace", "kube_kwargs", "kubernetes_api_key_secret"
     )
     def run(
         self,
-        name: str = None,
+        job_name: str = None,
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
@@ -165,7 +165,7 @@ class DeleteNamespacedJob(Task):
         Task run method.
 
         Args:
-            - name (str, optional): The name of a job to delete
+            - job_name (str, optional): The name of a job to delete
             - namespace (str, optional): The Kubernetes namespace to delete this job in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
@@ -176,7 +176,7 @@ class DeleteNamespacedJob(Task):
             - **kwargs (dict, optional): additional keyword arguments to pass to the Task
                 constructor
         """
-        if not name:
+        if not job_name:
             raise ValueError("The name of a Kubernetes job must be provided.")
 
         kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
@@ -195,7 +195,9 @@ class DeleteNamespacedJob(Task):
 
         self.kube_kwargs.update(kube_kwargs or {})
 
-        self.client.delete_namespaced_job(name=name, namespace=namespace, **kube_kwargs)
+        self.client.delete_namespaced_job(
+            name=job_name, namespace=namespace, **kube_kwargs
+        )
 
 
 class ListNamespacedJob(Task):
@@ -305,7 +307,7 @@ class PatchNamespacedJob(Task):
     and runtime will be replaced with the runtime value.
 
     Args:
-        - name (str, optional): The name of a job to patch
+        - job_name (str, optional): The name of a job to patch
         - body (dict, optional): A dictionary representation of a Kubernetes V1Job
             patch specification
         - namespace (str, optional): The Kubernetes namespace to patch this job in,
@@ -321,13 +323,14 @@ class PatchNamespacedJob(Task):
 
     def __init__(
         self,
-        name: str = None,
+        job_name: str = None,
         body: dict = None,
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
         **kwargs
     ):
+        self.job_name = job_name
         self.body = body or {}
         self.namespace = namespace
         self.kube_kwargs = kube_kwargs or {}
@@ -336,11 +339,11 @@ class PatchNamespacedJob(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "name", "body", "namespace", "kube_kwargs", "kubernetes_api_key_secret"
+        "job_name", "body", "namespace", "kube_kwargs", "kubernetes_api_key_secret"
     )
     def run(
         self,
-        name: str = None,
+        job_name: str = None,
         body: dict = None,
         namespace: str = "default",
         kube_kwargs: dict = None,
@@ -350,7 +353,7 @@ class PatchNamespacedJob(Task):
         Task run method.
 
         Args:
-            - name (str, optional): The name of a job to patch
+            - job_name (str, optional): The name of a job to patch
             - body (dict, optional): A dictionary representation of a Kubernetes V1Job
                 patch specification
             - namespace (str, optional): The Kubernetes namespace to patch this job in,
@@ -368,7 +371,7 @@ class PatchNamespacedJob(Task):
                 "A dictionary representing a V1Job patch must be provided."
             )
 
-        if not name:
+        if not job_name:
             raise ValueError("The name of a Kubernetes job must be provided.")
 
         kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
@@ -389,7 +392,7 @@ class PatchNamespacedJob(Task):
         self.kube_kwargs.update(kube_kwargs or {})
 
         self.client.patch_namespaced_job(
-            namespace=namespace, body=self.body, **kube_kwargs
+            name=job_name, namespace=namespace, body=self.body, **kube_kwargs
         )
 
 
@@ -413,7 +416,7 @@ class ReadNamespacedJob(Task):
     and runtime will be replaced with the runtime value.
 
     Args:
-        - name (str, optional): The name of a job to read
+        - job_name (str, optional): The name of a job to read
         - namespace (str, optional): The Kubernetes namespace to read this job from,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
@@ -427,13 +430,13 @@ class ReadNamespacedJob(Task):
 
     def __init__(
         self,
-        name: str = None,
+        job_name: str = None,
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
         **kwargs
     ):
-        self.name = name
+        self.job_name = job_name
         self.namespace = namespace
         self.kube_kwargs = kube_kwargs or {}
         self.kubernetes_api_key_secret = kubernetes_api_key_secret
@@ -441,11 +444,11 @@ class ReadNamespacedJob(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "name", "namespace", "kube_kwargs", "kubernetes_api_key_secret"
+        "job_name", "namespace", "kube_kwargs", "kubernetes_api_key_secret"
     )
     def run(
         self,
-        name: str = None,
+        job_name: str = None,
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
@@ -454,7 +457,7 @@ class ReadNamespacedJob(Task):
         Task run method.
 
         Args:
-            - name (str, optional): The name of a job to read
+            - job_name (str, optional): The name of a job to read
             - namespace (str, optional): The Kubernetes namespace to read this job in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
@@ -468,7 +471,7 @@ class ReadNamespacedJob(Task):
         Returns:
             - V1Job: a Kubernetes V1Job matching the job that was found
         """
-        if not name:
+        if not job_name:
             raise ValueError("The name of a Kubernetes job must be provided.")
 
         kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
@@ -488,7 +491,7 @@ class ReadNamespacedJob(Task):
         self.kube_kwargs.update(kube_kwargs or {})
 
         return self.client.read_namespaced_job(
-            name=name, namespace=namespace, **kube_kwargs
+            name=job_name, namespace=namespace, **kube_kwargs
         )
 
 
@@ -512,7 +515,7 @@ class ReplaceNamespacedJob(Task):
     and runtime will be replaced with the runtime value.
 
     Args:
-        - name (str, optional): The name of a job to replace
+        - job_name (str, optional): The name of a job to replace
         - body (dict, optional): A dictionary representation of a Kubernetes V1Job
             specification
         - namespace (str, optional): The Kubernetes namespace to patch this job in,
@@ -528,13 +531,14 @@ class ReplaceNamespacedJob(Task):
 
     def __init__(
         self,
-        name: str = None,
+        job_name: str = None,
         body: dict = None,
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
         **kwargs
     ):
+        self.job_name = job_name
         self.body = body or {}
         self.namespace = namespace
         self.kube_kwargs = kube_kwargs or {}
@@ -543,11 +547,11 @@ class ReplaceNamespacedJob(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "name", "body", "namespace", "kube_kwargs", "kubernetes_api_key_secret"
+        "job_name", "body", "namespace", "kube_kwargs", "kubernetes_api_key_secret"
     )
     def run(
         self,
-        name: str = None,
+        job_name: str = None,
         body: dict = None,
         namespace: str = "default",
         kube_kwargs: dict = None,
@@ -557,7 +561,7 @@ class ReplaceNamespacedJob(Task):
         Task run method.
 
         Args:
-            - name (str, optional): The name of a job to replace
+            - job_name (str, optional): The name of a job to replace
             - body (dict, optional): A dictionary representation of a Kubernetes V1Job
                 specification
             - namespace (str, optional): The Kubernetes namespace to patch this job in,
@@ -573,7 +577,7 @@ class ReplaceNamespacedJob(Task):
         if not body:
             raise ValueError("A dictionary representing a V1Job must be provided.")
 
-        if not name:
+        if not job_name:
             raise ValueError("The name of a Kubernetes job must be provided.")
 
         kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
@@ -594,5 +598,5 @@ class ReplaceNamespacedJob(Task):
         self.kube_kwargs.update(kube_kwargs or {})
 
         self.client.replace_namespaced_job(
-            namespace=namespace, body=self.body, **kube_kwargs
+            name=job_name, namespace=namespace, body=self.body, **kube_kwargs
         )
