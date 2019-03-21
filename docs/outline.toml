@@ -144,7 +144,7 @@ module = "prefect.engine.cloud"
 classes = ["CloudFlowRunner", "CloudTaskRunner", "CloudResultHandler"]
 
 [pages.tasks.control_flow]
-title = "Control Flow"
+title = "Control Flow Tasks"
 module = "prefect.tasks.control_flow"
 classes = ["FilterTask"]
 functions = ["switch", "ifelse", "merge"]
@@ -170,7 +170,7 @@ module = "prefect.tasks.google"
 classes = ["GCSDownloadTask", "GCSUploadTask", "BigQueryTask", "BigQueryStreamingInsertTask"]
 
 [pages.tasks.notifications]
-title = "Notifications"
+title = "Notification Tasks"
 module = "prefect.tasks.notifications"
 classes = ["EmailTask"]
 
@@ -180,12 +180,12 @@ module = "prefect.tasks.database"
 classes = ["SQLiteQueryTask", "SQLiteScriptTask"]
 
 [pages.tasks.function]
-title = "FunctionTask"
+title = "Function Tasks"
 module = "prefect.tasks.core.function"
 classes = ["FunctionTask"]
 
 [pages.tasks.shell]
-title = "ShellTask"
+title = "Shell Tasks"
 module = "prefect.tasks.shell"
 classes = ["ShellTask"]
 
@@ -248,6 +248,6 @@ classes = ["JSONCompatible", "Nested", "Bytes", "UUID", "FunctionReference"]
 functions = ["to_qualified_name", "from_qualified_name"]
 
 [pages.utilities.tasks]
-title = "Tasks"
+title = "Task Utilities"
 module = "prefect.utilities.tasks"
 functions = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
