@@ -7,10 +7,6 @@ from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class CloseGithubIssue(Task):
-    pass
-
-
 class OpenGitHubIssue(Task):
     """
     Task for opening / creating new GitHub issues using the v3 version of the GitHub REST API.

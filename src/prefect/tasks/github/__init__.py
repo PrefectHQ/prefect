@@ -1,1 +1,2 @@
-from .issues import OpenGithubIssue
+from .issues import OpenGitHubIssue
+from .prs import CreateGitHubPR
