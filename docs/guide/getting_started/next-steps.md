@@ -40,7 +40,7 @@ with Flow("Spark") as flow:
 
 ```
 
-When we run this flow, everything will work perfectly as long as the job runs successfully. However, if the job fails, then the `submitted` task will enter a `Failed` state. Because the default trigger on the `tear_down_cluster` task is `all_successful`, it will enter a `TriggerFailed` state -- a special variant of `Failed` that indicates that the trigger, not a runtime error, was the cause.
+When we run this flow, everything will work perfectly as long as the Spark job runs successfully. However, if the job fails, then the `submitted` task will enter a `Failed` state. Because the default trigger on the `tear_down_cluster` task is `all_successful`, it will enter a `TriggerFailed` state -- a special variant of `Failed` that indicates that the trigger, not a runtime error, was the cause.
 
 To fix this, we simply adjust the trigger when defining the task. In this case we can use the `always_run` trigger, which is an alias for `all_finished`:
 
