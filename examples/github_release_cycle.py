@@ -24,7 +24,9 @@ pr_task = CreateGitHubPR(
 )
 
 
-prepare_exception = task(repr, name="prepare_exception", trigger=any_failed)
+@task(trigger=any_failed)
+def prepare_exception(exc):
+    return repr(exc)
 
 
 issue_task = OpenGitHubIssue(
