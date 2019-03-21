@@ -17,6 +17,11 @@ except ImportError:
     pass
 
 try:
+    import prefect.tasks.kubernetes
+except ImportError:
+    pass
+
+try:
     import prefect.tasks.templates
 except ImportError:
     pass

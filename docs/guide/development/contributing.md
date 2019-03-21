@@ -26,6 +26,7 @@ It's important to update Prefect's [changelog](/api/changelog.html) with any adj
 
 - Features: headline additions to the system
 - Enhancements: improvements to existing functionality, or minor additions
+- Task Library: additions to Prefect's task library
 - Fixes: adjustments that fix bugs or other conditions
 - Breaking Changes: any changes that break Prefect's backwards-compatibility
 
