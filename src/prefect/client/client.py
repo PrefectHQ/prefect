@@ -391,16 +391,24 @@ class Client:
     def create_flow_run(
         self,
         flow_id: str,
+        context: dict = None,
         parameters: dict = None,
         scheduled_start_time: datetime.datetime = None,
+        idempotency_key: str = None,
     ) -> str:
         """
         Create a new flow run for the given flow id.  If `start_time` is not provided, the flow run will be scheduled to start immediately.
 
         Args:
             - flow_id (str): the id of the Flow you wish to schedule
+            - context (dict, optional): the run context
             - parameters (dict, optional): a dictionary of parameter values to pass to the flow run
             - scheduled_start_time (datetime, optional): the time to schedule the execution for; if not provided, defaults to now
+            - idempotency_key (str, optional): an idempotency key; if provided, this run will be cached for 24
+                hours. Any subsequent attempts to create a run with the same idempotency key
+                will return the ID of the originally created run (no new run will be created after the first).
+                An error will be raised if parameters or context are provided and don't match the original.
+                Each subsequent request will reset the TTL for 24 hours.
 
         Returns:
             - str: the ID of the newly-created flow run
@@ -416,6 +424,10 @@ class Client:
         inputs = dict(flowId=flow_id)
         if parameters is not None:
             inputs.update(parameters=parameters)  # type: ignore
+        if context is not None:
+            inputs.update(context=context)  # type: ignore
+        if idempotency_key is not None:
+            inputs.update(idempotencyKey=idempotency_key)  # type: ignore
         if scheduled_start_time is not None:
             inputs.update(
                 scheduledStartTime=scheduled_start_time.isoformat()
