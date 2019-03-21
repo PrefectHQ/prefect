@@ -132,7 +132,6 @@ module.exports = {
           title: 'Tutorials',
           collapsable: true,
           children: [
-
             'tutorials/',
             'tutorials/etl',
             'tutorials/calculator',
@@ -142,6 +141,23 @@ module.exports = {
             'tutorials/visualization',
             'tutorials/advanced-mapping',
             'tutorials/slack-notifications'
+          ]
+        },
+        {
+          title: 'Task Library',
+          collapsable: true,
+          children: [
+            'task_library/',
+            'task_library/airflow',
+            'task_library/aws',
+            'task_library/control_flow',
+            'task_library/function',
+            'task_library/github',
+            'task_library/google',
+            'task_library/notifications',
+            'task_library/shell',
+            'task_library/sqlite',
+            'task_library/strings',
           ]
         },
         {
