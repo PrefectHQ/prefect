@@ -644,7 +644,10 @@ class TestReplaceNamespacedServiceTask:
         )
 
         task.run(body={"a": "test"})
-        assert coreapi.replace_namespaced_service.call_args[1]["body"] == {"a": "test", "test": "a"}
+        assert coreapi.replace_namespaced_service.call_args[1]["body"] == {
+            "a": "test",
+            "test": "a",
+        }
 
     def test_empty_body_value_is_updated(self, monkeypatch):
         task = ReplaceNamespacedService(service_name="test")
