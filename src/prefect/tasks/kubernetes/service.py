@@ -10,7 +10,7 @@ class CreateNamespacedService(Task):
     Task for creating a namespaced service on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -30,7 +30,7 @@ class CreateNamespacedService(Task):
         - namespace (str, optional): The Kubernetes namespace to create this service in,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -72,7 +72,7 @@ class CreateNamespacedService(Task):
             - namespace (str, optional): The Kubernetes namespace to create this service in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -107,7 +107,7 @@ class DeleteNamespacedService(Task):
     Task for deleting a namespaced service on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -126,7 +126,7 @@ class DeleteNamespacedService(Task):
         - namespace (str, optional): The Kubernetes namespace to delete this service from,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -167,7 +167,7 @@ class DeleteNamespacedService(Task):
             - namespace (str, optional): The Kubernetes namespace to delete this service in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -204,7 +204,7 @@ class ListNamespacedService(Task):
     Task for listing namespaced services on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -222,7 +222,7 @@ class ListNamespacedService(Task):
         - namespace (str, optional): The Kubernetes namespace to list services from,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"field_selector": "...", "label_selector": "..."})
+            Kubernetes API (e.g. `{"field_selector": "...", "label_selector": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -257,7 +257,7 @@ class ListNamespacedService(Task):
             - namespace (str, optional): The Kubernetes namespace to list services from,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"field_selector": "...", "label_selector": "..."})
+                Kubernetes API (e.g. `{"field_selector": "...", "label_selector": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -289,7 +289,7 @@ class PatchNamespacedService(Task):
     Task for patching a namespaced service on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -310,7 +310,7 @@ class PatchNamespacedService(Task):
         - namespace (str, optional): The Kubernetes namespace to patch this service in,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -356,7 +356,7 @@ class PatchNamespacedService(Task):
             - namespace (str, optional): The Kubernetes namespace to patch this service in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -396,7 +396,7 @@ class ReadNamespacedService(Task):
     Task for reading a namespaced service on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -415,7 +415,7 @@ class ReadNamespacedService(Task):
         - namespace (str, optional): The Kubernetes namespace to read this service from,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "exact": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "exact": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -456,7 +456,7 @@ class ReadNamespacedService(Task):
             - namespace (str, optional): The Kubernetes namespace to read this service in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "exact": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "exact": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
@@ -493,7 +493,7 @@ class ReplaceNamespacedService(Task):
     Task for replacing a namespaced service on Kubernetes.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    This task will attempt to connect to a Kubernetes cluster in three steps with
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
@@ -514,7 +514,7 @@ class ReplaceNamespacedService(Task):
         - namespace (str, optional): The Kubernetes namespace to patch this service in,
             defaults to the `default` namespace
         - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
@@ -560,7 +560,7 @@ class ReplaceNamespacedService(Task):
             - namespace (str, optional): The Kubernetes namespace to patch this service in,
                 defaults to the `default` namespace
             - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
-                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+                Kubernetes API (e.g. `{"pretty": "...", "dry_run": "..."}`)
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
