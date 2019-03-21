@@ -87,21 +87,19 @@ class CreateNamespacedJob(Task):
         if kubernetes_api_key:
             configuration = client.Configuration()
             configuration.api_key["authorization"] = kubernetes_api_key
-            self.client = client.BatchV1Api(client.ApiClient(configuration))
+            api_client = client.BatchV1Api(client.ApiClient(configuration))
         else:
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
                 config.load_kube_config()
 
-            self.client = client.BatchV1Api()
+            api_client = client.BatchV1Api()
 
-        self.body.update(body or {})
-        self.kube_kwargs.update(kube_kwargs or {})
+        body = {**self.body, **(body or {})}
+        kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        self.client.create_namespaced_job(
-            namespace=namespace, body=self.body, **kube_kwargs
-        )
+        api_client.create_namespaced_job(namespace=namespace, body=body, **kube_kwargs)
 
 
 class DeleteNamespacedJob(Task):
@@ -193,7 +191,7 @@ class DeleteNamespacedJob(Task):
 
             self.client = client.BatchV1Api()
 
-        self.kube_kwargs.update(kube_kwargs or {})
+        kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
         self.client.delete_namespaced_job(
             name=job_name, namespace=namespace, **kube_kwargs
@@ -282,7 +280,7 @@ class ListNamespacedJob(Task):
 
             self.client = client.BatchV1Api()
 
-        self.kube_kwargs.update(kube_kwargs or {})
+        kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
         return self.client.list_namespaced_job(namespace=namespace, **kube_kwargs)
 
@@ -388,11 +386,11 @@ class PatchNamespacedJob(Task):
 
             self.client = client.BatchV1Api()
 
-        self.body.update(body or {})
-        self.kube_kwargs.update(kube_kwargs or {})
+        body = {**self.body, **(body or {})}
+        kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
         self.client.patch_namespaced_job(
-            name=job_name, namespace=namespace, body=self.body, **kube_kwargs
+            name=job_name, namespace=namespace, body=body, **kube_kwargs
         )
 
 
@@ -488,7 +486,7 @@ class ReadNamespacedJob(Task):
 
             self.client = client.BatchV1Api()
 
-        self.kube_kwargs.update(kube_kwargs or {})
+        kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
         return self.client.read_namespaced_job(
             name=job_name, namespace=namespace, **kube_kwargs
@@ -594,9 +592,9 @@ class ReplaceNamespacedJob(Task):
 
             self.client = client.BatchV1Api()
 
-        self.body.update(body or {})
-        self.kube_kwargs.update(kube_kwargs or {})
+        body = {**self.body, **(body or {})}
+        kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
         self.client.replace_namespaced_job(
-            name=job_name, namespace=namespace, body=self.body, **kube_kwargs
+            name=job_name, namespace=namespace, body=body, **kube_kwargs
         )
