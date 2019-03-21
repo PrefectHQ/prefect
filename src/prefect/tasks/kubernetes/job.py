@@ -76,6 +76,9 @@ class CreateNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
         """
         if not body:
             raise ValueError("A dictionary representing a V1Job must be provided.")
@@ -169,6 +172,9 @@ class DeleteNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `job_name` is `None`
         """
         if not job_name:
             raise ValueError("The name of a Kubernetes job must be provided.")
@@ -358,6 +364,10 @@ class PatchNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
+            - ValueError: if `job_name` is `None`
         """
         if not body:
             raise ValueError(
@@ -461,6 +471,9 @@ class ReadNamespacedJob(Task):
 
         Returns:
             - V1Job: a Kubernetes V1Job matching the job that was found
+
+        Raises:
+            - ValueError: if `job_name` is `None`
         """
         if not job_name:
             raise ValueError("The name of a Kubernetes job must be provided.")
@@ -562,6 +575,10 @@ class ReplaceNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
+            - ValueError: if `job_name` is `None`
         """
         if not body:
             raise ValueError("A dictionary representing a V1Job must be provided.")

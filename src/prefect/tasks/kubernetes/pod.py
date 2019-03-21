@@ -76,6 +76,9 @@ class CreateNamespacedPod(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
         """
         if not body:
             raise ValueError("A dictionary representing a V1Pod must be provided.")
@@ -169,6 +172,9 @@ class DeleteNamespacedPod(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `pod_name` is `None`
         """
         if not pod_name:
             raise ValueError("The name of a Kubernetes pod must be provided.")
@@ -358,6 +364,10 @@ class PatchNamespacedPod(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
+            - ValueError: if `pod_name` is `None`
         """
         if not body:
             raise ValueError(
@@ -461,6 +471,9 @@ class ReadNamespacedPod(Task):
 
         Returns:
             - V1Pod: a Kubernetes V1Pod matching the pod that was found
+
+        Raises:
+            - ValueError: if `pod_name` is `None`
         """
         if not pod_name:
             raise ValueError("The name of a Kubernetes pod must be provided.")
@@ -562,6 +575,10 @@ class ReplaceNamespacedPod(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
+            - ValueError: if `pod_name` is `None`
         """
         if not body:
             raise ValueError("A dictionary representing a V1Pod must be provided.")

@@ -76,6 +76,9 @@ class CreateNamespacedDeployment(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
         """
         if not body:
             raise ValueError(
@@ -173,6 +176,9 @@ class DeleteNamespacedDeployment(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `deployment_name` is `None`
         """
         if not deployment_name:
             raise ValueError("The name of a Kubernetes deployment must be provided.")
@@ -367,6 +373,10 @@ class PatchNamespacedDeployment(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
+            - ValueError: if `deployment_name` is `None`
         """
         if not body:
             raise ValueError(
@@ -471,6 +481,9 @@ class ReadNamespacedDeployment(Task):
         Returns:
             - ExtensionsV1beta1Deployment: a Kubernetes ExtensionsV1beta1Deployment
                 matching the deployment that was found
+
+        Raises:
+            - ValueError: if `deployment_name` is `None`
         """
         if not deployment_name:
             raise ValueError("The name of a Kubernetes deployment must be provided.")
@@ -576,6 +589,10 @@ class ReplaceNamespacedDeployment(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
+            - ValueError: if `deployment_name` is `None`
         """
         if not body:
             raise ValueError(
