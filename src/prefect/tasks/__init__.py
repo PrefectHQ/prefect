@@ -3,6 +3,7 @@ import prefect.tasks.core
 import prefect.tasks.control_flow
 import prefect.tasks.database
 import prefect.tasks.github
+import prefect.tasks.notifications
 import prefect.tasks.shell
 
 try:
