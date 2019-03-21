@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 import base64
 import json
 import sys
@@ -273,6 +271,29 @@ class UUID(fields.UUID):
 
     def _deserialize(self, value, attr, data, **kwargs):
         return str(super()._deserialize(value, attr, data, **kwargs))
+
+
+class DateTimeTZ(fields.DateTime):
+    """
+    Replacement for fields.DateTime that stores the time zone (not the time zone offset like
+    fields.LocalDateTime)
+
+    Args:
+        - *args (Any): the arguments accepted by `marshmallow.Field`
+        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if value is not None:
+            dt = pendulum.instance(value)
+            return dict(dt=dt.naive().to_iso8601_string(), tz=dt.tzinfo.name)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if value is not None:
+            return pendulum.parse(value["dt"], tz=value["tz"])
 
 
 class FunctionReference(fields.Field):

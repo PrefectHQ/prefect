@@ -1,7 +1,7 @@
 ---
 home: true
 heroImage: /assets/logomark-color.svg
-heroTitle: Prefect (Preview)
+heroTitle: Prefect
 tagline: Don't Panic.
 footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
@@ -13,11 +13,8 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
 <router-link to="guide/">Read the docs</router-link>
 </button>
 <button class="action-button">
-<router-link to="agreement.html">Get the code</router-link>
+<router-link to="https://github.com/PrefectHQ/prefect">Get the code</router-link>
 </button>
-
-Prefect is beta software under active development by Prefect Technologies, Inc. This early preview is being provided to a limited number of partners to assist with development. By accessing or using the code or documentation, you are agreeing to the [beta software end user license agreement](/license.html)\.
-{.disclaimer}
 
 </div>
 </div>
@@ -40,7 +37,7 @@ Workflows are developed and tested locally, then deployed for execution at scale
 
 ## Simple but powerful
 
-Prefect's beautiful API is powered by Dask and Kubernetes, so it's ready for anything.
+Prefect Cloud is powered by GraphQL, Dask, and Kubernetes, so it's ready for anything.
 
 </div>
 </div>
@@ -53,7 +50,7 @@ We've rebuilt data engineering for the data science era.
 
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
-Read the [docs](/guide/); get the [code](/agreement.html); ask us [anything](mailto:help@prefect.io)!
+Read the [docs](/guide/); get the [code](https://github.com/PrefectHQ/prefect); ask us [anything](mailto:help@prefect.io)!
 
 ### Hello, world! 👋
 

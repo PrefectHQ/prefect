@@ -37,10 +37,22 @@ def test_map_returns_a_task_copy():
     ll = ListTask()
     a = AddTask()
 
-    with Flow(name="test"):
+    with Flow(name="test") as flow:
         res = a.map(ll)
 
     assert res != a
+    assert res in flow.tasks
+
+
+def test_map_returns_a_task_copy_without_context():
+    ll = ListTask()
+    a = AddTask()
+
+    flow = Flow(name="test")
+    res = a.map(ll, flow=flow)
+
+    assert res != a
+    assert res in flow.tasks
 
 
 def test_calling_map_with_bind_returns_self():
@@ -399,7 +411,7 @@ def test_map_allows_for_retries(executor):
 
     old = states.result[divved]
     assert old.result[1:] == [1.0, 0.5]
-    assert isinstance(old.map_states[0], Retrying)
+    assert old.map_states[0].is_retrying()
 
     # update upstream result
     states.result[l_res].result[0] = 0.01

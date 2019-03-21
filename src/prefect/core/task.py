@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 import collections
 import copy
 import inspect
@@ -35,7 +33,7 @@ def _validate_run_signature(run: Callable) -> None:
             "to *args."
         )
 
-    reserved_kwargs = ["upstream_tasks", "mapped"]
+    reserved_kwargs = ["upstream_tasks", "mapped", "task_args", "flow"]
     violations = [kw for kw in reserved_kwargs if kw in run_sig.args]
     if violations:
         msg = "Tasks cannot have the following argument names: {}.".format(
@@ -70,7 +68,8 @@ class Task(metaclass=SignatureValidator):
             return x + y
     ```
 
-    *Note:* The implemented `run` method cannot have `*args` in its signature.
+    *Note:* The implemented `run` method cannot have `*args` in its signature. In addition,
+    the following keywords are reserved: `upstream_tasks`, `task_args` and `mapped`.
 
     An instance of a `Task` can be used functionally to generate other task instances
     with the same attributes but with different values bound to their `run` methods.
@@ -122,7 +121,7 @@ class Task(metaclass=SignatureValidator):
             opportunity to inspect or modify the new state. The handler
             will be passed the task instance, the old (prior) state, and the new
             (current) state, with the following signature:
-                `state_handler(task: Task, old_state: State, new_state: State) -> State`
+                `state_handler(task: Task, old_state: State, new_state: State) -> Optional[State]`
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - on_failure (Callable, optional): A function with signature `fn(task: Task, state: State) -> None`
@@ -254,6 +253,12 @@ class Task(metaclass=SignatureValidator):
         """
         The `run()` method is called (with arguments, if appropriate) to run a task.
 
+        *Note:* The implemented `run` method cannot have `*args` in its signature. In addition,
+        the following keywords are reserved: `upstream_tasks`, `task_args` and `mapped`.
+
+        If a task has arguments in its `run()` method, these can be bound either by using the functional
+        API and _calling_ the task instance, or by using `self.bind` directly.
+
         In addition to running arbitrary functions, tasks can interact with Prefect in a few ways:
         <ul><li> Return an optional result. When this function runs successfully,
             the task is considered successful and the result (if any) can be
@@ -274,9 +279,19 @@ class Task(metaclass=SignatureValidator):
 
     # Dependencies -------------------------------------------------------------
 
-    def copy(self) -> "Task":
+    def copy(self, **task_args: Any) -> "Task":
         """
         Creates and returns a copy of the current Task.
+
+        Args:
+            - **task_args (dict, optional): a dictionary of task attribute keyword arguments, these attributes
+                will be set on the new copy
+
+        Raises:
+            - AttributeError: if any passed `task_args` are not attributes of the original
+
+        Returns:
+            - Task: a copy of the current Task, with any attributes updated from `task_args`
         """
 
         flow = prefect.context.get("flow", None)
@@ -291,10 +306,20 @@ class Task(metaclass=SignatureValidator):
             )
 
         new = copy.copy(self)
+
+        # check task_args
+        for attr, val in task_args.items():
+            if not hasattr(new, attr):
+                raise AttributeError(
+                    "{0} does not have {1} as an attribute".format(self, attr)
+                )
+            else:
+                setattr(new, attr, val)
+
         # assign new id
         new.id = str(uuid.uuid4())
 
-        new.tags = copy.deepcopy(self.tags)
+        new.tags = copy.deepcopy(self.tags).union(set(new.tags))
         tags = set(prefect.context.get("tags", set()))
         new.tags.update(tags)
 
@@ -304,7 +329,9 @@ class Task(metaclass=SignatureValidator):
         self,
         *args: Any,
         mapped: bool = False,
+        task_args: dict = None,
         upstream_tasks: Iterable[Any] = None,
+        flow: "Flow" = None,
         **kwargs: Any
     ) -> "Task":
         """
@@ -319,15 +346,21 @@ class Task(metaclass=SignatureValidator):
                 with the specified keyword arguments; defaults to `False`.
                 If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
                 container will _not_ be mapped over.
+            - task_args (dict, optional): a dictionary of task attribute keyword arguments, these attributes
+                will be set on the new copy
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 for the new task.  This kwarg can be used to functionally specify
                 dependencies without binding their result to `run()`
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+                flow in context if no flow is specified
 
         Returns:
             - Task: a new Task instance
         """
-        new = self.copy()
-        new.bind(*args, mapped=mapped, upstream_tasks=upstream_tasks, **kwargs)
+        new = self.copy(**(task_args or {}))
+        new.bind(
+            *args, mapped=mapped, upstream_tasks=upstream_tasks, flow=flow, **kwargs
+        )
         return new
 
     def bind(
@@ -335,6 +368,7 @@ class Task(metaclass=SignatureValidator):
         *args: Any,
         mapped: bool = False,
         upstream_tasks: Iterable[Any] = None,
+        flow: "Flow" = None,
         **kwargs: Any
     ) -> "Task":
         """
@@ -355,9 +389,12 @@ class Task(metaclass=SignatureValidator):
                 container will _not_ be mapped over.
             - upstream_tasks ([Task], optional): a list of upstream dependencies for the
                 current task.
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+                flow in context if no flow is specified
             - **kwargs: keyword arguments to bind to the current Task's `run` method
 
-        Returns: - Task: the current Task instance
+        Returns:
+            - Task: the current Task instance
         """
 
         # this will raise an error if callargs weren't all provided
@@ -372,7 +409,7 @@ class Task(metaclass=SignatureValidator):
         if var_kw_arg:
             callargs.update(callargs.pop(var_kw_arg.name, {}))
 
-        flow = prefect.context.get("flow", None)
+        flow = flow or prefect.context.get("flow", None)
         if not flow:
             raise ValueError("Could not infer an active Flow context.")
 
@@ -389,7 +426,11 @@ class Task(metaclass=SignatureValidator):
         return self
 
     def map(
-        self, *args: Any, upstream_tasks: Iterable[Any] = None, **kwargs: Any
+        self,
+        *args: Any,
+        upstream_tasks: Iterable[Any] = None,
+        flow: "Flow" = None,
+        **kwargs: Any
     ) -> "Task":
         """
         Map the Task elementwise across one or more Tasks. Arguments which should _not_ be mapped over
@@ -406,12 +447,16 @@ class Task(metaclass=SignatureValidator):
             - *args: arguments to map over, which will elementwise be bound to the Task's `run` method
             - upstream_tasks ([Task], optional): a list of upstream dependencies
                 to map over
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+                flow in context if no flow is specified
             - **kwargs: keyword arguments to map over, which will elementwise be bound to the Task's `run` method
 
         Returns: - Task: a new Task instance
         """
         new = self.copy()
-        return new.bind(*args, mapped=True, upstream_tasks=upstream_tasks, **kwargs)
+        return new.bind(
+            *args, mapped=True, upstream_tasks=upstream_tasks, flow=flow, **kwargs
+        )
 
     def set_dependencies(
         self,
@@ -457,7 +502,7 @@ class Task(metaclass=SignatureValidator):
             mapped=mapped,
         )
 
-    def set_upstream(self, task: object) -> None:
+    def set_upstream(self, task: object, flow: "Flow" = None) -> None:
         """
         Sets the provided task as an upstream dependency of this task.
 
@@ -466,13 +511,15 @@ class Task(metaclass=SignatureValidator):
         Args:
             - task (object): A task or object that will be converted to a task that will be set
                 as a upstream dependency of this task.
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+                flow in context if no flow is specified
 
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
-        self.set_dependencies(upstream_tasks=[task])
+        self.set_dependencies(flow=flow, upstream_tasks=[task])
 
-    def set_downstream(self, task: object) -> None:
+    def set_downstream(self, task: object, flow: "Flow" = None) -> None:
         """
         Sets the provided task as a downstream dependency of this task.
 
@@ -481,11 +528,13 @@ class Task(metaclass=SignatureValidator):
         Args:
             - task (object): A task or object that will be converted to a task that will be set
                 as a downstream dependency of this task.
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+                flow in context if no flow is specified
 
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
-        self.set_dependencies(downstream_tasks=[task])
+        self.set_dependencies(flow=flow, downstream_tasks=[task])
 
     def inputs(self) -> Dict[str, Dict]:
         """

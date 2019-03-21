@@ -50,7 +50,7 @@ def test_create_required_parameter():
 def test_raise_error_if_two_parameters_have_same_name():
     f = Flow(name="test")
     f.add_task(Parameter("x"))
-    assert "x" in f.parameters(names_only=True)
+    assert "x" in {p.name for p in f.parameters()}
     with pytest.raises(ValueError):
         f.add_task(Parameter("x"))
 
@@ -63,6 +63,3 @@ def test_flow_parameters():
     f.add_task(y)
 
     assert f.parameters() == {x, y}
-    assert f.parameters(only_required=True) == {x}
-    assert f.parameters(names_only=True) == {"x", "y"}
-    assert f.parameters(names_only=True, only_required=True) == {"x"}

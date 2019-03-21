@@ -8,6 +8,12 @@ import prefect
 from prefect import __version__, schedules
 from prefect.serialization import schedule as schemas
 
+
+def serialize_fmt(dt):
+    p_dt = pendulum.instance(dt)
+    return dict(dt=p_dt.naive().to_iso8601_string(), tz=p_dt.tzinfo.name)
+
+
 all_schedule_classes = set(
     cls
     for cls in schedules.__dict__.values()
@@ -72,16 +78,16 @@ def test_serialize_cron_schedule(cron_schedule):
     assert schema.dump(cron_schedule) == {
         "cron": cron_schedule.cron,
         "__version__": __version__,
-        "start_date": cron_schedule.start_date.isoformat(),
-        "end_date": cron_schedule.end_date.isoformat(),
+        "start_date": serialize_fmt(cron_schedule.start_date),
+        "end_date": serialize_fmt(cron_schedule.end_date),
     }
 
 
 def test_serialize_interval_schedule(interval_schedule):
     schema = schemas.IntervalScheduleSchema()
     assert schema.dump(interval_schedule) == {
-        "start_date": interval_schedule.start_date.isoformat(),
-        "end_date": interval_schedule.end_date.isoformat(),
+        "start_date": serialize_fmt(interval_schedule.start_date),
+        "end_date": serialize_fmt(interval_schedule.end_date),
         "interval": int(interval_schedule.interval.total_seconds()) * 1000000,
         "__version__": __version__,
     }
@@ -92,7 +98,7 @@ def test_serialize_onetime_schedule():
     schedule = schedules.OneTimeSchedule(start_date=pendulum.today("utc"))
     assert schema.dump(schedule) == {
         "__version__": __version__,
-        "start_date": schedule.start_date.isoformat(),
+        "start_date": serialize_fmt(schedule.start_date),
     }
 
 

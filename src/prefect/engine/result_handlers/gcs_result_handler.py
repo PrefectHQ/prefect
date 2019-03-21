@@ -3,7 +3,6 @@ import cloudpickle
 import pendulum
 import uuid
 
-from google.cloud import storage
 from typing import Any
 
 from prefect.engine.result_handlers import ResultHandler
@@ -21,6 +20,8 @@ class GCSResultHandler(ResultHandler):
     """
 
     def __init__(self, bucket: str = None) -> None:
+        from google.cloud import storage
+
         self.client = storage.Client()
         self.bucket = bucket
         self.gcs_bucket = self.client.bucket(self.bucket)

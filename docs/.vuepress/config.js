@@ -11,7 +11,8 @@ module.exports = {
   ],
   ga: "UA-115585378-1",
   themeConfig: {
-    repo: 'PrefectHQ/prefect/tree/master/docs',
+    repo: 'PrefectHQ/prefect',
+    docsDir: 'docs',
     editLinks: true,
     // repoLabel: 'GitHub',
     logo: '/assets/logomark-color.svg',
@@ -22,10 +23,6 @@ module.exports = {
       {
         text: "API Reference",
         link: '/api/'
-      },
-      {
-        text: "License",
-        link: '/license.html'
       },
       {
         text: "Log Out",
@@ -80,9 +77,11 @@ module.exports = {
           title: 'prefect.tasks',
           collapsable: true,
           children: [
+            'tasks/airflow',
             'tasks/aws',
             'tasks/control_flow',
             'tasks/function',
+            'tasks/github',
             'tasks/google',
             'tasks/shell',
             'tasks/sqlite',
@@ -104,11 +103,9 @@ module.exports = {
             'utilities/notifications',
             'utilities/serialization',
             'utilities/tasks',
-            'utilities/airflow'
           ]
         }
       ],
-      '/license': [],
       '/guide/': [
         '/guide/',
         {
@@ -125,39 +122,8 @@ module.exports = {
           collapsable: true,
           children: [
             'getting_started/installation',
-            'getting_started/getting_started',
-          ]
-        },
-        {
-          title: 'Core Concepts',
-          collapsable: true,
-          children: [
-            // 'concepts/',
-            'core_concepts/tasks',
-            'core_concepts/flows',
-            'core_concepts/parameters',
-            'core_concepts/states',
-            'core_concepts/mapping',
-            'core_concepts/engine',
-            'core_concepts/execution',
-            'core_concepts/results',
-            'core_concepts/environments',
-            'core_concepts/schedules',
-            'core_concepts/best-practices',
-            'core_concepts/common-pitfalls'
-          ]
-        },
-        {
-          title: 'Cloud Concepts',
-          collapsable: true,
-          children: [
-            // 'concepts/',
-            'cloud_concepts/graphql',
-            'cloud_concepts/projects',
-            'cloud_concepts/flows',
-            'cloud_concepts/schedules',
-            'cloud_concepts/flow_runs',
-            'cloud_concepts/secrets'
+            'getting_started/welcome',
+            'getting_started/next-steps',
           ]
         },
         {
@@ -173,8 +139,42 @@ module.exports = {
             'tutorials/triggers-and-references',
             'tutorials/visualization',
             'tutorials/advanced-mapping',
-            'tutorials/airflow_migration',
             'tutorials/slack-notifications'
+          ]
+        },
+        {
+          title: 'Core Concepts',
+          collapsable: true,
+          children: [
+            // 'concepts/',
+            'core_concepts/tasks',
+            'core_concepts/flows',
+            'core_concepts/parameters',
+            'core_concepts/states',
+            'core_concepts/mapping',
+            'core_concepts/engine',
+            'core_concepts/execution',
+            'core_concepts/notifications',
+            'core_concepts/results',
+            'core_concepts/environments',
+            'core_concepts/schedules',
+            'core_concepts/configuration',
+            'core_concepts/best-practices',
+            'core_concepts/common-pitfalls'
+          ]
+        },
+        {
+          title: 'Cloud Concepts',
+          collapsable: true,
+          children: [
+            'cloud_concepts/auth',
+            'cloud_concepts/ui',
+            'cloud_concepts/graphql',
+            'cloud_concepts/projects',
+            'cloud_concepts/flows',
+            'cloud_concepts/flow_runs',
+            'cloud_concepts/scheduled-flows',
+            'cloud_concepts/secrets'
           ]
         },
         {
@@ -196,9 +196,10 @@ module.exports = {
             'development/overview',
             'development/style',
             'development/documentation',
-            'development/tests'
+            'development/tests',
+            'development/contributing'
           ]
-        }
+        },
       ]
     }
   },

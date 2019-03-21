@@ -1,5 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
-
 import sys
 
 from setuptools import find_packages, setup
@@ -11,15 +9,21 @@ install_requires = open("requirements.txt").read().strip().split("\n")
 dev_requires = open("dev-requirements.txt").read().strip().split("\n")
 
 extras = {
+    "aws": ["boto3 >= 1.9, < 2.0"],
     "dev": dev_requires,
-    "viz": ["graphviz >= 0.8.3"],
+    "google": [
+        "google-cloud-bigquery >= 1.6.0, < 2.0",
+        "google-cloud-storage >= 1.13, < 2.0",
+    ],
+    "kubernetes": ["dask-kubernetes == 0.7.0", "kubernetes >= 8.0.1, < 9.0"],
     "templates": ["jinja2 >= 2.0, < 3.0"],
+    "viz": ["graphviz >= 0.8.3"],
 }
 
 if sys.version_info >= (3, 6):
     extras["dev"] += ["black"]
 
-extras["all_extras"] = extras["dev"] + extras["viz"] + extras["templates"]
+extras["all_extras"] = sum(extras.values(), [])
 
 
 setup(
@@ -38,12 +42,14 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://www.github.com/PrefectHQ/prefect",
+    license="Apache License 2.0",
     author="Prefect Technologies, Inc.",
     author_email="help@prefect.io",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
+        "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3 :: Only",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
