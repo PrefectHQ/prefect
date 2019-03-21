@@ -6,6 +6,37 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 
 class CreateNamespacedJob(Task):
+    """
+    Task for creating a namespaced job on Kubernetes.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    This task has will attempt to connect to a Kubernetes cluster in three steps with
+    the first successful connection attempt becoming the mode of communication with a
+    cluster.
+
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
+    3. Attempt out-of-cluster connection using the default location for a kube config file
+
+    The arguments `body` and `kube_kwargs` will perform an in-place update when the task
+    is run. This means that it is possible to provide `body = {"info": "here"}` at
+    instantiation and then provide `body = {"more": "info"}` at run time which will make
+    `body = {"info": "here", "more": "info"}`. *Note*: Keys present in both instantiation
+    and runtime will be replaced with the runtime value.
+
+    Args:
+        - body (dict, optional): A dictionary representation of a Kubernetes V1Job
+            specification
+        - namespace (str, optional): The Kubernetes namespace to create this job in,
+            defaults to the `default` namespace
+        - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
+            Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+        - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
+            which stored your Kubernetes API Key; this Secret must be a string and in
+            BearerToken format
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
+    """
     def __init__(
         self,
         body: dict = None,
@@ -31,7 +62,22 @@ class CreateNamespacedJob(Task):
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
     ):
+        """
+        Task run method.
 
+        Args:
+            - body (dict, optional): A dictionary representation of a Kubernetes V1Job
+                specification
+            - namespace (str, optional): The Kubernetes namespace to create this job in,
+                defaults to the `default` namespace
+            - kube_kwargs (dict, optional): Optional extra keyword arguments to pass to the
+                Kubernetes API (e.g. {"pretty": "...", "dry_run": "..."})
+            - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
+                which stored your Kubernetes API Key; this Secret must be a string and in
+                BearerToken format
+            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+                constructor
+        """
         if not body:
             raise ValueError("A dictionary representing a V1Job must be provided.")
 
