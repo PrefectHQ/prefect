@@ -42,6 +42,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Allow for state handlers which return `None` - [#753](https://github.com/PrefectHQ/prefect/pull/753)
 - Add daylight saving time support for `CronSchedule` - [#729](https://github.com/PrefectHQ/prefect/pull/729)
 - Add `idempotency_key` and `context` arguments to `Client.create_flow_run` - [#757](https://github.com/PrefectHQ/prefect/issues/757)
+- Make `EmailTask` more secure by pulling credentials from secrets - [#706](https://github.com/PrefectHQ/prefect/issues/706)
 
 ### Task Library
 

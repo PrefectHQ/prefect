@@ -84,6 +84,7 @@ module.exports = {
             'tasks/github',
             'tasks/google',
             'tasks/kubernetes',
+            'tasks/notifications',
             'tasks/shell',
             'tasks/sqlite',
             'tasks/strings'
