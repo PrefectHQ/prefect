@@ -76,8 +76,6 @@ class CreateNamespacedPod(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError("A dictionary representing a V1Pod must be provided.")
@@ -171,8 +169,6 @@ class DeleteNamespacedPod(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not pod_name:
             raise ValueError("The name of a Kubernetes pod must be provided.")
@@ -260,8 +256,6 @@ class ListNamespacedPod(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
 
         Return:
             - V1PodList: a Kubernetes V1PodList of the pods which are found
@@ -361,8 +355,6 @@ class PatchNamespacedPod(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError(
@@ -463,8 +455,6 @@ class ReadNamespacedPod(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
 
         Returns:
             - V1Pod: a Kubernetes V1Pod matching the pod that was found
@@ -569,8 +559,6 @@ class ReplaceNamespacedPod(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError("A dictionary representing a V1Pod must be provided.")

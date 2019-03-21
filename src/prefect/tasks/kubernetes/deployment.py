@@ -76,8 +76,6 @@ class CreateNamespacedDeployment(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError(
@@ -175,8 +173,6 @@ class DeleteNamespacedDeployment(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not deployment_name:
             raise ValueError("The name of a Kubernetes deployment must be provided.")
@@ -264,8 +260,6 @@ class ListNamespacedDeployment(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
 
         Return:
             - ExtensionsV1beta1DeploymentList: a Kubernetes ExtensionsV1beta1DeploymentList
@@ -372,8 +366,6 @@ class PatchNamespacedDeployment(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError(
@@ -474,8 +466,6 @@ class ReadNamespacedDeployment(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
 
         Returns:
             - ExtensionsV1beta1Deployment: a Kubernetes ExtensionsV1beta1Deployment
@@ -585,8 +575,6 @@ class ReplaceNamespacedDeployment(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError(

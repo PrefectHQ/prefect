@@ -76,8 +76,6 @@ class CreateNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError("A dictionary representing a V1Job must be provided.")
@@ -171,8 +169,6 @@ class DeleteNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not job_name:
             raise ValueError("The name of a Kubernetes job must be provided.")
@@ -260,8 +256,6 @@ class ListNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
 
         Return:
             - V1JobList: a Kubernetes V1JobList of the jobs which are found
@@ -361,8 +355,6 @@ class PatchNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError(
@@ -463,8 +455,6 @@ class ReadNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
 
         Returns:
             - V1Job: a Kubernetes V1Job matching the job that was found
@@ -569,8 +559,6 @@ class ReplaceNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError("A dictionary representing a V1Job must be provided.")

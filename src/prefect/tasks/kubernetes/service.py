@@ -76,8 +76,6 @@ class CreateNamespacedService(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError("A dictionary representing a V1Service must be provided.")
@@ -99,7 +97,9 @@ class CreateNamespacedService(Task):
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
-        api_client.create_namespaced_service(namespace=namespace, body=body, **kube_kwargs)
+        api_client.create_namespaced_service(
+            namespace=namespace, body=body, **kube_kwargs
+        )
 
 
 class DeleteNamespacedService(Task):
@@ -171,8 +171,6 @@ class DeleteNamespacedService(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not service_name:
             raise ValueError("The name of a Kubernetes service must be provided.")
@@ -260,8 +258,6 @@ class ListNamespacedService(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
 
         Return:
             - V1ServiceList: a Kubernetes V1ServiceList of the services which are found
@@ -361,8 +357,6 @@ class PatchNamespacedService(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError(
@@ -463,8 +457,6 @@ class ReadNamespacedService(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
 
         Returns:
             - V1Service: a Kubernetes V1Service matching the service that was found
@@ -569,8 +561,6 @@ class ReplaceNamespacedService(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task
-                constructor
         """
         if not body:
             raise ValueError("A dictionary representing a V1Service must be provided.")

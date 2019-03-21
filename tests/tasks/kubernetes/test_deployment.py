@@ -70,7 +70,9 @@ class TestCreateNamespacedDeploymentTask:
         )
 
         task.run(body={"test": "b"})
-        assert extensionsapi.create_namespaced_deployment.call_args[1]["body"] == {"test": "b"}
+        assert extensionsapi.create_namespaced_deployment.call_args[1]["body"] == {
+            "test": "b"
+        }
 
     def test_body_value_is_appended(self, monkeypatch):
         task = CreateNamespacedDeployment(body={"test": "a"})
@@ -104,7 +106,9 @@ class TestCreateNamespacedDeploymentTask:
         )
 
         task.run(body={"test": "a"})
-        assert extensionsapi.create_namespaced_deployment.call_args[1]["body"] == {"test": "a"}
+        assert extensionsapi.create_namespaced_deployment.call_args[1]["body"] == {
+            "test": "a"
+        }
 
     def test_kube_kwargs_value_is_replaced(self, monkeypatch):
         task = CreateNamespacedDeployment(body={"test": "a"}, kube_kwargs={"test": "a"})
@@ -198,7 +202,9 @@ class TestDeleteNamespacedDeploymentTask:
         assert conf_call.called
 
     def test_kube_kwargs_value_is_replaced(self, monkeypatch):
-        task = DeleteNamespacedDeployment(deployment_name="test", kube_kwargs={"test": "a"})
+        task = DeleteNamespacedDeployment(
+            deployment_name="test", kube_kwargs={"test": "a"}
+        )
 
         config = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
@@ -213,7 +219,9 @@ class TestDeleteNamespacedDeploymentTask:
         assert extensionsapi.delete_namespaced_deployment.call_args[1]["test"] == "b"
 
     def test_kube_kwargs_value_is_appended(self, monkeypatch):
-        task = DeleteNamespacedDeployment(deployment_name="test", kube_kwargs={"test": "a"})
+        task = DeleteNamespacedDeployment(
+            deployment_name="test", kube_kwargs={"test": "a"}
+        )
 
         config = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
@@ -387,7 +395,9 @@ class TestPatchNamespacedDeploymentTask:
         )
 
         task.run(body={"test": "b"})
-        assert extensionsapi.patch_namespaced_deployment.call_args[1]["body"] == {"test": "b"}
+        assert extensionsapi.patch_namespaced_deployment.call_args[1]["body"] == {
+            "test": "b"
+        }
 
     def test_body_value_is_appended(self, monkeypatch):
         task = PatchNamespacedDeployment(body={"test": "a"}, deployment_name="test")
@@ -420,7 +430,9 @@ class TestPatchNamespacedDeploymentTask:
         )
 
         task.run(body={"test": "a"})
-        assert extensionsapi.patch_namespaced_deployment.call_args[1]["body"] == {"test": "a"}
+        assert extensionsapi.patch_namespaced_deployment.call_args[1]["body"] == {
+            "test": "a"
+        }
 
     def test_kube_kwargs_value_is_replaced(self, monkeypatch):
         task = PatchNamespacedDeployment(
@@ -518,7 +530,9 @@ class TestReadNamespacedDeploymentTask:
         assert conf_call.called
 
     def test_kube_kwargs_value_is_replaced(self, monkeypatch):
-        task = ReadNamespacedDeployment(deployment_name="test", kube_kwargs={"test": "a"})
+        task = ReadNamespacedDeployment(
+            deployment_name="test", kube_kwargs={"test": "a"}
+        )
 
         config = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
@@ -533,7 +547,9 @@ class TestReadNamespacedDeploymentTask:
         assert extensionsapi.read_namespaced_deployment.call_args[1]["test"] == "b"
 
     def test_kube_kwargs_value_is_appended(self, monkeypatch):
-        task = ReadNamespacedDeployment(deployment_name="test", kube_kwargs={"test": "a"})
+        task = ReadNamespacedDeployment(
+            deployment_name="test", kube_kwargs={"test": "a"}
+        )
 
         config = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
@@ -603,7 +619,9 @@ class TestReplaceNamespacedDeploymentTask:
             task.run(body={"test": "test"}, deployment_name=None)
 
     def test_api_key_pulled_from_secret(self, monkeypatch):
-        task = ReplaceNamespacedDeployment(body={"test": "test"}, deployment_name="test")
+        task = ReplaceNamespacedDeployment(
+            body={"test": "test"}, deployment_name="test"
+        )
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
 
@@ -629,7 +647,9 @@ class TestReplaceNamespacedDeploymentTask:
         )
 
         task.run(body={"test": "b"})
-        assert extensionsapi.replace_namespaced_deployment.call_args[1]["body"] == {"test": "b"}
+        assert extensionsapi.replace_namespaced_deployment.call_args[1]["body"] == {
+            "test": "b"
+        }
 
     def test_body_value_is_appended(self, monkeypatch):
         task = ReplaceNamespacedDeployment(body={"test": "a"}, deployment_name="test")
@@ -644,7 +664,10 @@ class TestReplaceNamespacedDeploymentTask:
         )
 
         task.run(body={"a": "test"})
-        assert extensionsapi.replace_namespaced_deployment.call_args[1]["body"] == {"a": "test", "test": "a"}
+        assert extensionsapi.replace_namespaced_deployment.call_args[1]["body"] == {
+            "a": "test",
+            "test": "a",
+        }
 
     def test_empty_body_value_is_updated(self, monkeypatch):
         task = ReplaceNamespacedDeployment(deployment_name="test")
@@ -659,7 +682,9 @@ class TestReplaceNamespacedDeploymentTask:
         )
 
         task.run(body={"test": "a"})
-        assert extensionsapi.replace_namespaced_deployment.call_args[1]["body"] == {"test": "a"}
+        assert extensionsapi.replace_namespaced_deployment.call_args[1]["body"] == {
+            "test": "a"
+        }
 
     def test_kube_kwargs_value_is_replaced(self, monkeypatch):
         task = ReplaceNamespacedDeployment(

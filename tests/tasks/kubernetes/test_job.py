@@ -644,7 +644,10 @@ class TestReplaceNamespacedJobTask:
         )
 
         task.run(body={"a": "test"})
-        assert batchapi.replace_namespaced_job.call_args[1]["body"] == {"a": "test", "test": "a"}
+        assert batchapi.replace_namespaced_job.call_args[1]["body"] == {
+            "a": "test",
+            "test": "a",
+        }
 
     def test_empty_body_value_is_updated(self, monkeypatch):
         task = ReplaceNamespacedJob(job_name="test")
