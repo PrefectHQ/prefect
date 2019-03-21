@@ -40,7 +40,7 @@ Workflows are developed and tested locally, then deployed for execution at scale
 
 ## Simple but powerful
 
-Prefect's beautiful API is powered by Dask and Kubernetes, so it's ready for anything.
+Prefect's beautiful GraphQL API is powered by Dask and Kubernetes, so it's ready for anything.
 
 </div>
 </div>
