@@ -76,6 +76,9 @@ class CreateNamespacedService(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
         """
         if not body:
             raise ValueError("A dictionary representing a V1Service must be provided.")
@@ -171,6 +174,9 @@ class DeleteNamespacedService(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `service_name` is `None`
         """
         if not service_name:
             raise ValueError("The name of a Kubernetes service must be provided.")
@@ -360,6 +366,10 @@ class PatchNamespacedService(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
+            - ValueError: if `service_name` is `None`
         """
         if not body:
             raise ValueError(
@@ -463,6 +473,9 @@ class ReadNamespacedService(Task):
 
         Returns:
             - V1Service: a Kubernetes V1Service matching the service that was found
+
+        Raises:
+            - ValueError: if `service_name` is `None`
         """
         if not service_name:
             raise ValueError("The name of a Kubernetes service must be provided.")
@@ -564,6 +577,10 @@ class ReplaceNamespacedService(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+
+        Raises:
+            - ValueError: if `body` is `None`
+            - ValueError: if `service_name` is `None`
         """
         if not body:
             raise ValueError("A dictionary representing a V1Service must be provided.")
