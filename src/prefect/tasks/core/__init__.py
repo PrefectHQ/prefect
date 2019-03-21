@@ -1,4 +1,3 @@
-# Licensed under LICENSE.md; also available at https://www.prefect.io/licenses/beta-eula
 """
 These Task classes are "core" in the sense that they are used elsewhere in Prefect.
 """
