@@ -1,4 +1,11 @@
-from prefect.tasks.kubernetes.deployment import CreateNamespacedDeploymentTask
+from prefect.tasks.kubernetes.deployment import (
+    CreateNamespacedDeployment,
+    DeleteNamespacedDeployment,
+    ListNamespacedDeployment,
+    PatchNamespacedDeployment,
+    ReadNamespacedDeployment,
+    ReplaceNamespacedDeployment,
+)
 from prefect.tasks.kubernetes.job import (
     CreateNamespacedJob,
     DeleteNamespacedJob,
