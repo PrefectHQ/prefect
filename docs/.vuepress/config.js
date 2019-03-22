@@ -73,12 +73,15 @@ module.exports = {
           children: [
             'tasks/airflow',
             'tasks/aws',
+            'tasks/collections',
+            'tasks/constants',
             'tasks/control_flow',
             'tasks/function',
             'tasks/github',
             'tasks/google',
             'tasks/kubernetes',
             'tasks/notifications',
+            'tasks/operators',
             'tasks/shell',
             'tasks/sqlite',
             'tasks/strings'

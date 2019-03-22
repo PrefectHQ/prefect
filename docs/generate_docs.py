@@ -124,6 +124,22 @@ def format_lists(doc):
 @preprocess
 def format_doc(obj, in_table=False):
     doc = inspect.getdoc(obj)
+
+    # if the object is a Class and doesn't implement an __init__, then we want to
+    # "inherit" the doc of its immediate parent class.
+    if isinstance(obj, type):
+        for parent in obj.mro()[1:]:  # first object in MRO is the class itself
+            if obj.__init__ is parent.__init__:
+                doc = "\n\n".join(
+                    [
+                        doc,
+                        "#### Parent Class Documentation (`{}`):".format(
+                            create_absolute_path(parent)
+                        ),
+                        format_doc(parent, in_table=in_table),
+                    ]
+                )
+
     body = doc or ""
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
