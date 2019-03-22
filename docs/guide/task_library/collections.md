@@ -8,7 +8,7 @@ For example:
 
 ```python
 @task
-def count_more_than_2(inputs: Set):
+def count_more_than_2(inputs: set) -> int:
     return len([s for s in inputs if s > 2])
 
 # note these tasks don't actually return a useful value
