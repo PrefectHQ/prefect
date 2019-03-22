@@ -363,7 +363,7 @@ if __name__ == "__main__":
 
         with open("../README.md", "r") as g:
             readme = g.read()
-            f.write("\n" + readme[readme.index("# Prefect") :])
+            f.write("\n" + readme)
             f.write(auto_generated_footer)
 
     ## UPDATE CHANGELOG
