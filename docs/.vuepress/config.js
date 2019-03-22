@@ -1,7 +1,5 @@
-const webpack = require('webpack')
-
 module.exports = {
-  title: 'Prefect (Preview)',
+  title: 'Prefect Docs',
   description: "Don't Panic.",
   head: [
     'link', {
@@ -24,10 +22,6 @@ module.exports = {
         text: "API Reference",
         link: '/api/'
       },
-      {
-        text: "Log Out",
-        link: '/logout.html'
-      }
     ],
     sidebar: {
       '/api/': [
@@ -79,12 +73,15 @@ module.exports = {
           children: [
             'tasks/airflow',
             'tasks/aws',
+            'tasks/collections',
+            'tasks/constants',
             'tasks/control_flow',
             'tasks/function',
             'tasks/github',
             'tasks/google',
             'tasks/kubernetes',
             'tasks/notifications',
+            'tasks/operators',
             'tasks/shell',
             'tasks/sqlite',
             'tasks/strings'
@@ -150,12 +147,15 @@ module.exports = {
             'task_library/',
             'task_library/airflow',
             'task_library/aws',
+            'task_library/collections',
+            'task_library/constants',
             'task_library/control_flow',
             'task_library/function',
             'task_library/github',
             'task_library/google',
             'task_library/kubernetes',
             'task_library/notifications',
+            'task_library/operators',
             'task_library/shell',
             'task_library/sqlite',
             'task_library/strings',
@@ -239,12 +239,5 @@ module.exports = {
       md.use(require('markdown-it-attrs'))
       md.use(require('markdown-it-checkbox'))
     }
-  },
-  configureWebpack: {
-    plugins: [
-      new webpack.DefinePlugin({
-        'process.env.PREFECT_DOCS_DEV_MODE': JSON.stringify(process.env.PREFECT_DOCS_DEV_MODE)
-      })
-    ]
   }
 }

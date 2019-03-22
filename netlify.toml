@@ -12,5 +12,5 @@
 
 [build]
   base    = ""
-  publish = "docs/build"
+  publish = "docs/.vuepress/dist"
   command = 'export GIT_SHA=$COMMIT_REF && pip install -e ".[all_extras]" && yarn docs:build'

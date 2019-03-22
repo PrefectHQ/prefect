@@ -251,11 +251,6 @@ class DockerEnvironment(Environment):
             with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
                 health_file.write(healthcheck)
 
-            # Due to prefect being a private repo it currently will require a
-            # personal access token. Once pip installable this will change and there won't
-            # be a need for the personal access token or git anymore.
-            # *Note*: this currently prevents alpine images from being used
-
             file_contents = textwrap.dedent(
                 """\
                 FROM {base_image}
@@ -275,8 +270,8 @@ class DockerEnvironment(Environment):
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
-                RUN git clone https://{access_token}@github.com/PrefectHQ/prefect.git
-                RUN pip install ./prefect
+                RUN pip install prefect
+
                 RUN python /root/.prefect/healthcheck.py
                 """.format(
                     base_image=self.base_image,
