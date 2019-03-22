@@ -19,7 +19,7 @@ When your code works, you don't really need a workflow system. We call that  [**
 
 And yet, we don't see a single tool designed that way. Other workflow systems seem to believe that they're actually positive engineering tools, somehow enabling users to do things they couldn't do otherwise. As a result, they feel no shame in asking users to generate yet another config file, or contort code into a convoluted DAG structure. Prefect already knows you can write incredible code; it just wants to make sure it works.
 
-Prefect takes your code and transforms it into a robust, distributed pipeline. You can continue to use your existing tools, languages, infrastructure, and scripts. Prefect is building a robust DAG structure, but in a way that respects positive engineering and doesn't inhibit it. You can use Prefect's functional API to transform scripts with minimal hooks; or you can access the deferred computational graph directly; or any combination thereof. It's up to you.
+Prefect takes your code and transforms it into a robust, distributed pipeline. You can continue to use your existing tools, languages, infrastructure, and scripts. Prefect is building a rich DAG structure, but in a way that respects positive engineering and doesn't inhibit it. You can use Prefect's functional API to transform scripts with minimal hooks; or you can access the deferred computational graph directly; or any combination thereof. It's up to you.
 
 The most common thing we hear about negative engineering is: **"This should be easy!"**
 
