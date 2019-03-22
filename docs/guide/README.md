@@ -1,51 +1,48 @@
 ---
-sidebarDepth: 0
+# sidebarDepth: 0
+title: Introduction
 ---
 
-# Introduction
 
-## Welcome to the Prefect Preview!
+<div align="center" style="margin-bottom:40px;">
+<img src="/assets/wordmark-color-horizontal.svg"  width=600 >
+</div>
 
-Thank you for being one of our early partners. Your feedback is critical to making sure Prefect does everything it's supposed to do. You can always reach us at [help@prefect.io](mailto:help@prefect.io).
 
-## Core + Cloud
+# Welcome to Prefect!
 
-Prefect 0.4 is the biggest Prefect release yet -- just check out the [changelog](/api/changelog.html#version-0-4-1)! Prefect Core was already the best tool for designing, testing, and running data workflows - and thanks to your feedback, it's even better now.
+Prefect is a new kind of workflow management system. We started with a simple premise:
 
-The biggest new feature in Core is that it introduces support for **Prefect Cloud**. Cloud enables a variety of stateful interactions, including:
+> Your code probably works. But sometimes it doesn't.
 
-- GraphQL API
-- Scheduling
-- Building flows as containers
-- Runtime secrets
-- Remote execution clusters
-- Permissions and authorization
-- Projects and flow organization
+When your code works, you don't really need a workflow system. We call that  [**positive engineering**](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d). It's only when things go wrong that a system like Prefect starts to be valuable. That's **negative engineering**: all the little details that guarantee your code either achieves its goal, or [fails successfully](https://www.youtube.com/watch?v=TlawR_gi8-Y). In this way, workflow systems are actually risk management tools, like insurance: there when you need them, invisible when you don't.
 
-If you don't have access to the Cloud preview yet, please [get in touch](mailto:help@prefect.io).
+And yet, we don't see a single tool designed that way. Other workflow systems seem to believe that they're actually positive engineering tools, somehow enabling users to do things they couldn't do otherwise. As a result, they feel no shame in asking users to generate yet another config file, or contort code into a convoluted DAG structure. Prefect already knows you can write incredible code; it just wants to make sure it works.
 
-Prefect is already starting to power Prefect HQ itself, and we can't wait to see what you build.
+Prefect takes your code and transforms it into a robust, distributed pipeline. You can continue to use your existing tools, languages, infrastructure, and scripts. Prefect is building a robust DAG structure, but in a way that respects positive engineering and doesn't inhibit it. You can use Prefect's functional API to transform scripts with minimal hooks; or you can access the deferred computational graph directly; or any combination thereof. It's up to you.
+
+The most common thing we hear about negative engineering is: **"This should be easy!"**
+
+Prefect is the first step toward making that true.
+
+
+## The Prefect Platform
+
+Open-sourcing the Prefect Core engine is a major milestone and completes the first stage of the Prefect platform rollout. Soon, we will expand that platform with **Prefect Cloud**. In both its free and paid versions, Prefect Cloud will automatically extend the Core engine with:
+
+- a full GraphQL API
+- a complete UI for flows and jobs
+- remote execution clusters
+- automatic scheduling
+- permissions and authorization
+- projects for flow organization
+- secure runtime secrets and parameters
+- ...and a few things we're not ready to talk about yet!
+
+Cloud is already powering Prefect HQ, and we're working with our Lighthouse Partners to get everything ready for a wide release. Please [get in touch](mailto:hello@prefect.io) to apply for access.
+
+We can't wait to see what you build.
 
 Happy engineering!
 
-~ The Prefect Team
-
-## Installation
-
-:::tip Requirements
-Please note Prefect requires Python 3.5 or higher.
-:::
-
-To install Prefect with visualization support:
-
-```
-git clone https://github.com/PrefectHQ/prefect.git
-cd prefect
-pip install -e ".[viz]"
-```
-
-To install all development dependencies (for running unit tests): `pip install -e ".[dev]"`
-
-## What's Next?
-
-Jump in with the [quick start](getting_started/welcome.html) or [tutorials](tutorials/), browse the [API reference docs](/api/)... or just `import prefect` and start building!
+*- The Prefect Team*
