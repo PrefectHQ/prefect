@@ -102,10 +102,9 @@ assert run(flow, x=1, op='/', y=2) == 0.5
 Our arithmatic calculator works, but it's a bit cumbersome. Let's write a quick custom task to take a string expression and parse it into our `x`, `y`, and `op`; the rest of the code is just the same as before:
 
 ```python
-
 @task
-def parse_input(str):
-    x, op, y = str.split(' ')
+def parse_input(expression):
+    x, op, y = expression.split(' ')
     return dict(x=float(x), op=op, y=float(y))
 
 with Flow('Arithmetic') as flow:
