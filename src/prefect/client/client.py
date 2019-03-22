@@ -101,7 +101,7 @@ class Client:
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             - server (str, optional): the server to send the GET request to;
                 defaults to `self.graphql_server`
-            - params (dict): GET parameters
+            - **params (dict): GET parameters
 
         Returns:
             - dict: Dictionary representation of the request made
@@ -121,7 +121,7 @@ class Client:
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             - server (str, optional): the server to send the POST request to;
                 defaults to `self.graphql_server`
-            - params (dict): POST parameters
+            - **params (dict): POST parameters
 
         Returns:
             - dict: Dictionary representation of the request made

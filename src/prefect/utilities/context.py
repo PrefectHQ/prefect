@@ -49,7 +49,7 @@ class Context(DotDict, threading.local):
     Args:
         - *args (Any): arguments to provide to the `DotDict` constructor (e.g.,
             an initial dictionary)
-        - *kwargs (Any): any key / value pairs to initialize this context with
+        - **kwargs (Any): any key / value pairs to initialize this context with
     """
 
     def __init__(self, *args, **kwargs) -> None:
