@@ -20,8 +20,8 @@ extras = {
     "viz": ["graphviz >= 0.8.3"],
 }
 
-if sys.version_info >= (3, 6):
-    extras["dev"] += ["black"]
+if sys.version_info < (3, 6):
+    extras["dev"].remove("black")
 
 extras["all_extras"] = sum(extras.values(), [])
 
