@@ -288,7 +288,16 @@ def test_format_doc_on_subclass_with_doc_but_inherited_init():
 
 def test_format_doc_on_raw_exception():
     formatted = format_doc(NamedException)
-    assert formatted.startswith("Just a name, nothing more.")
+    expected = textwrap.dedent(
+        """
+        Just a name, nothing more.
+
+        #### Parent Class Documentation (`Exception`):
+
+        Common base class for all non-exit exceptions.
+        """
+    ).strip()
+    assert formatted == expected
 
 
 @pytest.mark.parametrize(
