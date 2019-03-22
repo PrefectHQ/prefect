@@ -490,7 +490,7 @@ class Mapped(Success):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `[]`. A data payload for the state.
-        - children (List): A list containing the states of any "children" of this task. When
+        - map_states (List): A list containing the states of any "children" of this task. When
             a task enters a Mapped state, it indicates that it has dynamically created copies
             of itself to map its operation over its inputs. Those copies are the children.
     """

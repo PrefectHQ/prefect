@@ -1,3 +1,4 @@
+import re
 import sys
 from functools import partial, wraps
 
@@ -27,6 +28,39 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 pytest.mark.skipif(sys.version_info < (3, 6))
 pytestmark = pytest.mark.formatting
+
+
+def consistency_check(obj, obj_name):
+    patt = re.compile("(?<=>`)(.*?)(?=[\(|`:])")
+    doc = format_doc(obj)
+    try:
+        arg_list_index = doc.index("**Args**:")
+        end = doc[arg_list_index:].find("</ul")
+        arg_doc = doc[arg_list_index : (arg_list_index + end)]
+        doc_args = {arg.strip() for arg in patt.findall(arg_doc)}
+    except ValueError:
+        doc_args = set()
+
+    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
+    actual_args = (
+        set()
+        .union(standalone)
+        .union(varargs)
+        .union([k for k, v in kwonly])
+        .union([k for k, v in kwargs])
+        .union(varkwargs)
+    )
+
+    if actual_args.intersection(doc_args) < actual_args:
+        undoc_args = ", ".join(actual_args.difference(doc_args))
+        raise ValueError(
+            f"{obj_name} has arguments without documentation: {undoc_args}"
+        )
+    elif doc_args.intersection(actual_args) < doc_args:
+        undoc_args = ", ".join(doc_args.difference(actual_args))
+        raise ValueError(
+            f"{obj_name} has documentation for arguments that aren't real: {undoc_args}"
+        )
 
 
 def no_args():
@@ -255,60 +289,14 @@ def test_format_doc_on_raw_exception():
     "fn", [fn for page in OUTLINE for fn in page.get("functions", [])]
 )
 def test_consistency_of_function_docs(fn):
-    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(fn)
-    doc = format_doc(fn)
-    try:
-        arg_list_index = doc.index("**Args**:")
-        end = doc[arg_list_index:].find("</ul")
-        arg_doc = doc[arg_list_index : (arg_list_index + end)]
-        num_doc_args = arg_doc.count("<li")
-    except ValueError:
-        num_doc_args = 0
-
-    num_actual_args = (
-        len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(varkwargs)
-    )
-
-    if num_doc_args < num_actual_args:
-        raise ValueError(
-            "{fn.__name__} has arguments without documentation.".format(fn=fn)
-        )
-    elif num_doc_args > num_actual_args:
-        raise ValueError(
-            "{fn.__name__} has documentation for arguments that aren't real.".format(
-                fn=fn
-            )
-        )
+    consistency_check(fn, f"{fn.__name__}")
 
 
 @pytest.mark.parametrize(
     "obj", [obj for page in OUTLINE for obj in page.get("classes", [])]
 )
 def test_consistency_of_class_docs(obj):
-    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(obj)
-    doc = format_doc(obj)
-    try:
-        arg_list_index = doc.index("**Args**:")
-        end = doc[arg_list_index:].find("</ul")
-        arg_doc = doc[arg_list_index : (arg_list_index + end)]
-        num_doc_args = arg_doc.count("<li")
-    except ValueError:
-        num_doc_args = 0
-
-    num_actual_args = (
-        len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(varkwargs)
-    )
-
-    if num_doc_args < num_actual_args:
-        raise ValueError(
-            "{obj.__module__}.{obj.__name__} "
-            "has arguments without documentation.".format(obj=obj)
-        )
-    elif num_doc_args > num_actual_args:
-        raise ValueError(
-            "{obj.__module__}.{obj.__name__} "
-            "has documentation for arguments that aren't real.".format(obj=obj)
-        )
+    consistency_check(obj, f"{obj.__module__}.{obj.__name__}")
 
 
 @pytest.mark.parametrize(
@@ -321,31 +309,7 @@ def test_consistency_of_class_docs(obj):
     ],
 )  # parametrized like this for easy reading of tests
 def test_consistency_of_class_method_docs(obj, fn):
-    standalone, varargs, kwonly, kwargs, varkwargs = get_call_signature(fn)
-    doc = format_doc(fn)
-    try:
-        arg_list_index = doc.index("**Args**:")
-        end = doc[arg_list_index:].find("</ul")
-        arg_doc = doc[arg_list_index : (arg_list_index + end)]
-        num_doc_args = arg_doc.count("<li")
-    except ValueError:
-        num_doc_args = 0
-
-    num_actual_args = (
-        len(standalone) + len(varargs) + len(kwonly) + len(kwargs) + len(varkwargs)
-    )
-
-    if num_doc_args < num_actual_args:
-        raise ValueError(
-            "{obj.__module__}.{obj.__name__}.{fn.__name__} "
-            "has arguments without documentation.".format(obj=obj, fn=fn)
-        )
-
-    elif num_doc_args > num_actual_args:
-        raise ValueError(
-            "{obj.__module__}.{obj.__name__}.{fn.__name__} "
-            "has documentation for arguments that aren't real.".format(obj=obj, fn=fn)
-        )
+    consistency_check(fn, f"{obj.__module__}.{obj.__name__}.{fn.__name__}")
 
 
 def test_format_doc_removes_unnecessary_newlines_when_appropriate_in_tables():
