@@ -44,7 +44,7 @@ class List(VarArgsTask):
     def run(self, **task_results: Any) -> list:
         """
         Args:
-            - task_results (Any): task results to collect into a list
+            - **task_results (Any): task results to collect into a list
 
         Returns:
             - list: a list of task results
@@ -56,7 +56,7 @@ class Tuple(VarArgsTask):
     def run(self, **task_results: Any) -> tuple:
         """
         Args:
-            - task_results (Any): task results to collect into a tuple
+            - **task_results (Any): task results to collect into a tuple
 
         Returns:
             - tuple: a tuple of task results
@@ -68,7 +68,7 @@ class Set(VarArgsTask):
     def run(self, **task_results: Any) -> set:
         """
         Args:
-            - task_results (Any): task results to collect into a set
+            - **task_results (Any): task results to collect into a set
 
         Returns:
             - set: a set of task results
@@ -80,7 +80,7 @@ class Dict(Task):
     def run(self, **task_results: Any) -> dict:
         """
         Args:
-            - task_results (Any): task result key / value pairs to collect into a dict
+            - **task_results (Any): task result key / value pairs to collect into a dict
 
         Returns:
             - dict: a dict of task results
