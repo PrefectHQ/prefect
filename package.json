@@ -1,7 +1,7 @@
 {
   "name": "prefect",
   "description": "The Prefect Docs",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "license": "Apache-2.0",
   "dependencies": {
     "markdown-it-attrs": "^2.3.1",
@@ -10,8 +10,9 @@
     "vuepress": "^0.14.8"
   },
   "scripts": {
-    "docs:dev": "cd docs && python generate_docs.py && PREFECT_DOCS_DEV_MODE=1 vuepress dev .",
-    "docs:build": "cd docs && python generate_docs.py && vuepress build . -d build"
+    "docs:generate-api": "cd docs && python generate_docs.py",
+    "docs:dev": "yarn docs:generate-api && vuepress dev docs",
+    "docs:build": "yarn docs:generate-api && vuepress build docs"
   },
   "repository": {
     "type": "git",
