@@ -28,6 +28,9 @@ class Secret:
 
         If not found, returns `None`.
 
+        Returns:
+            - Any: the value of the secret; if not found, returns `None`
+
         Raises:
             - ValueError: if `use_local_secrets=False` and the Client fails to retrieve your secret
         """
