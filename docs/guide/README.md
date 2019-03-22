@@ -48,4 +48,4 @@ To install all development dependencies (for running unit tests): `pip install -
 
 ## What's Next?
 
-Jump in with the [quick start](getting_started/welcome.html) or [tutorials](tutorials/), browse the [API reference docs](/api/)... or just `import prefect`.
+Jump in with the [quick start](getting_started/welcome.html) or [tutorials](tutorials/), browse the [API reference docs](/api/)... or just `import prefect` and start building!
