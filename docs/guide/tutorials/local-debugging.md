@@ -4,7 +4,20 @@ sidebarDepth: 0
 
 ## Local Debugging
 
-Oftentimes you want to experiment with your ideas before putting them into production; moreover, when something unexpected happens you need an efficient way of diagnosing what went wrong. Prefect provides you with a wealth of tools for debugging your flows locally and diagnosing issues.
+Whether you're running Prefect locally with `Flow.run()` or experimenting with your ideas before putting them into production with Prefect Cloud, Prefect provides you with a wealth of tools for debugging your flows and diagnosing issues.
+
+### Use a FlowRunner for stateless execution
+
+If your problem is related to retries, or if you want to run your flow off-schedule, consider using a `FlowRunner` directly:
+```python
+from prefect.engine.flow_runner import FlowRunner
+
+# ... your flow construction
+
+runner = FlowRunner(flow=my_flow)
+flow_state = runner.run(return_tasks=my_flow.tasks)
+```
+This will execute your flow immediately, regardless of its schedule.  Note that by default a `FlowRunner` does not provide any individual _task_ states, so if you want that information you must request it with the `return_tasks` keyword argument.
 
 ### Choice of Executor
 
@@ -22,7 +35,7 @@ from prefect.engine.executors import LocalExecutor
 state = flow.run(executor=LocalExecutor()) # <-- the executor needs to be initialized
 ```
 
-and you're set!
+and you're set!  The `executor` keyword can also be provided to the `FlowRunner.run` method.
 
 #### `SynchronousExecutor`
 
@@ -32,7 +45,7 @@ If you want to upgrade to a more powerful executor but still maintain an easily 
 The `SynchronousExecutor` is the default executor on your local machine; in production, the `DaskExecutor` will be the default. To change your Prefect settings (including the default executor), you can either:
 
 - modify your `~/.prefect/config.toml` file
-- update your OS environment variables; every value in the config file can be overriden by setting `PREFECT__SECTION__SUBSECTION__KEY`. For example, to change the default executor, you can set `PREFECT__ENGINE__EXECUTOR="prefect.engine.executors.LocalExecutor"`
+- update your OS environment variables; every value in the config file can be overriden by setting `PREFECT__SECTION__SUBSECTION__KEY`. For example, to change the default executor, you can set `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS="prefect.engine.executors.LocalExecutor"`
   :::
 
 #### `DaskExecutor`
@@ -108,10 +121,10 @@ def gotcha():
         assert len(tup[1]) == 1
 
 
-flow = Flow(tasks=[gotcha])
+flow = Flow(name="tuples", tasks=[gotcha])
 
 state = flow.run()
-state.result # {<Task: gotcha>: Failed("Unexpected error")}
+state.result # {<Task: gotcha>: Failed("Unexpected error: AssertionError()")}
 
 failed_state = state.result[gotcha]
 raise failed_state.result
@@ -276,3 +289,7 @@ ModuleNotFoundError: No module named 'praw'
 ```
 
 In this particular case, we forgot to include `praw` in our `python_dependencies` for the `DockerEnvironment`; in general, this is one way to ensure your Flow makes it through the deployment process uncorrupted.
+
+::: tip The More You Know
+We actually found this process to be so useful, we've automated it for you! Prefect now performs a "health check" prior to pushing your Docker image, which essentially runs the above code and ensures your Flow is deserializable inside its container.  However, the mechanics by which this occurs is still useful to know.
+:::
