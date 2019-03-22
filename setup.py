@@ -22,6 +22,9 @@ extras = {
 
 extras["all_extras"] = sum(extras.values(), [])
 
+if sys.version_info >= (3, 6):
+    extras.remove("black")
+
 
 setup(
     name="prefect",
