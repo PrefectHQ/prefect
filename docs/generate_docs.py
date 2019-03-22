@@ -378,6 +378,11 @@ if __name__ == "__main__":
 
         api_reference_section = textwrap.dedent(
             """
+
+            <div align="center" style="margin-bottom:40px;">
+            <img src="/assets/wordmark-color-horizontal.svg"  width=600 >
+            </div>
+
             # API Reference
 
             This API reference is automatically generated from Prefect's source code and unit-tested to ensure it's up to date.
@@ -388,7 +393,7 @@ if __name__ == "__main__":
         with open("../README.md", "r") as g:
             readme = g.read()
             index = readme.index("## Hello, world!")
-            readme = "\n".join([readme[:index], api_reference_section, readme[index:]])
+            readme = "\n".join([api_reference_section, readme[index:]])
             f.write(readme)
             f.write(auto_generated_footer)
 
