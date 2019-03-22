@@ -1,5 +1,5 @@
 module.exports = {
-  title: 'Prefect (Preview)',
+  title: 'Prefect Docs',
   description: "Don't Panic.",
   head: [
     'link', {
