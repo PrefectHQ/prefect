@@ -124,6 +124,26 @@ def format_lists(doc):
 @preprocess
 def format_doc(obj, in_table=False):
     doc = inspect.getdoc(obj)
+
+    # if the object is a Class and doesn't implement an __init__, then we want to
+    # "inherit" the doc of its immediate parent class.
+    if inspect.isclass(obj):
+        for parent in obj.mro()[1:]:  # first object in MRO is the class itself
+            if obj.__init__ is parent.__init__:
+
+                try:
+                    parent_name = create_absolute_path(parent)
+                except:
+                    parent_name = parent.__name__
+
+                doc = "\n\n".join(
+                    [
+                        doc,
+                        f"#### Parent Class Documentation (`{parent_name}`):",
+                        format_doc(parent, in_table=in_table),
+                    ]
+                )
+
     body = doc or ""
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
@@ -355,17 +375,32 @@ if __name__ == "__main__":
             """
             ).lstrip()
         )
-        f.write("# API Reference\n")
-        f.write(
-            "\n\n"
-            "*Click <a href='/prefect-coverage/index.html'>here</a> for a complete test coverage report.*"
+
+        api_reference_section = textwrap.dedent(
+            """
+
+            <div align="center" style="margin-bottom:40px;">
+            <img src="/assets/wordmark-color-horizontal.svg"  width=600 >
+            </div>
+
+            # API Reference
+
+            This API reference is automatically generated from Prefect's source code and unit-tested to ensure it's up to date.
+
+            """
         )
 
         with open("../README.md", "r") as g:
             readme = g.read()
-            f.write("\n" + readme[readme.index("# Prefect") :])
+            index = readme.index("## Hello, world!")
+            readme = "\n".join([api_reference_section, readme[index:]])
+            f.write(readme)
             f.write(auto_generated_footer)
 
+        f.write(
+            "\n\n"
+            "*Click <a href='/prefect-coverage/index.html'>here</a> for a complete test coverage report.*"
+        )
     ## UPDATE CHANGELOG
     with open("api/changelog.md", "w+") as f:
         f.write(
