@@ -1,5 +1,5 @@
 <p align="center" style="margin-bottom:40px;">
-<img src="https://uploads-ssl.webflow.com/5ba446b0e783e26d5a2f2382/5c942c9ca934ec5c88588297_primary-color-vertical.svg"  height="350">
+<img src="https://uploads-ssl.webflow.com/5ba446b0e783e26d5a2f2382/5c942c9ca934ec5c88588297_primary-color-vertical.svg"  height=350>
 </p>
 
 <p align="center">
