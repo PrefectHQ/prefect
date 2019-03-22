@@ -1,5 +1,6 @@
 import sys
 from functools import partial, wraps
+import textwrap
 
 import pytest
 from toolz import curry
@@ -246,9 +247,48 @@ def test_format_doc_on_simple_doc():
     )
 
 
+def test_format_doc_on_subclass_with_doc_but_inherited_init():
+    class Parent:
+        """
+        This is the parent doc
+
+        Args:
+            - x (int): a number
+        """
+
+        def __init__(self, x: int):
+            pass
+
+        def fn(self):
+            pass
+
+    class Child(Parent):
+        """
+        This is the child doc
+        """
+
+        def fn(self):
+            pass
+
+    doc = format_doc(Child)
+    expected = textwrap.dedent(
+        """
+        This is the child doc
+
+        #### Parent Class Documentation (`test_format_doc_on_subclass_with_doc_but_inherited_init.<locals>.Parent`):
+
+        This is the parent doc
+
+        **Args**:     <ul class="args"><li class="args">`x (int)`: a number</li></ul>
+        """
+    ).strip()
+
+    assert doc == expected
+
+
 def test_format_doc_on_raw_exception():
     formatted = format_doc(NamedException)
-    assert formatted == "Just a name, nothing more."
+    assert formatted.startswith("Just a name, nothing more.")
 
 
 @pytest.mark.parametrize(
