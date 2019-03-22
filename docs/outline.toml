@@ -168,10 +168,30 @@ classes = ["CreateGitHubPR", "OpenGitHubIssue"]
 title = "Kubernetes Tasks"
 module = "prefect.tasks.kubernetes"
 classes = [
-        "CreateNamespacedDeployment", "DeleteNamespacedDeployment", "ListNamespacedDeployment", "PatchNamespacedDeployment", "ReadNamespacedDeployment", "ReplaceNamespacedDeployment",
-        "CreateNamespacedJob", "DeleteNamespacedJob", "ListNamespacedJob", "PatchNamespacedJob", "ReadNamespacedJob", "ReplaceNamespacedJob",
-        "CreateNamespacedPod", "DeleteNamespacedPod", "ListNamespacedPod", "PatchNamespacedPod", "ReadNamespacedPod", "ReplaceNamespacedPod",
-        "CreateNamespacedService", "DeleteNamespacedService", "ListNamespacedService", "PatchNamespacedService", "ReadNamespacedService", "ReplaceNamespacedService"
+        "CreateNamespacedDeployment",
+        "DeleteNamespacedDeployment",
+        "ListNamespacedDeployment",
+        "PatchNamespacedDeployment",
+        "ReadNamespacedDeployment",
+        "ReplaceNamespacedDeployment",
+        "CreateNamespacedJob",
+        "DeleteNamespacedJob",
+        "ListNamespacedJob",
+        "PatchNamespacedJob",
+        "ReadNamespacedJob",
+        "ReplaceNamespacedJob",
+        "CreateNamespacedPod",
+        "DeleteNamespacedPod",
+        "ListNamespacedPod",
+        "PatchNamespacedPod",
+        "ReadNamespacedPod",
+        "ReplaceNamespacedPod",
+        "CreateNamespacedService",
+        "DeleteNamespacedService",
+        "ListNamespacedService",
+        "PatchNamespacedService",
+        "ReadNamespacedService",
+        "ReplaceNamespacedService"
         ]
 
 [pages.tasks.google]
@@ -193,6 +213,38 @@ classes = ["SQLiteQueryTask", "SQLiteScriptTask"]
 title = "Function Tasks"
 module = "prefect.tasks.core.function"
 classes = ["FunctionTask"]
+
+[pages.tasks.collections]
+title = "Collection Tasks"
+module = "prefect.tasks.core.collections"
+classes = ["List", "Tuple", "Set", "Dict"]
+
+[pages.tasks.operators]
+title = "Operator Tasks"
+module = "prefect.tasks.core.operators"
+classes = [
+    "GetItem",
+    "Add",
+    "Sub",
+    "Mul",
+    "Div",
+    "FloorDiv",
+    "Pow",
+    "Mod",
+    "And",
+    "Or",
+    "Not",
+    "Equal",
+    "NotEqual",
+    "GreaterThanOrEqual",
+    "GreaterThan",
+    "LessThanOrEqual",
+    "LessThan"
+    ]
+[pages.tasks.constants]
+title = "Constant Tasks"
+module = "prefect.tasks.core.constants"
+classes = ["Constant"]
 
 [pages.tasks.shell]
 title = "Shell Tasks"
