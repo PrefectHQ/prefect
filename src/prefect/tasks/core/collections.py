@@ -80,7 +80,7 @@ class Dict(Task):
     def run(self, **task_results: Any) -> dict:
         """
         Args:
-            - task_results (Any): task results to collect into a dict
+            - task_results (Any): task result key / value pairs to collect into a dict
 
         Returns:
             - dict: a dict of task results
