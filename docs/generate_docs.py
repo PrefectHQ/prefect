@@ -130,12 +130,16 @@ def format_doc(obj, in_table=False):
     if inspect.isclass(obj):
         for parent in obj.mro()[1:]:  # first object in MRO is the class itself
             if obj.__init__ is parent.__init__:
+
+                try:
+                    parent_name = create_absolute_path(parent)
+                except:
+                    parent_name = parent.__name__
+
                 doc = "\n\n".join(
                     [
                         doc,
-                        "#### Parent Class Documentation (`{}`):".format(
-                            create_absolute_path(parent)
-                        ),
+                        f"#### Parent Class Documentation (`{parent_name}`):",
                         format_doc(parent, in_table=in_table),
                     ]
                 )
