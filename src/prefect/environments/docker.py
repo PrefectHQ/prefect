@@ -251,11 +251,6 @@ class DockerEnvironment(Environment):
             with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
                 health_file.write(healthcheck)
 
-            # Due to prefect being a private repo it currently will require a
-            # personal access token. Once pip installable this will change and there won't
-            # be a need for the personal access token or git anymore.
-            # *Note*: this currently prevents alpine images from being used
-
             file_contents = textwrap.dedent(
                 """\
                 FROM {base_image}
