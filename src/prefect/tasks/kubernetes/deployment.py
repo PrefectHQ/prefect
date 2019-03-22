@@ -120,7 +120,7 @@ class DeleteNamespacedDeployment(Task):
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
-    The argument kube_kwargs` will perform an in-place update when the task
+    The argument `kube_kwargs` will perform an in-place update when the task
     is run. This means that it is possible to provide `kube_kwargs = {"info": "here"}` at
     instantiation and then provide `kube_kwargs = {"more": "info"}` at run time which will make
     `kube_kwargs = {"info": "here", "more": "info"}`. *Note*: Keys present in both instantiation
@@ -220,7 +220,7 @@ class ListNamespacedDeployment(Task):
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
-    The argument kube_kwargs` will perform an in-place update when the task
+    The argument `kube_kwargs` will perform an in-place update when the task
     is run. This means that it is possible to provide `kube_kwargs = {"info": "here"}` at
     instantiation and then provide `kube_kwargs = {"more": "info"}` at run time which will make
     `kube_kwargs = {"info": "here", "more": "info"}`. *Note*: Keys present in both instantiation
@@ -421,7 +421,7 @@ class ReadNamespacedDeployment(Task):
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
-    The argument kube_kwargs` will perform an in-place update when the task
+    The argument `kube_kwargs` will perform an in-place update when the task
     is run. This means that it is possible to provide `kube_kwargs = {"info": "here"}` at
     instantiation and then provide `kube_kwargs = {"more": "info"}` at run time which will make
     `kube_kwargs = {"info": "here", "more": "info"}`. *Note*: Keys present in both instantiation

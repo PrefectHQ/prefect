@@ -1,9 +1,15 @@
-"""
+---
+sidebarDepth: 0
+---
+
+## Github Biweekly Release Cycle
+
 This simple flow attempts to prompt a biweekly release by opening a PR from dev -> master every other Monday.
 
 If for any reason the PR fails to open, the Flow opens an issue alerting the team, with
 relevant debug information.
-"""
+
+```python
 import datetime
 import pendulum
 
@@ -49,3 +55,4 @@ with Flow("Biweekly Cloud Release", schedule=biweekly_schedule) as flow:
 
 flow.set_reference_tasks([pr_task])
 flow.run()
+```
