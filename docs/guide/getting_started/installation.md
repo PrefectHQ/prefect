@@ -34,4 +34,4 @@ The extra packages include:
 
 ## Development
 
-For developing Prefect, see the [development guide](development/overview.md).
+For developing Prefect, see the [development guide](../development/overview.md).
