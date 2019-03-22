@@ -12,7 +12,6 @@
 </a>
 </p>
 
-
 ## Hello, world! 👋
 
 We've rebuilt data engineering for the data science era.
@@ -20,7 +19,6 @@ We've rebuilt data engineering for the data science era.
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
 Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](mailto:help@prefect.io)!
-
 
 ```python
 from prefect import task, Flow
@@ -38,17 +36,17 @@ with Flow('My First Flow') as flow:
 flow.run() # "Hello, world!"
 ```
 
+## Docs
+
+Pefect's documentation -- including concepts, tutorials, and a full API reference -- is always available at [docs.prefect.io](https://docs.prefect.io).
+
+[Documentation for developers](https://docs.prefect.io/guide/development/overview.html) is also available, covering code style, documentation, and testing.
+
 ## "...Prefect?"
 
 From the Latin _praefectus_, meaning "one who is in charge", a prefect is an official who oversees a domain and makes sure that the rules are followed. Similarly, Prefect is responsible for making sure that workflows execute properly.
 
 It also happens to be the name of a roving researcher for that wholly remarkable book, _The Hitchhiker's Guide to the Galaxy_.
-
-## Documentation
-
-Pefect's documentation -- including concepts, tutorials, and a full API reference -- is available at [docs.prefect.io](https://docs.prefect.io)
-
-[Documentation for developers](https://docs.prefect.io/guide/development/overview.html) is also available, covering code style, documentation, and testing.
 
 ## Installation
 
@@ -60,17 +58,6 @@ Prefect requires Python 3.5+.
 
 ```bash
 pip install prefect
-```
-
-### Install master branch
-
-To install the very latest version of Prefect, we recommend an "editable" install so that you
-can automatically update Prefect by pulling the latest changes:
-
-```bash
-git clone https://github.com/PrefectHQ/prefect.git
-cd prefect
-pip install -e .
 ```
 
 ## License
