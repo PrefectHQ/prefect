@@ -197,6 +197,18 @@ module.exports = {
           ]
         },
         {
+          title: 'Examples',
+          collapsable: true,
+          children: [
+            'examples/airflow_tutorial_dag',
+            'examples/etl',
+            'examples/github_release_cycle',
+            'examples/map_reduce',
+            'examples/parameterized_flow',
+            'examples/retries_with_mapping',
+          ]
+        },
+        {
           title: 'PINs',
           collapsable: true,
           children: [
