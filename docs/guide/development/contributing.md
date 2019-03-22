@@ -42,7 +42,7 @@ Each entry consists of a brief description and a link to the relevant GitHub iss
 
 ### Tests
 
-Make sure that any new functionality is well tested! See the [tests](/guide/development/tests.html) guide for more.
+Make sure that any new functionality is well tested! See the [tests](../development/tests.html) guide for more.
 
 ### Opening a PR
 

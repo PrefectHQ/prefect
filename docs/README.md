@@ -1,8 +1,7 @@
 ---
 home: true
-heroImage: /assets/logomark-color.svg
-heroTitle: Prefect
-tagline: Don't Panic.
+heroImage: /assets/wordmark-color-vertical.svg
+heroText: " "
 footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
 
