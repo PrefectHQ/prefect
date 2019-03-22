@@ -36,7 +36,7 @@ class TestDockerEnvironment:
 
         assert "FROM python:3.6" in dockerfile
         assert " FROM python:3.6" not in dockerfile
-        assert "RUN pip install ./prefect" in dockerfile
+        assert "RUN pip install prefect" in dockerfile
         assert "RUN mkdir /root/.prefect/" in dockerfile
 
     def test_create_dockerfile_with_environment_variables(self):
