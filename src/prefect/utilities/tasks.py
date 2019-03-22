@@ -120,7 +120,7 @@ def task(
 
     Args:
         - fn (Callable): the decorated function
-        - task_init_kwargs (Any): keyword arguments that will be passed to the `Task`
+        - **task_init_kwargs (Any): keyword arguments that will be passed to the `Task`
             constructor on initialization.
 
     Returns:

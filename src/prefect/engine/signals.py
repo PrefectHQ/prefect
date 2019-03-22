@@ -34,9 +34,9 @@ class FAIL(PrefectStateSignal):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
-        - args (Any, optional): additional arguments to pass to this Signal's
+        - *args (Any, optional): additional arguments to pass to this Signal's
             associated state constructor
-        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+        - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
             associated state constructor
     """
 
@@ -49,9 +49,9 @@ class TRIGGERFAIL(FAIL):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
-        - args (Any, optional): additional arguments to pass to this Signal's
+        - *args (Any, optional): additional arguments to pass to this Signal's
             associated state constructor
-        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+        - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
             associated state constructor
     """
 
@@ -64,9 +64,9 @@ class SUCCESS(PrefectStateSignal):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
-        - args (Any, optional): additional arguments to pass to this Signal's
+        - *args (Any, optional): additional arguments to pass to this Signal's
             associated state constructor
-        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+        - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
             associated state constructor
     """
 
@@ -79,9 +79,9 @@ class RETRY(PrefectStateSignal):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
-        - args (Any, optional): additional arguments to pass to this Signal's
+        - *args (Any, optional): additional arguments to pass to this Signal's
             associated state constructor
-        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+        - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
             associated state constructor
     """
 
@@ -95,9 +95,9 @@ class SKIP(PrefectStateSignal):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
-        - args (Any, optional): additional arguments to pass to this Signal's
+        - *args (Any, optional): additional arguments to pass to this Signal's
             associated state constructor
-        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+        - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
             associated state constructor
     """
 
@@ -110,9 +110,9 @@ class PAUSE(PrefectStateSignal):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
-        - args (Any, optional): additional arguments to pass to this Signal's
+        - *args (Any, optional): additional arguments to pass to this Signal's
             associated state constructor
-        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+        - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
             associated state constructor
     """
 
