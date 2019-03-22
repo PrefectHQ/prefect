@@ -23,96 +23,96 @@ Helper task that retrieves a specific index of an upstream task's result.
 
 ## Add <Badge text="task"/>
 
-Evaluates x + y
+Evaluates `x + y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-add)
 
 ## Sub <Badge text="task"/>
 
-Evaluates x - y
+Evaluates `x - y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-sub)
 
 ## Mul <Badge text="task"/>
 
-Evaluates x * y
+Evaluates `x * y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-mul)
 
 ## Div <Badge text="task"/>
 
-Evaluates x / y
+Evaluates `x / y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-div)
 
 ## FloorDiv <Badge text="task"/>
 
-Evaluates x // y
+Evaluates `x // y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-floordiv)
 
 ## Pow <Badge text="task"/>
 
-Evaluates x ** y
+Evaluates `x ** y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-pow)
 
 ## Mod <Badge text="task"/>
 
-Evaluates x % y
+Evaluates `x % y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-mod)
 
 ## And <Badge text="task"/>
 
-Evaluates x and y.
+Evaluates `x and y.`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-and)
 
 ## Or <Badge text="task"/>
 
-Evaluates x or y
+Evaluates `x or y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-or)
 
 ## Not <Badge text="task"/>
 
-Evaluates not x
+Evaluates `not x`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-not)
 
 ## Equal <Badge text="task"/>
 
-Evaluates x == y
+Evaluates `x == y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-equal)
 
 ## NotEqual <Badge text="task"/>
 
-Evaluates x != y
+Evaluates `x != y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-notequal)
 
 ## GreaterThanOrEqual <Badge text="task"/>
 
-Evaluates x ≥ y
+Evaluates `x ≥ y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-greaterthanorequal)
 
 ## GreaterThan <Badge text="task"/>
 
-Evaluates x > y
+Evaluates `x > y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-greaterthan)
 
 ## LessThanOrEqual <Badge text="task"/>
 
-Evaluates x ≤ y
+Evaluates `x ≤ y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-lessthanorequal)
 
 ## LessThan <Badge text="task"/>
 
-Evaluates x < y
+Evaluates `x < y`
 
 [API Reference](/api/tasks/operators.html#prefect-tasks-core-operators-lessthan)

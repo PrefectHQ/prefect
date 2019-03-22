@@ -30,7 +30,7 @@ class GetItem(Task):
 # ---------------------------------------------------------
 class Add(Task):
     """
-    Evaluates x + y
+    Evaluates `x + y`
     """
 
     def run(self, x: Any, y: Any) -> Any:
@@ -47,7 +47,7 @@ class Add(Task):
 
 class Sub(Task):
     """
-    Evaluates x - y
+    Evaluates `x - y`
     """
 
     def run(self, x: Any, y: Any) -> Any:
@@ -64,7 +64,7 @@ class Sub(Task):
 
 class Mul(Task):
     """
-    Evaluates x * y
+    Evaluates `x * y`
     """
 
     def run(self, x: Any, y: Any) -> Any:
@@ -81,7 +81,7 @@ class Mul(Task):
 
 class Div(Task):
     """
-    Evaluates x / y
+    Evaluates `x / y`
     """
 
     def run(self, x: Any, y: Any) -> Any:
@@ -98,7 +98,7 @@ class Div(Task):
 
 class FloorDiv(Task):
     """
-    Evaluates x // y
+    Evaluates `x // y`
     """
 
     def run(self, x: Any, y: Any) -> Any:
@@ -115,7 +115,7 @@ class FloorDiv(Task):
 
 class Pow(Task):
     """
-    Evaluates x ** y
+    Evaluates `x ** y`
     """
 
     def run(self, x: Any, y: Any) -> Any:
@@ -132,7 +132,7 @@ class Pow(Task):
 
 class Mod(Task):
     """
-    Evaluates x % y
+    Evaluates `x % y`
     """
 
     def run(self, x: Any, y: Any) -> Any:
@@ -152,7 +152,7 @@ class Mod(Task):
 # ---------------------------------------------------------
 class And(Task):
     """
-    Evaluates x and y.
+    Evaluates `x and y.`
     """
 
     def run(self, x: Any, y: Any) -> bool:
@@ -169,7 +169,7 @@ class And(Task):
 
 class Or(Task):
     """
-    Evaluates x or y
+    Evaluates `x or y`
     """
 
     def run(self, x: Any, y: Any) -> bool:
@@ -186,7 +186,7 @@ class Or(Task):
 
 class Not(Task):
     """
-    Evaluates not x
+    Evaluates `not x`
     """
 
     def run(self, x: Any) -> bool:
@@ -202,7 +202,7 @@ class Not(Task):
 
 class Equal(Task):
     """
-    Evaluates x == y
+    Evaluates `x == y`
     """
 
     def run(self, x: Any, y: Any) -> bool:
@@ -219,7 +219,7 @@ class Equal(Task):
 
 class NotEqual(Task):
     """
-    Evaluates x != y
+    Evaluates `x != y`
     """
 
     def run(self, x: Any, y: Any) -> bool:
@@ -236,7 +236,7 @@ class NotEqual(Task):
 
 class GreaterThanOrEqual(Task):
     """
-    Evaluates x ≥ y
+    Evaluates `x ≥ y`
     """
 
     def run(self, x: Any, y: Any) -> bool:
@@ -253,7 +253,7 @@ class GreaterThanOrEqual(Task):
 
 class GreaterThan(Task):
     """
-    Evaluates x > y
+    Evaluates `x > y`
     """
 
     def run(self, x: Any, y: Any) -> bool:
@@ -270,7 +270,7 @@ class GreaterThan(Task):
 
 class LessThanOrEqual(Task):
     """
-    Evaluates x ≤ y
+    Evaluates `x ≤ y`
     """
 
     def run(self, x: Any, y: Any) -> bool:
@@ -287,7 +287,7 @@ class LessThanOrEqual(Task):
 
 class LessThan(Task):
     """
-    Evaluates x < y
+    Evaluates `x < y`
     """
 
     def run(self, x: Any, y: Any) -> bool:
