@@ -1,7 +1,19 @@
-[![CircleCI](https://circleci.com/gh/PrefectHQ/prefect/tree/master.svg?style=svg&circle-token=28689a55edc3c373486aaa5f11a1af3e5fc53344)](https://circleci.com/gh/PrefectHQ/prefect/tree/master)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+<p align="center" style="margin-bottom:40px;">
+<img src="https://uploads-ssl.webflow.com/5ba446b0e783e26d5a2f2382/5c942c9ca934ec5c88588297_primary-color-vertical.svg"  height="350">
+</p>
 
-# Prefect
+<p align="center">
+<a href=https://circleci.com/gh/PrefectHQ/prefect/tree/master>
+    <img src="https://circleci.com/gh/PrefectHQ/prefect/tree/master.svg?style=svg&circle-token=28689a55edc3c373486aaa5f11a1af3e5fc53344">
+</a>
+
+<a href=https://github.com/ambv/black style="margin-left: 10px">
+    <img src="https://img.shields.io/badge/code%20style-black-000000.svg">
+</a>
+</p>
+
+
+## Hello, world! 👋
 
 We've rebuilt data engineering for the data science era.
 
@@ -9,7 +21,6 @@ Prefect is a new workflow management system, designed for modern infrastructure 
 
 Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](mailto:help@prefect.io)!
 
-## Hello, world! 👋
 
 ```python
 from prefect import task, Flow
@@ -27,10 +38,9 @@ with Flow('My First Flow') as flow:
 flow.run() # "Hello, world!"
 ```
 
-
 ## "...Prefect?"
 
-From the Latin _praefectus_, meaning "one who is in charge", a prefect is an official who oversees a domain and makes sure that the rules are followed.
+From the Latin _praefectus_, meaning "one who is in charge", a prefect is an official who oversees a domain and makes sure that the rules are followed. Similarly, Prefect is responsible for making sure that workflows execute properly.
 
 It also happens to be the name of a roving researcher for that wholly remarkable book, _The Hitchhiker's Guide to the Galaxy_.
 
@@ -48,18 +58,8 @@ Prefect requires Python 3.5+.
 
 ### Install latest release
 
-The latest release of Prefect is `0.4.1`. To install it with optional visualization utilities:
-
 ```bash
-git clone https://github.com/PrefectHQ/prefect.git
-cd prefect
-git checkout 0.4.1
-pip install ".[viz]"
-```
-
-Note that the visualization package additionally requires a non-Python dependency: [graphviz](https://www.graphviz.org/download/). Perhaps the easiest way to obtain `graphviz` is with [Homebrew](https://brew.sh/):
-```bash
-brew install graphviz
+pip install prefect
 ```
 
 ### Install master branch
@@ -70,9 +70,9 @@ can automatically update Prefect by pulling the latest changes:
 ```bash
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
-pip install -e ".[viz]"
+pip install -e .
 ```
 
 ## License
 
-Prefect Core is licensed under the Apache Software License 2.0.
+Prefect Core is licensed under the Apache Software License version 2.0.
