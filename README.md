@@ -62,4 +62,4 @@ pip install prefect
 
 ## License
 
-Prefect Core is licensed under the Apache Software License version 2.0.
+Prefect is licensed under the Apache Software License version 2.0.
