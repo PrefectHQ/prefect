@@ -92,9 +92,9 @@ from prefect import task, Flow
 
 @task
 def say_hello():
-    print('Hello, world!')
+    print("Hello, world!")
 
-with Flow('Run Me') as flow:
+with Flow("Run Me") as flow:
     h = say_hello()
 
 flow.run() # prints "Hello, world!"
