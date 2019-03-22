@@ -38,6 +38,9 @@ class Add(Task):
         Args:
             - x (Any): a value
             - y (Any): a value
+
+        Returns:
+            - Any
         """
         return x + y
 
@@ -52,6 +55,9 @@ class Sub(Task):
         Args:
            - x (Any): a value
            - y (Any): a value
+
+        Returns:
+            - Any
         """
         return x - y
 
@@ -66,6 +72,9 @@ class Mul(Task):
         Args:
            - x (Any): a value
            - y (Any): a value
+
+        Returns:
+            - Any
         """
         return x * y
 
@@ -80,6 +89,9 @@ class Div(Task):
         Args:
            - x (Any): a value
            - y (Any): a value
+
+        Returns:
+            - Any
         """
         return x / y
 
@@ -94,6 +106,9 @@ class FloorDiv(Task):
         Args:
            - x (Any): a value
            - y (Any): a value
+
+        Returns:
+            - Any
         """
         return x // y
 
@@ -108,6 +123,9 @@ class Pow(Task):
         Args:
            - x (Any): a value
            - y (Any): a value
+
+        Returns:
+            - Any
         """
         return x ** y
 
@@ -122,6 +140,9 @@ class Mod(Task):
         Args:
            - x (Any): a value
            - y (Any): a value
+
+        Returns:
+            - Any
         """
         return x % y
 
@@ -139,6 +160,9 @@ class And(Task):
         Args:
             - x (Any): a value
             - y (Any): a value
+
+        Returns:
+            - bool
         """
         return bool(x and y)
 
@@ -153,6 +177,9 @@ class Or(Task):
         Args:
             - x (Any): a value
             - y (Any): a value
+
+        Returns:
+            - bool
         """
         return bool(x or y)
 
@@ -166,6 +193,9 @@ class Not(Task):
         """
         Args:
             - x (Any): a value
+
+        Returns:
+            - bool
         """
         return bool(not (x))
 
@@ -180,6 +210,9 @@ class Equal(Task):
         Args:
             - x (Any): a value
             - y (Any): a value
+
+        Returns:
+            - bool
         """
         return bool(x == y)
 
@@ -194,6 +227,9 @@ class NotEqual(Task):
         Args:
             - x (Any): a value
             - y (Any): a value
+
+        Returns:
+            - bool
         """
         return bool(x != y)
 
@@ -208,6 +244,9 @@ class GreaterThanOrEqual(Task):
         Args:
             - x (Any): a value
             - y (Any): a value
+
+        Returns:
+            - bool
         """
         return bool(x >= y)
 
@@ -222,6 +261,9 @@ class GreaterThan(Task):
         Args:
             - x (Any): a value
             - y (Any): a value
+
+        Returns:
+            - bool
         """
         return bool(x > y)
 
@@ -236,6 +278,9 @@ class LessThanOrEqual(Task):
         Args:
             - x (Any): a value
             - y (Any): a value
+
+        Returns:
+            - bool
         """
         return bool(x <= y)
 
@@ -250,5 +295,8 @@ class LessThan(Task):
         Args:
             - x (Any): a value
             - y (Any): a value
+
+        Returns:
+            - bool
         """
         return bool(x < y)

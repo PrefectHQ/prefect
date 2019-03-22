@@ -127,7 +127,7 @@ def format_doc(obj, in_table=False):
 
     # if the object is a Class and doesn't implement an __init__, then we want to
     # "inherit" the doc of its immediate parent class.
-    if isinstance(obj, type):
+    if inspect.isclass(obj):
         for parent in obj.mro()[1:]:  # first object in MRO is the class itself
             if obj.__init__ is parent.__init__:
                 doc = "\n\n".join(
@@ -371,17 +371,27 @@ if __name__ == "__main__":
             """
             ).lstrip()
         )
-        f.write("# API Reference\n")
-        f.write(
-            "\n\n"
-            "*Click <a href='/prefect-coverage/index.html'>here</a> for a complete test coverage report.*"
+
+        api_reference_section = textwrap.dedent(
+            """
+            # API Reference
+
+            This API reference is automatically generated from Prefect's source code and unit-tested to ensure it's up to date.
+
+            """
         )
 
         with open("../README.md", "r") as g:
             readme = g.read()
-            f.write("\n" + readme)
+            index = readme.index("## Hello, world!")
+            readme = "\n".join([readme[:index], api_reference_section, readme[index:]])
+            f.write(readme)
             f.write(auto_generated_footer)
 
+        f.write(
+            "\n\n"
+            "*Click <a href='/prefect-coverage/index.html'>here</a> for a complete test coverage report.*"
+        )
     ## UPDATE CHANGELOG
     with open("api/changelog.md", "w+") as f:
         f.write(
