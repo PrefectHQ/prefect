@@ -281,6 +281,24 @@ def generate_coverage():
     Generates a coverage report in a subprocess; if one already exists,
     will _not_ recreate for the sake of efficiency
     """
+
+    # write file for VuePress
+    with open("api/coverage.md", "w+") as f:
+        f.write(
+            textwrap.dedent(
+                """
+            ---
+            title: Test Coverage
+            ---
+
+            # Unit test coverage report
+
+            To view the test coverage report, [click here](/prefect-coverage/index.html).
+            """
+            ).lstrip()
+        )
+
+    # abort if coverage report already exists
     if os.path.exists(".vuepress/public/prefect-coverage"):
         return
 
@@ -397,10 +415,6 @@ if __name__ == "__main__":
             f.write(readme)
             f.write(auto_generated_footer)
 
-        f.write(
-            "\n\n"
-            "*Click <a href='/prefect-coverage/index.html'>here</a> for a complete test coverage report.*"
-        )
     ## UPDATE CHANGELOG
     with open("api/changelog.md", "w+") as f:
         f.write(
