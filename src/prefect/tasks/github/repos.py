@@ -50,7 +50,7 @@ class GetRepoInfo(Task):
             - HTTPError: if the GET request returns a non-200 status code
 
         Returns:
-            - None
+            - dict: dictionary of the requested information
         """
         if repo is None:
             raise ValueError("A GitHub repository must be provided.")
