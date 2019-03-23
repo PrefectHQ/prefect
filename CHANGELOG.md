@@ -46,10 +46,10 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- Add `GCSUploadTask` and `GCSDownloadTask` for uploading / retrieving string data to / from Google Cloud Storage - [#673](https://github.com/PrefectHQ/prefect/pull/673)
+- Add `GCSUpload` and `GCSDownload` for uploading / retrieving string data to / from Google Cloud Storage - [#673](https://github.com/PrefectHQ/prefect/pull/673)
 - Add `BigQueryTask` and `BigQueryInsertTask` for executing queries against BigQuery tables and inserting data - [#678](https://github.com/PrefectHQ/prefect/pull/678), [#685](https://github.com/PrefectHQ/prefect/pull/685)
 - Add `FilterTask` for filtering out lists of results - [#637](https://github.com/PrefectHQ/prefect/issues/637)
-- Add `S3DownloadTask` and `S3UploadTask` for interacting with data stored on AWS S3 - [#692](https://github.com/PrefectHQ/prefect/issues/692)
+- Add `S3Download` and `S3Upload` for interacting with data stored on AWS S3 - [#692](https://github.com/PrefectHQ/prefect/issues/692)
 - Add `AirflowTask` and `AirflowTriggerDAG` tasks to the task library for running individual Airflow tasks / DAGs - [#735](https://github.com/PrefectHQ/prefect/issues/735)
 - Add `OpenGitHubIssue` and `CreateGitHubPR` tasks for interacting with GitHub repositories - [#771](https://github.com/PrefectHQ/prefect/pull/771)
 - Add Kubernetes tasks for deployments, jobs, pods, and services - [#779](https://github.com/PrefectHQ/prefect/pull/779)
@@ -64,7 +64,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix issue wherein code blocks inside of method docs couldn't use `**kwargs` - [#658](https://github.com/PrefectHQ/prefect/issues/658)
 - Fix bug in which Prefect-generated Keys for S3 buckets were not properly converted to strings - [#698](https://github.com/PrefectHQ/prefect/pull/698)
 - Fix next line after Docker Environment push/pull from overwriting progress bar - [#702](https://github.com/PrefectHQ/prefect/pull/702)
-- Fix issue with `JinjaTemplateTask` not being pickleable - [#710](https://github.com/PrefectHQ/prefect/pull/710)
+- Fix issue with `JinjaTemplate` not being pickleable - [#710](https://github.com/PrefectHQ/prefect/pull/710)
 - Fix issue with creating secrets from JSON documents using the Core Client - [#715](https://github.com/PrefectHQ/prefect/pull/715)
 - Fix issue with deserialization of JSON secrets unnecessarily calling `json.loads` - [#716](https://github.com/PrefectHQ/prefect/pull/716)
 - Fix issue where `IntervalSchedules` didn't respect daylight saving time after serialization - [#729](https://github.com/PrefectHQ/prefect/pull/729)
@@ -234,7 +234,7 @@ Released October 30, 2018
 ### Enhancements
 
 - Add a new method `flow.get_tasks()` for easily filtering flow tasks by attribute - [#242](https://github.com/PrefectHQ/prefect/pull/242)
-- Add new `JinjaTemplateTask` for easily rendering jinja templates - [#200](https://github.com/PrefectHQ/prefect/issues/200)
+- Add new `JinjaTemplate` for easily rendering jinja templates - [#200](https://github.com/PrefectHQ/prefect/issues/200)
 - Add new `PAUSE` signal for halting task execution - [#246](https://github.com/PrefectHQ/prefect/pull/246)
 - Add new `Paused` state corresponding to `PAUSE` signal, and new `pause_task` utility - [#251](https://github.com/PrefectHQ/prefect/issues/251)
 - Add ability to timeout task execution for all executors except `DaskExecutor(processes=True)` - [#240](https://github.com/PrefectHQ/prefect/issues/240)

@@ -8,12 +8,12 @@ import pytest
 
 from prefect import context, Flow
 from prefect.engine import signals
-from prefect.tasks.templates import StringFormatterTask
+from prefect.tasks.templates import StringFormatter
 from prefect.utilities.debug import raise_on_exception
 
 
 def test_string_formatter_simply_formats():
-    task = StringFormatterTask(template="{name} is from {place}")
+    task = StringFormatter(template="{name} is from {place}")
     with Flow(name="test") as f:
         ans = task(name="Ford", place="Betelgeuse")
     res = f.run()
@@ -22,7 +22,7 @@ def test_string_formatter_simply_formats():
 
 
 def test_string_formatter_can_be_provided_template_at_runtime():
-    task = StringFormatterTask()
+    task = StringFormatter()
     with Flow(name="test") as f:
         ans = task(template="{name} is from {place}", name="Ford", place="Betelgeuse")
     res = f.run()
@@ -31,7 +31,7 @@ def test_string_formatter_can_be_provided_template_at_runtime():
 
 
 def test_string_formatter_formats_from_context():
-    task = StringFormatterTask(template="I am {task_name}", name="foo")
+    task = StringFormatter(template="I am {task_name}", name="foo")
     f = Flow(name="test", tasks=[task])
     res = f.run()
     assert res.is_successful()
@@ -39,8 +39,8 @@ def test_string_formatter_formats_from_context():
 
 
 def test_string_formatter_fails_in_expected_ways():
-    t1 = StringFormatterTask(template="{name} is from {place}")
-    t2 = StringFormatterTask(template="{0} is from {1}")
+    t1 = StringFormatter(template="{name} is from {place}")
+    t2 = StringFormatter(template="{0} is from {1}")
     f = Flow(name="test", tasks=[t1, t2])
     res = f.run()
 
