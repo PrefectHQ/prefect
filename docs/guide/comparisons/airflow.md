@@ -29,7 +29,8 @@
 | Configurable permissions                   | [x] &nbsp; | [x] &nbsp; | Airflow recently adopted RBAC                                                                  |
 |                                            |
 | **DEVELOPMENT**                            |
-| Unit tests                                 | [x] &nbsp; | [x] &nbsp; | Prefect has 92% coverage; Airflow has 78% coverage |
+| Unit tests - count (0.5.0)                | 3184 &nbsp; | 2497 &nbsp; |  |
+| Unit tests - coverage (0.5.0)           | 92% &nbsp; | 78% &nbsp; |  |
 | Local testing                              | [x] &nbsp; | [ ] &nbsp; | Prefect flows can be tested locally without any additional infrastructure                      |
 
 
