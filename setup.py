@@ -9,6 +9,7 @@ install_requires = open("requirements.txt").read().strip().split("\n")
 dev_requires = open("dev-requirements.txt").read().strip().split("\n")
 
 extras = {
+    "airtable": ["airtable-python-wrapper >= 0.11, < 0.12"],
     "aws": ["boto3 >= 1.9, < 2.0"],
     "dev": dev_requires,
     "google": [

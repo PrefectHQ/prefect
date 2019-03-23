@@ -146,6 +146,7 @@ module.exports = {
           children: [
             'task_library/',
             'task_library/airflow',
+            'task_library/airtable',
             'task_library/aws',
             'task_library/collections',
             'task_library/constants',
