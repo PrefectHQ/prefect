@@ -11,7 +11,7 @@ class TestLoadTweetReplies:
         task = LoadTweetReplies()
         assert task.user is None
         assert task.tweet_id is None
-        assert task.credentials_secret is "TWITTER_API_CREDENTIALS"
+        assert task.credentials_secret == "TWITTER_API_CREDENTIALS"
 
     def test_initialize_kwargs_are_processed(self):
         task = LoadTweetReplies(checkpoint=True, name="test")
