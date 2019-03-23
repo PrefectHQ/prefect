@@ -14,7 +14,6 @@
 | **EXECUTION**                              |
 | Scheduled workflows                        | [x] &nbsp; | [x] &nbsp; |
 | Ad-hoc workflows                           | [x] &nbsp; | [x] &nbsp; | Airflow has limited support for off-schedule execution                                         |
-| Streaming workflows                        | [ ] &nbsp; | [ ] &nbsp; | Prefect will support streaming (long-running / async) workflows in an upcoming release         |
 | Pause/resume workflows during execution    | [x] &nbsp; | [ ] &nbsp; |
 | Event-driven scheduler                     | [x] &nbsp; | [ ] &nbsp; |
 | Real-time execution                        | [x] &nbsp; | [ ] &nbsp; |
@@ -30,7 +29,7 @@
 | Configurable permissions                   | [x] &nbsp; | [x] &nbsp; | Airflow recently adopted RBAC                                                                  |
 |                                            |
 | **DEVELOPMENT**                            |
-| Unit tests                                 | [x] &nbsp; | [x] &nbsp; | Prefect has 85% coverage; Airflow has 78% coverage |
+| Unit tests                                 | [x] &nbsp; | [x] &nbsp; | Prefect has 92% coverage; Airflow has 78% coverage |
 | Local testing                              | [x] &nbsp; | [ ] &nbsp; | Prefect flows can be tested locally without any additional infrastructure                      |
 
 
