@@ -4,7 +4,7 @@ import prefect
 from prefect import Task
 
 
-class StringFormatterTask(Task):
+class StringFormatter(Task):
     """
     This task contains a template which is formatted with the results of any
     upstream tasks and returned.
