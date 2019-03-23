@@ -133,7 +133,6 @@ module.exports = {
             'tutorials/etl',
             'tutorials/calculator',
             'tutorials/local-debugging',
-            'tutorials/task-retries',
             'tutorials/triggers-and-references',
             'tutorials/visualization',
             'tutorials/advanced-mapping',
