@@ -5,7 +5,7 @@ Anytime a task needs its output or inputs stored, a result handler is used to de
 """
 import base64
 import tempfile
-from typing import Any
+from typing import Any, Optional
 
 import cloudpickle
 
@@ -25,7 +25,7 @@ class CloudResultHandler(ResultHandler):
     """
 
     def __init__(self, result_handler_service: str = None) -> None:
-        self._client = None
+        self._client = None  # type: Optional[Client]
         if result_handler_service is None:
             self.result_handler_service = config.cloud.result_handler
         else:
@@ -42,7 +42,7 @@ class CloudResultHandler(ResultHandler):
         This will instantiate a Client upon the first call to (de)serialize.
         """
         if self._client is None:
-            self._client = Client()  # type: ignore
+            self._client = Client()
 
     def read(self, uri: str) -> Any:
         """
@@ -55,10 +55,10 @@ class CloudResultHandler(ResultHandler):
             - the deserialized result from the provided URI
         """
         self._initialize_client()
+        assert isinstance(self._client, Client)  # mypy assert
+
         self.logger.debug("Starting to read result from {}...".format(uri))
-        res = self._client.get(  # type: ignore
-            "/", server=self.result_handler_service, **{"uri": uri}
-        )
+        res = self._client.get("/", server=self.result_handler_service, **{"uri": uri})
 
         try:
             return_val = cloudpickle.loads(base64.b64decode(res.get("result", "")))
@@ -79,11 +79,13 @@ class CloudResultHandler(ResultHandler):
             - str: the URI path to the result in Cloud storage
         """
         self._initialize_client()
+        assert isinstance(self._client, Client)  # mypy assert
+
         binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()
         self.logger.debug(
             "Starting to upload result to {}...".format(self.result_handler_service)
         )
-        res = self._client.post(  # type: ignore
+        res = self._client.post(
             "/", server=self.result_handler_service, **{"result": binary_data}
         )
         self.logger.debug(
