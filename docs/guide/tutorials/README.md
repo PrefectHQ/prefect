@@ -16,10 +16,6 @@ The "hello, world!" of data engineering
 
 Can your data engineering framework do this?
 
-## [Task Retries](task-retries.md)
-
-An overview of how Prefect handles retrying tasks
-
 ## [Triggers, Reference Tasks](triggers-and-references.md)
 
 Overview of different triggers, such as `manual_only`, which allows for manual approval before a task can run. Also covered: determining flow states using `reference_tasks`

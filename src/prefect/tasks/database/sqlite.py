@@ -7,7 +7,7 @@ from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class SQLiteQueryTask(Task):
+class SQLiteQuery(Task):
     """
     Task for executing a single query against a sqlite3 database; returns
     the result (if any) from the query.
@@ -45,7 +45,7 @@ class SQLiteQueryTask(Task):
         return out
 
 
-class SQLiteScriptTask(Task):
+class SQLiteScript(Task):
     """
     Task for executing a SQL script against a sqlite3 database.
 

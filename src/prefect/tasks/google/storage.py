@@ -65,7 +65,7 @@ class GCSBaseTask(Task):
         return bucket.blob(blob, encryption_key=encryption_key)
 
 
-class GCSDownloadTask(GCSBaseTask):
+class GCSDownload(GCSBaseTask):
     """
     Task template for downloading data from Google Cloud Storage as a string.
 
@@ -154,7 +154,7 @@ class GCSDownloadTask(GCSBaseTask):
         return data
 
 
-class GCSUploadTask(GCSBaseTask):
+class GCSUpload(GCSBaseTask):
     """
     Task template for uploading data to Google Cloud Storage.  Requires the data already be a string.
 

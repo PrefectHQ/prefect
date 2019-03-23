@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
-from prefect.tasks.google import BigQueryTask, BigQueryStreamingInsertTask
+from prefect.tasks.google import BigQueryTask, BigQueryStreamingInsert
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -60,7 +60,7 @@ class TestBigQueryInitialization:
 
 class TestBigQueryStreamingInsertInitialization:
     def test_initializes_with_nothing_and_sets_defaults(self):
-        task = BigQueryStreamingInsertTask()
+        task = BigQueryStreamingInsert()
         assert task.project is None
         assert task.location == "US"
         assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
@@ -68,9 +68,7 @@ class TestBigQueryStreamingInsertInitialization:
         assert task.table is None
 
     def test_additional_kwargs_passed_upstream(self):
-        task = BigQueryStreamingInsertTask(
-            name="test-task", checkpoint=True, tags=["bob"]
-        )
+        task = BigQueryStreamingInsert(name="test-task", checkpoint=True, tags=["bob"])
         assert task.name == "test-task"
         assert task.checkpoint is True
         assert task.tags == {"bob"}
@@ -79,12 +77,12 @@ class TestBigQueryStreamingInsertInitialization:
         "attr", ["project", "location", "credentials_secret", "dataset_id", "table"]
     )
     def test_initializes_attr_from_kwargs(self, attr):
-        task = BigQueryStreamingInsertTask(**{attr: "my-value"})
+        task = BigQueryStreamingInsert(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
 
     @pytest.mark.parametrize("attr", ["dataset_id", "table"])
     def test_dataset_dest_and_table_dest_are_required_together_eventually(self, attr):
-        task = BigQueryStreamingInsertTask(**{attr: "some-value"})
+        task = BigQueryStreamingInsert(**{attr: "some-value"})
         with pytest.raises(ValueError) as exc:
             task.run(records=[])
         assert attr in str(exc.value)
@@ -156,7 +154,7 @@ class TestBigQueryCredentialsandProjects:
 
 class TestBigQueryStreamingInsertCredentialsandProjects:
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = BigQueryStreamingInsertTask(dataset_id="id", table="table")
+        task = BigQueryStreamingInsert(dataset_id="id", table="table")
 
         creds_loader = MagicMock()
         monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", creds_loader)
@@ -171,7 +169,7 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
         assert creds_loader.from_service_account_info.call_args[0][0] == 42
 
     def test_creds_secret_name_can_be_overwritten_at_anytime(self, monkeypatch):
-        task = BigQueryStreamingInsertTask(
+        task = BigQueryStreamingInsert(
             dataset_id="id", table="table", credentials_secret="TEST"
         )
 
@@ -193,8 +191,8 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
     def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
         self, monkeypatch
     ):
-        task = BigQueryStreamingInsertTask(dataset_id="id", table="table")
-        task_proj = BigQueryStreamingInsertTask(
+        task = BigQueryStreamingInsert(dataset_id="id", table="table")
+        task_proj = BigQueryStreamingInsert(
             dataset_id="id", table="table", project="test-init"
         )
 
