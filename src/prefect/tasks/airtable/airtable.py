@@ -6,7 +6,7 @@ from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
-DEFAULT_CREDENTIAL_NAME = "airtable_api_key"
+DEFAULT_CREDENTIAL_NAME = "AIRTABLE_API_KEY"
 
 
 class WriteAirtableRow(Task):
@@ -19,7 +19,7 @@ class WriteAirtableRow(Task):
         - base_key (str): the Airtable base key
         - table_name (str): the table name
         - credentials_secret (str): the name of a secret that contains an Airtable API key.
-            Defaults to "airtable_api_key"
+            Defaults to "AIRTABLE_API_KEY"
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -52,7 +52,7 @@ class WriteAirtableRow(Task):
             - base_key (str): the Airtable base key
             - table_name (str): the table name
             - credentials_secret (str): the name of a secret that contains an Airtable API key.
-                Defaults to "airtable_api_key"
+                Defaults to "AIRTABLE_API_KEY"
 
         Returns:
             - a dictionary containing information about the successful insert

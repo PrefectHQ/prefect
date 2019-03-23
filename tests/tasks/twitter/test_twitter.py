@@ -11,7 +11,7 @@ class TestLoadTweetReplies:
         task = LoadTweetReplies()
         assert task.user is None
         assert task.tweet_id is None
-        assert task.credentials_secret is "twitter_api_credentials"
+        assert task.credentials_secret is "TWITTER_API_CREDENTIALS"
 
     def test_initialize_kwargs_are_processed(self):
         task = LoadTweetReplies(checkpoint=True, name="test")
@@ -32,7 +32,7 @@ class TestLoadTweetReplies:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
-                    twitter_api_credentials={
+                    TWITTER_API_CREDENTIALS={
                         "api_key": "a",
                         "api_secret": "b",
                         "access_token": "c",
