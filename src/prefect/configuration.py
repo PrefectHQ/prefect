@@ -127,8 +127,8 @@ def string_to_type(val: str) -> Union[bool, int, float, str]:
     Helper function for transforming string env var values into typed values.
 
     Maps:
-        - "true" or "True" to `True`
-        - "false" or "False" to `False`
+        - "true" (any capitalization) to `True`
+        - "false" (any capitalization) to `False`
         - integers to `int`
         - floats to `float`
 
@@ -140,9 +140,9 @@ def string_to_type(val: str) -> Union[bool, int, float, str]:
     """
 
     # bool
-    if val in ["true", "True"]:
+    if val.upper() == "TRUE":
         return True
-    elif val in ["false", "False"]:
+    elif val.upper() == "FALSE":
         return False
 
     # int
