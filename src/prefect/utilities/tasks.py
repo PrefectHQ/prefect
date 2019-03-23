@@ -1,13 +1,16 @@
 import inspect
 from contextlib import contextmanager
 from functools import wraps
-from typing import Any, Callable, Iterator, Iterable
+from typing import Any, Callable, Iterator, Iterable, TYPE_CHECKING
 
 from toolz import curry
 
 import prefect
 
 __all__ = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
+
+if TYPE_CHECKING:
+    import prefect.tasks.core.function
 
 
 @contextmanager
@@ -49,7 +52,7 @@ def as_task(x: Any) -> "prefect.Task":
         - a prefect Task representing the passed object
     """
     # task objects
-    if isinstance(x, prefect.core.Task):
+    if isinstance(x, prefect.core.Task):  # type: ignore
         return x
     elif isinstance(x, unmapped):
         return x.task
@@ -73,7 +76,7 @@ def as_task(x: Any) -> "prefect.Task":
         return prefect.tasks.core.constants.Constant(value=x)
 
 
-def pause_task(message: str = None):
+def pause_task(message: str = None) -> None:
     """
     Utility function for pausing a task during execution to wait for manual intervention.
     Note that the _entire task_ will be rerun if the user decides to run this task again!
@@ -106,7 +109,7 @@ def pause_task(message: str = None):
         ```
     """
     if prefect.context.get("resume", False) is False:
-        raise prefect.engine.signals.PAUSE(
+        raise prefect.engine.signals.PAUSE(  # type: ignore
             message or "Pause signal raised during task execution."
         )
 
@@ -233,9 +236,9 @@ def defaults_from_attrs(*attr_args: str) -> Callable:
     ```
     """
 
-    def wrapper(run_method):
+    def wrapper(run_method: Callable) -> Callable:
         @wraps(run_method)
-        def method(self, *args, **kwargs):
+        def method(self: Any, *args: Any, **kwargs: Any) -> Any:
             for attr in attr_args:
                 kwargs.setdefault(attr, getattr(self, attr))
             return run_method(self, *args, **kwargs)
