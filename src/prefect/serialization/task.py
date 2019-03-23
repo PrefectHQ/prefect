@@ -1,5 +1,6 @@
 import uuid
 from collections import OrderedDict
+from typing import TYPE_CHECKING, Any, Dict, Callable
 
 import marshmallow
 from marshmallow import (
@@ -21,9 +22,14 @@ from prefect.utilities.serialization import (
     to_qualified_name,
 )
 
+if TYPE_CHECKING:
+    import prefect.engine
+    import prefect.engine.cache_validators
+    import prefect.triggers
+
 
 class TaskMethodsMixin:
-    def get_attribute(self, obj, key, default):
+    def get_attribute(self, obj: Any, key: str, default: Any) -> Any:
         """
         By default, Marshmallow attempts to index an object, then get its attributes.
         Indexing a Task results in a new IndexTask, so for tasks we use getattr(). Otherwise
@@ -32,9 +38,9 @@ class TaskMethodsMixin:
         if isinstance(obj, prefect.Task):
             return getattr(obj, key, default)
         else:
-            return super().get_attribute(obj, key, default)
+            return super().get_attribute(obj, key, default)  # type: ignore
 
-    def load_inputs(self, task):
+    def load_inputs(self, task: prefect.core.Task) -> Dict[str, Dict]:
         if not isinstance(task, prefect.core.Task):
             return self.get_attribute(task, "inputs", None)
         inputs = {}
@@ -42,13 +48,13 @@ class TaskMethodsMixin:
             inputs[k] = dict(required=v["required"], type=str(v["type"]))
         return inputs
 
-    def load_outputs(self, task):
+    def load_outputs(self, task: prefect.core.Task) -> str:
         if not isinstance(task, prefect.core.Task):
             return self.get_attribute(task, "outputs", None)
         return str(task.outputs())
 
     @post_load
-    def create_object(self, data):
+    def create_object(self, data: dict) -> prefect.core.Task:
         """
         Sometimes we deserialize tasks and edges simultaneously (for example, when a
         Flow is being deserialized), in which case we check IDs to see if we already
@@ -58,13 +64,13 @@ class TaskMethodsMixin:
         task_id = data.get("id", str(uuid.uuid4()))
 
         # if the id is not in the task cache, create a task object and add it
-        if task_id not in self.context.setdefault("task_id_cache", {}):
-            task = super().create_object(data)
+        if task_id not in self.context.setdefault("task_id_cache", {}):  # type: ignore
+            task = super().create_object(data)  # type: ignore
             task.id = task_id
-            self.context["task_id_cache"][task_id] = task
+            self.context["task_id_cache"][task_id] = task  # type: ignore
 
         # return the task object from the cache
-        return self.context["task_id_cache"][task_id]
+        return self.context["task_id_cache"][task_id]  # type: ignore
 
 
 class TaskSchema(TaskMethodsMixin, ObjectSchema):
@@ -116,7 +122,7 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
 
 class ParameterSchema(TaskMethodsMixin, ObjectSchema):
     class Meta:
-        object_class = lambda: prefect.core.task.Parameter
+        object_class = lambda: prefect.core.task.Parameter  # type: ignore
         exclude_fields = ["id", "type", "outputs"]
 
     id = UUID()

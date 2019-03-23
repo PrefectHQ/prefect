@@ -4,6 +4,7 @@ import os
 import queue
 import time
 from logging.handlers import QueueHandler, QueueListener
+from typing import Any
 
 import prefect
 from prefect.configuration import config
@@ -16,14 +17,15 @@ class RemoteHandler(logging.StreamHandler):
         self.client = None
         self.errored_out = False
 
-    def emit(self, record):
+    def emit(self, record) -> None:  # type: ignore
         try:
             if self.errored_out is True:
                 return
             if self.client is None:
                 from prefect.client import Client
 
-                self.client = Client()
+                self.client = Client()  # type: ignore
+            assert isinstance(self.client, Client)  # mypy assert
             r = self.client.post(path="", server=self.logger_server, **record.__dict__)
         except:
             self.errored_out = True
@@ -32,14 +34,14 @@ class RemoteHandler(logging.StreamHandler):
 old_factory = logging.getLogRecordFactory()
 
 
-def cloud_record_factory(*args, **kwargs):
+def cloud_record_factory(*args: Any, **kwargs: Any) -> Any:
     record = old_factory(*args, **kwargs)
-    record.flow_run_id = prefect.context.get("flow_run_id", "")
-    record.task_run_id = prefect.context.get("task_run_id", "")
+    record.flow_run_id = prefect.context.get("flow_run_id", "")  # type: ignore
+    record.task_run_id = prefect.context.get("task_run_id", "")  # type: ignore
     return record
 
 
-def configure_logging(testing=False) -> logging.Logger:
+def configure_logging(testing: bool = False) -> logging.Logger:
     """
     Creates a "prefect" root logger with a `StreamHandler` that has level and formatting
     set from `prefect.config`.
@@ -56,7 +58,7 @@ def configure_logging(testing=False) -> logging.Logger:
     logger = logging.getLogger(name)
     handler = logging.StreamHandler()
     formatter = logging.Formatter(config.logging.format)
-    formatter.converter = time.gmtime
+    formatter.converter = time.gmtime  # type: ignore
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(config.logging.level)

@@ -32,5 +32,5 @@ class Constant(prefect.Task):
 
         super().__init__(name=name, **kwargs)
 
-    def run(self):  # type: ignore
+    def run(self) -> Any:
         return self.value
