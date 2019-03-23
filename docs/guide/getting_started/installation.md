@@ -31,6 +31,11 @@ The extra packages include:
 - `dev`: tools for developing Prefect itself
 - `templates`: tools for working with string templates
 - `viz`: tools for visualizing Prefect flows
+- `aws`: tools for interacting with Amazon Web Services
+- `google`: tools for interacting with Google Cloud Platform
+- `kubernetes`: tools for interacting with Kubernetes API objects
+- `twitter`: tools for interacting with the Twitter API
+- `airtable`: tools for interacting with the Airtable API
 
 ## Development
 
