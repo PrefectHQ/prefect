@@ -11,7 +11,7 @@ class TestWriteAirtableRow:
         task = WriteAirtableRow()
         assert task.base_key is None
         assert task.table_name is None
-        assert task.credentials_secret is "AIRTABLE_API_KEY"
+        assert task.credentials_secret == "AIRTABLE_API_KEY"
 
     def test_initialize_kwargs_are_processed(self):
         task = WriteAirtableRow(checkpoint=True, name="test")
