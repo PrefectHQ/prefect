@@ -210,7 +210,7 @@ module.exports = {
             'examples/map_reduce',
             'examples/parameterized_flow',
             'examples/retries_with_mapping',
-            'examples/twitter_to_airtable'
+            'examples/twitter_to_airtable',
             'examples/daily_github_stats_to_airtable'
         },
         {
