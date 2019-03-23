@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href=https://circleci.com/gh/PrefectHQ/prefect/tree/master>
-    <img src="https://circleci.com/gh/PrefectHQ/prefect/tree/master.svg?style=svg&circle-token=28689a55edc3c373486aaa5f11a1af3e5fc53344">
+    <img src="https://circleci.com/gh/PrefectHQ/prefect/tree/master.svg?style=shield&circle-token=28689a55edc3c373486aaa5f11a1af3e5fc53344">
 </a>
 
 <a href=https://github.com/ambv/black style="margin-left: 10px">
