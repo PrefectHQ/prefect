@@ -2,7 +2,7 @@
 
 A collection of tasks for interacting with Airtable.
 
-The default Airtable credential secret name is "AIRTABLE_API_KEY"
+The default Airtable credential secret name is `"AIRTABLE_API_KEY"`
 
 ## WriteAirtableRow <Badge text="task"/>
 
