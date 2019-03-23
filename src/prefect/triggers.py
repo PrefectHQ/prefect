@@ -2,7 +2,7 @@
 Triggers are functions that determine if task state should change based on
 the state of preceding tasks.
 """
-from typing import Set
+from typing import Set, Callable
 from prefect import context
 from prefect.engine import signals, state
 
@@ -103,4 +103,4 @@ def any_failed(upstream_states: Set["state.State"]) -> bool:
 
 
 # aliases
-always_run = all_finished
+always_run = all_finished  # type: Callable[[Set["state.State"]], bool]

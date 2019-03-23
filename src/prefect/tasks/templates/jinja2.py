@@ -32,7 +32,7 @@ class JinjaTemplate(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("template")
-    def run(self, template: str = None, **format_kwargs: Any) -> str:  # type: ignore
+    def run(self, template: str = None, **format_kwargs: Any) -> str:
         """
         Formats the Jinja Template with the provided kwargs.
 

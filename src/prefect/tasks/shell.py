@@ -53,7 +53,7 @@ class ShellTask(prefect.Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("command", "env")
-    def run(self, command: str = None, env: dict = None) -> bytes:  # type: ignore
+    def run(self, command: str = None, env: dict = None) -> bytes:
         """
         Run the shell command.
 
@@ -92,5 +92,5 @@ class ShellTask(prefect.Task):
                 msg = "Command failed with exit code {0}: {1}".format(
                     exc.returncode, exc.output
                 )
-                raise prefect.engine.signals.FAIL(msg) from None
+                raise prefect.engine.signals.FAIL(msg) from None  # type: ignore
         return out

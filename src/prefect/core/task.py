@@ -493,7 +493,7 @@ class Task(metaclass=SignatureValidator):
                 "No Flow was passed, and could not infer an active Flow context."
             )
 
-        flow.set_dependencies(  # type: ignore
+        flow.set_dependencies(
             task=self,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
@@ -1019,11 +1019,6 @@ class Parameter(Task):
                 'Parameter "{}" was required but not provided.'.format(self.name)
             )
         return params.get(self.name, self.default)
-
-    def info(self) -> Dict[str, Any]:
-        info = super().info()  # type: ignore
-        info.update(required=self.required, default=self.default)
-        return info
 
     # Serialization ------------------------------------------------------------
 

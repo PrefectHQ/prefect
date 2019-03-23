@@ -1,3 +1,5 @@
+from typing import Any
+
 from kubernetes import client, config
 
 from prefect import Task
@@ -44,7 +46,7 @@ class CreateNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.body = body or {}
         self.namespace = namespace
@@ -62,7 +64,7 @@ class CreateNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 
@@ -141,7 +143,7 @@ class DeleteNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.job_name = job_name
         self.namespace = namespace
@@ -159,7 +161,7 @@ class DeleteNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 
@@ -239,7 +241,7 @@ class ListNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.namespace = namespace
         self.kube_kwargs = kube_kwargs or {}
@@ -253,7 +255,7 @@ class ListNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 
@@ -329,7 +331,7 @@ class PatchNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.job_name = job_name
         self.body = body or {}
@@ -349,7 +351,7 @@ class PatchNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 
@@ -437,7 +439,7 @@ class ReadNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.job_name = job_name
         self.namespace = namespace
@@ -455,7 +457,7 @@ class ReadNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 
@@ -540,7 +542,7 @@ class ReplaceNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.job_name = job_name
         self.body = body or {}
@@ -560,7 +562,7 @@ class ReplaceNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 
