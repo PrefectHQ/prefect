@@ -6,14 +6,14 @@ title: GCP
 
 ## Google Cloud Storage
 
-### GCSDownloadTask <Badge text="task"/>
+### GCSDownload <Badge text="task"/>
 
 Task template for downloading data from Google Cloud Storage as a string.
 
 [API Reference](/api/tasks/google.html#prefect-tasks-google-storage-gcsdownloadtask)
 
 
-### GCSUploadTask <Badge text="task"/>
+### GCSUpload <Badge text="task"/>
 
 Task template for uploading data to Google Cloud Storage as a string.
 
@@ -29,7 +29,7 @@ Task for executing queries against a Google BigQuery table and (optionally) retu
 [API Reference](/api/tasks/google.html#prefect-tasks-google-bigquery-bigquerytask)
 
 
-### BigQueryStreamingInsertTask <Badge text="task"/>
+### BigQueryStreamingInsert <Badge text="task"/>
 
 Task for insert records in a Google BigQuery table via [the streaming API](https://cloud.google.com/bigquery/streaming-data-into-bigquery).
 

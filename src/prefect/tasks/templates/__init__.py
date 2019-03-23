@@ -1,6 +1,6 @@
-from prefect.tasks.templates.strings import StringFormatterTask
+from prefect.tasks.templates.strings import StringFormatter
 
 try:
-    from prefect.tasks.templates.jinja2 import JinjaTemplateTask
+    from prefect.tasks.templates.jinja2 import JinjaTemplate
 except ImportError:
     pass
