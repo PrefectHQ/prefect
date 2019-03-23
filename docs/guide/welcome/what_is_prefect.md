@@ -1,6 +1,5 @@
 ---
 sidebarDepth: 0
-title: What is Prefect?
 ---
 
 # What is Prefect?
