@@ -261,6 +261,11 @@ title = "String Templating Tasks"
 module = "prefect.tasks.templates"
 classes = ["StringFormatterTask", "JinjaTemplateTask"]
 
+[pages.tasks.twitter]
+title = "Twitter Tasks"
+module = "prefect.tasks.twitter"
+classes = ["LoadTweetReplies"]
+
 [pages.utilities.collections]
 title = "Collections"
 module = "prefect.utilities.collections"
