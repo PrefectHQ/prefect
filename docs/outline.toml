@@ -162,7 +162,7 @@ classes = ["WriteAirtableRow"]
 [pages.tasks.aws]
 title = "AWS Tasks"
 module = "prefect.tasks.aws"
-classes = ["S3DownloadTask", "S3UploadTask"]
+classes = ["S3Download", "S3UploadT"]
 
 [pages.tasks.github]
 title = "GitHub Tasks"
@@ -202,7 +202,7 @@ classes = [
 [pages.tasks.google]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.google"
-classes = ["GCSDownloadTask", "GCSUploadTask", "BigQueryTask", "BigQueryStreamingInsertTask"]
+classes = ["GCSDownload", "GCSUpload", "BigQueryTask", "BigQueryStreamingInsert"]
 
 [pages.tasks.notifications]
 title = "Notification Tasks"
@@ -212,7 +212,7 @@ classes = ["EmailTask"]
 [pages.tasks.sqlite]
 title = "SQLite Tasks"
 module = "prefect.tasks.database"
-classes = ["SQLiteQueryTask", "SQLiteScriptTask"]
+classes = ["SQLiteQuery", "SQLiteScript"]
 
 [pages.tasks.function]
 title = "Function Tasks"
@@ -259,7 +259,7 @@ classes = ["ShellTask"]
 [pages.tasks.strings]
 title = "String Templating Tasks"
 module = "prefect.tasks.templates"
-classes = ["StringFormatterTask", "JinjaTemplateTask"]
+classes = ["StringFormatter", "JinjaTemplate"]
 
 [pages.tasks.twitter]
 title = "Twitter Tasks"

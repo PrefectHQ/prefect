@@ -1,1 +1,1 @@
-from prefect.tasks.database.sqlite import SQLiteQueryTask, SQLiteScriptTask
+from prefect.tasks.database.sqlite import SQLiteQuery, SQLiteScript

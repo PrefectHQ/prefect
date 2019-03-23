@@ -1,12 +1,12 @@
 # Strings
 
-## StringFormatterTask <Badge text="task"/>
+## StringFormatter <Badge text="task"/>
 
 A convenience Task for functionally creating Task instances with arbitrary callable `run` methods. This is the Task that powers Prefect's `@task` decorator.
 
 [API Reference](/api/tasks/strings.html#prefect-tasks-templates-strings-stringformattertask)
 
-## JinjaTemplateTask <Badge text="task"/>
+## JinjaTemplate <Badge text="task"/>
 
 This task contains a Jinja template which is formatted with the results of any upstream tasks and returned.
 

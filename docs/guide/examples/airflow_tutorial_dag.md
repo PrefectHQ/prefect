@@ -13,7 +13,7 @@ import prefect
 from prefect import Parameter, task, Flow
 from prefect.schedules import IntervalSchedule
 from prefect.tasks.shell import ShellTask
-from prefect.tasks.templates.jinja2 import JinjaTemplateTask
+from prefect.tasks.templates.jinja2 import JinjaTemplate
 
 
 ## default config settings such as this can generally be set in your
@@ -42,7 +42,7 @@ command = """
         echo "{{ my_param }}"
     {% endfor %}
 """
-templated_command = JinjaTemplateTask(
+templated_command = JinjaTemplate(
     template=command, max_retries=1, retry_delay=retry_delay
 )
 
