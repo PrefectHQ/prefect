@@ -2,7 +2,7 @@ import datetime
 import logging
 import os
 import re
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, cast
 
 import toml
 
@@ -22,7 +22,7 @@ class Config(collections.DotDict):
         This method helps mypy discover attribute types without annotations
         """
         if attr in self:
-            return super().__getattr__(attr)
+            return super().__getattr__(attr)  # type: ignore
         else:
             raise AttributeError("Config has no key '{}'".format(attr))
 
@@ -39,7 +39,7 @@ class Config(collections.DotDict):
             new_config[key] = value
         return new_config
 
-    def get_nested(self, key: str, default=None) -> Any:
+    def get_nested(self, key: str, default: Any = None) -> Any:
         """
         Retrieves a (possibly nested) config key's value, creating intermediate keys if
         necessary
@@ -183,7 +183,7 @@ def interpolate_env_var(env_var: str) -> Optional[Union[bool, int, float, str]]:
             # this is because we don't want to override TOML type-casting if this function
             # is applied to a non-interpolated value
             if counter > 1:
-                interpolated = string_to_type(interpolated)
+                interpolated = string_to_type(interpolated)  # type: ignore
             return interpolated
         else:
             env_var = interpolated
@@ -196,7 +196,7 @@ def create_user_config(dest_path: str, source_path: str = DEFAULT_CONFIG) -> Non
     """
     Copies the default configuration to a user-customizable file at `dest_path`
     """
-    dest_path = interpolate_env_var(dest_path)
+    dest_path = cast(str, interpolate_env_var(dest_path))
     if os.path.isfile(dest_path):
         raise ValueError("File already exists: {}".format(dest_path))
     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
@@ -261,7 +261,7 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
     # load the configuration file
     config = {
         key.lower(): value
-        for key, value in toml.load(interpolate_env_var(path)).items()
+        for key, value in toml.load(cast(str, interpolate_env_var(path))).items()
     }
 
     # toml supports nested dicts, so we work with a flattened representation to do any
@@ -273,7 +273,7 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
     #     [ENV_VAR_PREFIX]__[Section]__[Optional Sub-Sections...]__[Key] = Value
     # and if it does, add it to the config file.
 
-    env = env or os.environ
+    env = cast(dict, env or os.environ)
     if env_var_prefix:
 
         for env_var in env:
@@ -289,13 +289,15 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
                 # env vars with escaped characters are interpreted as literal "\", which
                 # Python helpfully escapes with a second "\". This step makes sure that
                 # escaped characters are properly interpreted.
-                value = env.get(env_var).encode().decode("unicode_escape")
+                value = cast(str, env.get(env_var)).encode().decode("unicode_escape")
 
                 # place the env var in the flat config as a compound key
                 config_option = collections.CompoundKey(
                     env_var_option.lower().split("__")
                 )
-                flat_config[config_option] = string_to_type(interpolate_env_var(value))
+                flat_config[config_option] = string_to_type(
+                    cast(str, interpolate_env_var(value))
+                )
 
     # interpolate any env vars referenced
     for k, v in list(flat_config.items()):
@@ -343,7 +345,7 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
                     matched_string, str(ref_value), 1
                 )
 
-    return collections.flatdict_to_dict(flat_config, dct_class=Config)
+    return cast(Config, collections.flatdict_to_dict(flat_config, dct_class=Config))
 
 
 def load_configuration(
@@ -368,7 +370,7 @@ def load_configuration(
     config = load_config_file(config_path, env_var_prefix=env_var_prefix or "", env=env)
 
     if merge_into_config is not None:
-        config = collections.merge_dicts(merge_into_config, config)
+        config = cast(Config, collections.merge_dicts(merge_into_config, config))
 
     validate_config(config)
 
