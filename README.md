@@ -14,6 +14,8 @@
 
 ## Hello, world! 👋
 
+[![Join the chat at https://gitter.im/prefectio/community](https://badges.gitter.im/prefectio/community.svg)](https://gitter.im/prefectio/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 We've rebuilt data engineering for the data science era.
 
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
