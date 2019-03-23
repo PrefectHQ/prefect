@@ -121,7 +121,7 @@ module.exports = {
           collapsable: true,
           children: [
             'getting_started/installation',
-            'getting_started/welcome',
+            'getting_started/first-steps',
             'getting_started/next-steps',
           ]
         },
