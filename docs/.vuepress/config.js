@@ -161,7 +161,6 @@ module.exports = {
             'task_library/operators',
             'task_library/shell',
             'task_library/sqlite',
-            'task_library/strings'
             'task_library/strings',
             'task_library/twitter'
           ]
