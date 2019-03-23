@@ -1,3 +1,3 @@
 import pytest
 
-pytestmark = pytest.importorskip("airtable")
+airtable = pytest.importorskip("airtable")
