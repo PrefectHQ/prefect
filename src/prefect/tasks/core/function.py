@@ -43,7 +43,7 @@ class FunctionTask(prefect.Task):
         if name is None:
             name = getattr(fn, "__name__", type(self).__name__)
 
-        prefect.core.task._validate_run_signature(fn)
+        prefect.core.task._validate_run_signature(fn)  # type: ignore
         self.run = fn
 
         super().__init__(name=name, **kwargs)

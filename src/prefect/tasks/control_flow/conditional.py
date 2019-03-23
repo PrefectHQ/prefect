@@ -30,7 +30,7 @@ class CompareValue(Task):
         - **kwargs: keyword arguments for the Task
     """
 
-    def __init__(self, value: Any, **kwargs):
+    def __init__(self, value: Any, **kwargs: Any):
         self.value = value
         kwargs.setdefault("name", 'CompareValue: "{}"'.format(value))
         super().__init__(**kwargs)

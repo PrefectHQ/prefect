@@ -1,3 +1,5 @@
+from typing import Any
+
 from kubernetes import client, config
 
 from prefect import Task
@@ -44,7 +46,7 @@ class CreateNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.body = body or {}
         self.namespace = namespace
@@ -62,7 +64,7 @@ class CreateNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 
@@ -143,7 +145,7 @@ class DeleteNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.service_name = service_name
         self.namespace = namespace
@@ -161,7 +163,7 @@ class DeleteNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 
@@ -241,7 +243,7 @@ class ListNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.namespace = namespace
         self.kube_kwargs = kube_kwargs or {}
@@ -255,7 +257,7 @@ class ListNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 
@@ -331,7 +333,7 @@ class PatchNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.service_name = service_name
         self.body = body or {}
@@ -351,7 +353,7 @@ class PatchNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 
@@ -439,7 +441,7 @@ class ReadNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.service_name = service_name
         self.namespace = namespace
@@ -457,7 +459,7 @@ class ReadNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 
@@ -542,7 +544,7 @@ class ReplaceNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        **kwargs
+        **kwargs: Any
     ):
         self.service_name = service_name
         self.body = body or {}
@@ -562,7 +564,7 @@ class ReplaceNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-    ):
+    ) -> None:
         """
         Task run method.
 

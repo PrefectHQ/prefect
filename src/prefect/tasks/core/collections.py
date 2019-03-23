@@ -41,7 +41,7 @@ class VarArgsTask(Task):
 
 
 class List(VarArgsTask):
-    def run(self, **task_results: Any) -> list:
+    def run(self, **task_results: Any) -> list:  # type: ignore
         """
         Args:
             - **task_results (Any): task results to collect into a list
@@ -53,7 +53,7 @@ class List(VarArgsTask):
 
 
 class Tuple(VarArgsTask):
-    def run(self, **task_results: Any) -> tuple:
+    def run(self, **task_results: Any) -> tuple:  # type: ignore
         """
         Args:
             - **task_results (Any): task results to collect into a tuple
@@ -65,7 +65,7 @@ class Tuple(VarArgsTask):
 
 
 class Set(VarArgsTask):
-    def run(self, **task_results: Any) -> set:
+    def run(self, **task_results: Any) -> set:  # type: ignore
         """
         Args:
             - **task_results (Any): task results to collect into a set
@@ -77,7 +77,7 @@ class Set(VarArgsTask):
 
 
 class Dict(Task):
-    def run(self, **task_results: Any) -> dict:
+    def run(self, **task_results: Any) -> dict:  # type: ignore
         """
         Args:
             - **task_results (Any): task result key / value pairs to collect into a dict
