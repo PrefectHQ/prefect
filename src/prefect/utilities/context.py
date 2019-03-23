@@ -52,7 +52,7 @@ class Context(DotDict, threading.local):
         - **kwargs (Any): any key / value pairs to initialize this context with
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         if "context" in config:
             self.update(config.context)

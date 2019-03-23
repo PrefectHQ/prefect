@@ -3,7 +3,7 @@ import multiprocessing
 import signal
 import threading
 from functools import wraps
-from typing import Any, Callable, Dict, List, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
 
 import dask
 import dask.bag
@@ -11,15 +11,18 @@ import dask.bag
 import prefect
 from prefect.core.edge import Edge
 
+if TYPE_CHECKING:
+    import prefect.engine.runner
+    import prefect.engine.state
 StateList = Union["prefect.engine.state.State", List["prefect.engine.state.State"]]
 
 
 class Heartbeat(threading.Timer):
-    def run(self):
-        self.finished.wait(self.interval)
-        while not self.finished.is_set():
-            self.function(*self.args, **self.kwargs)
-            self.finished.wait(self.interval)
+    def run(self) -> None:
+        self.finished.wait(self.interval)  # type: ignore
+        while not self.finished.is_set():  # type: ignore
+            self.function(*self.args, **self.kwargs)  # type: ignore
+            self.finished.wait(self.interval)  # type: ignore
 
 
 def run_with_heartbeat(
