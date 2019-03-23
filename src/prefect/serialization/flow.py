@@ -1,3 +1,4 @@
+from typing import Set
 from marshmallow import fields, post_load, pre_dump, utils
 
 import prefect
@@ -13,14 +14,14 @@ from prefect.utilities.serialization import (
 )
 
 
-def get_parameters(obj, context):
+def get_parameters(obj: prefect.Flow, context: dict) -> Set:
     if isinstance(obj, prefect.Flow):
         return {p for p in obj.tasks if isinstance(p, prefect.core.task.Parameter)}
     else:
         return utils.get_value(obj, "parameters")
 
 
-def get_reference_tasks(obj, context):
+def get_reference_tasks(obj: prefect.Flow, context: dict) -> Set:
     if isinstance(obj, prefect.Flow):
         return obj._reference_tasks
     else:
@@ -50,7 +51,7 @@ class FlowSchema(ObjectSchema):
     environment = fields.Nested(EnvironmentSchema, allow_none=True)
 
     @post_load
-    def create_object(self, data):
+    def create_object(self, data: dict) -> prefect.core.Flow:
         """
         Flow edges are validated, for example to make sure the keys match Task inputs,
         but because we are deserializing all Tasks as base Tasks, the edge validation will

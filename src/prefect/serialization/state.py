@@ -16,14 +16,14 @@ from prefect.utilities.serialization import (
 )
 
 
-def get_safe(obj, context):
+def get_safe(obj: state.State, context: dict) -> Any:
     """
     Helper function for ensuring only safe values are serialized.
     Note that it is up to the user to actively store a Result's value in a
     safe way prior to serialization (if they want the result to be avaiable post-serialization).
     """
     if context.get("attr") == "_result":
-        return obj._result.safe_value
+        return obj._result.safe_value  # type: ignore
     value = context.get("value", result.NoResult)
     if value is None:
         return value
@@ -38,7 +38,7 @@ class BaseStateSchema(ObjectSchema):
     _result = Nested(StateResultSchema, allow_none=False, value_selection_fn=get_safe)
 
     @post_load
-    def create_object(self, data):
+    def create_object(self, data: dict) -> state.State:
         result_obj = data.pop("_result", result.NoResult)
         data["result"] = result_obj
         base_obj = super().create_object(data)
@@ -129,7 +129,7 @@ class MappedSchema(SuccessSchema):
     n_map_states = fields.Integer()
 
     @post_load
-    def create_object(self, data):
+    def create_object(self, data: dict) -> state.Mapped:
         n_map_states = data.pop("n_map_states", 0)
         data["map_states"] = [None for _ in range(n_map_states)]
         return super().create_object(data)
