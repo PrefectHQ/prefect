@@ -1,5 +1,6 @@
 import sqlite3 as sql
 from contextlib import closing
+from typing import Any, cast
 
 import prefect
 from prefect import Task
@@ -20,7 +21,7 @@ class SQLiteQueryTask(Task):
             standard Task initalization
     """
 
-    def __init__(self, db: str, query: str = None, **kwargs):
+    def __init__(self, db: str, query: str = None, **kwargs: Any):
         self.db = db
         self.query = query
         super().__init__(**kwargs)
@@ -35,6 +36,7 @@ class SQLiteQueryTask(Task):
         Returns:
             - [Any]: the results of the query
         """
+        query = cast(str, query)
         with closing(sql.connect(self.db)) as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute(query)
@@ -55,7 +57,7 @@ class SQLiteScriptTask(Task):
             standard Task initialization
     """
 
-    def __init__(self, db: str, script: str = None, **kwargs):
+    def __init__(self, db: str, script: str = None, **kwargs: Any):
         self.db = db
         self.script = script
         super().__init__(**kwargs)

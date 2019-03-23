@@ -3,7 +3,6 @@ import copy
 import functools
 import inspect
 import json
-import pendulum
 import tempfile
 import time
 import uuid
@@ -20,17 +19,19 @@ from typing import (
     Set,
     Tuple,
     Union,
+    cast,
 )
 
+import pendulum
 import xxhash
 from mypy_extensions import TypedDict
 
 import prefect
 import prefect.schedules
-from prefect.engine.result import NoResult
-from prefect.engine.result_handlers import ResultHandler
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
+from prefect.engine.result import NoResult
+from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import Environment
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
@@ -486,7 +487,7 @@ class Flow:
             - ValueError: if the edge exists with this `key` and `downstream_task`
         """
         if validate is None:
-            validate = prefect.config.flows.eager_edge_validation  # type: ignore
+            validate = cast(bool, prefect.config.flows.eager_edge_validation)
         if isinstance(downstream_task, Parameter):
             raise ValueError(
                 "Parameters must be root tasks and can not have upstream dependencies."
@@ -853,9 +854,7 @@ class Flow:
             raise ValueError("Flow has no more scheduled runs.") from None
 
         ## setup initial states
-        flow_state = prefect.engine.state.Scheduled(
-            start_time=next_run_time, result={}
-        )  # type: ignore
+        flow_state = prefect.engine.state.Scheduled(start_time=next_run_time, result={})
         flow_state = kwargs.pop("state", flow_state)
         if not isinstance(flow_state.result, dict):
             flow_state.result = {}
@@ -916,7 +915,7 @@ class Flow:
                 break
             flow_state = prefect.engine.state.Scheduled(
                 start_time=next_run_time, result={}
-            )  # type: ignore
+            )
         return flow_state
 
     def run(

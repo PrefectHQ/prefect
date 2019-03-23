@@ -165,7 +165,7 @@ def string_to_type(val: str) -> Union[bool, int, float, str]:
     return val
 
 
-def interpolate_env_var(env_var: str) -> Optional[str]:
+def interpolate_env_var(env_var: str) -> Optional[Union[bool, int, float, str]]:
     """
     Expands (potentially nested) env vars by repeatedly applying
     `expandvars` and `expanduser` until interpolation stops having
@@ -183,7 +183,7 @@ def interpolate_env_var(env_var: str) -> Optional[str]:
             # this is because we don't want to override TOML type-casting if this function
             # is applied to a non-interpolated value
             if counter > 1:
-                interpolated = string_to_type(interpolated)  # type: ignore
+                interpolated = string_to_type(interpolated)
             return interpolated
         else:
             env_var = interpolated

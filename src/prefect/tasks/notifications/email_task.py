@@ -2,7 +2,7 @@ import smtplib
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Any
+from typing import Any, cast
 
 from prefect import Task
 from prefect.client import Secret
@@ -24,7 +24,7 @@ class EmailTask(Task):
     """
 
     def __init__(
-        self, subject: str = None, msg: str = None, email_to: str = None, **kwargs
+        self, subject: str = None, msg: str = None, email_to: str = None, **kwargs: Any
     ):
         self.subject = subject
         self.msg = msg
@@ -32,7 +32,7 @@ class EmailTask(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("subject", "msg", "email_to")
-    def run(self, subject: str = None, msg: str = None, email_to: str = None):
+    def run(self, subject: str = None, msg: str = None, email_to: str = None) -> None:
         """
         Run method which sends an email.
 
@@ -48,11 +48,12 @@ class EmailTask(Task):
             - None
         """
 
-        username = Secret("EMAIL_USERNAME").get()
-        password = Secret("EMAIL_PASSWORD").get()
+        username = cast(str, Secret("EMAIL_USERNAME").get())
+        password = cast(str, Secret("EMAIL_PASSWORD").get())
+        email_to = cast(str, email_to)
 
         contents = MIMEMultipart("alternative")
-        contents.attach(MIMEText(msg, "plain"))
+        contents.attach(MIMEText(cast(str, msg), "plain"))
 
         contents["Subject"] = Header(subject, "UTF-8")
         contents["From"] = "notifications@prefect.io"

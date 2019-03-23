@@ -107,7 +107,7 @@ class CloudFlowRunner(FlowRunner):
             )
             raise ENDRUN(state=new_state)
 
-        prefect.context.update(flow_run_version=version + 1)  # type: ignore
+        prefect.context.update(flow_run_version=version + 1)
 
         return new_state
 

@@ -493,7 +493,7 @@ class Task(metaclass=SignatureValidator):
                 "No Flow was passed, and could not infer an active Flow context."
             )
 
-        flow.set_dependencies(  # type: ignore
+        flow.set_dependencies(
             task=self,
             upstream_tasks=upstream_tasks,
             downstream_tasks=downstream_tasks,
