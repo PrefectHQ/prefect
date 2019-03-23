@@ -1,6 +1,12 @@
 from typing import Any
 
-from jinja2 import Template
+try:
+    from jinja2 import Template
+except ImportError:
+    raise ImportError(
+        'Using `prefect.tasks.templates.jinja2` requires Prefect to be installed with the "templates" extra.'
+    )
+
 
 import prefect
 from prefect import Task

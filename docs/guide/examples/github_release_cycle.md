@@ -2,7 +2,7 @@
 sidebarDepth: 0
 ---
 
-## Github Biweekly Release Cycle
+# Github Biweekly Release Cycle
 
 This simple flow attempts to prompt a biweekly release by opening a PR from dev -> master every other Monday.
 

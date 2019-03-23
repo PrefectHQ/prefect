@@ -2,7 +2,7 @@
 sidebarDepth: 0
 ---
 
-## Parameterized with Conditional Logic
+# Parameterized Conditions
 
 This is a simple flow which takes in a required parameter `value` and determines if it is even or odd.
 
@@ -16,10 +16,7 @@ from prefect.tasks.control_flow import ifelse
 
 @task
 def check_if_even(value):
-    if value % 2 == 0:
-        return True
-    else:
-        return False
+    return (value % 2 == 0)
 
 
 @task
@@ -43,9 +40,9 @@ with Flow("Check Even/Odd") as f:
 
 
 # Prints '2 is even!'
-f.run(parameters=dict(value=2))
+f.run(value=2)
 
 
 # Prints '1 is odd!'
-f.run(parameters=dict(value=1))
+f.run(value=1)
 ```
