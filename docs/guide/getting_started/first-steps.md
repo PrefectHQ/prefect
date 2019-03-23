@@ -168,5 +168,5 @@ This flow combines our addition tasks with the "say hello" task, using a state d
 It's possible to create state-dependencies with Prefect's functional API, as well. When calling a task as if it was a function, simply pass a list of tasks to a special `upstream_tasks` keyword argument; Prefect will automatically call `set_upstream()` on each one.
 
 ::: tip Mix-and-match
-You can switch between the functional API and the imperative API at any time. For example, half way through the previous code block, we could have called `with flow:` and entered a flow context in which the functional API was available. At a minimum, this would remove the need to pass `flow=flow` to each bind instruction.
+You can switch between the functional API and the imperative API at any time. For example, half way through the previous code block, we could have called `with flow:` and entered a flow context in which the functional API was available. At a minimum, this would remove the need to pass `flow=flow` to each bind instruction. You can choose whichever style you prefer.
 :::
