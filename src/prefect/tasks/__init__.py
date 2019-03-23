@@ -1,3 +1,6 @@
+# only tasks that don't require `extras` should be automatically imported here;
+# others must be explicitly imported so they can raise helpful errors if appropriate
+
 from prefect.core.task import Task
 import prefect.tasks.core
 import prefect.tasks.control_flow
@@ -5,23 +8,3 @@ import prefect.tasks.database
 import prefect.tasks.github
 import prefect.tasks.notifications
 import prefect.tasks.shell
-
-try:
-    import prefect.tasks.aws
-except ImportError:
-    pass
-
-try:
-    import prefect.tasks.google
-except ImportError:
-    pass
-
-try:
-    import prefect.tasks.kubernetes
-except ImportError:
-    pass
-
-try:
-    import prefect.tasks.templates
-except ImportError:
-    pass
