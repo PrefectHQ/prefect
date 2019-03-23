@@ -1020,11 +1020,6 @@ class Parameter(Task):
             )
         return params.get(self.name, self.default)
 
-    def info(self) -> Dict[str, Any]:
-        info = super().info()  # type: ignore
-        info.update(required=self.required, default=self.default)
-        return info
-
     # Serialization ------------------------------------------------------------
 
     def serialize(self) -> Dict[str, Any]:
