@@ -2,7 +2,7 @@
 sidebarDepth: 0
 ---
 
-## Retries and Mapping
+# Retries and Mapping
 
 This example showcases a few basic Prefect concepts:
 

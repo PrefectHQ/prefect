@@ -2,7 +2,7 @@
 sidebarDepth: 0
 ---
 
-## ETL Flow
+# ETL Flow
 
 A simple flow representing an ETL pipeline.
 
