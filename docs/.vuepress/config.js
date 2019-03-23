@@ -2,31 +2,34 @@ module.exports = {
   title: 'Prefect Docs',
   description: "Don't Panic.",
   head: [
-    'link', {
+    'link',
+    {
       rel: 'icon',
       href: '/favicon.ico'
     }
   ],
-  ga: "UA-115585378-1",
+  ga: 'UA-115585378-1',
   themeConfig: {
     repo: 'PrefectHQ/prefect',
     docsDir: 'docs',
     editLinks: true,
     // repoLabel: 'GitHub',
     logo: '/assets/logomark-color.svg',
-    nav: [{
-        text: "Guide",
+    nav: [
+      {
+        text: 'Guide',
         link: '/guide/'
       },
       {
-        text: "API Reference",
+        text: 'API Reference',
         link: '/api/'
-      },
+      }
     ],
     sidebar: {
       '/api/': [
         '/api/',
         'changelog',
+        'coverage',
         {
           title: 'prefect',
           collapsable: true,
@@ -101,7 +104,7 @@ module.exports = {
             'utilities/logging',
             'utilities/notifications',
             'utilities/serialization',
-            'utilities/tasks',
+            'utilities/tasks'
           ]
         }
       ],
@@ -113,7 +116,7 @@ module.exports = {
           children: [
             'welcome/what_is_prefect',
             'welcome/why_prefect',
-            'welcome/prefect_design',
+            'welcome/prefect_design'
           ]
         },
         {
@@ -122,7 +125,7 @@ module.exports = {
           children: [
             'getting_started/installation',
             'getting_started/first-steps',
-            'getting_started/next-steps',
+            'getting_started/next-steps'
           ]
         },
         {
@@ -157,7 +160,7 @@ module.exports = {
             'task_library/operators',
             'task_library/shell',
             'task_library/sqlite',
-            'task_library/strings',
+            'task_library/strings'
           ]
         },
         {
@@ -204,7 +207,7 @@ module.exports = {
             'examples/github_release_cycle',
             'examples/map_reduce',
             'examples/parameterized_flow',
-            'examples/retries_with_mapping',
+            'examples/retries_with_mapping'
           ]
         },
         {
@@ -229,7 +232,7 @@ module.exports = {
             'development/tests',
             'development/contributing'
           ]
-        },
+        }
       ]
     }
   },
