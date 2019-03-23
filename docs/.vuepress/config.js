@@ -148,6 +148,7 @@ module.exports = {
           children: [
             'task_library/',
             'task_library/airflow',
+            'task_library/airtable',
             'task_library/aws',
             'task_library/collections',
             'task_library/constants',
@@ -161,6 +162,8 @@ module.exports = {
             'task_library/shell',
             'task_library/sqlite',
             'task_library/strings'
+            'task_library/strings',
+            'task_library/twitter'
           ]
         },
         {
@@ -207,7 +210,8 @@ module.exports = {
             'examples/github_release_cycle',
             'examples/map_reduce',
             'examples/parameterized_flow',
-            'examples/retries_with_mapping'
+            'examples/retries_with_mapping',
+            'examples/twitter_to_airtable'
           ]
         },
         {

@@ -14,8 +14,8 @@ For example, if you set `PREFECT__TASKS__DEFAULTS__MAX_RETRIES=4`, then `prefect
 
 Prefect will do its best to detect the type of your environment variable and cast it appropriately.
 
-- `"True"` and `"true"` are converted to `True`
-- `"False"` and `"false"` are converted to `False`
+- `"true"` (with any capitalization) is converted to `True`
+- `"false"` (with any capitalization) is converted to `False`
 - strings that parse as integers are converted to integers
 - strings that parse as floats are converted to floats
 - all other values remain strings

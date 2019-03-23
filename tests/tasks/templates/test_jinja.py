@@ -10,7 +10,7 @@ from prefect import context, Flow
 from prefect.engine import signals
 
 try:
-    from prefect.tasks.templates import JinjaTemplateTask
+    from prefect.tasks.templates.jinja2 import JinjaTemplateTask
 except ImportError:
     pytestmark = pytest.skip(
         "Jinja requirements not installed.", allow_module_level=True

@@ -7,7 +7,12 @@ Note that these tasks allow for a wide range of custom usage patterns, such as:
 - Initialize a "template" task with default settings and override as needed
 - Create a custom Task which inherits from a Prefect Task and utilizes the Prefect boilerplate
 """
-import prefect.tasks.google.storage
+try:
+    import prefect.tasks.google.storage
 
-from prefect.tasks.google.storage import GCSDownloadTask, GCSUploadTask
-from prefect.tasks.google.bigquery import BigQueryTask, BigQueryStreamingInsertTask
+    from prefect.tasks.google.storage import GCSDownloadTask, GCSUploadTask
+    from prefect.tasks.google.bigquery import BigQueryTask, BigQueryStreamingInsertTask
+except ImportError:
+    raise ImportError(
+        'Using `prefect.tasks.google` requires Prefect to be installed with the "google" extra.'
+    )

@@ -2,7 +2,7 @@
 sidebarDepth: 0
 ---
 
-## Map Reduce
+# Simple Map/Reduce
 
 A simple map-reduce style flow.
 

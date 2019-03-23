@@ -6,7 +6,7 @@ import prefect
 from prefect import Parameter, task, Flow
 from prefect.schedules import IntervalSchedule
 from prefect.tasks.shell import ShellTask
-from prefect.tasks.templates import JinjaTemplateTask
+from prefect.tasks.templates.jinja2 import JinjaTemplateTask
 
 
 ## default config settings such as this can generally be set in your

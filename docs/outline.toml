@@ -154,6 +154,11 @@ title = "Airflow Tasks"
 module = "prefect.tasks.airflow"
 classes = ["AirflowTask", "AirflowTriggerDAG"]
 
+[pages.tasks.airtable]
+title = "Airtable Tasks"
+module = "prefect.tasks.airtable"
+classes = ["WriteAirtableRow"]
+
 [pages.tasks.aws]
 title = "AWS Tasks"
 module = "prefect.tasks.aws"
@@ -255,6 +260,11 @@ classes = ["ShellTask"]
 title = "String Templating Tasks"
 module = "prefect.tasks.templates"
 classes = ["StringFormatterTask", "JinjaTemplateTask"]
+
+[pages.tasks.twitter]
+title = "Twitter Tasks"
+module = "prefect.tasks.twitter"
+classes = ["LoadTweetReplies"]
 
 [pages.utilities.collections]
 title = "Collections"
