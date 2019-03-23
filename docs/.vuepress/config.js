@@ -211,7 +211,7 @@ module.exports = {
             'examples/parameterized_flow',
             'examples/retries_with_mapping',
             'examples/twitter_to_airtable'
-          ]
+            'examples/daily_github_stats_to_airtable'
         },
         {
           title: 'PINs',
