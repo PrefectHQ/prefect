@@ -183,8 +183,12 @@ def test_string_to_type_function():
 
     assert configuration.string_to_type("true") is True
     assert configuration.string_to_type("True") is True
+    assert configuration.string_to_type("TRUE") is True
+    assert configuration.string_to_type("trUe") is True
     assert configuration.string_to_type("false") is False
     assert configuration.string_to_type("False") is False
+    assert configuration.string_to_type("FALSE") is False
+    assert configuration.string_to_type("falSe") is False
 
     assert configuration.string_to_type("1") is 1
     assert configuration.string_to_type("1.5") == 1.5

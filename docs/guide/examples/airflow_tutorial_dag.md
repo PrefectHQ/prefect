@@ -2,9 +2,9 @@
 sidebarDepth: 0
 ---
 
-## Airflow Tutorial DAG
+# Airflow Tutorial DAG
 
-Rewrite of https://airflow.apache.org/tutorial.html
+A 1:1 rewrite of the [Airflow tutorial DAG](https://airflow.apache.org/tutorial.html)
 
 ```python
 from datetime import datetime, timedelta
@@ -13,7 +13,7 @@ import prefect
 from prefect import Parameter, task, Flow
 from prefect.schedules import IntervalSchedule
 from prefect.tasks.shell import ShellTask
-from prefect.tasks.templates import JinjaTemplateTask
+from prefect.tasks.templates.jinja2 import JinjaTemplateTask
 
 
 ## default config settings such as this can generally be set in your

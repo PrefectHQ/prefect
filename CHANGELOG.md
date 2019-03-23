@@ -53,6 +53,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add `AirflowTask` and `AirflowTriggerDAG` tasks to the task library for running individual Airflow tasks / DAGs - [#735](https://github.com/PrefectHQ/prefect/issues/735)
 - Add `OpenGitHubIssue` and `CreateGitHubPR` tasks for interacting with GitHub repositories - [#771](https://github.com/PrefectHQ/prefect/pull/771)
 - Add Kubernetes tasks for deployments, jobs, pods, and services - [#779](https://github.com/PrefectHQ/prefect/pull/779)
+- Add Airtable tasks - [#803](https://github.com/PrefectHQ/prefect/pull/803)
+- Add Twitter tasks - [#803](https://github.com/PrefectHQ/prefect/pull/803)
 
 ### Fixes
 
