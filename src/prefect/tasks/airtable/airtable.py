@@ -53,7 +53,6 @@ class WriteAirtableRow(Task):
             - table_name (str): the table name
             - credentials_secret (str): the name of a secret that contains an Airtable API key.
                 Defaults to "airtable_api_key"
-            - **kwargs (optional): additional kwargs to pass to the `Task` constructor
 
         Returns:
             - a dictionary containing information about the successful insert

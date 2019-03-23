@@ -34,4 +34,3 @@ class TestWriteAirtableRow:
                 task.run({}, base_key="a", table_name="b")
 
         assert airtable.Airtable.call_args[0] == ("a", "b", "key")
-
