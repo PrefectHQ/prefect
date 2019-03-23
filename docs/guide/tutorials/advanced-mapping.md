@@ -288,14 +288,14 @@ Now that we have successfully scraped all of the dialogue, the next natural step
 
 To this end, we first create three new tasks:
 
-- `create_db`: creates a new `"XFILES"` table if one does not already exist using the builtin Prefect `SQLiteQueryTask`
+- `create_db`: creates a new `"XFILES"` table if one does not already exist using the builtin Prefect `SQLiteQuery`
 - `create_episode_script`: takes scraped episode and creates a sqlite script for inserting the data into the database
-- `insert_episode`: executes the created script and inserts dialogue into the `"XFILES"` table using the builtin Prefect `SQLiteQueryTask`
+- `insert_episode`: executes the created script and inserts dialogue into the `"XFILES"` table using the builtin Prefect `SQLiteQuery`
 
 ```python
-from prefect.tasks.database import SQLiteScriptTask
+from prefect.tasks.database import SQLiteScript
 
-create_db = SQLiteScriptTask(name="Create DB",
+create_db = SQLiteScript(name="Create DB",
                              db="xfiles_db.sqlite",
                              script="CREATE TABLE IF NOT EXISTS XFILES (EPISODE TEXT, CHARACTER TEXT, TEXT TEXT)",
                              tags=["db"])
@@ -307,7 +307,7 @@ def create_episode_script(episode):
     values = ',\n'.join(["('{0}', '{1}', '{2}')".format(title, *row) for row in dialogue]) + ";"
     return insert_cmd + values
 
-insert_episode = SQLiteScriptTask(name="Insert Episode",
+insert_episode = SQLiteScript(name="Insert Episode",
                                   db="xfiles_db.sqlite",
                                   tags=["db"])
 ```
