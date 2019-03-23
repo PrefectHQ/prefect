@@ -1,5 +1,8 @@
 """
-Tasks which interface with various components of Google Cloud Storage.
+Tasks which interface with various components of Google Cloud Platform.
+
+Tasks in this collection require a Prefect Secret called `"GOOGLE_APPLICATION_CREDENTIALS"` which contains
+valid Google Credentials in a JSON document.
 
 Note that these tasks allow for a wide range of custom usage patterns, such as:
 
