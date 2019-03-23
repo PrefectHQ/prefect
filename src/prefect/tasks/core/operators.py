@@ -16,7 +16,7 @@ class GetItem(Task):
     Helper task that retrieves a specific index of an upstream task's result.
     """
 
-    def run(self, task_result: Any, key: Any) -> Any:
+    def run(self, task_result: Any, key: Any) -> Any:  # type: ignore
         """
         Args:
             - task_result (Any): a value
@@ -33,7 +33,7 @@ class Add(Task):
     Evaluates `x + y`
     """
 
-    def run(self, x: Any, y: Any) -> Any:
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
             - x (Any): a value
@@ -50,7 +50,7 @@ class Sub(Task):
     Evaluates `x - y`
     """
 
-    def run(self, x: Any, y: Any) -> Any:
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
            - x (Any): a value
@@ -67,7 +67,7 @@ class Mul(Task):
     Evaluates `x * y`
     """
 
-    def run(self, x: Any, y: Any) -> Any:
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
            - x (Any): a value
@@ -84,7 +84,7 @@ class Div(Task):
     Evaluates `x / y`
     """
 
-    def run(self, x: Any, y: Any) -> Any:
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
            - x (Any): a value
@@ -101,7 +101,7 @@ class FloorDiv(Task):
     Evaluates `x // y`
     """
 
-    def run(self, x: Any, y: Any) -> Any:
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
            - x (Any): a value
@@ -118,7 +118,7 @@ class Pow(Task):
     Evaluates `x ** y`
     """
 
-    def run(self, x: Any, y: Any) -> Any:
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
            - x (Any): a value
@@ -135,7 +135,7 @@ class Mod(Task):
     Evaluates `x % y`
     """
 
-    def run(self, x: Any, y: Any) -> Any:
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
            - x (Any): a value
@@ -155,7 +155,7 @@ class And(Task):
     Evaluates `x and y.`
     """
 
-    def run(self, x: Any, y: Any) -> bool:
+    def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
         Args:
             - x (Any): a value
@@ -172,7 +172,7 @@ class Or(Task):
     Evaluates `x or y`
     """
 
-    def run(self, x: Any, y: Any) -> bool:
+    def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
         Args:
             - x (Any): a value
@@ -189,7 +189,7 @@ class Not(Task):
     Evaluates `not x`
     """
 
-    def run(self, x: Any) -> bool:
+    def run(self, x: Any) -> bool:  # type: ignore
         """
         Args:
             - x (Any): a value
@@ -205,7 +205,7 @@ class Equal(Task):
     Evaluates `x == y`
     """
 
-    def run(self, x: Any, y: Any) -> bool:
+    def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
         Args:
             - x (Any): a value
@@ -222,7 +222,7 @@ class NotEqual(Task):
     Evaluates `x != y`
     """
 
-    def run(self, x: Any, y: Any) -> bool:
+    def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
         Args:
             - x (Any): a value
@@ -239,7 +239,7 @@ class GreaterThanOrEqual(Task):
     Evaluates `x ≥ y`
     """
 
-    def run(self, x: Any, y: Any) -> bool:
+    def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
         Args:
             - x (Any): a value
@@ -256,7 +256,7 @@ class GreaterThan(Task):
     Evaluates `x > y`
     """
 
-    def run(self, x: Any, y: Any) -> bool:
+    def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
         Args:
             - x (Any): a value
@@ -273,7 +273,7 @@ class LessThanOrEqual(Task):
     Evaluates `x ≤ y`
     """
 
-    def run(self, x: Any, y: Any) -> bool:
+    def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
         Args:
             - x (Any): a value
@@ -290,7 +290,7 @@ class LessThan(Task):
     Evaluates `x < y`
     """
 
-    def run(self, x: Any, y: Any) -> bool:
+    def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
         Args:
             - x (Any): a value

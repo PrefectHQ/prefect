@@ -22,7 +22,7 @@ class StringFormatter(Task):
         self.template = template or ""
         super().__init__(**kwargs)
 
-    def run(self, template: str = None, **format_kwargs: Any) -> str:  # type: ignore
+    def run(self, template: str = None, **format_kwargs: Any) -> str:
         """
         Formats the template with the provided kwargs.
 

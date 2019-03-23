@@ -26,6 +26,10 @@ the container in turn runs the `LocalEnvironment`.
 import json
 
 import prefect
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import prefect.engine.state
 
 
 class Environment:
@@ -66,7 +70,7 @@ class Environment:
         """
         pass
 
-    def run(self) -> "prefect.engine.state.State":  # type: ignore
+    def run(self) -> "prefect.engine.state.State":
         """
         Runs the `Flow` represented by this environment.
 

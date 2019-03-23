@@ -154,7 +154,7 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
             return pickle.loads(data[0][0])
 
     @prefect.utilities.tasks.defaults_from_attrs("execution_date")
-    def run(self, execution_date: str = None) -> Any:  # type: ignore
+    def run(self, execution_date: str = None) -> Any:
         """
         Executes `airflow run` for the provided `task_id`, `dag_id` and `execution_date`.
 
@@ -224,7 +224,7 @@ class AirflowTriggerDAG(prefect.tasks.shell.ShellTask):
         )
 
     @prefect.utilities.tasks.defaults_from_attrs("execution_date")
-    def run(self, execution_date: str = None) -> Any:  # type: ignore
+    def run(self, execution_date: str = None) -> Any:
         """
         Executes `airflow trigger_dag` for the provided `dag_id` with the provided options.
 

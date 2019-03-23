@@ -1,7 +1,7 @@
 import collections
 import json
 from collections.abc import MutableMapping
-from typing import Any, Generator, Iterable, Iterator, Union
+from typing import Any, Generator, Iterable, Iterator, Union, cast
 
 DictLike = Union[dict, "DotDict"]
 
@@ -113,8 +113,12 @@ class DotDict(MutableMapping):
         return type(self)(self.__dict__.copy())
 
     def to_dict(self) -> dict:
-        """Converts current `DotDict` (and any `DotDict`s contained within) to an appropriate nested dictionary."""
-        return as_nested_dict(self, dct_class=dict)
+        """
+        Converts current `DotDict` (and any `DotDict`s contained within)
+        to an appropriate nested dictionary.
+        """
+        # mypy cast
+        return cast(dict, as_nested_dict(self, dct_class=dict))
 
 
 def merge_dicts(d1: DictLike, d2: DictLike) -> DictLike:

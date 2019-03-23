@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import marshmallow
 from marshmallow import fields
@@ -10,6 +10,10 @@ from prefect.utilities.serialization import (
     to_qualified_name,
     DateTimeTZ,
 )
+
+
+if TYPE_CHECKING:
+    import prefect.schedules
 
 
 class IntervalScheduleSchema(ObjectSchema):

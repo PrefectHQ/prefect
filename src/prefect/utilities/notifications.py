@@ -10,11 +10,16 @@ from email.mime.text import MIMEText
 
 import requests
 from toolz import curry
-from typing import Any, Callable
+from typing import Any, Callable, TYPE_CHECKING, Union, cast
 
 import prefect
 
+if TYPE_CHECKING:
+    import prefect.engine.state
+    import prefect.client
+
 __all__ = ["callback_factory", "gmail_notifier", "slack_notifier"]
+TrackedObjectType = Union["prefect.Flow", "prefect.Task"]
 
 
 def callback_factory(
@@ -66,25 +71,30 @@ def callback_factory(
     return state_handler
 
 
-def email_message_formatter(tracked_obj, state, email_to):
+def email_message_formatter(
+    tracked_obj: TrackedObjectType, state: "prefect.engine.state.State", email_to: str
+) -> str:
     if isinstance(state.result, Exception):
         msg = "<pre>{}</pre>".format(repr(state.result))
     else:
         msg = '"{}"'.format(state.message)
 
     html = """
-    <html><head></head><body>
-    <table align="left" border="0" cellpadding="2px" cellspacing="2px">
-    <tr>
-    <td style="border-left: 2px solid {color};">
-    <img src="https://emoji.slack-edge.com/TAN3D79AL/prefect/2497370f58500a5a.png">
-    </td>
-    <td style="border-left: 2px solid {color}; padding-left: 6px;">
-    {text}
-    </td>
-    </tr>
-    </table>
-    </body></html>
+    <html>
+        <head></head>
+        <body>
+            <table align="left" border="0" cellpadding="2px" cellspacing="2px">
+                <tr>
+                    <td style="border-left: 2px solid {color};">
+                        <img src="https://emoji.slack-edge.com/TAN3D79AL/prefect/2497370f58500a5a.png">
+                    </td>
+                    <td style="border-left: 2px solid {color}; padding-left: 6px;">
+                        {text}
+                    </td>
+                </tr>
+            </table>
+        </body>
+    </html>
     """
     color = state.color
     text = """
@@ -108,13 +118,15 @@ def email_message_formatter(tracked_obj, state, email_to):
     return contents.as_string()
 
 
-def slack_message_formatter(tracked_obj, state):
+def slack_message_formatter(
+    tracked_obj: TrackedObjectType, state: "prefect.engine.state.State"
+) -> dict:
     # see https://api.slack.com/docs/message-attachments
     fields = []
     if isinstance(state.result, Exception):
         value = "```{}```".format(repr(state.result))
     else:
-        value = state.message
+        value = cast(str, state.message)
     if value is not None:
         fields.append({"title": "Message", "value": value, "short": False})
 
@@ -141,12 +153,12 @@ def slack_message_formatter(tracked_obj, state):
 
 @curry
 def gmail_notifier(
-    tracked_obj,
-    old_state,
-    new_state,
+    tracked_obj: TrackedObjectType,
+    old_state: "prefect.engine.state.State",
+    new_state: "prefect.engine.state.State",
     ignore_states: list = None,
     only_states: list = None,
-):
+) -> "prefect.engine.state.State":
     """
     Email state change handler - configured to work solely with Gmail; works as a standalone state handler, or can be called from within a custom
     state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
@@ -180,8 +192,8 @@ def gmail_notifier(
             return x + y
         ```
     """
-    username = prefect.client.Secret("EMAIL_USERNAME").get()
-    password = prefect.client.Secret("EMAIL_PASSWORD").get()
+    username = cast(str, prefect.client.Secret("EMAIL_USERNAME").get())
+    password = cast(str, prefect.client.Secret("EMAIL_PASSWORD").get())
     ignore_states = ignore_states or []
     only_states = only_states or []
 
@@ -209,13 +221,13 @@ def gmail_notifier(
 
 @curry
 def slack_notifier(
-    tracked_obj,
-    old_state,
-    new_state,
+    tracked_obj: TrackedObjectType,
+    old_state: "prefect.engine.state.State",
+    new_state: "prefect.engine.state.State",
     ignore_states: list = None,
     only_states: list = None,
     webhook_url: str = None,
-):
+) -> "prefect.engine.state.State":
     """
     Slack state change handler; requires having the Prefect slack app installed.
     Works as a standalone state handler, or can be called from within a custom
@@ -249,7 +261,9 @@ def slack_notifier(
             return x + y
         ```
     """
-    webhook_url = webhook_url or prefect.client.Secret("SLACK_WEBHOOK_URL").get()
+    webhook_url = cast(
+        str, webhook_url or prefect.client.Secret("SLACK_WEBHOOK_URL").get()
+    )
     ignore_states = ignore_states or []
     only_states = only_states or []
 
