@@ -11,7 +11,7 @@ class TestWriteAirtableRow:
         task = WriteAirtableRow()
         assert task.base_key is None
         assert task.table_name is None
-        assert task.credentials_secret is "airtable_api_key"
+        assert task.credentials_secret is "AIRTABLE_API_KEY"
 
     def test_initialize_kwargs_are_processed(self):
         task = WriteAirtableRow(checkpoint=True, name="test")
@@ -30,7 +30,7 @@ class TestWriteAirtableRow:
         monkeypatch.setattr("prefect.tasks.airtable.airtable.airtable", airtable)
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(airtable_api_key="key")):
+            with prefect.context(secrets=dict(AIRTABLE_API_KEY="key")):
                 task.run({}, base_key="a", table_name="b")
 
         assert airtable.Airtable.call_args[0] == ("a", "b", "key")

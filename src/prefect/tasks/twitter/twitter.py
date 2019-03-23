@@ -6,7 +6,7 @@ from prefect.client import Secret
 from prefect.core import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
-DEFAULT_CREDENTIALS_SECRET = "twitter_api_credentials"
+DEFAULT_CREDENTIALS_SECRET = "TWITTER_API_CREDENTIALS"
 
 
 class LoadTweetReplies(Task):
@@ -24,7 +24,7 @@ class LoadTweetReplies(Task):
         - user (str): a Twitter user
         - tweet_id (str): a tweet ID; replies to this tweet will be retrieved
         - credentials_secret (str): the name of a secret that contains Twitter API credentials.
-            Defaults to "twitter_api_credentials"
+            Defaults to "TWITTER_API_CREDENTIALS"
             The secret value must be formatted as a JSON document with four keys:
             "api_key", "api_secret", "access_token", and "access_token_secret"
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor

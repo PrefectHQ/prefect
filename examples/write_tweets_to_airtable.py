@@ -74,7 +74,7 @@ with Flow("Tweets to Airtable") as flow:
 # set up the local secrets
 with prefect.context(
     secrets=dict(
-        twitter_api_credentials=TWITTER_CREDS, airtable_api_key=AIRTABLE_API_KEY
+        TWITTER_API_CREDENTIALS=TWITTER_CREDS, AIRTABLE_API_KEY=AIRTABLE_API_KEY
     )
 ):
 
