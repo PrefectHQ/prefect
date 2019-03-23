@@ -8,7 +8,7 @@ sidebarDepth: 0
 
 Prefect is a workflow engine, which means that users need absolute confidence that 1) it works and 2) it works well. For that reason, Prefect's design is backed by a strong philosophy of data engineering and we hold its code to a high standard.
 
-When Prefect is open-sourced, it will already have more unit tests and greater test coverage than any other workflow engine, including the entire Airflow platform.  Documentation is paramount: every module, class, and function not only has a docstring; the docstrings themselves are tested for consistency. Type annotations are used to catch errors. We've even user-tested the names of variables and functions to make sure they're clear. Users can trust that this standard of care extends even to parts of the codebase they might never look at themselves.
+When Prefect is open-sourced, it will already have more unit tests and greater test coverage than any other workflow engine, including the entire Airflow platform.  Documentation is paramount: every module, class, and function not only has a docstring, the docstrings themselves are tested for consistency. Type annotations are used to catch errors. We've even user-tested the names of variables and functions to make sure they're clear. Users can trust that this standard of care extends even to parts of the codebase they might never look at themselves.
 
 ## Tasks are functions
 
