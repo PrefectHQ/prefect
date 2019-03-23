@@ -2,9 +2,9 @@
 sidebarDepth: 0
 ---
 
-## Airflow Tutorial DAG
+# Airflow Tutorial DAG
 
-Rewrite of https://airflow.apache.org/tutorial.html
+A 1:1 rewrite of the [Airflow tutorial DAG](https://airflow.apache.org/tutorial.html)
 
 ```python
 from datetime import datetime, timedelta
