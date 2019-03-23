@@ -11,7 +11,9 @@
     <img src="https://img.shields.io/badge/code%20style-black-000000.svg">
 </a>
 
-[![Join the chat at https://gitter.im/prefectio/prefect](https://badges.gitter.im/prefectio/prefect.svg)](https://gitter.im/prefectio/prefect?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+<a href="https://gitter.im/prefectio/prefect?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">
+    <img src="https://badges.gitter.im/prefectio/prefect.svg">
+</a>
 </p>
 
 ## Hello, world! 👋
