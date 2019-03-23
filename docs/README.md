@@ -6,17 +6,24 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
 
 <div class="hero">
-<div class="action">
-
-<button class="action-button">
-<router-link to="guide/">Read the docs</router-link>
-</button>
-<button class="action-button">
-<router-link to="https://github.com/PrefectHQ/prefect">Get the code</router-link>
-</button>
-
+    <div class="action">
+        <button class="action-button">
+            <router-link to="guide/">
+                Read the docs
+            </router-link>
+        </button>
+        <a href="https://github.com/PrefectHQ/prefect">
+            <button class="action-button">
+                Get the code
+            </button>
+        </a>
+    </div>
 </div>
-</div>
+
+
+
+
+
 <div class="features">
 <div class="feature">
 
