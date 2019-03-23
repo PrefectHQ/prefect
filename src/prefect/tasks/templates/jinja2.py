@@ -13,7 +13,7 @@ from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class JinjaTemplateTask(Task):
+class JinjaTemplate(Task):
     """
     This task contains a Jinja template which is formatted with the results of any
     upstream tasks and returned.

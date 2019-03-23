@@ -10,7 +10,7 @@ from prefect import context, Flow
 from prefect.engine import signals
 
 try:
-    from prefect.tasks.templates.jinja2 import JinjaTemplateTask
+    from prefect.tasks.templates.jinja2 import JinjaTemplate
 except ImportError:
     pytestmark = pytest.skip(
         "Jinja requirements not installed.", allow_module_level=True
@@ -20,7 +20,7 @@ from prefect.utilities.debug import raise_on_exception
 
 
 def test_jinja_template_simply_formats():
-    task = JinjaTemplateTask(template="{{ name }} is from {{ place }}")
+    task = JinjaTemplate(template="{{ name }} is from {{ place }}")
     with Flow(name="test") as f:
         ans = task(name="Ford", place="Betelgeuse")
     res = f.run()
@@ -29,7 +29,7 @@ def test_jinja_template_simply_formats():
 
 
 def test_jinja_template_can_be_provided_template_at_runtime():
-    task = JinjaTemplateTask()
+    task = JinjaTemplate()
     with Flow(name="test") as f:
         ans = task(
             template="{{ name }} is from {{ place }}", name="Ford", place="Betelgeuse"
@@ -40,7 +40,7 @@ def test_jinja_template_can_be_provided_template_at_runtime():
 
 
 def test_jinja_template_formats_from_context():
-    task = JinjaTemplateTask(template="I am {{ task_name }}", name="foo")
+    task = JinjaTemplate(template="I am {{ task_name }}", name="foo")
     f = Flow(name="test", tasks=[task])
     res = f.run()
     assert res.is_successful()
@@ -48,7 +48,7 @@ def test_jinja_template_formats_from_context():
 
 
 def test_jinja_template_partially_formats():
-    task = JinjaTemplateTask(template="{{ name }} is from {{ place }}")
+    task = JinjaTemplate(template="{{ name }} is from {{ place }}")
     with Flow(name="test") as f:
         ans = task(name="Ford")
     res = f.run()
@@ -58,7 +58,7 @@ def test_jinja_template_partially_formats():
 
 def test_jinja_template_can_execute_python_code():
     date = pendulum.parse("1986-09-20")
-    task = JinjaTemplateTask(template='{{ date.strftime("%Y-%d") }} is a date.')
+    task = JinjaTemplate(template='{{ date.strftime("%Y-%d") }} is a date.')
     f = Flow(name="test", tasks=[task])
     res = f.run(context={"date": date})
 
@@ -67,8 +67,8 @@ def test_jinja_template_can_execute_python_code():
 
 
 def test_jinja_task_is_pickleable():
-    task = JinjaTemplateTask(template="string")
+    task = JinjaTemplate(template="string")
     new = cloudpickle.loads(cloudpickle.dumps(task))
 
-    assert isinstance(new, JinjaTemplateTask)
+    assert isinstance(new, JinjaTemplate)
     assert new.template == "string"

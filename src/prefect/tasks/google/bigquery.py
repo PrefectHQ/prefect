@@ -170,7 +170,7 @@ class BigQueryTask(Task):
         return list(query_job.result())
 
 
-class BigQueryStreamingInsertTask(Task):
+class BigQueryStreamingInsert(Task):
     """
     Task for insert records in a Google BigQuery table via [the streaming API](https://cloud.google.com/bigquery/streaming-data-into-bigquery).
     Note that all of these settings can optionally be provided or overwritten at runtime.

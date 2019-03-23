@@ -7,7 +7,7 @@ from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class S3DownloadTask(Task):
+class S3Download(Task):
     """
     Task for downloading data from an S3 bucket and returning it as a string.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
@@ -75,7 +75,7 @@ class S3DownloadTask(Task):
         return output.decode()
 
 
-class S3UploadTask(Task):
+class S3Upload(Task):
     """
     Task for uploading string data (e.g., a JSON string) to an S3 bucket.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
