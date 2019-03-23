@@ -34,11 +34,7 @@ class GetRepoInfo(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("repo", "info_keys")
-    def run(
-        self,
-        repo: str = None,
-        info_keys: List[str] = None,
-    ) -> None:
+    def run(self, repo: str = None, info_keys: List[str] = None) -> None:
         """
         Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
         or by using `Task.bind`.
