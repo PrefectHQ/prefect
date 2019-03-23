@@ -79,6 +79,6 @@ flow.set_dependencies(load, keyword_tasks=dict(data=transform))
 flow.run() # prints "Here's your data: [10, 20, 30]"
 ```
 
-::: tip Mix and match
+::: tip Mix-and-match
 Prefect's functional API and imperative API can be utilized at any time, even for a single line in a script that uses the other style for everything else. One of the only key differences is that the functional API requires code to be run in an active `Flow` context.
 :::
