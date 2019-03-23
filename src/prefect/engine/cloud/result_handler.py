@@ -55,10 +55,11 @@ class CloudResultHandler(ResultHandler):
             - the deserialized result from the provided URI
         """
         self._initialize_client()
-        assert isinstance(self._client, Client)  # mypy assert
 
         self.logger.debug("Starting to read result from {}...".format(uri))
-        res = self._client.get("/", server=self.result_handler_service, **{"uri": uri})
+        res = self._client.get(  # type: ignore
+            "/", server=self.result_handler_service, **{"uri": uri}
+        )
 
         try:
             return_val = cloudpickle.loads(base64.b64decode(res.get("result", "")))
@@ -79,13 +80,12 @@ class CloudResultHandler(ResultHandler):
             - str: the URI path to the result in Cloud storage
         """
         self._initialize_client()
-        assert isinstance(self._client, Client)  # mypy assert
 
         binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()
         self.logger.debug(
             "Starting to upload result to {}...".format(self.result_handler_service)
         )
-        res = self._client.post(
+        res = self._client.post(  # type: ignore
             "/", server=self.result_handler_service, **{"result": binary_data}
         )
         self.logger.debug(
