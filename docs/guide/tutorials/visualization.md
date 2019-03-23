@@ -9,9 +9,8 @@ It is a common mantra that the first thing data professionals should do when try
 Prefect provides multiple tools for building, inspecting and testing your flows locally.  In this tutorial we will cover some ways you can _visualize_ your flow and its execution.  Everything we discuss will require Prefect to be installed with either the `"viz"` or `"dev"` extras:
 
 ```
-# assuming your current directory is the prefect repo
-pip install ".[dev]" # OR
-pip install ".[viz]"
+pip install "prefect[dev]" # OR
+pip install "prefect[viz]"
 ```
 
 ## Static Flow visualization
@@ -76,7 +75,7 @@ f.root_tasks()
 # {<Parameter: x>, <Parameter: y>, <Task: 6>}
 ```
 
-These are the tasks the flow will execute first (by default); consequently, the task "6" will be run _regardless_ of whether the `Div` task is skipped by the switch condition.  If, instead of merely returning the number 6, this task performed a lot of computation, we might want it executed _only if_ the switch condition passes; in this case we would need to rearrange our flow.
+These are the tasks the flow will execute first; consequently, the task "6" will be run _regardless_ of whether the `Div` task is skipped by the switch condition.  If, instead of merely returning the number 6, this task performed a lot of computation, we might want it executed _only if_ the switch condition passes; in this case we would need to rearrange our flow.
 
 ::: tip Note
 Notice that we have identified this situation and possibly remediated it _all without executing our code_!
@@ -85,6 +84,10 @@ Notice that we have identified this situation and possibly remediated it _all wi
 ### Static Flow Visualization - Post Run
 
 In addition to viewing the structure of our DAG, Prefect allows you to easily visualize the post-run states of your tasks as well. Using our flow from above, suppose we were curious about how states would propagate if we set `x=1` and `y=1` (a condition not handled by the `switch`).  In this case, we can first execute the flow, and then provide all the task states to the `flow.visualize` method to see how the states propagated!
+
+::: tip State colors
+The colors of all states, along with their inheritance relationships can be found in [the API reference for states](../../api/engine/state.html).
+:::
 
 ```python
 flow_state = f.run()
@@ -95,6 +98,6 @@ f.visualize(flow_state=flow_state)
 
 We can see that the `6` task was still executed (as we suspected), and both branches of the `switch` were skipped.
 
-::: tip
+::: tip Visualization is a useful debug tool
 Fully understanding why our flow failed might have been trickier without the visualization aids that Prefect provides.
 :::
