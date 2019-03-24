@@ -136,7 +136,6 @@ module.exports = {
             'tutorials/etl',
             'tutorials/calculator',
             'tutorials/local-debugging',
-            'tutorials/triggers-and-references',
             'tutorials/visualization',
             'tutorials/advanced-mapping',
             'tutorials/slack-notifications'
