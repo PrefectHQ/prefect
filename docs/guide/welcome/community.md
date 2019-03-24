@@ -4,7 +4,7 @@ sidebarDepth: 0
 
 # Community
 
-We welcome issues, contributions and discussion from all users, regardless of background or experience level. Please consider [Chris White](https://github.com/cicdw) is the main point of contact for the Prefect repo.
+We welcome issues, contributions and discussion from all users, regardless of background or experience level. Please consider [Chris White](https://github.com/cicdw) as the main point of contact for the Prefect repo.
 
 ## Discussion
 
