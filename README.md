@@ -64,6 +64,13 @@ Prefect requires Python 3.5+.
 pip install prefect
 ```
 
+### Install bleeding edge
+
+```bash
+git clone https://github.com/PrefectHQ/prefect.git
+pip install ./prefect
+```
+
 ## License
 
 Prefect is licensed under the Apache Software License version 2.0.
