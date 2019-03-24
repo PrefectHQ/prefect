@@ -1,4 +1,5 @@
 # Airflow
+## Feature checklist
 
 | Feature                                    | Prefect    | Airflow    | Notes                                                                                          |
 | ------------------------------------------ | :--------: | :--------: | ---------------------------------------------------------------------------------------------- |
@@ -20,7 +21,7 @@
 | Distributed execution                      | [x] &nbsp; | [x] &nbsp; | Prefect natively supports Dask clusters; Airflow supports distributed execution through Celery |
 |                                            |
 | **INTERACTION**                            |
-| REST API                                   | [ ] &nbsp; | [x] &nbsp; | Airflow's limited REST API is in development                                                   |
+| REST API                                   | [ ] &nbsp; | [x] &nbsp; | Airflow's REST API is in development                                                   |
 | GraphQL API                                | [x] &nbsp; | [ ] &nbsp; |
 |                                            |
 | **DEPLOYMENT**                             |
@@ -29,7 +30,7 @@
 | Configurable permissions                   | [x] &nbsp; | [x] &nbsp; | Airflow recently adopted RBAC                                                                  |
 |                                            |
 | **DEVELOPMENT**                            |
-| Unit tests - count (0.5.0)                | 3184 &nbsp; | 2497 &nbsp; |  |
+| Unit tests - count (0.5.0)                | 3201 &nbsp; | 2497 &nbsp; |  |
 | Unit tests - coverage (0.5.0)           | 92% &nbsp; | 78% &nbsp; |  |
 | Local testing                              | [x] &nbsp; | [ ] &nbsp; | Prefect flows can be tested locally without any additional infrastructure                      |
 
