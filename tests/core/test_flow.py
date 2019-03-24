@@ -795,6 +795,16 @@ def test_flow_raises_for_missing_required_parameters():
         f.run()
 
 
+def test_flow_doesnt_raises_for_missing_nonrequired_parameters():
+    with Flow(name="test") as f:
+        p = Parameter("x", default=1)
+        f.add_task(p)
+
+    flow_state = f.run()
+    assert flow_state.is_successful()
+    assert flow_state.result[p].result == 1
+
+
 def test_validate_cycles():
     f = Flow(name="test")
     t1 = Task()
