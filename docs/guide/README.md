@@ -1,6 +1,6 @@
 ---
-# sidebarDepth: 0
 title: Introduction
+sidebarDepth: 0
 ---
 
 
@@ -9,7 +9,7 @@ title: Introduction
 </div>
 
 
-# Welcome to Prefect!
+# Welcome!
 
 Prefect is a new kind of workflow management system. We started with a simple premise:
 
