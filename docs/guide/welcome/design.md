@@ -2,7 +2,7 @@
 sidebarDepth: 0
 ---
 
-# Prefect Design
+# Design
 
 ## Details matter
 
