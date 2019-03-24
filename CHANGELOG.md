@@ -2,6 +2,18 @@
 
 ## Unreleased <Badge text="beta" type="success"/>
 
+### Features
+
+### Enhancements
+
+### Task Library
+
+### Fixes
+
+### Breaking Changes
+
+## 0.5.0 <Badge text="beta" type="success"/>
+
 These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
 
 ### Features
