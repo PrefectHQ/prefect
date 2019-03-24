@@ -12,7 +12,9 @@ from prefect import Task
 
 class VarArgsTask(Task):
     """
-    Task that can be bound to *args and transforms them into **kwargs
+    Most task classes do not support `*args` as an input.
+
+    This task *does* accept `*args` and automatically transforms them into `**kwargs`.
     """
 
     def bind(
