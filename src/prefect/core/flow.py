@@ -973,7 +973,9 @@ class Flow:
             )
 
         # check for parameters that are required by the flow, but weren't passed
-        missing_params = [p.name for p in self.parameters() if p.name not in parameters]
+        missing_params = [
+            p.name for p in self.parameters() if p.required and p.name not in parameters
+        ]
         if missing_params:
             fmt_params = ", ".join(missing_params)
             raise ValueError(
