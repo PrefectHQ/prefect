@@ -14,7 +14,14 @@ from prefect import Task
 class GetItem(Task):
     """
     Helper task that retrieves a specific index of an upstream task's result.
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, task_result: Any, key: Any) -> Any:  # type: ignore
         """
@@ -31,7 +38,14 @@ class GetItem(Task):
 class Add(Task):
     """
     Evaluates `x + y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
@@ -48,7 +62,14 @@ class Add(Task):
 class Sub(Task):
     """
     Evaluates `x - y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
@@ -65,7 +86,14 @@ class Sub(Task):
 class Mul(Task):
     """
     Evaluates `x * y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
@@ -82,7 +110,14 @@ class Mul(Task):
 class Div(Task):
     """
     Evaluates `x / y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
@@ -99,7 +134,14 @@ class Div(Task):
 class FloorDiv(Task):
     """
     Evaluates `x // y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
@@ -116,7 +158,14 @@ class FloorDiv(Task):
 class Pow(Task):
     """
     Evaluates `x ** y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
@@ -133,7 +182,14 @@ class Pow(Task):
 class Mod(Task):
     """
     Evaluates `x % y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
@@ -153,7 +209,14 @@ class Mod(Task):
 class And(Task):
     """
     Evaluates `x and y.`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
@@ -170,7 +233,14 @@ class And(Task):
 class Or(Task):
     """
     Evaluates `x or y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
@@ -187,7 +257,14 @@ class Or(Task):
 class Not(Task):
     """
     Evaluates `not x`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any) -> bool:  # type: ignore
         """
@@ -203,7 +280,14 @@ class Not(Task):
 class Equal(Task):
     """
     Evaluates `x == y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
@@ -220,7 +304,14 @@ class Equal(Task):
 class NotEqual(Task):
     """
     Evaluates `x != y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
@@ -237,7 +328,14 @@ class NotEqual(Task):
 class GreaterThanOrEqual(Task):
     """
     Evaluates `x ≥ y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
@@ -254,7 +352,14 @@ class GreaterThanOrEqual(Task):
 class GreaterThan(Task):
     """
     Evaluates `x > y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
@@ -271,7 +376,14 @@ class GreaterThan(Task):
 class LessThanOrEqual(Task):
     """
     Evaluates `x ≤ y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
@@ -288,7 +400,14 @@ class LessThanOrEqual(Task):
 class LessThan(Task):
     """
     Evaluates `x < y`
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def run(self, x: Any, y: Any) -> bool:  # type: ignore
         """
