@@ -273,7 +273,7 @@ def generate_coverage():
 
             # Unit test coverage report
 
-            To view the test coverage report, <a href="/prefect-coverage/index.html">click here</a>.
+            To view the test coverage report, <a href="/prefect-coverage/">click here</a>.
             """
             ).lstrip()
         )
