@@ -15,7 +15,14 @@ class VarArgsTask(Task):
     Most task classes do not support `*args` as an input.
 
     This task *does* accept `*args` and automatically transforms them into `**kwargs`.
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
     """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
     def bind(
         self,
@@ -43,6 +50,17 @@ class VarArgsTask(Task):
 
 
 class List(VarArgsTask):
+    """
+    Collects task results into a list.
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
     def run(self, **task_results: Any) -> list:  # type: ignore
         """
         Args:
@@ -55,6 +73,17 @@ class List(VarArgsTask):
 
 
 class Tuple(VarArgsTask):
+    """
+    Collects task results into a tuple.
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
     def run(self, **task_results: Any) -> tuple:  # type: ignore
         """
         Args:
@@ -67,6 +96,17 @@ class Tuple(VarArgsTask):
 
 
 class Set(VarArgsTask):
+    """
+    Collects task results into a set.
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
     def run(self, **task_results: Any) -> set:  # type: ignore
         """
         Args:
@@ -79,6 +119,17 @@ class Set(VarArgsTask):
 
 
 class Dict(Task):
+    """
+    Collects task results into a dict.
+
+    Args:
+        - *args (Any): positional arguments for the `Task` class
+        - **kwargs (Any): keyword arguments for the `Task` class
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
     def run(self, **task_results: Any) -> dict:  # type: ignore
         """
         Args:
