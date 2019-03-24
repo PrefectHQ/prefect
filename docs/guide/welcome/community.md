@@ -18,7 +18,7 @@ We welcome issues, contributions and discussion from all users, regardless of ba
 Prefect encourages users to contribute in any way they can!  
 
 There are a number of ways you can get started contributing:
-- **issues**: the [issue board](https://github.com/PrefectHQ/prefect) contains issues with the tag ["good first issue"](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) which should be approachable for first time contributors
+- **closing issues**: the [issue board](https://github.com/PrefectHQ/prefect) contains issues with the tag ["good first issue"](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) which should be approachable for first time contributors
 - **documentation**: Prefect prioritizes its documentation, as this is usually the first place users go to look for help.  If you find any typos, or want to update something for clarity, users everywhere will thank you!
 - **the task library**: Prefect's task library helps users build workflows even quicker by abstracting away common boilerplate.  If you know of a common operation that isn't represented, open a Pull Request to add a new task to the library!
 
