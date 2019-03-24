@@ -1,3 +1,4 @@
+import inspect
 import re
 import sys
 from functools import partial, wraps
@@ -308,12 +309,6 @@ def test_format_doc_on_subclass_with_doc_but_inherited_init():
     expected = textwrap.dedent(
         """
         This is the child doc
-
-        #### Parent Class Documentation (`test_format_doc_on_subclass_with_doc_but_inherited_init.<locals>.Parent`):
-
-        This is the parent doc
-
-        **Args**:     <ul class="args"><li class="args">`x (int)`: a number</li></ul>
         """
     ).strip()
 
@@ -325,10 +320,6 @@ def test_format_doc_on_raw_exception():
     expected = textwrap.dedent(
         """
         Just a name, nothing more.
-
-        #### Parent Class Documentation (`Exception`):
-
-        Common base class for all non-exit exceptions.
         """
     ).strip()
     assert formatted == expected
@@ -467,8 +458,9 @@ def test_sections_have_formatted_headers_for_class_docs(obj):
     for section in ["Args", "Returns", "Raises", "Example"]:
         option1 = ">**{}**:".format(section)
         option2 = "\n**{}**:".format(section)
+        option3 = "**{}**:".format(section)
         assert (section in doc) is any(
-            [(o in doc) for o in (option1, option2)]
+            [(o in doc) for o in (option1, option2)] + [doc.startswith(option3)]
         ), "{obj.__module__}.{obj.__name__} has a poorly formatted {sec} header.".format(
             obj=obj, sec=section
         )

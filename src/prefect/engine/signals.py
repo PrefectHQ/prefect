@@ -13,9 +13,9 @@ class PrefectStateSignal(PrefectError):
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
-        - args (Any, optional): additional arguments to pass to this Signal's
+        - *args (Any, optional): additional arguments to pass to this Signal's
             associated state constructor
-        - kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+        - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
             associated state constructor
     """
 
