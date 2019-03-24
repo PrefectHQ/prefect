@@ -6,6 +6,20 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+### Enhancements
+
+### Task Library
+
+### Fixes
+
+### Breaking Changes
+
+## 0.5.0 <Badge text="beta" type="success"/>
+
+Released March 24, 2019
+
+### Features
+
 - Add `checkpoint` option for individual `Task`s, as well as a global `checkpoint` config setting for storing the results of Tasks using their result handlers - [#649](https://github.com/PrefectHQ/prefect/pull/649)
 - Add `defaults_from_attrs` decorator to easily construct `Task`s whose attributes serve as defaults for `Task.run` - [#293](https://github.com/PrefectHQ/prefect/issues/293)
 - Environments follow new hierarchy (PIN-3) - [#670](https://github.com/PrefectHQ/prefect/pull/670)
