@@ -144,6 +144,11 @@ def format_doc(obj, in_table=False):
                     ]
                 )
 
+                # once we match, we can break the loop.
+                # avoids a situation where we match multiple parent classes that all have
+                # no __init__.
+                break
+
     body = doc or ""
     code_blocks = re.findall(r"```(.*?)```", body, re.DOTALL)
     for num, block in enumerate(code_blocks):
