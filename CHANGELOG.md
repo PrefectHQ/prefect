@@ -2,6 +2,8 @@
 
 ## Unreleased <Badge text="beta" type="success"/>
 
+These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
+
 ### Features
 
 ### Enhancements
@@ -14,7 +16,7 @@
 
 ## 0.5.0 <Badge text="beta" type="success"/>
 
-These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
+Released March 24, 2019
 
 ### Features
 
