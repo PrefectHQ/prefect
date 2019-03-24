@@ -55,6 +55,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add Kubernetes tasks for deployments, jobs, pods, and services - [#779](https://github.com/PrefectHQ/prefect/pull/779)
 - Add Airtable tasks - [#803](https://github.com/PrefectHQ/prefect/pull/803)
 - Add Twitter tasks - [#803](https://github.com/PrefectHQ/prefect/pull/803)
+- Add `GetRepoInfo` for pulling GitHub repository information - [#816](https://github.com/PrefectHQ/prefect/pull/816)
 
 ### Fixes
 

@@ -167,7 +167,7 @@ classes = ["S3Download", "S3Upload"]
 [pages.tasks.github]
 title = "GitHub Tasks"
 module = "prefect.tasks.github"
-classes = ["CreateGitHubPR", "OpenGitHubIssue"]
+classes = ["CreateGitHubPR", "OpenGitHubIssue", "GetRepoInfo"]
 
 [pages.tasks.kubernetes]
 title = "Kubernetes Tasks"

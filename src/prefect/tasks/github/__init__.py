@@ -7,3 +7,4 @@ containing a valid GitHub Access Token.
 
 from .issues import OpenGitHubIssue
 from .prs import CreateGitHubPR
+from .repos import GetRepoInfo
