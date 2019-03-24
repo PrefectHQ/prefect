@@ -20,6 +20,10 @@ Because Prefect is a negative engineering framework, it is agnostic to the code 
 
 Workflows (or "flows") are containers for tasks. Flows represent the dependency structure between tasks, but do not perform any logic.
 
+## Modularity
+
+Every component of Prefect has a modular design, making it easy to customize or replace anything from the execution engine, to logging, to data serialization and storage, to state handling itself. As a negative engineering tool, Prefect was designed to *support* positive engineering, not replace it.
+
 ## Communication via state
 
 Prefect uses a formal concept of `State` to reflect the behavior of the workflow at any time. Both tasks and workflows produce `States`.
