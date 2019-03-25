@@ -226,12 +226,6 @@ module.exports = {
             'PINs/PIN-5-Combining-Tasks'
           ]
         },
-        {
-          title: 'Comparisons',
-          collapsable: true,
-          children: [
-            'comparisons/airflow'
-          ]
         },
         {
           title: 'Development',
