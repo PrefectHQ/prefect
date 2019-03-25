@@ -227,13 +227,6 @@ module.exports = {
           ]
         },
         {
-          title: 'Comparisons',
-          collapsable: true,
-          children: [
-            'comparisons/airflow'
-          ]
-        },
-        {
           title: 'Development',
           collapsable: true,
           children: [
