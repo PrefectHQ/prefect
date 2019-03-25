@@ -12,6 +12,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
+- Set Parameter `checkpoint` to `False` by default - [#839](https://github.com/PrefectHQ/prefect/pull/839)
+
 ### Breaking Changes
 
 ## 0.5.0 <Badge text="beta" type="success"/>

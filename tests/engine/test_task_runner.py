@@ -934,6 +934,7 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
 
+    @pytest.mark.xfail(reason="UX improvement for Core")
     def test_success_state_for_parameter(self):
         handler = JSONResultHandler()
         p = prefect.Parameter("p", default=2)

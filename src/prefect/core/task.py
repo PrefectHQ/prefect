@@ -945,9 +945,6 @@ class Parameter(Task):
     Flows enforce slug uniqueness across all tasks, so this ensures that the flow has
     no other parameters by the same name.
 
-    *Note*: Parameters should always be JSON-compatible objects, and will always be checkpointed
-    during execution using the `JSONResultHandler`.
-
     Args:
         - name (str): the Parameter name.
         - required (bool, optional): If True, the Parameter is required and the default
@@ -977,7 +974,7 @@ class Parameter(Task):
             name=name,
             slug=name,
             tags=tags,
-            checkpoint=True,
+            checkpoint=False,
             result_handler=JSONResultHandler(),
         )
 

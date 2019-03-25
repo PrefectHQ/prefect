@@ -236,6 +236,7 @@ class TestCreateTask:
             r = Task()
         assert r.checkpoint is True
 
+    @pytest.mark.xfail(reason="UX improvement for Core")
     def test_create_parameter_always_checkpoints(self):
         with set_temporary_config({"tasks.defaults.checkpoint": False}):
             p = Parameter("p")
