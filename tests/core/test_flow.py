@@ -805,7 +805,7 @@ def test_flow_doesnt_raises_for_missing_nonrequired_parameters():
     assert flow_state.result[p].result == 1
 
 
-def test_flow_accepts_odd_parameters():
+def test_flow_accepts_unserializeable_parameters():
     with Flow(name="test") as f:
         p = Parameter("x")()
 
