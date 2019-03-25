@@ -226,7 +226,6 @@ module.exports = {
             'PINs/PIN-5-Combining-Tasks'
           ]
         },
-        },
         {
           title: 'Development',
           collapsable: true,
