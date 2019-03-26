@@ -3,7 +3,7 @@ import subprocess
 import tempfile
 import textwrap
 from contextlib import contextmanager
-from typing import Any, Iterator, Callable
+from typing import Any, Callable, Iterator
 
 import cloudpickle
 

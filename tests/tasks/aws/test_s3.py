@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 import prefect
 from prefect.tasks.aws import S3Download, S3Upload

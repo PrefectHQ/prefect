@@ -7,11 +7,11 @@ import pytest
 import prefect
 from prefect import environments
 from prefect.serialization.environment import (
+    DaskOnKubernetesEnvironmentSchema,
     DockerEnvironmentSchema,
+    DockerOnKubernetesEnvironmentSchema,
     EnvironmentSchema,
     LocalEnvironmentSchema,
-    DockerOnKubernetesEnvironmentSchema,
-    DaskOnKubernetesEnvironmentSchema,
 )
 
 FERNET_KEY = b"1crderTHVJ7vvVJj79Zns81_1opaTID0HRZoOzqIpOA="

@@ -5,13 +5,13 @@ If for any reason the PR fails to open, the Flow opens an issue alerting the tea
 relevant debug information.
 """
 import datetime
+
 import pendulum
 
 from prefect import Flow, task
-from prefect.triggers import any_failed
 from prefect.schedules import IntervalSchedule
 from prefect.tasks.github import CreateGitHubPR, OpenGitHubIssue
-
+from prefect.triggers import any_failed
 
 pr_task = CreateGitHubPR(
     name="Open dev->master PR",

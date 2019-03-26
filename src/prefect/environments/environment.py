@@ -24,9 +24,9 @@ the container in turn runs the `LocalEnvironment`.
 """
 
 import json
+from typing import TYPE_CHECKING
 
 import prefect
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import prefect.engine.state

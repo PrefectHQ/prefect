@@ -1,6 +1,7 @@
 import json
-import requests
 from typing import Any, List
+
+import requests
 
 from prefect import Task
 from prefect.client import Secret

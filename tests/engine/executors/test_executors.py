@@ -11,9 +11,12 @@ import dask
 import pytest
 
 import prefect
-from prefect.engine.executors import Executor, LocalExecutor, SynchronousExecutor
-
-from prefect.engine.executors import DaskExecutor
+from prefect.engine.executors import (
+    DaskExecutor,
+    Executor,
+    LocalExecutor,
+    SynchronousExecutor,
+)
 
 
 class TestBaseExecutor:

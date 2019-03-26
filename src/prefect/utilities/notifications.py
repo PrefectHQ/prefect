@@ -7,10 +7,10 @@ import smtplib
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import TYPE_CHECKING, Any, Callable, Union, cast
 
 import requests
 from toolz import curry
-from typing import Any, Callable, TYPE_CHECKING, Union, cast
 
 import prefect
 

@@ -1,9 +1,9 @@
 import json
 import logging
-from os import path
 import time
-from typing import List
 import uuid
+from os import path
+from typing import List
 
 import docker
 import yaml

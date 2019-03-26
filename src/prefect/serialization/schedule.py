@@ -1,16 +1,15 @@
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import marshmallow
 from marshmallow import fields
 
 import prefect
 from prefect.utilities.serialization import (
-    OneOfSchema,
-    ObjectSchema,
-    to_qualified_name,
     DateTimeTZ,
+    ObjectSchema,
+    OneOfSchema,
+    to_qualified_name,
 )
-
 
 if TYPE_CHECKING:
     import prefect.schedules
