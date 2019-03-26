@@ -1,7 +1,7 @@
 import logging
+import uuid
 from os import path
 from typing import List
-import uuid
 
 import docker
 import yaml

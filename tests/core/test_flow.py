@@ -1,12 +1,12 @@
 import datetime
 import logging
-import pendulum
 import sys
 import tempfile
 import uuid
 from unittest.mock import MagicMock, patch
 
 import cloudpickle
+import pendulum
 import pytest
 
 import prefect
@@ -18,8 +18,8 @@ from prefect.engine.signals import PrefectError
 from prefect.engine.state import (
     Failed,
     Finished,
-    Pending,
     Mapped,
+    Pending,
     Skipped,
     State,
     Success,

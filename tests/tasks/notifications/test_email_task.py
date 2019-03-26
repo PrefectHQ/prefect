@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from prefect import context
 from prefect.tasks.notifications import EmailTask

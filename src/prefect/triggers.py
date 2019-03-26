@@ -2,7 +2,8 @@
 Triggers are functions that determine if task state should change based on
 the state of preceding tasks.
 """
-from typing import Set, Callable
+from typing import Callable, Set
+
 from prefect import context
 from prefect.engine import signals, state
 

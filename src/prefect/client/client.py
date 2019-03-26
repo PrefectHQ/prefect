@@ -2,8 +2,9 @@ import datetime
 import json
 import logging
 import os
+from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
+
 import pendulum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, NamedTuple
 
 import prefect
 from prefect.utilities.exceptions import AuthorizationError, ClientError

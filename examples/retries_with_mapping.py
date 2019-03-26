@@ -12,7 +12,7 @@ will be created prior to execution!  Additionally, each failed mapped task will 
 import random
 from datetime import timedelta
 
-from prefect import task, Flow
+from prefect import Flow, task
 
 
 @task

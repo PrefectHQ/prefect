@@ -7,9 +7,9 @@ import pytest
 
 import prefect
 from prefect.utilities.executors import (
+    Heartbeat,
     main_thread_timeout,
     multiprocessing_timeout,
-    Heartbeat,
 )
 
 

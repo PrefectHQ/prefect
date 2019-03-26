@@ -1,6 +1,7 @@
-import boto3
 import io
 import uuid
+
+import boto3
 
 from prefect import Task
 from prefect.client import Secret

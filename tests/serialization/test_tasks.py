@@ -1,6 +1,6 @@
 import datetime
-
 from typing import Any
+
 import marshmallow
 import pytest
 
