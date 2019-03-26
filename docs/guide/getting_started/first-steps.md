@@ -81,7 +81,7 @@ In Prefect, **flows** are used to describe the dependencies between tasks, such 
 
 The easiest way to build a flow is with Prefect's **functional API**. Simply create a flow as a context manager and call your tasks on each other as if they were regular functions. Prefect will track each function call and build up a computational graph that represents your workflow. Critically, _no tasks are actually executed at this time_.
 
-Here is a flow that uses the add task we wrote earlier to add a few numbers together. Notice how we can provide both numbers and tasks results as the inputs to the task function. In addition, notice how we call `add` twice, generating two distinct copies of our task in the flow:
+Here is a flow that uses the add task we wrote earlier to add a few numbers together. Notice how tasks can accept numbers or even other tasks as inputs; Prefect automatically creates the appropriate connections (or "edges") in the flow graph. In addition, notice that we call `add` twice, generating two distinct copies of our task in the flow:
 
 ```python
 from prefect import Flow
@@ -93,7 +93,7 @@ with Flow("My first flow!") as flow:
 
 ### Running the flow
 
-One the flow has been created, we can run it by simply calling `flow.run()`. In this case, the resulting `State` is `Success`, and we can also examine the `State` and result of each task:
+One the flow has been created, we can execute it by simply calling `flow.run()`. In this case, the resulting `State` is `Success`, and we can also examine the `State` and result of each task:
 
 ```python
 state = flow.run()
