@@ -15,7 +15,7 @@ Accepted; expanded by [PIN-4](PIN-4-Result-Objects.md)
 
 ## Context
 
-One of the strengths of using Prefect is security: we can robustly execute user pipelines, allow data to flow between tasks, and pick up from failures using retries, _all without our backend ever having access to user data_.  At a high level, this is implemented via an intermediary which is currently called a "Result Handler"; the result handler is a lightweight class that can be attached to Flows and implements a basic interface which stores and retrieves data from arbitrary locations (for example, a customer's Google Cloud Infrastructure).  In this way, our backend can store only URIs that result handlers use to retrieve the real underlying data for use in the pipeline.  Because Flows run on user-controlled infrastructure too, all of this stays "in house" for a user of Prefect.
+One of the strengths of using Prefect is security: we can robustly execute user pipelines, allow data to flow between tasks, and pick up from failures using retries, _all without our backend ever having access to user data_.  At a high level, this is implemented via an intermediary that is currently called a "Result Handler"; the result handler is a lightweight class that can be attached to Flows and implements a basic interface that stores and retrieves data from arbitrary locations (for example, a customer's Google Cloud Infrastructure).  In this way, our backend can store only URIs that result handlers use to retrieve the real underlying data for use in the pipeline.  Because Flows run on user-controlled infrastructure too, all of this stays "in house" for a user of Prefect.
 
 However, result handlers are currently utilized inside state serializers only; this means that _every piece of data_ that flows through the system is handled and stored somewhere, which is excessive.  Moreover, individual tasks might want their results handled differently.  Furthermore, the name "Result Handler" is a misnomer, as we also need to handle cached inputs, cached parameters, etc.
 
@@ -36,6 +36,6 @@ Additionally, note that this means that if handling of data fails for any reason
 
 Re-orchestrating our data flow in this way will gain us a few things:
 
-- the system will be more efficient, in that only those results which _need_ handling for the system to work will be handled
+- the system will be more efficient, in that only those results that _need_ handling for the system to work will be handled
 - data handling will be more transparent; for example, previously result handlers were used in a deep part of the code base that most users won't ever need to look at; when errors were raised, etc. it felt very cryptic and sometimes surprising.  Now, all result handling will be done inside Task Runner pipeline steps, so their relation to task failure and how to recreate them will be very clear
-- the system will be more customizable and secure, because it is now easy to attach different result handlers to different tasks and guaratee that any data that this task creates will be handled correctly
+- the system will be more customizable and secure, because it is now easy to attach different result handlers to different tasks and guarantee that any data that this task creates will be handled correctly

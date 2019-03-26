@@ -10,12 +10,12 @@ We welcome issues, contributions and discussion from all users, regardless of ba
 
 - for feature requests or bug reports, please open a [new GitHub issue](https://github.com/PrefectHQ/prefect/issues/new)
 - for realtime discussion or help, please visit our [Gitter chat](https://gitter.im/prefectio/prefect)
-- important architechtural and design decisions are memorialized in [Prefect Improvement Notices (PINs)](../PINs/PIN-1-Introduce-PINs.html)
+- important architectural and design decisions are memorialized in [Prefect Improvement Notices (PINs)](../PINs/PIN-1-Introduce-PINs.html)
 
 
 ## Contributing
 
-Prefect encourages users to contribute in any way they can!  
+Prefect encourages users to contribute in any way they can!
 
 There are a number of ways you can get started contributing:
 - **closing issues**: the [issue board](https://github.com/PrefectHQ/prefect) contains issues with the tag ["good first issue"](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) which should be approachable for first time contributors

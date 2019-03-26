@@ -53,7 +53,7 @@ There are three main states: `Pending`, `Running`, and `Finished`. Flows and tas
 
 ## State handlers & callbacks
 
-It is often desireable to take action when a certain event happens, for example when a task fails. Prefect provides `state_handlers` for this purpose. Flows and Tasks may have one or more state handler functions that are called whenever the task's state changes. The signature of a state handler is:
+It is often desirable to take action when a certain event happens, for example when a task fails. Prefect provides `state_handlers` for this purpose. Flows and Tasks may have one or more state handler functions that are called whenever the task's state changes. The signature of a state handler is:
 
 ```python
     def state_handler(obj: Union[Flow, Task], old_state: State, new_state: State) -> State:

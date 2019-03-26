@@ -6,7 +6,7 @@ Schedules are serializable objects that describe when to run a flow. Schedules a
 
 ## Design
 
-Schedule objects have a simple API. They must expose a `next(n, after)` method which returns the next `n` run times `after` a specific date.
+Schedule objects have a simple API. They must expose a `next(n, after)` method that returns the next `n` run times `after` a specific date.
 
 Schedules may also have a `start_date` and `end_date`. Some schedules require one or both fields.
 

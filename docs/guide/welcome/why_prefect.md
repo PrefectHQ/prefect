@@ -30,7 +30,7 @@ However, in order to execute code in an automated way, we need to answer an enor
 
 Each question, taken individually, might be trivial, but complexity starts to emerge when we combine them. If we contemplate thousands of concurrent tasks running in distributed, possibly disjoint environments, the entire system breaks down.
 
-We call this complexity **negative engineering**. It encompasses everything that needs to be done to ensure that positive engineering can run robustly. Focusing on negative engineering is critical because it ensures that code runs as intended. However, most engineers don't like building negative infrastructure because it's often orthagonal to the postive code they set out to write in the first place.
+We call this complexity **negative engineering**. It encompasses everything that needs to be done to ensure that positive engineering can run robustly. Focusing on negative engineering is critical because it ensures that code runs as intended. However, most engineers don't like building negative infrastructure because it's often orthogonal to the positive code they set out to write in the first place.
 
 **Prefect is an automation framework for negative engineering.** Prefect's job is to make sure that no matter what your code is, or what environment it's deployed to, it gets executed in a controlled manner that satisfies all of these negative engineering requirements.
 
