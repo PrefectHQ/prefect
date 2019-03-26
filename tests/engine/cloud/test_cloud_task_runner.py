@@ -69,6 +69,17 @@ def client(monkeypatch):
     yield cloud_client
 
 
+def test_task_runner_puts_cloud_in_context(client):
+    @prefect.task
+    def whats_in_ctx():
+        return prefect.context.get("cloud")
+
+    res = CloudTaskRunner(task=whats_in_ctx).run()
+
+    assert res.is_successful()
+    assert res.result is True
+
+
 def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     task = Task(name="test")
 
