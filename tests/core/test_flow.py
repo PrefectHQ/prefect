@@ -805,6 +805,16 @@ def test_flow_doesnt_raises_for_missing_nonrequired_parameters():
     assert flow_state.result[p].result == 1
 
 
+def test_flow_accepts_unserializeable_parameters():
+    with Flow(name="test") as f:
+        p = Parameter("x")()
+
+    value = lambda a: a + 1
+
+    state = f.run(parameters={"x": value})
+    assert state.result[p].result is value
+
+
 def test_validate_cycles():
     f = Flow(name="test")
     t1 = Task()
