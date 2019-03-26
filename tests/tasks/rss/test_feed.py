@@ -1,9 +1,9 @@
-
 from unittest.mock import MagicMock
 
 import pytest
 
 from prefect.tasks.rss import ParseRSSFeed
+
 
 class TestParseRSSFeedTask:
     def test_empty_initialization(self):
