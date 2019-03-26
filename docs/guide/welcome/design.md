@@ -66,6 +66,6 @@ It's not enough to merely "kick off" each task in sequence; a task may stop runn
 
 Arguably, Prefect's chief innovation isn't a streamlined workflow definition system or robust workflow engine. It's a rich notion of workflow state.
 
-Most workflow systems have an "implicit success" criteria. This means that if a task stops without crashing, it is considered "succesful"; otherwise, it "fails". This is an incredibly limiting view of the world. What if you wanted to skip a task? What if you wanted to pause it? If the entire system fails, can you restore it just as it was? Can you guarantee that a task will only run once, even if multiple systems in disjoint environments are attempting to run it?
+Most workflow systems have an "implicit success" criteria. This means that if a task stops without crashing, it is considered "successful"; otherwise, it "fails". This is an incredibly limiting view of the world. What if you wanted to skip a task? What if you wanted to pause it? If the entire system fails, can you restore it just as it was? Can you guarantee that a task will only run once, even if multiple systems in disjoint environments are attempting to run it?
 
 By imbuing every task and workflow with a strong notion of "state", Prefect enables a rich vocabulary to describe a workflow at any moment before, during, or after its execution.

@@ -45,7 +45,7 @@ If you want to upgrade to a more powerful executor but still maintain an easily 
 The `SynchronousExecutor` is the default executor on your local machine; in production, the `DaskExecutor` will be the default. To change your Prefect settings (including the default executor), you can either:
 
 - modify your `~/.prefect/config.toml` file
-- update your OS environment variables; every value in the config file can be overriden by setting `PREFECT__SECTION__SUBSECTION__KEY`. For example, to change the default executor, you can set `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS="prefect.engine.executors.LocalExecutor"`
+- update your OS environment variables; every value in the config file can be overridden by setting `PREFECT__SECTION__SUBSECTION__KEY`. For example, to change the default executor, you can set `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS="prefect.engine.executors.LocalExecutor"`
   :::
 
 #### `DaskExecutor`
@@ -99,7 +99,7 @@ ZeroDivisionError: division by zero
 
 You can now use your favorite debugger to drop into the traceback and proceed as you normally would.
 ::: tip
-Note that this utility doesn't require you know anything about where the error occured.
+Note that this utility doesn't require you know anything about where the error occurred.
 :::
 
 ### Re-raising Execeptions post-hoc

@@ -6,7 +6,7 @@ In the [welcome tutorial](first-steps.md), we took a look at creating tasks and 
 
 So far, we've dealt exclusively with tasks that obey "normal" data pipeline rules: whenever a task succeeds, its downstream dependencies start running.
 
-It is frequently desireable to build flows in which tasks respond to each other in more complicated ways. A simple example is a "clean up task" that must run, even (or only!) if a prior task failed. Suppose our first task creates a Spark cluster, the second task submits a job to that cluster, and a third task tears down the cluster. In a "normal" pipeline world, if the second task fails the third task won't run -- and that could result in our Spark cluster running forever!
+It is frequently desirable to build flows in which tasks respond to each other in more complicated ways. A simple example is a "clean up task" that must run, even (or only!) if a prior task failed. Suppose our first task creates a Spark cluster, the second task submits a job to that cluster, and a third task tears down the cluster. In a "normal" pipeline world, if the second task fails the third task won't run -- and that could result in our Spark cluster running forever!
 
 Prefect introduces a concept called [`triggers`](../core_concepts/execution.html#triggers) to solve this situation. Before a task runs, its trigger function is called on a set of upstream task states. If the trigger function doesn't pass, the task won't run. Prefect has a variety of built-in triggers, including `all_successful` (the default), `all_failed`, `any_successful`, `any_failed`, and even a particularly interesting one called `manual_only`.
 
