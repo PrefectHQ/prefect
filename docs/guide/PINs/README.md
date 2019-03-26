@@ -21,3 +21,7 @@ A description of a more complex and executable `Environment` object.
 ## [PIN-4: Result Objects for Tracking and Serializing Task Outputs](PIN-4-Result-Objects.md)
 
 A new `Result` object that clarifies the logic introduced by [PIN-2](PIN-2-Result-Handlers.md).
+
+## [PIN-5: Ability to Combine Tasks](PIN-4-Combining-Tasks.md)
+
+A proposal for automatically combining tasks to ensure data locality; ultimately declined as a general approach.
