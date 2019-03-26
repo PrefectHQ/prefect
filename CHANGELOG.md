@@ -7,6 +7,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 ### Enhancements
+- Bump to latest version of `pytest` (4.3) - [#814](https://github.com/PrefectHQ/prefect/issues/814)
 
 ### Task Library
 
@@ -62,7 +63,6 @@ Released March 24, 2019
 - Add daylight saving time support for `CronSchedule` - [#729](https://github.com/PrefectHQ/prefect/pull/729)
 - Add `idempotency_key` and `context` arguments to `Client.create_flow_run` - [#757](https://github.com/PrefectHQ/prefect/issues/757)
 - Make `EmailTask` more secure by pulling credentials from secrets - [#706](https://github.com/PrefectHQ/prefect/issues/706)
-- Bump to latest version of `pytest` (4.3) - [#814](https://github.com/PrefectHQ/prefect/issues/814)
 
 ### Task Library
 
