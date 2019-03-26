@@ -10,6 +10,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
+- Add `ParseRSSFeed` for parsing a remote RSS feed - [#856](https://github.com/PrefectHQ/prefect/pull/856)
+
 ### Fixes
 
 - Only checkpoint tasks if running in cloud - [#839](https://github.com/PrefectHQ/prefect/pull/839), [#854](https://github.com/PrefectHQ/prefect/pull/854)
