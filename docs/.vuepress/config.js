@@ -85,6 +85,7 @@ module.exports = {
             'tasks/kubernetes',
             'tasks/notifications',
             'tasks/operators',
+            'tasks/rss',
             'tasks/shell',
             'tasks/sqlite',
             'tasks/strings'
