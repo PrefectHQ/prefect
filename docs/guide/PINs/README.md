@@ -10,18 +10,32 @@ sidebarDepth: 0
 
 Introducing PINs for recording Prefect decisions.
 
-## [PIN-2: Proper Implementation of Result Handlers and State Metadata](PIN-2-Result-Handlers.md)
+**Status:** Approved
+
+
+## [PIN-2: Implementation of Result Handlers and State Metadata](PIN-2-Result-Handlers.md)
 
 Adding metadata to `States` in order to track task results and serialization methods.
 
-## [PIN-3: New Agent-Environment Model for Hybrid Execution of Flows](PIN-3-Agent-Environment.md)
+**Status:** Approved
+
+
+## [PIN-3: Agent-Environment Model for Flow Execution](PIN-3-Agent-Environment.md)
 
 A description of a more complex and executable `Environment` object.
+
+**Status:** Approved
+
 
 ## [PIN-4: Result Objects for Tracking and Serializing Task Outputs](PIN-4-Result-Objects.md)
 
 A new `Result` object that clarifies the logic introduced by [PIN-2](PIN-2-Result-Handlers.md).
 
-## [PIN-5: Ability to Combine Tasks](PIN-4-Combining-Tasks.md)
+**Status:** Approved
+
+
+## [PIN-5: Ability to Combine Tasks](PIN-5-Combining-Tasks.md)
 
 A proposal for automatically combining tasks to ensure data locality; ultimately declined as a general approach.
+
+**Status:** Declined
