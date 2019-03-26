@@ -39,7 +39,7 @@ A PIN is a sequentially-numbered document with a short, imperative title. PINs a
 
 Each PIN has four important sections: Status, Context, Decision, and Consequences.
 
-**Status** is initially "Proposed" and can ultimately become "Accepted" or "Rejected." Future PINs may result in past PINs becoming "Deprecated" or "Superceded."
+**Status** is initially "Proposed" and can ultimately become "Accepted" or "Rejected." Future PINs may result in past PINs becoming "Deprecated" or "Superseded."
 
 **Context** gives background for the PIN. It should be complete, including any information relevant to the PIN even if it might lead to its rejection. The goal of this section is to prepare readers so that they fully understand the decision being proposed.
 

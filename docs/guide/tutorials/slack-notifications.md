@@ -67,7 +67,7 @@ SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/XXXXXXXXX/xxxxxxxxx/XXXXXX
 ```
 
 ::: warning Storing Secrets
-This method of storing secrets is intended _only_ for local development and testing! 
+This method of storing secrets is intended _only_ for local development and testing!
 :::
 
 Almost there - all that's left is to actually hook up the `slack_notifier` state handler to your favorite task or flow! All task and flow initializations accept an optional `state_handler` keyword argument.  This should consist of a _list_ of "state handler" callables with call signature
@@ -80,7 +80,7 @@ def generic_state_handler(task_or_flow, old_state, new_state):
     return new_state # this is important
 ```
 
-This function will be called everytime your task (or flow) undergoes a state change.  In the example at hand, `slack_notifier` is already setup as a state handler for you!
+This function will be called every time your task (or flow) undergoes a state change.  In the example at hand, `slack_notifier` is already setup as a state handler for you!
 Consequently, as we saw in the introduction example, you can simply provide `slack_notifier` as a `state_handler` for any task / flow you want.
 
 ## Customizing your alerts

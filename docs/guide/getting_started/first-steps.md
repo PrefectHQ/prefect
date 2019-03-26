@@ -24,7 +24,7 @@ def say_hello():
     print("Hello, world!")
 ```
 
-Prefect has no restrictions on how much or how little each task can do. In general, we encourage "small tasks" over monolithic ones: each task should perform a discrete logical step of your workflow, but not more. This is because the Prefect engine does a lot of work to handle each task, including checkpointing the state after each tasks runs. Therefore, the more tasks you have, the more opportunities the engine has to be helpful. There's nothing wrong with "big tasks" - you could put your entire workflow in one giant task! - but the system as a whole will be less useful to you.
+Prefect has no restrictions on how much or how little each task can do. In general, we encourage "small tasks" over monolithic ones: each task should perform a discrete logical step of your workflow, but not more. This is because the Prefect engine does a lot of work to handle each task, including checkpointing the state after each task runs. Therefore, the more tasks you have, the more opportunities the engine has to be helpful. There's nothing wrong with "big tasks" - you could put your entire workflow in one giant task! - but the system as a whole will be less useful to you.
 
 ### Task inputs and outputs
 

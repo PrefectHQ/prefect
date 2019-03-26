@@ -127,7 +127,7 @@ The `@task` decorator is a simple way to turn any function into a task.
 :::
 
 ::: tip Indexing a task
-Just as we've shown that tasks can be added (or subtracted, or multipled, or divided), they can be indexed as well. Here, we index the result of the `inputs` task to get `x`, `y`, and `op`. Like every other Prefect operation, the indexing itself is recorded in the computational graph, but the execution is deferred until the flow is run and the indexed result is actually available.
+Just as we've shown that tasks can be added (or subtracted, or multiplied, or divided), they can be indexed as well. Here, we index the result of the `inputs` task to get `x`, `y`, and `op`. Like every other Prefect operation, the indexing itself is recorded in the computational graph, but the execution is deferred until the flow is run and the indexed result is actually available.
 :::
 
 And now we can run our calculator on string expressions :tada::

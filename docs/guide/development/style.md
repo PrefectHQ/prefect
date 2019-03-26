@@ -116,7 +116,7 @@ class Class:
 
 Prefect's code is statically-typed using [mypy](http://mypy-lang.org/). Merges to master are prevented if code does not pass type checks, and this test is performed both as a unit test and a separate CI step, for clarity.
 
-While we would prefer for all of Prefect's code to be typed, that creates an undeseriable friction for new contributors. Therefore, mypy is only *required* for "important" code (generally, files in the `core/` and `engine/` directories), but encouraged elsewhere. Test files are never checked for typing. To run mypy only against required files, invoke it as a unit test:
+While we would prefer for all of Prefect's code to be typed, that creates an undesirable friction for new contributors. Therefore, mypy is only *required* for "important" code (generally, files in the `core/` and `engine/` directories), but encouraged elsewhere. Test files are never checked for typing. To run mypy only against required files, invoke it as a unit test:
 
 ```bash
 cd prefect

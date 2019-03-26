@@ -275,6 +275,6 @@ Handlers can also be associated with the `Flow`, `TaskRunner`, and `FlowRunner` 
 
 ## Caching
 
-Tasks can be cached, in which case their outputs will be reused for future runs. For example, you might want to make sure that a database is loaded before generating reports, but you might not want to run the load task every time the flow is run. No problem: just cache the load task for 24 hours, and future runs will reuse its succesful output.
+Tasks can be cached, in which case their outputs will be reused for future runs. For example, you might want to make sure that a database is loaded before generating reports, but you might not want to run the load task every time the flow is run. No problem: just cache the load task for 24 hours, and future runs will reuse its successful output.
 
 For more details, see the relevant docs under [execution](./execution.html#caching).
