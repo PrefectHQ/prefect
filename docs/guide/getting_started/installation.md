@@ -17,6 +17,12 @@ To install Prefect, simply run:
 pip install prefect
 ```
 
+or, if you prefer to use `conda`:
+
+```bash
+conda install -c conda-forge prefect
+```
+
 ## Optional dependencies
 
 Prefect ships with a number of optional dependencies, which can be installed using "extras" syntax:
