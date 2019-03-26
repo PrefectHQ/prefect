@@ -799,7 +799,12 @@ class TaskRunner(Runner):
         result = Result(value=result, result_handler=self.result_handler)
         state = Success(result=result, message="Task run succeeded.")
 
-        if state.is_successful() and self.task.checkpoint is True:
+        ## only checkpoint tasks if running in cloud
+        if (
+            state.is_successful()
+            and prefect.context.get("cloud") is True
+            and self.task.checkpoint is True
+        ):
             state._result.store_safe_value()
 
         return state

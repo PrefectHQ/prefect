@@ -915,9 +915,10 @@ class TestRunTaskStep:
         def fn(x):
             return x + 1
 
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=Running(), inputs={"x": Result(1)}, timeout_handler=None
-        )
+        with prefect.context(cloud=True):
+            new_state = TaskRunner(task=fn).get_task_run_state(
+                state=Running(), inputs={"x": Result(1)}, timeout_handler=None
+            )
         assert new_state.is_successful()
         assert new_state._result.safe_value is NoResult
 
@@ -928,19 +929,20 @@ class TestRunTaskStep:
         def fn(x):
             return x + 1
 
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=Running(), inputs={"x": Result(2)}, timeout_handler=None
-        )
+        with prefect.context(cloud=True):
+            new_state = TaskRunner(task=fn).get_task_run_state(
+                state=Running(), inputs={"x": Result(2)}, timeout_handler=None
+            )
         assert new_state.is_successful()
         assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
 
-    @pytest.mark.xfail(reason="UX improvement for Core")
     def test_success_state_for_parameter(self):
         handler = JSONResultHandler()
         p = prefect.Parameter("p", default=2)
-        new_state = TaskRunner(task=p).get_task_run_state(
-            state=Running(), inputs={}, timeout_handler=None
-        )
+        with prefect.context(cloud=True):
+            new_state = TaskRunner(task=p).get_task_run_state(
+                state=Running(), inputs={}, timeout_handler=None
+            )
         assert new_state.is_successful()
         assert new_state._result.safe_value == SafeResult("2", result_handler=handler)
 
@@ -956,9 +958,10 @@ class TestRunTaskStep:
         def fn(x):
             return x + 1
 
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=Running(), inputs={"x": Result(1)}, timeout_handler=None
-        )
+        with prefect.context(cloud=True):
+            new_state = TaskRunner(task=fn).get_task_run_state(
+                state=Running(), inputs={"x": Result(1)}, timeout_handler=None
+            )
         assert new_state.is_failed()
         assert "SyntaxError" in new_state.message
 
