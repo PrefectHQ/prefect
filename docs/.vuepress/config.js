@@ -85,6 +85,7 @@ module.exports = {
             'tasks/kubernetes',
             'tasks/notifications',
             'tasks/operators',
+            'tasks/rss',
             'tasks/shell',
             'tasks/sqlite',
             'tasks/strings'
@@ -159,6 +160,7 @@ module.exports = {
             'task_library/kubernetes',
             'task_library/notifications',
             'task_library/operators',
+            'task_library/rss',
             'task_library/shell',
             'task_library/sqlite',
             'task_library/strings',

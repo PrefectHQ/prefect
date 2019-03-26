@@ -93,7 +93,7 @@ with Flow("My first flow!") as flow:
 
 ### Running the flow
 
-One the flow has been created, we can execute it by simply calling `flow.run()`. In this case, the resulting `State` is `Success`, and we can also examine the `State` and result of each task:
+Once the flow has been created, we can execute it by simply calling `flow.run()`. In this case, the resulting `State` is `Success`, and we can also examine the `State` and result of each task:
 
 ```python
 state = flow.run()

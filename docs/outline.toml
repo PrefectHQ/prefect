@@ -209,6 +209,11 @@ title = "Notification Tasks"
 module = "prefect.tasks.notifications"
 classes = ["EmailTask"]
 
+[pages.tasks.rss]
+title = "RSS Tasks"
+module = "prefect.tasks.rss"
+classes = ["ParseRSSFeed"]
+
 [pages.tasks.sqlite]
 title = "SQLite Tasks"
 module = "prefect.tasks.database"
