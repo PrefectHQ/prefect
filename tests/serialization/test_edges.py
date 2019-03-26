@@ -56,8 +56,8 @@ def test_deserialize_edge_has_no_task_info():
     serialized = EdgeSchema().dump(Edge(t1, t2, key="x", mapped=True))
     deserialized = EdgeSchema().load(serialized)
 
-    assert deserialized.upstream_task.name is "Task"
-    assert deserialized.downstream_task.name is "Task"
+    assert deserialized.upstream_task.name == "Task"
+    assert deserialized.downstream_task.name == "Task"
 
 
 def test_deserialize_edge_uses_task_cache():
