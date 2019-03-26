@@ -974,7 +974,7 @@ class Parameter(Task):
             name=name,
             slug=name,
             tags=tags,
-            checkpoint=False,
+            checkpoint=True,
             result_handler=JSONResultHandler(),
         )
 
