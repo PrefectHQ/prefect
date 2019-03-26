@@ -60,8 +60,16 @@ Prefect requires Python 3.5+.
 
 ### Install latest release
 
+Using `pip`:
+
 ```bash
 pip install prefect
+```
+
+or `conda`:
+
+```bash
+conda install -c conda-forge prefect
 ```
 
 ### Install bleeding edge
