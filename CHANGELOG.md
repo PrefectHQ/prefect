@@ -13,6 +13,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Set Parameter `checkpoint` to `False` by default - [#839](https://github.com/PrefectHQ/prefect/pull/839)
+- Adjusted small flake8 issues for names, imports, and comparisons - [#849](https://github.com/PrefectHQ/prefect/pull/849)
 
 ### Breaking Changes
 

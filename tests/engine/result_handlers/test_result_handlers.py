@@ -1,17 +1,17 @@
 import json
 import os
-import pendulum
 import tempfile
 from unittest.mock import MagicMock, patch
 
+import pendulum
 import pytest
 
 from prefect.client import Client
 from prefect.engine.result_handlers import (
-    ResultHandler,
     GCSResultHandler,
-    LocalResultHandler,
     JSONResultHandler,
+    LocalResultHandler,
+    ResultHandler,
 )
 from prefect.utilities.configuration import set_temporary_config
 

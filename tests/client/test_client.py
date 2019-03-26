@@ -1,17 +1,17 @@
 import datetime
 import json
 import os
-import pendulum
 import uuid
 from unittest.mock import MagicMock, mock_open
 
 import marshmallow
+import pendulum
 import pytest
 import requests
 
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
-from prefect.engine.result import Result, NoResult, SafeResult
+from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -31,7 +31,6 @@ from prefect.engine.state import (
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
 from prefect.utilities.graphql import GraphQLResult
-
 
 #################################
 ##### Client Tests

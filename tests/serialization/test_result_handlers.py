@@ -1,14 +1,14 @@
-import pytest
-
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from prefect.client import Client
 from prefect.engine.cloud.result_handler import CloudResultHandler
 from prefect.engine.result_handlers import (
-    ResultHandler,
-    JSONResultHandler,
     GCSResultHandler,
+    JSONResultHandler,
     LocalResultHandler,
+    ResultHandler,
 )
 from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config

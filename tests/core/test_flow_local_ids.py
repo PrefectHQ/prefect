@@ -15,7 +15,7 @@ class IdenticalTask(Task):
         self._name = _name
         super().__init__()
 
-    def __repr__():
+    def __repr__(self):
         return self._name
 
 

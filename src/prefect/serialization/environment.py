@@ -1,4 +1,4 @@
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import marshmallow
 from marshmallow import fields, post_load
@@ -8,11 +8,10 @@ from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
     Bytes,
     JSONCompatible,
-    OneOfSchema,
     ObjectSchema,
+    OneOfSchema,
     to_qualified_name,
 )
-
 
 if TYPE_CHECKING:
     import prefect.environments.kubernetes

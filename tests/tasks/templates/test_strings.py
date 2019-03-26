@@ -1,12 +1,12 @@
-import cloudpickle
 import os
-import pendulum
 import subprocess
 import tempfile
 
+import cloudpickle
+import pendulum
 import pytest
 
-from prefect import context, Flow
+from prefect import Flow, context
 from prefect.engine import signals
 from prefect.tasks.templates import StringFormatter
 from prefect.utilities.debug import raise_on_exception

@@ -10,7 +10,6 @@ from typing import Any, Dict, List
 
 import prefect
 
-
 __all__ = ["AirflowTask", "AirflowTriggerDAG"]
 
 

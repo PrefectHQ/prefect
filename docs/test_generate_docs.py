@@ -1,11 +1,15 @@
 import inspect
 import re
 import sys
-from functools import partial, wraps
 import textwrap
+from functools import partial, wraps
 
 import pytest
 from toolz import curry
+
+from prefect import Task, task
+from prefect.engine.state import State
+from prefect.utilities.tasks import defaults_from_attrs
 
 try:
     from generate_docs import (
@@ -24,9 +28,6 @@ except ImportError:
         "Documentation requirements not installed.", allow_module_level=True
     )
 
-from prefect import task, Task
-from prefect.engine.state import State
-from prefect.utilities.tasks import defaults_from_attrs
 
 pytest.mark.skipif(sys.version_info < (3, 6))
 pytestmark = pytest.mark.formatting

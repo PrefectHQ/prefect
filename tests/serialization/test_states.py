@@ -1,18 +1,17 @@
 import base64
 import datetime
 import json
+from collections import defaultdict
 
 import cloudpickle
 import marshmallow
 import pendulum
 import pytest
 
-from collections import defaultdict
-
 import prefect
-from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine import state
+from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.serialization.state import StateSchema
 
 all_states = sorted(
@@ -90,7 +89,7 @@ def test_serialize_state_with_un_handled_result(cls):
     serialized = StateSchema().dump(cls(message="message", result=1))
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
-    assert serialized["message"] is "message"
+    assert serialized["message"] == "message"
     assert serialized["_result"]["type"] == "NoResultType"
     assert serialized["__version__"] == prefect.__version__
 
@@ -101,7 +100,7 @@ def test_serialize_state_with_no_result(cls):
     serialized = StateSchema().dump(state)
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
-    assert serialized["message"] is "message"
+    assert serialized["message"] == "message"
     assert serialized["_result"]["type"] == "NoResultType"
     assert serialized["__version__"] == prefect.__version__
 
@@ -114,7 +113,7 @@ def test_serialize_state_with_handled_result(cls):
     serialized = StateSchema().dump(state)
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
-    assert serialized["message"] is "message"
+    assert serialized["message"] == "message"
     assert serialized["_result"]["type"] == "SafeResult"
     assert serialized["_result"]["value"] == "1"
     assert serialized["__version__"] == prefect.__version__
@@ -127,7 +126,7 @@ def test_serialize_state_with_safe_result(cls):
     serialized = StateSchema().dump(state)
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
-    assert serialized["message"] is "message"
+    assert serialized["message"] == "message"
     assert serialized["_result"]["type"] == "SafeResult"
     assert serialized["_result"]["value"] == "1"
     assert serialized["__version__"] == prefect.__version__
@@ -139,7 +138,7 @@ def test_serialize_mapped():
     serialized = StateSchema().dump(state.Mapped(message="message", map_states=[s, f]))
     assert isinstance(serialized, dict)
     assert serialized["type"] == "Mapped"
-    assert serialized["message"] is "message"
+    assert serialized["message"] == "message"
     assert "_result" not in serialized
     assert "map_states" not in serialized
     assert serialized["n_map_states"] == 2

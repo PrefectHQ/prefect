@@ -8,7 +8,7 @@ import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.result import NoResult, Result
-from prefect.engine.state import Mapped, Success, Pending, Retrying
+from prefect.engine.state import Mapped, Pending, Retrying, Success
 from prefect.utilities.debug import raise_on_exception
 from prefect.utilities.tasks import task, unmapped
 

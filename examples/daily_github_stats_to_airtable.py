@@ -3,14 +3,14 @@ This simple ETL-style flow retrieves the number of GitHub "stargazers" and "watc
 Airtable document every day.
 """
 import datetime
+
 import pendulum
 
 from prefect import Flow, task
-from prefect.triggers import any_failed
 from prefect.schedules import CronSchedule
 from prefect.tasks.airtable import WriteAirtableRow
 from prefect.tasks.github import GetRepoInfo
-
+from prefect.triggers import any_failed
 
 repo_stats = GetRepoInfo(
     name="Pull star counts",

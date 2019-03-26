@@ -5,14 +5,13 @@ import os
 import shutil
 import tempfile
 import textwrap
-from typing import Iterable, List
 import uuid
+from typing import Iterable, List
 
 import docker
 
 import prefect
-from prefect.environments import Environment
-from prefect.environments import LocalEnvironment
+from prefect.environments import Environment, LocalEnvironment
 from prefect.utilities.exceptions import SerializationError
 
 

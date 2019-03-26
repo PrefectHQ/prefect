@@ -1,18 +1,17 @@
 import datetime
-import pendulum
 import time
 import uuid
 from datetime import timedelta
 from unittest.mock import MagicMock
 
+import pendulum
 import pytest
 
 import prefect
 from prefect.client import Client
-from prefect.engine.result import Result, NoResult, SafeResult
-from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
-
+from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.state import (
     Failed,
     Finished,

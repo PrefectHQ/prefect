@@ -1,6 +1,7 @@
+from unittest.mock import MagicMock
+
 import pytest
 from google.cloud.exceptions import NotFound
-from unittest.mock import MagicMock
 
 import prefect
 from prefect.tasks.google import GCSDownload, GCSUpload

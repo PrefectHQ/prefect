@@ -6,7 +6,6 @@ from prefect import Task
 from prefect.engine import signals
 from prefect.engine.result import NoResult
 
-
 __all__ = ["switch", "ifelse"]
 
 
