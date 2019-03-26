@@ -6,7 +6,7 @@ Prefect's execution model is built around two classes, `FlowRunner` and `TaskRun
 
 ## Flow runners
 
-The flow runner takes a flow and attempts to run all of its tasks. It collects the reuslting states and, if possible, returns a final state for the flow.
+The flow runner takes a flow and attempts to run all of its tasks. It collects the resulting states and, if possible, returns a final state for the flow.
 
 Flow runners loop over all of the tasks one time. If tasks remain unfinished after that pass -- for example, if one of them needs to be retried -- then a second loop will be required to attempt to finish them. There is no limit to the number of attempts it may take to move all tasks (and therefore the flow itself) into a finished state.
 

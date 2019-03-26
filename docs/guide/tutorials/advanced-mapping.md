@@ -213,7 +213,7 @@ flow.visualize()
 ::: tip How mapped tasks are returned
 In a flow run, `flow_state.result[task]` returns the post-run `State` of the `task` (e.g., `Success("Task run succeeded")`). If, the task was the result of calling `.map()`, `flow_state.result[task]` will be a special kind of state called a `Mapped` state.  This `Mapped` state has two special attributes worth knowing about:
 
-- `map_states`: this attributes contains a list of all the states of all the individual mapped instances 
+- `map_states`: this attributes contains a list of all the states of all the individual mapped instances
 - `result`: the result of a `Mapped` task is a list of all the results of its individual mapped instances
 :::
 
@@ -235,7 +235,7 @@ print('\n'.join([f'{s.result[0]}: {s}' for s in dialogue_state.map_states[:5]]))
     Squeeze - 1X02: Success("Task run succeeded.")
     Conduit - 1X03: Success("Task run succeeded.")
 
-Great - 5 minutes isn't so bad! An astute reader might notice that each mapped task is ["embarassingly parallel"](https://en.wikipedia.org/wiki/Embarrassingly_parallel). When running locally, Prefect will default to synchronous execution (with the `Synchronous` executor), so this property was not taken advantage of during execution.
+Great - 5 minutes isn't so bad! An astute reader might notice that each mapped task is ["embarrassingly parallel"](https://en.wikipedia.org/wiki/Embarrassingly_parallel). When running locally, Prefect will default to synchronous execution (with the `Synchronous` executor), so this property was not taken advantage of during execution.
 
 In order to allow for parallel execution of tasks, we don't need to "recompile" our flow: we simply provide an executor which can handle parallelism in our call to `run`. In the local case, Prefect offers the `DaskExecutor` for executing parallel flows. These execution pipelines can either spawn new processes (`processes=True`), or only use threads; we have chosen to use `processes=True` in our example below.
 
@@ -303,7 +303,7 @@ insert_episode = SQLiteScript(name="Insert Episode",
                                   tags=["db"])
 ```
 
-Notice that for `create_db` we provide the script at initialization, whereas for the `insert_episode` task we provide the script at runtime. Prefect's tasks often support both patterns, to allow for default settings to be set at initialization and optionally overriden dynamically at runtime.
+Notice that for `create_db` we provide the script at initialization, whereas for the `insert_episode` task we provide the script at runtime. Prefect's tasks often support both patterns, to allow for default settings to be set at initialization and optionally overridden dynamically at runtime.
 
 To extend our flow, we can simply use our current `flow` to open a context manager and add tasks like normal. Note that we are utilizing the fact that `dialogue` is a task that was defined in our current session.
 

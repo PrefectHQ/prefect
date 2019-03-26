@@ -8,7 +8,7 @@ Prefect's tests are stored in the top-level `tests` directory. In general, the t
 
 Prefect's tests are organized as submodules, meaning each directory has an `__init__.py` file. This means that module names can be safely reused for tests. If you create a new directory, be sure to put an (empty) `__init__.py` in it to ensure it gets picked up during test discovery.
 
-Please remember that the purpose of writing tests is not only to show what your code is expected to do, but also to make sure it doesn't inadvertently start doing something else! We'd prefer overcomplete tests to too few tests, and a PR that adds more lines of test code than library code is a good PR.
+Please remember that the purpose of writing tests is not only to show what your code is expected to do, but also to make sure it doesn't inadvertently start doing something else! We'd prefer over-complete tests to too few tests, and a PR that adds more lines of test code than library code is a good PR.
 
 Prefect has a few fixtures available for testing all available executors; see `conftest.py` for details.
 
