@@ -1,9 +1,9 @@
 import uuid
+from typing import List
 
-from google.oauth2.service_account import Credentials
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
-from typing import List
+from google.oauth2.service_account import Credentials
 
 from prefect import context
 from prefect.client import Secret

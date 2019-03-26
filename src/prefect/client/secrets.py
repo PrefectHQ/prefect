@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Optional, Any
+from typing import Any, Optional
 
 import prefect
 from prefect.client.client import Client

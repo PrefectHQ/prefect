@@ -1,13 +1,14 @@
-import cloudpickle
 import os
-import pendulum
 import subprocess
 import tempfile
 
+import cloudpickle
+import pendulum
 import pytest
 
-from prefect import context, Flow
+from prefect import Flow, context
 from prefect.engine import signals
+from prefect.utilities.debug import raise_on_exception
 
 try:
     from prefect.tasks.templates.jinja2 import JinjaTemplate
@@ -15,8 +16,6 @@ except ImportError:
     pytestmark = pytest.skip(
         "Jinja requirements not installed.", allow_module_level=True
     )
-
-from prefect.utilities.debug import raise_on_exception
 
 
 def test_jinja_template_simply_formats():

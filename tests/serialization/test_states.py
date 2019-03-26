@@ -1,18 +1,17 @@
 import base64
 import datetime
 import json
+from collections import defaultdict
 
 import cloudpickle
 import marshmallow
 import pendulum
 import pytest
 
-from collections import defaultdict
-
 import prefect
-from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine import state
+from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.serialization.state import StateSchema
 
 all_states = sorted(

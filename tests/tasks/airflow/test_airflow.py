@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from prefect import Task, task, Flow, triggers
+from prefect import Flow, Task, task, triggers
 from prefect.tasks.airflow import AirflowTask, AirflowTriggerDAG
 from prefect.tasks.shell import ShellTask
 

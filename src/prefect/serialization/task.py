@@ -1,6 +1,6 @@
 import uuid
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Dict, Callable
+from typing import TYPE_CHECKING, Any, Callable, Dict
 
 import marshmallow
 from marshmallow import (

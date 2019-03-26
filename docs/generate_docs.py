@@ -20,12 +20,12 @@ import subprocess
 import textwrap
 import warnings
 from functools import partial
-from slugify import slugify
 
 import nbformat as nbf
 import pendulum
 import toml
 import toolz
+from slugify import slugify
 
 import prefect
 from tokenizer import format_code

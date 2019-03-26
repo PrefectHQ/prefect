@@ -3,11 +3,10 @@
 from datetime import datetime, timedelta
 
 import prefect
-from prefect import Parameter, task, Flow
+from prefect import Flow, Parameter, task
 from prefect.schedules import IntervalSchedule
 from prefect.tasks.shell import ShellTask
 from prefect.tasks.templates.jinja2 import JinjaTemplate
-
 
 ## default config settings such as this can generally be set in your
 ## user config file
