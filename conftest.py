@@ -2,13 +2,12 @@ import sys
 
 import pytest
 from cryptography.fernet import Fernet
+from distributed import Client
 
 import prefect
-from prefect.engine.executors import LocalExecutor, SynchronousExecutor
+from prefect.engine.executors import DaskExecutor, LocalExecutor, SynchronousExecutor
 from prefect.utilities import debug
 
-from prefect.engine.executors import DaskExecutor
-from distributed import Client
 
 # ----------------
 # set up executor fixtures

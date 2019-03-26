@@ -1,4 +1,3 @@
-import cloudpickle
 import json
 import os
 import sys
@@ -6,6 +5,7 @@ import tempfile
 from multiprocessing.pool import ThreadPool
 from unittest.mock import MagicMock
 
+import cloudpickle
 import pytest
 
 import prefect

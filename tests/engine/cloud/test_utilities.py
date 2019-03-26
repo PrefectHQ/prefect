@@ -1,7 +1,7 @@
-from prefect.engine.result import Result, NoResult, SafeResult
-from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
-from prefect.engine.state import Cached, Pending, Success
 from prefect.engine.cloud.utilities import prepare_state_for_cloud
+from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
+from prefect.engine.state import Cached, Pending, Success
 
 
 def test_preparing_state_for_cloud_replaces_cached_inputs_with_safe():

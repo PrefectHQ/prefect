@@ -1,19 +1,19 @@
 import json
 from typing import Any, Dict
 
-from marshmallow import fields, post_load, ValidationError
+from marshmallow import ValidationError, fields, post_load
 
 from prefect.engine.cloud.result_handler import CloudResultHandler
 from prefect.engine.result_handlers import (
-    ResultHandler,
     GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
+    ResultHandler,
 )
 from prefect.utilities.serialization import (
     JSONCompatible,
-    OneOfSchema,
     ObjectSchema,
+    OneOfSchema,
     to_qualified_name,
 )
 

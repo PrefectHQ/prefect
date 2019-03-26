@@ -1,11 +1,11 @@
 import cloudpickle
 import pytest
 
-from prefect.engine.result import Result, NoResult, NoResultType, SafeResult
+from prefect.engine.result import NoResult, NoResultType, Result, SafeResult
 from prefect.engine.result_handlers import (
-    ResultHandler,
     JSONResultHandler,
     LocalResultHandler,
+    ResultHandler,
 )
 
 
