@@ -93,7 +93,7 @@ def pytest_configure(config):
 
 
 def pytest_runtest_setup(item):
-    air_mark = item.get_marker("airflow")
+    air_mark = item.get_closest_marker("airflow")
 
     # if a test IS marked as "airflow" and the airflow flag IS NOT set, skip it
     if air_mark is not None and item.config.getoption("--airflow") is False:
@@ -105,7 +105,7 @@ def pytest_runtest_setup(item):
     elif air_mark is None and item.config.getoption("--airflow") is True:
         pytest.skip("Non-Airflow tests skipped because --airflow flag was provided.")
 
-    formatting_mark = item.get_marker("formatting")
+    formatting_mark = item.get_closest_marker("formatting")
 
     # if a test IS marked as "formatting" and the --skip-formatting flag IS set, skip it
     if (
