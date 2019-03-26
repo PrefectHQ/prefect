@@ -3,6 +3,7 @@ import copy
 import functools
 import inspect
 import json
+import os
 import tempfile
 import time
 import uuid
@@ -1102,8 +1103,12 @@ class Flow:
         except Exception:
             pass
 
-        with tempfile.NamedTemporaryFile() as tmp:
-            graph.render(tmp.name, view=True)
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.close()
+            try:
+                graph.render(tmp.name, view=True)
+            finally:
+                os.unlink(tmp.name)
 
         return graph
 
