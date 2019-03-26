@@ -1,3 +1,3 @@
 import pytest
 
-pytestmark = pytest.importorskip("feedparser")
+pytest.importorskip("feedparser")
