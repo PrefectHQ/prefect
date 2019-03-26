@@ -1,3 +1,3 @@
 import pytest
 
-tweepy = pytest.importorskip("tweepy")
+pytest.importorskip("tweepy")

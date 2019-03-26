@@ -1,3 +1,3 @@
 import pytest
 
-kubernetes = pytest.importorskip("kubernetes")
+pytest.importorskip("kubernetes")
