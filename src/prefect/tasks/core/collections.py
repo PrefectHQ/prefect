@@ -30,7 +30,7 @@ class VarArgsTask(Task):
         *args: Any,
         upstream_tasks: Iterable[Any] = None,
         mapped: bool = False,
-        flow: "prefect.Flow" = None
+        flow: prefect.Flow = None
     ) -> Task:
         """
         Args:
