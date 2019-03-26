@@ -190,7 +190,7 @@ def test_string_to_type_function():
     assert configuration.string_to_type("FALSE") is False
     assert configuration.string_to_type("falSe") is False
 
-    assert configuration.string_to_type("1") is 1
+    assert configuration.string_to_type("1") == 1
     assert configuration.string_to_type("1.5") == 1.5
 
     assert configuration.string_to_type("-1") == -1
@@ -202,7 +202,7 @@ def test_string_to_type_function():
 def test_env_var_interpolation_with_type_assignment(config):
     assert config.env_vars.true is True
     assert config.env_vars.false is False
-    assert config.env_vars.int is 10
+    assert config.env_vars.int == 10
     assert config.env_vars.negative_int == -10
     assert config.env_vars.float == 7.5
     assert config.env_vars.negative_float == -7.5
