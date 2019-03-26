@@ -19,8 +19,8 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
-from prefect.engine.result import Result, NoResult, SafeResult
-from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
+from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -310,7 +310,7 @@ def test_task_runner_handles_secrets():
     with set_temporary_config({"cloud.use_local_secrets": True}):
         state = TaskRunner(t).run(context=dict(secrets=dict(testing="my_private_str")))
     assert state.is_successful()
-    assert state.result is "my_private_str"
+    assert state.result == "my_private_str"
 
 
 def test_task_that_starts_failed_doesnt_get_retried():

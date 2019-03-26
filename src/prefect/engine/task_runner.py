@@ -4,17 +4,17 @@ import itertools
 import threading
 from functools import partial, wraps
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
     Iterable,
     List,
+    NamedTuple,
     Optional,
     Set,
-    NamedTuple,
     Sized,
     Tuple,
-    TYPE_CHECKING,
     Union,
 )
 

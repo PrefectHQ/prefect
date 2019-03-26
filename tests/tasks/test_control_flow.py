@@ -2,9 +2,9 @@ import pytest
 
 import prefect
 from prefect import Flow, Task, task
-from prefect.engine.state import Skipped, Success
 from prefect.engine.result import NoResult
-from prefect.tasks.control_flow import ifelse, merge, switch, FilterTask
+from prefect.engine.state import Skipped, Success
+from prefect.tasks.control_flow import FilterTask, ifelse, merge, switch
 from prefect.tasks.core.constants import Constant
 
 

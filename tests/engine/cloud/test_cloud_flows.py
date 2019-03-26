@@ -23,7 +23,6 @@ from prefect.engine.state import (
 )
 from prefect.utilities.configuration import set_temporary_config
 
-
 pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
 
 
@@ -570,7 +569,7 @@ def test_deep_map_with_a_retry(monkeypatch):
     )
 
     with prefect.context(flow_run_id=flow_run_id):
-        CloudFlowRunner(flow=flow).run(executor=executor)
+        CloudFlowRunner(flow=flow).run()
 
     assert client.flow_runs[flow_run_id].state.is_running()
     assert client.task_runs[task_run_id_1].state.is_mapped()
@@ -599,7 +598,7 @@ def test_deep_map_with_a_retry(monkeypatch):
 
     # RUN A SECOND TIME
     with prefect.context(flow_run_id=flow_run_id):
-        CloudFlowRunner(flow=flow).run(executor=executor)
+        CloudFlowRunner(flow=flow).run()
 
     # t2's first child task should be successful
     t2_0 = next(

@@ -1,9 +1,9 @@
 import base64
+import uuid
+from typing import Any
+
 import cloudpickle
 import pendulum
-import uuid
-
-from typing import Any
 
 from prefect.engine.result_handlers import ResultHandler
 

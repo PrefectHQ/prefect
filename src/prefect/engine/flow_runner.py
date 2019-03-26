@@ -1,16 +1,17 @@
-import pendulum
 from typing import (
     Any,
     Callable,
     Dict,
     Iterable,
+    List,
+    NamedTuple,
     Optional,
     Set,
     Tuple,
     Union,
-    List,
-    NamedTuple,
 )
+
+import pendulum
 
 import prefect
 from prefect import config

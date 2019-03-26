@@ -1,4 +1,3 @@
-import cloudpickle
 import datetime
 import os
 import tempfile
@@ -6,12 +5,13 @@ import time
 import uuid
 from unittest.mock import MagicMock
 
+import cloudpickle
 import pytest
 
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
-from prefect.engine.cloud import CloudTaskRunner, CloudResultHandler
+from prefect.engine.cloud import CloudResultHandler, CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
@@ -26,8 +26,8 @@ from prefect.engine.state import (
     Mapped,
     Paused,
     Pending,
-    Running,
     Retrying,
+    Running,
     Skipped,
     Success,
     TimedOut,

@@ -11,7 +11,6 @@ import prefect
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
-    _MetaState,
     Cached,
     Failed,
     Finished,
@@ -29,6 +28,7 @@ from prefect.engine.state import (
     Success,
     TimedOut,
     TriggerFailed,
+    _MetaState,
 )
 from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.serialization.state import StateSchema

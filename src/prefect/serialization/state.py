@@ -1,17 +1,16 @@
 import json
 from typing import Any, Dict
 
-from marshmallow import fields, post_load, ValidationError
+from marshmallow import ValidationError, fields, post_load
 
-from prefect.engine import state
-from prefect.engine import result
+from prefect.engine import result, state
 from prefect.serialization.result import StateResultSchema
 from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
     JSONCompatible,
-    OneOfSchema,
-    ObjectSchema,
     Nested,
+    ObjectSchema,
+    OneOfSchema,
     to_qualified_name,
 )
 
