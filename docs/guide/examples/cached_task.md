@@ -1,11 +1,11 @@
-"""
 This example demonstrates output caching; our first task returns a random number
 but requests to be cached for 1.5 minutes.  Our second task prints whatever input
 it is given.
 
 We run our flow on a 1 minute interval schedule and observe that the output of
 `return_random_number` only changes every other run, due to output caching.
-"""
+
+```python
 import datetime
 import random
 
@@ -44,3 +44,4 @@ flow.run()
 # ==================================================
 # Value: 0.36999574748592756
 # ==================================================
+```
