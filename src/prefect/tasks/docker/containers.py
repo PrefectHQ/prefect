@@ -159,7 +159,7 @@ class GetContainerLogs(Task):
 
 class ListContainers(Task):
     """
-    Task for getting the logs of a Docker container. *Note:* This does not stream logs.
+    Task for listing Docker containers.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
     Args:
