@@ -9,6 +9,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 class ParseRSSFeed(Task):
     """
     Task for parsing RSS feeds.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
     Args:
         - feed_url (str): A remote URL pointing to an RSS feed
