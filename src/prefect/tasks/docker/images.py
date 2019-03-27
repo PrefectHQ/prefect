@@ -53,7 +53,7 @@ class ListImages(Task):
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
 
-        Return:
+        Returns:
             - list: A list of dictionaries containing information about the images found
         """
         client = docker.APIClient(base_url=docker_server_url, version="auto")
@@ -108,7 +108,7 @@ class PullImage(Task):
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
 
-        Return:
+        Returns:
             - str: The output from Docker for pulling the image
 
         Raises:
@@ -169,7 +169,7 @@ class PushImage(Task):
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
 
-        Return:
+        Returns:
             - str: The output from Docker for pushing the image
 
         Raises:
@@ -294,7 +294,7 @@ class TagImage(Task):
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
 
-        Return:
+        Returns:
             - bool: Whether or not the tagging was successful
 
         Raises:
