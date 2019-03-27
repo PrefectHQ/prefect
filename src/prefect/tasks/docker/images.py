@@ -56,7 +56,7 @@ class ListImages(Task):
         Return:
             - list: A list of dictionaries containing information about the images found
         """
-        client = docker.APIClient(base_url=docker_server_url)
+        client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         return client.images(name=repository_name, all=all_layers)
 
@@ -117,7 +117,7 @@ class PullImage(Task):
         if not repository:
             raise ValueError("A repository to pull the image from must be specified.")
 
-        client = docker.APIClient(base_url=docker_server_url)
+        client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         return client.pull(repository=repository, tag=tag)
 
@@ -178,7 +178,7 @@ class PushImage(Task):
         if not repository:
             raise ValueError("A repository to push the image to must be specified.")
 
-        client = docker.APIClient(base_url=docker_server_url)
+        client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         return client.push(repository=repository, tag=tag)
 
@@ -234,7 +234,7 @@ class RemoveImage(Task):
         if not image:
             raise ValueError("The name of an image to remove must be provided.")
 
-        client = docker.APIClient(base_url=docker_server_url)
+        client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         client.remove(image=image, force=force)
 
@@ -303,7 +303,7 @@ class TagImage(Task):
         if not image or not repository:
             raise ValueError("Both image and repository must be provided.")
 
-        client = docker.APIClient(base_url=docker_server_url)
+        client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         return client.tag(image=image, repository=repository, tag=tag, force=force)
 
@@ -378,6 +378,6 @@ class BuildImage(Task):
                 "A path to a directory containing a Dockerfile must be provided."
             )
 
-        client = docker.APIClient(base_url=docker_server_url)
+        client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         return client.build(path=path, tag=tag, nocache=nocache, rm=rm, forcerm=forcerm)
