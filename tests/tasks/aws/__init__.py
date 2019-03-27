@@ -1,3 +1,3 @@
 import pytest
 
-pytestmark = pytest.importorskip("boto3")
+pytest.importorskip("boto3")

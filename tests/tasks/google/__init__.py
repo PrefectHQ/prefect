@@ -1,3 +1,3 @@
 import pytest
 
-pytestmark = pytest.importorskip("google.cloud")
+pytest.importorskip("google.cloud")
