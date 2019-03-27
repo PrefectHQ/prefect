@@ -272,7 +272,7 @@ class ListNamespacedDeployment(Task):
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
 
-        Return:
+        Returns:
             - ExtensionsV1beta1DeploymentList: a Kubernetes ExtensionsV1beta1DeploymentList
                 of the deployments which are found
         """

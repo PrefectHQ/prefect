@@ -75,7 +75,7 @@ class CreateContainer(Task):
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
 
-        Return:
+        Returns:
             - str: A string representing the container id
 
         Raises:
@@ -137,7 +137,7 @@ class GetContainerLogs(Task):
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
 
-        Return:
+        Returns:
             - str: A string representation of the logs from the container
 
         Raises:
@@ -186,12 +186,12 @@ class ListContainers(Task):
         Task run method.
 
         Args:
-            - all (bool, optional): Show all containers. Only running containers are shown by default
+            - all_containers (bool, optional): Show all containers. Only running containers are shown by default
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
 
-        Return:
+        Returns:
             - list: A list of dicts, one per container
         """
         client = docker.APIClient(base_url=docker_server_url, version="auto")

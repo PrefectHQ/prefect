@@ -270,7 +270,7 @@ class ListNamespacedService(Task):
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
 
-        Return:
+        Returns:
             - V1ServiceList: a Kubernetes V1ServiceList of the services which are found
         """
         kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
