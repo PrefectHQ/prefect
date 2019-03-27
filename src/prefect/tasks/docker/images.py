@@ -92,7 +92,7 @@ class PullImage(Task):
         repository: str = None,
         tag: str = False,
         docker_server_url: str = "unix:///var/run/docker.sock",
-    ) -> None:
+    ) -> str:
         """
         Task run method.
 
@@ -104,6 +104,9 @@ class PullImage(Task):
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
 
+        Return:
+            - str: The output from Docker for pulling the image
+
         Raises:
             - ValueError: if `repository` is `None`
         """
@@ -112,4 +115,63 @@ class PullImage(Task):
 
         client = docker.APIClient(base_url=docker_server_url)
 
-        client.pull(repository=repository, tag=tag)
+        return client.pull(repository=repository, tag=tag)
+
+
+class PushImage(Task):
+    """
+    Task for pushing a Docker image.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    Args:
+        - repository (str, optional): The repository to push the image to
+        - tag (str, optional): The tag for the image to push; if not specified then the
+            `latest` tag will be pushed
+        - docker_server_url (str, optional): URL for the Docker server. Defaults to
+            `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+            can be provided
+    """
+
+    def __init__(
+        self,
+        repository: str = None,
+        tag: str = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+        **kwargs: Any
+    ):
+        self.repository = repository
+        self.tag = tag
+        self.docker_server_url = docker_server_url
+
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("repository", "tag", "docker_server_url")
+    def run(
+        self,
+        repository: str = None,
+        tag: str = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+    ) -> str:
+        """
+        Task run method.
+
+        Args:
+            - repository (str, optional): The repository to push the image to
+            - tag (str, optional): The tag for the image to push; if not specified then the
+                `latest` tag will be pushed
+            - docker_server_url (str, optional): URL for the Docker server. Defaults to
+                `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+                can be provided
+
+        Return:
+            - str: The output from Docker for pushing the image
+
+        Raises:
+            - ValueError: if `repository` is `None`
+        """
+        if not repository:
+            raise ValueError("A repository to push the image to must be specified.")
+
+        client = docker.APIClient(base_url=docker_server_url)
+
+        return client.push(repository=repository, tag=tag)
