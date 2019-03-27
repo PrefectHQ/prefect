@@ -10,6 +10,7 @@ from prefect.tasks.docker.images import (
 from prefect.tasks.docker.containers import (
     CreateContainer,
     GetContainerLogs,
+    ListContainers,
     StartContainer,
     StopContainer,
 )
