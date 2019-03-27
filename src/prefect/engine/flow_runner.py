@@ -396,6 +396,7 @@ class FlowRunner(Runner):
                 if (
                     isinstance(task_state, State)
                     and task_state.is_finished()
+                    and not task_state.is_cached()
                     and not task_state.is_mapped()
                 ):
                     continue
