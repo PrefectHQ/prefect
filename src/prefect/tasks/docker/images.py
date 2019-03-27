@@ -229,3 +229,70 @@ class RemoveImage(Task):
         client = docker.APIClient(base_url=docker_server_url)
 
         client.remove(image=image, force=force)
+
+
+class TagImage(Task):
+    """
+    Task for tagging a Docker image.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    Args:
+        - image (str, optional): The image to tag
+        - repository (str, optional): The repository to set for the tag
+        - tag (str, optional): The tag name for the image
+        - force (bool, optional): Force tagging of the image
+        - docker_server_url (str, optional): URL for the Docker server. Defaults to
+            `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+            can be provided
+    """
+
+    def __init__(
+        self,
+        image: str = None,
+        repository: str = None,
+        tag: str = None,
+        force: bool = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+        **kwargs: Any
+    ):
+        self.image = image
+        self.repository = repository
+        self.tag = tag
+        self.force = force
+        self.docker_server_url = docker_server_url
+
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("image", "repository", "tag", "force", "docker_server_url")
+    def run(
+        self,
+        image: str = None,
+        repository: str = None,
+        tag: str = None,
+        force: bool = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+    ) -> None:
+        """
+        Task run method.
+
+        Args:
+            - image (str, optional): The image to tag
+            - repository (str, optional): The repository to set for the tag
+            - tag (str, optional): The tag name for the image
+            - force (bool, optional): Force tagging of the image
+            - docker_server_url (str, optional): URL for the Docker server. Defaults to
+                `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+                can be provided
+
+        Return:
+            - bool: Whether or not the tagging was successful
+
+        Raises:
+            - ValueError: if either `image` or `repository` are `None`
+        """
+        if not image or not repository:
+            raise ValueError("Both image and repository must be provided.")
+
+        client = docker.APIClient(base_url=docker_server_url)
+
+        return client.tag(image=image, repository=repository, tag=tag, force=force)
