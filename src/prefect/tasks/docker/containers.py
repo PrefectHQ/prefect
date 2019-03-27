@@ -18,7 +18,6 @@ class CreateContainer(Task):
         - entrypoint (Union[str, list]): The entrypoint for the container
         - environment (Union[dict, list]): Environment variables to set inside the container,
             as a dictionary or a list of strings in the format ["SOMEVARIABLE=xxx"].
-        - name (str, optional): A name to give the container
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
@@ -33,7 +32,6 @@ class CreateContainer(Task):
         detach: bool = False,
         entrypoint: Union[list, str] = None,
         environment: Union[list, dict] = None,
-        name: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
         **kwargs: Any
     ):
@@ -42,7 +40,6 @@ class CreateContainer(Task):
         self.detach = detach
         self.entrypoint = entrypoint
         self.environment = environment
-        self.name = name
         self.docker_server_url = docker_server_url
 
         super().__init__(**kwargs)
@@ -62,7 +59,6 @@ class CreateContainer(Task):
         detach: bool = False,
         entrypoint: Union[list, str] = None,
         environment: Union[list, dict] = None,
-        name: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
     ) -> str:
         """
@@ -75,7 +71,6 @@ class CreateContainer(Task):
             - entrypoint (Union[str, list]): The entrypoint for the container
             - environment (Union[dict, list]): Environment variables to set inside the container,
                 as a dictionary or a list of strings in the format ["SOMEVARIABLE=xxx"].
-            - name (str, optional): A name to give the container
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
@@ -97,7 +92,6 @@ class CreateContainer(Task):
             detach=detach,
             entrypoint=entrypoint,
             environment=environment,
-            name=name,
         )
 
         return container.get("Id")
@@ -177,7 +171,7 @@ class ListContainers(Task):
         docker_server_url: str = "unix:///var/run/docker.sock",
         **kwargs: Any
     ):
-        self.all = all
+        self.all_containers = all_containers
         self.docker_server_url = docker_server_url
 
         super().__init__(**kwargs)
