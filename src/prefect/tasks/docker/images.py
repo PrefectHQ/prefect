@@ -57,3 +57,59 @@ class ListImages(Task):
         client = docker.APIClient(base_url=docker_server_url)
 
         return client.images(name=repository_name, all=all_layers)
+
+
+class PullImage(Task):
+    """
+    Task for pulling a Docker image.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    Args:
+        - repository (str, optional): The repository to pull the image from
+        - tag (str, optional): The tag of the image to pull; if not specified then the
+            `latest` tag will be pulled
+        - docker_server_url (str, optional): URL for the Docker server. Defaults to
+            `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+            can be provided
+    """
+
+    def __init__(
+        self,
+        repository: str = None,
+        tag: str = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+        **kwargs: Any
+    ):
+        self.repository = repository
+        self.tag = tag
+        self.docker_server_url = docker_server_url
+
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("repository", "tag", "docker_server_url")
+    def run(
+        self,
+        repository: str = None,
+        tag: str = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+    ) -> None:
+        """
+        Task run method.
+
+        Args:
+            - repository (str, optional): The repository to pull the image from
+            - tag (str, optional): The tag of the image to pull; if not specified then the
+                `latest` tag will be pulled
+            - docker_server_url (str, optional): URL for the Docker server. Defaults to
+                `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+                can be provided
+
+        Raises:
+            - ValueError: if `repository` is `None`
+        """
+        if not repository:
+            raise ValueError("A repository to pull the image from must be specified.")
+
+        client = docker.APIClient(base_url=docker_server_url)
+
+        client.pull(repository=repository, tag=tag)
