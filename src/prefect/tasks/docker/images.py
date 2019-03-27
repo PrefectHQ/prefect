@@ -18,6 +18,8 @@ class ListImages(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
     """
 
     def __init__(
@@ -71,6 +73,8 @@ class PullImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
     """
 
     def __init__(
@@ -130,6 +134,8 @@ class PushImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
     """
 
     def __init__(
@@ -188,6 +194,8 @@ class RemoveImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
     """
 
     def __init__(
@@ -244,6 +252,8 @@ class TagImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
     """
 
     def __init__(
@@ -313,6 +323,8 @@ class BuildImage(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
     """
 
     def __init__(
