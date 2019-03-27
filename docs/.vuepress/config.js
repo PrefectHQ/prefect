@@ -209,6 +209,7 @@ module.exports = {
           collapsable: true,
           children: [
             'examples/airflow_tutorial_dag',
+            'examples/cached_task',
             'examples/etl',
             'examples/github_release_cycle',
             'examples/map_reduce',
