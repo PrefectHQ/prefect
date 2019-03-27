@@ -324,9 +324,7 @@ class TestBuildImageTask:
         task = BuildImage(path="test")
 
         build = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.images.docker.APIClient.build", build
-        )
+        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.build", build)
 
         task.run()
         assert build.call_args[1]["path"] == "test"
@@ -335,9 +333,7 @@ class TestBuildImageTask:
         task = BuildImage()
 
         build = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.images.docker.APIClient.build", build
-        )
+        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.build", build)
 
         task.run(path="test")
         assert build.call_args[1]["path"] == "test"
@@ -346,9 +342,7 @@ class TestBuildImageTask:
         task = BuildImage(path="original")
 
         build = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.images.docker.APIClient.build", build
-        )
+        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.build", build)
 
         task.run(path="test")
         assert build.call_args[1]["path"] == "test"
