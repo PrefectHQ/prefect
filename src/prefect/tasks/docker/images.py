@@ -76,7 +76,7 @@ class PullImage(Task):
     def __init__(
         self,
         repository: str = None,
-        tag: str = False,
+        tag: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
         **kwargs: Any
     ):
@@ -90,7 +90,7 @@ class PullImage(Task):
     def run(
         self,
         repository: str = None,
-        tag: str = False,
+        tag: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
     ) -> str:
         """
@@ -135,7 +135,7 @@ class PushImage(Task):
     def __init__(
         self,
         repository: str = None,
-        tag: str = False,
+        tag: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
         **kwargs: Any
     ):
@@ -149,7 +149,7 @@ class PushImage(Task):
     def run(
         self,
         repository: str = None,
-        tag: str = False,
+        tag: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
     ) -> str:
         """
@@ -175,3 +175,57 @@ class PushImage(Task):
         client = docker.APIClient(base_url=docker_server_url)
 
         return client.push(repository=repository, tag=tag)
+
+
+class RemoveImage(Task):
+    """
+    Task for removing a Docker image.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    Args:
+        - image (str, optional): The image to remove
+        - force (bool, optional): Force removal of the image
+        - docker_server_url (str, optional): URL for the Docker server. Defaults to
+            `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+            can be provided
+    """
+
+    def __init__(
+        self,
+        image: str = None,
+        force: bool = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+        **kwargs: Any
+    ):
+        self.image = image
+        self.force = force
+        self.docker_server_url = docker_server_url
+
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("image", "force", "docker_server_url")
+    def run(
+        self,
+        image: str = None,
+        force: bool = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+    ) -> None:
+        """
+        Task run method.
+
+        Args:
+            - image (str, optional): The image to remove
+            - force (bool, optional): Force removal of the image
+            - docker_server_url (str, optional): URL for the Docker server. Defaults to
+                `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+                can be provided
+
+        Raises:
+            - ValueError: if `image` is `None`
+        """
+        if not image:
+            raise ValueError("The name of an image to remove must be provided.")
+
+        client = docker.APIClient(base_url=docker_server_url)
+
+        client.remove(image=image, force=force)
