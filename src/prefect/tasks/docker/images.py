@@ -236,7 +236,7 @@ class RemoveImage(Task):
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        client.remove(image=image, force=force)
+        client.remove_image(image=image, force=force)
 
 
 class TagImage(Task):
