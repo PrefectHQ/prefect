@@ -271,7 +271,7 @@ class TagImage(Task):
         tag: str = None,
         force: bool = False,
         docker_server_url: str = "unix:///var/run/docker.sock",
-    ) -> None:
+    ) -> bool:
         """
         Task run method.
 
@@ -296,3 +296,76 @@ class TagImage(Task):
         client = docker.APIClient(base_url=docker_server_url)
 
         return client.tag(image=image, repository=repository, tag=tag, force=force)
+
+
+class BuildImage(Task):
+    """
+    Task for building a Docker image.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    Args:
+        - path (str, optional): The path to the directory containing the Dockerfile
+        - tag (str, optional): The tag to give the final image
+        - nocache (bool, optional): Don't use cache when set to `True`
+        - rm (bool, optional): Remove intermediate containers; defaults to `True`
+        - forcerm (bool, optional): Always remove intermediate containers, even after
+            unsuccessful builds; defaults to `False`
+        - docker_server_url (str, optional): URL for the Docker server. Defaults to
+            `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+            can be provided
+    """
+
+    def __init__(
+        self,
+        path: str = None,
+        tag: str = None,
+        nocache: bool = False,
+        rm: bool = True,
+        forcerm: bool = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+        **kwargs: Any
+    ):
+        self.path = path
+        self.tag = tag
+        self.nocache = nocache
+        self.rm = rm
+        self.forcerm = forcerm
+        self.docker_server_url = docker_server_url
+
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("path", "tag", "nocache", "rm", "forcerm", "docker_server_url")
+    def run(
+        self,
+        path: str = None,
+        tag: str = None,
+        nocache: bool = False,
+        rm: bool = True,
+        forcerm: bool = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+    ) -> None:
+        """
+        Task run method.
+
+        Args:
+            - path (str, optional): The path to the directory containing the Dockerfile
+            - tag (str, optional): The tag to give the final image
+            - nocache (bool, optional): Don't use cache when set to `True`
+            - rm (bool, optional): Remove intermediate containers; defaults to `True`
+            - forcerm (bool, optional): Always remove intermediate containers, even after
+                unsuccessful builds; defaults to `False`
+            - docker_server_url (str, optional): URL for the Docker server. Defaults to
+                `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+                can be provided
+
+        Raises:
+            - ValueError: if either `path` is `None`
+        """
+        if not path:
+            raise ValueError(
+                "A path to a directory containing a Dockerfile must be provided."
+            )
+
+        client = docker.APIClient(base_url=docker_server_url)
+
+        return client.build(path=path, tag=tag, nocache=nocache, rm=rm, forcerm=forcerm)
