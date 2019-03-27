@@ -907,6 +907,9 @@ class Flow:
 
             ## create next scheduled run
             try:
+                cached_tasks = {
+                    t: s for t, s in flow_state.result.items() if s.is_cached()
+                }
                 if self.schedule is not None:
                     next_run_time = self.schedule.next(1)[0]
                 else:
@@ -914,7 +917,7 @@ class Flow:
             except IndexError:
                 break
             flow_state = prefect.engine.state.Scheduled(
-                start_time=next_run_time, result={}
+                start_time=next_run_time, result=cached_tasks
             )
         return flow_state
 
