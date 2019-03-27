@@ -30,35 +30,29 @@ class TestListImagesTask:
     def test_repository_name_init_value_is_used(self, monkeypatch):
         task = ListImages(repository_name="test")
 
-        images = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.images.docker.APIClient.images", images
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run()
-        assert images.call_args[1]["name"] == "test"
+        assert api.return_value.images.call_args[1]["name"] == "test"
 
     def test_repository_name_run_value_is_used(self, monkeypatch):
         task = ListImages()
 
-        images = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.images.docker.APIClient.images", images
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(repository_name="test")
-        assert images.call_args[1]["name"] == "test"
+        assert api.return_value.images.call_args[1]["name"] == "test"
 
     def test_repository_name_is_replaced(self, monkeypatch):
         task = ListImages(repository_name="original")
 
-        images = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.images.docker.APIClient.images", images
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(repository_name="test")
-        assert images.call_args[1]["name"] == "test"
+        assert api.return_value.images.call_args[1]["name"] == "test"
 
 
 class TestPullImageTask:
@@ -87,29 +81,29 @@ class TestPullImageTask:
     def test_repository_init_value_is_used(self, monkeypatch):
         task = PullImage(repository="test")
 
-        pull = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.pull", pull)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run()
-        assert pull.call_args[1]["repository"] == "test"
+        assert api.return_value.pull.call_args[1]["repository"] == "test"
 
     def test_repository_run_value_is_used(self, monkeypatch):
         task = PullImage()
 
-        pull = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.pull", pull)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(repository="test")
-        assert pull.call_args[1]["repository"] == "test"
+        assert api.return_value.pull.call_args[1]["repository"] == "test"
 
     def test_repository_is_replaced(self, monkeypatch):
         task = PullImage(repository="original")
 
-        pull = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.pull", pull)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(repository="test")
-        assert pull.call_args[1]["repository"] == "test"
+        assert api.return_value.pull.call_args[1]["repository"] == "test"
 
 
 class TestPushImageTask:
@@ -138,29 +132,29 @@ class TestPushImageTask:
     def test_repository_init_value_is_used(self, monkeypatch):
         task = PushImage(repository="test")
 
-        push = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.push", push)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run()
-        assert push.call_args[1]["repository"] == "test"
+        assert api.return_value.push.call_args[1]["repository"] == "test"
 
     def test_repository_run_value_is_used(self, monkeypatch):
         task = PushImage()
 
-        push = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.push", push)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(repository="test")
-        assert push.call_args[1]["repository"] == "test"
+        assert api.return_value.push.call_args[1]["repository"] == "test"
 
     def test_repository_is_replaced(self, monkeypatch):
         task = PushImage(repository="original")
 
-        push = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.push", push)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(repository="test")
-        assert push.call_args[1]["repository"] == "test"
+        assert api.return_value.push.call_args[1]["repository"] == "test"
 
 
 class TestRemoveImageTask:
@@ -189,35 +183,29 @@ class TestRemoveImageTask:
     def test_image_init_value_is_used(self, monkeypatch):
         task = RemoveImage(image="test")
 
-        remove = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.images.docker.APIClient.remove_image", remove
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run()
-        assert remove.call_args[1]["image"] == "test"
+        assert api.return_value.remove_image.call_args[1]["image"] == "test"
 
     def test_image_run_value_is_used(self, monkeypatch):
         task = RemoveImage()
 
-        remove = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.images.docker.APIClient.remove_image", remove
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(image="test")
-        assert remove.call_args[1]["image"] == "test"
+        assert api.return_value.remove_image.call_args[1]["image"] == "test"
 
     def test_image_is_replaced(self, monkeypatch):
         task = RemoveImage(image="original")
 
-        remove = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.images.docker.APIClient.remove_image", remove
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(image="test")
-        assert remove.call_args[1]["image"] == "test"
+        assert api.return_value.remove_image.call_args[1]["image"] == "test"
 
 
 class TestTagImageTask:
@@ -256,32 +244,32 @@ class TestTagImageTask:
     def test_image_and_repository_init_value_is_used(self, monkeypatch):
         task = TagImage(image="test", repository="test")
 
-        tag = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.tag", tag)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run()
-        assert tag.call_args[1]["image"] == "test"
-        assert tag.call_args[1]["repository"] == "test"
+        assert api.return_value.tag.call_args[1]["image"] == "test"
+        assert api.return_value.tag.call_args[1]["repository"] == "test"
 
     def test_image_and_repository_run_value_is_used(self, monkeypatch):
         task = TagImage()
 
-        tag = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.tag", tag)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(image="test", repository="test")
-        assert tag.call_args[1]["image"] == "test"
-        assert tag.call_args[1]["repository"] == "test"
+        assert api.return_value.tag.call_args[1]["image"] == "test"
+        assert api.return_value.tag.call_args[1]["repository"] == "test"
 
     def test_image_and_repository_is_replaced(self, monkeypatch):
         task = TagImage(image="original", repository="original")
 
-        tag = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.tag", tag)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(image="test", repository="test")
-        assert tag.call_args[1]["image"] == "test"
-        assert tag.call_args[1]["repository"] == "test"
+        assert api.return_value.tag.call_args[1]["image"] == "test"
+        assert api.return_value.tag.call_args[1]["repository"] == "test"
 
 
 class TestBuildImageTask:
@@ -323,26 +311,26 @@ class TestBuildImageTask:
     def test_path_init_value_is_used(self, monkeypatch):
         task = BuildImage(path="test")
 
-        build = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.build", build)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run()
-        assert build.call_args[1]["path"] == "test"
+        assert api.return_value.build.call_args[1]["path"] == "test"
 
     def test_image_run_value_is_used(self, monkeypatch):
         task = BuildImage()
 
-        build = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.build", build)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(path="test")
-        assert build.call_args[1]["path"] == "test"
+        assert api.return_value.build.call_args[1]["path"] == "test"
 
     def test_image_is_replaced(self, monkeypatch):
         task = BuildImage(path="original")
 
-        build = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.images.docker.APIClient.build", build)
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(path="test")
-        assert build.call_args[1]["path"] == "test"
+        assert api.return_value.build.call_args[1]["path"] == "test"

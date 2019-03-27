@@ -51,38 +51,29 @@ class TestCreateContainerTask:
     def test_image_name_init_value_is_used(self, monkeypatch):
         task = CreateContainer(image_name="test")
 
-        create_container = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.create_container",
-            create_container,
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run()
-        assert create_container.call_args[1]["image"] == "test"
+        assert api.return_value.create_container.call_args[1]["image"] == "test"
 
     def test_image_name_run_value_is_used(self, monkeypatch):
         task = CreateContainer()
 
-        create_container = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.create_container",
-            create_container,
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(image_name="test")
-        assert create_container.call_args[1]["image"] == "test"
+        assert api.return_value.create_container.call_args[1]["image"] == "test"
 
     def test_image_name_is_replaced(self, monkeypatch):
         task = CreateContainer(image_name="original")
 
-        create_container = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.create_container",
-            create_container,
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(image_name="test")
-        assert create_container.call_args[1]["image"] == "test"
+        assert api.return_value.create_container.call_args[1]["image"] == "test"
 
 
 class TestGetContainerLogsTask:
@@ -109,35 +100,29 @@ class TestGetContainerLogsTask:
     def test_container_id_init_value_is_used(self, monkeypatch):
         task = GetContainerLogs(container_id="test")
 
-        logs = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.logs", logs
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run()
-        assert logs.call_args[1]["container"] == "test"
+        assert api.return_value.logs.call_args[1]["container"] == "test"
 
     def test_container_id_run_value_is_used(self, monkeypatch):
         task = GetContainerLogs()
 
-        logs = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.logs", logs
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(container_id="test")
-        assert logs.call_args[1]["container"] == "test"
+        assert api.return_value.logs.call_args[1]["container"] == "test"
 
     def test_container_id_is_replaced(self, monkeypatch):
         task = GetContainerLogs(container_id="original")
 
-        logs = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.logs", logs
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(container_id="test")
-        assert logs.call_args[1]["container"] == "test"
+        assert api.return_value.logs.call_args[1]["container"] == "test"
 
 
 class TestListContainersTask:
@@ -154,35 +139,29 @@ class TestListContainersTask:
     def test_all_containers_init_value_is_used(self, monkeypatch):
         task = ListContainers(all_containers=True)
 
-        containers = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.containers", containers
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run()
-        assert containers.call_args[1]["all"]
+        assert api.return_value.containers.call_args[1]["all"]
 
     def test_all_containers_run_value_is_used(self, monkeypatch):
         task = ListContainers()
 
-        containers = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.containers", containers
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(all_containers=True)
-        assert containers.call_args[1]["all"]
+        assert api.return_value.containers.call_args[1]["all"]
 
     def test_all_containers_is_replaced(self, monkeypatch):
         task = ListContainers(all_containers=False)
 
-        containers = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.containers", containers
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(all_containers=True)
-        assert containers.call_args[1]["all"]
+        assert api.return_value.containers.call_args[1]["all"]
 
 
 class TestStartContainerTask:
@@ -209,35 +188,29 @@ class TestStartContainerTask:
     def test_container_id_init_value_is_used(self, monkeypatch):
         task = StartContainer(container_id="test")
 
-        start = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.start", start
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run()
-        assert start.call_args[1]["container"] == "test"
+        assert api.return_value.start.call_args[1]["container"] == "test"
 
     def test_container_id_run_value_is_used(self, monkeypatch):
         task = StartContainer()
 
-        start = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.start", start
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(container_id="test")
-        assert start.call_args[1]["container"] == "test"
+        assert api.return_value.start.call_args[1]["container"] == "test"
 
     def test_container_id_is_replaced(self, monkeypatch):
         task = StartContainer(container_id="original")
 
-        start = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.start", start
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(container_id="test")
-        assert start.call_args[1]["container"] == "test"
+        assert api.return_value.start.call_args[1]["container"] == "test"
 
 
 class TestStopContainerTask:
@@ -264,32 +237,26 @@ class TestStopContainerTask:
     def test_container_id_init_value_is_used(self, monkeypatch):
         task = StopContainer(container_id="test")
 
-        stop = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.stop", stop
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run()
-        assert stop.call_args[1]["container"] == "test"
+        assert api.return_value.stop.call_args[1]["container"] == "test"
 
     def test_container_id_run_value_is_used(self, monkeypatch):
         task = StopContainer()
 
-        stop = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.stop", stop
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(container_id="test")
-        assert stop.call_args[1]["container"] == "test"
+        assert api.return_value.stop.call_args[1]["container"] == "test"
 
     def test_container_id_is_replaced(self, monkeypatch):
         task = StopContainer(container_id="original")
 
-        stop = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.docker.containers.docker.APIClient.stop", stop
-        )
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
         task.run(container_id="test")
-        assert stop.call_args[1]["container"] == "test"
+        assert api.return_value.stop.call_args[1]["container"] == "test"
