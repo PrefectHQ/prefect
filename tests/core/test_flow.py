@@ -13,6 +13,7 @@ import prefect
 from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
+from prefect.engine.cache_validators import partial_inputs_only
 from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
 from prefect.engine.signals import PrefectError
 from prefect.engine.state import (
@@ -1416,6 +1417,55 @@ def test_scheduled_runs_handle_retries():
     assert "Cease" in str(exc.value)
     assert t.call_count == 2
     assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
+
+
+def test_flow_dot_run_handles_cached_states():
+    class MockSchedule(prefect.schedules.Schedule):
+        call_count = 0
+
+        def next(self, n):
+            if self.call_count < 3:
+                self.call_count += 1
+                return [pendulum.now("utc")]
+            else:
+                raise SyntaxError("Cease scheduling!")
+
+    class StatefulTask(Task):
+        def __init__(self, maxit=False, **kwargs):
+            self.maxit = maxit
+            super().__init__(**kwargs)
+
+        call_count = 0
+
+        def run(self):
+            self.call_count += 1
+            if self.maxit:
+                return max(self.call_count, 2)
+            else:
+                return self.call_count
+
+    @task(
+        cache_for=datetime.timedelta(minutes=1),
+        cache_validator=partial_inputs_only(validate_on=["x"]),
+    )
+    def return_x(x, y):
+        return y
+
+    storage = {"y": []}
+
+    @task
+    def store_y(y):
+        storage["y"].append(y)
+
+    t1, t2 = StatefulTask(maxit=True), StatefulTask()
+    schedule = MockSchedule()
+    with Flow(name="test", schedule=schedule) as f:
+        res = store_y(return_x(x=t1, y=t2))
+
+    with pytest.raises(SyntaxError) as exc:
+        f.run()
+
+    assert storage == dict(y=[1, 1, 3])
 
 
 def test_scheduled_runs_handle_mapped_retries():
