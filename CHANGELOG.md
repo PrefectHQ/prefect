@@ -18,6 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Only checkpoint tasks if running in cloud - [#839](https://github.com/PrefectHQ/prefect/pull/839), [#854](https://github.com/PrefectHQ/prefect/pull/854)
 - Adjusted small flake8 issues for names, imports, and comparisons - [#849](https://github.com/PrefectHQ/prefect/pull/849)
 - Fix bug preventing `flow.run` from properly using cached tasks - [#861](https://github.com/PrefectHQ/prefect/pull/861)
+- Fix tempfile usage in `flow.visualize` so that it runs on Windows machines - [#858](https://github.com/PrefectHQ/prefect/issues/858)
 - Fix issue caused by Python 3.5.2 bug for Python 3.5.2 compatibility - [#857](https://github.com/PrefectHQ/prefect/issues/857)
 
 ### Breaking Changes
