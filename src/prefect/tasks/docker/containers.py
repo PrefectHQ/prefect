@@ -103,6 +103,57 @@ class CreateContainer(Task):
         return container.get("Id")
 
 
+class GetContainerLogs(Task):
+    """
+    Task for getting the logs of a Docker container. *Note:* This does not stream logs.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    Args:
+        - container_id (str, optional): The id of a container to retrieve logs from
+        - docker_server_url (str, optional): URL for the Docker server. Defaults to
+            `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+            can be provided
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
+    """
+
+    def __init__(
+        self,
+        container_id: str = None,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+        **kwargs: Any
+    ):
+        self.container_id = container_id
+        self.docker_server_url = docker_server_url
+
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("container_id", "docker_server_url")
+    def run(
+        self,
+        container_id: str = None,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+    ) -> None:
+        """
+        Task run method.
+
+        Args:
+            - container_id (str, optional): The id of a container to retrieve logs from
+            - docker_server_url (str, optional): URL for the Docker server. Defaults to
+                `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+                can be provided
+
+        Raises:
+            - ValueError: if `container_id` is `None`
+        """
+        if not container_id:
+            raise ValueError("A container id must be provided.")
+
+        client = docker.APIClient(base_url=docker_server_url, version="auto")
+
+        print(client.logs(container=container_id))
+
+
 class StartContainer(Task):
     """
     Task for starting a Docker container which runs the (optional) command it was created with.
@@ -151,7 +202,7 @@ class StartContainer(Task):
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        client.start(container_id)
+        client.start(container=container_id)
 
 
 class StopContainer(Task):
@@ -202,4 +253,4 @@ class StopContainer(Task):
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        client.stop(container_id)
+        client.stop(container=container_id)
