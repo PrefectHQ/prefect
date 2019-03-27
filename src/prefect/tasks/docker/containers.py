@@ -37,7 +37,7 @@ class CreateContainer(Task):
         docker_server_url: str = "unix:///var/run/docker.sock",
         **kwargs: Any
     ):
-        self.image_name = name
+        self.image_name = image_name
         self.command = command
         self.detach = detach
         self.entrypoint = entrypoint
@@ -64,7 +64,7 @@ class CreateContainer(Task):
         environment: Union[list, dict] = None,
         name: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-    ) -> None:
+    ) -> str:
         """
         Task run method.
 
@@ -81,7 +81,7 @@ class CreateContainer(Task):
                 can be provided
 
         Return:
-            - dict: A dictionary with an image ‘Id’ key and a ‘Warnings’ key
+            - str: A string representing the container id
 
         Raises:
             - ValueError: if `image_name` is `None`
@@ -100,4 +100,55 @@ class CreateContainer(Task):
             name=name,
         )
 
-        return container
+        return container.get("Id")
+
+
+class StartContainer(Task):
+    """
+    Task for starting a Docker container which runs the (optional) command it was created with.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    Args:
+        - container_id (str, optional): The id of a container to start
+        - docker_server_url (str, optional): URL for the Docker server. Defaults to
+            `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+            can be provided
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
+    """
+
+    def __init__(
+        self,
+        container_id: str = None,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+        **kwargs: Any
+    ):
+        self.container_id = container_id
+        self.docker_server_url = docker_server_url
+
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("container_id", "docker_server_url")
+    def run(
+        self,
+        container_id: str = None,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+    ) -> None:
+        """
+        Task run method.
+
+        Args:
+            - container_id (str, optional): The id of a container to start
+            - docker_server_url (str, optional): URL for the Docker server. Defaults to
+                `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+                can be provided
+
+        Raises:
+            - ValueError: if `container_id` is `None`
+        """
+        if not container_id:
+            raise ValueError("A container id must be provided.")
+
+        client = docker.APIClient(base_url=docker_server_url, version="auto")
+
+        client.start(container_id)
