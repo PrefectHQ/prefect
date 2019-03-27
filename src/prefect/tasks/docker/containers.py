@@ -133,7 +133,7 @@ class GetContainerLogs(Task):
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-    ) -> None:
+    ) -> str:
         """
         Task run method.
 
@@ -143,6 +143,9 @@ class GetContainerLogs(Task):
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
 
+        Return:
+            - str: A string representation of the logs from the container
+
         Raises:
             - ValueError: if `container_id` is `None`
         """
@@ -151,7 +154,55 @@ class GetContainerLogs(Task):
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        print(client.logs(container=container_id))
+        return client.logs(container=container_id)
+
+
+class ListContainers(Task):
+    """
+    Task for getting the logs of a Docker container. *Note:* This does not stream logs.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    Args:
+        - all_containers (bool, optional): Show all containers. Only running containers are shown by default
+        - docker_server_url (str, optional): URL for the Docker server. Defaults to
+            `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+            can be provided
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
+    """
+
+    def __init__(
+        self,
+        all_containers: bool = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+        **kwargs: Any
+    ):
+        self.all = all
+        self.docker_server_url = docker_server_url
+
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("all_containers", "docker_server_url")
+    def run(
+        self,
+        all_containers: bool = False,
+        docker_server_url: str = "unix:///var/run/docker.sock",
+    ) -> list:
+        """
+        Task run method.
+
+        Args:
+            - all (bool, optional): Show all containers. Only running containers are shown by default
+            - docker_server_url (str, optional): URL for the Docker server. Defaults to
+                `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
+                can be provided
+
+        Return:
+            - list: A list of dicts, one per container
+        """
+        client = docker.APIClient(base_url=docker_server_url, version="auto")
+
+        return client.containers(all=all_containers)
 
 
 class StartContainer(Task):
