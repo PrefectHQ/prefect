@@ -1,5 +1,7 @@
 """
-If running these tasks from inside of a docker container itself there are some extra
+Collection of tasks for orchestrating Docker images and containers.
+
+*Note*: If running these tasks from inside of a docker container itself there are some extra
 requirements needed for that to work. The container needs to be able to talk to a Docker
 server. There are a few ways to accomplish this:
 
