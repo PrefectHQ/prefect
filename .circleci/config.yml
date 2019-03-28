@@ -26,6 +26,24 @@ jobs:
           command: mypy src/
 
 # test a standard install of prefect
+# is importable in python 3.5.2
+# there was a typing bug in 3.5.2 that this attempts to catch
+  test-py352-import-prefect:
+    docker:
+      - image: python:3.5.2
+
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install vanilla prefect
+          command: pip install .
+
+      - run:
+          name: Test Prefect imports cleanly
+          command: python -c "import prefect"
+
+# test a standard install of prefect
 # this ensures we correctly capture all ImportError sitautions
 # caused by many package dependency options
   test-vanilla-prefect:
@@ -117,6 +135,7 @@ workflows:
     jobs:
       - check_formatting
       - test-vanilla-prefect
+      - test-py352-import-prefect
       - test-3.5
       - test-3.6
       - test-3.7
