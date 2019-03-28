@@ -14,7 +14,8 @@ from prefect.core.edge import Edge
 if TYPE_CHECKING:
     import prefect.engine.runner
     import prefect.engine.state
-StateList = Union["prefect.engine.state.State", List["prefect.engine.state.State"]]
+    from prefect.engine.state import State
+StateList = Union["State", List["State"]]
 
 
 class Heartbeat(threading.Timer):
