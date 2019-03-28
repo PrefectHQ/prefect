@@ -199,6 +199,23 @@ classes = [
         "ReplaceNamespacedService"
         ]
 
+[pages.tasks.docker]
+title = "Docker Tasks"
+module = "prefect.tasks.docker"
+classes = [
+        "BuildImage",
+        "ListImages",
+        "PullImage",
+        "PushImage",
+        "RemoveImage",
+        "TagImage",
+        "CreateContainer",
+        "GetContainerLogs",
+        "ListContainers",
+        "StartContainer",
+        "StopContainer"
+        ]
+
 [pages.tasks.google]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.google"

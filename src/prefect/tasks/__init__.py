@@ -5,6 +5,7 @@ from prefect.core.task import Task
 import prefect.tasks.core
 import prefect.tasks.control_flow
 import prefect.tasks.database
+import prefect.tasks.docker
 import prefect.tasks.github
 import prefect.tasks.notifications
 import prefect.tasks.shell

@@ -14,6 +14,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Task Library
 
 - Add `ParseRSSFeed` for parsing a remote RSS feed - [#856](https://github.com/PrefectHQ/prefect/pull/856)
+- Add tasks for working with Docker containers and imaged - [#864](https://github.com/PrefectHQ/prefect/pull/864)
 
 ### Fixes
 
