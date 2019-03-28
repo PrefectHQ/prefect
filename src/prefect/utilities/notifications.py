@@ -17,10 +17,9 @@ import prefect
 if TYPE_CHECKING:
     import prefect.engine.state
     import prefect.client
-    from prefect import Flow, Task
 
 __all__ = ["callback_factory", "gmail_notifier", "slack_notifier"]
-TrackedObjectType = Union["Flow", "Task"]
+TrackedObjectType = Union["prefect.Flow", "prefect.Task"]
 
 
 def callback_factory(
