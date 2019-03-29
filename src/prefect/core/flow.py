@@ -1364,12 +1364,16 @@ class Flow:
 
     # Deployment ------------------------------------------------------------------
 
-    def deploy(self, project_name: str, set_schedule_active: bool = False) -> str:
+    def deploy(
+        self, project_name: str, build: bool = True, set_schedule_active: bool = False
+    ) -> str:
         """
         Deploy the flow to Prefect Cloud
 
         Args:
             - project_name (str): the project that should contain this flow.
+            - build (bool, optional): if `True`, the flow's environment is built
+                prior to serialization; defaults to `True`
             - set_schedule_active (bool, optional): if `True`, will set the
                 schedule to active in the database and begin scheduling runs (if the Flow has a schedule).
                 Defaults to `False`. This can be changed later.
@@ -1380,6 +1384,7 @@ class Flow:
         client = prefect.Client()
         deployed_flow = client.deploy(
             flow=self,
+            build=build,
             project_name=project_name,
             set_schedule_active=set_schedule_active,
         )
