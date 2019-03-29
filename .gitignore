@@ -121,7 +121,7 @@ node_modules
 .pytest_cache
 
 # docs
-docs/api
+docs/api/unreleased
 docs/changelog.md
 docs/deploy/dist
 docs/.vuepress/public/prefect-coverage

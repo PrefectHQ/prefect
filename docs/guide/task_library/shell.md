@@ -4,4 +4,4 @@
 
 Task for running arbitrary shell commands.
 
-[API Reference](/api/tasks/shell.html#prefect-tasks-shell-shelltask)
+[API Reference](/api/unreleased/tasks/shell.html#prefect-tasks-shell-shelltask)
