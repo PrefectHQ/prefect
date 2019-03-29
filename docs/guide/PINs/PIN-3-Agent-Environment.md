@@ -37,7 +37,7 @@ This mode of execution is stable and works however it is not very flexible. It i
 2. Agent will require a change every time a new type of environment is created
 3. Agent will refuse to run when it encounters an environment it was not partitioned for
 
-## Decision
+## Proposal
 
 Prefect will adopt a more agnostic and robust agent-environment model for execution by trimming down the agent to only handle minor resource control, moving execution and environment related logic into the environments themselves, and relying on a base prefect Docker image to run the environments.
 
@@ -80,3 +80,5 @@ The agent is still platform specific. For example, our k8s-agent is still respon
 Environments will not become more hyper-specific and detailed. As seen above there were examples such as _LocalOnKubernetesEnvironment_ and _DaskOnKubernetesEnvironment_. This is due to what the `setup` step will be responsible for with infrastructure/resource dependencies as those will be specific to that environment.
 
 Any currently created flows will need to be redeployed if the agent that executes them is changed to use this newer format. They will be incompatible otherwise.
+
+## Actions
