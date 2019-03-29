@@ -19,7 +19,7 @@ One of the strengths of using Prefect is security: we can robustly execute user 
 
 However, result handlers are currently utilized inside state serializers only; this means that _every piece of data_ that flows through the system is handled and stored somewhere, which is excessive.  Moreover, individual tasks might want their results handled differently.  Furthermore, the name "Result Handler" is a misnomer, as we also need to handle cached inputs, cached parameters, etc.
 
-## Decision
+## Proposal
 
 We will implement result handlers (with a new name) by making the following changes:
 
@@ -39,3 +39,8 @@ Re-orchestrating our data flow in this way will gain us a few things:
 - the system will be more efficient, in that only those results that _need_ handling for the system to work will be handled
 - data handling will be more transparent; for example, previously result handlers were used in a deep part of the code base that most users won't ever need to look at; when errors were raised, etc. it felt very cryptic and sometimes surprising.  Now, all result handling will be done inside Task Runner pipeline steps, so their relation to task failure and how to recreate them will be very clear
 - the system will be more customizable and secure, because it is now easy to attach different result handlers to different tasks and guarantee that any data that this task creates will be handled correctly
+
+
+## Actions
+
+Expanded by [PIN-4](PIN-4-Result-Objects.md).

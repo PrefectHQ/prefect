@@ -263,7 +263,7 @@ def generate_coverage():
     """
 
     # write file for VuePress
-    with open("api/coverage.md", "w+") as f:
+    with open("api/unreleased/coverage.md", "w+") as f:
         f.write(
             textwrap.dedent(
                 """
@@ -357,12 +357,12 @@ if __name__ == "__main__":
         """
     ).lstrip()
 
-    shutil.rmtree("api", ignore_errors=True)
-    os.makedirs("api", exist_ok=True)
+    shutil.rmtree("api/unreleased", ignore_errors=True)
+    os.makedirs("api/unreleased", exist_ok=True)
     generate_coverage()
 
     ## UPDATE README
-    with open("api/README.md", "w+") as f:
+    with open("api/unreleased/README.md", "w+") as f:
         f.write(
             textwrap.dedent(
                 """
@@ -396,7 +396,7 @@ if __name__ == "__main__":
             f.write(auto_generated_footer)
 
     ## UPDATE CHANGELOG
-    with open("api/changelog.md", "w+") as f:
+    with open("api/unreleased/changelog.md", "w+") as f:
         f.write(
             textwrap.dedent(
                 """
@@ -419,7 +419,7 @@ if __name__ == "__main__":
             page.get("classes", []),
             page.get("functions", []),
         )
-        fname = f"api/{fname}"
+        fname = f"api/unreleased/{fname}"
         directory = os.path.dirname(fname)
         if directory:
             os.makedirs(directory, exist_ok=True)
