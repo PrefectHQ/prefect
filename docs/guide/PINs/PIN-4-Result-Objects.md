@@ -39,7 +39,7 @@ It is desirable to consolidate all of this state handling logic into a single lo
 
 To be clear, this PIN represents an evolution of the mechanisms introduced by [PIN-2](PIN-2-Result-Handlers.md). It represents the same logic, just refactored with the benefit of seeing it in action.
 
-## Decision
+## Proposal
 
 ### Result class
 
@@ -166,3 +166,5 @@ However, as described earlier, `CloudTaskRunners` should probably be responsible
 ## Consequences
 
 Adopting these new classes would dramatically simplify a great deal of logic that is very important to how Prefect operates. Rather than distributing that logic throughout the `State` class, `TaskRunner` class, and `CloudTaskRunner` class; it would live in a single place: the `Result` object. Moreover, while the `Result` object contains all information for properly serializing/deserializing its value, the actual _calling_ of the serialization methods could be delegated almost exclusively to Prefect's existing schema serializers. Users (probably) would never have to do this by hand.
+
+## Actions
