@@ -141,7 +141,8 @@ module.exports = {
             'tutorials/local-debugging',
             'tutorials/visualization',
             'tutorials/advanced-mapping',
-            'tutorials/slack-notifications'
+            'tutorials/slack-notifications',
+            'tutorials/this-tutorial-does-exist-i-promise'
           ]
         },
         {
