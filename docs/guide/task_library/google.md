@@ -15,14 +15,14 @@ valid Google Credentials in a JSON document.
 
 Task template for downloading data from Google Cloud Storage as a string.
 
-[API Reference](/api/tasks/google.html#prefect-tasks-google-storage-gcsdownloadtask)
+[API Reference](/api/unreleased/tasks/google.html#prefect-tasks-google-storage-gcsdownloadtask)
 
 
 ### GCSUpload <Badge text="task"/>
 
 Task template for uploading data to Google Cloud Storage as a string.
 
-[API Reference](/api/tasks/google.html#prefect-tasks-google-storage-gcsuploadtask)
+[API Reference](/api/unreleased/tasks/google.html#prefect-tasks-google-storage-gcsuploadtask)
 
 
 ## BigQuery
@@ -31,11 +31,11 @@ Task template for uploading data to Google Cloud Storage as a string.
 
 Task for executing queries against a Google BigQuery table and (optionally) returning the results.
 
-[API Reference](/api/tasks/google.html#prefect-tasks-google-bigquery-bigquerytask)
+[API Reference](/api/unreleased/tasks/google.html#prefect-tasks-google-bigquery-bigquerytask)
 
 
 ### BigQueryStreamingInsert <Badge text="task"/>
 
 Task for insert records in a Google BigQuery table via [the streaming API](https://cloud.google.com/bigquery/streaming-data-into-bigquery).
 
-[API Reference](/api/tasks/google.html#prefect-tasks-google-bigquery-bigquerystreaminginserttask)
+[API Reference](/api/unreleased/tasks/google.html#prefect-tasks-google-bigquery-bigquerystreaminginserttask)
