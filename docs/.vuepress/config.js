@@ -1,3 +1,5 @@
+var sidebar = require('../api/0.5.0/sidebar')
+
 module.exports = {
   title: 'Prefect Docs',
   description: "Don't Panic.",
@@ -22,10 +24,12 @@ module.exports = {
       },
       {
         text: 'API Reference',
-        link: '/api/unreleased/'
+        items: [{ text: "Unreleased", link: '/api/unreleased/' },
+                { text: "0.5.0", link: '/api/0.5.0/' } ]
       }
     ],
     sidebar: {
+      '/api/0.5.0/': sidebar.sidebar,
       '/api/unreleased/': [
         '/api/unreleased/',
         'changelog',
