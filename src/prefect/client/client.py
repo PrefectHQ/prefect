@@ -299,7 +299,11 @@ class Client:
         self.token = response.json().get("token")
 
     def deploy(
-        self, flow: "Flow", project_name: str, set_schedule_active: bool = False
+        self,
+        flow: "Flow",
+        project_name: str,
+        build: bool = True,
+        set_schedule_active: bool = False,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -307,6 +311,8 @@ class Client:
         Args:
             - flow (Flow): a flow to deploy
             - project_name (str): the project that should contain this flow.
+            - build (bool, optional): if `True`, the flow's environment is built
+                prior to serialization; defaults to `True`
             - set_schedule_active (bool, optional): if `True`, will set the
                 schedule to active in the database and begin scheduling runs (if the Flow has a schedule).
                 Defaults to `False`. This can be changed later.
@@ -352,7 +358,7 @@ class Client:
         res = self.graphql(
             create_mutation,
             input=dict(
-                projectId=project[0].id, serializedFlow=flow.serialize(build=True)
+                projectId=project[0].id, serializedFlow=flow.serialize(build=build)
             ),
         )  # type: Any
 

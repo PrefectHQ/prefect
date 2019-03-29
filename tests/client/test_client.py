@@ -262,6 +262,47 @@ def test_client_deploy(monkeypatch):
     assert flow_id == "long-id"
 
 
+def test_client_deploy_builds_flow(monkeypatch):
+    response = {
+        "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+    }
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    flow = prefect.Flow(name="test")
+    flow_id = client.deploy(flow, project_name="my-default-project")
+
+    ## extract POST info
+    variables = json.loads(post.call_args[1]["json"]["variables"])
+    assert (
+        variables["input"]["serializedFlow"]["environment"]["serialized_flow"]
+        is not None
+    )
+
+
+def test_client_deploy_optionally_avoids_building_flow(monkeypatch):
+    response = {
+        "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+    }
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    flow = prefect.Flow(name="test")
+    flow_id = client.deploy(flow, project_name="my-default-project", build=False)
+
+    ## extract POST info
+    variables = json.loads(post.call_args[1]["json"]["variables"])
+    assert (
+        variables["input"]["serializedFlow"]["environment"]["serialized_flow"] is None
+    )
+
+
 def test_client_deploy_with_bad_proj_name(monkeypatch):
     response = {"data": {"project": []}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
