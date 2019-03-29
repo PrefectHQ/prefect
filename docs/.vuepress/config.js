@@ -22,12 +22,12 @@ module.exports = {
       },
       {
         text: 'API Reference',
-        link: '/api/'
+        link: '/api/unreleased/'
       }
     ],
     sidebar: {
-      '/api/': [
-        '/api/',
+      '/api/unreleased/': [
+        '/api/unreleased/',
         'changelog',
         'coverage',
         {
