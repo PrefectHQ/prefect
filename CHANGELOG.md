@@ -34,7 +34,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - [ColCarroll](https://github.com/ColCarroll)
 - [dhirschfeld](https://github.com/dhirschfeld)
 - [BasPH](https://github.com/BasPH)
-- [milosgarunovic](https://github.com/milosgarunovic)
+- [Miloš Garunović](https://github.com/milosgarunovic)
 
 ## 0.5.0 <Badge text="beta" type="success"/>
 
