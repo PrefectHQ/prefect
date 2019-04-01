@@ -254,8 +254,6 @@ class DockerEnvironment(Environment):
                 """\
                 FROM {base_image}
 
-                RUN apt-get -qq -y update && apt-get -qq -y install --no-install-recommends --no-install-suggests git
-
                 RUN pip install pip --upgrade
                 RUN pip install wheel
                 {pip_installs}
