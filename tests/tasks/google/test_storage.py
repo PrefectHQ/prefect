@@ -84,7 +84,7 @@ class TestCredentialsandProjects:
         monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", MagicMock())
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(TEST="42", RUN={})):
+            with prefect.context(secrets=dict(TEST='"42"', RUN={})):
                 task.run(**{run_arg: "empty"})
                 task.run(**{run_arg: "empty", "credentials_secret": "RUN"})
 
@@ -194,7 +194,9 @@ class TestBlob:
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
-                secrets=dict(encrypt="42", two="2", GOOGLE_APPLICATION_CREDENTIALS={})
+                secrets=dict(
+                    encrypt='"42"', two='"2"', GOOGLE_APPLICATION_CREDENTIALS={}
+                )
             ):
                 task.run(**{run_arg: "empty"})
                 task.run(**{run_arg: "empty", "encryption_key_secret": "two"})
