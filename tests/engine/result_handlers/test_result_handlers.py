@@ -1,3 +1,4 @@
+import cloudpickle
 import json
 import os
 import tempfile
@@ -6,12 +7,14 @@ from unittest.mock import MagicMock, patch
 import pendulum
 import pytest
 
+import prefect
 from prefect.client import Client
 from prefect.engine.result_handlers import (
     GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
     ResultHandler,
+    S3ResultHandler,
 )
 from prefect.utilities.configuration import set_temporary_config
 
@@ -36,6 +39,11 @@ class TestJSONHandler:
         handler = JSONResultHandler()
         with pytest.raises(TypeError):
             handler.write(type(None))
+
+    def test_json_handler_is_pickleable(self):
+        handler = JSONResultHandler()
+        new = cloudpickle.loads(cloudpickle.dumps(handler))
+        assert isinstance(new, JSONResultHandler)
 
 
 class TestLocalHandler:
@@ -67,6 +75,11 @@ class TestLocalHandler:
         handler = LocalResultHandler(dir=tmp_dir)
         final = handler.read(handler.write(res))
         assert final == res
+
+    def test_local_handler_is_pickleable(self):
+        handler = LocalResultHandler(dir="root")
+        new = cloudpickle.loads(cloudpickle.dumps(handler))
+        assert isinstance(new, LocalResultHandler)
 
 
 def test_result_handlers_must_implement_read_and_write_to_work():
@@ -135,3 +148,41 @@ class TestGCSResultHandler:
         handler.write(None)
         assert blob.upload_from_string.called
         assert isinstance(blob.upload_from_string.call_args[0][0], str)
+
+
+@pytest.mark.xfail(raises=ImportError)
+class TestS3ResultHandler:
+    @pytest.fixture
+    def s3_client(self, monkeypatch):
+        import boto3
+
+        client = MagicMock()
+        with patch.dict("sys.modules", {"boto3": MagicMock(client=client)}):
+            yield client
+
+    def test_s3_client_init_uses_secrets(self, s3_client):
+        with prefect.context(
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler = S3ResultHandler(bucket="bob")
+
+        assert handler.bucket == "bob"
+        assert s3_client.call_args[1] == {
+            "aws_access_key_id": 1,
+            "aws_secret_access_key": 42,
+        }
+
+    def test_s3_writes_to_blob_prefixed_by_date_suffixed_by_prefect(self, s3_client):
+        with prefect.context(
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler = S3ResultHandler(bucket="foo")
+
+        uri = handler.write("so-much-data")
+        used_uri = s3_client.return_value.upload_fileobj.call_args[1]["Key"]
+
+        assert used_uri == uri
+        assert used_uri.startswith(pendulum.now("utc").format("Y/M/D"))
+        assert used_uri.endswith("prefect_result")
