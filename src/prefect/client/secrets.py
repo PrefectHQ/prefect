@@ -36,7 +36,11 @@ class Secret:
         """
         if prefect.config.cloud.use_local_secrets is True:
             secrets = prefect.context.get("secrets", {})
-            return secrets.get(self.name)
+            value = secrets.get(self.name)
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return value
         else:
             client = Client()
             result = client.graphql(

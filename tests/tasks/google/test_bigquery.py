@@ -181,7 +181,7 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
         )
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(TEST="42", RUN={})):
+            with prefect.context(secrets=dict(TEST='"42"', RUN={})):
                 task.run(records=[])
                 task.run(records=[], credentials_secret="RUN")
 

@@ -51,3 +51,11 @@ def test_secrets_use_client(monkeypatch):
         my_secret = Secret(name="the-key")
         val = my_secret.get()
     assert val == "1234"
+
+
+def test_local_secrets_auto_load_json_strings():
+    secret = Secret(name="test")
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(test='{"x": 42}')):
+            assert secret.get() == {"x": 42}
+        assert secret.get() is None
