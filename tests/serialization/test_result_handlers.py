@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import prefect
 from prefect.client import Client
 from prefect.engine.cloud.result_handler import CloudResultHandler
 from prefect.engine.result_handlers import (
@@ -9,6 +10,7 @@ from prefect.engine.result_handlers import (
     JSONResultHandler,
     LocalResultHandler,
     ResultHandler,
+    S3ResultHandler,
 )
 from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
@@ -90,7 +92,10 @@ class TestCloudResultHandler:
 class TestGCSResultHandler:
     @pytest.fixture
     def google_client(self, monkeypatch):
-        with patch.dict("sys.modules", {"google.cloud": MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"google.cloud": MagicMock(), "google.oauth2.service_account": MagicMock()},
+        ):
             yield
 
     def test_serialize(self, google_client):
@@ -128,3 +133,34 @@ class TestJSONResultHandler:
         handler = schema.load(schema.dump(JSONResultHandler()))
         assert isinstance(handler, JSONResultHandler)
         assert handler.write(3) == "3"
+
+
+@pytest.mark.xfail(raises=ImportError)
+class TestS3ResultHandler:
+    @pytest.fixture
+    def s3_client(self, monkeypatch):
+        with patch.dict("sys.modules", {"boto3": MagicMock()}):
+            with prefect.context(
+                secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
+            ):
+                with set_temporary_config({"cloud.use_local_secrets": True}):
+                    yield
+
+    def test_serialize(self, s3_client):
+        handler = S3ResultHandler(bucket="my-bucket")
+        serialized = ResultHandlerSchema().dump(handler)
+        assert serialized["type"] == "S3ResultHandler"
+        assert serialized["bucket"] == "my-bucket"
+
+    def test_deserialize_from_dict(self, s3_client):
+        handler = ResultHandlerSchema().load(
+            {"type": "S3ResultHandler", "bucket": "foo-bar"}
+        )
+        assert isinstance(handler, S3ResultHandler)
+        assert handler.bucket == "foo-bar"
+
+    def test_roundtrip(self, s3_client):
+        schema = ResultHandlerSchema()
+        handler = schema.load(schema.dump(S3ResultHandler(bucket="bucket3")))
+        assert isinstance(handler, S3ResultHandler)
+        assert handler.bucket == "bucket3"

@@ -1,11 +1,16 @@
 import base64
 import uuid
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import cloudpickle
 import pendulum
 
+from prefect.client import Secret
 from prefect.engine.result_handlers import ResultHandler
+
+
+if TYPE_CHECKING:
+    import google.cloud
 
 
 class GCSResultHandler(ResultHandler):
@@ -20,12 +25,41 @@ class GCSResultHandler(ResultHandler):
     """
 
     def __init__(self, bucket: str = None) -> None:
+        self.bucket = bucket
+        self.initialize_client()
+        super().__init__()
+
+    def initialize_client(self) -> None:
+        """
+        Initializes GCS connections.
+        """
+        from google.oauth2.service_account import Credentials
         from google.cloud import storage
 
-        self.client = storage.Client()
-        self.bucket = bucket
-        self.gcs_bucket = self.client.bucket(self.bucket)
-        super().__init__()
+        creds = Secret("GOOGLE_APPLICATION_CREDENTIALS").get()
+        credentials = Credentials.from_service_account_info(creds)
+        project = credentials.project_id
+        client = storage.Client(project=project, credentials=credentials)
+        self.gcs_bucket = client.bucket(self.bucket)
+
+    @property
+    def gcs_bucket(self) -> "google.cloud.storage.bucket.Bucket":
+        if not hasattr(self, "_gcs_bucket"):
+            self.initialize_client()
+        return self._gcs_bucket
+
+    @gcs_bucket.setter
+    def gcs_bucket(self, val: Any) -> None:
+        self._gcs_bucket = val
+
+    def __getstate__(self) -> dict:
+        state = self.__dict__.copy()
+        if "_gcs_bucket" in state:
+            del state["_gcs_bucket"]
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
 
     def write(self, result: Any) -> str:
         """

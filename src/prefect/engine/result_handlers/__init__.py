@@ -11,3 +11,8 @@ try:
     from prefect.engine.result_handlers.gcs_result_handler import GCSResultHandler
 except ImportError:
     pass
+
+try:
+    from prefect.engine.result_handlers.s3_result_handler import S3ResultHandler
+except ImportError:
+    pass
