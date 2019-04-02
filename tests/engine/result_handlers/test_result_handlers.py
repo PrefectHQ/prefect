@@ -117,20 +117,28 @@ class TestGCSResultHandler:
         import google.cloud.storage
 
         client = MagicMock()
-        storage = MagicMock(Client=MagicMock(return_value=client))
-        with patch.dict("sys.modules", {"google.cloud": MagicMock(storage=storage)}):
-            yield client
+        storage = MagicMock(Client=client)
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                with patch.dict(
+                    "sys.modules",
+                    {
+                        "google.cloud": MagicMock(storage=storage),
+                        "google.oauth2.service_account": MagicMock(),
+                    },
+                ):
+                    yield client
 
     def test_gcs_init(self, google_client):
         handler = GCSResultHandler(bucket="bob")
         assert handler.bucket == "bob"
-        assert google_client.bucket.call_args[0][0] == "bob"
+        assert google_client.return_value.bucket.call_args[0][0] == "bob"
 
     def test_gcs_writes_to_blob_prefixed_by_date_suffixed_by_prefect(
         self, google_client
     ):
         bucket = MagicMock()
-        google_client.bucket = MagicMock(return_value=bucket)
+        google_client.return_value.bucket = MagicMock(return_value=bucket)
         handler = GCSResultHandler(bucket="foo")
         handler.write("so-much-data")
         assert bucket.blob.called
@@ -141,13 +149,34 @@ class TestGCSResultHandler:
 
     def test_gcs_writes_binary_string(self, google_client):
         blob = MagicMock()
-        google_client.bucket = MagicMock(
+        google_client.return_value.bucket = MagicMock(
             return_value=MagicMock(blob=MagicMock(return_value=blob))
         )
         handler = GCSResultHandler(bucket="foo")
         handler.write(None)
         assert blob.upload_from_string.called
         assert isinstance(blob.upload_from_string.call_args[0][0], str)
+
+    def test_gcs_handler_is_pickleable(self, monkeypatch):
+        class gcs_bucket:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def __getstate__(self):
+                raise ValueError("I cannot be pickled.")
+
+        client = MagicMock(bucket=gcs_bucket)
+        storage = MagicMock(Client=MagicMock(return_value=client))
+        with patch.dict(
+            "sys.modules",
+            {
+                "google.cloud": MagicMock(storage=storage),
+                "google.oauth2.service_account": MagicMock(),
+            },
+        ):
+            handler = GCSResultHandler("foo")
+            res = cloudpickle.loads(cloudpickle.dumps(handler))
+            assert isinstance(res, GCSResultHandler)
 
 
 @pytest.mark.xfail(raises=ImportError)
@@ -186,3 +215,20 @@ class TestS3ResultHandler:
         assert used_uri == uri
         assert used_uri.startswith(pendulum.now("utc").format("Y/M/D"))
         assert used_uri.endswith("prefect_result")
+
+    def test_s3_handler_is_pickleable(self, monkeypatch):
+        class client:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def __getstate__(self):
+                raise ValueError("I cannot be pickled.")
+
+        with patch.dict("sys.modules", {"boto3": MagicMock(client=client)}):
+            with prefect.context(
+                secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
+            ):
+                with set_temporary_config({"cloud.use_local_secrets": True}):
+                    handler = S3ResultHandler(bucket="foo")
+            res = cloudpickle.loads(cloudpickle.dumps(handler))
+            assert isinstance(res, S3ResultHandler)
