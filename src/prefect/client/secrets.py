@@ -17,6 +17,10 @@ class Secret:
     The value of the `Secret` is not set upon initialization and instead is set
     either in `prefect.context` or on the server, with behavior dependent on the value
     of the `use_local_secrets` flag in your Prefect configuration file.
+
+    If using local secrets, `Secret.get()` will attempt to call `json.loads` on the
+    value pulled from context.  For this reason it is recommended to store local secrets as
+    JSON documents to avoid ambiguous behavior (e.g., `"42"` being parsed as `42`).
     """
 
     def __init__(self, name: str):
@@ -24,9 +28,11 @@ class Secret:
 
     def get(self) -> Optional[Any]:
         """
-        Retrieve the secret value.
+        Retrieve the secret value.  If not found, returns `None`.
 
-        If not found, returns `None`.
+        If using local secrets, `Secret.get()` will attempt to call `json.loads` on the
+        value pulled from context.  For this reason it is recommended to store local secrets as
+        JSON documents to avoid ambiguous behavior.
 
         Returns:
             - Any: the value of the secret; if not found, returns `None`
