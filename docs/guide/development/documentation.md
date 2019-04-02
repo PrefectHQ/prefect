@@ -44,11 +44,12 @@ To write concept docs, simply add Markdown files to the `docs/guide` directory (
 
 Documentation (including both concepts and API references) is built and deployed with every merge to Prefect's master branch. Prior to merge, a GitHub check will allow you to see a hosted version of the documentation associated with every PR.
 
-To preview docs locally, you'll first need to install [VuePress](https://vuepress.vuejs.org/) and its dependencies. This requires the [yarn](https://yarnpkg.com/) package manager. You only need to do this once:
+To preview docs locally, you'll first need to install [VuePress](https://vuepress.vuejs.org/) and its dependencies. This requires the [yarn](https://yarnpkg.com/) package manager. You will also need to install the rest of Prefect's pip dependencies for nonessential operations such as generating docs, running pytest, etc. You only need to do this once:
 
 ```bash
 cd prefect
 yarn install
+pip install "prefect[all_extras]"
 ```
 
 To launch a documentation preview:
