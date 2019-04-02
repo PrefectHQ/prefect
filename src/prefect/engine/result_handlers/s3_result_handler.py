@@ -2,13 +2,17 @@ import base64
 import io
 import json
 import uuid
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import cloudpickle
 import pendulum
 
 from prefect.client import Secret
 from prefect.engine.result_handlers import ResultHandler
+
+
+if TYPE_CHECKING:
+    import boto3
 
 
 class S3ResultHandler(ResultHandler):
@@ -47,13 +51,13 @@ class S3ResultHandler(ResultHandler):
         self.client = s3_client
 
     @property
-    def client(self):
+    def client(self) -> "boto3.client":
         if not hasattr(self, "_client"):
             self.initialize_client()
         return self._client
 
     @client.setter
-    def client(self, val):
+    def client(self, val: Any) -> None:
         self._client = val
 
     def __getstate__(self) -> dict:
@@ -67,14 +71,14 @@ class S3ResultHandler(ResultHandler):
 
     def write(self, result: Any) -> str:
         """
-        Given a result, writes the result to a location in GCS
+        Given a result, writes the result to a location in S3
         and returns the resulting URI.
 
         Args:
             - result (Any): the written result
 
         Returns:
-            - str: the GCS URI
+            - str: the S3 URI
         """
         date = pendulum.now("utc").format("Y/M/D")
         uri = "{date}/{uuid}.prefect_result".format(date=date, uuid=uuid.uuid4())
@@ -91,10 +95,10 @@ class S3ResultHandler(ResultHandler):
 
     def read(self, uri: str) -> Any:
         """
-        Given a uri, reads a result from GCS, reads it and returns it
+        Given a uri, reads a result from S3, reads it and returns it
 
         Args:
-            - uri (str): the GCS URI
+            - uri (str): the S3 URI
 
         Returns:
             - Any: the read result
