@@ -7,6 +7,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 - API reference documentation is now versioned - [#270](https://github.com/PrefectHQ/prefect/issues/270)
+- Add `S3ResultHandler` for handling results to / from S3 buckets - [#879](https://github.com/PrefectHQ/prefect/pull/879)
 
 ### Enhancements
 - Bump to latest version of `pytest` (4.3) - [#814](https://github.com/PrefectHQ/prefect/issues/814)
@@ -25,6 +26,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix bug preventing `flow.run` from properly using cached tasks - [#861](https://github.com/PrefectHQ/prefect/pull/861)
 - Fix tempfile usage in `flow.visualize` so that it runs on Windows machines - [#858](https://github.com/PrefectHQ/prefect/issues/858)
 - Fix issue caused by Python 3.5.2 bug for Python 3.5.2 compatibility - [#857](https://github.com/PrefectHQ/prefect/issues/857)
+- Fix issue in which `GCSResultHandler` was not pickleable - [#879](https://github.com/PrefectHQ/prefect/pull/879)
 
 ### Breaking Changes
 
