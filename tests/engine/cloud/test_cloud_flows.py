@@ -9,6 +9,7 @@ import pytest
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
+from prefect.engine.executors import LocalExecutor
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.state import (
     Failed,
@@ -569,7 +570,7 @@ def test_deep_map_with_a_retry(monkeypatch):
     )
 
     with prefect.context(flow_run_id=flow_run_id):
-        CloudFlowRunner(flow=flow).run()
+        CloudFlowRunner(flow=flow).run(executor=LocalExecutor())
 
     assert client.flow_runs[flow_run_id].state.is_running()
     assert client.task_runs[task_run_id_1].state.is_mapped()
@@ -598,7 +599,7 @@ def test_deep_map_with_a_retry(monkeypatch):
 
     # RUN A SECOND TIME
     with prefect.context(flow_run_id=flow_run_id):
-        CloudFlowRunner(flow=flow).run()
+        CloudFlowRunner(flow=flow).run(executor=LocalExecutor())
 
     # t2's first child task should be successful
     t2_0 = next(

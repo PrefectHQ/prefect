@@ -829,7 +829,7 @@ def test_flow_runner_allows_for_parallelism_with_times(executor):
     with Flow(name="test") as flow:
         a, b = record_times(), record_times()
 
-    state = flow.run(executor=executor, return_tasks=[a, b])
+    state = flow.run(executor=executor)
     assert state.is_successful()
 
     times = [("alice", t) for t in state.result[a].result] + [
