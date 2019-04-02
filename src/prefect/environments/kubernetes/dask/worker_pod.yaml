@@ -36,3 +36,5 @@ spec:
         value: "true"
       - name: EXTRA_PIP_PACKAGES
         value: fastparquet
+      - name: DASK_DISTRIBUTED__SCHEDULER__BLOCKED_HANDLERS
+        value: "['feed', 'run_function']"

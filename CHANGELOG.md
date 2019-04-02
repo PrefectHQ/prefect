@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 - Bump to latest version of `pytest` (4.3) - [#814](https://github.com/PrefectHQ/prefect/issues/814)
 - `Client.deploy` accepts optional `build` kwarg for avoiding building Flow environment - [#876](https://github.com/PrefectHQ/prefect/pull/876)
+- Bump `distributed` to 1.26.1 for enhanced security features - [#878](https://github.com/PrefectHQ/prefect/pull/878)
 
 ### Task Library
 
