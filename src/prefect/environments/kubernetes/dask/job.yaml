@@ -43,4 +43,6 @@ spec:
               value: "DEBUG"
             - name: PREFECT__DEBUG
               value: "true"
+            - name: DASK_DISTRIBUTED__SCHEDULER__BLOCKED_HANDLERS
+              value: "['feed', 'run_function']"
       restartPolicy: Never
