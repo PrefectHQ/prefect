@@ -569,7 +569,7 @@ class Client:
 
     def get_latest_cached_states(
         self, task_id: str, created_after: datetime.datetime
-    ) -> List["prefect.engine.state.Cached"]:
+    ) -> List["prefect.engine.state.State"]:
         where_clause = {
             "where": {
                 "state": {"_eq": "Cached"},
