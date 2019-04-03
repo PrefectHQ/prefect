@@ -163,7 +163,8 @@ module.exports = {
             'development/style',
             'development/documentation',
             'development/tests',
-            'development/contributing'
+            'development/contributing',
+            'development/release-checklist'
           ]
         }
       ]
