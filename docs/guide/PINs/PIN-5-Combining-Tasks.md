@@ -6,6 +6,7 @@ sidebarDepth: 0
 # PIN-5: Combining Tasks
 
 Date: 2019-02-20
+
 Author: Chris White
 
 ## Status
