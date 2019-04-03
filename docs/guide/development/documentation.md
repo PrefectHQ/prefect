@@ -47,9 +47,10 @@ Documentation (including both concepts and API references) is built and deployed
 To preview docs locally, you'll first need to install [VuePress](https://vuepress.vuejs.org/) and its dependencies. This requires the [yarn](https://yarnpkg.com/) package manager. You will also need to install the rest of Prefect's dependencies for generating docs. You only need to do this once:
 
 ```bash
+git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
 yarn install
-pip install "prefect[all_extras]"
+pip install ".[all_extras]"
 ```
 
 To launch a documentation preview:
