@@ -585,7 +585,8 @@ class Client:
                 "state": {"_eq": "Cached"},
                 "task_id": {"_eq": task_id},
                 "created": {"_gte": created_after.isoformat()},
-            }
+            },
+            "order_by": {"created": EnumValue("desc")},
         }
         query = {"query": {with_args("task_run", where_clause): "serialized_state"}}
         result = self.graphql(query)  # type: Any
