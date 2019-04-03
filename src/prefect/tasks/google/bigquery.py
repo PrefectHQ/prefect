@@ -53,7 +53,7 @@ class BigQueryTask(Task):
         dataset_dest: str = None,
         table_dest: str = None,
         job_config: dict = None,
-        **kwargs,
+        **kwargs
     ):
         self.query = query
         self.query_params = query_params
@@ -196,7 +196,7 @@ class BigQueryStreamingInsert(Task):
         project: str = None,
         location: str = "US",
         credentials_secret: str = None,
-        **kwargs,
+        **kwargs
     ):
         self.dataset_id = dataset_id
         self.table = table
@@ -216,7 +216,7 @@ class BigQueryStreamingInsert(Task):
         project: str = None,
         location: str = "US",
         credentials_secret: str = None,
-        **kwargs,
+        **kwargs
     ):
         """
         Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
@@ -302,7 +302,7 @@ class CreateBigQueryTable(Task):
         schema: List[bigquery.SchemaField] = None,
         clustering_fields: List[str] = None,
         time_partitioning: bigquery.TimePartitioning = None,
-        **kwargs,
+        **kwargs
     ):
         self.project = project
         self.credentials_secret = credentials_secret or "GOOGLE_APPLICATION_CREDENTIALS"
@@ -353,7 +353,9 @@ class CreateBigQueryTable(Task):
         table_ref = dataset_ref.table(table)
         try:
             client.get_table(table_ref)
-            raise SKIP(f"{dataset}.{table} already exists!")
+            raise SKIP(
+                "{dataset}.{table} already exists!".format(dataset=dataset, table=table)
+            )
         except NotFound:
             table = bigquery.Table(table_ref, schema=schema)
 
