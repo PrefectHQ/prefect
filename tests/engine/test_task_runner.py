@@ -305,18 +305,6 @@ def test_task_runner_can_handle_timeouts_by_default():
     assert state.cached_inputs == dict(secs=Result(2))
 
 
-@pytest.mark.parametrize(
-    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-)
-def test_task_runner_handles_timeouts_correctly(executor):
-    sleeper = SlowTask(timeout=3)
-    upstream_state = Success(result=0)
-    state = TaskRunner(sleeper).run(
-        upstream_states={Edge(None, sleeper, key="secs"): upstream_state}
-    )
-    assert state.is_successful()
-
-
 def test_task_runner_handles_secrets():
     t = SecretTask()
     with set_temporary_config({"cloud.use_local_secrets": True}):
