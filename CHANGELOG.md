@@ -8,12 +8,14 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - API reference documentation is now versioned - [#270](https://github.com/PrefectHQ/prefect/issues/270)
 - Add `S3ResultHandler` for handling results to / from S3 buckets - [#879](https://github.com/PrefectHQ/prefect/pull/879)
+- Add ability to use `Cached` states across flow runs in Cloud - [#885](https://github.com/PrefectHQ/prefect/pull/885)
 
 ### Enhancements
 - Bump to latest version of `pytest` (4.3) - [#814](https://github.com/PrefectHQ/prefect/issues/814)
 - `Client.deploy` accepts optional `build` kwarg for avoiding building Flow environment - [#876](https://github.com/PrefectHQ/prefect/pull/876)
 - Bump `distributed` to 1.26.1 for enhanced security features - [#878](https://github.com/PrefectHQ/prefect/pull/878)
 - Local secrets automatically attempt to load secrets as JSON - [#883](https://github.com/PrefectHQ/prefect/pull/883)
+- Add task logger to context for easily creating custom logs during task runs - [#884](https://github.com/PrefectHQ/prefect/issues/884)
 
 ### Task Library
 
