@@ -305,6 +305,18 @@ def test_task_runner_can_handle_timeouts_by_default():
     assert state.cached_inputs == dict(secs=Result(2))
 
 
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_task_runner_handles_timeouts_correctly(executor):
+    sleeper = SlowTask(timeout=3)
+    upstream_state = Success(result=0)
+    state = TaskRunner(sleeper).run(
+        upstream_states={Edge(None, sleeper, key="secs"): upstream_state}
+    )
+    assert state.is_successful()
+
+
 def test_task_runner_handles_secrets():
     t = SecretTask()
     with set_temporary_config({"cloud.use_local_secrets": True}):
@@ -1476,3 +1488,14 @@ def test_skips_arent_checkpointed():
         upstream_states={Edge(Task(), Task()): Skipped()}
     )
     assert new_state.is_successful()
+
+
+def test_task_runner_provides_logger():
+    @prefect.task()
+    def my_task():
+        logger = prefect.context.get("logger")
+        return logger
+
+    state = TaskRunner(my_task).run()
+    assert state.is_successful()
+    assert state.result is my_task.logger
