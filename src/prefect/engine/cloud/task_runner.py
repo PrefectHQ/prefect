@@ -174,7 +174,7 @@ class CloudTaskRunner(TaskRunner):
 
             if not cached_states:
                 self.logger.debug(
-                    "Task '{name}': can't use cache because none were found".format(
+                    "Task '{name}': can't use cache because no Cached states were found".format(
                         name=prefect.context.get("task_full_name", self.task.name)
                     )
                 )
@@ -195,7 +195,7 @@ class CloudTaskRunner(TaskRunner):
                     return candidate_state
 
                 self.logger.debug(
-                    "Task '{name}': can't use cache because none "
+                    "Task '{name}': can't use cache because no candidate Cached states "
                     "were valid".format(
                         name=prefect.context.get("task_full_name", self.task.name)
                     )
