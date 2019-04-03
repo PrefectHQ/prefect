@@ -1476,3 +1476,14 @@ def test_skips_arent_checkpointed():
         upstream_states={Edge(Task(), Task()): Skipped()}
     )
     assert new_state.is_successful()
+
+
+def test_task_runner_provides_logger():
+    @prefect.task()
+    def my_task():
+        logger = prefect.context.get("logger")
+        return logger
+
+    state = TaskRunner(my_task).run()
+    assert state.is_successful()
+    assert state.result is my_task.logger

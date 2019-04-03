@@ -783,9 +783,10 @@ class TaskRunner(Runner):
             )
             timeout_handler = timeout_handler or main_thread_timeout
             raw_inputs = {k: r.value for k, r in inputs.items()}
-            result = timeout_handler(
-                self.task.run, timeout=self.task.timeout, **raw_inputs
-            )
+            with prefect.context(logger=self.task.logger):
+                result = timeout_handler(
+                    self.task.run, timeout=self.task.timeout, **raw_inputs
+                )
 
         # inform user of timeout
         except TimeoutError as exc:
