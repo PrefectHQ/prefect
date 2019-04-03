@@ -129,6 +129,31 @@ def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updat
     assert res.is_running()
 
 
+def test_task_runner_queries_for_cached_states_if_task_has_caching(client):
+    @prefect.task(cache_for=datetime.timedelta(minutes=1))
+    def cached_task():
+        return 42
+
+    state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(days=1),
+        result=99,
+    )
+    old_state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        - datetime.timedelta(days=1),
+        result=13,
+    )
+    client.get_latest_cached_states = MagicMock(return_value=[state, old_state])
+
+    ## an ENDRUN will cause the TaskRunner to return the most recently computed state
+    res = CloudTaskRunner(task=cached_task).run()
+    assert client.get_latest_cached_states.called
+    assert res.is_successful()
+    assert res.is_cached()
+    assert res.result == 99
+
+
 def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypatch):
     task = Task(name="test")
     get_task_run_info = MagicMock(side_effect=SyntaxError)
