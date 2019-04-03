@@ -14,7 +14,11 @@ try:
     import prefect.tasks.google.storage
 
     from prefect.tasks.google.storage import GCSDownload, GCSUpload
-    from prefect.tasks.google.bigquery import BigQueryTask, BigQueryStreamingInsert
+    from prefect.tasks.google.bigquery import (
+        BigQueryTask,
+        BigQueryStreamingInsert,
+        CreateBigQueryTable,
+    )
 except ImportError:
     raise ImportError(
         'Using `prefect.tasks.google` requires Prefect to be installed with the "google" extra.'

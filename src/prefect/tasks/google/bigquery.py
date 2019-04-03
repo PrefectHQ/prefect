@@ -287,8 +287,8 @@ class CreateBigQueryTable(Task):
         - table (str, optional): the name of a table to create
         - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
         - clustering_fields (List[str], optional): a list of fields to cluster the table by
-        - time_partioning (bigquery.TimePartitioning, optional): a `bigquery.TimePartitioning` object specifying
-            a partioninig of the newly created table
+        - time_partitioning (bigquery.TimePartitioning, optional): a `bigquery.TimePartitioning` object specifying
+            a partitioninig of the newly created table
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -300,7 +300,7 @@ class CreateBigQueryTable(Task):
         table: str = None,
         schema: List[bigquery.SchemaField] = None,
         clustering_fields: List[str] = None,
-        time_partioning: bigquery.TimePartioning = None,
+        time_partitioning: bigquery.TimePartitioning = None,
         **kwargs,
     ):
         self.project = project
@@ -309,7 +309,7 @@ class CreateBigQueryTable(Task):
         self.table = table
         self.schema = schema
         self.clustering_fields = clustering_fields
-        self.time_partioning = time_partioning
+        self.time_partitioning = time_partitioning
         super().__init__(**kwargs)
 
     @defaults_from_attrs("project", "credentials_secret", "dataset", "table", "schema")
@@ -357,8 +357,8 @@ class CreateBigQueryTable(Task):
             table = bigquery.Table(table_ref, schema=schema)
 
             # partitioning
-            if self.time_partioning:
-                table.time_partitioning = self.time_partioning
+            if self.time_partitioning:
+                table.time_partitioning = self.time_partitioning
 
             # cluster for optimal data sorting/access
             if self.clustering_fields:
