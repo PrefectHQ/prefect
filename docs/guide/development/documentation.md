@@ -20,7 +20,7 @@ classes = ["Class"]
 functions = ["function"]
 ```
 
-If your module wasn't already in the reference docs, update `docs/.vuepress/config.js` to add it to the navigation sidebar. For example, the collections module from this example would be added to the "utilities" section:
+Most reference docs sections update their sidebars automatically by detecting the files generated from `outline.toml`. However, in some instances you may have include your file explicitly. To do so, update `docs/.vuepress/config.js` and add it to the appropriate "children" section. The actual `prefect.utilities` section *does* auto-update its sidebar, but for the sake of example, you would add the new file to the children array like so:
 
 ```javascript
 {
@@ -33,6 +33,16 @@ If your module wasn't already in the reference docs, update `docs/.vuepress/conf
     ]
 }
 ```
+
+### Archiving API docs
+
+Whenever a new release of Prefect is cut, we must archive the old API docs so they are available for users using the older versions.  To do so, follow these steps:
+- first, make sure you are on the release commit: `git checkout $VERSION_TAG`
+- next, generate the documentation: `cd docs/ && python generate_docs.py`
+- push the API docs into a new folder: `cd api/ && mv unreleased/ $VERSION_TAG`
+- begin tracking any changes to the new folder:  `git checkout master && git checkout -b new-version-branch && git add $VERSION_TAG`
+- lastly, create a new `sidebar.js` file in the `$VERSION_TAG/` folder with an exportable sidebar object (see [0.5.0](https://github.com/PrefectHQ/prefect/blob/master/docs/api/0.5.0/sidebar.js) for an example)
+- this sidebar will need to be imported into `docs/.vuepress/config.js` and added to a new dropdown option in the API navigation bar
 
 ## Concepts
 
