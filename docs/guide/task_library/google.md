@@ -42,6 +42,6 @@ Task for insert records in a Google BigQuery table via [the streaming API](https
 
 ### CreateBigQueryTable <Badge text="task"/>
 
-Task for Google BigQuery tables.
+Task for creating Google BigQuery tables.
 
 [API Reference](/api/unreleased/tasks/google.html#prefect-tasks-google-bigquery-createbigquerytable)
