@@ -147,7 +147,6 @@ def test_task_runner_queries_for_cached_states_if_task_has_caching(client):
     )
     client.get_latest_cached_states = MagicMock(return_value=[state, old_state])
 
-    ## an ENDRUN will cause the TaskRunner to return the most recently computed state
     res = CloudTaskRunner(task=cached_task).run()
     assert client.get_latest_cached_states.called
     assert res.is_successful()
@@ -172,7 +171,6 @@ def test_task_runner_validates_cached_states_if_task_has_caching(client):
     )
     client.get_latest_cached_states = MagicMock(return_value=[state, old_state])
 
-    ## an ENDRUN will cause the TaskRunner to return the most recently computed state
     res = CloudTaskRunner(task=cached_task).run()
     assert client.get_latest_cached_states.called
     assert res.is_successful()
