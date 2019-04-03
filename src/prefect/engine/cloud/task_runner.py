@@ -172,6 +172,20 @@ class CloudTaskRunner(TaskRunner):
                 task_id=self.task.id, created_after=oldest_valid_cache
             )
 
+            if not cached_states:
+                self.logger.debug(
+                    "Task '{name}': can't use cache because none were found".format(
+                        name=prefect.context.get("task_full_name", self.task.name)
+                    )
+                )
+            else:
+                self.logger.debug(
+                    "Task '{name}': {num} candidate cached states were found".format(
+                        name=prefect.context.get("task_full_name", self.task.name),
+                        num=len(cached_states),
+                    )
+                )
+
             for candidate_state in cached_states:
                 assert isinstance(candidate_state, Cached)  # mypy assert
                 if self.task.cache_validator(
@@ -180,11 +194,11 @@ class CloudTaskRunner(TaskRunner):
                     candidate_state._result = candidate_state._result.to_result()
                     return candidate_state
 
-            self.logger.debug(
-                "Task '{name}': can't use cache because none "
-                "were valid".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
+                self.logger.debug(
+                    "Task '{name}': can't use cache because none "
+                    "were valid".format(
+                        name=prefect.context.get("task_full_name", self.task.name)
+                    )
                 )
-            )
 
         return state
