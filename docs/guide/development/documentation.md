@@ -20,7 +20,7 @@ classes = ["Class"]
 functions = ["function"]
 ```
 
-If your module wasn't already in the reference docs, update `docs/.vuepress/config.js` to add it to the navigation sidebar. For example, the collections module from this example would be added to the "utilities" section:
+Most reference docs sections update their sidebars automatically by detecting the files generated from `outline.toml`. However, in some instances you may have include your file explicitly. To do so, update `docs/.vuepress/config.js` and add it to the appropriate "children" section. The actual `prefect.utilities` section *does* auto-update its sidebar, but for the sake of example, you would add the new file to the children array like so:
 
 ```javascript
 {
