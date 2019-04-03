@@ -88,6 +88,7 @@ def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     ## assertions
     assert client.get_task_run_info.call_count == 0  # never called
     assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Success
+    assert client.get_latest_cached_states.call_count == 0
 
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
     assert [type(s).__name__ for s in states] == ["Running", "Success"]
@@ -152,6 +153,31 @@ def test_task_runner_queries_for_cached_states_if_task_has_caching(client):
     assert res.is_successful()
     assert res.is_cached()
     assert res.result == 99
+
+
+def test_task_runner_validates_cached_states_if_task_has_caching(client):
+    @prefect.task(cache_for=datetime.timedelta(minutes=1))
+    def cached_task():
+        return 42
+
+    state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        - datetime.timedelta(minutes=2),
+        result=99,
+    )
+    old_state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        - datetime.timedelta(days=1),
+        result=13,
+    )
+    client.get_latest_cached_states = MagicMock(return_value=[state, old_state])
+
+    ## an ENDRUN will cause the TaskRunner to return the most recently computed state
+    res = CloudTaskRunner(task=cached_task).run()
+    assert client.get_latest_cached_states.called
+    assert res.is_successful()
+    assert res.is_cached()
+    assert res.result == 42
 
 
 def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypatch):
