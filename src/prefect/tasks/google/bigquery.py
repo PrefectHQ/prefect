@@ -8,6 +8,7 @@ from google.oauth2.service_account import Credentials
 from prefect import context
 from prefect.client import Secret
 from prefect.core import Task
+from prefect.engine.signals import SKIP
 from prefect.utilities.tasks import defaults_from_attrs
 
 

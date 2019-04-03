@@ -1,3 +1,4 @@
+from google.cloud.exceptions import NotFound
 from unittest.mock import MagicMock
 
 import pytest
@@ -294,3 +295,34 @@ class TestCreateBigQueryTableInitialization:
     def test_initializes_attr_from_kwargs(self, attr):
         task = CreateBigQueryTable(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
+
+    def test_skip_signal_is_raised_if_table_exists(self, monkeypatch):
+        monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", MagicMock())
+        monkeypatch.setattr(
+            "prefect.tasks.google.bigquery.bigquery.Client", MagicMock()
+        )
+        task = CreateBigQueryTable()
+        with pytest.raises(prefect.engine.signals.SKIP) as exc:
+            task.run()
+
+        assert "already exists" in str(exc.value)
+
+    def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
+        task = CreateBigQueryTable()
+
+        creds_loader = MagicMock()
+        monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", creds_loader)
+        monkeypatch.setattr(
+            "prefect.tasks.google.bigquery.bigquery.Client",
+            MagicMock(
+                return_value=MagicMock(get_table=MagicMock(side_effect=NotFound("boy")))
+            ),
+        )
+
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})
+            ):
+                task.run()
+
+        assert creds_loader.from_service_account_info.call_args[0][0] == {"key": 42}
