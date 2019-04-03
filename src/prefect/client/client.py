@@ -567,6 +567,24 @@ class Client:
 
         self.graphql(mutation, state=serialized_state)  # type: Any
 
+    def get_latest_cached_states(
+        self, task_id: str, created_after: datetime.datetime
+    ) -> List["prefect.engine.state.Cached"]:
+        where_clause = {
+            "where": {
+                "state": {"_eq": "Cached"},
+                "task_id": {"_eq": task_id},
+                "created": {"_gte": created_after.isoformat()},
+            }
+        }
+        query = {"query": {with_args("task_run", where_clause): "serialized_state"}}
+        result = self.graphql(query)  # type: Any
+        deserializer = prefect.engine.state.State.deserialize
+        valid_states = [
+            deserializer(res.serialized_state) for res in result.data.task_run
+        ]
+        return valid_states
+
     def get_task_run_info(
         self, flow_run_id: str, task_id: str, map_index: Optional[int] = None
     ) -> TaskRunInfoResult:
