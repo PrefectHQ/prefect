@@ -2,17 +2,17 @@ const sidebar = require('../api/0.5.0/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent, path) {
+const getChildren = function(parent_path, dir) {
   return glob
-    .sync(parent + '/' + path + '/**/*.md')
-    .map(f => {
-      // remove "parent" and ".md"
-      f = f.slice(parent.length + 1, -3)
+    .sync(parent_path + '/' + dir + '/**/*.md')
+    .map(path => {
+      // remove "parent_path" and ".md"
+      path = path.slice(parent_path.length + 1, -3)
       // remove README
-      if (f.endsWith('README')) {
-        f = f.slice(0, -6)
+      if (path.endsWith('README')) {
+        path = path.slice(0, -6)
       }
-      return f
+      return path
     })
     .sort()
 }
