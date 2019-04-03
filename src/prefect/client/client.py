@@ -570,6 +570,16 @@ class Client:
     def get_latest_cached_states(
         self, task_id: str, created_after: datetime.datetime
     ) -> List["prefect.engine.state.State"]:
+        """
+        Pulls all Cached states for the given task which were created after the provided date.
+
+        Args:
+            - task_id (str): the task id for this task run
+            - created_after (datetime.datetime): the earliest date the state should have been created at
+
+        Returns:
+            - List[State]: a list of Cached states created after the given date
+        """
         where_clause = {
             "where": {
                 "state": {"_eq": "Cached"},
