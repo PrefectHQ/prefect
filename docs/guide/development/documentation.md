@@ -34,6 +34,16 @@ If your module wasn't already in the reference docs, update `docs/.vuepress/conf
 }
 ```
 
+### Archiving API docs
+
+Whenever a new release of Prefect is cut, we must archive the old API docs so they are available for users using the older versions.  To do so, follow these steps:
+- first, make sure you are on the release commit: `git checkout $VERSION_TAG`
+- next, generate the documentation: `cd docs/ && python generate_docs.py`
+- push the API docs into a new folder: `cd api/ && mv unreleased/ $VERSION_TAG`
+- begin tracking any changes to the new folder:  `git checkout master && git checkout -b new-version-branch && git add $VERSION_TAG`
+- lastly, create a new `sidebar.js` file in the `$VERSION_TAG/` folder with an exportable sidebar object (see [0.5.0](https://github.com/PrefectHQ/prefect/blob/master/docs/api/0.5.0/sidebar.js) for an example)
+- this sidebar will need to be imported into `docs/.vuepress/config.js` and added to a new dropdown option in the API navigation bar
+
 ## Concepts
 
 Prefect also includes a great deal of "concept" documentation, which covers features, tutorials, guides, and examples separately from the auto-generated API reference. This page is part of the concept documentation for development! We refer to non-API documentation as Prefect's "Guide".
