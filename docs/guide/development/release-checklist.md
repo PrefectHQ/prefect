@@ -1,4 +1,4 @@
-# Cutting a New Release
+# Release Checklist
 
 There are a few steps we need to take when cutting a new Prefect release; this document serves as a checklist for what needs to happen for a successful release:
 
@@ -7,5 +7,6 @@ There are a few steps we need to take when cutting a new Prefect release; this d
 - [ ] [Draft a new release in GitHub](https://github.com/PrefectHQ/prefect/releases) - typically we try to name them and include the changelog in the notes
 - [ ] Pull the new `git tag` locally, [rebuild the distribution archives](https://packaging.python.org/tutorials/packaging-projects/#generating-distribution-archives) and use `twine upload dist/*` to upload to PyPI
 - [ ] Pushing to PyPI _should_ trigger a PR to the [`prefect-feedstock` conda-forge repo](https://github.com/conda-forge/prefect-feedstock); upon approval and merge, this will land the new release in `conda-forge` as well
+- [ ] Lastly, [archive the new tagged release API documentation](documentation.html#archiving-api-docs)
 
 That's it!
