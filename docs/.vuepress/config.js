@@ -1,4 +1,21 @@
-var sidebar = require('../api/0.5.0/sidebar')
+const sidebar = require('../api/0.5.0/sidebar')
+const glob = require('glob')
+
+// function for loading all MD files in a directory
+const getChildren = function(parent_path, dir) {
+  return glob
+    .sync(parent_path + '/' + dir + '/**/*.md')
+    .map(path => {
+      // remove "parent_path" and ".md"
+      path = path.slice(parent_path.length + 1, -3)
+      // remove README
+      if (path.endsWith('README')) {
+        path = path.slice(0, -6)
+      }
+      return path
+    })
+    .sort()
+}
 
 module.exports = {
   title: 'Prefect Docs',
@@ -24,8 +41,10 @@ module.exports = {
       },
       {
         text: 'API Reference',
-        items: [{ text: "Unreleased", link: '/api/unreleased/' },
-                { text: "0.5.0", link: '/api/0.5.0/' } ]
+        items: [
+          { text: 'Unreleased', link: '/api/unreleased/' },
+          { text: '0.5.0', link: '/api/0.5.0/' }
+        ]
       }
     ],
     sidebar: {
@@ -42,76 +61,32 @@ module.exports = {
         {
           title: 'prefect.client',
           collapsable: true,
-          children: ['client/client', 'client/secrets']
+          children: getChildren('docs/api/unreleased', 'client')
         },
         {
           title: 'prefect.core',
           collapsable: true,
-          children: ['core/task', 'core/flow', 'core/edge']
+          children: getChildren('docs/api/unreleased', 'core')
         },
         {
           title: 'prefect.engine',
           collapsable: true,
-          children: [
-            'engine/cloud',
-            'engine/cache_validators',
-            'engine/executors',
-            'engine/flow_runner',
-            'engine/result',
-            'engine/result_handlers',
-            'engine/signals',
-            'engine/state',
-            'engine/task_runner'
-          ]
+          children: getChildren('docs/api/unreleased', 'engine')
         },
         {
           title: 'prefect.environments',
           collapsable: true,
-          children: [
-            'environments/environment',
-            'environments/base_environment',
-            'environments/kubernetes/docker_on_kubernetes',
-            'environments/kubernetes/dask_on_kubernetes'
-          ]
+          children: getChildren('docs/api/unreleased', 'environments')
         },
         {
           title: 'prefect.tasks',
           collapsable: true,
-          children: [
-            'tasks/airflow',
-            'tasks/aws',
-            'tasks/collections',
-            'tasks/constants',
-            'tasks/control_flow',
-            'tasks/docker',
-            'tasks/function',
-            'tasks/github',
-            'tasks/google',
-            'tasks/kubernetes',
-            'tasks/notifications',
-            'tasks/operators',
-            'tasks/rss',
-            'tasks/shell',
-            'tasks/sqlite',
-            'tasks/strings'
-          ]
+          children: getChildren('docs/api/unreleased', 'tasks')
         },
         {
           title: 'prefect.utilities',
           collapsable: true,
-          children: [
-            'utilities/collections',
-            'utilities/configuration',
-            'utilities/context',
-            'utilities/debug',
-            'utilities/environments',
-            'utilities/executors',
-            'utilities/graphql',
-            'utilities/logging',
-            'utilities/notifications',
-            'utilities/serialization',
-            'utilities/tasks'
-          ]
+          children: getChildren('docs/api/unreleased', 'utilities')
         }
       ],
       '/guide/': [
@@ -138,46 +113,17 @@ module.exports = {
         {
           title: 'Tutorials',
           collapsable: true,
-          children: [
-            'tutorials/',
-            'tutorials/etl',
-            'tutorials/calculator',
-            'tutorials/local-debugging',
-            'tutorials/visualization',
-            'tutorials/advanced-mapping',
-            'tutorials/slack-notifications'
-          ]
+          children: getChildren('docs/guide', 'tutorials')
         },
         {
           title: 'Task Library',
           collapsable: true,
-          children: [
-            'task_library/',
-            'task_library/airflow',
-            'task_library/airtable',
-            'task_library/aws',
-            'task_library/collections',
-            'task_library/constants',
-            'task_library/control_flow',
-            'task_library/docker',
-            'task_library/function',
-            'task_library/github',
-            'task_library/google',
-            'task_library/kubernetes',
-            'task_library/notifications',
-            'task_library/operators',
-            'task_library/rss',
-            'task_library/shell',
-            'task_library/sqlite',
-            'task_library/strings',
-            'task_library/twitter'
-          ]
+          children: getChildren('docs/guide', 'task_library')
         },
         {
           title: 'Core Concepts',
           collapsable: true,
           children: [
-            // 'concepts/',
             'core_concepts/tasks',
             'core_concepts/flows',
             'core_concepts/parameters',
@@ -197,43 +143,17 @@ module.exports = {
         {
           title: 'Cloud Concepts',
           collapsable: true,
-          children: [
-            'cloud_concepts/auth',
-            'cloud_concepts/ui',
-            'cloud_concepts/graphql',
-            'cloud_concepts/projects',
-            'cloud_concepts/flows',
-            'cloud_concepts/flow_runs',
-            'cloud_concepts/scheduled-flows',
-            'cloud_concepts/secrets'
-          ]
+          children: getChildren('docs/guide', 'cloud_concepts')
         },
         {
           title: 'Examples',
           collapsable: true,
-          children: [
-            'examples/airflow_tutorial_dag',
-            'examples/cached_task',
-            'examples/etl',
-            'examples/github_release_cycle',
-            'examples/map_reduce',
-            'examples/parameterized_flow',
-            'examples/retries_with_mapping',
-            'examples/twitter_to_airtable',
-            'examples/daily_github_stats_to_airtable'
-          ]
+          children: getChildren('docs/guide', 'examples')
         },
         {
           title: 'PINs',
           collapsable: true,
-          children: [
-            'PINs/',
-            'PINs/PIN-1-Introduce-PINs',
-            'PINs/PIN-2-Result-Handlers',
-            'PINs/PIN-3-Agent-Environment',
-            'PINs/PIN-4-Result-Objects',
-            'PINs/PIN-5-Combining-Tasks'
-          ]
+          children: getChildren('docs/guide', 'PINs')
         },
         {
           title: 'Development',
@@ -243,7 +163,8 @@ module.exports = {
             'development/style',
             'development/documentation',
             'development/tests',
-            'development/contributing'
+            'development/contributing',
+            'development/release-checklist'
           ]
         }
       ]
