@@ -1,4 +1,5 @@
 import copy
+import datetime
 import warnings
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -6,7 +7,7 @@ import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cloud.utilities import prepare_state_for_cloud
-from prefect.engine.result import NoResult
+from prefect.engine.result import NoResult, Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
 from prefect.engine.state import Cached, Failed, Mapped, State
@@ -148,3 +149,56 @@ class CloudTaskRunner(TaskRunner):
         context.update(cloud=True)
 
         return super().initialize_run(state=state, context=context)
+
+    @call_state_handlers
+    def check_task_is_cached(self, state: State, inputs: Dict[str, Result]) -> State:
+        """
+        Checks if task is cached in the DB and whether any of the caches are still valid.
+
+        Args:
+            - state (State): the current state of this task
+            - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+
+        Returns:
+            - State: the state of the task after running the check
+
+        Raises:
+            - ENDRUN: if the task is not ready to run
+        """
+        if self.task.cache_for is not None:
+            oldest_valid_cache = datetime.datetime.utcnow() - self.task.cache_for
+            cached_states = self.client.get_latest_cached_states(
+                task_id=self.task.id, created_after=oldest_valid_cache
+            )
+
+            if not cached_states:
+                self.logger.debug(
+                    "Task '{name}': can't use cache because no Cached states were found".format(
+                        name=prefect.context.get("task_full_name", self.task.name)
+                    )
+                )
+            else:
+                self.logger.debug(
+                    "Task '{name}': {num} candidate cached states were found".format(
+                        name=prefect.context.get("task_full_name", self.task.name),
+                        num=len(cached_states),
+                    )
+                )
+
+            for candidate_state in cached_states:
+                assert isinstance(candidate_state, Cached)  # mypy assert
+                if self.task.cache_validator(
+                    candidate_state, inputs, prefect.context.get("parameters")
+                ):
+                    candidate_state._result = candidate_state._result.to_result()
+                    return candidate_state
+
+                self.logger.debug(
+                    "Task '{name}': can't use cache because no candidate Cached states "
+                    "were valid".format(
+                        name=prefect.context.get("task_full_name", self.task.name)
+                    )
+                )
+
+        return state
