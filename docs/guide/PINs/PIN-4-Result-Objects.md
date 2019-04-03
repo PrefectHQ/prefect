@@ -3,7 +3,7 @@ title: 'PIN-4: Result Objects'
 sidebarDepth: 0
 ---
 
-# PIN-4 Result Objects for Tracking and Serializing Task Outputs
+# PIN-4: Result Objects for Tracking and Serializing Task Outputs
 
 2019-01-30
 Jeremiah Lowin
