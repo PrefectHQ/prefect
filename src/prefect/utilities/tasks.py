@@ -67,10 +67,6 @@ def as_task(x: Any) -> "prefect.Task":
     elif isinstance(x, dict):
         return prefect.tasks.core.collections.Dict().bind(**x)
 
-    # functions
-    elif callable(x):
-        return prefect.tasks.core.function.FunctionTask(fn=x)
-
     # constants
     else:
         return prefect.tasks.core.constants.Constant(value=x)

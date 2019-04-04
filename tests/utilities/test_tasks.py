@@ -89,6 +89,28 @@ class TestTaskDecorator:
                 pass
 
 
+class TestAsTask:
+    @pytest.mark.parametrize(
+        "obj",
+        [1, (3, 4), ["a", "b"], "string", dict(x=42), type(None), lambda *args: None],
+    )
+    def test_as_task_with_basic_python_objs(self, obj):
+        @tasks.task
+        def return_val(x):
+            "Necessary because constant tasks are tracked inside the flow"
+            return x
+
+        with Flow("test") as f:
+            t = tasks.as_task(obj)
+            val = return_val(t)
+
+        assert isinstance(t, Task)
+        res = FlowRunner(f).run(return_tasks=[val])
+
+        assert res.is_successful()
+        assert res.result[val].result == obj
+
+
 def test_tag_contextmanager_works_with_task_decorator():
     @tasks.task
     def mytask():
