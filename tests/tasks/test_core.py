@@ -82,8 +82,22 @@ class TestCollections:
     def test_dict_returns_a_dict(self):
         l = collections.Dict()
         with Flow(name="test") as f:
-            l.bind(a=1, b=2)
+            l.bind(keys=["a", "b"], values=[1, 2])
         assert f.run().result[l].result == dict(a=1, b=2)
+
+    def test_dict_handles_non_string_keys(self):
+        l = collections.Dict()
+        with Flow(name="test") as f:
+            l.bind(keys=[None, 55], values=[1, 2])
+        assert f.run().result[l].result == {None: 1, 55: 2}
+
+    def test_dict_raises_for_differing_length_key_value_pairs(self):
+        l = collections.Dict()
+        with Flow(name="test") as f:
+            l.bind(keys=["a"], values=[1, 2])
+        state = f.run()
+        assert state.result[l].is_failed()
+        assert isinstance(state.result[l].result, ValueError)
 
     def test_list_automatically_applied_to_callargs(self):
         x = Parameter("x")
@@ -129,7 +143,9 @@ class TestCollections:
             identity.bind(x=dict(a=x, b=y))
         state = f.run(parameters=dict(x=1, y=2))
 
-        assert len(f.tasks) == 4
+        assert (
+            len(f.tasks) == 8
+        )  # 2 params, identity, Dict, 2 Lists for Dict, "a" and "b"
         assert sum(isinstance(t, collections.Dict) for t in f.tasks) == 1
         assert state.result[identity].result == dict(a=1, b=2)
 
@@ -141,5 +157,5 @@ class TestCollections:
             identity.bind(x=dict(a=[x, dict(y=y)], b=(y, set([x]))))
         state = f.run(parameters=dict(x=1, y=2))
 
-        assert len(f.tasks) == 8
+        assert len(f.tasks) == 15
         assert state.result[identity].result == dict(a=[1, dict(y=2)], b=(2, set([1])))
