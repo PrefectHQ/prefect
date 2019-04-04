@@ -188,11 +188,11 @@ def concatenate(arrays: List[np.ndarray]) -> np.ndarray:
 
 
 @task
-def dot(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+def dot(arrays: List[np.ndarray]) -> np.ndarray:
     """
-    Calculate the dot product of two arrays.
+    Calculate the dot product of two or more arrays.
     """
-    return np.dot(A, B)
+    return np.linalg.multi_dot(arrays)
 
 
 # sabermetric calculation tasks
@@ -277,7 +277,7 @@ with Flow("Sabermetrics") as flow:
     # stats
     singles = clean["H"] - clean["2B"] - clean["3B"] - clean["HR"]
     hit_types = concatenate([singles, clean["2B"], clean["3B"], clean["HR"]])
-    total_bases = dot(hit_types, np.array([1, 2, 3, 4]))
+    total_bases = dot([hit_types, np.array([1, 2, 3, 4])])
     PA = clean["AB"] + clean["BB"] + clean["HBP"] + clean["SH"] + clean["SF"]
     BBp = clean["BB"] / PA
     Kp = clean["SO"] / PA
