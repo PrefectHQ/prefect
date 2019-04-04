@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- `prefect make-user-config` now creates default user config from src/prefect/config.toml
 
 ### Task Library
 

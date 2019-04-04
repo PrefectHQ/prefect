@@ -33,8 +33,12 @@ def make_user_config():
     with open(user_config_path, "w") as user_config:
         user_config.write(
             "# This is a user configuration file.\n"
-            "# Settings placed here will overwrite Prefect's defaults."
+            "# Settings placed here will overwrite Prefect's defaults.\n"
         )
+        config_loc = os.path.join(__file__, '../config.toml')
+        with open(config_loc) as defaults_file:
+            for line in defaults_file:
+                user_config.write()
 
     click.secho("Config created at {}".format(user_config_path), fg="green")
 
