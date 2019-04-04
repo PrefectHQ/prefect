@@ -43,6 +43,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - [dhirschfeld](https://github.com/dhirschfeld)
 - [BasPH](https://github.com/BasPH)
 - [Miloš Garunović](https://github.com/milosgarunovic)
+- [Nash Taylor](https://github.com/ntaylorwss)
 
 ## 0.5.0 <Badge text="beta" type="success"/>
 
