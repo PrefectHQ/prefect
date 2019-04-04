@@ -131,12 +131,19 @@ class Dict(Task):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-    def run(self, **task_results: Any) -> dict:  # type: ignore
+    def run(self, keys: Iterable[Any], values: Iterable[Any]) -> dict:  # type: ignore
         """
         Args:
-            - **task_results (Any): task result key / value pairs to collect into a dict
+            - keys (Iterable[Any]): a list of keys that will form the dictionary
+            - values (Iterable[Any]): a list of values for the dictionary
 
         Returns:
             - dict: a dict of task results
+
+        Raises:
+            - ValueError: if the number of keys and the number of values are different
         """
-        return task_results
+        if len(keys) != len(values):
+            raise ValueError("A different number of keys and values were provided!")
+
+        return {k: v for k, v in zip(keys, values)}
