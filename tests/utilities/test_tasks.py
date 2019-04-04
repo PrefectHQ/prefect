@@ -92,7 +92,16 @@ class TestTaskDecorator:
 class TestAsTask:
     @pytest.mark.parametrize(
         "obj",
-        [1, (3, 4), ["a", "b"], "string", dict(x=42), type(None), lambda *args: None],
+        [
+            1,
+            (3, 4),
+            ["a", "b"],
+            "string",
+            dict(x=42),
+            type(None),
+            lambda *args: None,
+            {None: 88},
+        ],
     )
     def test_as_task_with_basic_python_objs(self, obj):
         @tasks.task

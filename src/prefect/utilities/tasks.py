@@ -65,7 +65,11 @@ def as_task(x: Any) -> "prefect.Task":
     elif isinstance(x, set):
         return prefect.tasks.core.collections.Set().bind(*x)
     elif isinstance(x, dict):
-        return prefect.tasks.core.collections.Dict().bind(**x)
+        keys, values = [], []
+        for k, v in x.items():
+            keys.append(k)
+            values.append(v)
+        return prefect.tasks.core.collections.Dict().bind(keys=keys, values=values)
 
     # constants
     else:
