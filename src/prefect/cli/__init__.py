@@ -35,7 +35,7 @@ def make_user_config():
             "# This is a user configuration file.\n"
             "# Settings placed here will overwrite Prefect's defaults.\n"
         )
-        config_loc = os.path.join(__file__, '../config.toml')
+        config_loc = os.path.join(__file__, "../config.toml")
         with open(config_loc) as defaults_file:
             for line in defaults_file:
                 user_config.write()
