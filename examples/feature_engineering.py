@@ -65,7 +65,6 @@ def unzip_data(zip_filename: str):
     with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
         zip_ref.extractall("data")
 
-
 @task
 def get_rootdir(zip_filename: str):
     """
@@ -236,9 +235,9 @@ class DataFrame:
 
 # let's do some ML for fun
 class PCATask(Task):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, task_kwargs={}, **kwargs):
         self.pca_model = PCA(*args, **kwargs)
-        super().__init__()
+        super().__init__(**task_kwargs)
 
     def fit(self, X):
         self.pca_model.fit(X)
