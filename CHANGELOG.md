@@ -6,6 +6,34 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.5.1 <Badge text="beta" type="success"/>
+
+Released April 4, 2019
+
+### Features
+
 - API reference documentation is now versioned - [#270](https://github.com/PrefectHQ/prefect/issues/270)
 - Add `S3ResultHandler` for handling results to / from S3 buckets - [#879](https://github.com/PrefectHQ/prefect/pull/879)
 - Add ability to use `Cached` states across flow runs in Cloud - [#885](https://github.com/PrefectHQ/prefect/pull/885)
