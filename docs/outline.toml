@@ -219,7 +219,7 @@ classes = [
 [pages.tasks.google]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.google"
-classes = ["GCSDownload", "GCSUpload", "BigQueryTask", "BigQueryStreamingInsert"]
+classes = ["GCSDownload", "GCSUpload", "BigQueryTask", "BigQueryStreamingInsert", "CreateBigQueryTable"]
 
 [pages.tasks.notifications]
 title = "Notification Tasks"
