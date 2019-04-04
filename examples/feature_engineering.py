@@ -65,6 +65,7 @@ def unzip_data(zip_filename: str):
     with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
         zip_ref.extractall("data")
 
+
 @task
 def get_rootdir(zip_filename: str):
     """
