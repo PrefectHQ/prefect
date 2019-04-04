@@ -34,7 +34,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- Change the call signature of `Dict` task from `run(**task_results)` to `run(keys, values)` - [#894](https://github.com/PrefectHQ/prefect/issues/894)
 
 ### Contributors
 
