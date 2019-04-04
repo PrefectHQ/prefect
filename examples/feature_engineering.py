@@ -259,13 +259,10 @@ with Flow("Sabermetrics") as flow:
     zip_filename = file_from_link(link)
     mk_data = mkdir("data")
 
-    dl_task = download_data(link, zip_filename)
-    dl_task.set_dependencies(upstream_tasks=[mk_data])
+    dl_task = download_data(link, zip_filename, upstream_tasks=[mk_data])
 
-    unzip = unzip_data(zip_filename)
-    unzip.set_dependencies(upstream_tasks=[dl_task])
-    rootdir = get_rootdir(zip_filename)
-    rootdir.set_dependencies(upstream_tasks=[unzip])
+    unzip = unzip_data(zip_filename, upstream_tasks=[dl_task])
+    rootdir = get_rootdir(zip_filename, upstream_tasks=[unzip])
 
     exclude_cols = ["playerID", "yearID", "stint", "teamID", "lgID"]
     data = read_csv(rootdir, table, exclude_cols=exclude_cols)
