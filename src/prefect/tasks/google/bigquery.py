@@ -8,7 +8,7 @@ from google.oauth2.service_account import Credentials
 from prefect import context
 from prefect.client import Secret
 from prefect.core import Task
-from prefect.engine.signals import SKIP
+from prefect.engine.signals import SUCCESS
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -338,7 +338,7 @@ class CreateBigQueryTable(Task):
             - None
 
         Raises:
-            - SKIP: a `SKIP` signal if the table already exists
+            - SUCCESS: a `SUCCESS` signal if the table already exists
         """
         creds = Secret(credentials_secret).get()
         credentials = Credentials.from_service_account_info(creds)
@@ -353,8 +353,8 @@ class CreateBigQueryTable(Task):
         table_ref = dataset_ref.table(table)
         try:
             client.get_table(table_ref)
-            raise SKIP(
-                "{dataset}.{table} already exists!".format(dataset=dataset, table=table)
+            raise SUCCESS(
+                "{dataset}.{table} already exists.".format(dataset=dataset, table=table)
             )
         except NotFound:
             table = bigquery.Table(table_ref, schema=schema)

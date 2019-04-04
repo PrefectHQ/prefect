@@ -302,7 +302,7 @@ class TestCreateBigQueryTableInitialization:
             "prefect.tasks.google.bigquery.bigquery.Client", MagicMock()
         )
         task = CreateBigQueryTable()
-        with pytest.raises(prefect.engine.signals.SKIP) as exc:
+        with pytest.raises(prefect.engine.signals.SUCCESS) as exc:
             task.run()
 
         assert "already exists" in str(exc.value)
