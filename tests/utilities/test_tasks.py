@@ -106,7 +106,7 @@ class TestAsTask:
     def test_as_task_with_basic_python_objs(self, obj):
         @tasks.task
         def return_val(x):
-            "Necessary because constant tasks are tracked inside the flow"
+            "Necessary because constant tasks aren't tracked inside the flow"
             return x
 
         with Flow("test") as f:
