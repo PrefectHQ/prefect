@@ -176,38 +176,12 @@ def get(values: List[np.ndarray], keys: List[str], key: str) -> np.ndarray:
     return values[keys.index(key)]
 
 
-# using a specific number of arrays since Prefect doesn't support variable positional args
 @task
-def concatenate4(
-    a: np.ndarray, b: np.ndarray, c: np.ndarray, d: np.ndarray
-) -> np.ndarray:
+def concatenate(arrays: List[np.ndarray]) -> np.ndarray:
     """
-    Concatenate 4 arrays along the last axis.
+    Concatenate multiple arrays along the last axis.
     for 1D arrays, make a 2D array of columns.
     """
-    arrays = [a, b, c, d]
-    for i, a in enumerate(arrays):
-        if len(a.shape) == 1:
-            arrays[i] = np.expand_dims(a, -1)
-    return np.concatenate(arrays, axis=-1)
-
-
-@task
-def concatenate8(
-    a: np.ndarray,
-    b: np.ndarray,
-    c: np.ndarray,
-    d: np.ndarray,
-    e: np.ndarray,
-    f: np.ndarray,
-    g: np.ndarray,
-    h: np.ndarray,
-) -> np.ndarray:
-    """
-    Concatenate 8 arrays along the last axis.
-    for 1D arrays, make a 2D array of columns.
-    """
-    arrays = [a, b, c, d, e, f, g, h]
     for i, a in enumerate(arrays):
         if len(a.shape) == 1:
             arrays[i] = np.expand_dims(a, -1)
@@ -306,7 +280,7 @@ with Flow("Sabermetrics") as flow:
 
     # stats
     singles = clean["H"] - clean["2B"] - clean["3B"] - clean["HR"]
-    hit_types = concatenate4(singles, clean["2B"], clean["3B"], clean["HR"])
+    hit_types = concatenate([singles, clean["2B"], clean["3B"], clean["HR"]])
     total_bases = dot(hit_types, np.array([1, 2, 3, 4]))
     PA = clean["AB"] + clean["BB"] + clean["HBP"] + clean["SH"] + clean["SF"]
     BBp = clean["BB"] / PA
@@ -317,7 +291,7 @@ with Flow("Sabermetrics") as flow:
     ISO = SLG - AVG
     BABIP = babip(clean["H"], clean["HR"], clean["AB"], clean["SO"], clean["SF"])
 
-    features = concatenate8(PA, BBp, Kp, OBP, SLG, AVG, ISO, BABIP)
+    features = concatenate([PA, BBp, Kp, OBP, SLG, AVG, ISO, BABIP])
     # impute the failed divisions (div by 0)
     features = impute(features, Constant({np.nan: 0.0}))
     PCs = PCATask(n_components=2)(features)
