@@ -19,7 +19,6 @@ from urllib.request import urlretrieve
 
 from prefect import Flow, Task, Parameter, task
 from prefect import unmapped
-from prefect.tasks.core.constants import Constant
 
 from sklearn.decomposition import PCA
 from typing import List, Dict, Any
@@ -274,8 +273,8 @@ with Flow("Sabermetrics") as flow:
     data_cols = get_cols(data)
 
     # clean data
-    clean = impute.map(data_cols, replacement_dict=unmapped(Constant({np.nan: 0})))
-    clean = cast.map(clean, new_type=unmapped(Constant(np.int)))
+    clean = impute.map(data_cols, replacement_dict=unmapped({np.nan: 0}))
+    clean = cast.map(clean, new_type=unmapped(np.int))
     clean = DataFrame(clean, colnames)
 
     # stats
@@ -293,7 +292,7 @@ with Flow("Sabermetrics") as flow:
 
     features = concatenate([PA, BBp, Kp, OBP, SLG, AVG, ISO, BABIP])
     # impute the failed divisions (div by 0)
-    features = impute(features, Constant({np.nan: 0.0}))
+    features = impute(features, {np.nan: 0.0})
     PCs = PCATask(n_components=2)(features)
 
 
