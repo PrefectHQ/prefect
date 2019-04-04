@@ -30,6 +30,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix tempfile usage in `flow.visualize` so that it runs on Windows machines - [#858](https://github.com/PrefectHQ/prefect/issues/858)
 - Fix issue caused by Python 3.5.2 bug for Python 3.5.2 compatibility - [#857](https://github.com/PrefectHQ/prefect/issues/857)
 - Fix issue in which `GCSResultHandler` was not pickleable - [#879](https://github.com/PrefectHQ/prefect/pull/879)
+- Fix issue with automatically converting callables and dicts to tasks - [#894](https://github.com/PrefectHQ/prefect/issues/894)
 
 ### Breaking Changes
 
