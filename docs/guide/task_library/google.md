@@ -39,3 +39,9 @@ Task for executing queries against a Google BigQuery table and (optionally) retu
 Task for insert records in a Google BigQuery table via [the streaming API](https://cloud.google.com/bigquery/streaming-data-into-bigquery).
 
 [API Reference](/api/unreleased/tasks/google.html#prefect-tasks-google-bigquery-bigquerystreaminginserttask)
+
+### CreateBigQueryTable <Badge text="task"/>
+
+Task for creating Google BigQuery tables.
+
+[API Reference](/api/unreleased/tasks/google.html#prefect-tasks-google-bigquery-createbigquerytable)

@@ -8,6 +8,7 @@ from google.oauth2.service_account import Credentials
 from prefect import context
 from prefect.client import Secret
 from prefect.core import Task
+from prefect.engine.signals import SUCCESS
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -271,3 +272,98 @@ class BigQueryStreamingInsert(Task):
             raise ValueError(errors)
 
         return output
+
+
+class CreateBigQueryTable(Task):
+    """
+    Ensures a BigQuery table exists; creates it otherwise. Note that most initialization keywords
+    can optionally be provided at runtime.
+
+    Args:
+        - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
+            will default to the one inferred from your credentials
+        - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
+            of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
+        - dataset (str, optional): the name of a dataset in which the table will be created
+        - table (str, optional): the name of a table to create
+        - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
+        - clustering_fields (List[str], optional): a list of fields to cluster the table by
+        - time_partitioning (bigquery.TimePartitioning, optional): a `bigquery.TimePartitioning` object specifying
+            a partitioninig of the newly created table
+        - **kwargs (optional): additional kwargs to pass to the `Task` constructor
+    """
+
+    def __init__(
+        self,
+        project: str = None,
+        credentials_secret: str = None,
+        dataset: str = None,
+        table: str = None,
+        schema: List[bigquery.SchemaField] = None,
+        clustering_fields: List[str] = None,
+        time_partitioning: bigquery.TimePartitioning = None,
+        **kwargs
+    ):
+        self.project = project
+        self.credentials_secret = credentials_secret or "GOOGLE_APPLICATION_CREDENTIALS"
+        self.dataset = dataset
+        self.table = table
+        self.schema = schema
+        self.clustering_fields = clustering_fields
+        self.time_partitioning = time_partitioning
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("project", "credentials_secret", "dataset", "table", "schema")
+    def run(
+        self,
+        project: str = None,
+        credentials_secret: str = None,
+        dataset: str = None,
+        table: str = None,
+        schema: List[bigquery.SchemaField] = None,
+    ):
+        """
+        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
+
+        Args:
+            - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
+                will default to the one inferred from your credentials
+            - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
+                of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
+            - dataset (str, optional): the name of a dataset in which the table will be created
+            - table (str, optional): the name of a table to create
+            - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
+
+        Returns:
+            - None
+
+        Raises:
+            - SUCCESS: a `SUCCESS` signal if the table already exists
+        """
+        creds = Secret(credentials_secret).get()
+        credentials = Credentials.from_service_account_info(creds)
+        project = project or credentials.project_id
+        client = bigquery.Client(project=project, credentials=credentials)
+
+        try:
+            dataset_ref = client.get_dataset(dataset)
+        except NotFound:
+            dataset_ref = client.create_dataset(dataset)
+
+        table_ref = dataset_ref.table(table)
+        try:
+            client.get_table(table_ref)
+            raise SUCCESS(
+                "{dataset}.{table} already exists.".format(dataset=dataset, table=table)
+            )
+        except NotFound:
+            table = bigquery.Table(table_ref, schema=schema)
+
+            # partitioning
+            if self.time_partitioning:
+                table.time_partitioning = self.time_partitioning
+
+            # cluster for optimal data sorting/access
+            if self.clustering_fields:
+                table.clustering_fields = self.clustering_fields
+            client.create_table(table)
