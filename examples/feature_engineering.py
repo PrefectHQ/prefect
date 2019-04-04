@@ -1,3 +1,15 @@
+"""
+This example demonstrates the use of the Prefect platform for machine learning.
+Data is downloaded from a URL, extracted, and loaded into Numpy/Pandas.
+Then a series of mathematical operations are performed on the columns, to create
+a feature set from the raw data. Finally, the features are stitched together and
+passed into a Principal Components Analysis for dimensionality reduction.
+
+The Flow makes use of a number of Prefect features, including Parameters,
+the set_dependencies method for Tasks that don't pass data, task mapping,
+and custom Task classes.
+"""
+
 import os
 import pathlib
 import zipfile
@@ -28,7 +40,7 @@ def file_from_link(link: str) -> str:
     Given a URL of a hosted file, retrieve just the name of the file.
     """
     rev_link = link[::-1]
-    return rev_link[:rev_link.find('/')][::-1]
+    return rev_link[: rev_link.find("/")][::-1]
 
 
 @task
@@ -40,7 +52,7 @@ def download_data(link: str, target_filename: str):
         - link (str): the URL from which data will be requested
         - target_filename (str): the desired filename of the result
     """
-    target_filepath = 'data/' + target_filename
+    target_filepath = "data/" + target_filename
     if not os.path.exists(target_filepath):
         urlretrieve(link, target_filepath)
 
@@ -50,9 +62,9 @@ def unzip_data(zip_filename: str):
     """
     Unzip a file and place its contents in the data/ directory.
     """
-    zip_filepath = 'data/' + zip_filename
-    with zipfile.ZipFile(zip_filepath, 'r') as zip_ref:
-        zip_ref.extractall('data')
+    zip_filepath = "data/" + zip_filename
+    with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
+        zip_ref.extractall("data")
 
 
 @task
@@ -60,17 +72,16 @@ def get_rootdir(zip_filename: str):
     """
     Get the name of the root directory of the contents of a zip following extraction.
     """
-    zip_filepath = 'data/' + zip_filename
-    with zipfile.ZipFile(zip_filepath, 'r') as zip_ref:
+    zip_filepath = "data/" + zip_filename
+    with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
         rootdir = zip_ref.namelist()[0]
     return rootdir
 
 
 @task
-def read_csv(rootdir: str,
-             table_name: str,
-             nrows: int = None,
-             exclude_cols: List[str] = None):
+def read_csv(
+    rootdir: str, table_name: str, nrows: int = None, exclude_cols: List[str] = None
+):
     """
     Read the contents of a CSV into a Pandas DataFrame.
 
@@ -85,7 +96,7 @@ def read_csv(rootdir: str,
     Returns:
         - pd.DataFrame: the contents of the CSV
     """
-    filepath = os.path.join('data', rootdir, 'core', table_name + '.csv')
+    filepath = os.path.join("data", rootdir, "core", table_name + ".csv")
     df = pd.read_csv(filepath, nrows=None)
     return df.drop(exclude_cols, axis=1)
 
@@ -167,10 +178,9 @@ def get(values: List[np.ndarray], keys: List[str], key: str) -> np.ndarray:
 
 # using a specific number of arrays since Prefect doesn't support variable positional args
 @task
-def concatenate4(a: np.ndarray,
-                 b: np.ndarray,
-                 c: np.ndarray,
-                 d: np.ndarray) -> np.ndarray:
+def concatenate4(
+    a: np.ndarray, b: np.ndarray, c: np.ndarray, d: np.ndarray
+) -> np.ndarray:
     """
     Concatenate 4 arrays along the last axis.
     for 1D arrays, make a 2D array of columns.
@@ -183,14 +193,16 @@ def concatenate4(a: np.ndarray,
 
 
 @task
-def concatenate8(a: np.ndarray,
-                 b: np.ndarray,
-                 c: np.ndarray,
-                 d: np.ndarray,
-                 e: np.ndarray,
-                 f: np.ndarray,
-                 g: np.ndarray,
-                 h: np.ndarray) -> np.ndarray:
+def concatenate8(
+    a: np.ndarray,
+    b: np.ndarray,
+    c: np.ndarray,
+    d: np.ndarray,
+    e: np.ndarray,
+    f: np.ndarray,
+    g: np.ndarray,
+    h: np.ndarray,
+) -> np.ndarray:
     """
     Concatenate 8 arrays along the last axis.
     for 1D arrays, make a 2D array of columns.
@@ -212,36 +224,35 @@ def dot(A: np.ndarray, B: np.ndarray) -> np.ndarray:
 
 # sabermetric calculation tasks
 @task
-def babip(h: np.ndarray,
-          hr: np.ndarray,
-          ab: np.ndarray,
-          k: np.ndarray,
-          sf: np.ndarray) -> np.ndarray:
+def babip(
+    h: np.ndarray, hr: np.ndarray, ab: np.ndarray, k: np.ndarray, sf: np.ndarray
+) -> np.ndarray:
     """Calculate Batting Average on Balls In Play statistic."""
     X1 = h - hr
     X2 = ab - k - hr + sf
     impute_array = np.zeros_like(X1)
-    return np.divide(X1.astype(np.float16), X2,
-                     out=impute_array.astype(np.float16), where=X2 != 0)
+    return np.divide(
+        X1.astype(np.float16), X2, out=impute_array.astype(np.float16), where=X2 != 0
+    )
 
 
 @task
-def obp(h: np.ndarray,
-        bb: np.ndarray,
-        hbp: np.ndarray,
-        ab: np.ndarray,
-        sf: np.ndarray) -> np.ndarray:
+def obp(
+    h: np.ndarray, bb: np.ndarray, hbp: np.ndarray, ab: np.ndarray, sf: np.ndarray
+) -> np.ndarray:
     """Calculate On-Base Percentage statistic."""
     X1 = h + bb + hbp
     X2 = ab + bb + hbp + sf
     impute_array = np.zeros_like(X1)
-    return np.divide(X1.astype(np.float16), X2,
-                     out=impute_array.astype(np.float16), where=X2 != 0)
+    return np.divide(
+        X1.astype(np.float16), X2, out=impute_array.astype(np.float16), where=X2 != 0
+    )
 
 
 # utility
 class DataFrame:
     """A utility class to provide convenient syntax for grabbing columns as a Task."""
+
     def __init__(self, cols: "Task", colnames: "Task"):
         self.cols = cols
         self.colnames = colnames
@@ -268,12 +279,12 @@ class PCATask(Task):
 
 
 with Flow("Sabermetrics") as flow:
-    link = Parameter('link')
-    table = Parameter('table')
+    link = Parameter("link")
+    table = Parameter("table")
 
     # get data from the web
     zip_filename = file_from_link(link)
-    mk_data = mkdir('data')
+    mk_data = mkdir("data")
 
     dl_task = download_data(link, zip_filename)
     dl_task.set_dependencies(upstream_tasks=[mk_data])
@@ -283,7 +294,7 @@ with Flow("Sabermetrics") as flow:
     rootdir = get_rootdir(zip_filename)
     rootdir.set_dependencies(upstream_tasks=[unzip])
 
-    exclude_cols = ['playerID', 'yearID', 'stint', 'teamID', 'lgID']
+    exclude_cols = ["playerID", "yearID", "stint", "teamID", "lgID"]
     data = read_csv(rootdir, table, exclude_cols=exclude_cols)
     colnames = get_colnames(data)
     data_cols = get_cols(data)
@@ -294,27 +305,27 @@ with Flow("Sabermetrics") as flow:
     clean = DataFrame(clean, colnames)
 
     # stats
-    singles = clean['H'] - clean['2B'] - clean['3B'] - clean['HR']
-    hit_types = concatenate4(singles, clean['2B'], clean['3B'], clean['HR'])
+    singles = clean["H"] - clean["2B"] - clean["3B"] - clean["HR"]
+    hit_types = concatenate4(singles, clean["2B"], clean["3B"], clean["HR"])
     total_bases = dot(hit_types, np.array([1, 2, 3, 4]))
-    PA = clean['AB'] + clean['BB'] + clean['HBP'] + clean['SH'] + clean['SF']
-    BBp = clean['BB'] / PA
-    Kp = clean['SO'] / PA
-    OBP = obp(clean['H'], clean['BB'], clean['HBP'], clean['AB'], clean['SF'])
-    SLG = total_bases / clean['AB']
-    AVG = clean['H'] / clean['AB']
+    PA = clean["AB"] + clean["BB"] + clean["HBP"] + clean["SH"] + clean["SF"]
+    BBp = clean["BB"] / PA
+    Kp = clean["SO"] / PA
+    OBP = obp(clean["H"], clean["BB"], clean["HBP"], clean["AB"], clean["SF"])
+    SLG = total_bases / clean["AB"]
+    AVG = clean["H"] / clean["AB"]
     ISO = SLG - AVG
-    BABIP = babip(clean['H'], clean['HR'], clean['AB'], clean['SO'], clean['SF'])
+    BABIP = babip(clean["H"], clean["HR"], clean["AB"], clean["SO"], clean["SF"])
 
     features = concatenate8(PA, BBp, Kp, OBP, SLG, AVG, ISO, BABIP)
     # impute the failed divisions (div by 0)
-    features = impute(features, Constant({np.nan: 0.}))
+    features = impute(features, Constant({np.nan: 0.0}))
     PCs = PCATask(n_components=2)(features)
 
 
-url = 'https://github.com/chadwickbureau/baseballdatabank/archive/v2019.2.zip'
-table = 'Batting'
-state = flow.run(parameters={'link': url, 'table': table})
+url = "https://github.com/chadwickbureau/baseballdatabank/archive/v2019.2.zip"
+table = "Batting"
+state = flow.run(parameters={"link": url, "table": table})
 
 print(state.result[features].result.shape)
 print(state.result[PCs].result.shape)
