@@ -43,7 +43,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.utilities.executors import main_thread_timeout, run_with_heartbeat
+from prefect.utilities.executors import run_with_heartbeat
 
 if TYPE_CHECKING:
     from prefect.engine.result_handlers import ResultHandler
@@ -756,7 +756,7 @@ class TaskRunner(Runner):
                 to the task's `run()` arguments.
             - timeout_handler (Callable, optional): function for timing out
                 task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
-                `prefect.utilities.executors.main_thread_timeout`
+                `prefect.utilities.executors.timeout_handler`
 
         Returns:
             - State: the state of the task after running the check
@@ -781,7 +781,9 @@ class TaskRunner(Runner):
                     name=prefect.context.get("task_full_name", self.task.name)
                 )
             )
-            timeout_handler = timeout_handler or main_thread_timeout
+            timeout_handler = (
+                timeout_handler or prefect.utilities.executors.timeout_handler
+            )
             raw_inputs = {k: r.value for k, r in inputs.items()}
             with prefect.context(logger=self.task.logger):
                 result = timeout_handler(

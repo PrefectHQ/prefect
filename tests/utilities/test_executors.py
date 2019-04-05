@@ -1,4 +1,5 @@
 import multiprocessing
+import threading
 import time
 from datetime import timedelta
 from unittest.mock import MagicMock
@@ -6,11 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import prefect
-from prefect.utilities.executors import (
-    Heartbeat,
-    main_thread_timeout,
-    multiprocessing_timeout,
-)
+from prefect.utilities.executors import Heartbeat, timeout_handler
 
 
 def test_heartbeat_calls_function_on_interval():
@@ -29,66 +26,75 @@ def test_heartbeat_calls_function_on_interval():
     assert a.called == 2
 
 
-@pytest.mark.parametrize("handler", [multiprocessing_timeout, main_thread_timeout])
-def test_timeout_handler_times_out(handler):
+def test_timeout_handler_times_out():
     slow_fn = lambda: time.sleep(2)
     with pytest.raises(TimeoutError):
-        handler(slow_fn, timeout=1)
+        timeout_handler(slow_fn, timeout=1)
 
 
-@pytest.mark.parametrize("handler", [multiprocessing_timeout, main_thread_timeout])
-def test_timeout_handler_passes_args_and_kwargs_and_returns(handler):
+def test_timeout_handler_passes_args_and_kwargs_and_returns():
     def do_nothing(x, y=None):
         return x, y
 
-    assert handler(do_nothing, 5, timeout=1, y="yellow") == (5, "yellow")
+    assert timeout_handler(do_nothing, 5, timeout=1, y="yellow") == (5, "yellow")
 
 
-@pytest.mark.parametrize("handler", [multiprocessing_timeout, main_thread_timeout])
-def test_timeout_handler_doesnt_swallow_bad_args(handler):
+def test_timeout_handler_doesnt_swallow_bad_args():
     def do_nothing(x, y=None):
         return x, y
 
     with pytest.raises(TypeError):
-        handler(do_nothing, timeout=1)
+        timeout_handler(do_nothing, timeout=1)
 
     with pytest.raises(TypeError):
-        handler(do_nothing, 5, timeout=1, z=10)
+        timeout_handler(do_nothing, 5, timeout=1, z=10)
 
     with pytest.raises(TypeError):
-        handler(do_nothing, 5, timeout=1, y="s", z=10)
+        timeout_handler(do_nothing, 5, timeout=1, y="s", z=10)
 
 
-@pytest.mark.parametrize("handler", [multiprocessing_timeout, main_thread_timeout])
-def test_timeout_handler_reraises(handler):
+def test_timeout_handler_reraises():
     def do_something():
         raise ValueError("test")
 
     with pytest.raises(ValueError) as exc:
-        handler(do_something, timeout=1)
+        timeout_handler(do_something, timeout=1)
         assert "test" in exc
 
 
-@pytest.mark.parametrize("handler", [multiprocessing_timeout, main_thread_timeout])
-def test_timeout_handler_allows_function_to_spawn_new_process(handler):
+def test_timeout_handler_allows_function_to_spawn_new_process():
     def my_process():
         p = multiprocessing.Process(target=lambda: 5)
         p.start()
         p.join()
         p.terminate()
 
-    assert handler(my_process, timeout=1) is None
+    assert timeout_handler(my_process, timeout=1) is None
 
 
-def test_main_thread_timeout_doesnt_do_anything_if_no_timeout(monkeypatch):
-    monkeypatch.delattr(prefect.utilities.executors.signal, "signal")
-    with pytest.raises(AttributeError):  # to test the test's usefulness...
-        main_thread_timeout(lambda: 4, timeout=1)
-    assert main_thread_timeout(lambda: 4) == 4
+def test_timeout_handler_allows_function_to_spawn_new_thread():
+    def my_thread():
+        t = threading.Thread(target=lambda: 5)
+        t.start()
+        t.join()
+
+    assert timeout_handler(my_thread, timeout=1) is None
 
 
-def test_multiprocessing_timeout_doesnt_do_anything_if_no_timeout(monkeypatch):
-    monkeypatch.delattr(prefect.utilities.executors.multiprocessing, "Process")
-    with pytest.raises(AttributeError):  # to test the test's usefulness...
-        multiprocessing_timeout(lambda: 4, timeout=1)
-    assert multiprocessing_timeout(lambda: 4) == 4
+def test_timeout_handler_doesnt_do_anything_if_no_timeout(monkeypatch):
+    monkeypatch.delattr(prefect.utilities.executors, "ThreadPoolExecutor")
+    with pytest.raises(NameError):  # to test the test's usefulness...
+        timeout_handler(lambda: 4, timeout=1)
+    assert timeout_handler(lambda: 4) == 4
+
+
+def test_timeout_handler_preserves_context():
+    assert (
+        prefect.context.to_dict()
+        == timeout_handler(lambda: prefect.context, timeout=1).to_dict()
+    )
+
+
+def test_timeout_handler_preserves_logging(caplog):
+    timeout_handler(prefect.Flow("logs").run, timeout=2)
+    assert len(caplog.records) >= 2  # 1 INFO to start, 1 INFO to end

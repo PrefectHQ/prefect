@@ -888,15 +888,15 @@ def test_flow_runner_handles_timeouts(executor):
 
 
 def test_flow_runner_handles_timeout_error_with_mproc(mproc):
-    "daemonic processes are not allowed to have children"
     sleeper = SlowTask(timeout=1)
 
     with Flow(name="test") as flow:
-        res = sleeper(3)
+        res = sleeper(2)
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=mproc)
     assert state.is_failed()
-    assert isinstance(state.result[res].result, AssertionError)
+    assert isinstance(state.result[res], TimedOut)
+    assert isinstance(state.result[res].result, TimeoutError)
 
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
