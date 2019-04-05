@@ -22,7 +22,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- Removes `prefect make user config` from cli commands - [#904](https://github.com/PrefectHQ/prefect/issues/904)
 
 ### Contributors
 
