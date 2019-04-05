@@ -78,7 +78,7 @@ def timeout_handler(
     if timeout is None:
         return fn(*args, **kwargs)
 
-    executor = ThreadPoolExecutor(max_workers=2)
+    executor = ThreadPoolExecutor()
 
     def run_with_ctx(*args: Any, _ctx_dict: dict, **kwargs: Any) -> Any:
         with prefect.context(_ctx_dict):
