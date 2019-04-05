@@ -24,7 +24,7 @@ class DaskExecutor(Executor):
             Defaults to `None`
         - local_processes (bool, optional): whether to use multiprocessing or not
             (computations will still be multithreaded). Ignored if address is provided.
-            Defaults to `False`. Note that timeouts are not supported if `local_processes=True`
+            Defaults to `False`.
         - debug (bool, optional): whether to operate in debug mode; `debug=True`
             will produce many additional dask logs. Defaults to the `debug` value in your Prefect configuration
         - **kwargs (dict, optional): additional kwargs to be passed to the

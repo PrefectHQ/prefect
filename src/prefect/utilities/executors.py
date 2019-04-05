@@ -1,7 +1,9 @@
 import datetime
-import multiprocessing
 import signal
 import threading
+
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
 
@@ -53,61 +55,12 @@ def run_with_heartbeat(
     return inner
 
 
-def multiprocessing_timeout(
+def timeout_handler(
     fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
 ) -> Any:
     """
     Helper function for implementing timeouts on function executions.
-    Implemented by spawning a new multiprocess.Process() and joining with timeout.
-
-    Args:
-        - fn (callable): the function to execute
-        - *args (Any): arguments to pass to the function
-        - timeout (int): the length of time to allow for
-            execution before raising a `TimeoutError`, represented as an integer in seconds
-        - **kwargs (Any): keyword arguments to pass to the function
-
-    Returns:
-        - the result of `f(*args, **kwargs)`
-
-    Raises:
-        - AssertionError: if run from a daemonic process
-        - TimeoutError: if function execution exceeds the allowed timeout
-    """
-
-    if timeout is None:
-        return fn(*args, **kwargs)
-
-    def retrieve_value(
-        *args: Any, _container: multiprocessing.Queue, **kwargs: Any
-    ) -> None:
-        """Puts the return value in a multiprocessing-safe container"""
-        try:
-            _container.put(fn(*args, **kwargs))
-        except Exception as exc:
-            _container.put(exc)
-
-    q = multiprocessing.Queue()  # type: multiprocessing.Queue
-    kwargs["_container"] = q
-    p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
-    p.start()
-    p.join(timeout)
-    p.terminate()
-    if not q.empty():
-        res = q.get()
-        if isinstance(res, Exception):
-            raise res
-        return res
-    else:
-        raise TimeoutError("Execution timed out.")
-
-
-def main_thread_timeout(
-    fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
-) -> Any:
-    """
-    Helper function for implementing timeouts on function executions.
-    Implemented by setting a `signal` alarm on a timer. Must be run in the main thread.
+    Implemented via `concurrent.futures.ThreadPoolExecutor`.
 
     Args:
         - fn (callable): the function to execute
@@ -121,18 +74,21 @@ def main_thread_timeout(
 
     Raises:
         - TimeoutError: if function execution exceeds the allowed timeout
-        - ValueError: if run from outside the main thread
     """
-
     if timeout is None:
         return fn(*args, **kwargs)
 
-    def error_handler(signum, frame):  # type: ignore
-        raise TimeoutError("Execution timed out.")
+    executor = ThreadPoolExecutor()
+
+    def run_with_ctx(*args: Any, _ctx_dict: dict, **kwargs: Any) -> Any:
+        with prefect.context(_ctx_dict):
+            return fn(*args, **kwargs)
+
+    fut = executor.submit(
+        run_with_ctx, *args, _ctx_dict=prefect.context.to_dict(), **kwargs
+    )
 
     try:
-        signal.signal(signal.SIGALRM, error_handler)
-        signal.alarm(timeout)
-        return fn(*args, **kwargs)
-    finally:
-        signal.alarm(0)
+        return fut.result(timeout=timeout)
+    except FutureTimeout:
+        raise TimeoutError("Execution timed out.")
