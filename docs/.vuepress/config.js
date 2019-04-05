@@ -1,4 +1,5 @@
-const sidebar = require('../api/0.5.0/sidebar')
+const sidebar50 = require('../api/0.5.0/sidebar')
+const sidebar51 = require('../api/0.5.1/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -43,12 +44,14 @@ module.exports = {
         text: 'API Reference',
         items: [
           { text: 'Unreleased', link: '/api/unreleased/' },
+          { text: '0.5.1', link: '/api/0.5.1/' },
           { text: '0.5.0', link: '/api/0.5.0/' }
         ]
       }
     ],
     sidebar: {
-      '/api/0.5.0/': sidebar.sidebar,
+      '/api/0.5.1/': sidebar51.sidebar,
+      '/api/0.5.0/': sidebar50.sidebar,
       '/api/unreleased/': [
         '/api/unreleased/',
         'changelog',
