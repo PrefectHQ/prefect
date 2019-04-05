@@ -317,7 +317,7 @@ functions = ["from_file"]
 [pages.utilities.executors]
 title = "Executors"
 module = "prefect.utilities.executors"
-functions = ["main_thread_timeout", "multiprocessing_timeout"]
+functions = ["timeout_handler"]
 
 [pages.utilities.graphql]
 title = "GraphQL"

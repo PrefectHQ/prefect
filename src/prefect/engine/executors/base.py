@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterator, List
 
 import prefect
-from prefect.utilities.executors import multiprocessing_timeout
+from prefect.utilities.executors import timeout_handler
 
 
 class Executor:
@@ -12,7 +12,7 @@ class Executor:
     Base Executor class which all other executors inherit from.
     """
 
-    timeout_handler = staticmethod(multiprocessing_timeout)
+    timeout_handler = staticmethod(timeout_handler)
 
     def __init__(self) -> None:
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
