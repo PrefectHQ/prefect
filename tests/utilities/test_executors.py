@@ -89,10 +89,13 @@ def test_timeout_handler_doesnt_do_anything_if_no_timeout(monkeypatch):
 
 
 def test_timeout_handler_preserves_context():
-    assert (
-        prefect.context.to_dict()
-        == timeout_handler(lambda: prefect.context, timeout=1).to_dict()
-    )
+    def my_fun():
+        return prefect.context.get("test_key")
+
+    with prefect.context(test_key=42):
+        res = timeout_handler(my_fun, timeout=1)
+
+    assert res == 42
 
 
 def test_timeout_handler_preserves_logging(caplog):

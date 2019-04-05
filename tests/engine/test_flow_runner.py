@@ -1407,3 +1407,19 @@ class TestContext:
 
         output = res.result[return_ctx_key].result
         assert output == "42"
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_task_logs_survive_if_timeout_is_used(caplog, executor):
+    @prefect.task(timeout=2)
+    def log_stuff():
+        logger = prefect.context.get("logger")
+        logger.critical("important log right here")
+
+    f = Flow(name="logs", tasks=[log_stuff])
+    res = f.run()
+
+    assert res.is_successful()
+    assert len([r for r in caplog.records if r.levelname == "CRITICAL"]) == 1
