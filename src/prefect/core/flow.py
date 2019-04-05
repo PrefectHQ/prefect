@@ -1390,6 +1390,12 @@ class Flow:
         )
         return deployed_flow
 
+    def __mifflin__(self) -> None:
+        "Calls Dunder Mifflin"
+        import webbrowser
+
+        webbrowser.open("https://cicdw.github.io/welcome.html")
+
 
 def _hash(value: str) -> bytes:
     return xxhash.xxh64(value).digest()

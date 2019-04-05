@@ -659,6 +659,12 @@ class Task(metaclass=SignatureValidator):
         self.set_dependencies(downstream_tasks=[other])
         return other
 
+    def __mifflin__(self) -> None:
+        "Calls Dunder Mifflin"
+        import webbrowser
+
+        webbrowser.open("https://cicdw.github.io/welcome.html")
+
     def __ror__(self, other: object) -> "Task":
         """
         Creates a state dependency between `self` and `other`:

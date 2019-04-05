@@ -888,15 +888,15 @@ def test_flow_runner_handles_timeouts(executor):
 
 
 def test_flow_runner_handles_timeout_error_with_mproc(mproc):
-    "daemonic processes are not allowed to have children"
     sleeper = SlowTask(timeout=1)
 
     with Flow(name="test") as flow:
-        res = sleeper(3)
+        res = sleeper(2)
 
     state = FlowRunner(flow=flow).run(return_tasks=[res], executor=mproc)
     assert state.is_failed()
-    assert isinstance(state.result[res].result, AssertionError)
+    assert isinstance(state.result[res], TimedOut)
+    assert isinstance(state.result[res].result, TimeoutError)
 
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
@@ -1407,3 +1407,19 @@ class TestContext:
 
         output = res.result[return_ctx_key].result
         assert output == "42"
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_task_logs_survive_if_timeout_is_used(caplog, executor):
+    @prefect.task(timeout=2)
+    def log_stuff():
+        logger = prefect.context.get("logger")
+        logger.critical("important log right here")
+
+    f = Flow(name="logs", tasks=[log_stuff])
+    res = f.run()
+
+    assert res.is_successful()
+    assert len([r for r in caplog.records if r.levelname == "CRITICAL"]) == 1

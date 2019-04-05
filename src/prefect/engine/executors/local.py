@@ -2,7 +2,6 @@ import datetime
 from typing import Any, Callable, Iterable, List
 
 from prefect.engine.executors.base import Executor
-from prefect.utilities.executors import main_thread_timeout
 
 
 class LocalExecutor(Executor):
@@ -10,8 +9,6 @@ class LocalExecutor(Executor):
     An executor that runs all functions synchronously and immediately in
     the main thread.  To be used mainly for debugging purposes.
     """
-
-    timeout_handler = staticmethod(main_thread_timeout)
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         """
