@@ -18,7 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- Fix issue with timeouts incorrectly occuring due to unpickleable objects - [#886](https://github.com/PrefectHQ/prefect/issues/886)
+- Fix issue with timeouts behaving incorrectly with unpickleable objects - [#886](https://github.com/PrefectHQ/prefect/issues/886)
 
 ### Breaking Changes
 
