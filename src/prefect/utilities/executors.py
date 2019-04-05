@@ -79,7 +79,15 @@ def timeout_handler(
         return fn(*args, **kwargs)
 
     executor = ThreadPoolExecutor(max_workers=2)
-    fut = executor.submit(fn, *args, **kwargs)
+
+    def run_with_ctx(_ctx_dict):
+        with prefect.context(_ctx_dict):
+            return fn(*args, **kwargs)
+
+    fut = executor.submit(
+        run_with_ctx, *args, _ctx_dict=prefect.context.to_dict(), **kwargs
+    )
+
     try:
         return fut.result(timeout=timeout)
     except FutureTimeout:
