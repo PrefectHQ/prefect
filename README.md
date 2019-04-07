@@ -1,20 +1,4 @@
-<p align="center" style="margin-bottom:40px;">
-<img src="https://uploads-ssl.webflow.com/5ba446b0e783e26d5a2f2382/5c942c9ca934ec5c88588297_primary-color-vertical.svg"  height=350 style="max-height: 350px;">
-</p>
-
-<p align="center">
-<a href=https://circleci.com/gh/PrefectHQ/prefect/tree/master>
-    <img src="https://circleci.com/gh/PrefectHQ/prefect/tree/master.svg?style=shield&circle-token=28689a55edc3c373486aaa5f11a1af3e5fc53344">
-</a>
-
-<a href=https://github.com/ambv/black style="margin-left: 10px">
-    <img src="https://img.shields.io/badge/code%20style-black-000000.svg">
-</a>
-
-<a href="https://gitter.im/prefectio/prefect?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">
-    <img src="https://badges.gitter.im/prefectio/prefect.svg">
-</a>
-</p>
+test
 
 ## Hello, world! 👋
 
