@@ -44,7 +44,11 @@ flow.run() # "Hello, world!"
 
 Prefect's documentation -- including concepts, tutorials, and a full API reference -- is always available at [docs.prefect.io](https://docs.prefect.io).
 
-[Documentation for developers](https://docs.prefect.io/guide/development/overview.html) is also available, covering code style, documentation, and testing.
+## Contributing
+
+Read about Prefect's [community](https://docs.prefect.io/guide/welcome/community.html) or dive in to the [development guides](https://docs.prefect.io/guide/development/overview.html) for information about contributions, documentation, code style, and testing.
+
+Prefect is committed to ensuring a positive development environment, and all interactions are governed by our [Code of Conduct](https://docs.prefect.io/guide/welcome/code_of_conduct.html).
 
 ## "...Prefect?"
 
