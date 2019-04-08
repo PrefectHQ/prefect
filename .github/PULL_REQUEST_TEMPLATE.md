@@ -6,6 +6,8 @@ Please describe your work and make sure your PR:
 - [ ] updates `CHANGELOG.md` (if appropriate)
 - [ ] updates docstrings for any new functions or function arguments, including `docs/outline.toml` for API reference docs (if appropriate)
 
+Note that your PR will not be reviewed unless all three boxes are checked.
+
 ## What does this PR change?
 
 
