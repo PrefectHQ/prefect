@@ -48,7 +48,7 @@ Prefect's documentation -- including concepts, tutorials, and a full API referen
 
 Read about Prefect's [community](https://docs.prefect.io/guide/welcome/community.html) or dive in to the [development guides](https://docs.prefect.io/guide/development/overview.html) for information about contributions, documentation, code style, and testing.
 
-Prefect is committed to ensuring a positive development environment, and all interactions are governed by our [Code of Conduct](https://docs.prefect.io/guide/welcome/code_of_conduct.html).
+Prefect is committed to ensuring a positive environment. All interactions are governed by our [Code of Conduct](https://docs.prefect.io/guide/welcome/code_of_conduct.html).
 
 ## "...Prefect?"
 
