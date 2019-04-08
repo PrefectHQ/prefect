@@ -100,8 +100,9 @@ module.exports = {
           children: [
             'welcome/what_is_prefect',
             'welcome/why_prefect',
+            'welcome/design',
             'welcome/community',
-            'welcome/design'
+            'welcome/code_of_conduct'
           ]
         },
         {
