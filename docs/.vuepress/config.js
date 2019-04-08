@@ -102,7 +102,7 @@ module.exports = {
             'welcome/why_prefect',
             'welcome/design',
             'welcome/community',
-            'welcome/code_of_conduct',
+            'welcome/code_of_conduct'
           ]
         },
         {
@@ -168,12 +168,9 @@ module.exports = {
             'development/documentation',
             'development/tests',
             'development/contributing',
-<<<<<<< Updated upstream
             'development/release-checklist'
-=======
->>>>>>> Stashed changes
           ]
-        },
+        }
       ]
     }
   },
