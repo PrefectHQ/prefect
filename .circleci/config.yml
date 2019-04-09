@@ -63,11 +63,11 @@ jobs:
 
       - run:
           name: Install testing packages
-          command: pip install black pytest==3.10.1 pytest-env
+          command: pip install black coveralls pytest pytest-env
 
       - run:
           name: Run tests
-          command: pytest -k "not examples"
+          command: coverage run pytest -k "not examples" && coveralls
 
   # ----------------------------------
   # Run unit tests in Python 3.5-3.7
