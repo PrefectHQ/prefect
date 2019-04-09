@@ -67,7 +67,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: coverage run pytest -k "not examples" && coveralls
+          command: coverage run `which pytest` -k "not examples" && coveralls
 
   # ----------------------------------
   # Run unit tests in Python 3.5-3.7
