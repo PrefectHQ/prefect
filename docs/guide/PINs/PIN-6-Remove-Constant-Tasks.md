@@ -10,7 +10,7 @@ Author: Jeremiah Lowin
 
 ## Status
 
-Accepted
+Declined
 
 ## Context
 
@@ -31,3 +31,6 @@ In addition, the `TaskRunner.run()` method will accept a `constant_inputs` kwarg
 `Constant` tasks will no longer be created (though they can remain in existence in case users find them useful for encapsulating some piece of information). Constant values that are used in a flow will be stored in a nested dictionary attached to the flow itself.
 
 ## Actions
+
+### Reason for decline
+A great deal of Prefect's execution logic is contained in the `Edge` objects - for example: the keyword (named input) for passing data, and whether the upstream value is being mapped over. In order to support constant values, we either have to duplicate the edge structure in some other form, or allow edges to connect constants to tasks (see for example [#915](https://github.com/PrefectHQ/prefect/issues/915)). Duplicating the logic is almost certainly the wrong approach, and any approach that involves extending the edge model essentially re-implements the existing task model, just without calling constants "tasks". As such, we've decided that the current approach -- constant values are represented as tasks and consequently inherit all task abilities (like named input passing and mapping) -- is the best one for now.
