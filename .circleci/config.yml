@@ -72,7 +72,7 @@ jobs:
       - run:
           name: Upload Coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python
-          #
+          
   # ----------------------------------
   # Run unit tests in Python 3.5-3.7
   # ----------------------------------
