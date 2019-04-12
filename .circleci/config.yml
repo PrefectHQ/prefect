@@ -135,7 +135,11 @@ jobs:
 
       - run:
           name: Run tests w/ airflow
-          command: pytest --airflow
+          command: pytest --airflow --cov=prefect .
+
+      - run:
+          name: Upload Coverage
+          command: bash <(curl -s https://codecov.io/bash) -cF python
 
 workflows:
   version: 2
