@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import textwrap
 import uuid
-from typing import List
+from typing import Iterable, List
 
 import docker
 
@@ -53,6 +53,7 @@ class Docker(Storage):
     def build(self, flow: "prefect.Flow", push: bool = True) -> "Storage":
         """"""
         if bool(self.base_image) != bool(self.dockerfile):
+            # TODO: Default to prefect base image
             raise ValueError(
                 "You must provide either a base image or a dockerfile, but not both."
             )
