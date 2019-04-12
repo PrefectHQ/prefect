@@ -63,12 +63,16 @@ jobs:
 
       - run:
           name: Install testing packages
-          command: pip install black pytest==3.10.1 pytest-env
+          command: pip install black pytest==3.10.1 pytest-cov pytest-env
 
       - run:
           name: Run tests
-          command: pytest -k "not examples"
+          command: pytest -k "not examples" --cov=prefect .
 
+      - run:
+          name: Upload Coverage
+          command: bash <(curl -s https://codecov.io/bash) -cF python
+          #
   # ----------------------------------
   # Run unit tests in Python 3.5-3.7
   # ----------------------------------
