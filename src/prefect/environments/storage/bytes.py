@@ -1,7 +1,7 @@
 import prefect
+from prefect.environments.storage import Storage
 
-
-class Storage:
+class Bytes(Storage):
     """"""
 
     def __init__(self) -> None:
@@ -13,5 +13,6 @@ class Storage:
 
     def serialize(self) -> dict:
         """"""
-        schema = prefect.serialization.storage.StorageSchema()
-        return schema.dump(self)
+        # schema = prefect.serialization.storage.StorageSchema()
+        # return schema.dump(self)
+        pass
