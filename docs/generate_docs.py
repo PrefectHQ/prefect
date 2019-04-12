@@ -256,43 +256,6 @@ def format_subheader(obj, level=1, in_table=False):
     return call_sig
 
 
-def generate_coverage():
-    """
-    Generates a coverage report in a subprocess; if one already exists,
-    will _not_ recreate for the sake of efficiency
-    """
-
-    # write file for VuePress
-    with open("api/unreleased/coverage.md", "w+") as f:
-        f.write(
-            textwrap.dedent(
-                """
-            ---
-            title: Test Coverage
-            ---
-
-            # Unit test coverage report
-
-            To view the test coverage report, <a href="/prefect-coverage/">click here</a>.
-            """
-            ).lstrip()
-        )
-
-    # abort if coverage report already exists
-    if os.path.exists(".vuepress/public/prefect-coverage"):
-        return
-
-    try:
-        tests = subprocess.check_output(
-            "cd .. && coverage run `which pytest` && coverage html --directory=docs/.vuepress/public/prefect-coverage/",
-            shell=True,
-        )
-        if "failed" in tests.decode():
-            warnings.warn("Some tests failed.")
-    except subprocess.CalledProcessError as exc:
-        warnings.warn(f"Coverage report was not generated: {exc.output}")
-
-
 def get_class_methods(obj):
     members = inspect.getmembers(
         obj, predicate=lambda x: inspect.isroutine(x) and obj.__name__ in x.__qualname__
@@ -359,7 +322,22 @@ if __name__ == "__main__":
 
     shutil.rmtree("api/unreleased", ignore_errors=True)
     os.makedirs("api/unreleased", exist_ok=True)
-    generate_coverage()
+
+    ## write link to hosted coverage reports
+    with open("api/unreleased/coverage.md", "w+") as f:
+        f.write(
+            textwrap.dedent(
+                """
+            ---
+            title: Test Coverage
+            ---
+
+            # Unit test coverage report
+
+            To view test coverage reports, <a href="https://codecov.io/gh/PrefectHQ/prefect">click here</a>.
+            """
+            ).lstrip()
+        )
 
     ## UPDATE README
     with open("api/unreleased/README.md", "w+") as f:
