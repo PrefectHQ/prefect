@@ -63,7 +63,7 @@ with Flow("dask-example") as flow:
     total = list_sum(adds)
 ```
 
-So far, all we have done is define a flow which contains all the necessary information for how to run these tasks - none of our custom task code has been executed yet. 
+So far, all we have done is define a flow that contains all the necessary information for how to run these tasks - none of our custom task code has been executed yet. 
 To have this flow run on our Dask cluster, all we need to do is provide an appropriately configured `DaskExecutor` to the `flow.run()` method:
 
 ```python
