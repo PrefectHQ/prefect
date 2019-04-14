@@ -16,6 +16,6 @@ pyyaml >= 3.13, < 4.3
 pytz >= 2018.7
 requests >= 2.20, < 3.0
 toml >= 0.9.4, < 1.0
-typing >= 3.6.4, < 4.0
+typing >= 3.6.4, < 4.0; python_version < "3.5"
 typing_extensions >= 3.6.4, < 4.0
 xxhash >= 1.2.0, < 2.0
