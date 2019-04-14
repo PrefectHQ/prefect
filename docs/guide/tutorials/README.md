@@ -27,3 +27,7 @@ Dynamically create large numbers of tasks using `task.map()`! Using a real-world
 ## [Prefect Slack Integration](slack-notifications.md)<Badge text="0.3.2+"/>
 
 Install the Prefect Slack integration and get real time notifications on the state of your tasks and flows -- all within the convenience of Slack!
+
+## [Prefect Deployment: Dask](dask-cluster.md)
+
+Learn how to deploy your Prefect flow to a Dask cluster.

@@ -104,4 +104,4 @@ Notice that we didn't specify an executor in our call to `flow.run()`. This is b
 This flow will now run every minute on your local Dask cluster until you kill this process.
 
 ## Further steps
-Take this example to the next level by storing this flow in a Docker container and deploying it with Dask on Kubernetes using the excellent [dask-kubernetes](http://kubernetes.dask.org/en/latest/) project! Details are left as an exercise to the reader.
+Take this example to the next level by storing your flow in a Docker container and deploying it with Dask on Kubernetes using the excellent [dask-kubernetes](http://kubernetes.dask.org/en/latest/) project! Details are left as an exercise to the reader. ;)
