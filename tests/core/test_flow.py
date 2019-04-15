@@ -356,6 +356,29 @@ def test_add_edge():
     assert f.edges_to(t2) == f.edges_from(t1)
 
 
+def test_add_edge_raise_error_for_downstream_parameter():
+    f = Flow(name="test")
+    t = Task()
+    p = Parameter("p")
+
+    with pytest.raises(ValueError) as exc:
+        f.add_edge(upstream_task=t, downstream_task=p)
+
+    assert "can not have upstream dependencies" in str(exc.value)
+
+
+def test_add_edge_raise_error_for_duplicate_key_if_validate():
+    f = Flow(name="test")
+    t = Task()
+    a = AddTask()
+
+    f.add_edge(upstream_task=t, downstream_task=a, key="x")
+    with pytest.raises(ValueError) as exc:
+        f.add_edge(upstream_task=t, downstream_task=a, key="x", validate=True)
+
+    assert "already been assigned" in str(exc.value)
+
+
 def test_add_edge_returns_edge():
     f = Flow(name="test")
     t1 = Task()
