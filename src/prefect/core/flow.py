@@ -796,7 +796,7 @@ class Flow:
                 _not_ be mapped over.
             - validate (bool, optional): Whether or not to check the validity of
                 the flow (e.g., presence of cycles).  Defaults to the value of `eager_edge_validation`
-                in your prefect configuration file.
+                in your Prefect configuration file.
 
         Returns:
             - None
