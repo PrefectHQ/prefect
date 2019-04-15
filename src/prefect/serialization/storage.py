@@ -25,7 +25,4 @@ class StorageSchema(OneOfSchema):
     """
 
     # map class name to schema
-    type_schemas = {
-        "Docker": DockerSchema,
-        "Bytes": BytesSchema,
-    }
+    type_schemas = {"Docker": DockerSchema, "Bytes": BytesSchema}

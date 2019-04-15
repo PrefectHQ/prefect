@@ -17,6 +17,7 @@ def cli():
     """
     pass
 
+
 # TODO: This may need to be depricated
 @cli.command()
 @click.argument("environment_file", type=click.Path(exists=True))
@@ -30,6 +31,7 @@ def run(environment_file, runner_kwargs):
         environment = schema.load(json.load(f))
 
     click.echo(environment.run(runner_kwargs=runner_kwargs))
+
 
 # TODO: This may need to be depricated
 @cli.command()

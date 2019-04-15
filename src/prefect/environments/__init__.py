@@ -4,4 +4,4 @@ from prefect.environments.docker import DockerEnvironment
 
 import prefect.environments.kubernetes
 
-from prefect.environments.execution.cloud.environment import CloudEnvironment
+from prefect.environments.execution.cloud import CloudEnvironment
