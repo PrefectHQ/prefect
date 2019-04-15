@@ -1390,7 +1390,7 @@ class Flow:
         )
         return deployed_flow
 
-    def __mifflin__(self) -> None:
+    def __mifflin__(self) -> None:  # coverage: ignore
         "Calls Dunder Mifflin"
         import webbrowser
 

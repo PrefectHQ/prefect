@@ -631,6 +631,19 @@ class Task(metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Not().bind(self)
 
+    def or_(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self or other`
+
+        Args:
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns:
+            - Task
+        """
+        return prefect.tasks.core.operators.Or().bind(self, other)
+
     # Magic Method Interactions  ----------------------------------------------------
 
     def __getitem__(self, key: Any) -> "Task":
@@ -661,7 +674,7 @@ class Task(metaclass=SignatureValidator):
         self.set_dependencies(downstream_tasks=[other])
         return other
 
-    def __mifflin__(self) -> None:
+    def __mifflin__(self) -> None:  # coverage: ignore
         "Calls Dunder Mifflin"
         import webbrowser
 

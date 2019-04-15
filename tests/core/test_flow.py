@@ -356,6 +356,29 @@ def test_add_edge():
     assert f.edges_to(t2) == f.edges_from(t1)
 
 
+def test_add_edge_raise_error_for_downstream_parameter():
+    f = Flow(name="test")
+    t = Task()
+    p = Parameter("p")
+
+    with pytest.raises(ValueError) as exc:
+        f.add_edge(upstream_task=t, downstream_task=p)
+
+    assert "can not have upstream dependencies" in str(exc.value)
+
+
+def test_add_edge_raise_error_for_duplicate_key_if_validate():
+    f = Flow(name="test")
+    t = Task()
+    a = AddTask()
+
+    f.add_edge(upstream_task=t, downstream_task=a, key="x")
+    with pytest.raises(ValueError) as exc:
+        f.add_edge(upstream_task=t, downstream_task=a, key="x", validate=True)
+
+    assert "already been assigned" in str(exc.value)
+
+
 def test_add_edge_returns_edge():
     f = Flow(name="test")
     t1 = Task()
@@ -632,6 +655,9 @@ class TestEquality:
 
         f2.add_task(t3)
         assert f1 != f2
+
+    def test_object_inequality(self):
+        assert Flow(name="test") != 1
 
     def test_equality_based_on_edges(self):
         f1 = Flow(name="test")
@@ -1376,154 +1402,175 @@ class TestSerialize:
                 assert f.read()
 
 
-def test_flow_dot_run_runs_on_schedule():
-    class MockSchedule(prefect.schedules.Schedule):
-        call_count = 0
+class TestFlowRunMethod:
+    def test_flow_dot_run_runs_on_schedule(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
 
-        def next(self, n):
-            if self.call_count < 2:
+            def next(self, n):
+                if self.call_count < 2:
+                    self.call_count += 1
+                    # add small delta to trigger "naptime"
+                    return [pendulum.now("utc").add(seconds=0.05)]
+                else:
+                    raise SyntaxError("Cease scheduling!")
+
+        class StatefulTask(Task):
+            call_count = 0
+
+            def run(self):
                 self.call_count += 1
-                return [pendulum.now("utc")]
-            else:
-                raise SyntaxError("Cease scheduling!")
 
-    class StatefulTask(Task):
-        call_count = 0
+        t = StatefulTask()
+        schedule = MockSchedule()
+        f = Flow(name="test", tasks=[t], schedule=schedule)
+        with pytest.raises(SyntaxError) as exc:
+            f.run()
+        assert "Cease" in str(exc.value)
+        assert t.call_count == 2
 
-        def run(self):
-            self.call_count += 1
+    def test_flow_dot_run_stops_on_schedule(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
 
-    t = StatefulTask()
-    schedule = MockSchedule()
-    f = Flow(name="test", tasks=[t], schedule=schedule)
-    with pytest.raises(SyntaxError) as exc:
-        f.run()
-    assert "Cease" in str(exc.value)
-    assert t.call_count == 2
+            def next(self, n):
+                if self.call_count < 1:
+                    self.call_count += 1
+                    return [pendulum.now("utc").add(seconds=0.05)]
+                else:
+                    return []
 
+        class StatefulTask(Task):
+            call_count = 0
 
-def test_scheduled_runs_handle_retries():
-    class MockSchedule(prefect.schedules.Schedule):
-        call_count = 0
-
-        def next(self, n):
-            if self.call_count < 1:
+            def run(self):
                 self.call_count += 1
-                return [pendulum.now("utc")]
-            else:
-                raise SyntaxError("Cease scheduling!")
 
-    class StatefulTask(Task):
-        call_count = 0
-
-        def run(self):
-            self.call_count += 1
-            if self.call_count == 1:
-                raise OSError("I need to run again.")
-
-    state_history = []
-
-    def handler(task, old, new):
-        state_history.append(new)
-        return new
-
-    t = StatefulTask(
-        max_retries=1,
-        retry_delay=datetime.timedelta(minutes=0),
-        state_handlers=[handler],
-    )
-    schedule = MockSchedule()
-    f = Flow(name="test", tasks=[t], schedule=schedule)
-    with pytest.raises(SyntaxError) as exc:
+        t = StatefulTask()
+        schedule = MockSchedule()
+        f = Flow(name="test", tasks=[t], schedule=schedule)
         f.run()
-    assert "Cease" in str(exc.value)
-    assert t.call_count == 2
-    assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
+        assert t.call_count == 1
 
+    def test_scheduled_runs_handle_retries(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
 
-def test_flow_dot_run_handles_cached_states():
-    class MockSchedule(prefect.schedules.Schedule):
-        call_count = 0
+            def next(self, n):
+                if self.call_count < 1:
+                    self.call_count += 1
+                    return [pendulum.now("utc")]
+                else:
+                    raise SyntaxError("Cease scheduling!")
 
-        def next(self, n):
-            if self.call_count < 3:
+        class StatefulTask(Task):
+            call_count = 0
+
+            def run(self):
                 self.call_count += 1
-                return [pendulum.now("utc")]
-            else:
-                raise SyntaxError("Cease scheduling!")
+                if self.call_count == 1:
+                    raise OSError("I need to run again.")
 
-    class StatefulTask(Task):
-        def __init__(self, maxit=False, **kwargs):
-            self.maxit = maxit
-            super().__init__(**kwargs)
+        state_history = []
 
-        call_count = 0
+        def handler(task, old, new):
+            state_history.append(new)
+            return new
 
-        def run(self):
-            self.call_count += 1
-            if self.maxit:
-                return max(self.call_count, 2)
-            else:
-                return self.call_count
+        t = StatefulTask(
+            max_retries=1,
+            retry_delay=datetime.timedelta(minutes=0),
+            state_handlers=[handler],
+        )
+        schedule = MockSchedule()
+        f = Flow(name="test", tasks=[t], schedule=schedule)
+        with pytest.raises(SyntaxError) as exc:
+            f.run()
+        assert "Cease" in str(exc.value)
+        assert t.call_count == 2
+        assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
 
-    @task(
-        cache_for=datetime.timedelta(minutes=1),
-        cache_validator=partial_inputs_only(validate_on=["x"]),
-    )
-    def return_x(x, y):
-        return y
+    def test_flow_dot_run_handles_cached_states(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
 
-    storage = {"y": []}
+            def next(self, n):
+                if self.call_count < 3:
+                    self.call_count += 1
+                    return [pendulum.now("utc")]
+                else:
+                    raise SyntaxError("Cease scheduling!")
 
-    @task
-    def store_y(y):
-        storage["y"].append(y)
+        class StatefulTask(Task):
+            def __init__(self, maxit=False, **kwargs):
+                self.maxit = maxit
+                super().__init__(**kwargs)
 
-    t1, t2 = StatefulTask(maxit=True), StatefulTask()
-    schedule = MockSchedule()
-    with Flow(name="test", schedule=schedule) as f:
-        res = store_y(return_x(x=t1, y=t2))
+            call_count = 0
 
-    with pytest.raises(SyntaxError) as exc:
-        f.run()
+            def run(self):
+                self.call_count += 1
+                if self.maxit:
+                    return max(self.call_count, 2)
+                else:
+                    return self.call_count
 
-    assert storage == dict(y=[1, 1, 3])
+        @task(
+            cache_for=datetime.timedelta(minutes=1),
+            cache_validator=partial_inputs_only(validate_on=["x"]),
+        )
+        def return_x(x, y):
+            return y
 
+        storage = {"y": []}
 
-def test_scheduled_runs_handle_mapped_retries():
-    class StatefulTask(Task):
-        call_count = 0
+        @task
+        def store_y(y):
+            storage["y"].append(y)
 
-        def run(self):
-            self.call_count += 1
-            if self.call_count == 1:
-                raise OSError("I need to run again.")
+        t1, t2 = StatefulTask(maxit=True), StatefulTask()
+        schedule = MockSchedule()
+        with Flow(name="test", schedule=schedule) as f:
+            res = store_y(return_x(x=t1, y=t2))
 
-    state_history = []
+        with pytest.raises(SyntaxError) as exc:
+            f.run()
 
-    def handler(task, old, new):
-        state_history.append(new)
-        return new
+        assert storage == dict(y=[1, 1, 3])
 
-    t = StatefulTask(
-        max_retries=1,
-        retry_delay=datetime.timedelta(minutes=0),
-        state_handlers=[handler],
-    )
-    with Flow(name="test") as f:
-        res = t.map(upstream_tasks=[[1, 2, 3]])
+    def test_scheduled_runs_handle_mapped_retries(self):
+        class StatefulTask(Task):
+            call_count = 0
 
-    flow_state = f.run()
-    assert flow_state.is_successful()
-    assert all([s.is_successful() for s in flow_state.result[res].map_states])
-    assert res.call_count == 4
-    assert len(state_history) == 11
+            def run(self):
+                self.call_count += 1
+                if self.call_count == 1:
+                    raise OSError("I need to run again.")
 
+        state_history = []
 
-def test_flow_run_accepts_state_kwarg():
-    f = Flow(name="test")
-    state = f.run(state=Finished())
-    assert state.is_finished()
+        def handler(task, old, new):
+            state_history.append(new)
+            return new
+
+        t = StatefulTask(
+            max_retries=1,
+            retry_delay=datetime.timedelta(minutes=0),
+            state_handlers=[handler],
+        )
+        with Flow(name="test") as f:
+            res = t.map(upstream_tasks=[[1, 2, 3]])
+
+        flow_state = f.run()
+        assert flow_state.is_successful()
+        assert all([s.is_successful() for s in flow_state.result[res].map_states])
+        assert res.call_count == 4
+        assert len(state_history) == 11
+
+    def test_flow_run_accepts_state_kwarg(self):
+        f = Flow(name="test")
+        state = f.run(state=Finished())
+        assert state.is_finished()
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():

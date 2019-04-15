@@ -391,7 +391,9 @@ class TestCheckFlowPendingOrRunning:
         new_state = FlowRunner(flow=flow).check_flow_is_pending_or_running(state=state)
         assert new_state is state
 
-    @pytest.mark.parametrize("state", [Finished(), Success(), Failed(), Skipped()])
+    @pytest.mark.parametrize(
+        "state", [Finished(), Success(), Failed(), Skipped(), State()]
+    )
     def test_not_pending_or_running_raise_endrun(self, state):
         flow = Flow(name="test", tasks=[Task()])
         with pytest.raises(ENDRUN):
