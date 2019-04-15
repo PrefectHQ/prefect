@@ -1,6 +1,7 @@
 import prefect
 from prefect.environments.storage import Storage
 
+
 class Bytes(Storage):
     """"""
 

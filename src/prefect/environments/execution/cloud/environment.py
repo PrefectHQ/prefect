@@ -9,6 +9,7 @@ import docker
 import yaml
 
 import prefect
+from prefect.engine import FlowRunner
 from prefect.environments.storage import Docker
 from prefect.environments.execution import Environment
 
@@ -21,7 +22,7 @@ class CloudEnvironment(Environment):
         self.identifier_label = str(uuid.uuid4())
 
     def process(self, storage: "Docker" = Docker()) -> None:
-        if type(storage) != prefect.environments.storage.Docker:
+        if not isinstance(storage, Docker):
             raise TypeError("CloudEnvironment requires a Docker storage option")
 
         if not storage.image_name or not storage.image_tag or not storage.registry_url:
@@ -75,7 +76,7 @@ class CloudEnvironment(Environment):
                 flow = schema.load(json.load(f))
 
                 executor = DaskExecutor(address=cluster.scheduler_address)
-                flow.run(executor=executor)
+                FlowRunner(flow=flow).run(executor=executor)
 
     ########################
     # YAML Spec Manipulation

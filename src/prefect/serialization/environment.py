@@ -54,6 +54,7 @@ class CloudEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = prefect.environments.CloudEnvironment
 
+
 class EnvironmentSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -65,5 +66,5 @@ class EnvironmentSchema(OneOfSchema):
         "LocalEnvironment": LocalEnvironmentSchema,
         "DockerOnKubernetesEnvironment": DockerOnKubernetesEnvironmentSchema,
         "DaskOnKubernetesEnvironment": DaskOnKubernetesEnvironmentSchema,
-        "CloudEnvironment": CloudEnvironmentSchema
+        "CloudEnvironment": CloudEnvironmentSchema,
     }
