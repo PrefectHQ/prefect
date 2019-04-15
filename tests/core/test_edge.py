@@ -75,6 +75,10 @@ def test_edge_equality():
     assert Edge(t1, t2, "key", True) != Edge(t1, t2, "key", False)
 
 
+def test_object_inequality(self):
+    assert Edge(Task(), Task()) != 1
+
+
 def test_serialize_edge():
     t1 = Task()
     t2 = Task()

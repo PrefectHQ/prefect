@@ -611,6 +611,9 @@ class TestEquality:
         f2.add_task(t3)
         assert f1 != f2
 
+    def test_object_inequality(self):
+        assert Flow(name="test") != 1
+
     def test_equality_based_on_edges(self):
         f1 = Flow(name="test")
         f2 = Flow(name="test")
