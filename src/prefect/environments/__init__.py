@@ -3,3 +3,5 @@ from prefect.environments.local import LocalEnvironment
 from prefect.environments.docker import DockerEnvironment
 
 import prefect.environments.kubernetes
+
+from prefect.environments.execution.cloud.environment import CloudEnvironment
