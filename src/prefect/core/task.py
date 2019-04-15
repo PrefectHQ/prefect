@@ -479,7 +479,9 @@ class Task(metaclass=SignatureValidator):
             to the task under the specified keyword arguments.
             - mapped (bool, optional): Whether the results of these tasks should be mapped over
                 with the specified keyword arguments
-            - validate (bool, optional): Whether or not to check the validity of the flow
+            - validate (bool, optional): Whether or not to check the validity of the flow. If not
+                provided, defaults to the value of `eager_edge_validation` in your Prefect
+                configuration file.
 
         Returns:
             - None
