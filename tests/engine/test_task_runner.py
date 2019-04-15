@@ -610,6 +610,18 @@ class TestCheckTaskTrigger:
         assert isinstance(exc.value.state, TriggerFailed)
         assert isinstance(exc.value.state.result, ZeroDivisionError)
 
+    def test_custom_trigger_returns_false(self):
+        def trigger(states):
+            return False
+
+        task = Task(trigger=trigger)
+        state = Pending()
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task).check_task_trigger(
+                state=state, upstream_states={1: Success()}
+            )
+        assert isinstance(exc.value.state, TriggerFailed)
+
 
 class TestCheckTaskReady:
     @pytest.mark.parametrize("state", [Cached(), Pending(), Mapped()])
