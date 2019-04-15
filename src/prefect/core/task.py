@@ -633,6 +633,10 @@ class Task(metaclass=SignatureValidator):
         """
         Produces a Task that evaluates `self or other`
 
+        Args:
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
         Returns:
             - Task
         """
