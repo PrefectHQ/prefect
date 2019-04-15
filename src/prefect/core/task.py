@@ -659,7 +659,7 @@ class Task(metaclass=SignatureValidator):
         self.set_dependencies(downstream_tasks=[other])
         return other
 
-    def __mifflin__(self) -> None:
+    def __mifflin__(self) -> None:  # coverage: ignore
         "Calls Dunder Mifflin"
         import webbrowser
 
