@@ -19,10 +19,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix issue with timeouts behaving incorrectly with unpickleable objects - [#886](https://github.com/PrefectHQ/prefect/issues/886)
+- Fix issue with Flow validation being performed even when eager validation was turned off - [#919](https://github.com/PrefectHQ/prefect/issues/919)
 
 ### Breaking Changes
 
-- Removes `prefect make user config` from cli commands - [#904](https://github.com/PrefectHQ/prefect/issues/904)
+- Remove `prefect make user config` from cli commands - [#904](https://github.com/PrefectHQ/prefect/issues/904)
 
 ### Contributors
 
