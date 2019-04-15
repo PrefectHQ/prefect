@@ -6,6 +6,7 @@ import prefect
 from prefect.serialization.edge import EdgeSchema
 from prefect.serialization.environment import EnvironmentSchema
 from prefect.serialization.schedule import ScheduleSchema
+from prefect.serialization.storage import StorageSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
 from prefect.utilities.serialization import (
     JSONCompatible,
@@ -50,6 +51,7 @@ class FlowSchema(ObjectSchema):
         TaskSchema, value_selection_fn=get_reference_tasks, many=True, only=["id"]
     )
     environment = fields.Nested(EnvironmentSchema, allow_none=True)
+    storage = fields.Nested(StorageSchema, allow_none=True)
 
     @post_load
     def create_object(self, data: dict) -> prefect.core.Flow:
