@@ -9,7 +9,6 @@ import docker
 import yaml
 
 import prefect
-from prefect.engine import FlowRunner
 from prefect.environments.storage import Docker
 from prefect.environments.execution import Environment
 
@@ -61,6 +60,7 @@ class CloudEnvironment(Environment):
         self, flow_file_path: str = "/root/.prefect/flow_env.prefect"
     ) -> "prefect.engine.state.State":
         """"""
+        from prefect.engine import FlowRunner
         from prefect.engine.executors import DaskExecutor
         from dask_kubernetes import KubeCluster
 
