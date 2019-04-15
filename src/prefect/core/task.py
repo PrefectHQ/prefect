@@ -465,7 +465,7 @@ class Task(metaclass=SignatureValidator):
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Dict[str, object] = None,
         mapped: bool = False,
-        validate: bool = True,
+        validate: bool = None,
     ) -> None:
         """
         Set dependencies for a flow either specified or in the current context using this task

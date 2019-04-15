@@ -440,6 +440,28 @@ def test_eager_cycle_detection_defaults_false():
         f.validate()
 
 
+def test_eager_validation_is_off_by_default(monkeypatch):
+    # https://github.com/PrefectHQ/prefect/issues/919
+    assert not prefect.config.flows.eager_edge_validation
+
+    validate = MagicMock()
+    monkeypatch.setattr("prefect.core.flow.Flow.validate", validate)
+
+    @task
+    def length(x):
+        return len(x)
+
+    data = list(range(10))
+    with Flow(name="test") as f:
+        length.map(data)
+
+    assert validate.call_count == 0
+
+    f.validate()
+
+    assert validate.call_count == 1
+
+
 def test_eager_cycle_detection_works():
 
     with set_temporary_config({"flows.eager_edge_validation": True}):
