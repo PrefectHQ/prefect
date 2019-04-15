@@ -55,6 +55,11 @@ def test_restore_flattened_dict(nested_dict):
     assert restored == nested_dict
 
 
+def test_call_flatdict_to_dict_on_normal_dict(nested_dict):
+    restored = collections.flatdict_to_dict({"a": "b"})
+    assert restored == {"a": "b"}
+
+
 def test_restore_flattened_dict_with_dict_class():
     nested_dict = DotDict(a=DotDict(x=1), b=DotDict(y=2))
     flat = collections.dict_to_flatdict(nested_dict)
