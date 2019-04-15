@@ -1381,7 +1381,6 @@ class TestSerialize:
 
 
 class TestFlowRunMethod:
-
     def test_flow_dot_run_runs_on_schedule(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
@@ -1408,7 +1407,6 @@ class TestFlowRunMethod:
         assert "Cease" in str(exc.value)
         assert t.call_count == 2
 
-
     def test_flow_dot_run_stops_on_schedule(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
@@ -1431,7 +1429,6 @@ class TestFlowRunMethod:
         f = Flow(name="test", tasks=[t], schedule=schedule)
         f.run()
         assert t.call_count == 1
-
 
     def test_scheduled_runs_handle_retries(self):
         class MockSchedule(prefect.schedules.Schedule):
@@ -1470,7 +1467,6 @@ class TestFlowRunMethod:
         assert "Cease" in str(exc.value)
         assert t.call_count == 2
         assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
-
 
     def test_flow_dot_run_handles_cached_states(self):
         class MockSchedule(prefect.schedules.Schedule):
@@ -1520,7 +1516,6 @@ class TestFlowRunMethod:
 
         assert storage == dict(y=[1, 1, 3])
 
-
     def test_scheduled_runs_handle_mapped_retries(self):
         class StatefulTask(Task):
             call_count = 0
@@ -1549,7 +1544,6 @@ class TestFlowRunMethod:
         assert all([s.is_successful() for s in flow_state.result[res].map_states])
         assert res.call_count == 4
         assert len(state_history) == 11
-
 
     def test_flow_run_accepts_state_kwarg(self):
         f = Flow(name="test")

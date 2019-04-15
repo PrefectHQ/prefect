@@ -613,6 +613,7 @@ class TestCheckTaskTrigger:
     def test_custom_trigger_returns_false(self):
         def trigger(states):
             return False
+
         task = Task(trigger=trigger)
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
