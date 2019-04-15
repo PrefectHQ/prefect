@@ -34,6 +34,7 @@ from prefect.core.task import Parameter, Task
 from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import Environment
+from prefect.environments.storage import Storage
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.serialization import to_qualified_name
@@ -107,6 +108,8 @@ class Flow:
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
             type that the flow should be run in. If None, a LocalEnvironment will be created.
+        - storage (prefect.environments.storage.Storage, optional): The unit of storage
+            that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks
         - reference_tasks ([Task], optional): A list of tasks which determine the final
@@ -136,6 +139,7 @@ class Flow:
         name: str,
         schedule: prefect.schedules.Schedule = None,
         environment: Environment = None,
+        storage: Storage = None,
         tasks: Iterable[Task] = None,
         edges: Iterable[Edge] = None,
         reference_tasks: Iterable[Task] = None,
@@ -157,6 +161,7 @@ class Flow:
         self.name = name
         self.schedule = schedule
         self.environment = environment or prefect.environments.LocalEnvironment()
+        self.storage = storage
         self.result_handler = (
             result_handler or prefect.engine.get_default_result_handler_class()()
         )
