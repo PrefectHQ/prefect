@@ -629,6 +629,15 @@ class Task(metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Not().bind(self)
 
+    def or_(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self or other`
+
+        Returns:
+            - Task
+        """
+        return prefect.tasks.core.operators.Or().bind(self, other)
+
     # Magic Method Interactions  ----------------------------------------------------
 
     def __getitem__(self, key: Any) -> "Task":
