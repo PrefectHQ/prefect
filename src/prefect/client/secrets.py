@@ -38,8 +38,14 @@ class Secret:
             - Any: the value of the secret; if not found, returns `None`
 
         Raises:
+            - ValueError: if `.get()` is called within a Flow building context
             - ValueError: if `use_local_secrets=False` and the Client fails to retrieve your secret
         """
+        if isinstance(prefect.context.get("flow"), prefect.core.flow.Flow):
+            raise ValueError(
+                "Secrets should only be retrieved from within a Flow run, not while building a Flow."
+            )
+
         if prefect.config.cloud.use_local_secrets is True:
             secrets = prefect.context.get("secrets", {})
             value = secrets.get(self.name)
