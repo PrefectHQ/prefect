@@ -530,14 +530,13 @@ class Task(metaclass=SignatureValidator):
             self.set_dependencies(flow=flow, upstream_tasks=[task], mapped=mapped)
 
     def set_downstream(
-        self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False
+        self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False
     ) -> None:
         """
         Sets the provided task as a downstream dependency of this task.
 
         Args:
-            - task (object): A task or object that will be converted to a task that will be set
-                as a downstream dependency of this task.
+            - task (object): A task that will be set as a downstream dependency of this task.
             - flow (Flow, optional): The flow to set dependencies on, defaults to the current
                 flow in context if no flow is specified
             - key (str, optional): The key to be set for the new edge; this is
