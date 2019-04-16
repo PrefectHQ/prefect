@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - `DaskExecutor(local_processes=True)` supports timeouts - [#886](https://github.com/PrefectHQ/prefect/issues/886)
+- Add new keywords to `Task.set_upstream` and `Task.set_downstream` for handling keyed and mapped dependencies - [#823](https://github.com/PrefectHQ/prefect/issues/823)
 
 ### Task Library
 
