@@ -59,3 +59,19 @@ def test_local_secrets_auto_load_json_strings():
         with prefect.context(secrets=dict(test='{"x": 42}')):
             assert secret.get() == {"x": 42}
         assert secret.get() is None
+
+
+def test_secrets_raise_if_in_flow_context():
+    secret = Secret(name="test")
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(test=42)):
+            with prefect.Flow("test"):
+                with pytest.raises(ValueError) as exc:
+                    secret.get()
+
+
+def test_secrets_dont_raise_just_because_flow_key_is_populated():
+    secret = Secret(name="test")
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(test=42), flow="not None"):
+            assert secret.get() == 42

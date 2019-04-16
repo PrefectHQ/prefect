@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - `DaskExecutor(local_processes=True)` supports timeouts - [#886](https://github.com/PrefectHQ/prefect/issues/886)
+- Calling `Secret.get()` from within a Flow context raises an informative error - [#927](https://github.com/PrefectHQ/prefect/issues/927)
 
 ### Task Library
 
