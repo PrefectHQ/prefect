@@ -410,6 +410,16 @@ class TestDependencies:
             t1.set_downstream(t2)
         assert "No Flow was passed" in str(exc.value)
 
+    @pytest.mark.parametrize(
+        "props", [{"mapped": True}, {"key": "x"}, {"key": "x", "mapped": True}]
+    )
+    def test_set_downstream_with_properties(self, props):
+        with Flow(name="test") as f:
+            t1 = Task()
+            t2 = Task()
+            t1.set_downstream(t2, **props)
+            assert Edge(t1, t2, **props) in f.edges
+
     def test_set_upstream(self):
         f = Flow(name="test")
         t1 = Task()
@@ -431,6 +441,16 @@ class TestDependencies:
         with pytest.raises(ValueError) as exc:
             t2.set_upstream(t1)
         assert "No Flow was passed" in str(exc.value)
+
+    @pytest.mark.parametrize(
+        "props", [{"mapped": True}, {"key": "x"}, {"key": "x", "mapped": True}]
+    )
+    def test_set_upstream_with_properties(self, props):
+        with Flow(name="test") as f:
+            t1 = Task()
+            t2 = Task()
+            t2.set_upstream(t1, **props)
+            assert Edge(t1, t2, **props) in f.edges
 
 
 class TestSerialization:
