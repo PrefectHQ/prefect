@@ -43,7 +43,7 @@ class Secret:
         """
         if isinstance(prefect.context.get("flow"), prefect.core.flow.Flow):
             raise ValueError(
-                "Secrets should only be retrieved from within a Flow run, not while building a Flow."
+                "Secrets should only be retrieved during a Flow run, not while building a Flow."
             )
 
         if prefect.config.cloud.use_local_secrets is True:
