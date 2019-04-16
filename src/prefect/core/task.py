@@ -476,7 +476,7 @@ class Task(metaclass=SignatureValidator):
             - upstream_tasks ([object], optional): A list of upstream tasks for this task
             - downstream_tasks ([object], optional): A list of downtream tasks for this task
             - keyword_tasks ({str, object}}, optional): The results of these tasks will be provided
-            to the task under the specified keyword arguments.
+            to this task under the specified keyword arguments.
             - mapped (bool, optional): Whether the results of the _upstream_ tasks should be mapped over
                 with the specified keyword arguments
             - validate (bool, optional): Whether or not to check the validity of the flow. If not
@@ -515,9 +515,8 @@ class Task(metaclass=SignatureValidator):
                 as a upstream dependency of this task.
             - flow (Flow, optional): The flow to set dependencies on, defaults to the current
                 flow in context if no flow is specified
-            - key (str, optional): The key to be set for the new edge; this is
-                the argument name the result of the upstream task will be bound to in the
-                `run()` method of the downstream task
+            - key (str, optional): The key to be set for the new edge; the result of the upstream task
+                will be passed to this task's `run()` method under this keyword argument.
             - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
 
         Raises:
@@ -536,12 +535,11 @@ class Task(metaclass=SignatureValidator):
         Sets the provided task as a downstream dependency of this task.
 
         Args:
-            - task (object): A task that will be set as a downstream dependency of this task.
+            - task (Task): A task that will be set as a downstream dependency of this task.
             - flow (Flow, optional): The flow to set dependencies on, defaults to the current
                 flow in context if no flow is specified
-            - key (str, optional): The key to be set for the new edge; this is
-                the argument name the result of the upstream task will be bound to in the
-                `run()` method of the downstream task
+            - key (str, optional): The key to be set for the new edge; the result of this task
+                will be passed to the downstream task's `run()` method under this keyword argument.
             - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
 
         Raises:
@@ -549,7 +547,9 @@ class Task(metaclass=SignatureValidator):
         """
         if key is not None:
             keyword_tasks = {key: self}
-            task.set_dependencies(flow=flow, keyword_tasks=keyword_tasks, mapped=mapped)
+            task.set_dependencies(  # type: ignore
+                flow=flow, keyword_tasks=keyword_tasks, mapped=mapped
+            )  # type: ignore
         else:
             task.set_dependencies(flow=flow, upstream_tasks=[self], mapped=mapped)
 
