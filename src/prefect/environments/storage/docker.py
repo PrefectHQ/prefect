@@ -16,7 +16,34 @@ from prefect.utilities.exceptions import SerializationError
 
 
 class Docker(Storage):
-    """"""
+    """
+    Docker storage provides a mechanism for storing Prefect flows in Docker images
+    and optionally pushing them to a registry.
+
+    There are two ways this storage option can be specified: a `dockerfile` string can be
+    provided to specify a customizable dockerfile to build or some of the preset arguments
+    (i.e. `base_image` and `python_dependencies`) can be provided to a temporary dockerfile
+    which is used to build the image.
+
+    *Note*: Either a dockerfile or base image must be provided, but *not* both. If neither
+    are provided then this will default to a Prefect base image using your current version
+    of Prefect.
+
+    If a dockerfile is provided then it is required that that dockerfile can run both
+    `pip` and `python` for installing Prefect and running a flow healthcheck.
+
+    Args:
+        - registry_url (str, optional): URL of a registry to push the image to; image will not be pushed if not provided
+        - dockerfile (str, optional): a string representation of a Dockerfile, if not provided the base_image will be used
+        - base_image (str, optional): the base image for this environment (e.g. `python:3.6`), defaults to `python:3.6`
+        - python_dependencies (List[str], optional): list of pip installable dependencies for the image
+        - image_name (str, optional): name of the image to use when building, populated with a UUID after build
+        - image_tag (str, optional): tag of the image to use when building, populated with a UUID after build
+        - env_vars (dict, optional): a dictionary of environment variables to use when building
+        - files (dict, optional): a dictionary of files to copy into the image when building
+        - flow_file_path (str, optional): a path specifying where to write a serialized file to, must end in `.prefect`
+        - base_url: (str, optional): a URL of a Docker daemon to use when for Docker related functionality
+    """
 
     def __init__(
         self,
@@ -28,6 +55,7 @@ class Docker(Storage):
         image_tag: str = None,
         env_vars: dict = None,
         files: dict = None,
+        flow_file_path: str = "/root/.prefect/flow_env.prefect",
         base_url: str = "unix://var/run/docker.sock",
     ) -> None:
         self.registry_url = registry_url
@@ -38,6 +66,7 @@ class Docker(Storage):
         self.python_dependencies = python_dependencies or []
         self.env_vars = env_vars or {}
         self.files = files or {}
+        self.flow_file_path = flow_file_path
         self.base_url = base_url
 
         not_absolute = [
@@ -51,21 +80,49 @@ class Docker(Storage):
             )
 
     def build(self, flow: "prefect.Flow", push: bool = True) -> "Storage":
-        """"""
+        """
+        Build the Docker storage object.
+
+        Args:
+            - flow (prefect.Flow): Flow to be stored
+            - push (bool, optional): Whether or not to push the built Docker image, this
+                requires the `registry_url` to be set
+
+        Returns:
+            - Docker: a new Docker storage object that contains information about how and
+                where the flow is stored. Image name and tag are generated during the
+                build process.
+        """
         if bool(self.base_image) != bool(self.dockerfile):
-            # TODO: Default to prefect base image
-            raise ValueError(
-                "You must provide either a base image or a dockerfile, but not both."
-            )
+
+            if not bool(self.base_image) and not bool(self.dockerfile):
+                self.base_image = "python:3.6"
+            else:
+                raise ValueError(
+                    "You must provide either a base image or a dockerfile, but not both."
+                )
 
         image_name, image_tag = self.build_image(flow=flow, push=push)
 
         return Docker(
-            registry_url=self.registry_url, image_name=image_name, image_tag=image_tag
+            registry_url=self.registry_url,
+            image_name=image_name,
+            image_tag=image_tag,
+            flow_file_path=self.flow_file_path,
         )
 
     def build_image(self, flow: "prefect.Flow", push: bool = True) -> tuple:
-        """"""
+        """
+        Build a Docker image using the docker python library.
+
+        Args:
+            - flow (prefect.Flow): Flow to be stored
+            - push (bool, optional): Whether or not to push the built Docker image, this
+                requires the `registry_url` to be set
+
+        Returns:
+            - tuple: generated UUID strings `image_name`, `image_tag`
+        """
         image_name = str(uuid.uuid4())
         image_tag = str(uuid.uuid4())
 
@@ -125,7 +182,21 @@ class Docker(Storage):
     def create_dockerfile_object_from_base_image(
         self, flow: "prefect.Flow", directory: str = None
     ) -> None:
-        """"""
+        """
+        Writes a dockerfile to the current temporary directory using the specified
+        arguments on this Docker storage object.
+
+        In order for the docker python library to build a container it needs a
+        Dockerfile that it can use to define the container. This function takes the
+        specified arguments then writes them to a temporary file called Dockerfile.
+
+        *Note*: if `files` are added to this container, they will be copied to this directory as well.
+
+        Args:
+            - flow (Flow): the flow that the container will run
+            - directory (str, optional): A directory where the Dockerfile will be created,
+                if no directory is specified is will be created in the current working directory
+        """
         directory = directory or "./"
 
         with open(os.path.join(directory, "Dockerfile"), "w+") as dockerfile:
@@ -174,10 +245,12 @@ class Docker(Storage):
             print('Beginning health check...')
             from prefect.utilities.environments import from_file
 
-            local_env = from_file('/root/.prefect/flow_env.prefect')
+            local_env = from_file('{flow_file_path}')
             flow = local_env.deserialize_flow_from_bytes(local_env.serialized_flow)
             print('Healthcheck: OK')
-            """
+            """.format(
+                    flow_file_path=self.flow_file_path
+                )
             )
 
             with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
@@ -192,11 +265,11 @@ class Docker(Storage):
                 {pip_installs}
 
                 RUN mkdir /root/.prefect/
-                COPY flow_env.prefect /root/.prefect/flow_env.prefect
+                COPY flow_env.prefect {flow_file_path}
                 COPY healthcheck.py /root/.prefect/healthcheck.py
                 {copy_files}
 
-                ENV PREFECT_ENVIRONMENT_FILE="/root/.prefect/flow_env.prefect"
+                ENV PREFECT_ENVIRONMENT_FILE="{flow_file_path}"
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
@@ -207,6 +280,7 @@ class Docker(Storage):
                     base_image=self.base_image,
                     pip_installs=pip_installs,
                     copy_files=copy_files,
+                    flow_file_path=self.flow_file_path,
                     env_vars=env_vars,
                 )
             )
@@ -216,7 +290,20 @@ class Docker(Storage):
     def create_dockerfile_object_from_dockerfile(
         self, flow: "prefect.Flow", directory: str = None
     ) -> None:
-        """"""
+        """
+        Writes a dockerfile to the current temporary directory using the specified
+        dockerfile argument.
+
+        In order for the docker python library to build a container it needs a
+        Dockerfile that it can use to define the container. This function takes the
+        specified dockerfile, adds the flow and healthcheck, then writes everything to a
+        temporary file called Dockerfile.
+
+        Args:
+            - flow (Flow): the flow that the container will run
+            - directory (str, optional): A directory where the Dockerfile will be created,
+                if no directory is specified is will be created in the current working directory
+        """
         directory = directory or "./"
 
         with open(os.path.join(directory, "Dockerfile"), "w+") as dockerfile:
@@ -232,10 +319,12 @@ class Docker(Storage):
             print('Beginning health check...')
             from prefect.utilities.environments import from_file
 
-            local_env = from_file('/root/.prefect/flow_env.prefect')
+            local_env = from_file('{flow_file_path}')
             flow = local_env.deserialize_flow_from_bytes(local_env.serialized_flow)
             print('Healthcheck: OK')
-            """
+            """.format(
+                    flow_file_path=self.flow_file_path
+                )
             )
 
             with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
@@ -246,17 +335,17 @@ class Docker(Storage):
                 {dockerfile}
 
                 RUN mkdir /root/.prefect/
-                COPY flow_env.prefect /root/.prefect/flow_env.prefect
+                COPY flow_env.prefect {flow_file_path}
                 COPY healthcheck.py /root/.prefect/healthcheck.py
 
-                ENV PREFECT_ENVIRONMENT_FILE="/root/.prefect/flow_env.prefect"
+                ENV PREFECT_ENVIRONMENT_FILE="{flow_file_path}"
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
 
                 RUN pip install prefect
 
                 RUN python /root/.prefect/healthcheck.py
                 """.format(
-                    dockerfile=self.dockerfile
+                    dockerfile=self.dockerfile, flow_file_path=self.flow_file_path
                 )
             )
 

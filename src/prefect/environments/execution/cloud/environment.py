@@ -14,29 +14,59 @@ from prefect.environments.execution import Environment
 
 
 class CloudEnvironment(Environment):
-    """"""
+    """
+    CloudEnvironment is an environment which deploys your flow (stored in a Docker image)
+    on Kubernetes and it uses the Prefect dask executor by dynamically spawning workers as pods.
+
+    *Note*: This environment is not currently customizable. This may be subject to change.
+
+    There are no set up requirements, and `execute` creates a single job that has the role
+    of spinning up a dask executor and running the flow. The job created in the execute
+    function does have the requirement in that it needs to have an `identifier_label`
+    set with a UUID so resources can be cleaned up independently of other deployments.
+    """
 
     def __init__(self) -> None:
-        """"""
         self.identifier_label = str(uuid.uuid4())
 
-    def process(self, storage: "Docker" = Docker()) -> None:
+    def execute(self, storage: "Docker" = Docker()) -> None:
+        """
+        Create a single Kubernetes job that spins up a dask scheduler, dynamically
+        creates worker pods, and runs the flow.
+
+        Args:
+            - storage (Docker): the Docker storage object that contains information relating
+                to the image which houses the flow
+        """
         if not isinstance(storage, Docker):
             raise TypeError("CloudEnvironment requires a Docker storage option")
 
         if not storage.image_name or not storage.image_tag or not storage.registry_url:
             raise ValueError("Docker storage is missing required fields")
 
-        self.execute(
+        self.create_flow_run_job(
             registry_url=storage.registry_url,
             image_name=storage.image_name,
             image_tag=storage.image_tag,
+            flow_file_path=storage.flow_file_path,
         )
 
-    def execute(self, registry_url: str, image_name: str, image_tag: str) -> None:
-        """"""
+    def create_flow_run_job(
+        self, registry_url: str, image_name: str, image_tag: str, flow_file_path: str
+    ) -> None:
+        """
+        Creates a Kubernetes job to run the flow using the information stored on the
+        Docker storage object.
+
+        Args:
+            - registry_url (str): URL of a registry the image was stored in
+            - image_name (str): name of the image
+            - image_tag (str): tag of the image
+            - flow_file_path (str): location of the flow file in the image
+        """
         from kubernetes import client, config
 
+        # Verify environment is running in cluster
         try:
             config.load_incluster_config()
         except config.config_exception.ConfigException:
@@ -51,15 +81,16 @@ class CloudEnvironment(Environment):
                 registry_url=registry_url,
                 image_name=image_name,
                 image_tag=image_tag,
+                flow_file_path=flow_file_path,
             )
 
             # Create Job
             batch_client.create_namespaced_job(namespace="default", body=job)
 
-    def run(
-        self, flow_file_path: str = "/root/.prefect/flow_env.prefect"
-    ) -> "prefect.engine.state.State":
-        """"""
+    def run_flow(self) -> None:
+        """
+        Run the flow from specified flow_file_path location using a Dask executor
+        """
         from prefect.engine import FlowRunner
         from prefect.engine.executors import DaskExecutor
         from dask_kubernetes import KubeCluster
@@ -71,8 +102,14 @@ class CloudEnvironment(Environment):
             cluster = KubeCluster.from_dict(worker_pod)
             cluster.adapt(minimum=1, maximum=1)
 
+            # Load serialized flow from file and run it with a DaskExecutor
             schema = prefect.serialization.flow.FlowSchema()
-            with open(flow_file_path, "r") as f:
+            with open(
+                prefect.context.get(
+                    "flow_file_path", "/root/.prefect/flow_env.prefect"
+                ),
+                "r",
+            ) as f:
                 flow = schema.load(json.load(f))
 
                 executor = DaskExecutor(address=cluster.scheduler_address)
@@ -83,7 +120,12 @@ class CloudEnvironment(Environment):
     ########################
 
     def _populate_job_yaml(
-        self, yaml_obj: dict, registry_url: str, image_name: str, image_tag: str
+        self,
+        yaml_obj: dict,
+        registry_url: str,
+        image_name: str,
+        image_tag: str,
+        flow_file_path: str,
     ) -> dict:
         """
         Populate the execution job yaml object used in this environment with the proper values
@@ -114,6 +156,7 @@ class CloudEnvironment(Environment):
         env[5]["value"] = "{}:{}".format(
             path.join(registry_url, image_name), image_tag  # type: ignore
         )
+        env[6]["value"] = flow_file_path
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = "{}:{}".format(

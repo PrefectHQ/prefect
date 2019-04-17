@@ -152,15 +152,9 @@ Custom reference tasks allow you to alter this behavior to suit your needs.
 
 :::
 
-## Environments
-
-Flows can have `Environment` objects attached, which describe how to serialize and execute the flow. For example, environment could be used to run a flow locally, or in a Docker container, or from a source code repository.
-
-For more information, see the [Environments concept doc](environments.html).
-
 ## Serialization
 
-Flow metadata can be serialized by calling the flow's `serialize()` method. If the flow has an `Environment`, then `build=True` may be passed to build the environment and prepare the flow for remote execution.
+Flow metadata can be serialized by calling the flow's `serialize()` method.
 
 ## Retrieving tasks
 

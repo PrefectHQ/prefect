@@ -12,6 +12,7 @@ class DockerSchema(ObjectSchema):
     registry_url = fields.String(allow_none=True)
     image_name = fields.String(allow_none=True)
     image_tag = fields.String(allow_none=True)
+    flow_file_path = fields.String(allow_none=True)
 
 
 class BytesSchema(ObjectSchema):
