@@ -28,6 +28,7 @@ class Docker(Storage):
         image_tag: str = None,
         env_vars: dict = None,
         files: dict = None,
+        flow_file_path: str = "/root/.prefect/flow_env.prefect",
         base_url: str = "unix://var/run/docker.sock",
     ) -> None:
         self.registry_url = registry_url
@@ -38,6 +39,7 @@ class Docker(Storage):
         self.python_dependencies = python_dependencies or []
         self.env_vars = env_vars or {}
         self.files = files or {}
+        self.flow_file_path = flow_file_path
         self.base_url = base_url
 
         not_absolute = [
@@ -174,10 +176,12 @@ class Docker(Storage):
             print('Beginning health check...')
             from prefect.utilities.environments import from_file
 
-            local_env = from_file('/root/.prefect/flow_env.prefect')
+            local_env = from_file('{flow_file_path}')
             flow = local_env.deserialize_flow_from_bytes(local_env.serialized_flow)
             print('Healthcheck: OK')
-            """
+            """.format(
+                    flow_file_path=self.flow_file_path
+                )
             )
 
             with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
@@ -192,11 +196,11 @@ class Docker(Storage):
                 {pip_installs}
 
                 RUN mkdir /root/.prefect/
-                COPY flow_env.prefect /root/.prefect/flow_env.prefect
+                COPY flow_env.prefect {flow_file_path}
                 COPY healthcheck.py /root/.prefect/healthcheck.py
                 {copy_files}
 
-                ENV PREFECT_ENVIRONMENT_FILE="/root/.prefect/flow_env.prefect"
+                ENV PREFECT_ENVIRONMENT_FILE="{flow_file_path}"
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
@@ -207,6 +211,7 @@ class Docker(Storage):
                     base_image=self.base_image,
                     pip_installs=pip_installs,
                     copy_files=copy_files,
+                    flow_file_path=self.flow_file_path,
                     env_vars=env_vars,
                 )
             )
@@ -232,10 +237,12 @@ class Docker(Storage):
             print('Beginning health check...')
             from prefect.utilities.environments import from_file
 
-            local_env = from_file('/root/.prefect/flow_env.prefect')
+            local_env = from_file('{flow_file_path}')
             flow = local_env.deserialize_flow_from_bytes(local_env.serialized_flow)
             print('Healthcheck: OK')
-            """
+            """.format(
+                    flow_file_path=self.flow_file_path
+                )
             )
 
             with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
@@ -246,17 +253,17 @@ class Docker(Storage):
                 {dockerfile}
 
                 RUN mkdir /root/.prefect/
-                COPY flow_env.prefect /root/.prefect/flow_env.prefect
+                COPY flow_env.prefect {flow_file_path}
                 COPY healthcheck.py /root/.prefect/healthcheck.py
 
-                ENV PREFECT_ENVIRONMENT_FILE="/root/.prefect/flow_env.prefect"
+                ENV PREFECT_ENVIRONMENT_FILE="{flow_file_path}"
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
 
                 RUN pip install prefect
 
                 RUN python /root/.prefect/healthcheck.py
                 """.format(
-                    dockerfile=self.dockerfile
+                    dockerfile=self.dockerfile, flow_file_path=self.flow_file_path
                 )
             )
 
