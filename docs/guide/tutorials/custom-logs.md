@@ -22,7 +22,7 @@ Your [Prefect user configuration file](../core_concepts/configuration.html) prov
 ```
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
-level = "DEBUG"
+level = "INFO"
 
 # The log format
 format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
@@ -30,7 +30,7 @@ format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
 
 Alternatively, you can set the following environment variables:
 ```bash
-export PREFECT__LOGGING__LEVEL="DEBUG"
+export PREFECT__LOGGING__LEVEL="INFO"
 export PREFECT__LOGGING__FORMAT="[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
 ```
 
