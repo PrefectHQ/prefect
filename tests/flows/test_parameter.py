@@ -23,20 +23,6 @@ def test_parameter_slug_is_its_name():
     assert x.name == x.slug == "x"
 
 
-def test_parameter_name_cant_be_changed():
-    x = Parameter("x")
-    assert x.name == "x"
-    with pytest.raises(AttributeError):
-        x.name = "hi"
-
-
-def test_parameter_slug_cant_be_changed():
-    x = Parameter("x")
-    assert x.slug == "x"
-    with pytest.raises(AttributeError):
-        x.slug = "hi"
-
-
 def test_create_parameter_with_default_is_not_required():
     x = Parameter("x", default=2)
     assert not x.required
