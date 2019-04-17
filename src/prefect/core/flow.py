@@ -1145,18 +1145,14 @@ class Flow:
 
         self.validate()
         schema = prefect.serialization.flow.FlowSchema
-        serialized = schema(exclude=["environment"]).dump(self)
+        serialized = schema(exclude=["storage"]).dump(self)
 
         if build:
-            environment = self.environment.build(
-                flow=self
-            )  # type: Optional[Environment]
+            storage = self.storage.build(flow=self)  # type: Optional[Environment]
         else:
-            environment = self.environment
+            storage = self.storage
 
-        serialized.update(
-            schema(only=["environment"]).dump({"environment": environment})
-        )
+        serialized.update(schema(only=["storage"]).dump({"storage": storage}))
 
         return serialized
 
