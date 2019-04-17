@@ -5,6 +5,11 @@ import prefect
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema
 
 
+class StorageSchema(ObjectSchema):
+    class Meta:
+        object_class = prefect.environments.storage.Storage
+
+
 class DockerSchema(ObjectSchema):
     class Meta:
         object_class = prefect.environments.storage.Docker
@@ -26,4 +31,8 @@ class StorageSchema(OneOfSchema):
     """
 
     # map class name to schema
-    type_schemas = {"Docker": DockerSchema, "Bytes": BytesSchema}
+    type_schemas = {
+        "Docker": DockerSchema,
+        "Bytes": BytesSchema,
+        "Storage": StorageSchema,
+    }
