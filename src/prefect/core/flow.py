@@ -146,9 +146,6 @@ class Flow:
     ):
         self._cache = {}  # type: dict
 
-        # set random id
-        self.id = str(uuid.uuid4())
-
         self.logger = logging.get_logger("Flow")
 
         if not name:
@@ -210,8 +207,6 @@ class Flow:
         new = copy.copy(self)
         # create a new cache
         new._cache = dict()
-        # create new id
-        new.id = str(uuid.uuid4())
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
         new.set_reference_tasks(self._reference_tasks)
@@ -308,30 +303,6 @@ class Flow:
 
         if validate:
             self.validate()
-
-    @property
-    def id(self) -> str:
-        return self._id
-
-    @id.setter
-    def id(self, value: str) -> None:
-        """
-        Args:
-            - value (str): a UUID-formatted string
-        """
-        try:
-            uuid.UUID(value)
-        except Exception:
-            raise ValueError("Badly formatted UUID string: {}".format(value))
-        self._id = value
-
-    @property  # type: ignore
-    @cache
-    def task_ids(self) -> Dict[str, Task]:
-        """
-        Returns a dictionary of {task_id: Task} pairs.
-        """
-        return {task.id: task for task in self.tasks}
 
     # Context Manager ----------------------------------------------------------
 
@@ -445,7 +416,7 @@ class Flow:
                 "Tasks must be Task instances (received {})".format(type(task))
             )
         elif task not in self.tasks:
-            if task.slug and task.slug in [t.slug for t in self.tasks]:
+            if task.slug and any(task.slug == t.slug for t in self.tasks):
                 raise ValueError(
                     'A task with the slug "{}" already exists in this '
                     "flow.".format(task.slug)
@@ -823,6 +794,10 @@ class Flow:
         for t in downstream_tasks or []:
             t = as_task(t)
             assert isinstance(t, Task)  # mypy assert
+            if isinstance(t, Parameter):
+                raise ValueError(
+                    "Parameters can not be set as downstream dependencies."
+                )
             self.add_edge(upstream_task=task, downstream_task=t, validate=validate)
 
         # add data edges to upstream tasks
@@ -1215,7 +1190,13 @@ class Flow:
         ids = {}
         for t in tasks:
             serialized = t.serialize()
-            del serialized["id"]  # remove the ID since it is unique but random
+            try:
+                uuid.UUID(serialized["slug"])
+                del serialized[
+                    "slug"
+                ]  # remove the slug since it is randomly generated UUID
+            except ValueError:
+                pass  # don't remove slug because it was set manually
             ids[t] = _hash(json.dumps(serialized, sort_keys=True))
 
         if _debug_steps:
