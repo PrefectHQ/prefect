@@ -402,7 +402,7 @@ class TaskRunner(Runner):
 
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
-            self.logger.debug(
+            self.logger.error(
                 "Task '{name}': unexpected error while evaluating task trigger: {exc}".format(
                     exc=repr(exc),
                     name=prefect.context.get("task_full_name", self.task.name),
@@ -577,7 +577,7 @@ class TaskRunner(Runner):
                 state._result = state._result.to_result()
                 return state
             else:
-                self.logger.debug(
+                self.logger.warning(
                     "Task '{name}': can't use cache because it "
                     "is now invalid".format(
                         name=prefect.context.get("task_full_name", self.task.name)
