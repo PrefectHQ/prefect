@@ -21,4 +21,4 @@ class Bytes(Storage):
             - Bytes: a new Bytes storage object that contains information about how and
                 where the flow is stored.
         """
-        raise NotImplementedError()
+        return Bytes()

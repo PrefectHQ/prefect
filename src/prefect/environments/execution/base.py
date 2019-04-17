@@ -17,6 +17,7 @@ the `CloudEnvironment` requires the flow to be stored in a `Docker` storage obje
 """
 
 import prefect
+from prefect.environments.storage import Storage
 
 
 class Environment:
@@ -34,21 +35,21 @@ class Environment:
     def __init__(self) -> None:
         pass
 
-    def setup(self, storage: "prefect.environments.storage.Storage") -> None:
+    def setup(self, storage: "Storage") -> None:
         """
         Sets up any infrastructure needed for this environment
 
         Args:
-            - storage (prefect.environments.storage.Storage): the Storage object that contains the flow
+            - storage (Storage): the Storage object that contains the flow
         """
         pass
 
-    def execute(self, storage: "prefect.environments.storage.Storage") -> None:
+    def execute(self, storage: "Storage") -> None:
         """
         Executes the flow for this environment from the storage parameter
 
         Args:
-            - storage (prefect.environments.storage.Storage): the Storage object that contains the flow
+            - storage (Storage): the Storage object that contains the flow
         """
         pass
 

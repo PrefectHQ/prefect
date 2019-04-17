@@ -2,17 +2,18 @@ import marshmallow
 from marshmallow import fields
 
 import prefect
+from prefect.environments.storage import Bytes, Docker, Storage
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema
 
 
-class StorageSchema(ObjectSchema):
+class BaseStorageSchema(ObjectSchema):
     class Meta:
-        object_class = prefect.environments.storage.Storage
+        object_class = Storage
 
 
 class DockerSchema(ObjectSchema):
     class Meta:
-        object_class = prefect.environments.storage.Docker
+        object_class = Docker
 
     registry_url = fields.String(allow_none=True)
     image_name = fields.String(allow_none=True)
@@ -22,7 +23,7 @@ class DockerSchema(ObjectSchema):
 
 class BytesSchema(ObjectSchema):
     class Meta:
-        object_class = prefect.environments.storage.Bytes
+        object_class = Bytes
 
 
 class StorageSchema(OneOfSchema):
@@ -34,5 +35,5 @@ class StorageSchema(OneOfSchema):
     type_schemas = {
         "Docker": DockerSchema,
         "Bytes": BytesSchema,
-        "Storage": StorageSchema,
+        "Storage": BaseStorageSchema,
     }

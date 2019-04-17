@@ -9,10 +9,11 @@ def test_create_bytes_storage():
     assert storage
 
 
-def test_build_bytes_storage_not_implemented():
+def test_build_bytes_storage_returns_bytes_storage_object():
     storage = Bytes()
-    with pytest.raises(NotImplementedError):
-        storage.build(prefect.Flow("test"))
+    output = storage.build(prefect.Flow("test"))
+
+    assert isinstance(output, Bytes)
 
 
 def test_serialize_bytes_storage():
