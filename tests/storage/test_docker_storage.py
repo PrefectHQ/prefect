@@ -68,9 +68,23 @@ def test_xor_image_dockerfile_fails():
         storage.build(flow=flow)
 
 
-def test_build(monkeypatch):
+def test_build_base_image(monkeypatch):
     flow = Flow("test")
     storage = Docker(registry_url="reg", base_image="test")
+
+    build_image = MagicMock(return_value=("1", "2"))
+    monkeypatch.setattr("prefect.environments.storage.Docker.build_image", build_image)
+
+    output = storage.build(flow=flow)
+    assert output.registry_url == storage.registry_url
+    assert output.image_name == "1"
+    assert output.image_tag == "2"
+    assert output.flow_file_path == storage.flow_file_path
+
+
+def test_build_dockerfile_string(monkeypatch):
+    flow = Flow("test")
+    storage = Docker(registry_url="reg", dockerfile="test")
 
     build_image = MagicMock(return_value=("1", "2"))
     monkeypatch.setattr("prefect.environments.storage.Docker.build_image", build_image)
@@ -105,6 +119,64 @@ def test_build_image_fails_deserialization(monkeypatch):
 
     with pytest.raises(SerializationError):
         image_name, image_tag = storage.build_image(flow)
+
+
+def test_build_image_fails_deserialization_no_registry(monkeypatch):
+    flow = Flow("test")
+    storage = Docker(base_image="python:3.6")
+
+    client = MagicMock()
+    monkeypatch.setattr("docker.APIClient", client)
+
+    with pytest.raises(SerializationError):
+        image_name, image_tag = storage.build_image(flow, push=False)
+
+
+def test_build_image_passes(monkeypatch):
+    flow = Flow("test")
+    storage = Docker(registry_url="reg", base_image="python:3.6")
+
+    pull_image = MagicMock()
+    monkeypatch.setattr("prefect.environments.storage.Docker.pull_image", pull_image)
+
+    build = MagicMock()
+    monkeypatch.setattr("docker.APIClient.build", build)
+
+    images = MagicMock(return_value=["test"])
+    monkeypatch.setattr("docker.APIClient.images", images)
+
+    image_name, image_tag = storage.build_image(flow, push=False)
+
+    assert image_name
+    assert image_tag
+
+
+def test_build_image_passes_and_pushes(monkeypatch):
+    flow = Flow("test")
+    storage = Docker(registry_url="reg", base_image="python:3.6")
+
+    pull_image = MagicMock()
+    monkeypatch.setattr("prefect.environments.storage.Docker.pull_image", pull_image)
+
+    push_image = MagicMock()
+    monkeypatch.setattr("prefect.environments.storage.Docker.push_image", push_image)
+
+    build = MagicMock()
+    monkeypatch.setattr("docker.APIClient.build", build)
+
+    images = MagicMock(return_value=["test"])
+    monkeypatch.setattr("docker.APIClient.images", images)
+
+    remove = MagicMock()
+    monkeypatch.setattr("docker.APIClient.remove_image", remove)
+
+    image_name, image_tag = storage.build_image(flow)
+
+    assert image_name
+    assert image_tag
+
+    assert "reg" in push_image.call_args[0][0]
+    assert "reg" in remove.call_args[1]["image"]
 
 
 def test_build_image_fails_no_registry(monkeypatch):
@@ -145,6 +217,41 @@ def test_create_dockerfile_from_base_image_separate_flow_path():
         assert 'ENV PREFECT_ENVIRONMENT_FILE="asdf.prefect"' in output
 
 
+def test_create_dockerfile_from_everything():
+
+    with tempfile.TemporaryDirectory() as tempdir_outside:
+
+        with open(os.path.join(tempdir_outside, "test"), "w+") as t:
+            t.write("asdf")
+
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            flow = Flow("test")
+            storage = Docker(
+                registry_url="test1",
+                base_image="test3",
+                python_dependencies=["test"],
+                image_name="test4",
+                image_tag="test5",
+                env_vars={"test": "1"},
+                files={os.path.join(tempdir_outside, "test"): "./test2"},
+                flow_file_path="test_path",
+                base_url="test_url",
+            )
+
+            storage.create_dockerfile_object_from_base_image(
+                flow=flow, directory=tempdir
+            )
+
+            with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+                output = dockerfile.read()
+
+            assert "FROM test3" in output
+            assert "COPY test ./test2" in output
+            assert "ENV test=1" in output
+            assert "COPY healthcheck.py /root/.prefect/healthcheck.py" in output
+
+
 def test_create_dockerfile_from_dockerfile():
     flow = Flow("test")
 
@@ -171,19 +278,22 @@ def test_create_dockerfile_from_dockerfile():
 def test_pull_image(monkeypatch):
     storage = Docker(base_image="python:3.6")
 
-    client = MagicMock()
-    monkeypatch.setattr("docker.APIClient", client)
+    pull = MagicMock(return_value=[{"progress": "test"}])
+    monkeypatch.setattr(
+        "docker.APIClient", MagicMock(pull=MagicMock(return_value=pull))
+    )
 
     storage.pull_image()
-
     assert storage
 
 
 def test_push_image(monkeypatch):
     storage = Docker(base_image="python:3.6")
 
-    client = MagicMock()
-    monkeypatch.setattr("docker.APIClient", client)
+    push = MagicMock(return_value=[{"progress": "test"}])
+    monkeypatch.setattr(
+        "docker.APIClient", MagicMock(push=MagicMock(return_value=push))
+    )
 
     storage.push_image(image_name="test", image_tag="test")
 
@@ -192,6 +302,8 @@ def test_push_image(monkeypatch):
 
 def test_parse_output():
     storage = Docker(base_image="python:3.6")
-    storage._parse_generator_output([])
+
+    with pytest.raises(AttributeError):
+        storage._parse_generator_output([b'"{}"\n'])
 
     assert storage

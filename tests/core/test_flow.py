@@ -1405,6 +1405,11 @@ class TestSerialize:
         assert s_no_build["storage"]["type"] == "Bytes"
         assert s_build["storage"]["type"] == "Bytes"
 
+    def test_serialize_fails_with_no_storage(self):
+        f = Flow(name="test")
+        with pytest.raises(ValueError):
+            s_build = f.serialize(build=True)
+
 
 class TestFlowRunMethod:
     def test_flow_dot_run_runs_on_schedule(self):

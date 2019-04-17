@@ -87,6 +87,19 @@ def test_create_flow_run_job(monkeypatch):
     )
 
 
+def test_create_flow_run_job_fails_outside_cluster():
+    environment = CloudEnvironment()
+
+    with pytest.raises(EnvironmentError):
+        with set_temporary_config({"cloud.auth_token": "test"}):
+            environment.create_flow_run_job(
+                registry_url="test1",
+                image_name="test2",
+                image_tag="test3",
+                flow_file_path="test4",
+            )
+
+
 def test_run_flow(monkeypatch):
     environment = CloudEnvironment()
 
