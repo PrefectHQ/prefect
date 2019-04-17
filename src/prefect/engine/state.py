@@ -343,6 +343,7 @@ class Queued(_MetaState):
         super().__init__(message=message, result=result, state=state)
         self.start_time = pendulum.now("utc")
 
+
 class Resume(Scheduled):
     """
     Resume state indicating the object can resume execution (presumably from a `Paused` state).
