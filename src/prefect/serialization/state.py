@@ -67,6 +67,8 @@ class SubmittedSchema(MetaStateSchema):
 class QueuedSchema(MetaStateSchema):
     class Meta:
         object_class = state.Queued
+        
+    start_time = fields.DateTime(allow_none=True)
 
 
 class ScheduledSchema(PendingSchema):
