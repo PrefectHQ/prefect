@@ -199,19 +199,6 @@ In addition, if the result of a mapped task is passed to an un-mapped task (or u
 
 ## Identification
 
-### ID
-
-Every task is assigned a unique ID when it is created. You should never need to change or set this value yourself. It is possible (though unlikely) to end up in a situation where the same `Task` object has been used in two different `Flows`; in this case, simply call `Task.copy()` to regenerate the task with a new ID.
-
-```python
-t = Task()
-
-# the task's unique ID
-t.id
-
-# a copy of the task with a different ID
-t.copy().id
-```
 
 ### Name
 
@@ -229,7 +216,7 @@ def my_task():
 
 ### Slug
 
-Slugs are similar to names, except that Prefect will not allow two tasks with the same slug to both be in the same flow. Therefore, a slug can serve as an optional human-readable unique identifier.
+Slugs are similar to ids, because Prefect will not allow two tasks with the same slug to both be in the same flow. Therefore, a slug can serve as an optional human-readable unique identifier. If not provided, it will automatically be generated as a UUID.
 
 ```python
 Task(slug="my-task")
