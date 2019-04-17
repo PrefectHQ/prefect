@@ -107,6 +107,7 @@ def test_scheduled_states_have_default_times():
     assert now - Scheduled().start_time < datetime.timedelta(seconds=0.1)
     assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
 
+
 def test_queued_states_have_default_times():
     now = pendulum.now("utc")
     assert now - Queued().start_time < datetime.timedelta(seconds=0.1)
