@@ -476,8 +476,8 @@ class Task(metaclass=SignatureValidator):
             - upstream_tasks ([object], optional): A list of upstream tasks for this task
             - downstream_tasks ([object], optional): A list of downtream tasks for this task
             - keyword_tasks ({str, object}}, optional): The results of these tasks will be provided
-            to the task under the specified keyword arguments.
-            - mapped (bool, optional): Whether the results of these tasks should be mapped over
+            to this task under the specified keyword arguments.
+            - mapped (bool, optional): Whether the results of the _upstream_ tasks should be mapped over
                 with the specified keyword arguments
             - validate (bool, optional): Whether or not to check the validity of the flow. If not
                 provided, defaults to the value of `eager_edge_validation` in your Prefect
@@ -504,39 +504,54 @@ class Task(metaclass=SignatureValidator):
             mapped=mapped,
         )
 
-    def set_upstream(self, task: object, flow: "Flow" = None) -> None:
+    def set_upstream(
+        self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False
+    ) -> None:
         """
         Sets the provided task as an upstream dependency of this task.
-
-        Equivalent to: `self.set_dependencies(upstream_tasks=[task])`
 
         Args:
             - task (object): A task or object that will be converted to a task that will be set
                 as a upstream dependency of this task.
             - flow (Flow, optional): The flow to set dependencies on, defaults to the current
                 flow in context if no flow is specified
+            - key (str, optional): The key to be set for the new edge; the result of the upstream task
+                will be passed to this task's `run()` method under this keyword argument.
+            - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
 
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
-        self.set_dependencies(flow=flow, upstream_tasks=[task])
+        if key is not None:
+            keyword_tasks = {key: task}
+            self.set_dependencies(flow=flow, keyword_tasks=keyword_tasks, mapped=mapped)
+        else:
+            self.set_dependencies(flow=flow, upstream_tasks=[task], mapped=mapped)
 
-    def set_downstream(self, task: object, flow: "Flow" = None) -> None:
+    def set_downstream(
+        self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False
+    ) -> None:
         """
         Sets the provided task as a downstream dependency of this task.
 
-        Equivalent to: `self.set_dependencies(downstream_tasks=[task])`
-
         Args:
-            - task (object): A task or object that will be converted to a task that will be set
-                as a downstream dependency of this task.
+            - task (Task): A task that will be set as a downstream dependency of this task.
             - flow (Flow, optional): The flow to set dependencies on, defaults to the current
                 flow in context if no flow is specified
+            - key (str, optional): The key to be set for the new edge; the result of this task
+                will be passed to the downstream task's `run()` method under this keyword argument.
+            - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
 
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
-        self.set_dependencies(flow=flow, downstream_tasks=[task])
+        if key is not None:
+            keyword_tasks = {key: self}
+            task.set_dependencies(  # type: ignore
+                flow=flow, keyword_tasks=keyword_tasks, mapped=mapped
+            )  # type: ignore
+        else:
+            task.set_dependencies(flow=flow, upstream_tasks=[self], mapped=mapped)
 
     def inputs(self) -> Dict[str, Dict]:
         """
@@ -631,6 +646,19 @@ class Task(metaclass=SignatureValidator):
         """
         return prefect.tasks.core.operators.Not().bind(self)
 
+    def or_(self, other: object) -> "Task":
+        """
+        Produces a Task that evaluates `self or other`
+
+        Args:
+            - other (object): the other operand of the operator. It will be converted to a Task
+                if it isn't one already.
+
+        Returns:
+            - Task
+        """
+        return prefect.tasks.core.operators.Or().bind(self, other)
+
     # Magic Method Interactions  ----------------------------------------------------
 
     def __getitem__(self, key: Any) -> "Task":
@@ -661,7 +689,7 @@ class Task(metaclass=SignatureValidator):
         self.set_dependencies(downstream_tasks=[other])
         return other
 
-    def __mifflin__(self) -> None:
+    def __mifflin__(self) -> None:  # coverage: ignore
         "Calls Dunder Mifflin"
         import webbrowser
 

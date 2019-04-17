@@ -27,6 +27,26 @@ class TestConstant:
         assert any(isinstance(t, Constant) for t in flow.tasks)
 
 
+class TestFunctionTask:
+    def test_function_task_requires_callable(self):
+        with pytest.raises(TypeError):
+            FunctionTask(fn=1)
+
+    def test_function_task_takes_name_from_callable(self):
+        def my_fn():
+            pass
+
+        f = FunctionTask(fn=my_fn)
+        assert f.name == "my_fn"
+
+    def test_function_task_takes_name_from_arg_if_provided(self):
+        def my_fn():
+            pass
+
+        f = FunctionTask(fn=my_fn, name="test")
+        assert f.name == "test"
+
+
 class TestCollections:
     def test_list_returns_a_list(self):
         l = collections.List()

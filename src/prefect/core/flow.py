@@ -477,9 +477,8 @@ class Flow:
         Args:
             - upstream_task (Task): The task that the edge should start from
             - downstream_task (Task): The task that the edge should end with
-            - key (str, optional): The key to be set for the new edge; this is
-                the argument name the result of the upstream task will be bound to in the
-                `run()` method of the downstream task
+            - key (str, optional): The key to be set for the new edge; the result of the upstream task
+            will be passed to the downstream task's `run()` method under this keyword argument
             - mapped (bool, optional): Whether this edge represents a call to `Task.map()`; defaults to `False`
             - validate (bool, optional): Whether or not to check the validity of
                 the flow (e.g., presence of cycles and illegal keys). Defaults to the value
@@ -1384,7 +1383,7 @@ class Flow:
         )
         return deployed_flow
 
-    def __mifflin__(self) -> None:
+    def __mifflin__(self) -> None:  # coverage: ignore
         "Calls Dunder Mifflin"
         import webbrowser
 
