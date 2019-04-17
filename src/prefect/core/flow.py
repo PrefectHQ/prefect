@@ -794,10 +794,6 @@ class Flow:
         for t in downstream_tasks or []:
             t = as_task(t)
             assert isinstance(t, Task)  # mypy assert
-            if isinstance(t, Parameter):
-                raise ValueError(
-                    "Parameters can not be set as downstream dependencies."
-                )
             self.add_edge(upstream_task=task, downstream_task=t, validate=validate)
 
         # add data edges to upstream tasks
