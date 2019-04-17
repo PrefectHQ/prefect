@@ -1,6 +1,6 @@
 import prefect
 from prefect.environments import storage
-from prefect.serialization.storage import BytesSchema, DockerSchema, BaseStorageSchema
+from prefect.serialization.storage import BaseStorageSchema, BytesSchema, DockerSchema
 
 
 def test_bytes_storage_serialize():

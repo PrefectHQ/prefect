@@ -9,8 +9,8 @@ import docker
 import yaml
 
 import prefect
-from prefect.environments.storage import Docker
 from prefect.environments.execution import Environment
+from prefect.environments.storage import Docker
 
 
 class CloudEnvironment(Environment):

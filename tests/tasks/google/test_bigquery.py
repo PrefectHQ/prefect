@@ -1,7 +1,7 @@
-from google.cloud.exceptions import NotFound
 from unittest.mock import MagicMock
 
 import pytest
+from google.cloud.exceptions import NotFound
 
 import prefect
 from prefect.tasks.google import (

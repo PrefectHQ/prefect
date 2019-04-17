@@ -1,7 +1,7 @@
 import json
 import os
-from os import path
 import tempfile
+from os import path
 from unittest.mock import MagicMock
 
 import pytest
