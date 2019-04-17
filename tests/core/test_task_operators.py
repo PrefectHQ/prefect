@@ -368,3 +368,11 @@ class TestNonMagicOperatorMethods:
         assert state.result[z].result is False
         state = f.run(parameters=dict(x=False))
         assert state.result[z].result is True
+
+    def test_or(self):
+        with Flow(name="test") as f:
+            z = Parameter("x").or_(False)
+        state = f.run(parameters=dict(x=True))
+        assert state.result[z].result is True
+        state = f.run(parameters=dict(x=False))
+        assert state.result[z].result is False
