@@ -29,7 +29,7 @@ class CloudEnvironment(Environment):
     def __init__(self) -> None:
         self.identifier_label = str(uuid.uuid4())
 
-    def execute(self, storage: "Docker" = Docker()) -> None:
+    def execute(self, storage: "Docker" = Docker()) -> None:  # type: ignore
         """
         Create a single Kubernetes job that spins up a dask scheduler, dynamically
         creates worker pods, and runs the flow.

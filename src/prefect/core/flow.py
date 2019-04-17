@@ -1122,15 +1122,6 @@ class Flow:
 
     # Building / Serialization ----------------------------------------------------
 
-    def to_environment_file(self, path: str) -> None:
-        """
-        Serializes the flow as an environment file.
-
-        Args:
-            - path (str): the path of the environment file to create
-        """
-        self.environment.build(self).to_file(path)
-
     def serialize(self, build: bool = False) -> dict:
         """
         Creates a serialized representation of the flow.
@@ -1148,7 +1139,9 @@ class Flow:
         serialized = schema(exclude=["storage"]).dump(self)
 
         if build:
-            storage = self.storage.build(flow=self)  # type: Optional[Environment]
+            if not self.storage:
+                raise ValueError("This flow has no storage to build")
+            storage = self.storage.build(flow=self)  # type: Optional[Storage]
         else:
             storage = self.storage
 
