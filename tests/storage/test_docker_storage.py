@@ -132,6 +132,7 @@ def test_build_image_fails_deserialization_no_registry(monkeypatch):
         image_name, image_tag = storage.build_image(flow, push=False)
 
 
+@pytest.mark.skip(reason="Needs to be mocked so it can work on CircleCI")
 def test_build_image_passes(monkeypatch):
     flow = Flow("test")
     storage = Docker(registry_url="reg", base_image="python:3.6")
@@ -151,6 +152,7 @@ def test_build_image_passes(monkeypatch):
     assert image_tag
 
 
+@pytest.mark.skip(reason="Needs to be mocked so it can work on CircleCI")
 def test_build_image_passes_and_pushes(monkeypatch):
     flow = Flow("test")
     storage = Docker(registry_url="reg", base_image="python:3.6")
