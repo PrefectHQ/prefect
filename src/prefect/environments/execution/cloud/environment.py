@@ -41,7 +41,12 @@ class CloudEnvironment(Environment):
         if not isinstance(storage, Docker):
             raise TypeError("CloudEnvironment requires a Docker storage option")
 
-        if not storage.image_name or not storage.image_tag or not storage.registry_url:
+        if (
+            not storage.image_name
+            or not storage.image_tag
+            or not storage.registry_url
+            or not storage.flow_file_path
+        ):
             raise ValueError("Docker storage is missing required fields")
 
         self.create_flow_run_job(
