@@ -20,20 +20,23 @@ class CloudEnvironment(Environment):
         """"""
         self.identifier_label = str(uuid.uuid4())
 
-    def process(self, storage: "Docker" = Docker()) -> None:
+    def execute(self, storage: "Docker" = Docker()) -> None:
         if not isinstance(storage, Docker):
             raise TypeError("CloudEnvironment requires a Docker storage option")
 
         if not storage.image_name or not storage.image_tag or not storage.registry_url:
             raise ValueError("Docker storage is missing required fields")
 
-        self.execute(
+        self.create_flow_run_job(
             registry_url=storage.registry_url,
             image_name=storage.image_name,
             image_tag=storage.image_tag,
+            flow_file_path=storage.flow_file_path,
         )
 
-    def execute(self, registry_url: str, image_name: str, image_tag: str) -> None:
+    def create_flow_run_job(
+        self, registry_url: str, image_name: str, image_tag: str, flow_file_path: str
+    ) -> None:
         """"""
         from kubernetes import client, config
 
@@ -51,14 +54,13 @@ class CloudEnvironment(Environment):
                 registry_url=registry_url,
                 image_name=image_name,
                 image_tag=image_tag,
+                flow_file_path=flow_file_path,
             )
 
             # Create Job
             batch_client.create_namespaced_job(namespace="default", body=job)
 
-    def run(
-        self, flow_file_path: str = "/root/.prefect/flow_env.prefect"
-    ) -> "prefect.engine.state.State":
+    def run_flow(self) -> "prefect.engine.state.State":
         """"""
         from prefect.engine import FlowRunner
         from prefect.engine.executors import DaskExecutor
@@ -72,7 +74,12 @@ class CloudEnvironment(Environment):
             cluster.adapt(minimum=1, maximum=1)
 
             schema = prefect.serialization.flow.FlowSchema()
-            with open(flow_file_path, "r") as f:
+            with open(
+                prefect.context.get(
+                    "flow_file_path", "/root/.prefect/flow_env.prefect"
+                ),
+                "r",
+            ) as f:
                 flow = schema.load(json.load(f))
 
                 executor = DaskExecutor(address=cluster.scheduler_address)
@@ -83,7 +90,12 @@ class CloudEnvironment(Environment):
     ########################
 
     def _populate_job_yaml(
-        self, yaml_obj: dict, registry_url: str, image_name: str, image_tag: str
+        self,
+        yaml_obj: dict,
+        registry_url: str,
+        image_name: str,
+        image_tag: str,
+        flow_file_path: str,
     ) -> dict:
         """
         Populate the execution job yaml object used in this environment with the proper values
@@ -114,6 +126,7 @@ class CloudEnvironment(Environment):
         env[5]["value"] = "{}:{}".format(
             path.join(registry_url, image_name), image_tag  # type: ignore
         )
+        env[6]["value"] = flow_file_path
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = "{}:{}".format(

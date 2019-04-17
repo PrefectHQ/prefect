@@ -14,28 +14,15 @@ class Environment:
     def __init__(self) -> None:
         pass
 
-    def process(self, storage: "prefect.environments.storage.Storage") -> None:
-        """"""
-        pass
-
-    def execute(self) -> None:
-        """
-        Executes the environment on any infrastructure created during setup
-        """
-        pass
-
-    def run(self) -> "prefect.engine.state.State":
-        """
-        Runs the `Flow` represented by this environment.
-
-        Returns:
-            - prefect.engine.state.State: the state of the flow run
-        """
-        raise NotImplementedError()
-
-    def setup(self) -> None:
+    def setup(self, storage: "prefect.environments.storage.Storage") -> None:
         """
         Sets up the infrastructure needed for this environment
+        """
+        pass
+
+    def execute(self, storage: "prefect.environments.storage.Storage") -> None:
+        """
+        Executes the environment on any infrastructure created during setup
         """
         pass
 
