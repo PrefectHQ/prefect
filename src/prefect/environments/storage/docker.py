@@ -93,7 +93,7 @@ class Docker(Storage):
                 where the flow is stored. Image name and tag are generated during the
                 build process.
         """
-        if bool(self.base_image) != bool(self.dockerfile):
+        if not (bool(self.base_image) != bool(self.dockerfile)):
 
             if not bool(self.base_image) and not bool(self.dockerfile):
                 self.base_image = "python:3.6"
