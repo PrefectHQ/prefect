@@ -40,6 +40,7 @@ class CloudEnvironment(Environment):
         """"""
         from kubernetes import client, config
 
+        # Verify environment is running in cluster
         try:
             config.load_incluster_config()
         except config.config_exception.ConfigException:
@@ -73,6 +74,7 @@ class CloudEnvironment(Environment):
             cluster = KubeCluster.from_dict(worker_pod)
             cluster.adapt(minimum=1, maximum=1)
 
+            # Load serialized flow from file and run it with a DaskExecutor
             schema = prefect.serialization.flow.FlowSchema()
             with open(
                 prefect.context.get(

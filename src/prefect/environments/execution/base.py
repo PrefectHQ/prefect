@@ -1,10 +1,4 @@
-import json
-from typing import TYPE_CHECKING
-
 import prefect
-
-if TYPE_CHECKING:
-    import prefect.engine.state
 
 
 class Environment:
@@ -22,7 +16,7 @@ class Environment:
 
     def execute(self, storage: "prefect.environments.storage.Storage") -> None:
         """
-        Executes the environment on any infrastructure created during setup
+        Executes the flow for this environment
         """
         pass
 
