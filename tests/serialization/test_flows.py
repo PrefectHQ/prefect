@@ -45,13 +45,6 @@ def test_deserialize_schedule():
     assert deserialized.schedule.next(5) == f.schedule.next(5)
 
 
-def test_deserialize_id():
-    f = Flow(name="test")
-    serialized = FlowSchema().dump(f)
-    deserialized = FlowSchema().load(serialized)
-    assert deserialized.id == f.id
-
-
 def test_deserialize_tasks():
     tasks = [Task(n) for n in ["a", "b", "c"]]
     f = Flow(name="test", tasks=tasks)
@@ -111,6 +104,7 @@ def test_deserialize_with_parameters_key():
     f.add_task(x)
 
     f2 = FlowSchema().load(FlowSchema().dump(f))
+
     assert {p.name for p in f2.parameters()} == {p.name for p in f.parameters()}
     f_params = {(p.name, p.required, p.default) for p in f.parameters()}
     f2_params = {(p.name, p.required, p.default) for p in f2.parameters()}
