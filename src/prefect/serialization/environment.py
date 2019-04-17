@@ -1,5 +1,5 @@
 import prefect
-from prefect.environments import Environment, CloudEnvironment
+from prefect.environments import CloudEnvironment, Environment
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema
 
 

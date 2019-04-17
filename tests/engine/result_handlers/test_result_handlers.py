@@ -1,9 +1,9 @@
-import cloudpickle
 import json
 import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
+import cloudpickle
 import pendulum
 import pytest
 
