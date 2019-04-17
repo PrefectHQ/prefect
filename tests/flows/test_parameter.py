@@ -49,3 +49,19 @@ def test_flow_parameters():
     f.add_task(y)
 
     assert f.parameters() == {x, y}
+
+
+def test_copy_with_new_name():
+    x = Parameter("x")
+    y = x.copy("y")
+
+    assert x.name == x.slug == "x"
+    assert y.name == y.slug == "y"
+
+
+def test_calling_parameter_is_ok():
+    with Flow("test") as f:
+        Parameter("x")()
+
+    assert len(f.tasks) == 1
+
