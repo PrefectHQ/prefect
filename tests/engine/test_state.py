@@ -121,8 +121,9 @@ def test_only_scheduled_states_have_start_times(cls):
     """
     state = cls()
     if hasattr(state, "start_time"):
-        assert isinstance(state, Scheduled)
-        assert state.is_scheduled()
+        assert isinstance(state, Scheduled) or isinstance(state, Queued)
+        if isinstance(state, Scheduled):
+            assert state.is_scheduled()
     else:
         assert not isinstance(state, Scheduled)
         assert not state.is_scheduled()
