@@ -40,6 +40,7 @@ class TaskRun:
     ):
         self.id = id
         self.flow_run_id = flow_run_id
+        self.task_id = task_slug
         self.task_slug = task_slug
         self.state = state or Pending()
         self.version = version or 0
@@ -108,13 +109,17 @@ class MockedCloudClient(MagicMock):
             state=flow_run.state,
             task_runs=[
                 TaskRunInfoResult(
-                    id=tr.id, task_slug=tr.task_slug, version=tr.version, state=tr.state
+                    id=tr.id,
+                    task_id=tr.task_slug,
+                    task_slug=tr.task_slug,
+                    version=tr.version,
+                    state=tr.state,
                 )
                 for tr in task_runs
             ],
         )
 
-    def get_task_run_info(self, flow_run_id, task_slug, map_index, *args, **kwargs):
+    def get_task_run_info(self, flow_run_id, task_id, map_index, *args, **kwargs):
         """
         Return task run if found, otherwise create it
         """
@@ -125,7 +130,7 @@ class MockedCloudClient(MagicMock):
                 t
                 for t in self.task_runs.values()
                 if t.flow_run_id == flow_run_id
-                and t.task_slug == task_slug
+                and t.task_id == task_id
                 and t.map_index == map_index
             ),
             None,
@@ -134,7 +139,7 @@ class MockedCloudClient(MagicMock):
         if not task_run:
             task_run = TaskRun(
                 id=str(uuid.uuid4()),
-                task_slug=task_slug,
+                task_slug=task_id,
                 flow_run_id=flow_run_id,
                 map_index=map_index,
             )
@@ -142,7 +147,8 @@ class MockedCloudClient(MagicMock):
 
         return TaskRunInfoResult(
             id=task_run.id,
-            task_slug=task_slug,
+            task_id=task_id,
+            task_slug=task_id,
             version=task_run.version,
             state=task_run.state,
         )
