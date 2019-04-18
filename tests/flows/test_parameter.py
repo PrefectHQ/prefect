@@ -64,4 +64,3 @@ def test_calling_parameter_is_ok():
         Parameter("x")()
 
     assert len(f.tasks) == 1
-
