@@ -15,6 +15,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add new keywords to `Task.set_upstream` and `Task.set_downstream` for handling keyed and mapped dependencies - [#823](https://github.com/PrefectHQ/prefect/issues/823)
 - Downgrade default logging level to "INFO" from "DEBUG" - [#935](https://github.com/PrefectHQ/prefect/pull/935)
 - Add start times to queued states - [#937](https://github.com/PrefectHQ/prefect/pull/937)
+- Add `is_submitted` to states - [#944](https://github.com/PrefectHQ/prefect/pull/944)
 
 ### Task Library
 
