@@ -68,6 +68,8 @@ class QueuedSchema(MetaStateSchema):
     class Meta:
         object_class = state.Queued
 
+    start_time = fields.DateTime(allow_none=True)
+
     @post_load
     def create_object(self, data: dict) -> state.State:
         start_time = data.pop("start_time", None)
