@@ -107,7 +107,7 @@ class Flow:
         - name (str): The name of the flow. Cannot be `None` or an empty string
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
-            type that the flow should be run in. If None, a CloudEnvironment will be created.
+           that the flow should be run in. If `None`, a `CloudEnvironment` will be created.
         - storage (prefect.environments.storage.Storage, optional): The unit of storage
             that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
