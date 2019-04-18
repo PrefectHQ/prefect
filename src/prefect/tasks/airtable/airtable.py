@@ -1,6 +1,7 @@
 from typing import Any
 
 import airtable
+
 from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
