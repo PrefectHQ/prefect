@@ -28,6 +28,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Breaking Changes
 
 - Remove `prefect make user config` from cli commands - [#904](https://github.com/PrefectHQ/prefect/issues/904)
+- Change `set_schedule_active` keyword in Flow deployments to `set_schedule_inactive` to match Cloud - [#941](https://github.com/PrefectHQ/prefect/pull/941)
 
 ### Contributors
 
