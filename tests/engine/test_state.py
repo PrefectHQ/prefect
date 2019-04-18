@@ -287,7 +287,6 @@ class TestStateHierarchy:
         assert issubclass(TriggerFailed, Failed)
 
 
-
 class TestStateMethods:
     def test_state_type_methods_with_pending_state(self):
         state = Pending()
@@ -319,7 +318,6 @@ class TestStateMethods:
         assert not state.is_meta_state()
         assert not state.is_submitted()
 
-
     def test_state_type_methods_with_scheduled_state(self):
         state = Scheduled()
         assert state.is_pending()
@@ -334,7 +332,6 @@ class TestStateMethods:
         assert not state.is_mapped()
         assert not state.is_meta_state()
         assert not state.is_submitted()
-
 
     def test_state_type_methods_with_resume_state(self):
         state = Resume()
@@ -351,7 +348,6 @@ class TestStateMethods:
         assert not state.is_meta_state()
         assert not state.is_submitted()
 
-
     def test_state_type_methods_with_retry_state(self):
         state = Retrying()
         assert state.is_pending()
@@ -366,7 +362,6 @@ class TestStateMethods:
         assert not state.is_mapped()
         assert not state.is_meta_state()
         assert not state.is_submitted()
-
 
     def test_state_type_methods_with_submitted_state(self):
         state = Submitted()
@@ -413,7 +408,6 @@ class TestStateMethods:
         assert not state.is_meta_state()
         assert not state.is_submitted()
 
-
     def test_state_type_methods_with_cached_state(self):
         state = Cached()
         assert state.is_cached()
@@ -428,7 +422,6 @@ class TestStateMethods:
         assert not state.is_mapped()
         assert not state.is_meta_state()
         assert not state.is_submitted()
-
 
     def test_state_type_methods_with_mapped_state(self):
         state = Mapped()
@@ -445,7 +438,6 @@ class TestStateMethods:
         assert not state.is_meta_state()
         assert not state.is_submitted()
 
-
     def test_state_type_methods_with_success_state(self):
         state = Success()
         assert not state.is_cached()
@@ -460,7 +452,6 @@ class TestStateMethods:
         assert not state.is_mapped()
         assert not state.is_meta_state()
         assert not state.is_submitted()
-
 
     def test_state_type_methods_with_failed_state(self):
         state = Failed(message="")
@@ -477,7 +468,6 @@ class TestStateMethods:
         assert not state.is_meta_state()
         assert not state.is_submitted()
 
-
     def test_state_type_methods_with_timedout_state(self):
         state = TimedOut(message="")
         assert not state.is_cached()
@@ -492,7 +482,6 @@ class TestStateMethods:
         assert not state.is_mapped()
         assert not state.is_meta_state()
         assert not state.is_submitted()
-
 
     def test_state_type_methods_with_trigger_failed_state(self):
         state = TriggerFailed(message="")
@@ -509,7 +498,6 @@ class TestStateMethods:
         assert not state.is_meta_state()
         assert not state.is_submitted()
 
-
     def test_state_type_methods_with_skipped_state(self):
         state = Skipped()
         assert not state.is_cached()
@@ -524,4 +512,3 @@ class TestStateMethods:
         assert not state.is_mapped()
         assert not state.is_meta_state()
         assert not state.is_submitted()
-
