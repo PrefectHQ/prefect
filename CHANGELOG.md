@@ -13,6 +13,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - `DaskExecutor(local_processes=True)` supports timeouts - [#886](https://github.com/PrefectHQ/prefect/issues/886)
 - Calling `Secret.get()` from within a Flow context raises an informative error - [#927](https://github.com/PrefectHQ/prefect/issues/927)
 - Add new keywords to `Task.set_upstream` and `Task.set_downstream` for handling keyed and mapped dependencies - [#823](https://github.com/PrefectHQ/prefect/issues/823)
+- Flow now has optional `storage` keyword - [#936](https://github.com/PrefectHQ/prefect/pull/936)
+- Flow `environment` argument now defaults to a `CloudEnvironment` - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 
 ### Task Library
 
@@ -27,8 +29,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Remove `prefect make user config` from cli commands - [#904](https://github.com/PrefectHQ/prefect/issues/904)
 - Removed old WIP environments - [#936](https://github.com/PrefectHQ/prefect/pull/936)
-- Flow now has optional `storage` keyword - [#936](https://github.com/PrefectHQ/prefect/pull/936)
-- Flow `environment` argument now defaults to a `CloudEnvironment` - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 
 *Note*: Changes from [#936](https://github.com/PrefectHQ/prefect/pull/936) regarding environments don't break any Prefect code because environments weren't used yet outside of Cloud.
 
