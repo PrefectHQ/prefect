@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Add new `Storage` and `Environment` specifications - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 
 ### Enhancements
 
@@ -26,6 +26,12 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Breaking Changes
 
 - Remove `prefect make user config` from cli commands - [#904](https://github.com/PrefectHQ/prefect/issues/904)
+- Removed old WIP environments - [#936](https://github.com/PrefectHQ/prefect/pull/936)
+- Flow now has optional `storage` keyword - [#936](https://github.com/PrefectHQ/prefect/pull/936)
+- Flow `environment` argument now defaults to a `CloudEnvironment` - [#936](https://github.com/PrefectHQ/prefect/pull/936)
+
+*Note*: Changes from [#936](https://github.com/PrefectHQ/prefect/pull/936) regarding environments don't break any Prefect code because environments weren't used yet outside of Cloud.
+
 
 ### Contributors
 
