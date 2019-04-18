@@ -1,5 +1,5 @@
 comment:
-  layout: "diff, files"
+  layout: "diff"
   behavior: default
   require_changes: false  # if true: only post the comment if coverage changes
   require_base: no        # [yes :: must have a base report to post]
@@ -8,6 +8,7 @@ comment:
 
 coverage:
   status:
+    patch: no
     project:
       default:
-        threshold: 0
+        threshold: -0.02
