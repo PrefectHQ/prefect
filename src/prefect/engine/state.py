@@ -137,6 +137,15 @@ class State:
         """
         return isinstance(self, Scheduled)
 
+    def is_submitted(self) -> bool:
+        """
+        Checks if the state is currently in a submitted state.
+
+        Returns:
+            - bool: `True` if the state is submitted, `False` otherwise
+        """
+        return isinstance(self, Submitted)
+
     def is_skipped(self) -> bool:
         """
         Checks if the state is currently in a skipped state
