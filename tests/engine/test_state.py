@@ -108,6 +108,11 @@ def test_scheduled_states_have_default_times():
     assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
 
 
+def test_queued_states_have_start_times():
+    now = pendulum.now("utc")
+    assert now - Queued().start_time < datetime.timedelta(seconds=0.1)
+
+
 @pytest.mark.parametrize("cls", all_states)
 def test_only_scheduled_states_have_start_times(cls):
     """
@@ -116,8 +121,9 @@ def test_only_scheduled_states_have_start_times(cls):
     """
     state = cls()
     if hasattr(state, "start_time"):
-        assert isinstance(state, Scheduled)
-        assert state.is_scheduled()
+        assert isinstance(state, Scheduled) or isinstance(state, Queued)
+        if isinstance(state, Scheduled):
+            assert state.is_scheduled()
     else:
         assert not isinstance(state, Scheduled)
         assert not state.is_scheduled()
