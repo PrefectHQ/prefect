@@ -346,6 +346,12 @@ class Queued(_MetaState):
 
     """
 
+    def __init__(
+        self, message: str = None, result: Any = NoResult, state: State = None
+    ):
+        super().__init__(message=message, result=result, state=state)
+        self.start_time = pendulum.now("utc")
+
 
 class Resume(Scheduled):
     """
