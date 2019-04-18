@@ -123,6 +123,18 @@ class TestCreateFlow:
             f = Flow(name="test")
             assert isinstance(f.result_handler, LocalResultHandler)
 
+    def test_create_flow_with_storage(self):
+        f2 = Flow(name="test", storage=prefect.environments.storage.Bytes())
+        assert isinstance(f2.storage, prefect.environments.storage.Bytes)
+
+    def test_create_flow_with_environment(self):
+        f2 = Flow(name="test", environment=prefect.environments.CloudEnvironment())
+        assert isinstance(f2.environment, prefect.environments.CloudEnvironment)
+
+    def test_create_flow_has_default_environment(self):
+        f2 = Flow(name="test")
+        assert isinstance(f2.environment, prefect.environments.CloudEnvironment)
+
 
 def test_add_task_to_flow():
     f = Flow(name="test")
@@ -1381,25 +1393,22 @@ class TestSerialize:
             f.serialize()
         assert "cycle found" in str(exc).lower()
 
-    def test_default_environment_is_local_environment(self):
+    def test_default_environment_is_cloud_environment(self):
         f = Flow(name="test")
-        assert isinstance(f.environment, prefect.environments.LocalEnvironment)
+        assert isinstance(f.environment, prefect.environments.CloudEnvironment)
 
-    def test_serialize_includes_environment(self):
-        f = Flow(name="test", environment=prefect.environments.LocalEnvironment())
+    def test_serialize_includes_storage(self):
+        f = Flow(name="test", storage=prefect.environments.storage.Bytes())
         s_no_build = f.serialize()
         s_build = f.serialize(build=True)
 
-        assert s_no_build["environment"]["type"] == "LocalEnvironment"
-        assert s_no_build["environment"]["serialized_flow"] is None
-        assert s_build["environment"]["type"] == "LocalEnvironment"
+        assert s_no_build["storage"]["type"] == "Bytes"
+        assert s_build["storage"]["type"] == "Bytes"
 
-    def test_to_environment_file_writes_data(self):
+    def test_serialize_fails_with_no_storage(self):
         f = Flow(name="test")
-        with tempfile.NamedTemporaryFile() as tmp:
-            f.to_environment_file(tmp.name)
-            with open(tmp.name, "r") as f:
-                assert f.read()
+        with pytest.raises(ValueError):
+            s_build = f.serialize(build=True)
 
 
 class TestFlowRunMethod:

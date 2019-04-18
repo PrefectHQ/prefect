@@ -1,13 +1,12 @@
 import base64
 import uuid
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import cloudpickle
 import pendulum
 
 from prefect.client import Secret
 from prefect.engine.result_handlers import ResultHandler
-
 
 if TYPE_CHECKING:
     import google.cloud
