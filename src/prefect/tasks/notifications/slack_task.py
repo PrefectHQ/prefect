@@ -34,6 +34,6 @@ class SlackTask(Task):
             - None
         """
 
-        webhook_url = cast(str, webhook_url or Secret("SLACK_WEBHOOK_URL").get())
+        webhook_url = cast(str, Secret("SLACK_WEBHOOK_URL").get())
         r = requests.post(webhook_url, json={"text": message})
         r.raise_for_status()
