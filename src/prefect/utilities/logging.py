@@ -1,3 +1,13 @@
+"""
+Utility functions for interacting with and configuring logging.  The main entrypoint for retrieving loggers for
+customization is the `get_logger` utility.
+
+Note that Prefect Tasks come equipped with their own loggers.  These can be accessed via:
+    - `self.logger` if implementing a Task class
+    - `prefect.context.get("logger")` if using the `task` decorator
+
+When running locally, log levels and message formatting are set via your Prefect configuration file.
+"""
 import atexit
 import logging
 import os

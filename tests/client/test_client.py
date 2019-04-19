@@ -313,30 +313,6 @@ def test_client_deploy_with_bad_proj_name(monkeypatch):
     assert "client.create_project" in str(exc.value)
 
 
-@pytest.mark.parametrize("active", [False, True])
-def test_client_deploy_rejects_setting_active_schedules_for_flows_with_req_params(
-    active, monkeypatch
-):
-    post = MagicMock()
-    monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        client = Client()
-
-    flow = prefect.Flow(name="test", schedule=prefect.schedules.Schedule())
-    flow.add_task(prefect.Parameter("x", required=True))
-
-    with pytest.raises(ClientError) as exc:
-        result = client.deploy(
-            flow, project_name="my-default-project", set_schedule_active=active
-        )
-    assert (
-        str(exc.value)
-        == "Flows with required parameters can not be scheduled automatically."
-    )
-
-
 def test_get_flow_run_info(monkeypatch):
     response = """
 {

@@ -96,6 +96,8 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
             prefect.triggers.all_failed,
             prefect.triggers.any_successful,
             prefect.triggers.any_failed,
+            prefect.triggers.some_failed,
+            prefect.triggers.some_successful,
         ],
         # don't reject custom functions, just leave them as strings
         reject_invalid=False,

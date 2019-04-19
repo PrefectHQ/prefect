@@ -59,6 +59,11 @@ class MetaStateSchema(BaseStateSchema):
     state = fields.Nested("StateSchema", allow_none=True)
 
 
+class ClientFailedSchema(MetaStateSchema):
+    class Meta:
+        object_class = state.ClientFailed
+
+
 class SubmittedSchema(MetaStateSchema):
     class Meta:
         object_class = state.Submitted
@@ -67,6 +72,15 @@ class SubmittedSchema(MetaStateSchema):
 class QueuedSchema(MetaStateSchema):
     class Meta:
         object_class = state.Queued
+
+    start_time = fields.DateTime(allow_none=True)
+
+    @post_load
+    def create_object(self, data: dict) -> state.State:
+        start_time = data.pop("start_time", None)
+        base_obj = super().create_object(data)
+        base_obj.start_time = start_time
+        return base_obj
 
 
 class ScheduledSchema(PendingSchema):
@@ -176,6 +190,7 @@ class StateSchema(OneOfSchema):
     # map class name to schema
     type_schemas = {
         "Cached": CachedSchema,
+        "ClientFailed": ClientFailedSchema,
         "Failed": FailedSchema,
         "Finished": FinishedSchema,
         "Mapped": MappedSchema,
