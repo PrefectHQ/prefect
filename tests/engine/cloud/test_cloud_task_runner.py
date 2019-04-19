@@ -21,6 +21,7 @@ from prefect.engine.result_handlers import (
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import (
     Cached,
+    ClientFailed,
     Failed,
     Finished,
     Mapped,
@@ -127,7 +128,8 @@ def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updat
     ## an ENDRUN will cause the TaskRunner to return the most recently computed state
     res = CloudTaskRunner(task=raise_error).run(context={"map_index": 1})
     assert set_task_run_state.called
-    assert res.is_running()
+    assert isinstance(res, ClientFailed)
+    assert res.state.is_running()
 
 
 def test_task_runner_queries_for_cached_states_if_task_has_caching(client):
@@ -138,7 +140,7 @@ def test_task_runner_queries_for_cached_states_if_task_has_caching(client):
     state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         + datetime.timedelta(days=1),
-        result=99,
+        result=Result(99, JSONResultHandler()),
     )
     old_state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
@@ -155,19 +157,21 @@ def test_task_runner_queries_for_cached_states_if_task_has_caching(client):
 
 
 def test_task_runner_validates_cached_states_if_task_has_caching(client):
-    @prefect.task(cache_for=datetime.timedelta(minutes=1))
+    @prefect.task(
+        cache_for=datetime.timedelta(minutes=1), result_handler=JSONResultHandler()
+    )
     def cached_task():
         return 42
 
     state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         - datetime.timedelta(minutes=2),
-        result=99,
+        result=Result(99, JSONResultHandler()),
     )
     old_state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         - datetime.timedelta(days=1),
-        result=13,
+        result=Result(13, JSONResultHandler()),
     )
     client.get_latest_cached_states = MagicMock(return_value=[state, old_state])
 
