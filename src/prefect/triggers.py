@@ -2,7 +2,8 @@
 Triggers are functions that determine if task state should change based on
 the state of preceding tasks.
 """
-from typing import Callable, Set
+from toolz import curry
+from typing import Callable, Set, Union
 
 from prefect import context
 from prefect.engine import signals, state
@@ -99,6 +100,47 @@ def any_failed(upstream_states: Set["state.State"]) -> bool:
     if not any(s.is_failed() for s in upstream_states):
         raise signals.TRIGGERFAIL(
             'Trigger was "any_failed" but none of the upstream tasks failed.'
+        )
+    return True
+
+
+@curry
+def some_failed(
+    upstream_states: Set["state.State"],
+    at_least: Union[int, float] = None,
+    at_most: Union[int, float] = None,
+) -> bool:
+    """
+    Runs if some amount of upstream tasks failed. This amount can be specified as an upper bound (`at_most`) or
+    a lower bound (`at_least`), and can be provided as an absolute number or a percentage of upstream tasks.
+
+    Note that `SKIPPED` tasks are considered successes and `TRIGGER_FAILED` tasks are considered failures.
+
+    Args:
+        - at_least (Union[int, float], optional): the minimum number of upstream failures that must occur for
+            this task to run.  If the provided number is less than 0, it will be interpreted as a percentage, otherwise as an
+            absolute number.
+        - at_most (Union[int, float], optional): the maximum number of upstream failures to allow for
+            this task to run.  If the provided number is less than 0, it will be interpreted as a percentage, otherwise as an
+            absolute number.
+        - upstream_states (set[State]): the set of all upstream states
+    """
+
+    # scale conversions
+    num_failed = len([s for s in upstream_states if s.is_failed()])
+    num_states = len(upstream_states)
+    if at_least is not None:
+        at_least = (num_states * at_least) if at_least < 1 else at_least
+    else:
+        at_least = 0
+    if at_most is not None:
+        at_most = (num_states * at_most) if at_most < 1 else at_most
+    else:
+        at_most = num_states
+
+    if not (at_least <= num_failed <= at_most):
+        raise signals.TRIGGERFAIL(
+            'Trigger was "all_failed" but some of the upstream tasks succeeded.'
         )
     return True
 

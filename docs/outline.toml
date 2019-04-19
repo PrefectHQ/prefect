@@ -33,6 +33,7 @@ functions = [
             "all_failed",
             "any_successful",
             "any_failed",
+            "some_failed",
         ]
 
 [pages.client.client]
