@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Implement two new triggers that allow for specifying bounds on the number of failures or successes - [#933](https://github.com/PrefectHQ/prefect/issues/933)
 
 ### Enhancements
 
@@ -20,7 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Add task for sending Slack notifications via Prefect Slack App - [#932](https://github.com/PrefectHQ/prefect/issues/932)
 
 ### Fixes
 
