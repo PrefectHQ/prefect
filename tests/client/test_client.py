@@ -257,7 +257,7 @@ def test_client_deploy(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    flow = prefect.Flow(name="test")
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Bytes())
     flow_id = client.deploy(flow, project_name="my-default-project")
     assert flow_id == "long-id"
 
@@ -272,15 +272,12 @@ def test_client_deploy_builds_flow(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    flow = prefect.Flow(name="test")
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Bytes())
     flow_id = client.deploy(flow, project_name="my-default-project")
 
     ## extract POST info
     variables = json.loads(post.call_args[1]["json"]["variables"])
-    assert (
-        variables["input"]["serializedFlow"]["environment"]["serialized_flow"]
-        is not None
-    )
+    assert variables["input"]["serializedFlow"]["storage"] is not None
 
 
 def test_client_deploy_optionally_avoids_building_flow(monkeypatch):
@@ -298,9 +295,7 @@ def test_client_deploy_optionally_avoids_building_flow(monkeypatch):
 
     ## extract POST info
     variables = json.loads(post.call_args[1]["json"]["variables"])
-    assert (
-        variables["input"]["serializedFlow"]["environment"]["serialized_flow"] is None
-    )
+    assert variables["input"]["serializedFlow"]["storage"] is None
 
 
 def test_client_deploy_with_bad_proj_name(monkeypatch):
@@ -336,7 +331,10 @@ def test_get_flow_run_info(monkeypatch):
         "task_runs":[
             {
                 "id": "da344768-5f5d-4eaf-9bca-83815617f713",
-                "task_id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                "task": {
+                    "id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                    "slug": "da344768-5f5d-4eaf-9bca-83815617f713"
+                    },
                 "version": 0,
                 "serialized_state": {
                     "type": "Pending",
@@ -436,6 +434,9 @@ def test_get_task_run_info(monkeypatch):
                     "message": null,
                     "__version__": "0.3.3+310.gd19b9b7.dirty",
                     "cached_inputs": null
+                },
+                "task": {
+                    "slug": "slug"
                 }
             }
         }

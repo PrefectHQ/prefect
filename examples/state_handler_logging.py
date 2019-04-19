@@ -2,10 +2,11 @@
 A simple example Flow which logs the duration of task runs
 by using a task state handler.
 """
-import pendulum
 import time
 
-from prefect import task, Flow
+import pendulum
+
+from prefect import Flow, task
 
 
 def timestamper(task, old_state, new_state):

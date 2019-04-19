@@ -57,28 +57,26 @@ class TaskMethodsMixin:
     def create_object(self, data: dict) -> prefect.core.Task:
         """
         Sometimes we deserialize tasks and edges simultaneously (for example, when a
-        Flow is being deserialized), in which case we check IDs to see if we already
+        Flow is being deserialized), in which case we check slugs to see if we already
         deserialized a matching task. In that case, we reload the task from a shared
         cache.
         """
-        task_id = data.get("id", str(uuid.uuid4()))
+        slug = data.get("slug")
 
-        # if the id is not in the task cache, create a task object and add it
-        if task_id not in self.context.setdefault("task_id_cache", {}):  # type: ignore
+        # if the slug is not in the task cache, create a task object and add it
+        if slug not in self.context.setdefault("task_cache", {}):  # type: ignore
             task = super().create_object(data)  # type: ignore
-            task.id = task_id
-            self.context["task_id_cache"][task_id] = task  # type: ignore
+            self.context["task_cache"][slug] = task  # type: ignore
 
         # return the task object from the cache
-        return self.context["task_id_cache"][task_id]  # type: ignore
+        return self.context["task_cache"][slug]  # type: ignore
 
 
 class TaskSchema(TaskMethodsMixin, ObjectSchema):
     class Meta:
         object_class = lambda: prefect.core.Task
-        exclude_fields = ["id", "type", "inputs", "outputs"]
+        exclude_fields = ["type", "inputs", "outputs"]
 
-    id = UUID()
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
     name = fields.String(allow_none=True)
     slug = fields.String(allow_none=True)
@@ -125,11 +123,11 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
 class ParameterSchema(TaskMethodsMixin, ObjectSchema):
     class Meta:
         object_class = lambda: prefect.core.task.Parameter  # type: ignore
-        exclude_fields = ["id", "type", "outputs"]
+        exclude_fields = ["type", "outputs", "slug"]
 
-    id = UUID()
     type = fields.Function(lambda task: to_qualified_name(type(task)), lambda x: x)
     name = fields.String(required=True)
+    slug = fields.String(allow_none=True)
     default = JSONCompatible(allow_none=True)
     required = fields.Boolean(allow_none=True)
     description = fields.String(allow_none=True)

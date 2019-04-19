@@ -159,12 +159,15 @@ class CloudFlowRunner(FlowRunner):
             scheduled_start_time=flow_run_info.scheduled_start_time,
         )
 
+        tasks = {t.slug: t for t in self.flow.tasks}
         # update task states and contexts
         for task_run in flow_run_info.task_runs:
-            task = self.flow.task_ids[task_run.task_id]
+            task = tasks[task_run.task_slug]
             task_states.setdefault(task, task_run.state)
             task_contexts.setdefault(task, {}).update(
-                task_run_version=task_run.version, task_run_id=task_run.id
+                task_run_id=task_run.id,
+                task_run_version=task_run.version,
+                task_id=task_run.task_id,
             )
 
         # if state is set, keep it; otherwise load from Cloud

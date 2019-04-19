@@ -28,6 +28,7 @@ TaskRunInfoResult = NamedTuple(
     [
         ("id", str),
         ("task_id", str),
+        ("task_slug", str),
         ("version", int),
         ("state", "prefect.engine.state.State"),
     ],
@@ -452,10 +453,10 @@ class Client:
                     "serialized_state": True,
                     # load all task runs except dynamic task runs
                     with_args("task_runs", {"where": {"map_index": {"_eq": -1}}}): {
-                        "id",
-                        "task_id",
-                        "version",
-                        "serialized_state",
+                        "id": True,
+                        "task": {"id": True, "slug": True},
+                        "version": True,
+                        "serialized_state": True,
                     },
                 }
             }
@@ -478,6 +479,9 @@ class Client:
             tr.state = prefect.engine.state.State.deserialize(
                 tr.pop("serialized_state")
             )
+            task_info = tr.pop("task")
+            tr.task_id = task_info["id"]
+            tr.task_slug = task_info["slug"]
             task_runs.append(TaskRunInfoResult(**tr))
 
         result.task_runs = task_runs
@@ -601,6 +605,7 @@ class Client:
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason
         """
+
         mutation = {
             "mutation": {
                 with_args(
@@ -612,7 +617,14 @@ class Client:
                             "mapIndex": -1 if map_index is None else map_index,
                         }
                     },
-                ): {"task_run": {"id", "version", "serialized_state"}, "id": True}
+                ): {
+                    "task_run": {
+                        "id": True,
+                        "version": True,
+                        "serialized_state": True,
+                        "task": {"slug": True},
+                    }
+                }
             }
         }
         result = self.graphql(mutation)  # type: Any
@@ -620,7 +632,11 @@ class Client:
 
         state = prefect.engine.state.State.deserialize(task_run.serialized_state)
         return TaskRunInfoResult(
-            id=task_run.id, task_id=task_id, version=task_run.version, state=state
+            id=task_run.id,
+            task_id=task_id,
+            task_slug=task_run.task.slug,
+            version=task_run.version,
+            state=state,
         )
 
     def set_task_run_state(

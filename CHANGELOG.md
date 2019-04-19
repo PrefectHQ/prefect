@@ -6,11 +6,12 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Add new `Storage` and `Environment` specifications - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 
 ### Enhancements
 
-- None
+- Flow now has optional `storage` keyword - [#936](https://github.com/PrefectHQ/prefect/pull/936)
+- Flow `environment` argument now defaults to a `CloudEnvironment` - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 
 ### Task Library
 
@@ -22,7 +23,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- Remove `flow.id` and `task.id` attributes - [#940](https://github.com/PrefectHQ/prefect/pull/940)
+- Removed old WIP environments - [#936](https://github.com/PrefectHQ/prefect/pull/936)
+*Note*: Changes from [#936](https://github.com/PrefectHQ/prefect/pull/936) regarding environments don't break any Prefect code because environments weren't used yet outside of Cloud.
 
 ### Contributors
 
@@ -61,6 +64,7 @@ Released April 19, 2019
 
 - Remove `prefect make user config` from cli commands - [#904](https://github.com/PrefectHQ/prefect/issues/904)
 - Change `set_schedule_active` keyword in Flow deployments to `set_schedule_inactive` to match Cloud - [#941](https://github.com/PrefectHQ/prefect/pull/941)
+
 
 ### Contributors
 

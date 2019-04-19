@@ -80,11 +80,6 @@ module.exports = {
           children: getChildren('docs/api/unreleased', 'engine')
         },
         {
-          title: 'prefect.environments',
-          collapsable: true,
-          children: getChildren('docs/api/unreleased', 'environments')
-        },
-        {
           title: 'prefect.tasks',
           collapsable: true,
           children: getChildren('docs/api/unreleased', 'tasks')
@@ -140,7 +135,6 @@ module.exports = {
             'core_concepts/execution',
             'core_concepts/notifications',
             'core_concepts/results',
-            'core_concepts/environments',
             'core_concepts/schedules',
             'core_concepts/configuration',
             'core_concepts/best-practices',
