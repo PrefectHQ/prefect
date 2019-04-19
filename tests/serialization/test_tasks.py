@@ -36,7 +36,6 @@ def test_deserialize_task():
     deserialized = TaskSchema().load(TaskSchema().dump(task))
     assert isinstance(deserialized, Task)
     for key in [
-        "id",
         "name",
         "slug",
         "max_retries",
@@ -47,13 +46,6 @@ def test_deserialize_task():
         "cache_for",
     ]:
         assert getattr(task, key) == getattr(deserialized, key)
-
-
-def test_deserialize_id():
-    t = Task()
-    t2 = TaskSchema().load(TaskSchema().dump(t))
-
-    assert t.id and t.id == t2.id
 
 
 def test_deserialize_task_subclass_is_task_but_not_task_subclass():
@@ -68,9 +60,9 @@ def test_deserialize_task_subclass_is_task_but_not_task_subclass():
     assert not isinstance(deserialized, NewTask)
 
 
-def test_deserialize_task_with_id():
+def test_deserialize_task_with_cache():
     """
-    When tasks are deserialized, they put their ID in a special task_id_cache in context
+    When tasks are deserialized, they put their slugs in a special task_cache in context
     so it can be reused elsewhere.
     """
     t = Task()
@@ -78,16 +70,16 @@ def test_deserialize_task_with_id():
     context = {1: 1}
     serialized = TaskSchema(context=context).dump(t)
     deserialized = TaskSchema(context=context).load(serialized)
-    assert "task_id_cache" in context
-    assert context["task_id_cache"][t.id] is deserialized
+    assert "task_cache" in context
+    assert context["task_cache"][t.slug] is deserialized
 
 
-def test_deserializing_tasks_with_ids_reuses_task_cache_to_recreate_object():
+def test_deserializing_tasks_reuses_task_cache_to_recreate_object():
     """
-    If an id is found in the task cache, the corresponding object is loaded
+    If an slug is found in the task cache, the corresponding object is loaded
     """
     t = Task()
-    context = dict(task_id_cache={t.id: t})
+    context = dict(task_cache={t.slug: t})
     serialized = TaskSchema(context=context).dump(t)
     deserialized = TaskSchema(context=context).load(serialized)
     assert deserialized is t

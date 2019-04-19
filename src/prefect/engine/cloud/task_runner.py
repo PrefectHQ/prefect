@@ -123,15 +123,15 @@ class CloudTaskRunner(TaskRunner):
             try:
                 task_run_info = self.client.get_task_run_info(
                     flow_run_id=context.get("flow_run_id", ""),
-                    task_id=self.task.id,
+                    task_id=context.get("task_id", ""),
                     map_index=map_index,
                 )
 
                 # if state was provided, keep it; otherwise use the one from db
                 state = state or task_run_info.state  # type: ignore
                 context.update(
-                    task_run_version=task_run_info.version,  # type: ignore
                     task_run_id=task_run_info.id,  # type: ignore
+                    task_run_version=task_run_info.version,  # type: ignore
                 )
             except Exception as exc:
                 self.logger.debug(
@@ -169,7 +169,8 @@ class CloudTaskRunner(TaskRunner):
         if self.task.cache_for is not None:
             oldest_valid_cache = datetime.datetime.utcnow() - self.task.cache_for
             cached_states = self.client.get_latest_cached_states(
-                task_id=self.task.id, created_after=oldest_valid_cache
+                task_id=prefect.context.get("task_id", ""),
+                created_after=oldest_valid_cache,
             )
 
             if not cached_states:

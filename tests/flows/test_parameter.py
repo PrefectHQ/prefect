@@ -23,20 +23,6 @@ def test_parameter_slug_is_its_name():
     assert x.name == x.slug == "x"
 
 
-def test_parameter_name_cant_be_changed():
-    x = Parameter("x")
-    assert x.name == "x"
-    with pytest.raises(AttributeError):
-        x.name = "hi"
-
-
-def test_parameter_slug_cant_be_changed():
-    x = Parameter("x")
-    assert x.slug == "x"
-    with pytest.raises(AttributeError):
-        x.slug = "hi"
-
-
 def test_create_parameter_with_default_is_not_required():
     x = Parameter("x", default=2)
     assert not x.required
@@ -63,3 +49,18 @@ def test_flow_parameters():
     f.add_task(y)
 
     assert f.parameters() == {x, y}
+
+
+def test_copy_with_new_name():
+    x = Parameter("x")
+    y = x.copy("y")
+
+    assert x.name == x.slug == "x"
+    assert y.name == y.slug == "y"
+
+
+def test_calling_parameter_is_ok():
+    with Flow("test") as f:
+        Parameter("x")()
+
+    assert len(f.tasks) == 1
