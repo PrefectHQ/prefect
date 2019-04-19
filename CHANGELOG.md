@@ -16,6 +16,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Downgrade default logging level to "INFO" from "DEBUG" - [#935](https://github.com/PrefectHQ/prefect/pull/935)
 - Add start times to queued states - [#937](https://github.com/PrefectHQ/prefect/pull/937)
 - Add `is_submitted` to states - [#944](https://github.com/PrefectHQ/prefect/pull/944)
+- Introduce new `ClientFailed` state - [#938](https://github.com/PrefectHQ/prefect/issues/938)
 
 ### Task Library
 
@@ -25,6 +26,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix issue with timeouts behaving incorrectly with unpickleable objects - [#886](https://github.com/PrefectHQ/prefect/issues/886)
 - Fix issue with Flow validation being performed even when eager validation was turned off - [#919](https://github.com/PrefectHQ/prefect/issues/919)
+- Fix issue with downstream tasks with `all_failed` triggers running if an upstream Client call fails in Cloud - [#938](https://github.com/PrefectHQ/prefect/issues/938)
 
 ### Breaking Changes
 

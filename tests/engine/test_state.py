@@ -12,6 +12,7 @@ from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cached,
+    ClientFailed,
     Failed,
     Finished,
     Mapped,
@@ -367,6 +368,21 @@ class TestStateMethods:
         assert not state.is_failed()
         assert not state.is_mapped()
         assert not state.is_meta_state()
+        assert not state.is_submitted()
+
+    def test_state_type_methods_with_clientfailed_state(self):
+        state = ClientFailed()
+        assert not state.is_cached()
+        assert not state.is_retrying()
+        assert not state.is_pending()
+        assert not state.is_running()
+        assert not state.is_finished()
+        assert not state.is_skipped()
+        assert not state.is_scheduled()
+        assert not state.is_successful()
+        assert not state.is_failed()
+        assert not state.is_mapped()
+        assert state.is_meta_state()
         assert not state.is_submitted()
 
     def test_state_type_methods_with_submitted_state(self):

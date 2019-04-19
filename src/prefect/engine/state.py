@@ -310,6 +310,24 @@ class _MetaState(State):
         self.state = state
 
 
+class ClientFailed(_MetaState):
+    """
+    The `ClientFailed` state is used to indicate that the Prefect Client failed
+    to set a task run state, and thus this task run should exit, without triggering any
+    downstream task runs.
+
+    The `ClientFailed` state should be initialized with another state, which it wraps. The
+    wrapped state is the state which the client attempted to set in the database, but failed to
+    for some reason.
+
+    Args:
+        - message (string): a message for the state.
+        - result (Any, optional): Defaults to `None`.
+        - state (State): the `State` state that the task run ended in
+
+    """
+
+
 class Submitted(_MetaState):
     """
     The `Submitted` state is used to indicate that another state, usually a `Scheduled`
