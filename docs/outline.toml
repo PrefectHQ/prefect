@@ -34,6 +34,7 @@ functions = [
             "any_successful",
             "any_failed",
             "some_failed",
+            "some_successful",
         ]
 
 [pages.client.client]
