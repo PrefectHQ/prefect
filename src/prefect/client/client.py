@@ -304,7 +304,7 @@ class Client:
         flow: "Flow",
         project_name: str,
         build: bool = True,
-        set_schedule_active: bool = False,
+        set_schedule_inactive: bool = False,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -314,8 +314,8 @@ class Client:
             - project_name (str): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
-            - set_schedule_active (bool, optional): if `True`, will set the
-                schedule to active in the database and begin scheduling runs (if the Flow has a schedule).
+            - set_schedule_inactive (bool, optional): if `True`, will set the
+                schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `False`. This can be changed later.
 
         Returns:
@@ -333,12 +333,6 @@ class Client:
         create_mutation = {
             "mutation($input: createFlowInput!)": {"createFlow(input: $input)": {"id"}}
         }
-        schedule_mutation = {
-            "mutation($input: setFlowScheduleStateInput!)": {
-                "setFlowScheduleState(input: $input)": {"id"}
-            }
-        }
-
         query_project = {
             "query": {
                 with_args("project", {"where": {"name": {"_eq": project_name}}}): {
@@ -359,18 +353,11 @@ class Client:
         res = self.graphql(
             create_mutation,
             input=dict(
-                projectId=project[0].id, serializedFlow=flow.serialize(build=build)
+                projectId=project[0].id,
+                serializedFlow=flow.serialize(build=build),
+                setScheduleInactive=set_schedule_inactive,
             ),
         )  # type: Any
-
-        if set_schedule_active:
-            self.graphql(
-                schedule_mutation,
-                input=dict(
-                    flowId=res.data.createFlow.id, setActive=True
-                ),  # type: ignore
-            )  # type: Any
-
         return res.data.createFlow.id
 
     def create_project(self, project_name: str) -> str:

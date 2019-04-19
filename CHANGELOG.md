@@ -10,9 +10,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- `DaskExecutor(local_processes=True)` supports timeouts - [#886](https://github.com/PrefectHQ/prefect/issues/886)
-- Calling `Secret.get()` from within a Flow context raises an informative error - [#927](https://github.com/PrefectHQ/prefect/issues/927)
-- Add new keywords to `Task.set_upstream` and `Task.set_downstream` for handling keyed and mapped dependencies - [#823](https://github.com/PrefectHQ/prefect/issues/823)
 - Flow now has optional `storage` keyword - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 - Flow `environment` argument now defaults to a `CloudEnvironment` - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 
@@ -22,16 +19,51 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- Fix issue with timeouts behaving incorrectly with unpickleable objects - [#886](https://github.com/PrefectHQ/prefect/issues/886)
-- Fix issue with Flow validation being performed even when eager validation was turned off - [#919](https://github.com/PrefectHQ/prefect/issues/919)
+- None
 
 ### Breaking Changes
-
-- Remove `prefect make user config` from cli commands - [#904](https://github.com/PrefectHQ/prefect/issues/904)
 
 - Remove `flow.id` and `task.id` attributes - [#940](https://github.com/PrefectHQ/prefect/pull/940)
 - Removed old WIP environments - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 *Note*: Changes from [#936](https://github.com/PrefectHQ/prefect/pull/936) regarding environments don't break any Prefect code because environments weren't used yet outside of Cloud.
+
+### Contributors
+
+- None
+
+
+## 0.5.2 <Badge text="beta" type="success"/>
+
+Released April 19, 2019
+
+### Features
+
+- Implement two new triggers that allow for specifying bounds on the number of failures or successes - [#933](https://github.com/PrefectHQ/prefect/issues/933)
+
+### Enhancements
+
+- `DaskExecutor(local_processes=True)` supports timeouts - [#886](https://github.com/PrefectHQ/prefect/issues/886)
+- Calling `Secret.get()` from within a Flow context raises an informative error - [#927](https://github.com/PrefectHQ/prefect/issues/927)
+- Add new keywords to `Task.set_upstream` and `Task.set_downstream` for handling keyed and mapped dependencies - [#823](https://github.com/PrefectHQ/prefect/issues/823)
+- Downgrade default logging level to "INFO" from "DEBUG" - [#935](https://github.com/PrefectHQ/prefect/pull/935)
+- Add start times to queued states - [#937](https://github.com/PrefectHQ/prefect/pull/937)
+- Add `is_submitted` to states - [#944](https://github.com/PrefectHQ/prefect/pull/944)
+- Introduce new `ClientFailed` state - [#938](https://github.com/PrefectHQ/prefect/issues/938)
+
+### Task Library
+
+- Add task for sending Slack notifications via Prefect Slack App - [#932](https://github.com/PrefectHQ/prefect/issues/932)
+
+### Fixes
+
+- Fix issue with timeouts behaving incorrectly with unpickleable objects - [#886](https://github.com/PrefectHQ/prefect/issues/886)
+- Fix issue with Flow validation being performed even when eager validation was turned off - [#919](https://github.com/PrefectHQ/prefect/issues/919)
+- Fix issue with downstream tasks with `all_failed` triggers running if an upstream Client call fails in Cloud - [#938](https://github.com/PrefectHQ/prefect/issues/938)
+
+### Breaking Changes
+
+- Remove `prefect make user config` from cli commands - [#904](https://github.com/PrefectHQ/prefect/issues/904)
+- Change `set_schedule_active` keyword in Flow deployments to `set_schedule_inactive` to match Cloud - [#941](https://github.com/PrefectHQ/prefect/pull/941)
 
 
 ### Contributors

@@ -10,7 +10,7 @@ from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.result import NoResult, Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
-from prefect.engine.state import Cached, Failed, Mapped, State
+from prefect.engine.state import Cached, ClientFailed, Failed, Mapped, State
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
 from prefect.utilities.graphql import with_args
 
@@ -95,7 +95,7 @@ class CloudTaskRunner(TaskRunner):
             self.logger.debug(
                 "Failed to set task state with error: {}".format(repr(exc))
             )
-            raise ENDRUN(state=new_state)
+            raise ENDRUN(state=ClientFailed(state=new_state))
 
         if version is not None:
             prefect.context.update(task_run_version=version + 1)  # type: ignore
