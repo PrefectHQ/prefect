@@ -6,6 +6,35 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+
+## 0.5.2 <Badge text="beta" type="success"/>
+
+Released April 19, 2019
+
+### Features
+
 - Implement two new triggers that allow for specifying bounds on the number of failures or successes - [#933](https://github.com/PrefectHQ/prefect/issues/933)
 
 ### Enhancements
