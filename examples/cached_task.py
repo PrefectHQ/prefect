@@ -9,7 +9,7 @@ We run our flow on a 1 minute interval schedule and observe that the output of
 import datetime
 import random
 
-from prefect import task, Flow
+from prefect import Flow, task
 from prefect.schedules import IntervalSchedule
 
 
