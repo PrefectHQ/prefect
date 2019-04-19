@@ -141,6 +141,26 @@ jobs:
           name: Upload Coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python
 
+  build_image:
+    docker: 
+      - image: docker
+    steps:
+      - setup_remote_docker
+      - checkout
+      - run:
+          name: Docker Build
+          command: docker build -t prefecthq/prefect .
+      - run:
+          name: Test image
+          command: |
+            docker run -dit prefecthq/prefect /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+      - run:
+          name: Authenticate with Docker Hub and push
+          command: |
+            docker login --username  prefectci --password $DOCKER_HUB_PW
+            docker push prefecthq/prefect
+
+
 workflows:
   version: 2
   run_all:
@@ -152,3 +172,8 @@ workflows:
       - test-3.6
       - test-3.7
       - test-airflow
+      - build_image:
+          filters:
+                branches:
+                  only:
+                    master
