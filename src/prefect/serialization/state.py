@@ -59,6 +59,11 @@ class MetaStateSchema(BaseStateSchema):
     state = fields.Nested("StateSchema", allow_none=True)
 
 
+class ClientFailedSchema(MetaStateSchema):
+    class Meta:
+        object_class = state.ClientFailed
+
+
 class SubmittedSchema(MetaStateSchema):
     class Meta:
         object_class = state.Submitted
@@ -185,6 +190,7 @@ class StateSchema(OneOfSchema):
     # map class name to schema
     type_schemas = {
         "Cached": CachedSchema,
+        "ClientFailed": ClientFailedSchema,
         "Failed": FailedSchema,
         "Finished": FinishedSchema,
         "Mapped": MappedSchema,
