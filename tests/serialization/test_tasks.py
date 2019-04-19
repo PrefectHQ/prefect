@@ -121,6 +121,8 @@ def test_deserialize_parameter_requires_name():
         prefect.triggers.all_failed,
         prefect.triggers.any_successful,
         prefect.triggers.any_failed,
+        prefect.triggers.some_failed,
+        prefect.triggers.some_successful,
     ],
 )
 def test_trigger(trigger):
