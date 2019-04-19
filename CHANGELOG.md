@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Implement two new triggers that allow for specifying a certain number of failures or successes - [#933](https://github.com/PrefectHQ/prefect/issues/933)
 
 ### Enhancements
 
