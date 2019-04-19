@@ -92,4 +92,3 @@ def test_copy_requires_name():
     with pytest.raises(TypeError) as exc:
         x.copy()
     assert "required positional argument" in str(exc.value)
-
