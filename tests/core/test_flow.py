@@ -322,14 +322,6 @@ def test_calling_a_slugged_task_in_different_flows_is_ok():
         four = t(1, 3)
 
 
-def test_calling_a_slugged_task_twice_warns_error():
-    t = AddTask(slug="add")
-    with Flow(name="test") as f:
-        t.bind(4, 2)
-        with pytest.warns(UserWarning), pytest.raises(ValueError):
-            t2 = t(9, 0)
-
-
 def test_context_manager_is_properly_applied_to_tasks():
     t1 = Task()
     t2 = Task()
@@ -511,18 +503,6 @@ def test_eager_cycle_detection_works():
     assert not prefect.config.flows.eager_edge_validation
 
 
-def test_id_must_be_valid_uuid():
-    f = Flow(name="test")
-
-    with pytest.raises(ValueError):
-        f.id = 1
-
-    with pytest.raises(ValueError):
-        f.id = "1"
-
-    f.id = str(uuid.uuid4())
-
-
 def test_copy():
     with Flow(name="test") as f:
         t1 = Task()
@@ -540,12 +520,6 @@ def test_copy():
     assert len(f2.tasks) == len(f.tasks) - 2
     assert len(f2.edges) == len(f.edges) - 1
     assert f.reference_tasks() == f2.reference_tasks() == set([t1])
-
-
-def test_copy_creates_new_id():
-    f = Flow(name="test")
-    f2 = f.copy()
-    assert f.id != f2.id
 
 
 def test_infer_root_tasks():
@@ -876,6 +850,14 @@ def test_flow_accepts_unserializeable_parameters():
     assert state.result[p].result is value
 
 
+def test_parameters_can_not_be_downstream_dependencies():
+    with Flow(name="test") as f:
+        p = Parameter("x")
+        t = Task()
+        with pytest.raises(ValueError):
+            t.set_downstream(p)
+
+
 def test_validate_cycles():
     f = Flow(name="test")
     t1 = Task()
@@ -1154,26 +1136,6 @@ class TestCache:
         f.add_edge(t2, t3)
         assert f.root_tasks() == set([t1])
 
-    def test_cache_task_ids(self):
-        f = Flow(name="test")
-        t1 = Task()
-        t2 = Task()
-        t3 = Task()
-        f.add_edge(t1, t2)
-
-        ids = f.task_ids
-
-        # check that cache holds result
-        key = ("task_ids", ())
-        assert f._cache[key] == ids
-
-        # check that cache is read
-        f._cache[key] = 1
-        assert f.task_ids == 1
-
-        f.add_edge(t2, t3)
-        assert len(f.task_ids) == 3
-
     def test_cache_terminal_tasks(self):
         f = Flow(name="test")
         t1 = Task()
@@ -1228,6 +1190,7 @@ class TestCache:
         t1 = Task()
         t2 = Task()
         t3 = Task()
+        t4 = Task()
         f.add_edge(t1, t2)
         f.sorted_tasks()
         key = ("_sorted_tasks", (("root_tasks", ()),))
@@ -1236,7 +1199,7 @@ class TestCache:
 
         f2 = cloudpickle.loads(cloudpickle.dumps(f))
         assert f2.sorted_tasks() == 1
-        f2.add_edge(t2, t3)
+        f2.add_edge(t3, t4)
         assert f2.sorted_tasks() != 1
 
     def test_adding_task_clears_cache(self):

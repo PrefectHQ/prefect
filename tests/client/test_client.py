@@ -355,7 +355,10 @@ def test_get_flow_run_info(monkeypatch):
         "task_runs":[
             {
                 "id": "da344768-5f5d-4eaf-9bca-83815617f713",
-                "task_id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                "task": {
+                    "id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                    "slug": "da344768-5f5d-4eaf-9bca-83815617f713"
+                    },
                 "version": 0,
                 "serialized_state": {
                     "type": "Pending",
@@ -455,6 +458,9 @@ def test_get_task_run_info(monkeypatch):
                     "message": null,
                     "__version__": "0.3.3+310.gd19b9b7.dirty",
                     "cached_inputs": null
+                },
+                "task": {
+                    "slug": "slug"
                 }
             }
         }
