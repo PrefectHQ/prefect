@@ -51,6 +51,7 @@ def flows(name, version, project, all_versions):
                 "version": True,
                 "project": {"name": True},
                 "created": True,
+                "schedule_is_active": True,
             }
         }
     }
@@ -68,13 +69,14 @@ def flows(name, version, project, all_versions):
                 item.version,
                 item.project.name,
                 pendulum.parse(item.created).diff_for_humans(),
+                item.schedule_is_active
             ]
         )
 
     click.echo(
         tabulate(
             output,
-            headers=["NAME", "VERSION", "PROJECT NAME", "AGE"],
+            headers=["NAME", "VERSION", "PROJECT NAME", "AGE", "ACTIVE"],
             tablefmt="plain",
             numalign="left",
             stralign="left",
