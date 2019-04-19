@@ -91,7 +91,8 @@ class Task(metaclass=SignatureValidator):
 
     Args:
         - name (str, optional): The name of this task
-        - slug (str, optional): The slug for this task, it must be unique within a given Flow
+        - slug (str, optional): The slug for this task. Slugs are required and must be unique
+            within any flow; if not provided a random UUID will be generated.
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
@@ -154,9 +155,8 @@ class Task(metaclass=SignatureValidator):
     ):
 
         self.name = name or type(self).__name__
-        self.slug = slug
+        self.slug = slug or str(uuid.uuid4())
 
-        self.id = str(uuid.uuid4())
         self.logger = logging.get_logger("Task")
 
         # avoid silently iterating over a string
@@ -231,22 +231,6 @@ class Task(metaclass=SignatureValidator):
     def __hash__(self) -> int:
         return id(self)
 
-    @property
-    def id(self) -> str:
-        return self._id
-
-    @id.setter
-    def id(self, value: str) -> None:
-        """
-        Args:
-            - value (str): a UUID-formatted string
-        """
-        try:
-            uuid.UUID(value)
-        except Exception:
-            raise ValueError("Badly formatted UUID string: {}".format(value))
-        self._id = value
-
     # Run  --------------------------------------------------------------------
 
     def run(self) -> None:
@@ -307,6 +291,10 @@ class Task(metaclass=SignatureValidator):
 
         new = copy.copy(self)
 
+        # ensure new slug is provided
+        if "slug" not in task_args:
+            task_args["slug"] = str(uuid.uuid4())
+
         # check task_args
         for attr, val in task_args.items():
             if not hasattr(new, attr):
@@ -315,9 +303,6 @@ class Task(metaclass=SignatureValidator):
                 )
             else:
                 setattr(new, attr, val)
-
-        # assign new id
-        new.id = str(uuid.uuid4())
 
         new.tags = copy.deepcopy(self.tags).union(set(new.tags))
         tags = set(prefect.context.get("tags", set()))
@@ -1017,30 +1002,39 @@ class Parameter(Task):
     def __repr__(self) -> str:
         return "<Parameter: {self.name}>".format(self=self)
 
-    @property  # type: ignore
-    def name(self) -> str:  # type: ignore
-        return self._name
-
-    @name.setter
-    def name(self, value: str) -> None:
-        if hasattr(self, "_name"):
-            raise AttributeError("Parameter name can not be changed")
-        self._name = value  # pylint: disable=W0201
-
-    @property  # type: ignore
-    def slug(self) -> str:  # type: ignore
+    def __call__(self, flow: "Flow" = None) -> "Parameter":  # type: ignore
         """
-        A Parameter slug is always the same as its name. This information is used by
-        Flow objects to enforce parameter name uniqueness.
-        """
-        return self.name
+        Calling a Parameter adds it to a flow.
 
-    @slug.setter
-    def slug(self, value: str) -> None:
-        # slug is a property, so it's not actually set by this method, but the superclass
-        # attempts to set it and we need to allow that without error.
-        if value != self.name:
-            raise AttributeError("Parameter slug must be the same as its name.")
+        Args:
+            - flow (Flow, optional): The flow to set dependencies on, defaults to the current
+                flow in context if no flow is specified
+
+        Returns:
+            - Task: a new Task instance
+
+        """
+        result = super().bind(flow=flow)
+        assert isinstance(result, Parameter)  # mypy assert
+        return result
+
+    def copy(self, name: str, **task_args: Any) -> "Task":  # type: ignore
+        """
+        Creates a copy of the Parameter with a new name.
+
+        Args:
+            - name (str): the new Parameter name
+            - **task_args (dict, optional): a dictionary of task attribute keyword arguments,
+                these attributes will be set on the new copy
+
+        Raises:
+            - AttributeError: if any passed `task_args` are not attributes of the original
+
+        Returns:
+            - Parameter: a copy of the current Parameter, with a new name and any attributes
+                updated from `task_args`
+        """
+        return super().copy(name=name, slug=name, **task_args)
 
     def run(self) -> Any:
         params = prefect.context.get("parameters") or {}

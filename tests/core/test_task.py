@@ -35,7 +35,8 @@ class TestCreateTask:
 
     def test_create_task_with_slug(self):
         t1 = Task()
-        assert t1.slug is None
+        assert t1.slug
+        assert uuid.UUID(t1.slug)  # slug is a UUID
 
         t2 = Task(slug="test")
         assert t2.slug == "test"
@@ -355,10 +356,11 @@ class TestTaskCopy:
                 # no dependencies in this flow
                 t1.copy()
 
-    def test_copy_changes_id(self):
-        t1 = Task()
+    def test_copy_changes_slug(self):
+        t1 = Task(slug="test")
         t2 = t1.copy()
-        assert t1.id != t2.id
+        assert t1.slug == "test"
+        assert t1.slug != t2.slug
 
     def test_copy_accepts_task_args(self):
         t = Task()
@@ -368,23 +370,18 @@ class TestTaskCopy:
         assert t2.name == "new-task"
         assert t3.max_retries == 4200
 
+    def test_copy_accepts_slug_as_task_args(self):
+        t = Task(slug="test")
+        t2 = t.copy(slug="test-2")
+        assert t.slug == "test"
+        assert t2.slug == "test-2"
 
-def test_task_has_id():
+
+def test_task_has_slug():
     t1 = Task()
     t2 = Task()
 
-    assert t1.id and t1.id != t2.id
-
-
-def test_task_id_must_be_uuid():
-    t = Task()
-
-    with pytest.raises(ValueError):
-        t.id = 1
-    with pytest.raises(ValueError):
-        t.id = "1"
-
-    t.id = str(uuid.uuid4())
+    assert t1.slug and t1.slug != t2.slug
 
 
 class TestDependencies:
@@ -459,7 +456,7 @@ class TestSerialization:
         s = t.serialize()
 
         assert isinstance(s, dict)
-        assert s["id"] == t.id
+        assert s["slug"] == t.slug
         assert s["type"] == "prefect.core.task.Task"
         assert s["name"] == t.name
 

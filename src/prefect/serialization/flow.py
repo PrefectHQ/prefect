@@ -6,6 +6,7 @@ import prefect
 from prefect.serialization.edge import EdgeSchema
 from prefect.serialization.environment import EnvironmentSchema
 from prefect.serialization.schedule import ScheduleSchema
+from prefect.serialization.storage import StorageSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
 from prefect.utilities.serialization import (
     JSONCompatible,
@@ -32,11 +33,10 @@ def get_reference_tasks(obj: prefect.Flow, context: dict) -> Set:
 class FlowSchema(ObjectSchema):
     class Meta:
         object_class = lambda: prefect.core.Flow
-        exclude_fields = ["id", "type", "parameters"]
+        exclude_fields = ["type", "parameters"]
         # ordered to make sure Task objects are loaded before Edge objects, due to Task caching
         ordered = True
 
-    id = fields.String()
     project = fields.String(allow_none=True)
     name = fields.String(required=True, allow_none=True)
     version = fields.String(allow_none=True)
@@ -47,9 +47,10 @@ class FlowSchema(ObjectSchema):
     tasks = fields.Nested(TaskSchema, many=True)
     edges = fields.Nested(EdgeSchema, many=True)
     reference_tasks = Nested(
-        TaskSchema, value_selection_fn=get_reference_tasks, many=True, only=["id"]
+        TaskSchema, value_selection_fn=get_reference_tasks, many=True, only=["slug"]
     )
     environment = fields.Nested(EnvironmentSchema, allow_none=True)
+    storage = fields.Nested(StorageSchema, allow_none=True)
 
     @post_load
     def create_object(self, data: dict) -> prefect.core.Flow:
@@ -68,6 +69,4 @@ class FlowSchema(ObjectSchema):
         """
         data["validate"] = False
         flow = super().create_object(data)
-        if "id" in data:
-            flow.id = data["id"]
         return flow

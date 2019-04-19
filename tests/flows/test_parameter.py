@@ -23,20 +23,6 @@ def test_parameter_slug_is_its_name():
     assert x.name == x.slug == "x"
 
 
-def test_parameter_name_cant_be_changed():
-    x = Parameter("x")
-    assert x.name == "x"
-    with pytest.raises(AttributeError):
-        x.name = "hi"
-
-
-def test_parameter_slug_cant_be_changed():
-    x = Parameter("x")
-    assert x.slug == "x"
-    with pytest.raises(AttributeError):
-        x.slug = "hi"
-
-
 def test_create_parameter_with_default_is_not_required():
     x = Parameter("x", default=2)
     assert not x.required
@@ -63,3 +49,46 @@ def test_flow_parameters():
     f.add_task(y)
 
     assert f.parameters() == {x, y}
+
+
+def test_calling_parameter_is_ok():
+    with Flow("test") as f:
+        Parameter("x")()
+
+    assert len(f.tasks) == 1
+
+
+def test_call_accepts_flow():
+    f = Flow("test")
+    Parameter("x")(flow=f)
+
+    assert len(f.tasks) == 1
+
+
+def test_call_must_have_a_flow_out_of_context():
+    with pytest.raises(ValueError) as exc:
+        Parameter("x")()
+    assert "infer an active Flow" in str(exc.value)
+
+
+@pytest.mark.parametrize("attr", ["mapped", "task_args", "upstream_tasks"])
+def test_call_does_not_accept_most_args(attr):
+    x = Parameter("x")
+    with pytest.raises(TypeError) as exc:
+        x(**{attr: None})
+    assert "unexpected keyword argument" in str(exc.value)
+
+
+def test_copy_with_new_name():
+    x = Parameter("x")
+    y = x.copy("y")
+
+    assert x.name == x.slug == "x"
+    assert y.name == y.slug == "y"
+
+
+def test_copy_requires_name():
+    x = Parameter("x")
+    with pytest.raises(TypeError) as exc:
+        x.copy()
+    assert "required positional argument" in str(exc.value)

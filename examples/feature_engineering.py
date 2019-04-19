@@ -13,15 +13,14 @@ and custom Task classes.
 import os
 import pathlib
 import zipfile
-import pandas as pd
-import numpy as np
+from typing import Any, Dict, List
 from urllib.request import urlretrieve
 
-from prefect import Flow, Task, Parameter, task
-from prefect import unmapped
+import numpy as np
 
+import pandas as pd
+from prefect import Flow, Parameter, Task, task, unmapped
 from sklearn.decomposition import PCA
-from typing import List, Dict, Any
 
 
 # tasks to fetch and prepare data
