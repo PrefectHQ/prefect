@@ -9,6 +9,8 @@ import requests
 import sys
 import prefect
 
+from .get import get as _get
+
 
 @click.group()
 def cli():
@@ -16,6 +18,9 @@ def cli():
     The Prefect CLI
     """
     pass
+
+
+cli.add_command(_get)
 
 
 @cli.command()
