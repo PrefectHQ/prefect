@@ -361,14 +361,19 @@ class Queued(_MetaState):
         - result (Any, optional): Defaults to `None`.
         - state (State): the `State` state that has been marked as
             "queued".
+        - start_time (datetime): a time the state is queued until. Defaults to `now`.
 
     """
 
     def __init__(
-        self, message: str = None, result: Any = NoResult, state: State = None
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        state: State = None,
+        start_time: datetime.datetime = None,
     ):
         super().__init__(message=message, result=result, state=state)
-        self.start_time = pendulum.now("utc")
+        self.start_time = start_time or pendulum.now("utc")
 
 
 class Resume(Scheduled):
