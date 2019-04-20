@@ -52,7 +52,7 @@ class Memory(Storage):
         self.flows[flow.name] = flow
         return flow.name
 
-    def __contains__(self, obj) -> bool:
+    def __contains__(self, obj: Any) -> bool:
         """
         Method for determining whether an object is contained within this storage.
         """
@@ -60,7 +60,7 @@ class Memory(Storage):
             return False
         return obj.name in self.flows
 
-    def get_flow_location(self, flow):
+    def get_flow_location(self, flow: "prefect.core.flow.Flow") -> str:
         """
         Given a flow, retrieves its location within this Storage object.
 
