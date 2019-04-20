@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import textwrap
 import uuid
-from typing import Iterable, List
+from typing import Dict, Iterable, List
 
 import docker
 
@@ -21,37 +21,69 @@ from prefect.utilities.exceptions import SerializationError
 
 
 class Memory(Storage):
-    def get_runner(flow_location):
-        # this doesnt make sense for docker
-        # returns something with a .run() method
-        # that accepts the standard kwargs!!!!!!!
-        pass
+    """
+    Base class for Storage objects.
+    """
 
-    def add_flow(flow):
-        pass
+    def __init__(self) -> None:
+        self.flows = dict()  # type: Dict[str, prefect.core.flow.Flow]
+        super().__init__()
 
-    @property
-    def name(self):
-        # name of env (for Docker, full thing)
-        pass
+    def get_runner(flow_location: str) -> Any:
+        """
+        Given a flow name, returns the flow.
 
-    @property
-    def flows(self):
-        # a dictionary? a set?
-        # a way to check whether a flow is in this storage
-        # might be tricky to serialize this
-        pass
+        Args:
+            - flow_location (str): the name of the flow
 
-    @property
-    def flow_location(self):
-        "not sure if property or 'empty' attribute"
-        # optionally set at serialization time for an individual flow
-        pass
+        Returns:
+            - Flow: the requested Flow
+        """
+        return self.flows[flow_location]
+
+    def add_flow(flow: "prefect.core.flow.Flow") -> str:
+        """
+        Method for adding a new flow to this Storage object.
+
+        Args:
+            - flow (Flow): a Prefect Flow to add
+
+        Returns:
+            - str: the location of the newly added flow in this Storage object
+        """
+        self.flows[flow.name] = flow
+        return flow.name
+
+    def __contains__(self, obj):
+        """
+        Method for determining whether an object is contained within this storage.
+        """
+        return obj in self.flows
 
     def get_flow_location(flow):
-        # current envs will retrieve by name but don't have to
-        pass
+        """
+        Given a flow, retrieves its location within this Storage object.
+
+        Args:
+            - flow (Flow): a Prefect Flow contained within this Storage
+
+        Returns:
+            - str: the location of the Flow
+
+        Raises:
+            - ValueError: if the provided Flow does not live in this Storage object
+        """
+        if not flow in self:
+            raise ValueError("Flow is not conatined in this Storage")
+
+        return [loc for loc, f in self.flows.items() if f.name == flow.name].pop()
 
     def build(self) -> "Storage":
-        # builds with _all_ flows
-        pass
+        """
+        Build the Storage object.
+
+        Returns:
+            - Storage: a Storage object that contains information about how and where
+                each flow is stored
+        """
+        return self
