@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import textwrap
 import uuid
-from typing import Iterable, List
+from typing import Any, Iterable, List
 
 import docker
 
@@ -78,6 +78,64 @@ class Docker(Storage):
                     ", ".join(not_absolute)
                 )
             )
+
+    def get_env_runner(flow_location: str) -> Any:
+        """
+        Given a flow_location within this Storage object, returns something with a
+        `run()` method which accepts the standard runner kwargs and can run the flow.
+
+        Args:
+            - flow_location (str): the location of a flow within this Storage
+
+        Returns:
+            - a runner interface (something with a `run()` method for running the flow)
+        """
+        pass
+
+    def add_flow(flow: "prefect.core.flow.Flow") -> str:
+        """
+        Method for adding a new flow to this Storage object.
+
+        Args:
+            - flow (Flow): a Prefect Flow to add
+
+        Returns:
+            - str: the location of the newly added flow in this Storage object
+        """
+        pass
+
+    @property
+    def name(self):
+        """
+        Name of the environment.  Can be overriden.
+        """
+        if None in [self.registry_url, self.image_name, self.image_tag]:
+            raise ValueError("Docker storage is missing required fields")
+
+        return "{}:{}".format(
+            os.path.join(self.registry_url, self.image_name), self.image_tag
+        )  # type: ignore
+
+    def __contains__(self, obj) -> "prefect.Flow":
+        """
+        Method for determining whether an object is contained within this storage.
+        """
+        return False
+
+    def get_flow_location(flow):
+        """
+        Given a flow, retrieves its location within this Storage object.
+
+        Args:
+            - flow (Flow): a Prefect Flow contained within this Storage
+
+        Returns:
+            - str: the location of the Flow
+
+        Raises:
+            - ValueError: if the provided Flow does not live in this Storage object
+        """
+        pass
 
     def build(self, flow: "prefect.Flow", push: bool = True) -> "Storage":
         """
