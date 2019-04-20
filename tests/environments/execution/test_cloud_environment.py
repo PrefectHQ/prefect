@@ -57,9 +57,7 @@ def test_execute(monkeypatch):
 
     environment.execute(storage=storage)
 
-    assert create_flow_run.call_args[1]["registry_url"] == "test1"
-    assert create_flow_run.call_args[1]["image_name"] == "test2"
-    assert create_flow_run.call_args[1]["image_tag"] == "test3"
+    assert create_flow_run.call_args[1]["docker_name"] == "test1/test2:test3"
     assert create_flow_run.call_args[1]["flow_file_path"] == "test4"
 
 
@@ -76,10 +74,7 @@ def test_create_flow_run_job(monkeypatch):
 
     with set_temporary_config({"cloud.auth_token": "test"}):
         environment.create_flow_run_job(
-            registry_url="test1",
-            image_name="test2",
-            image_tag="test3",
-            flow_file_path="test4",
+            docker_name="test1/test2:test3", flow_file_path="test4"
         )
 
     assert (
@@ -93,10 +88,7 @@ def test_create_flow_run_job_fails_outside_cluster():
     with pytest.raises(EnvironmentError):
         with set_temporary_config({"cloud.auth_token": "test"}):
             environment.create_flow_run_job(
-                registry_url="test1",
-                image_name="test2",
-                image_tag="test3",
-                flow_file_path="test4",
+                docker_name="test1/test2:test3", flow_file_path="test4"
             )
 
 
@@ -145,11 +137,7 @@ def test_populate_job_yaml():
     ):
         with prefect.context(flow_run_id="id_test"):
             yaml_obj = environment._populate_job_yaml(
-                yaml_obj=job,
-                registry_url="test1",
-                image_name="test2",
-                image_tag="test3",
-                flow_file_path="test4",
+                yaml_obj=job, docker_name="test1/test2:test3", flow_file_path="test4"
             )
 
     assert yaml_obj["metadata"]["name"] == "prefect-dask-job-{}".format(
