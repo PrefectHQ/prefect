@@ -57,6 +57,7 @@ def complex_states():
         state.Submitted(state=state.Retrying(start_time=utc_dt, run_count=2)),
         state.Submitted(state=state.Resume(start_time=utc_dt)),
         state.Queued(state=state.Pending()),
+        state.Queued(state=state.Pending(), start_time=utc_dt),
         state.Queued(state=state.Retrying(start_time=utc_dt, run_count=2)),
         cached_state,
         cached_state_naive,
