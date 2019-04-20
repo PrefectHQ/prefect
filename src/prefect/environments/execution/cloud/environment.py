@@ -41,32 +41,17 @@ class CloudEnvironment(Environment):
         if not isinstance(storage, Docker):
             raise TypeError("CloudEnvironment requires a Docker storage option")
 
-        if (
-            not storage.image_name
-            or not storage.image_tag
-            or not storage.registry_url
-            or not storage.flow_file_path
-        ):
-            raise ValueError("Docker storage is missing required fields")
-
         self.create_flow_run_job(
-            registry_url=storage.registry_url,
-            image_name=storage.image_name,
-            image_tag=storage.image_tag,
-            flow_file_path=storage.flow_file_path,
+            docker_name=storage.name, flow_file_path=storage.flow_file_path
         )
 
-    def create_flow_run_job(
-        self, registry_url: str, image_name: str, image_tag: str, flow_file_path: str
-    ) -> None:
+    def create_flow_run_job(self, docker_name: str, flow_file_path: str) -> None:
         """
         Creates a Kubernetes job to run the flow using the information stored on the
         Docker storage object.
 
         Args:
-            - registry_url (str): URL of a registry the image was stored in
-            - image_name (str): name of the image
-            - image_tag (str): tag of the image
+            - docker_name (str): the full name of the docker image (registry/name:tag)
             - flow_file_path (str): location of the flow file in the image
         """
         from kubernetes import client, config
@@ -82,11 +67,7 @@ class CloudEnvironment(Environment):
         with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
             job = yaml.safe_load(job_file)
             job = self._populate_job_yaml(
-                yaml_obj=job,
-                registry_url=registry_url,
-                image_name=image_name,
-                image_tag=image_tag,
-                flow_file_path=flow_file_path,
+                yaml_obj=job, docker_name=docker_name, flow_file_path=flow_file_path
             )
 
             # Create Job
@@ -125,18 +106,15 @@ class CloudEnvironment(Environment):
     ########################
 
     def _populate_job_yaml(
-        self,
-        yaml_obj: dict,
-        registry_url: str,
-        image_name: str,
-        image_tag: str,
-        flow_file_path: str,
+        self, yaml_obj: dict, docker_name: str, flow_file_path: str
     ) -> dict:
         """
         Populate the execution job yaml object used in this environment with the proper values
 
         Args:
             - yaml_obj (dict): A dictionary representing the parsed yaml
+            - docker_name (str): the full path to the docker image
+            - flow_file_path (str): the location of the flow within the docker container
 
         Returns:
             - dict: a dictionary with the yaml values replaced
@@ -158,15 +136,11 @@ class CloudEnvironment(Environment):
         env[2]["value"] = prefect.config.cloud.result_handler
         env[3]["value"] = prefect.config.cloud.auth_token
         env[4]["value"] = prefect.context.get("flow_run_id", "")
-        env[5]["value"] = "{}:{}".format(
-            path.join(registry_url, image_name), image_tag  # type: ignore
-        )
+        env[5]["value"] = docker_name
         env[6]["value"] = flow_file_path
 
         # set image
-        yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = "{}:{}".format(
-            path.join(registry_url, image_name), image_tag  # type: ignore
-        )
+        yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
 
         return yaml_obj
 

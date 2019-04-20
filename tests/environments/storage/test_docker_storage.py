@@ -309,3 +309,14 @@ def test_parse_output():
         storage._parse_generator_output([b'"{}"\n'])
 
     assert storage
+
+
+def test_docker_storage_name():
+    storage = Docker(base_image="python:3.6")
+    with pytest.raises(ValueError):
+        storage.name
+
+    storage.registry_url = "test1"
+    storage.image_name = "test2"
+    storage.image_tag = "test3"
+    assert storage.name == "test1/test2:test3"
