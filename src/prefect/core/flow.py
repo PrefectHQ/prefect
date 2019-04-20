@@ -1111,7 +1111,9 @@ class Flow:
         if build:
             if not self.storage:
                 raise ValueError("This flow has no storage to build")
-            storage = self.storage.build(flow=self)  # type: Optional[Storage]
+            if self not in self.storage:
+                self.storage.add_flow(self)
+            storage = self.storage.build()  # type: Optional[Storage]
         else:
             storage = self.storage
 

@@ -15,9 +15,12 @@ is stored.
 """
 
 from abc import ABCMeta, abstractmethod
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import prefect
+
+if TYPE_CHECKING:
+    import prefect.core.flow
 
 
 class Storage(metaclass=ABCMeta):
@@ -70,27 +73,27 @@ class Storage(metaclass=ABCMeta):
         pass
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Name of the environment.  Can be overriden.
         """
         return type(self).__name__
 
     @abstractmethod
-    def __contains__(self, obj):
+    def __contains__(self, obj: Any) -> bool:
         """
         Method for determining whether an object is contained within this storage.
         """
         pass
 
     @property
-    def flow_location(self):
+    def flow_location(self) -> str:
         "not sure if property or 'empty' attribute"
         # optionally set at serialization time for an individual flow
         pass
 
     @abstractmethod
-    def get_flow_location(self, flow):
+    def get_flow_location(self, flow: "prefect.core.flow.Flow") -> str:
         """
         Given a flow, retrieves its location within this Storage object.
 
