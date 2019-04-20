@@ -302,25 +302,29 @@ class TestStateHierarchy:
 
 @pytest.mark.parametrize(
     "state_check",
-    {
-        Cached(): {"is_cached", "is_finished", "is_successful"},
-        ClientFailed(): {"is_meta_state"},
-        Failed(): {"is_finished", "is_failed"},
-        Finished(): {"is_finished"},
-        Mapped(): {"is_finished", "is_mapped", "is_successful"},
-        Paused(): {"is_pending"},
-        Pending(): {"is_pending"},
-        Queued(): {"is_meta_state"},
-        Resume(): {"is_pending", "is_scheduled"},
-        Retrying(): {"is_pending", "is_scheduled", "is_retrying"},
-        Running(): {"is_running"},
-        Scheduled(): {"is_pending", "is_scheduled"},
-        Skipped(): {"is_finished", "is_successful", "is_skipped"},
-        Submitted(): {"is_meta_state", "is_submitted"},
-        Success(): {"is_finished", "is_successful"},
-        TimedOut(): {"is_finished", "is_failed"},
-        TriggerFailed(): {"is_finished", "is_failed"},
-    }.items(),
+    [
+        dict(state=Cached(), assert_true={"is_cached", "is_finished", "is_successful"}),
+        dict(state=ClientFailed(), assert_true={"is_meta_state"}),
+        dict(state=Failed(), assert_true={"is_finished", "is_failed"}),
+        dict(state=Finished(), assert_true={"is_finished"}),
+        dict(state=Mapped(), assert_true={"is_finished", "is_mapped", "is_successful"}),
+        dict(state=Paused(), assert_true={"is_pending"}),
+        dict(state=Pending(), assert_true={"is_pending"}),
+        dict(state=Queued(), assert_true={"is_meta_state"}),
+        dict(state=Resume(), assert_true={"is_pending", "is_scheduled"}),
+        dict(
+            state=Retrying(), assert_true={"is_pending", "is_scheduled", "is_retrying"}
+        ),
+        dict(state=Running(), assert_true={"is_running"}),
+        dict(state=Scheduled(), assert_true={"is_pending", "is_scheduled"}),
+        dict(
+            state=Skipped(), assert_true={"is_finished", "is_successful", "is_skipped"}
+        ),
+        dict(state=Submitted(), assert_true={"is_meta_state", "is_submitted"}),
+        dict(state=Success(), assert_true={"is_finished", "is_successful"}),
+        dict(state=TimedOut(), assert_true={"is_finished", "is_failed"}),
+        dict(state=TriggerFailed(), assert_true={"is_finished", "is_failed"}),
+    ],
 )
 def test_state_is_methods(state_check):
     """
@@ -331,7 +335,8 @@ def test_state_is_methods(state_check):
     assert that `state.is_running()` is False, `state.is_successful()` is False, etc. but
     `state.is_pending()` is True.
     """
-    state, assert_true = state_check
+    state = state_check["state"]
+    assert_true = state_check["assert_true"]
 
     for attr in dir(state):
         if attr.startswith("is_") and callable(getattr(state, attr)):
