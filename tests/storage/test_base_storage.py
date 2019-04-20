@@ -5,8 +5,8 @@ from prefect.environments.storage import Storage
 
 
 def test_create_base_storage():
-    storage = Storage()
-    assert storage
+    with pytest.raises(TypeError):
+        storage = Storage()
 
 
 def test_build_base_storage_not_implemented():
