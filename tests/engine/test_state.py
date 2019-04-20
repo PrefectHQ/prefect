@@ -114,8 +114,14 @@ def test_queued_states_have_start_times():
     assert now - Queued().start_time < datetime.timedelta(seconds=0.1)
 
 
+def test_queued_states_accept_start_times():
+    st = pendulum.datetime(2050, 1, 1)
+    state = Queued(start_time=st)
+    assert state.start_time == st
+
+
 @pytest.mark.parametrize("cls", all_states)
-def test_only_scheduled_states_have_start_times(cls):
+def test_only_scheduled_and_queued_states_have_start_times(cls):
     """
     the start_time attribute of a scheduled state is important and used (outside Python)
     to identify when a state is scheduled
