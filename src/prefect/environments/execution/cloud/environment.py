@@ -29,7 +29,7 @@ class CloudEnvironment(Environment):
     def __init__(self) -> None:
         self.identifier_label = str(uuid.uuid4())
 
-    def execute(self, storage: "Docker" = Docker()) -> None:  # type: ignore
+    def execute(self, storage: "Docker", flow_location: str) -> None:  # type: ignore
         """
         Create a single Kubernetes job that spins up a dask scheduler, dynamically
         creates worker pods, and runs the flow.
@@ -41,9 +41,7 @@ class CloudEnvironment(Environment):
         if not isinstance(storage, Docker):
             raise TypeError("CloudEnvironment requires a Docker storage option")
 
-        self.create_flow_run_job(
-            docker_name=storage.name, flow_file_path=storage.flow_file_path
-        )
+        self.create_flow_run_job(docker_name=storage.name, flow_file_path=flow_location)
 
     def create_flow_run_job(self, docker_name: str, flow_file_path: str) -> None:
         """
