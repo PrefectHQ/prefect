@@ -28,7 +28,7 @@ class Storage(metaclass=ABCMeta):
     def __init__(self) -> None:
         pass
 
-    def get_env_runner(flow_location: str) -> Any:
+    def get_env_runner(self, flow_location: str) -> Any:
         """
         Given a flow_location within this Storage object, returns something with a
         `run()` method which accepts a collection of environment variables for running the flow.
@@ -41,7 +41,7 @@ class Storage(metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def get_runner(flow_location: str, return_flow: bool = True) -> Any:
+    def get_runner(self, flow_location: str, return_flow: bool = True) -> Any:
         """
         Given a flow_location within this Storage object, returns something with a
         `run()` method which accepts the standard runner kwargs and can run the flow.
@@ -57,7 +57,7 @@ class Storage(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def add_flow(flow: "prefect.core.flow.Flow") -> str:
+    def add_flow(self, flow: "prefect.core.flow.Flow") -> str:
         """
         Method for adding a new flow to this Storage object.
 
@@ -90,7 +90,7 @@ class Storage(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_flow_location(flow):
+    def get_flow_location(self, flow):
         """
         Given a flow, retrieves its location within this Storage object.
 
