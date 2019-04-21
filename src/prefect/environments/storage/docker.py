@@ -55,7 +55,8 @@ class Docker(Storage):
         self.python_dependencies = python_dependencies or []
         self.env_vars = env_vars or {}
         self.files = files or {}
-        self.flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
+        self.flows = dict()  # type: Dict[str, str]
+        self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
         self.base_url = base_url
 
         not_absolute = [
@@ -118,14 +119,15 @@ class Docker(Storage):
         Returns:
             - str: the location of the newly added flow in this Storage object
         """
-        if flow in self:
+        if flow.name in self:
             raise ValueError(
                 'Name conflict: Flow with the name "{}" is already present in this storage.'.format(
                     flow.name
                 )
             )
         flow_path = "/root/.prefect/{}.prefect".format(flow.name.replace(" ", ""))
-        self.flows[flow_path] = flow
+        self.flows[flow.name] = flow_path
+        self._flows[flow.name] = flow  # needed prior to build
         return flow_path
 
     @property
@@ -145,10 +147,9 @@ class Docker(Storage):
         """
         Method for determining whether an object is contained within this storage.
         """
-        if not isinstance(obj, prefect.core.flow.Flow):
+        if not isinstance(obj, str):
             return False
-        flow_path = "/root/.prefect/{}.prefect".format(obj.name.replace(" ", ""))
-        return flow_path in self.flows
+        return obj in self.flows
 
     def get_flow_location(self, flow_name: str) -> str:
         """
@@ -163,10 +164,10 @@ class Docker(Storage):
         Raises:
             - ValueError: if the provided Flow does not live in this Storage object
         """
-        if not flow in self:
+        if not flow_name in self.flows:
             raise ValueError("Flow is not contained in this Storage")
 
-        return [loc for loc, f in self.flows.items() if f.name == flow.name].pop()
+        return self.flows[flow_name]
 
     def build(self, push: bool = True) -> "Storage":
         """
@@ -305,12 +306,12 @@ class Docker(Storage):
 
             # Write all flows to file and load into the image
             copy_flows = ""
-            for flow_location, flow in self.flows.items():
-                flow_path = os.path.join(directory, "{}.flow".format(flow.name))
+            for flow_name, flow_location in self.flows.items():
+                flow_path = os.path.join(directory, "{}.flow".format(flow_name))
                 with open(flow_path, "wb") as f:
-                    cloudpickle.dump(flow, f)
+                    cloudpickle.dump(self._flows[flow_name], f)
                 copy_flows += "COPY {source} {dest}\n".format(
-                    source="{}.flow".format(flow.name), dest=flow_location
+                    source="{}.flow".format(flow_name), dest=flow_location
                 )
 
             # Write a healthcheck script into the image

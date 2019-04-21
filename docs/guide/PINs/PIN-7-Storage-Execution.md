@@ -24,15 +24,13 @@ The core of the proposal is to create two separate interfaces: one called `Stora
 
 The proposed Prefect Storage interface encapsulates logic for storing, serializing and even running Flows.  Each storage unit will be able to store _multiple_ flows (possibly with the constraint of name uniqueness within a given unit), and will expose the following methods and attributes:
 - a name attribute
-- a `flows` attribute which is a dictionary of Flows -> location
+- a `flows` attribute which is a dictionary of flow name -> location
 - an `add_flow(flow: Flow) -> str` method for adding flows to Storage, and which will return the location of the given flow in the Storage unit
 - a `get_flow_location(flow: Flow) -> str` method for retrieving a Flow's location within the Storage
 - the `__contains__(self, obj) -> bool` special method for determining whether the Storage contains a given Flow
 - one of `get_runner(flow_location: str)` or `get_env_runner(flow_location: str)` for retrieving a way of interfacing with either `flow.run` or a `FlowRunner` for the flow; `get_env_runner` is intended for situations where flow execution can only be interacted with via environment variables
 - a `build() -> Storage` method for "building" the storage
 - a `serialize() -> dict` method for serializing the relevant information about this Storage for later re-use.
-
-Note that there is some weird behavior that could be possible if a user adds a Flow to Storage, serializes the Storage, and then deserializes in a new process.  For this reason, we might also consider a `load()` method which will allow the Storage unit to inspect itself and populate `self.flows`.
 
 ### Execution Environment
 

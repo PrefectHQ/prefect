@@ -1371,10 +1371,10 @@ class TestSerialize:
     def test_serialize_adds_flow_to_storage_if_build(self):
         f = Flow(name="test", storage=prefect.environments.storage.Memory())
         s_no_build = f.serialize()
-        assert f not in f.storage
+        assert f.name not in f.storage
 
         s_build = f.serialize(build=True)
-        assert f in f.storage
+        assert f.name in f.storage
 
     def test_serialize_fails_with_no_storage(self):
         f = Flow(name="test")

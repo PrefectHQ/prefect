@@ -27,7 +27,7 @@ def test_add_flow_to_docker():
     f = Flow("test")
     assert f not in storage
     assert storage.add_flow(f) == "/root/.prefect/test.prefect"
-    assert f in storage
+    assert f.name in storage
 
 
 def test_get_flow_location():

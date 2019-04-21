@@ -16,9 +16,10 @@ def test_create_memory_storage():
 def test_add_flow_to_storage():
     storage = Memory()
     f = Flow("test")
+    assert f.name not in storage
     res = storage.add_flow(f)
     assert res == "test"
-    assert f in storage
+    assert f.name in storage
 
 
 def test_add_flow_raises_if_name_conflict():
@@ -39,7 +40,7 @@ def test_get_flow_location_raises_if_not_present():
 
     s.add_flow(f)
     res = s.get_flow_location("test")
-    assert res == "test"
+    assert res is f
 
 
 def test_get_env_runner_raises():
@@ -84,9 +85,10 @@ def test_containment():
     s.add_flow(f)
 
     assert True not in s
-    assert "test" not in s
-    assert f in s
+    assert f not in s
+    assert "test" in s
     assert Flow("other") not in s
+    assert "other" not in s
 
 
 def test_build_returns_self():
@@ -106,12 +108,12 @@ def test_multiple_flows_in_storage():
     s.add_flow(f)
     s.add_flow(g)
 
-    assert f in s
-    assert g in s
-    assert z not in s
+    assert "test" in s
+    assert "other" in s
+    assert "not" not in s
 
     assert s.get_runner("test") is f
     assert s.get_runner("other") is g
 
-    assert s.get_flow_location("test") == "test"
-    assert s.get_flow_location("other") == "other"
+    assert s.get_flow_location("test") is f
+    assert s.get_flow_location("other") is g
