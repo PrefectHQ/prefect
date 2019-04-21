@@ -86,12 +86,6 @@ class Storage(metaclass=ABCMeta):
         """
         pass
 
-    @property
-    def flow_location(self) -> str:
-        "not sure if property or 'empty' attribute"
-        # optionally set at serialization time for an individual flow
-        pass
-
     @abstractmethod
     def get_flow_location(self, flow: "prefect.core.flow.Flow") -> str:
         """
