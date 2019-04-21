@@ -9,7 +9,7 @@ import yaml
 
 import prefect
 from prefect.environments import CloudEnvironment
-from prefect.environments.storage import Bytes, Docker
+from prefect.environments.storage import Memory, Docker
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -32,33 +32,27 @@ def test_setup_cloud_environment_passes():
 def test_execute_improper_storage():
     environment = CloudEnvironment()
     with pytest.raises(TypeError):
-        environment.execute(storage=Bytes())
+        environment.execute(storage=Memory(), flow_location="")
 
 
 def test_execute_storage_missing_fields():
     environment = CloudEnvironment()
     with pytest.raises(ValueError):
-        environment.execute(storage=Docker())
+        environment.execute(storage=Docker(), flow_location="")
 
 
 def test_execute(monkeypatch):
     environment = CloudEnvironment()
-    storage = Docker(
-        registry_url="test1",
-        image_name="test2",
-        image_tag="test3",
-        flow_file_path="test4",
-    )
+    storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
 
     create_flow_run = MagicMock()
     monkeypatch.setattr(
         "prefect.environments.CloudEnvironment.create_flow_run_job", create_flow_run
     )
 
-    environment.execute(storage=storage)
+    environment.execute(storage=storage, flow_location="")
 
     assert create_flow_run.call_args[1]["docker_name"] == "test1/test2:test3"
-    assert create_flow_run.call_args[1]["flow_file_path"] == "test4"
 
 
 def test_create_flow_run_job(monkeypatch):

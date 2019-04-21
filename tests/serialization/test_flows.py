@@ -135,7 +135,7 @@ def test_serialize_container_environment():
 
 
 def test_deserialize_serialized_flow_after_build():
-    flow = Flow(name="test", storage=prefect.environments.storage.Bytes())
+    flow = Flow(name="test", storage=prefect.environments.storage.Memory())
     serialized_flow = flow.serialize(build=True)
     deserialized = FlowSchema().load(serialized_flow)
     assert isinstance(deserialized, Flow)

@@ -22,6 +22,14 @@ def test_serialize_docker_storage():
     assert serialized_storage["type"] == "Docker"
 
 
+def test_add_flow_to_docker():
+    storage = Docker()
+    f = Flow("test")
+    assert f not in storage
+    assert storage.add_flow(f) == "/root/.prefect/test.prefect"
+    assert f in storage
+
+
 def test_empty_docker_storage():
     storage = Docker()
 
