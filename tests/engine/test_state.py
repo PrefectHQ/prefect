@@ -114,8 +114,14 @@ def test_queued_states_have_start_times():
     assert now - Queued().start_time < datetime.timedelta(seconds=0.1)
 
 
+def test_queued_states_accept_start_times():
+    st = pendulum.datetime(2050, 1, 1)
+    state = Queued(start_time=st)
+    assert state.start_time == st
+
+
 @pytest.mark.parametrize("cls", all_states)
-def test_only_scheduled_states_have_start_times(cls):
+def test_only_scheduled_and_queued_states_have_start_times(cls):
     """
     the start_time attribute of a scheduled state is important and used (outside Python)
     to identify when a state is scheduled
@@ -294,243 +300,47 @@ class TestStateHierarchy:
         assert issubclass(TriggerFailed, Failed)
 
 
-class TestStateMethods:
-    def test_state_type_methods_with_pending_state(self):
-        state = Pending()
-        assert state.is_pending()
-        assert not state.is_retrying()
-        assert not state.is_cached()
-        assert not state.is_running()
-        assert not state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert not state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
+@pytest.mark.parametrize(
+    "state_check",
+    [
+        dict(state=Cached(), assert_true={"is_cached", "is_finished", "is_successful"}),
+        dict(state=ClientFailed(), assert_true={"is_meta_state"}),
+        dict(state=Failed(), assert_true={"is_finished", "is_failed"}),
+        dict(state=Finished(), assert_true={"is_finished"}),
+        dict(state=Mapped(), assert_true={"is_finished", "is_mapped", "is_successful"}),
+        dict(state=Paused(), assert_true={"is_pending"}),
+        dict(state=Pending(), assert_true={"is_pending"}),
+        dict(state=Queued(), assert_true={"is_meta_state"}),
+        dict(state=Resume(), assert_true={"is_pending", "is_scheduled"}),
+        dict(
+            state=Retrying(), assert_true={"is_pending", "is_scheduled", "is_retrying"}
+        ),
+        dict(state=Running(), assert_true={"is_running"}),
+        dict(state=Scheduled(), assert_true={"is_pending", "is_scheduled"}),
+        dict(
+            state=Skipped(), assert_true={"is_finished", "is_successful", "is_skipped"}
+        ),
+        dict(state=Submitted(), assert_true={"is_meta_state", "is_submitted"}),
+        dict(state=Success(), assert_true={"is_finished", "is_successful"}),
+        dict(state=TimedOut(), assert_true={"is_finished", "is_failed"}),
+        dict(state=TriggerFailed(), assert_true={"is_finished", "is_failed"}),
+    ],
+)
+def test_state_is_methods(state_check):
+    """
+    Iterates over all of the "is_*()" methods of the state, asserting that each one is
+    False, unless the name of that method is provided as `assert_true`.
 
-    def test_state_type_methods_with_paused_state(self):
-        state = Paused()
-        assert state.is_pending()
-        assert not state.is_retrying()
-        assert not state.is_cached()
-        assert not state.is_running()
-        assert not state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert not state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
+    For example, if `state_check == (Pending(), {'is_pending'})`, then this method will
+    assert that `state.is_running()` is False, `state.is_successful()` is False, etc. but
+    `state.is_pending()` is True.
+    """
+    state = state_check["state"]
+    assert_true = state_check["assert_true"]
 
-    def test_state_type_methods_with_scheduled_state(self):
-        state = Scheduled()
-        assert state.is_pending()
-        assert not state.is_retrying()
-        assert not state.is_cached()
-        assert not state.is_running()
-        assert not state.is_finished()
-        assert not state.is_skipped()
-        assert state.is_scheduled()
-        assert not state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
-
-    def test_state_type_methods_with_resume_state(self):
-        state = Resume()
-        assert state.is_pending()
-        assert not state.is_retrying()
-        assert not state.is_cached()
-        assert not state.is_running()
-        assert not state.is_finished()
-        assert not state.is_skipped()
-        assert state.is_scheduled()
-        assert not state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
-
-    def test_state_type_methods_with_retry_state(self):
-        state = Retrying()
-        assert state.is_pending()
-        assert state.is_retrying()
-        assert not state.is_cached()
-        assert not state.is_running()
-        assert not state.is_finished()
-        assert not state.is_skipped()
-        assert state.is_scheduled()
-        assert not state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
-
-    def test_state_type_methods_with_clientfailed_state(self):
-        state = ClientFailed()
-        assert not state.is_cached()
-        assert not state.is_retrying()
-        assert not state.is_pending()
-        assert not state.is_running()
-        assert not state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert not state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert state.is_meta_state()
-        assert not state.is_submitted()
-
-    def test_state_type_methods_with_submitted_state(self):
-        state = Submitted()
-        assert not state.is_cached()
-        assert not state.is_retrying()
-        assert not state.is_pending()
-        assert not state.is_running()
-        assert not state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert not state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert state.is_meta_state()
-        assert state.is_submitted()
-
-    def test_state_type_methods_with_queued_state(self):
-        state = Queued()
-        assert not state.is_cached()
-        assert not state.is_retrying()
-        assert not state.is_pending()
-        assert not state.is_running()
-        assert not state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert not state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_submitted()
-        assert state.is_meta_state()
-
-    def test_state_type_methods_with_running_state(self):
-        state = Running()
-        assert not state.is_pending()
-        assert state.is_running()
-        assert not state.is_retrying()
-        assert not state.is_cached()
-        assert not state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert not state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
-
-    def test_state_type_methods_with_cached_state(self):
-        state = Cached()
-        assert state.is_cached()
-        assert not state.is_retrying()
-        assert not state.is_pending()
-        assert not state.is_running()
-        assert state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
-
-    def test_state_type_methods_with_mapped_state(self):
-        state = Mapped()
-        assert not state.is_cached()
-        assert not state.is_pending()
-        assert not state.is_retrying()
-        assert not state.is_running()
-        assert state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert state.is_successful()
-        assert not state.is_failed()
-        assert state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
-
-    def test_state_type_methods_with_success_state(self):
-        state = Success()
-        assert not state.is_cached()
-        assert not state.is_pending()
-        assert not state.is_retrying()
-        assert not state.is_running()
-        assert state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
-
-    def test_state_type_methods_with_failed_state(self):
-        state = Failed(message="")
-        assert not state.is_cached()
-        assert not state.is_pending()
-        assert not state.is_retrying()
-        assert not state.is_running()
-        assert state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert not state.is_successful()
-        assert state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
-
-    def test_state_type_methods_with_timedout_state(self):
-        state = TimedOut(message="")
-        assert not state.is_cached()
-        assert not state.is_pending()
-        assert not state.is_retrying()
-        assert not state.is_running()
-        assert state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert not state.is_successful()
-        assert state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
-
-    def test_state_type_methods_with_trigger_failed_state(self):
-        state = TriggerFailed(message="")
-        assert not state.is_cached()
-        assert not state.is_pending()
-        assert not state.is_retrying()
-        assert not state.is_running()
-        assert state.is_finished()
-        assert not state.is_skipped()
-        assert not state.is_scheduled()
-        assert not state.is_successful()
-        assert state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
-
-    def test_state_type_methods_with_skipped_state(self):
-        state = Skipped()
-        assert not state.is_cached()
-        assert not state.is_pending()
-        assert not state.is_retrying()
-        assert not state.is_running()
-        assert state.is_finished()
-        assert state.is_skipped()
-        assert not state.is_scheduled()
-        assert state.is_successful()
-        assert not state.is_failed()
-        assert not state.is_mapped()
-        assert not state.is_meta_state()
-        assert not state.is_submitted()
+    for attr in dir(state):
+        if attr.startswith("is_") and callable(getattr(state, attr)):
+            if attr in assert_true:
+                assert getattr(state, attr)()
+            else:
+                assert not getattr(state, attr)()
