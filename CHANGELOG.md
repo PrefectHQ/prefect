@@ -6,12 +6,13 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- Add new `Storage` and `Environment` specifications - [#936](https://github.com/PrefectHQ/prefect/pull/936)
+- Add new `Storage` and `Environment` specifications - [#936](https://github.com/PrefectHQ/prefect/pull/936), [#956](https://github.com/PrefectHQ/prefect/pull/936)
 
 ### Enhancements
 
 - Flow now has optional `storage` keyword - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 - Flow `environment` argument now defaults to a `CloudEnvironment` - [#936](https://github.com/PrefectHQ/prefect/pull/936)
+- Add new `Memory`storage for local testing - [#956](https://github.com/PrefectHQ/prefect/pull/936)
 
 ### Task Library
 
