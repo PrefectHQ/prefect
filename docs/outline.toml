@@ -131,6 +131,11 @@ title = "Storage"
 module = "prefect.environments.storage"
 classes = ["Storage", "Docker", "Memory"]
 
+[pages.environments.execution]
+title = "Execution Environments"
+module = "prefect.environments.execution"
+classes = ["LocalEnvironment"]
+
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
 module = "prefect.tasks.control_flow"
