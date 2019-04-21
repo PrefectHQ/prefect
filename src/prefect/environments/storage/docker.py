@@ -7,7 +7,7 @@ import shutil
 import tempfile
 import textwrap
 import uuid
-from typing import Any, Dict, Iterable, List
+from typing import Any, Callable, Dict, Iterable, List
 
 import docker
 
@@ -68,8 +68,7 @@ class Docker(Storage):
                 )
             )
 
-    # TODO: implement this
-    def get_env_runner(self, flow_location: str) -> Any:
+    def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
         """
         Given a flow_location within this Storage object, returns something with a
         `run()` method which accepts the standard runner kwargs and can run the flow.
@@ -80,7 +79,34 @@ class Docker(Storage):
         Returns:
             - a runner interface (something with a `run()` method for running the flow)
         """
-        raise NotImplementedError()
+
+        def runner(env: dict) -> None:
+            """
+            Given a dictionary of environment variables, calls `flow.run()` with these
+            environment variables set.
+            """
+            image = "{}:{}".format(self.image_name, self.image_tag)
+            client = docker.APIClient(base_url=self.base_url, version="auto")
+            container = client.create_container(image, command="tail -f /dev/null")
+            client.start(container=container.get("Id"))
+            python_script = "import cloudpickle; f = open('{}', 'rb'); flow = cloudpickle.load(f); f.close(); flow.run()".format(
+                flow_location
+            )
+            try:
+                ee = client.exec_create(
+                    container.get("Id"),
+                    'python -c "{}"'.format(python_script),
+                    environment=env,
+                )
+                output = client.exec_start(exec_id=ee, stream=True)
+                for item in output:
+                    for line in item.decode("utf-8").split("\n"):
+                        if line:
+                            print(line)
+            finally:
+                client.stop(container=container.get("Id"))
+
+        return runner
 
     def add_flow(self, flow: "prefect.core.flow.Flow") -> str:
         """
@@ -159,10 +185,10 @@ class Docker(Storage):
             self.base_image = "python:3.6"
 
         image_name, image_tag = self.build_image(push=push)
+        self.image_name = image_name
+        self.image_tag = image_tag
 
-        return Docker(
-            registry_url=self.registry_url, image_name=image_name, image_tag=image_tag
-        )
+        return self
 
     def build_image(self, push: bool = True) -> tuple:
         """
@@ -323,7 +349,7 @@ class Docker(Storage):
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
-                RUN pip install prefect
+                RUN pip install git+https://github.com/PrefectHQ/prefect.git@local-env
 
                 RUN python /root/.prefect/healthcheck.py
                 """.format(
