@@ -124,8 +124,8 @@ class TestCreateFlow:
             assert isinstance(f.result_handler, LocalResultHandler)
 
     def test_create_flow_with_storage(self):
-        f2 = Flow(name="test", storage=prefect.environments.storage.Bytes())
-        assert isinstance(f2.storage, prefect.environments.storage.Bytes)
+        f2 = Flow(name="test", storage=prefect.environments.storage.Memory())
+        assert isinstance(f2.storage, prefect.environments.storage.Memory)
 
     def test_create_flow_with_environment(self):
         f2 = Flow(name="test", environment=prefect.environments.CloudEnvironment())
@@ -1361,12 +1361,20 @@ class TestSerialize:
         assert isinstance(f.environment, prefect.environments.CloudEnvironment)
 
     def test_serialize_includes_storage(self):
-        f = Flow(name="test", storage=prefect.environments.storage.Bytes())
+        f = Flow(name="test", storage=prefect.environments.storage.Memory())
         s_no_build = f.serialize()
         s_build = f.serialize(build=True)
 
-        assert s_no_build["storage"]["type"] == "Bytes"
-        assert s_build["storage"]["type"] == "Bytes"
+        assert s_no_build["storage"]["type"] == "Memory"
+        assert s_build["storage"]["type"] == "Memory"
+
+    def test_serialize_adds_flow_to_storage_if_build(self):
+        f = Flow(name="test", storage=prefect.environments.storage.Memory())
+        s_no_build = f.serialize()
+        assert f.name not in f.storage
+
+        s_build = f.serialize(build=True)
+        assert f.name in f.storage
 
     def test_serialize_fails_with_no_storage(self):
         f = Flow(name="test")

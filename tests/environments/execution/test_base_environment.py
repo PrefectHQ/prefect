@@ -17,7 +17,7 @@ def test_setup_environment_passes():
 
 def test_execute_environment_passes():
     environment = Environment()
-    environment.execute(storage=Docker())
+    environment.execute(storage=Docker(), flow_location="")
     assert environment
 
 
