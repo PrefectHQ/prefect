@@ -1,21 +1,28 @@
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, TYPE_CHECKING, Union
 
 import prefect
 from prefect.environments.storage import Storage
 
+if TYPE_CHECKING:
+    import prefect.core.flow
+    import prefect.engine.flow_runner
+
 
 class Memory(Storage):
     """
-    Base class for Storage objects.
+    Memory Storage class, mainly used for testing.  This class represents the Storage
+    interface for Flows contained in memory.
     """
 
     def __init__(self) -> None:
         self.flows = dict()  # type: Dict[str, prefect.core.flow.Flow]
         super().__init__()
 
-    def get_runner(self, flow_location: str, return_flow: bool = True) -> Any:
+    def get_runner(
+        self, flow_location: str, return_flow: bool = True
+    ) -> Union["prefect.Flow", "prefect.engine.flow_runner.FlowRunner"]:
         """
-        Given a flow name, returns the flow.
+        Given a flow name, returns something capable of running the Flow.
 
         Args:
             - flow_location (str): the name of the flow
@@ -23,7 +30,7 @@ class Memory(Storage):
                 or a `FlowRunner`; defaults to `True`
 
         Returns:
-            - Flow: the requested Flow
+            - Union[Flow, FlowRunner]: the requested Flow or a FlowRunner for the requested Flow
         """
         if not flow_location in self.flows:
             raise ValueError("Flow is not contained in this Storage")

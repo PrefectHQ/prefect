@@ -80,6 +80,11 @@ module.exports = {
           children: getChildren('docs/api/unreleased', 'engine')
         },
         {
+          title: 'prefect.environments',
+          collapsable: true,
+          children: getChildren('docs/api/unreleased', 'environments')
+        },
+        {
           title: 'prefect.tasks',
           collapsable: true,
           children: getChildren('docs/api/unreleased', 'tasks')
