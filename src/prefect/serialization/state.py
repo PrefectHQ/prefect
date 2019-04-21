@@ -75,13 +75,6 @@ class QueuedSchema(MetaStateSchema):
 
     start_time = fields.DateTime(allow_none=True)
 
-    @post_load
-    def create_object(self, data: dict) -> state.State:
-        start_time = data.pop("start_time", None)
-        base_obj = super().create_object(data)
-        base_obj.start_time = start_time
-        return base_obj
-
 
 class ScheduledSchema(PendingSchema):
     class Meta:
