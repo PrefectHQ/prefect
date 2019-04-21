@@ -74,24 +74,6 @@ class Memory(Storage):
             return False
         return obj in self.flows
 
-    def get_flow_location(self, flow_name: str) -> "Flow":
-        """
-        Given a flow, retrieves its location within this Storage object.
-
-        Args:
-            - flow_name (str): the name of a Prefect Flow contained within this Storage
-
-        Returns:
-            - str: the location of the Flow
-
-        Raises:
-            - ValueError: if the provided Flow does not live in this Storage object
-        """
-        if not flow_name in self.flows:
-            raise ValueError("Flow is not contained in this Storage")
-
-        return self.flows[flow_name]
-
     def build(self) -> "Storage":
         """
         Build the Storage object.

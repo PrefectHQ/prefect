@@ -32,17 +32,6 @@ def test_add_flow_raises_if_name_conflict():
     assert 'name "test"' in str(exc.value)
 
 
-def test_get_flow_location_raises_if_not_present():
-    s = Memory()
-    f = Flow("test")
-    with pytest.raises(ValueError):
-        s.get_flow_location("test")
-
-    s.add_flow(f)
-    res = s.get_flow_location("test")
-    assert res is f
-
-
 def test_get_env_runner_raises():
     s = Memory()
     with pytest.raises(NotImplementedError):
@@ -115,5 +104,5 @@ def test_multiple_flows_in_storage():
     assert s.get_runner("test") is f
     assert s.get_runner("other") is g
 
-    assert s.get_flow_location("test") is f
-    assert s.get_flow_location("other") is g
+    assert s.flows["test"] is f
+    assert s.flows["other"] is g

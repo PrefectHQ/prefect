@@ -28,20 +28,7 @@ def test_add_flow_to_docker():
     assert f not in storage
     assert storage.add_flow(f) == "/root/.prefect/test.prefect"
     assert f.name in storage
-
-
-def test_get_flow_location():
-    storage = Docker()
-    f = Flow("test")
-    storage.add_flow(f)
-    assert storage.get_flow_location("test") == "/root/.prefect/test.prefect"
-
-
-def test_get_flow_location_raises_if_not_present():
-    storage = Docker()
-    f = Flow("test")
-    with pytest.raises(ValueError):
-        storage.get_flow_location("test")
+    assert storage.flows[f.name] == "/root/.prefect/test.prefect"
 
 
 def test_empty_docker_storage():
