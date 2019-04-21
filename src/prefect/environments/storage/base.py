@@ -73,7 +73,7 @@ class Storage(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_flow_location(self, flow_name: str) -> str:
+    def get_flow_location(self, flow_name: str) -> Any:
         """
         Given a flow, retrieves its location within this Storage object.
 

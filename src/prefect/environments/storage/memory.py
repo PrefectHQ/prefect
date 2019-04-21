@@ -57,7 +57,7 @@ class Memory(Storage):
         Raises:
             - ValueError: if a flow with the same name is already contained in this storage
         """
-        if flow in self:
+        if flow.name in self:
             raise ValueError(
                 'Name conflict: Flow with the name "{}" is already present in this storage.'.format(
                     flow.name
@@ -70,11 +70,11 @@ class Memory(Storage):
         """
         Method for determining whether an object is contained within this storage.
         """
-        if not isinstance(obj, prefect.core.flow.Flow):
+        if not isinstance(obj, str):
             return False
-        return obj.name in self.flows
+        return obj in self.flows
 
-    def get_flow_location(self, flow_name: str) -> str:
+    def get_flow_location(self, flow_name: str) -> "Flow":
         """
         Given a flow, retrieves its location within this Storage object.
 
@@ -87,10 +87,10 @@ class Memory(Storage):
         Raises:
             - ValueError: if the provided Flow does not live in this Storage object
         """
-        if not flow in self:
+        if not flow_name in self.flows:
             raise ValueError("Flow is not contained in this Storage")
 
-        return [loc for loc, f in self.flows.items() if f.name == flow.name].pop()
+        return self.flows[flow_name]
 
     def build(self) -> "Storage":
         """
