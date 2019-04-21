@@ -21,6 +21,16 @@ def test_memory_serialize():
     assert serialized == {"__version__": prefect.__version__}
 
 
+def test_memory_roundtrip():
+    s = storage.Memory()
+    s.add_flow(prefect.Flow("test"))
+    serialized = MemorySchema().dump(s)
+
+    assert serialized == {"__version__": prefect.__version__}
+    deserialized = MemorySchema().load(serialized)
+    assert deserialized.flows == dict()
+
+
 def test_docker_full_serialize():
     docker = storage.Docker(registry_url="url", image_name="name", image_tag="tag")
     serialized = DockerSchema().dump(docker)
@@ -30,3 +40,21 @@ def test_docker_full_serialize():
     assert serialized["image_name"] == "name"
     assert serialized["image_tag"] == "tag"
     assert serialized["registry_url"] == "url"
+    assert serialized["flows"] == dict()
+
+
+def test_docker_serialize_with_flows():
+    docker = storage.Docker(registry_url="url", image_name="name", image_tag="tag")
+    f = prefect.Flow("test")
+    docker.add_flow(f)
+    serialized = DockerSchema().dump(docker)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["image_name"] == "name"
+    assert serialized["image_tag"] == "tag"
+    assert serialized["registry_url"] == "url"
+    assert serialized["flows"] == {"test": "/root/.prefect/test.prefect"}
+
+    deserialized = DockerSchema().load(serialized)
+    assert f.name in deserialized
