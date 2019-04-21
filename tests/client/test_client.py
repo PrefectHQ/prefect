@@ -257,7 +257,7 @@ def test_client_deploy(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Bytes())
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
     flow_id = client.deploy(flow, project_name="my-default-project")
     assert flow_id == "long-id"
 
@@ -272,7 +272,7 @@ def test_client_deploy_builds_flow(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Bytes())
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
     flow_id = client.deploy(flow, project_name="my-default-project")
 
     ## extract POST info
