@@ -4,8 +4,8 @@ import prefect
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
-    import prefect.core.flow
-    import prefect.engine.flow_runner
+    from prefect.core.flow import Flow
+    from prefect.engine.flow_runner import FlowRunner
 
 
 class Memory(Storage):
@@ -20,7 +20,7 @@ class Memory(Storage):
 
     def get_runner(
         self, flow_location: str, return_flow: bool = True
-    ) -> Union["prefect.Flow", "prefect.engine.flow_runner.FlowRunner"]:
+    ) -> Union["Flow", "FlowRunner"]:
         """
         Given a flow name, returns something capable of running the Flow.
 
@@ -40,7 +40,7 @@ class Memory(Storage):
             runner_cls = prefect.engine.get_default_flow_runner_class()
             return runner_cls(flow=self.flows[flow_location])
 
-    def add_flow(self, flow: "prefect.core.flow.Flow") -> str:
+    def add_flow(self, flow: "Flow") -> str:
         """
         Method for adding a new flow to this Storage object.
 
@@ -67,7 +67,7 @@ class Memory(Storage):
             return False
         return obj.name in self.flows
 
-    def get_flow_location(self, flow: "prefect.core.flow.Flow") -> str:
+    def get_flow_location(self, flow: "Flow") -> str:
         """
         Given a flow, retrieves its location within this Storage object.
 
