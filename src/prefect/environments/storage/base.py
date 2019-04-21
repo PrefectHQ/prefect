@@ -73,22 +73,6 @@ class Storage(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_flow_location(self, flow_name: str) -> Any:
-        """
-        Given a flow, retrieves its location within this Storage object.
-
-        Args:
-            - flow_name (str): the name of a Prefect Flow contained within this Storage
-
-        Returns:
-            - str: the location of the Flow
-
-        Raises:
-            - ValueError: if the provided Flow does not live in this Storage object
-        """
-        pass
-
-    @abstractmethod
     def build(self) -> "Storage":
         """
         Build the Storage object.
