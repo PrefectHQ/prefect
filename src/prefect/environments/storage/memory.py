@@ -11,7 +11,8 @@ if TYPE_CHECKING:
 class Memory(Storage):
     """
     Memory Storage class, mainly used for testing.  This class represents the Storage
-    interface for Flows contained in memory.
+    interface for Flows contained in memory, i.e., flows are simply stored as attributes
+    of this class.
     """
 
     def __init__(self) -> None:
@@ -31,6 +32,9 @@ class Memory(Storage):
 
         Returns:
             - Union[Flow, FlowRunner]: the requested Flow or a FlowRunner for the requested Flow
+
+        Raises:
+            - ValueError: if the flow is not contained in this storage
         """
         if not flow_location in self.flows:
             raise ValueError("Flow is not contained in this Storage")
@@ -49,6 +53,9 @@ class Memory(Storage):
 
         Returns:
             - str: the location of the newly added flow in this Storage object
+
+        Raises:
+            - ValueError: if a flow with the same name is already contained in this storage
         """
         if flow in self:
             raise ValueError(
@@ -67,12 +74,12 @@ class Memory(Storage):
             return False
         return obj.name in self.flows
 
-    def get_flow_location(self, flow: "Flow") -> str:
+    def get_flow_location(self, flow_name: str) -> str:
         """
         Given a flow, retrieves its location within this Storage object.
 
         Args:
-            - flow (Flow): a Prefect Flow contained within this Storage
+            - flow_name (str): the name of a Prefect Flow contained within this Storage
 
         Returns:
             - str: the location of the Flow

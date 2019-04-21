@@ -82,3 +82,5 @@ Environments will not become more hyper-specific and detailed. As seen above the
 Any currently created flows will need to be redeployed if the agent that executes them is changed to use this newer format. They will be incompatible otherwise.
 
 ## Actions
+
+This PIN was largely superseded by [PIN 7](PIN-7-Storage-Execution.md).
