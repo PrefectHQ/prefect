@@ -75,6 +75,7 @@ class Docker(Storage):
                 )
             )
 
+    # TODO: implement this
     def get_env_runner(self, flow_location: str) -> Any:
         """
         Given a flow_location within this Storage object, returns something with a
@@ -86,7 +87,7 @@ class Docker(Storage):
         Returns:
             - a runner interface (something with a `run()` method for running the flow)
         """
-        pass
+        raise NotImplementedError()
 
     def add_flow(self, flow: "prefect.core.flow.Flow") -> str:
         """
