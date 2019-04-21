@@ -126,6 +126,11 @@ title = "Cloud"
 module = "prefect.engine.cloud"
 classes = ["CloudFlowRunner", "CloudTaskRunner", "CloudResultHandler"]
 
+[pages.environments.storage]
+title = "Storage"
+module = "prefect.environments.storage"
+classes = ["Storage", "Docker", "Memory"]
+
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
 module = "prefect.tasks.control_flow"

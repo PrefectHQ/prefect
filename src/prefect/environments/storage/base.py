@@ -1,19 +1,3 @@
-"""
-Storage objects are used to store Prefect flows so that they can be moved, shared, and
-executed. This is the base Storage class which requires all subclasses to implement
-a particular interface:
-    - an `add_flow` method for adding new flows to Storage
-    - a `get_flow_location` method for determining a Flow's location in Storage
-    - a `build` method for building the Storage object
-    - the `__contains__` special method for determining whether a given Flow is in this Storage
-    - either a `get_runner` method for retrieving a runner-like object for the flow, or a `get_env_runner`
-        method for exposing an interface for setting environment variables for a flow run
-
-The `build` function is meant to take a Prefect flow and store it
-then return that Storage object which contains information about how and where the flow
-is stored.
-"""
-
 from abc import ABCMeta, abstractmethod
 from typing import Any, TYPE_CHECKING
 
@@ -25,7 +9,7 @@ if TYPE_CHECKING:
 
 class Storage(metaclass=ABCMeta):
     """
-    Base class for Storage objects.
+    Base interface for Storage objects.
     """
 
     def __init__(self) -> None:
@@ -33,7 +17,7 @@ class Storage(metaclass=ABCMeta):
 
     def get_env_runner(self, flow_location: str) -> Any:
         """
-        Given a flow_location within this Storage object, returns something with a
+        Given a `flow_location` within this Storage object, returns something with a
         `run()` method which accepts a collection of environment variables for running the flow.
 
         Args:

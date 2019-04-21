@@ -21,17 +21,10 @@ class Docker(Storage):
     Docker storage provides a mechanism for storing Prefect flows in Docker images
     and optionally pushing them to a registry.
 
-    There are two ways this storage option can be specified: a `dockerfile` string can be
-    provided to specify a customizable dockerfile to build or some of the preset arguments
-    (i.e. `base_image` and `python_dependencies`) can be provided to a temporary dockerfile
-    which is used to build the image.
+    A user specifies a `base_image` and other optional dependencies (e.g., `python_dependencies`)
+    and `build()` will create a temporary Dockerfile which is used to build the image.
 
-    *Note*: Either a dockerfile or base image must be provided, but *not* both. If neither
-    are provided then this will default to a Prefect base image using your current version
-    of Prefect.
-
-    If a dockerfile is provided then it is required that that dockerfile can run both
-    `pip` and `python` for installing Prefect and running a flow healthcheck.
+    Note that the `base_image` must be capable of `pip` installing.
 
     Args:
         - registry_url (str, optional): URL of a registry to push the image to; image will not be pushed if not provided
