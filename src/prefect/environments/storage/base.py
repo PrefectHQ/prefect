@@ -18,7 +18,9 @@ class Storage(metaclass=ABCMeta):
     def get_env_runner(self, flow_location: str) -> Any:
         """
         Given a `flow_location` within this Storage object, returns something with a
-        `run()` method which accepts a collection of environment variables for running the flow.
+        `run()` method that accepts a collection of environment variables for running the flow;
+        for example, to specify an executor you would need to provide
+        `{'PREFECT__ENGINE__EXECUTOR': ...}`.
 
         Args:
             - flow_location (str): the location of a flow within this Storage
@@ -71,12 +73,12 @@ class Storage(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_flow_location(self, flow: "prefect.core.flow.Flow") -> str:
+    def get_flow_location(self, flow_name: str) -> str:
         """
         Given a flow, retrieves its location within this Storage object.
 
         Args:
-            - flow (Flow): a Prefect Flow contained within this Storage
+            - flow_name (str): the name of a Prefect Flow contained within this Storage
 
         Returns:
             - str: the location of the Flow

@@ -34,14 +34,14 @@ def test_get_flow_location():
     storage = Docker()
     f = Flow("test")
     storage.add_flow(f)
-    assert storage.get_flow_location(f) == "/root/.prefect/test.prefect"
+    assert storage.get_flow_location("test") == "/root/.prefect/test.prefect"
 
 
 def test_get_flow_location_raises_if_not_present():
     storage = Docker()
     f = Flow("test")
     with pytest.raises(ValueError):
-        storage.get_flow_location(f)
+        storage.get_flow_location("test")
 
 
 def test_empty_docker_storage():

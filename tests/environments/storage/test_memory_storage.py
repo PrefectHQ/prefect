@@ -35,10 +35,10 @@ def test_get_flow_location_raises_if_not_present():
     s = Memory()
     f = Flow("test")
     with pytest.raises(ValueError):
-        s.get_flow_location(f)
+        s.get_flow_location("test")
 
     s.add_flow(f)
-    res = s.get_flow_location(f)
+    res = s.get_flow_location("test")
     assert res == "test"
 
 
@@ -113,5 +113,5 @@ def test_multiple_flows_in_storage():
     assert s.get_runner("test") is f
     assert s.get_runner("other") is g
 
-    assert s.get_flow_location(f) == "test"
-    assert s.get_flow_location(g) == "other"
+    assert s.get_flow_location("test") == "test"
+    assert s.get_flow_location("other") == "other"

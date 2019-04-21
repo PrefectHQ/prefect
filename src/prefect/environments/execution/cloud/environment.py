@@ -37,6 +37,9 @@ class CloudEnvironment(Environment):
         Args:
             - storage (Docker): the Docker storage object that contains information relating
                 to the image which houses the flow
+
+        Raises:
+            - TypeError: if the storage is not `Docker`
         """
         if not isinstance(storage, Docker):
             raise TypeError("CloudEnvironment requires a Docker storage option")

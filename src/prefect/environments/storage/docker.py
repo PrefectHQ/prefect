@@ -150,12 +150,12 @@ class Docker(Storage):
         flow_path = "/root/.prefect/{}.prefect".format(obj.name.replace(" ", ""))
         return flow_path in self.flows
 
-    def get_flow_location(self, flow: "prefect.core.flow.Flow") -> str:
+    def get_flow_location(self, flow_name: str) -> str:
         """
         Given a flow, retrieves its location within this Storage object.
 
         Args:
-            - flow (Flow): a Prefect Flow contained within this Storage
+            - flow_name (str): the name of a Prefect Flow contained within this Storage
 
         Returns:
             - str: the location of the Flow
