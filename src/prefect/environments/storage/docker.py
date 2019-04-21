@@ -349,7 +349,7 @@ class Docker(Storage):
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
-                RUN pip install git+https://github.com/PrefectHQ/prefect.git@local-env
+                RUN pip install prefect
 
                 RUN python /root/.prefect/healthcheck.py
                 """.format(
