@@ -20,7 +20,7 @@ def describe():
 @click.option("--project", "-p", help="The name of a project to query.")
 def flow(name, version, project):
     """
-    Query information regarding your Prefect flows.
+    Describe your Prefect flow.
     """
 
     query = {
