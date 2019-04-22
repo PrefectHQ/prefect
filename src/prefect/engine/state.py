@@ -562,6 +562,19 @@ class Failed(Finished):
     color = "#FF0000"
 
 
+class Aborted(Failed):
+    """
+    Finished state indicating that a user aborted the flow run manually.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+    """
+
+    color = "#FF0000"
+
+
 class TimedOut(Failed):
     """
     Finished state indicating failure due to execution timeout.

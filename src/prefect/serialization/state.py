@@ -146,6 +146,11 @@ class FailedSchema(FinishedSchema):
         object_class = state.Failed
 
 
+class AbortedSchema(FailedSchema):
+    class Meta:
+        object_class = state.Aborted
+
+
 class TimedOutSchema(FinishedSchema):
     class Meta:
         object_class = state.TimedOut
@@ -182,6 +187,7 @@ class StateSchema(OneOfSchema):
 
     # map class name to schema
     type_schemas = {
+        "Aborted": AbortedSchema,
         "Cached": CachedSchema,
         "ClientFailed": ClientFailedSchema,
         "Failed": FailedSchema,
