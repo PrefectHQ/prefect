@@ -41,7 +41,7 @@ class State:
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#000000"
+    color = "#696969"
 
     def __init__(self, message: str = None, result: Any = NoResult):
         self.message = message
@@ -234,7 +234,7 @@ class Pending(State):
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
-    color = "#d3d3d3"
+    color = "#7ebdff"
 
     def __init__(
         self,
@@ -258,7 +258,7 @@ class Paused(Pending):
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
-    color = "#800000"
+    color = "#cfd8dc"
 
 
 class Scheduled(Pending):
@@ -278,7 +278,7 @@ class Scheduled(Pending):
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
-    color = "#b0c4de"
+    color = "#ffab00"
 
     def __init__(
         self,
@@ -300,8 +300,6 @@ class _MetaState(State):
     This parent class should NOT generally be used, but allows all meta states to be
     easily identified.
     """
-
-    color = "#b0c4de"
 
     def __init__(
         self, message: str = None, result: Any = NoResult, state: State = None
@@ -327,6 +325,8 @@ class ClientFailed(_MetaState):
 
     """
 
+    color = "#eb0000"
+
 
 class Submitted(_MetaState):
     """
@@ -347,6 +347,8 @@ class Submitted(_MetaState):
 
     """
 
+    color = "#ffdf5d"
+
 
 class Queued(_MetaState):
     """
@@ -364,6 +366,8 @@ class Queued(_MetaState):
         - start_time (datetime): a time the state is queued until. Defaults to `now`.
 
     """
+
+    color = "#ffea7f"
 
     def __init__(
         self,
@@ -389,7 +393,7 @@ class Resume(Scheduled):
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
-    color = "#20B2AA"
+    color = "#fb8532"
 
 
 class Retrying(Scheduled):
@@ -408,7 +412,7 @@ class Retrying(Scheduled):
             if that value isn't found.
     """
 
-    color = "#FFFF00"
+    color = "#f66a0a"
 
     def __init__(
         self,
@@ -445,7 +449,7 @@ class Running(State):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#00FF00"
+    color = "#3d67ff"
 
 
 # -------------------------------------------------------------------
@@ -463,7 +467,7 @@ class Finished(State):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#BA55D3"
+    color = "#003ccb"
 
 
 class Success(Finished):
@@ -476,7 +480,7 @@ class Success(Finished):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#008000"
+    color = "#28a745"
 
 
 class Cached(Success):
@@ -495,7 +499,7 @@ class Cached(Success):
             expires and can no longer be used. Defaults to `None`
     """
 
-    color = "#ffa500"
+    color = "#34d058"
 
     def __init__(
         self,
@@ -533,7 +537,7 @@ class Mapped(Success):
             of itself to map its operation over its inputs. Those copies are the children.
     """
 
-    color = "#97FFFF"
+    color = "#003ccb"
 
     def __init__(
         self,
@@ -559,7 +563,7 @@ class Failed(Finished):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#FF0000"
+    color = "#eb0000"
 
 
 class Aborted(Failed):
@@ -572,7 +576,7 @@ class Aborted(Failed):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#FF0000"
+    color = "#c42800"
 
 
 class TimedOut(Failed):
@@ -587,7 +591,7 @@ class TimedOut(Failed):
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
-    color = "#CDC9A5"
+    color = "#ff4e33"
 
     def __init__(
         self,
@@ -609,7 +613,7 @@ class TriggerFailed(Failed):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#F08080"
+    color = "#ff5131"
 
 
 class Skipped(Success):
@@ -622,7 +626,7 @@ class Skipped(Success):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#F0FFF0"
+    color = "#62757f"
 
     # note: this does not allow setting "cached" as Success states do
     def __init__(self, message: str = None, result: Any = NoResult):
