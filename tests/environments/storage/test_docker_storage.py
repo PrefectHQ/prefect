@@ -64,6 +64,11 @@ def test_empty_docker_storage():
     assert storage.base_url == "test_url"
 
 
+def test_files_not_absolute_path():
+    with pytest.raises(ValueError):
+        storage = Docker(files={"test": "test"})
+
+
 def test_build_base_image(monkeypatch):
     storage = Docker(registry_url="reg", base_image="test")
 
@@ -265,3 +270,11 @@ def test_docker_storage_doesnt_have_get_runner_method():
     storage = Docker(base_image="python:3.6")
     with pytest.raises(NotImplementedError):
         storage.get_runner("")
+
+
+def test_add_similar_flows_fails():
+    storage = Docker()
+    flow = prefect.Flow("test")
+    storage.add_flow(flow)
+    with pytest.raises(ValueError):
+        storage.add_flow(flow)
