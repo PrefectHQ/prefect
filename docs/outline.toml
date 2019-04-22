@@ -76,6 +76,7 @@ classes = [
             "Mapped",
             "Skipped",
             "Failed",
+            "Aborted",
             "TriggerFailed",
             "TimedOut",
         ]
