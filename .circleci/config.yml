@@ -157,7 +157,7 @@ jobs:
       - run:
           name: Authenticate with Docker Hub and push
           command: |
-            docker login --username  prefectci --password $DOCKER_HUB_PW
+            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect
 
 
