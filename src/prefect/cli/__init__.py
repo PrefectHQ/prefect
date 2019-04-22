@@ -9,6 +9,7 @@ import requests
 import sys
 import prefect
 
+from .describe import describe as _describe
 from .get import get as _get
 
 
@@ -20,6 +21,7 @@ def cli():
     pass
 
 
+cli.add_command(_describe)
 cli.add_command(_get)
 
 
