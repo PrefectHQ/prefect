@@ -9,7 +9,7 @@ from prefect.utilities.graphql import with_args, EnumValue
 @click.group()
 def describe():
     """
-    Get commands that refer to querying Prefect Cloud metadata.
+    Describe commands that render JSON output of Prefect object metadata.
     """
     pass
 

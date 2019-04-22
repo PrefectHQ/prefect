@@ -84,7 +84,7 @@ def flows(name, version, project, all_versions):
 
 
 @get.command()
-@click.option("--name", "-n", help="A flow name to query.")
+@click.option("--name", "-n", help="A project name to query.")
 def projects(name):
     """
     Query information regarding your Prefect projects.
