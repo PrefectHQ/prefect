@@ -1008,9 +1008,20 @@ class TestFlowVisualize:
             )
 
         # one colored node for each mapped result
-        assert 'label="a_nice_task <map>" color="#00800080"' in graph.source
-        assert 'label="a_nice_task <map>" color="#FF000080"' in graph.source
-        assert 'label=a_list_task color="#00800080"' in graph.source
+        assert (
+            'label="a_nice_task <map>" color="{success}80"'.format(
+                success=Success.color
+            )
+            in graph.source
+        )
+        assert (
+            'label="a_nice_task <map>" color="{failed}80"'.format(failed=Failed.color)
+            in graph.source
+        )
+        assert (
+            'label=a_list_task color="{success}80"'.format(success=Success.color)
+            in graph.source
+        )
         assert 'label=8 color="#00000080"' in graph.source
 
         # two edges for each input to add()
