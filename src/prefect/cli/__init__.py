@@ -21,6 +21,8 @@ def cli():
     pass
 
 
+# TODO: Look into adding `--watch` to all options
+
 cli.add_command(_describe)
 cli.add_command(_get)
 

@@ -132,3 +132,12 @@ def projects(name):
             stralign="left",
         )
     )
+
+
+@get.command()
+def flow_runs():
+    """
+    Query information regarding Prefect flow runs.
+    """
+    # Allow optional limit (default to 10), order by most recent runs
+    pass

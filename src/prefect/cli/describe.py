@@ -18,7 +18,7 @@ def describe():
 @click.option("--name", "-n", required=True, help="A flow name to query.")
 @click.option("--version", "-v", type=int, help="A flow version to query.")
 @click.option("--project", "-p", help="The name of a project to query.")
-def flow(name, version, project):
+def flows(name, version, project):
     """
     Describe your Prefect flow.
     """
@@ -65,3 +65,21 @@ def flow(name, version, project):
         click.echo(flow_data[0])
     else:
         click.secho("{} not found".format(name), fg="red")
+
+
+@describe.command()
+def tasks():
+    """
+    Describe a Prefect task.
+    """
+    # Must supply a flow name, gives big task output from metadata
+    # Also give edges?
+    pass
+
+
+@describe.command()
+def flow_runs():
+    """
+    Describe a Prefect flow run.
+    """
+    pass
