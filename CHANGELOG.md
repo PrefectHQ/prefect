@@ -13,7 +13,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Flow now has optional `storage` keyword - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 - Flow `environment` argument now defaults to a `CloudEnvironment` - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 - `Queued` states accept `start_time` arguments - [#955](https://github.com/PrefectHQ/prefect/pull/955)
-- Add new `Memory`storage for local testing - [#956](https://github.com/PrefectHQ/prefect/pull/956)
+- Add new `Memory` storage for local testing - [#956](https://github.com/PrefectHQ/prefect/pull/956)
+- Add new `LocalEnvironment` execution environment for local testing - [#957](https://github.com/PrefectHQ/prefect/pull/957)
 
 ### Task Library
 
