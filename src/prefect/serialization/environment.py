@@ -1,11 +1,16 @@
 import prefect
-from prefect.environments import CloudEnvironment, Environment
+from prefect.environments import CloudEnvironment, Environment, LocalEnvironment
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema
 
 
 class BaseEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = Environment
+
+
+class LocalEnvironmentSchema(ObjectSchema):
+    class Meta:
+        object_class = LocalEnvironment
 
 
 class CloudEnvironmentSchema(ObjectSchema):
@@ -22,4 +27,5 @@ class EnvironmentSchema(OneOfSchema):
     type_schemas = {
         "CloudEnvironment": CloudEnvironmentSchema,
         "Environment": BaseEnvironmentSchema,
+        "LocalEnvironment": LocalEnvironmentSchema,
     }
