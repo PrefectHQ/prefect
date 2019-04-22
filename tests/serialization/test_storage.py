@@ -1,6 +1,11 @@
 import prefect
 from prefect.environments import storage
-from prefect.serialization.storage import BaseStorageSchema, DockerSchema, MemorySchema
+from prefect.serialization.storage import (
+    BaseStorageSchema,
+    DockerSchema,
+    MemorySchema,
+    BytesSchema,
+)
 
 
 def test_docker_empty_serialize():
@@ -58,3 +63,23 @@ def test_docker_serialize_with_flows():
 
     deserialized = DockerSchema().load(serialized)
     assert f.name in deserialized
+
+
+def test_bytes_empty_serialize():
+    b = storage.Bytes()
+    serialized = BytesSchema().dump(b)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["flows"] == dict()
+
+
+def test_bytes_roundtrip():
+    s = storage.Bytes()
+    s.add_flow(prefect.Flow("test"))
+    serialized = BytesSchema().dump(s)
+    deserialized = BytesSchema().load(serialized)
+
+    assert "test" in deserialized
+    runner = deserialized.get_runner("test")
+    assert runner.run().is_successful()
