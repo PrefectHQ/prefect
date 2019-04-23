@@ -278,3 +278,13 @@ def test_add_similar_flows_fails():
     storage.add_flow(flow)
     with pytest.raises(ValueError):
         storage.add_flow(flow)
+
+
+def test_add_flow_with_weird_name_is_cleaned():
+    storage = Docker()
+    flow = prefect.Flow("WELL what do you know?!~? looks like a test!!!!")
+    loc = storage.add_flow(flow)
+    assert "?" not in loc
+    assert "!" not in loc
+    assert " " not in loc
+    assert "~" not in loc
