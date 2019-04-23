@@ -1420,6 +1420,55 @@ class TestFlowRunMethod:
         assert "Cease" in str(exc.value)
         assert t.call_count == 2
 
+    def test_flow_dot_run_doesnt_run_on_schedule(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
+
+            def next(self, n):
+                if self.call_count < 2:
+                    self.call_count += 1
+                    # add small delta to trigger "naptime"
+                    return [pendulum.now("utc").add(seconds=0.05)]
+                else:
+                    raise SyntaxError("Cease scheduling!")
+
+        class StatefulTask(Task):
+            call_count = 0
+
+            def run(self):
+                self.call_count += 1
+
+        t = StatefulTask()
+        schedule = MockSchedule()
+        f = Flow(name="test", tasks=[t], schedule=schedule)
+        state = f.run(run_on_schedule=False)
+        assert t.call_count == 1
+
+    def test_flow_dot_run_responds_to_config(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
+
+            def next(self, n):
+                if self.call_count < 2:
+                    self.call_count += 1
+                    # add small delta to trigger "naptime"
+                    return [pendulum.now("utc").add(seconds=0.05)]
+                else:
+                    raise SyntaxError("Cease scheduling!")
+
+        class StatefulTask(Task):
+            call_count = 0
+
+            def run(self):
+                self.call_count += 1
+
+        t = StatefulTask()
+        schedule = MockSchedule()
+        f = Flow(name="test", tasks=[t], schedule=schedule)
+        with set_temporary_config({"flows.run_on_schedule": False}):
+            state = f.run()
+        assert t.call_count == 1
+
     def test_flow_dot_run_stops_on_schedule(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
