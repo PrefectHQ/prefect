@@ -23,7 +23,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix Docker storage not pulling correct flow path - [#968](https://github.com/PrefectHQ/prefect/pull/968)
+- Set Docker storage to pull master git branch until next version is released - [#968](https://github.com/PrefectHQ/prefect/pull/968)
 
 ### Breaking Changes
 
