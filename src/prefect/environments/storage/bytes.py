@@ -6,7 +6,6 @@ from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
-    from prefect.engine.flow_runner import FlowRunner
 
 
 class Bytes(Storage):
@@ -19,33 +18,23 @@ class Bytes(Storage):
         self.flows = dict()  # type: Dict[str, bytes]
         super().__init__()
 
-    def get_runner(
-        self, flow_location: str, return_flow: bool = True
-    ) -> Union["Flow", "FlowRunner"]:
+    def get_flow(self, flow_location: str) -> "Flow":
         """
-        Given a flow name, returns something capable of running the Flow.
+        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
 
         Args:
-            - flow_location (str): the name of the flow
-            - return_flow (bool, optional): whether to return the full Flow object
-                or a `FlowRunner`; defaults to `True`
+            - flow_location (str): the location of a flow within this Storage
 
         Returns:
-            - Union[Flow, FlowRunner]: the requested Flow or a FlowRunner for the requested Flow
+            - Flow: the requested flow
 
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
         if not flow_location in self.flows:
             raise ValueError("Flow is not contained in this Storage")
-        if return_flow:
-            flow_bytes = self.flows[flow_location]
-            return cloudpickle.loads(flow_bytes)
-        else:
-            runner_cls = prefect.engine.get_default_flow_runner_class()
-            flow_bytes = self.flows[flow_location]
-            flow = cloudpickle.loads(flow_bytes)
-            return runner_cls(flow=flow)
+        flow_bytes = self.flows[flow_location]
+        return cloudpickle.loads(flow_bytes)
 
     def add_flow(self, flow: "Flow") -> str:
         """

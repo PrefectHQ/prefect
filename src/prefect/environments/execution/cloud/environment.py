@@ -3,7 +3,7 @@ import logging
 import time
 import uuid
 from os import path
-from typing import List
+from typing import Any, List
 
 import docker
 import yaml
@@ -29,7 +29,9 @@ class CloudEnvironment(Environment):
     def __init__(self) -> None:
         self.identifier_label = str(uuid.uuid4())
 
-    def execute(self, storage: "Docker", flow_location: str) -> None:  # type: ignore
+    def execute(  # type: ignore
+        self, storage: "Docker", flow_location: str, **kwargs: Any
+    ) -> None:
         """
         Create a single Kubernetes job that spins up a dask scheduler, dynamically
         creates worker pods, and runs the flow.
@@ -37,6 +39,8 @@ class CloudEnvironment(Environment):
         Args:
             - storage (Docker): the Docker storage object that contains information relating
                 to the image which houses the flow
+            - flow_location (str): the location of the Flow to execute
+            - **kwargs (Any): additional keyword arguments to pass to the runner
 
         Raises:
             - TypeError: if the storage is not `Docker`

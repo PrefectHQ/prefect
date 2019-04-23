@@ -81,5 +81,5 @@ def test_bytes_roundtrip():
     deserialized = BytesSchema().load(serialized)
 
     assert "test" in deserialized
-    runner = deserialized.get_runner("test")
+    runner = deserialized.get_flow("test")
     assert runner.run().is_successful()
