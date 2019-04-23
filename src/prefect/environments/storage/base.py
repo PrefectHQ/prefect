@@ -30,18 +30,15 @@ class Storage(metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def get_runner(self, flow_location: str, return_flow: bool = True) -> Any:
+    def get_flow(self, flow_location: str) -> "prefect.core.flow.Flow":
         """
-        Given a flow_location within this Storage object, returns something with a
-        `run()` method which accepts the standard runner kwargs and can run the flow.
+        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
 
         Args:
             - flow_location (str): the location of a flow within this Storage
-            - return_flow (bool, optional): whether to return the full Flow object
-                or a `FlowRunner`; defaults to `True`
 
         Returns:
-            - a runner interface (something with a `run()` method for running the flow)
+            - Flow: the requested flow
         """
         raise NotImplementedError()
 
