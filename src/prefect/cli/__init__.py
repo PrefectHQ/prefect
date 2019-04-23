@@ -34,7 +34,7 @@ def execute_flow(storage_metadata, environment_metadata, flow_location):
     environment = environment_schema.load(json.loads(environment_metadata))
 
     environment.setup(storage)
-    environment.execute(storage)
+    environment.execute(storage, flow_location)
 
 
 @cli.command()
