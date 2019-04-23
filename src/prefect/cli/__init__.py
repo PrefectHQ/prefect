@@ -65,4 +65,3 @@ def execute_cloud_flow():
 
     environment.setup(storage)
     environment.execute(storage, flow_file_path)
-
