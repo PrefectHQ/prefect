@@ -266,10 +266,10 @@ def test_docker_storage_name():
     assert storage.name == "test1/test2:test3"
 
 
-def test_docker_storage_doesnt_have_get_runner_method():
+def test_docker_storage_doesnt_have_get_flow_method():
     storage = Docker(base_image="python:3.6")
     with pytest.raises(NotImplementedError):
-        storage.get_runner("")
+        storage.get_flow("")
 
 
 def test_add_similar_flows_fails():
