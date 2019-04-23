@@ -898,7 +898,11 @@ class Flow:
         return flow_state
 
     def run(
-        self, parameters: Dict[str, Any] = None, runner_cls: type = None, **kwargs: Any
+        self,
+        parameters: Dict[str, Any] = None,
+        run_on_schedule: bool = None,
+        runner_cls: type = None,
+        **kwargs: Any
     ) -> "prefect.engine.state.State":
         """
         Run the flow on its schedule using an instance of a FlowRunner.  If the Flow has no schedule,
@@ -910,6 +914,8 @@ class Flow:
 
         Args:
             - parameters (Dict[str, Any], optional): values to pass into the runner
+            - run_on_schedule (bool, optional): whether to run this flow on its schedule, or simply run a single execution;
+                if not provided, will default to the value set in your user config
             - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
             - **kwargs: additional keyword arguments; if any provided keywords
                 match known parameter names, they will be used as such. Otherwise they will be passed to the
@@ -963,9 +969,15 @@ class Flow:
                 )
             )
 
-        state = self._run_on_schedule(
-            parameters=parameters, runner_cls=runner_cls, **kwargs
-        )
+        if run_on_schedule is None:
+            run_on_schedule = cast(bool, prefect.config.flows.run_on_schedule)
+        if run_on_schedule is False:
+            runner = runner_cls(flow=self)
+            state = runner.run(parameters=parameters, **kwargs)
+        else:
+            state = self._run_on_schedule(
+                parameters=parameters, runner_cls=runner_cls, **kwargs
+            )
 
         # state always should return a dict of tasks. If it's NoResult (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
