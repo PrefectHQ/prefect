@@ -779,35 +779,6 @@ def test_flow_runner_captures_and_exposes_dask_errors(executor):
     assert str(state.result) == "can't pickle _thread.lock objects"
 
 
-@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
-def test_flow_runner_allows_for_parallelism_with_prints(capsys, executor):
-
-    # related:
-    # "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
-
-    @prefect.task
-    def alice():
-        for _ in range(75):
-            print("alice")
-
-    @prefect.task
-    def bob():
-        for _ in range(75):
-            print("bob")
-
-    with Flow(name="test") as flow:
-        alice(), bob()
-
-    state = flow.run(executor=executor)
-    assert state.is_successful()
-    captured = capsys.readouterr()
-
-    alice_first = ["alice"] * 75 + ["bob"] * 75
-    bob_first = ["bob"] * 75 + ["alice"] * 75
-    assert captured.out != alice_first
-    assert captured.out != bob_first
-
-
 @pytest.mark.xfail(
     reason="This test fails on CircleCI for Python 3.5+ if not enough cores/workers are available."
 )
