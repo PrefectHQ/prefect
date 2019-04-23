@@ -290,11 +290,12 @@ class Docker(Storage):
             # Write all flows to file and load into the image
             copy_flows = ""
             for flow_name, flow_location in self.flows.items():
-                flow_path = os.path.join(directory, "{}.flow".format(flow_name))
+                clean_name = slugify(flow_name)
+                flow_path = os.path.join(directory, "{}.flow".format(clean_name))
                 with open(flow_path, "wb") as f:
                     cloudpickle.dump(self._flows[flow_name], f)
                 copy_flows += "COPY {source} {dest}\n".format(
-                    source="{}.flow".format(flow_name), dest=flow_location
+                    source="{}.flow".format(clean_name), dest=flow_location
                 )
 
             # Write a healthcheck script into the image
