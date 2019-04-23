@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import textwrap
 import uuid
+from slugify import slugify
 from typing import Any, Callable, Dict, Iterable, List
 
 import docker
@@ -125,7 +126,7 @@ class Docker(Storage):
                     flow.name
                 )
             )
-        flow_path = "/root/.prefect/{}.prefect".format(flow.name.replace(" ", ""))
+        flow_path = "/root/.prefect/{}.prefect".format(slugify(flow.name))
         self.flows[flow.name] = flow_path
         self._flows[flow.name] = flow  # needed prior to build
         return flow_path
