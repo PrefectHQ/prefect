@@ -62,4 +62,4 @@ def execute_cloud_flow():
     environment_schema = prefect.serialization.environment.EnvironmentSchema()
     environment = environment_schema.load(flow_data.environment)
 
-    environment.execute(storage=storage, flow_file_path=storage.flows[flow_data.name])
+    environment.execute(storage=storage, flow_location=storage.flows[flow_data.name])
