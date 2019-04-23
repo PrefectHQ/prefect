@@ -185,6 +185,27 @@ def test_create_dockerfile_from_base_image():
         assert "FROM python:3.6" in output
 
 
+def test_create_dockerfile_with_weird_flow_name():
+    with tempfile.TemporaryDirectory() as tempdir_outside:
+
+        with open(os.path.join(tempdir_outside, "test"), "w+") as t:
+            t.write("asdf")
+
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            storage = Docker(registry_url="test1", base_image="test3")
+            f = Flow("WHAT IS THIS !!! ~~~~")
+            storage.add_flow(f)
+            storage.create_dockerfile_object(directory=tempdir)
+
+            with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+                output = dockerfile.read()
+
+            assert (
+                "COPY what-is-this.flow /root/.prefect/what-is-this.prefect" in output
+            )
+
+
 def test_create_dockerfile_from_everything():
 
     with tempfile.TemporaryDirectory() as tempdir_outside:
