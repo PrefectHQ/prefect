@@ -39,34 +39,18 @@ def test_get_env_runner_raises():
         s.get_env_runner("")
 
 
-def test_get_runner_raises_if_flow_not_present():
+def test_get_flow_raises_if_flow_not_present():
     s = Bytes()
     with pytest.raises(ValueError):
-        s.get_runner("test")
+        s.get_flow("test")
 
 
-def test_get_runner_returns_flow_or_flow_runner():
+def test_get_flow_returns_flow():
     s = Bytes()
     f = Flow("test")
     s.add_flow(f)
-    runner = s.get_runner("test")
+    runner = s.get_flow("test")
     assert runner == f
-
-    with set_temporary_config({"engine.flow_runner.default_class": FlowRunner}):
-        runner = s.get_runner("test", return_flow=False)
-        assert isinstance(runner, FlowRunner)
-        assert runner.flow == f
-
-
-def test_get_runner_returns_flow_or_flow_runner_responds_to_config():
-    s = Bytes()
-    f = Flow("test")
-    s.add_flow(f)
-
-    with set_temporary_config({"engine.flow_runner.default_class": CloudFlowRunner}):
-        runner = s.get_runner("test", return_flow=False)
-        assert isinstance(runner, CloudFlowRunner)
-        assert runner.flow == f
 
 
 def test_containment():
@@ -102,8 +86,8 @@ def test_multiple_flows_in_storage():
     assert "other" in s
     assert "not" not in s
 
-    assert s.get_runner("test") == f
-    assert s.get_runner("other") == g
+    assert s.get_flow("test") == f
+    assert s.get_flow("other") == g
 
     assert isinstance(s.flows["test"], bytes)
     assert isinstance(s.flows["other"], bytes)

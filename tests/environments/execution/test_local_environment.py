@@ -40,11 +40,11 @@ def test_environment_execute():
 
 def test_environment_execute_with_env_runner():
     class TestStorage(Memory):
-        def get_runner(self, *args, **kwargs):
+        def get_flow(self, *args, **kwargs):
             raise NotImplementedError()
 
         def get_env_runner(self, flow_loc):
-            runner = super().get_runner(flow_loc)
+            runner = super().get_flow(flow_loc)
             return lambda env: runner.run()
 
     global_dict = {}
