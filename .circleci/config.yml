@@ -123,7 +123,7 @@ jobs:
       - run:
           # temporary patch until https://github.com/pytest-dev/pytest-cov/pull/262 is released
           name: Install latest pytest-cov
-          command: pip install git+https://github.com/pytest-dev/pytest-cov.git@master
+          command: pip uninstall pytest-cov -y && pip install git+https://github.com/pytest-dev/pytest-cov.git@master
 
       - run:
           name: Run tests
