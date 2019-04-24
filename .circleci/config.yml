@@ -109,7 +109,29 @@ jobs:
   test-3.7:
     docker:
       - image: python:3.7
-    steps: *run_test_steps
+    steps: 
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Install prefect
+          command: pip install ".[all_extras]"
+
+      - run:
+          # temporary patch until https://github.com/pytest-dev/pytest-cov/pull/262 is released
+          name: Install latest pytest-cov
+          command: pip install git+https://github.com/pytest-dev/pytest-cov.git@master
+
+      - run:
+          name: Run tests
+          command: pytest --cov=prefect .
+
+      - run:
+          name: Upload Coverage
+          command: bash <(curl -s https://codecov.io/bash) -cF python
 
   test-airflow:
     docker:
