@@ -332,7 +332,7 @@ class Docker(Storage):
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
-                RUN pip install git+https://github.com/PrefectHQ/prefect.git@master#egg=prefect[kubernetes, dask-kubernetes]
+                RUN pip install git+https://github.com/PrefectHQ/prefect.git@master#egg=prefect[kubernetes,dask-kubernetes]
                 # RUN pip install prefect
 
                 RUN python /root/.prefect/healthcheck.py
