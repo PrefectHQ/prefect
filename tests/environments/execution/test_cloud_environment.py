@@ -4,6 +4,7 @@ import tempfile
 from os import path
 from unittest.mock import MagicMock
 
+import cloudpickle
 import pytest
 import yaml
 
@@ -99,8 +100,8 @@ def test_run_flow(monkeypatch):
         with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
             flow = prefect.Flow("test")
             flow_path = os.path.join(directory, "flow_env.prefect")
-            with open(flow_path, "w") as f:
-                json.dump(flow.serialize(), f)
+            with open(flow_path, "wb") as f:
+                cloudpickle.dump(flow, f)
 
         with set_temporary_config({"cloud.auth_token": "test"}):
             with prefect.context(

@@ -99,7 +99,7 @@ class CloudEnvironment(Environment):
                 prefect.context.get(
                     "flow_file_path", "/root/.prefect/flow_env.prefect"
                 ),
-                "r",
+                "rb",
             ) as f:
                 flow = cloudpickle.load(f)
 
