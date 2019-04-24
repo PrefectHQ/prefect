@@ -5,6 +5,7 @@ import uuid
 from os import path
 from typing import Any, List
 
+import cloudpickle
 import docker
 import yaml
 
@@ -94,14 +95,13 @@ class CloudEnvironment(Environment):
             cluster.adapt(minimum=1, maximum=1)
 
             # Load serialized flow from file and run it with a DaskExecutor
-            schema = prefect.serialization.flow.FlowSchema()
             with open(
                 prefect.context.get(
                     "flow_file_path", "/root/.prefect/flow_env.prefect"
                 ),
-                "r",
+                "rb",
             ) as f:
-                flow = schema.load(json.load(f))
+                flow = cloudpickle.load(f)
 
                 executor = DaskExecutor(address=cluster.scheduler_address)
                 FlowRunner(flow=flow).run(executor=executor)
