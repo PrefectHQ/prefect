@@ -27,6 +27,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix Docker storage not pulling correct flow path - [#968](https://github.com/PrefectHQ/prefect/pull/968)
 - Set Docker storage to pull master git branch until next version is released - [#968](https://github.com/PrefectHQ/prefect/pull/968)
+- Fix `run_flow` loading to decode properly by use cloudpickle - [#978](https://github.com/PrefectHQ/prefect/pull/978)
 
 ### Breaking Changes
 
