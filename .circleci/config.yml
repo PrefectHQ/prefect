@@ -95,7 +95,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest --cov=prefect .
+          command: pytest --cov=prefect . && exit 0
 
       - run:
           name: Upload Coverage
