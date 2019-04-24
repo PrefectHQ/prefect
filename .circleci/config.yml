@@ -67,7 +67,9 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -k "not examples" --cov=prefect .
+          command: pytest -k "not examples" --cov=prefect . || false
+          # we had issues with this job not registering an exit code and timing out, even
+          # when tests ran successfully.  Adding a bash "or" appears to make the issue go away...
 
       - run:
           name: Upload Coverage
