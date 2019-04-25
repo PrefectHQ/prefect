@@ -83,7 +83,7 @@ class CloudEnvironment(Environment):
         """
         Run the flow from specified flow_file_path location using a Dask executor
         """
-        from prefect.engine import FlowRunner
+        from prefect.engine import CloudFlowRunner
         from prefect.engine.executors import DaskExecutor
         from dask_kubernetes import KubeCluster
 
@@ -104,7 +104,7 @@ class CloudEnvironment(Environment):
                 flow = cloudpickle.load(f)
 
                 executor = DaskExecutor(address=cluster.scheduler_address)
-                FlowRunner(flow=flow).run(executor=executor)
+                CloudFlowRunner(flow=flow).run(executor=executor)
 
     ########################
     # YAML Spec Manipulation
