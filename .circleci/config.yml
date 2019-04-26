@@ -124,10 +124,6 @@ jobs:
           name: Run tests
           command: pytest .
 
-      - run:
-          name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
-
   test-airflow:
     docker:
       - image: continuumio/miniconda3
