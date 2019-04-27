@@ -121,17 +121,8 @@ jobs:
           command: pip install ".[all_extras]"
 
       - run:
-          # temporary patch until https://github.com/pytest-dev/pytest-cov/pull/262 is released
-          name: Install latest pytest-cov
-          command: pip uninstall pytest-cov -y && pip install git+https://github.com/pytest-dev/pytest-cov.git@master
-
-      - run:
           name: Run tests
-          command: pytest --cov=prefect .
-
-      - run:
-          name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+          command: pytest .
 
   test-airflow:
     docker:
