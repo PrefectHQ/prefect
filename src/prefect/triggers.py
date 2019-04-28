@@ -131,6 +131,9 @@ def some_failed(
         Returns:
             - bool: whether the trigger thresolds were met
         """
+        if not upstream_states:
+            return True
+
         # scale conversions
         num_failed = len([s for s in upstream_states if s.is_failed()])
         num_states = len(upstream_states)
@@ -180,6 +183,9 @@ def some_successful(
         Returns:
             - bool: whether the trigger thresolds were met
         """
+        if not upstream_states:
+            return True
+
         # scale conversions
         num_success = len([s for s in upstream_states if s.is_successful()])
         num_states = len(upstream_states)
