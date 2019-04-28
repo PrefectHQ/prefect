@@ -80,7 +80,7 @@ def any_successful(upstream_states: Set["state.State"]) -> bool:
         - upstream_states (set[State]): the set of all upstream states
     """
 
-    if not any(s.is_successful() for s in upstream_states):
+    if upstream_states and not any(s.is_successful() for s in upstream_states):
         raise signals.TRIGGERFAIL(
             'Trigger was "any_successful" but none of the upstream tasks succeeded.'
         )
@@ -96,7 +96,7 @@ def any_failed(upstream_states: Set["state.State"]) -> bool:
         - upstream_states (set[State]): the set of all upstream states
     """
 
-    if not any(s.is_failed() for s in upstream_states):
+    if upstream_states and not any(s.is_failed() for s in upstream_states):
         raise signals.TRIGGERFAIL(
             'Trigger was "any_failed" but none of the upstream tasks failed.'
         )

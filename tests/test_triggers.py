@@ -301,3 +301,18 @@ def test_some_successful_is_pickleable():
 
     with pytest.raises(signals.TRIGGERFAIL):
         new_trigger(generate_states(success=1, pending=18))
+
+
+@pytest.mark.parametrize(
+    "trigger",
+    [
+        triggers.all_failed,
+        triggers.all_finished,
+        triggers.all_successful,
+        triggers.always_run,
+        triggers.any_failed,
+        triggers.any_successful,
+    ],
+)
+def test_standard_triggers_return_true_for_empty_upstream(trigger):
+    assert trigger(set()) is True
