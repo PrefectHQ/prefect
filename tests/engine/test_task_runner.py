@@ -585,8 +585,11 @@ class TestCheckTaskTrigger:
     def test_manual_only_empty(self):
         task = Task(trigger=prefect.triggers.manual_only)
         state = Pending()
-        new_state = TaskRunner(task).check_task_trigger(state=state, upstream_states={})
-        assert new_state is state
+        with pytest.raises(ENDRUN) as exc:
+            new_state = TaskRunner(task).check_task_trigger(
+                state=state, upstream_states={}
+            )
+        assert isinstance(exc.value.state, Paused)
 
     def test_manual_passes_when_context_is_resume(self):
         task = Task(trigger=prefect.triggers.manual_only)
