@@ -1349,7 +1349,7 @@ class Flow:
     # Deployment ------------------------------------------------------------------
 
     def deploy(
-        self, project_name: str, build: bool = True, set_schedule_inactive: bool = False
+        self, project_name: str, build: bool = True, set_schedule_active: bool = True
     ) -> str:
         """
         Deploy the flow to Prefect Cloud
@@ -1358,9 +1358,9 @@ class Flow:
             - project_name (str): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
-            - set_schedule_inactive (bool, optional): if `True`, will set the
+            - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
-                Defaults to `False`. This can be changed later.
+                Defaults to `True`. This can be changed later.
 
         Returns:
             - str: the ID of the flow that was deployed
@@ -1370,7 +1370,7 @@ class Flow:
             flow=self,
             build=build,
             project_name=project_name,
-            set_schedule_inactive=set_schedule_inactive,
+            set_schedule_active=set_schedule_active,
         )
         return deployed_flow
 
