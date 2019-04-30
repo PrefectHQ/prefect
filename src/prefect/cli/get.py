@@ -2,7 +2,9 @@ import click
 import pendulum
 from tabulate import tabulate
 
+from prefect import config
 from prefect.client import Client
+from prefect.utilities.cli import open_in_playground
 from prefect.utilities.graphql import with_args, EnumValue
 
 
@@ -19,7 +21,8 @@ def get():
 @click.option("--version", "-v", type=int, help="A flow version to query.")
 @click.option("--project", "-p", help="The name of a project to query.")
 @click.option("--all-versions", is_flag=True, help="Query all flow versions.")
-def flows(name, version, project, all_versions):
+@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+def flows(name, version, project, all_versions, playground):
     """
     Query information regarding your Prefect flows.
     """
@@ -56,6 +59,10 @@ def flows(name, version, project, all_versions):
         }
     }
 
+    if playground:
+        open_in_playground(query)
+        return
+
     result = Client().graphql(query)
 
     flow_data = result.data.flow
@@ -85,7 +92,8 @@ def flows(name, version, project, all_versions):
 
 @get.command()
 @click.option("--name", "-n", help="A project name to query.")
-def projects(name):
+@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+def projects(name, playground):
     """
     Query information regarding your Prefect projects.
     """
@@ -107,6 +115,10 @@ def projects(name):
             }
         }
     }
+
+    if playground:
+        open_in_playground(query)
+        return
 
     result = Client().graphql(query)
 
