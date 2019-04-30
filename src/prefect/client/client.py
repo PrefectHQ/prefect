@@ -304,7 +304,7 @@ class Client:
         flow: "Flow",
         project_name: str,
         build: bool = True,
-        set_schedule_inactive: bool = False,
+        set_schedule_active: bool = True,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -314,9 +314,9 @@ class Client:
             - project_name (str): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
-            - set_schedule_inactive (bool, optional): if `True`, will set the
+            - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
-                Defaults to `False`. This can be changed later.
+                Defaults to `True`. This can be changed later.
 
         Returns:
             - str: the ID of the newly-deployed flow
@@ -355,7 +355,7 @@ class Client:
             input=dict(
                 projectId=project[0].id,
                 serializedFlow=flow.serialize(build=build),
-                setScheduleInactive=set_schedule_inactive,
+                setScheduleActive=set_schedule_active,
             ),
         )  # type: Any
         return res.data.createFlow.id
