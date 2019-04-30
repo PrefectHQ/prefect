@@ -147,9 +147,68 @@ def projects(name, playground):
 
 
 @get.command()
-def flow_runs():
+@click.option("--limit", "-l", default=10, help="A limit amount of flow runs to query.")
+@click.option("--flow", "-f", help="Specify a flow's runs to query.")
+@click.option("--project", "-p", help="Specify a project's runs to query.")
+@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+def flow_runs(limit, flow, project, playground):
     """
     Query information regarding Prefect flow runs.
     """
-    # Allow optional limit (default to 10), order by most recent runs
-    pass
+    query = {
+        "query": {
+            with_args(
+                "flow_run",
+                {
+                    "where": {
+                        "_and": {
+                            "flow": {
+                                "_and": {
+                                    "name": {"_eq": flow},
+                                    "project": {"name": {"_eq": project}},
+                                }
+                            }
+                        }
+                    },
+                    "limit": limit,
+                    "order_by": {"created": EnumValue("desc")},
+                },
+            ): {
+                "flow": {"name": True},
+                "created": True,
+                "state": True,
+                "name": True,
+                "duration": True,
+            }
+        }
+    }
+
+    if playground:
+        open_in_playground(query)
+        return
+
+    result = Client().graphql(query)
+
+    flow_run_data = result.data.flow_run
+
+    output = []
+    for item in flow_run_data:
+        output.append(
+            [
+                item.name,
+                item.state,
+                pendulum.parse(item.created).diff_for_humans(),
+                item.duration,
+                item.flow.name,
+            ]
+        )
+
+    click.echo(
+        tabulate(
+            output,
+            headers=["NAME", "STATE", "AGE", "DURATION", "FLOW NAME"],
+            tablefmt="plain",
+            numalign="left",
+            stralign="left",
+        )
+    )
