@@ -53,7 +53,7 @@ def flows(name, version, project, playground):
                 "schedule": True,
                 "schedule_is_active": True,
                 "archived": True,
-                # "storage": True,
+                "storage": True,
                 "environment": True,
             }
         }
