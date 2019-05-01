@@ -1166,5 +1166,3 @@ class Flow:
         import webbrowser
 
         webbrowser.open("https://cicdw.github.io/welcome.html")
-
-
