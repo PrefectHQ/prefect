@@ -74,13 +74,66 @@ def flows(name, version, project, playground):
 
 
 @describe.command()
-def tasks():
+@click.option("--name", "-n", required=True, help="A flow name to query.")
+@click.option("--version", "-v", type=int, help="A flow version to query.")
+@click.option("--project", "-p", help="The name of a project to query.")
+@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+def tasks(name, version, project, playground):
     """
-    Describe a Prefect task.
+    Describe your Prefect flow.
     """
-    # Must supply a flow name, gives big task output from metadata
-    # Also give edges?
-    pass
+
+    query = {
+        "query": {
+            with_args(
+                "flow",
+                {
+                    "where": {
+                        "_and": {
+                            "name": {"_eq": name},
+                            "version": {"_eq": version},
+                            "project": {"name": {"_eq": project}},
+                        }
+                    },
+                    "order_by": {
+                        "name": EnumValue("asc"),
+                        "version": EnumValue("desc"),
+                    },
+                    "distinct_on": EnumValue("name"),
+                },
+            ): {
+                "tasks": {
+                    "name": True,
+                    "created": True,
+                    "slug": True,
+                    "description": True,
+                    "type": True,
+                    "max_retries": True,
+                    "retry_delay": True,
+                    "mapped": True,
+                }
+            }
+        }
+    }
+
+    if playground:
+        open_in_playground(query)
+        return
+
+    result = Client().graphql(query)
+
+    flow_data = result.data.flow
+    if not flow_data:
+        click.secho("{} not found".format(name), fg="red")
+        return
+
+    task_data = flow_data[0].tasks
+
+    if task_data:
+        for item in task_data:
+            click.echo(item)
+    else:
+        click.secho("No tasks found for flow {}".format(name), fg="red")
 
 
 @describe.command()
