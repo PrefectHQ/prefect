@@ -35,6 +35,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Remove `flow.id` and `task.id` attributes - [#940](https://github.com/PrefectHQ/prefect/pull/940)
 - Removed old WIP environments - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 *Note*: Changes from [#936](https://github.com/PrefectHQ/prefect/pull/936) regarding environments don't break any Prefect code because environments weren't used yet outside of Cloud.
+- Removed `Flow.generate_local_task_ids()` - [992](#https://github.com/PrefectHQ/prefect/pull/992)
 
 ### Contributors
 
