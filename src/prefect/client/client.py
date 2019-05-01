@@ -1,9 +1,9 @@
+import base64
 import datetime
 import json
 import logging
 import lzma
 import os
-import pickle
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 
 import pendulum
@@ -357,7 +357,8 @@ class Client:
 
         serialized_flow = flow.serialize(build=build)  # type: Any
         if compress:
-            serialized_flow = lzma.compress(pickle.dumps(serialized_flow))
+            # convert the flow to string, then encode in order to compress, then encode to b64 and decode to allow for serialization
+            serialized_flow = base64.b64encode(lzma.compress(json.dumps(serialized_flow).encode())).decode()
         res = self.graphql(
             create_mutation,
             input=dict(
