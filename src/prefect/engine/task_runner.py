@@ -361,8 +361,7 @@ class TaskRunner(Runner):
         self, state: State, upstream_states: Dict[Edge, State]
     ) -> State:
         """
-        Checks if the task's trigger function passes. If the upstream_states is empty,
-        then the trigger is not called.
+        Checks if the task's trigger function passes.
 
         Args:
             - state (State): the current state of this task
@@ -383,9 +382,7 @@ class TaskRunner(Runner):
                 all_states.add(upstream_state)
 
         try:
-            if not upstream_states:
-                return state
-            elif not self.task.trigger(all_states):
+            if not self.task.trigger(all_states):
                 raise signals.TRIGGERFAIL(message="Trigger failed")
 
         except signals.PrefectStateSignal as exc:

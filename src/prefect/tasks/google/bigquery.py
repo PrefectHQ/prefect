@@ -152,6 +152,7 @@ class BigQueryTask(Task):
             )
             job_config.dry_run = True
             job_config.use_query_cache = False
+            self.logger.debug("Performing a dry run...")
             query_job = client.query(query, location=location, job_config=job_config)
             if query_job.total_bytes_processed > dry_run_max_bytes:
                 raise ValueError(
@@ -348,6 +349,7 @@ class CreateBigQueryTable(Task):
         try:
             dataset_ref = client.get_dataset(dataset)
         except NotFound:
+            self.logger.debug("Dataset {} not found, creating...".format(dataset))
             dataset_ref = client.create_dataset(dataset)
 
         table_ref = dataset_ref.table(table)
@@ -357,6 +359,7 @@ class CreateBigQueryTable(Task):
                 "{dataset}.{table} already exists.".format(dataset=dataset, table=table)
             )
         except NotFound:
+            self.logger.debug("Table {} not found, creating...".format(table))
             table = bigquery.Table(table_ref, schema=schema)
 
             # partitioning
