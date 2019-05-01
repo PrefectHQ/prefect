@@ -358,7 +358,9 @@ class Client:
         serialized_flow = flow.serialize(build=build)  # type: Any
         if compress:
             # convert the flow to string, then encode in order to compress, then encode to b64 and decode to allow for serialization
-            serialized_flow = base64.b64encode(lzma.compress(json.dumps(serialized_flow).encode())).decode()
+            serialized_flow = base64.b64encode(
+                lzma.compress(json.dumps(serialized_flow).encode())
+            ).decode()
         res = self.graphql(
             create_mutation,
             input=dict(
