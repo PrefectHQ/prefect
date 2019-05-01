@@ -1,7 +1,9 @@
 import datetime
 import json
 import logging
+import lzma
 import os
+import pickle
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 
 import pendulum
@@ -305,6 +307,7 @@ class Client:
         project_name: str,
         build: bool = True,
         set_schedule_active: bool = True,
+        compress: bool = True,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -317,6 +320,8 @@ class Client:
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
+            - compress(bool, optional): if `True`, the serialized flow will be
+                compressed
 
         Returns:
             - str: the ID of the newly-deployed flow
@@ -350,11 +355,14 @@ class Client:
                 )
             )
 
+        serialized_flow = flow.serialize(build=build)  # type: Any
+        if compress:
+            serialized_flow = lzma.compress(pickle.dumps(serialized_flow))
         res = self.graphql(
             create_mutation,
             input=dict(
                 projectId=project[0].id,
-                serializedFlow=flow.serialize(build=build),
+                serializedFlow=serialized_flow,
                 setScheduleActive=set_schedule_active,
             ),
         )  # type: Any
