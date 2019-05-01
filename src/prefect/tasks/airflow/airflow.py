@@ -169,6 +169,7 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
         """
         if execution_date is None:
             execution_date = prefect.context.get("today")
+            self.logger.debug("Using {} as execution date...".format(execution_date))
         self._pre_check(execution_date)
         self.command = self.command.format(  # type: ignore
             self.dag_id, self.task_id, execution_date
@@ -239,6 +240,7 @@ class AirflowTriggerDAG(prefect.tasks.shell.ShellTask):
         """
         if execution_date is None:
             execution_date = prefect.context.get("today")
+            self.logger.debug("Using {} as execution date...".format(execution_date))
         cli_flags = self.cli_flags + ["-e {}".format(execution_date)]
         cmd = "airflow trigger_dag " + " ".join(cli_flags) + " {0}".format(self.dag_id)
         res = super().run(command=cmd)
