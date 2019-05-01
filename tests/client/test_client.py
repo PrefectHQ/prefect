@@ -1,5 +1,7 @@
+import base64
 import datetime
 import json
+import lzma
 import os
 import uuid
 from unittest.mock import MagicMock, mock_open
@@ -276,8 +278,16 @@ def test_client_deploy_builds_flow(monkeypatch):
     flow_id = client.deploy(flow, project_name="my-default-project")
 
     ## extract POST info
-    variables = json.loads(post.call_args[1]["json"]["variables"])
-    assert variables["input"]["serializedFlow"]["storage"] is not None
+    serialized_flow = json.loads(
+        lzma.decompress(
+            base64.b64decode(
+                json.loads(post.call_args[1]["json"]["variables"])["input"][
+                    "serializedFlow"
+                ]
+            )
+        ).decode()
+    )
+    assert serialized_flow["storage"] is not None
 
 
 def test_client_deploy_optionally_avoids_building_flow(monkeypatch):
@@ -294,8 +304,16 @@ def test_client_deploy_optionally_avoids_building_flow(monkeypatch):
     flow_id = client.deploy(flow, project_name="my-default-project", build=False)
 
     ## extract POST info
-    variables = json.loads(post.call_args[1]["json"]["variables"])
-    assert variables["input"]["serializedFlow"]["storage"] is None
+    serialized_flow = json.loads(
+        lzma.decompress(
+            base64.b64decode(
+                json.loads(post.call_args[1]["json"]["variables"])["input"][
+                    "serializedFlow"
+                ]
+            )
+        ).decode()
+    )
+    assert serialized_flow["storage"] is None
 
 
 def test_client_deploy_with_bad_proj_name(monkeypatch):
