@@ -18,6 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add new `Aborted` state for Flow runs which are cancelled by users - [#959](https://github.com/PrefectHQ/prefect/issues/959)
 - Added an `execute-cloud-flow` CLI command for working with cloud deployed flows - [#971](https://github.com/PrefectHQ/prefect/pull/971)
 - Add new `flows.run_on_schedule` configuration option for affecting the behavior of `flow.run` - [#972](https://github.com/PrefectHQ/prefect/issues/972)
+- Allow for Tasks with `manual_only` triggers to be root tasks - [#667](https://github.com/PrefectHQ/prefect/issues/667)
 
 ### Task Library
 
@@ -35,6 +36,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Remove `flow.id` and `task.id` attributes - [#940](https://github.com/PrefectHQ/prefect/pull/940)
 - Removed old WIP environments - [#936](https://github.com/PrefectHQ/prefect/pull/936)
 *Note*: Changes from [#936](https://github.com/PrefectHQ/prefect/pull/936) regarding environments don't break any Prefect code because environments weren't used yet outside of Cloud.
+- Update `flow.deploy` and `client.deploy` to use `set_schedule_active` kwarg to match Cloud - [#991](https://github.com/PrefectHQ/prefect/pull/991)
 
 ### Contributors
 

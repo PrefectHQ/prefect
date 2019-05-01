@@ -108,6 +108,16 @@ def test_manual_only_with_resume_state():
         triggers.manual_only({Success(), Resume()})
 
 
+def test_manual_only_with_empty_set():
+    with pytest.raises(signals.PAUSE):
+        triggers.manual_only(set())
+
+
+def test_manual_only_with_empty_set_and_resume_in_context():
+    with context(resume=True):
+        assert triggers.manual_only(set()) is True
+
+
 def test_all_finished_with_all_success():
     assert triggers.all_finished(generate_states(success=3))
 
@@ -301,3 +311,25 @@ def test_some_successful_is_pickleable():
 
     with pytest.raises(signals.TRIGGERFAIL):
         new_trigger(generate_states(success=1, pending=18))
+
+
+@pytest.mark.parametrize(
+    "trigger",
+    [
+        triggers.all_failed,
+        triggers.all_finished,
+        triggers.all_successful,
+        triggers.always_run,
+        triggers.any_failed,
+        triggers.any_successful,
+    ],
+)
+def test_standard_triggers_return_true_for_empty_upstream(trigger):
+    assert trigger(set()) is True
+
+
+@pytest.mark.parametrize("func", [triggers.some_failed, triggers.some_successful])
+def test_stateful_triggers_return_true_for_empty_upstream(func):
+    assert func()(set()) is True
+    assert func(at_least=2, at_most=4)(set()) is True
+    assert func(at_least=0.1, at_most=0.5)(set()) is True
