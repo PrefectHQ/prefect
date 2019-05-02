@@ -1,7 +1,6 @@
 import base64
 import datetime
 import json
-import lzma
 import os
 import uuid
 from unittest.mock import MagicMock, mock_open
