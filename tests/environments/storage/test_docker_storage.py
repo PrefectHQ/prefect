@@ -22,92 +22,75 @@ def test_serialize_docker_storage():
     assert serialized_storage["type"] == "Docker"
 
 
+def test_add_flow_to_docker():
+    storage = Docker()
+    f = Flow("test")
+    assert f not in storage
+    assert storage.add_flow(f) == "/root/.prefect/test.prefect"
+    assert f.name in storage
+    assert storage.flows[f.name] == "/root/.prefect/test.prefect"
+
+
 def test_empty_docker_storage():
     storage = Docker()
 
     assert not storage.registry_url
-    assert not storage.dockerfile
     assert not storage.base_image
     assert not storage.image_name
     assert not storage.image_tag
     assert not storage.python_dependencies
     assert not storage.env_vars
     assert not storage.files
-    assert storage.flow_file_path == "/root/.prefect/flow_env.prefect"
     assert storage.base_url == "unix://var/run/docker.sock"
 
 
 def test_empty_docker_storage():
     storage = Docker(
         registry_url="test1",
-        dockerfile="test2",
         base_image="test3",
         python_dependencies=["test"],
         image_name="test4",
         image_tag="test5",
         env_vars={"test": "1"},
-        flow_file_path="test_path",
         base_url="test_url",
     )
 
     assert storage.registry_url == "test1"
-    assert storage.dockerfile == "test2"
     assert storage.base_image == "test3"
     assert storage.image_name == "test4"
     assert storage.image_tag == "test5"
     assert storage.python_dependencies == ["test"]
     assert storage.env_vars == {"test": "1"}
-    assert storage.flow_file_path == "test_path"
     assert storage.base_url == "test_url"
 
 
-def test_xor_image_dockerfile_fails():
-    flow = Flow("test")
-    storage = Docker(base_image="test", dockerfile="test")
+def test_files_not_absolute_path():
     with pytest.raises(ValueError):
-        storage.build(flow=flow)
+        storage = Docker(files={"test": "test"})
 
 
 def test_build_base_image(monkeypatch):
-    flow = Flow("test")
     storage = Docker(registry_url="reg", base_image="test")
 
     build_image = MagicMock(return_value=("1", "2"))
     monkeypatch.setattr("prefect.environments.storage.Docker.build_image", build_image)
 
-    output = storage.build(flow=flow)
+    output = storage.build()
     assert output.registry_url == storage.registry_url
     assert output.image_name == "1"
     assert output.image_tag == "2"
-    assert output.flow_file_path == storage.flow_file_path
-
-
-def test_build_dockerfile_string(monkeypatch):
-    flow = Flow("test")
-    storage = Docker(registry_url="reg", dockerfile="test")
-
-    build_image = MagicMock(return_value=("1", "2"))
-    monkeypatch.setattr("prefect.environments.storage.Docker.build_image", build_image)
-
-    output = storage.build(flow=flow)
-    assert output.registry_url == storage.registry_url
-    assert output.image_name == "1"
-    assert output.image_tag == "2"
-    assert output.flow_file_path == storage.flow_file_path
 
 
 def test_build_no_default(monkeypatch):
-    flow = Flow("test")
     storage = Docker(registry_url="reg")
 
     build_image = MagicMock(return_value=("1", "2"))
     monkeypatch.setattr("prefect.environments.storage.Docker.build_image", build_image)
 
-    output = storage.build(flow=flow)
+    output = storage.build()
     assert output.registry_url == storage.registry_url
     assert output.image_name == "1"
     assert output.image_tag == "2"
-    assert output.flow_file_path == storage.flow_file_path
 
 
 def test_build_image_fails_deserialization(monkeypatch):
@@ -122,14 +105,13 @@ def test_build_image_fails_deserialization(monkeypatch):
 
 
 def test_build_image_fails_deserialization_no_registry(monkeypatch):
-    flow = Flow("test")
     storage = Docker(base_image="python:3.6")
 
     client = MagicMock()
     monkeypatch.setattr("docker.APIClient", client)
 
     with pytest.raises(SerializationError):
-        image_name, image_tag = storage.build_image(flow, push=False)
+        image_name, image_tag = storage.build_image(push=False)
 
 
 @pytest.mark.skip(reason="Needs to be mocked so it can work on CircleCI")
@@ -182,22 +164,20 @@ def test_build_image_passes_and_pushes(monkeypatch):
 
 
 def test_build_image_fails_no_registry(monkeypatch):
-    flow = Flow("test")
     storage = Docker(base_image="python:3.6")
 
     client = MagicMock()
     monkeypatch.setattr("docker.APIClient", client)
 
     with pytest.raises(ValueError):
-        image_name, image_tag = storage.build_image(flow)
+        image_name, image_tag = storage.build_image()
 
 
 def test_create_dockerfile_from_base_image():
-    flow = Flow("test")
     storage = Docker(base_image="python:3.6")
 
     with tempfile.TemporaryDirectory() as tempdir:
-        storage.create_dockerfile_object_from_base_image(flow=flow, directory=tempdir)
+        storage.create_dockerfile_object(directory=tempdir)
 
         with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
             output = dockerfile.read()
@@ -205,18 +185,25 @@ def test_create_dockerfile_from_base_image():
         assert "FROM python:3.6" in output
 
 
-def test_create_dockerfile_from_base_image_separate_flow_path():
-    flow = Flow("test")
-    storage = Docker(base_image="python:3.6", flow_file_path="asdf.prefect")
+def test_create_dockerfile_with_weird_flow_name():
+    with tempfile.TemporaryDirectory() as tempdir_outside:
 
-    with tempfile.TemporaryDirectory() as tempdir:
-        storage.create_dockerfile_object_from_base_image(flow=flow, directory=tempdir)
+        with open(os.path.join(tempdir_outside, "test"), "w+") as t:
+            t.write("asdf")
 
-        with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
-            output = dockerfile.read()
+        with tempfile.TemporaryDirectory() as tempdir:
 
-        assert "COPY flow_env.prefect asdf.prefect" in output
-        assert 'ENV PREFECT_ENVIRONMENT_FILE="asdf.prefect"' in output
+            storage = Docker(registry_url="test1", base_image="test3")
+            f = Flow("WHAT IS THIS !!! ~~~~")
+            storage.add_flow(f)
+            storage.create_dockerfile_object(directory=tempdir)
+
+            with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+                output = dockerfile.read()
+
+            assert (
+                "COPY what-is-this.flow /root/.prefect/what-is-this.prefect" in output
+            )
 
 
 def test_create_dockerfile_from_everything():
@@ -228,7 +215,6 @@ def test_create_dockerfile_from_everything():
 
         with tempfile.TemporaryDirectory() as tempdir:
 
-            flow = Flow("test")
             storage = Docker(
                 registry_url="test1",
                 base_image="test3",
@@ -237,13 +223,13 @@ def test_create_dockerfile_from_everything():
                 image_tag="test5",
                 env_vars={"test": "1"},
                 files={os.path.join(tempdir_outside, "test"): "./test2"},
-                flow_file_path="test_path",
                 base_url="test_url",
             )
-
-            storage.create_dockerfile_object_from_base_image(
-                flow=flow, directory=tempdir
-            )
+            f = Flow("test")
+            g = Flow("other")
+            storage.add_flow(f)
+            storage.add_flow(g)
+            storage.create_dockerfile_object(directory=tempdir)
 
             with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
                 output = dockerfile.read()
@@ -252,29 +238,8 @@ def test_create_dockerfile_from_everything():
             assert "COPY test ./test2" in output
             assert "ENV test=1" in output
             assert "COPY healthcheck.py /root/.prefect/healthcheck.py" in output
-
-
-def test_create_dockerfile_from_dockerfile():
-    flow = Flow("test")
-
-    dockerfile_str = """
-    FROM prefect:0.5.0
-
-    do something
-    """
-    storage = Docker(dockerfile=dockerfile_str)
-
-    with tempfile.TemporaryDirectory() as tempdir:
-        storage.create_dockerfile_object_from_dockerfile(flow=flow, directory=tempdir)
-
-        with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
-            output = dockerfile.read()
-
-        assert "FROM prefect:0.5.0" in output
-        assert "do something" in output
-
-
-# Docker Utilities
+            assert "COPY test.flow /root/.prefect/test.prefect" in output
+            assert "COPY other.flow /root/.prefect/other.prefect" in output
 
 
 def test_pull_image(monkeypatch):
@@ -309,3 +274,38 @@ def test_parse_output():
         storage._parse_generator_output([b'"{}"\n'])
 
     assert storage
+
+
+def test_docker_storage_name():
+    storage = Docker(base_image="python:3.6")
+    with pytest.raises(ValueError):
+        storage.name
+
+    storage.registry_url = "test1"
+    storage.image_name = "test2"
+    storage.image_tag = "test3"
+    assert storage.name == "test1/test2:test3"
+
+
+def test_docker_storage_doesnt_have_get_flow_method():
+    storage = Docker(base_image="python:3.6")
+    with pytest.raises(NotImplementedError):
+        storage.get_flow("")
+
+
+def test_add_similar_flows_fails():
+    storage = Docker()
+    flow = prefect.Flow("test")
+    storage.add_flow(flow)
+    with pytest.raises(ValueError):
+        storage.add_flow(flow)
+
+
+def test_add_flow_with_weird_name_is_cleaned():
+    storage = Docker()
+    flow = prefect.Flow("WELL what do you know?!~? looks like a test!!!!")
+    loc = storage.add_flow(flow)
+    assert "?" not in loc
+    assert "!" not in loc
+    assert " " not in loc
+    assert "~" not in loc

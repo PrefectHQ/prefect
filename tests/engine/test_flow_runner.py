@@ -677,8 +677,7 @@ class TestInitializeRun:
             state=Pending(), task_states={}, context={}, task_contexts={}, parameters={}
         )
         assert result.task_contexts == {
-            t: dict(task_id=t.id, task_name=t.name, task_slug=t.slug)
-            for t in flow.tasks
+            t: dict(task_name=t.name, task_slug=t.slug) for t in flow.tasks
         }
 
     def test_initialize_puts_parameters_in_context(self):
@@ -778,35 +777,6 @@ def test_flow_runner_captures_and_exposes_dask_errors(executor):
     assert state.is_failed()
     assert isinstance(state.result, TypeError)
     assert str(state.result) == "can't pickle _thread.lock objects"
-
-
-@pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
-def test_flow_runner_allows_for_parallelism_with_prints(capsys, executor):
-
-    # related:
-    # "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
-
-    @prefect.task
-    def alice():
-        for _ in range(75):
-            print("alice")
-
-    @prefect.task
-    def bob():
-        for _ in range(75):
-            print("bob")
-
-    with Flow(name="test") as flow:
-        alice(), bob()
-
-    state = flow.run(executor=executor)
-    assert state.is_successful()
-    captured = capsys.readouterr()
-
-    alice_first = ["alice"] * 75 + ["bob"] * 75
-    bob_first = ["bob"] * 75 + ["alice"] * 75
-    assert captured.out != alice_first
-    assert captured.out != bob_first
 
 
 @pytest.mark.xfail(
@@ -1311,7 +1281,6 @@ def test_task_contexts_are_provided_to_tasks():
     state = FlowRunner(flow=flow).run(return_tasks=[rc])
     ctx = state.result[rc].result
 
-    assert ctx["task_id"] == rc.id
     assert ctx["task_name"] == rc.name
     assert ctx["task_slug"] == rc.slug
 

@@ -169,7 +169,7 @@ class FlowRunner(Runner):
 
         for task in self.flow.tasks:
             task_contexts.setdefault(task, {}).update(
-                task_id=task.id, task_name=task.name, task_slug=task.slug
+                task_name=task.name, task_slug=task.slug
             )
         state, context = super().initialize_run(state=state, context=context)
         return FlowRunnerInitializeResult(
@@ -255,7 +255,7 @@ class FlowRunner(Runner):
 
         # All other exceptions are trapped and turned into Failed states
         except Exception as exc:
-            self.logger.info(
+            self.logger.error(
                 "Unexpected error while running flow: {}".format(repr(exc))
             )
             if prefect.context.get("raise_on_exception"):
