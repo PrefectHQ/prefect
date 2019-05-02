@@ -13,6 +13,8 @@ from prefect.utilities.graphql import (
     parse_graphql,
     parse_graphql_arguments,
     with_args,
+    compress,
+    decompress,
 )
 
 
@@ -392,3 +394,14 @@ def test_uuid_value_in_arguments():
     id = uuid.uuid4()
     query = parse_graphql_arguments({"id": id})
     assert query == 'id: "{}"'.format(id)
+
+
+def test_compress():
+    result = compress({"test": 42})
+    assert isinstance(result, str)
+
+
+def test_decompress():
+    test_str = compress({"test": 42})
+    result = decompress(test_str)
+    assert isinstance(result, dict)
