@@ -103,7 +103,7 @@ module.exports = {
           children: [
             'welcome/what_is_prefect',
             'welcome/why_prefect',
-            'welcome/design',
+            'welcome/why_not_airflow',
             'welcome/community',
             'welcome/code_of_conduct'
           ]
