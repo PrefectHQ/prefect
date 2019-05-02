@@ -32,7 +32,7 @@ from prefect.engine.state import (
 )
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
-from prefect.utilities.graphql import GraphQLResult
+from prefect.utilities.graphql import GraphQLResult, decompress_str_to_dict
 
 #################################
 ##### Client Tests
@@ -249,10 +249,19 @@ def test_graphql_errors_get_raised(monkeypatch):
     assert "GraphQL issue!" in str(exc.value)
 
 
-def test_client_deploy(monkeypatch):
-    response = {
-        "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
-    }
+@pytest.mark.parametrize("compress", [True, False])
+def test_client_deploy(monkeypatch, compress):
+    if compress:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "createFlowFromCompressedString": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+        }
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
@@ -260,15 +269,23 @@ def test_client_deploy(monkeypatch):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
-    flow_id = client.deploy(flow, project_name="my-default-project")
+    flow_id = client.deploy(flow, project_name="my-default-project", compress=compress)
     assert flow_id == "long-id"
 
 
 @pytest.mark.parametrize("compress", [True, False])
 def test_client_deploy_builds_flow(monkeypatch, compress):
-    response = {
-        "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
-    }
+    if compress:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "createFlowFromCompressedString": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+        }
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
@@ -280,14 +297,10 @@ def test_client_deploy_builds_flow(monkeypatch, compress):
 
     ## extract POST info
     if compress:
-        serialized_flow = json.loads(
-            lzma.decompress(
-                base64.b64decode(
-                    json.loads(post.call_args[1]["json"]["variables"])["input"][
-                        "serializedFlow"
-                    ]
-                )
-            ).decode()
+        serialized_flow = decompress_str_to_dict(
+            json.loads(post.call_args[1]["json"]["variables"])["input"][
+                "serializedFlow"
+            ]
         )
     else:
         serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
@@ -298,9 +311,17 @@ def test_client_deploy_builds_flow(monkeypatch, compress):
 
 @pytest.mark.parametrize("compress", [True, False])
 def test_client_deploy_optionally_avoids_building_flow(monkeypatch, compress):
-    response = {
-        "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
-    }
+    if compress:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "createFlowFromCompressedString": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+        }
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
@@ -314,14 +335,10 @@ def test_client_deploy_optionally_avoids_building_flow(monkeypatch, compress):
 
     ## extract POST info
     if compress:
-        serialized_flow = json.loads(
-            lzma.decompress(
-                base64.b64decode(
-                    json.loads(post.call_args[1]["json"]["variables"])["input"][
-                        "serializedFlow"
-                    ]
-                )
-            ).decode()
+        serialized_flow = decompress_str_to_dict(
+            json.loads(post.call_args[1]["json"]["variables"])["input"][
+                "serializedFlow"
+            ]
         )
     else:
         serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
