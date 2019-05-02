@@ -16,7 +16,7 @@ from prefect.utilities.graphql import (
     as_nested_dict,
     parse_graphql,
     with_args,
-    compress_dict_to_str,
+    compress,
 )
 
 if TYPE_CHECKING:
@@ -308,7 +308,7 @@ class Client:
         project_name: str,
         build: bool = True,
         set_schedule_active: bool = True,
-        compress: bool = True,
+        compressed: bool = True,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -321,7 +321,7 @@ class Client:
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
-            - compress (bool, optional): if `True`, the serialized flow will be; defaults to `True`
+            - compressed (bool, optional): if `True`, the serialized flow will be; defaults to `True`
                 compressed
 
         Returns:
@@ -335,7 +335,7 @@ class Client:
             raise ClientError(
                 "Flows with required parameters can not be scheduled automatically."
             )
-        if compress:
+        if compressed:
             create_mutation = {
                 "mutation($input: createFlowFromCompressedStringInput!)": {
                     "createFlowFromCompressedString(input: $input)": {"id"}
@@ -366,12 +366,12 @@ class Client:
             )
 
         serialized_flow = flow.serialize(build=build)  # type: Any
-        if compress:
-            serialized_flow = compress_dict_to_str(serialized_flow)
+        if compressed:
+            serialized_flow = compress(serialized_flow)
         res = self.graphql(
             create_mutation,
             input=dict(
-                compressed=compress,
+                compressed=compressed,
                 projectId=project[0].id,
                 serializedFlow=serialized_flow,
                 setScheduleActive=set_schedule_active,
@@ -380,7 +380,7 @@ class Client:
 
         flow_id = (
             res.data.createFlowFromCompressedString.id
-            if compress
+            if compressed
             else res.data.createFlow.id
         )
         return flow_id

@@ -279,31 +279,31 @@ def with_args(field: Any, arguments: Any) -> str:
     return "{field}({arguments})".format(field=parsed_field, arguments=parsed_arguments)
 
 
-def compress_dict_to_str(dictionary: dict) -> str:
+def compress(input: Any) -> str:
     """
-    Convenience function for compressing a dictionary before sending
-    it to Cloud. Converts the flow to string, encodes, compresses, 
+    Convenience function for compressing something before sending
+    it to Cloud. Converts to string, encodes, compresses, 
     encodes again using b64, and decodes.
 
     Args:
-        - dictionary (dict): the dictionary to be compressed
+        - dictionary (Any): the dictionary to be compressed
 
     Returns:
         - str: The string resulting from the compression
     """
-    return base64.b64encode(lzma.compress(json.dumps(dictionary).encode())).decode()
+    return base64.b64encode(lzma.compress(json.dumps(input).encode())).decode()
 
 
-def decompress_str_to_dict(string: str) -> dict:
+def decompress(string: str) -> Any:
     """
     Convenience function for decompressing a string that's been
-    compressed to send to Cloud. Base64 decodes the string, 
-    decodes it, decompresses it, and loads.
+    compressed. Base64 decodes the string, decodes it, 
+    decompresses it, and loads.
 
     Args:
         - string (str): the string to decompress
 
     Returns:
-        - dict: The dictionary resulting from the decompression
+        - Any: The object resulting from the decompression
     """
-    return dict(json.loads(lzma.decompress(base64.b64decode(string)).decode()))
+    return json.loads(lzma.decompress(base64.b64decode(string)).decode())
