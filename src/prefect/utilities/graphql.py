@@ -1,4 +1,6 @@
+import base64
 import json
+import lzma
 import re
 import textwrap
 import uuid
@@ -275,3 +277,33 @@ def with_args(field: Any, arguments: Any) -> str:
     parsed_field = parse_graphql(field)
     parsed_arguments = parse_graphql_arguments(arguments)
     return "{field}({arguments})".format(field=parsed_field, arguments=parsed_arguments)
+
+
+def compress_dict_to_str(dictionary: dict) -> str:
+    """
+    Convenience function for compressing a dictionary before sending
+    it to Cloud. Converts the flow to string, encodes, compresses, 
+    encodes again using b64, and decodes.
+
+    Args:
+        - dictionary (dict): the dictionary to be compressed
+
+    Returns:
+        - str: The string resulting from the compression
+    """
+    return base64.b64encode(lzma.compress(json.dumps(dictionary).encode())).decode()
+
+
+def decompress_str_to_dict(string: str) -> dict:
+    """
+    Convenience function for decompressing a string that's been
+    compressed to send to Cloud. Base64 decodes the string, 
+    decodes it, decompresses it, and loads.
+
+    Args:
+        - string (str): the string to decompress
+
+    Returns:
+        - dict: The dictionary resulting from the decompression
+    """
+    return dict(json.loads(lzma.decompress(base64.b64decode(string)).decode()))

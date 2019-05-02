@@ -16,6 +16,7 @@ from prefect.utilities.graphql import (
     as_nested_dict,
     parse_graphql,
     with_args,
+    compress_dict_to_str,
 )
 
 if TYPE_CHECKING:
@@ -334,10 +335,19 @@ class Client:
             raise ClientError(
                 "Flows with required parameters can not be scheduled automatically."
             )
+        if compress:
+            create_mutation = {
+                "mutation($input: createFlowFromCompressedStringInput!)": {
+                    "createFlowFromCompressedString(input: $input)": {"id"}
+                }
+            }
+        else:
+            create_mutation = {
+                "mutation($input: createFlowInput!)": {
+                    "createFlow(input: $input)": {"id"}
+                }
+            }
 
-        create_mutation = {
-            "mutation($input: createFlowInput!)": {"createFlow(input: $input)": {"id"}}
-        }
         query_project = {
             "query": {
                 with_args("project", {"where": {"name": {"_eq": project_name}}}): {
@@ -357,10 +367,7 @@ class Client:
 
         serialized_flow = flow.serialize(build=build)  # type: Any
         if compress:
-            # convert the flow to string, then encode in order to compress, then encode to b64 and decode to allow for serialization
-            serialized_flow = base64.b64encode(
-                lzma.compress(json.dumps(serialized_flow).encode())
-            ).decode()
+            serialized_flow = compress_dict_to_str(serialized_flow)
         res = self.graphql(
             create_mutation,
             input=dict(
@@ -370,7 +377,13 @@ class Client:
                 setScheduleActive=set_schedule_active,
             ),
         )  # type: Any
-        return res.data.createFlow.id
+
+        flow_id = (
+            res.data.createFlowFromCompressedString.id
+            if compress
+            else res.data.createFlow.id
+        )
+        return flow_id
 
     def create_project(self, project_name: str) -> str:
         """
