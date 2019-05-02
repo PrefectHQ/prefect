@@ -320,7 +320,7 @@ class Client:
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
-            - compress(bool, optional): if `True`, the serialized flow will be
+            - compress (bool, optional): if `True`, the serialized flow will be; defaults to `True`
                 compressed
 
         Returns:
