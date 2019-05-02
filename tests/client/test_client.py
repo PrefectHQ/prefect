@@ -264,7 +264,8 @@ def test_client_deploy(monkeypatch):
     assert flow_id == "long-id"
 
 
-def test_client_deploy_builds_flow(monkeypatch):
+@pytest.mark.parametrize("compress", [True, False])
+def test_client_deploy_builds_flow(monkeypatch, compress):
     response = {
         "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
     }
@@ -275,22 +276,28 @@ def test_client_deploy_builds_flow(monkeypatch):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
-    flow_id = client.deploy(flow, project_name="my-default-project")
+    flow_id = client.deploy(flow, project_name="my-default-project", compress=compress)
 
     ## extract POST info
-    serialized_flow = json.loads(
-        lzma.decompress(
-            base64.b64decode(
-                json.loads(post.call_args[1]["json"]["variables"])["input"][
-                    "serializedFlow"
-                ]
-            )
-        ).decode()
-    )
+    if compress:
+        serialized_flow = json.loads(
+            lzma.decompress(
+                base64.b64decode(
+                    json.loads(post.call_args[1]["json"]["variables"])["input"][
+                        "serializedFlow"
+                    ]
+                )
+            ).decode()
+        )
+    else:
+        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
+            "serializedFlow"
+        ]
     assert serialized_flow["storage"] is not None
 
 
-def test_client_deploy_optionally_avoids_building_flow(monkeypatch):
+@pytest.mark.parametrize("compress", [True, False])
+def test_client_deploy_optionally_avoids_building_flow(monkeypatch, compress):
     response = {
         "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
     }
@@ -301,18 +308,25 @@ def test_client_deploy_optionally_avoids_building_flow(monkeypatch):
     ):
         client = Client()
     flow = prefect.Flow(name="test")
-    flow_id = client.deploy(flow, project_name="my-default-project", build=False)
+    flow_id = client.deploy(
+        flow, project_name="my-default-project", build=False, compress=compress
+    )
 
     ## extract POST info
-    serialized_flow = json.loads(
-        lzma.decompress(
-            base64.b64decode(
-                json.loads(post.call_args[1]["json"]["variables"])["input"][
-                    "serializedFlow"
-                ]
-            )
-        ).decode()
-    )
+    if compress:
+        serialized_flow = json.loads(
+            lzma.decompress(
+                base64.b64decode(
+                    json.loads(post.call_args[1]["json"]["variables"])["input"][
+                        "serializedFlow"
+                    ]
+                )
+            ).decode()
+        )
+    else:
+        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
+            "serializedFlow"
+        ]
     assert serialized_flow["storage"] is None
 
 
