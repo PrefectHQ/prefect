@@ -20,9 +20,10 @@ def get():
 @click.option("--name", "-n", help="A flow name to query.")
 @click.option("--version", "-v", type=int, help="A flow version to query.")
 @click.option("--project", "-p", help="The name of a project to query.")
+@click.option("--limit", "-l", default=10, help="A limit amount of tasks to query.")
 @click.option("--all-versions", is_flag=True, help="Query all flow versions.")
 @click.option("--playground", is_flag=True, help="Open this query in the playground.")
-def flows(name, version, project, all_versions, playground):
+def flows(name, version, project, limit, all_versions, playground):
     """
     Query information regarding your Prefect flows.
     """
@@ -48,6 +49,7 @@ def flows(name, version, project, all_versions, playground):
                         "version": EnumValue("desc"),
                     },
                     "distinct_on": distinct_on,
+                    "limit": limit,
                 },
             ): {
                 "name": True,
@@ -207,6 +209,70 @@ def flow_runs(limit, flow, project, playground):
         tabulate(
             output,
             headers=["NAME", "STATE", "AGE", "DURATION", "FLOW NAME"],
+            tablefmt="plain",
+            numalign="left",
+            stralign="left",
+        )
+    )
+
+
+@get.command()
+@click.option("--name", "-n", help="A task name to query")
+@click.option("--flow-name", "-fn", help="A flow name to query")
+@click.option("--flow-version", "-fv", type=int, help="A flow version to query.")
+@click.option("--project", "-p", help="The name of a project to query.")
+@click.option("--limit", "-l", default=10, help="A limit amount of tasks to query.")
+@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+def tasks(name, flow_name, flow_version, project, limit, playground):
+    """
+    Query information regarding your Prefect tasks.
+    """
+
+    query = {
+        "query": {
+            with_args(
+                "task",
+                {
+                    "where": {
+                        "_and": {
+                            "name": {"_eq": name},
+                            "flow": {
+                                "name": {"_eq": flow_name},
+                                "project": {"name": {"_eq": project}},
+                                "version": {"_eq": flow_version},
+                            },
+                        }
+                    },
+                    "limit": limit,
+                    "order_by": {"created": EnumValue("desc")},
+                },
+            ): {"name": True, "created": True, "flow": {"name": True}, "type": True}
+        }
+    }
+
+    if playground:
+        open_in_playground(query)
+        return
+
+    result = Client().graphql(query)
+
+    task_data = result.data.task
+
+    output = []
+    for item in task_data:
+        output.append(
+            [
+                item.name,
+                pendulum.parse(item.created).diff_for_humans(),
+                item.flow.name,
+                item.type,
+            ]
+        )
+
+    click.echo(
+        tabulate(
+            output,
+            headers=["NAME", "AGE", "FLOW NAME", "TYPE"],
             tablefmt="plain",
             numalign="left",
             stralign="left",

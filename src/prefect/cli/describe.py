@@ -137,8 +137,50 @@ def tasks(name, version, project, playground):
 
 
 @describe.command()
-def flow_runs():
+@click.option("--name", "-n", required=True, help="A flow run name to query")
+@click.option("--flow-name", "-fn", help="A flow name to query")
+@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+def flow_runs(name, flow_name, playground):
     """
     Describe a Prefect flow run.
     """
-    pass
+    query = {
+        "query": {
+            with_args(
+                "flow_run",
+                {
+                    "where": {
+                        "_and": {
+                            "name": {"_eq": name},
+                            "flow": {"name": {"_eq": flow_name}},
+                        }
+                    }
+                },
+            ): {
+                "name": True,
+                "flow": {"name": True},
+                "created": True,
+                "parameters": True,
+                "auto_scheduled": True,
+                "scheduled_start_time": True,
+                "start_time": True,
+                "end_time": True,
+                "duration": True,
+                "heartbeat": True,
+                "serialized_state": True,
+            }
+        }
+    }
+
+    if playground:
+        open_in_playground(query)
+        return
+
+    result = Client().graphql(query)
+
+    flow_run_data = result.data.flow_run
+
+    if flow_run_data:
+        click.echo(flow_run_data[0])
+    else:
+        click.secho("{} not found".format(name), fg="red")
