@@ -1,6 +1,6 @@
 import base64
 import json
-import lzma
+import gzip
 import re
 import textwrap
 import uuid
@@ -291,7 +291,7 @@ def compress(input: Any) -> str:
     Returns:
         - str: The string resulting from the compression
     """
-    return base64.b64encode(lzma.compress(json.dumps(input).encode())).decode()
+    return base64.b64encode(gzip.compress(json.dumps(input).encode())).decode()
 
 
 def decompress(string: str) -> Any:
@@ -306,4 +306,4 @@ def decompress(string: str) -> Any:
     Returns:
         - Any: The object resulting from the decompression
     """
-    return json.loads(lzma.decompress(base64.b64decode(string)).decode())
+    return json.loads(gzip.decompress(base64.b64decode(string)).decode())

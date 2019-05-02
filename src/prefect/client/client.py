@@ -2,7 +2,6 @@ import base64
 import datetime
 import json
 import logging
-import lzma
 import os
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 
