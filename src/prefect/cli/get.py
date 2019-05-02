@@ -8,10 +8,13 @@ from prefect.utilities.cli import open_in_playground
 from prefect.utilities.graphql import with_args, EnumValue
 
 
-@click.group()
+@click.group(hidden=True)
 def get():
     """
+    Get commands.
+
     Get commands that refer to querying Prefect Cloud metadata.
+    Test help here
     """
     pass
 

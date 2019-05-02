@@ -7,7 +7,7 @@ from prefect.utilities.cli import open_in_playground
 from prefect.utilities.graphql import with_args, EnumValue
 
 
-@click.group()
+@click.group(hidden=True)
 def describe():
     """
     Describe commands that render JSON output of Prefect object metadata.

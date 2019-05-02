@@ -19,7 +19,17 @@ from .get import get as _get
 @click.group()
 def cli():
     """
-    The Prefect CLI
+    The Prefect CLI for creating, managing, and inspecting your flows.
+
+    \b
+    Query Commands:
+        get                 List high-level object information
+        describe            Retrieve detailed object descriptions
+
+    \b
+    Execution Commands:
+        execute-flow        Execute a flow's environment
+        execute-cloud-flow  Execute a flow's environment in a Cloud context
     """
     pass
 
@@ -30,7 +40,7 @@ cli.add_command(_describe)
 cli.add_command(_get)
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.argument("storage_metadata")
 @click.argument("environment_metadata")
 @click.argument("flow_location")
@@ -46,7 +56,7 @@ def execute_flow(storage_metadata, environment_metadata, flow_location):
     environment.execute(storage, flow_location)
 
 
-@cli.command()
+@cli.command(hidden=True)
 def execute_cloud_flow():
     flow_run_id = prefect.context.get("flow_run_id")
     if not flow_run_id:
