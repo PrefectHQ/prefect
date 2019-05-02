@@ -364,6 +364,7 @@ class Client:
         res = self.graphql(
             create_mutation,
             input=dict(
+                compressed=compress,
                 projectId=project[0].id,
                 serializedFlow=serialized_flow,
                 setScheduleActive=set_schedule_active,
