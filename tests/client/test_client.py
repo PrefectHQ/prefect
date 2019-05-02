@@ -32,7 +32,7 @@ from prefect.engine.state import (
 )
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
-from prefect.utilities.graphql import GraphQLResult, decompress_str_to_dict
+from prefect.utilities.graphql import GraphQLResult, decompress
 
 #################################
 ##### Client Tests
@@ -249,9 +249,9 @@ def test_graphql_errors_get_raised(monkeypatch):
     assert "GraphQL issue!" in str(exc.value)
 
 
-@pytest.mark.parametrize("compress", [True, False])
-def test_client_deploy(monkeypatch, compress):
-    if compress:
+@pytest.mark.parametrize("compressed", [True, False])
+def test_client_deploy(monkeypatch, compressed):
+    if compressed:
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
@@ -269,13 +269,15 @@ def test_client_deploy(monkeypatch, compress):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
-    flow_id = client.deploy(flow, project_name="my-default-project", compress=compress)
+    flow_id = client.deploy(
+        flow, project_name="my-default-project", compressed=compressed
+    )
     assert flow_id == "long-id"
 
 
-@pytest.mark.parametrize("compress", [True, False])
-def test_client_deploy_builds_flow(monkeypatch, compress):
-    if compress:
+@pytest.mark.parametrize("compressed", [True, False])
+def test_client_deploy_builds_flow(monkeypatch, compressed):
+    if compressed:
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
@@ -293,11 +295,13 @@ def test_client_deploy_builds_flow(monkeypatch, compress):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
-    flow_id = client.deploy(flow, project_name="my-default-project", compress=compress)
+    flow_id = client.deploy(
+        flow, project_name="my-default-project", compressed=compressed
+    )
 
     ## extract POST info
-    if compress:
-        serialized_flow = decompress_str_to_dict(
+    if compressed:
+        serialized_flow = decompress(
             json.loads(post.call_args[1]["json"]["variables"])["input"][
                 "serializedFlow"
             ]
@@ -309,9 +313,9 @@ def test_client_deploy_builds_flow(monkeypatch, compress):
     assert serialized_flow["storage"] is not None
 
 
-@pytest.mark.parametrize("compress", [True, False])
-def test_client_deploy_optionally_avoids_building_flow(monkeypatch, compress):
-    if compress:
+@pytest.mark.parametrize("compressed", [True, False])
+def test_client_deploy_optionally_avoids_building_flow(monkeypatch, compressed):
+    if compressed:
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
@@ -330,12 +334,12 @@ def test_client_deploy_optionally_avoids_building_flow(monkeypatch, compress):
         client = Client()
     flow = prefect.Flow(name="test")
     flow_id = client.deploy(
-        flow, project_name="my-default-project", build=False, compress=compress
+        flow, project_name="my-default-project", build=False, compressed=compressed
     )
 
     ## extract POST info
-    if compress:
-        serialized_flow = decompress_str_to_dict(
+    if compressed:
+        serialized_flow = decompress(
             json.loads(post.call_args[1]["json"]["variables"])["input"][
                 "serializedFlow"
             ]
