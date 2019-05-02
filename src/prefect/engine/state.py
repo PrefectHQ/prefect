@@ -41,7 +41,7 @@ class State:
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#000000"
+    color = "#696969"
 
     def __init__(self, message: str = None, result: Any = NoResult):
         self.message = message
@@ -137,6 +137,15 @@ class State:
         """
         return isinstance(self, Scheduled)
 
+    def is_submitted(self) -> bool:
+        """
+        Checks if the state is currently in a submitted state.
+
+        Returns:
+            - bool: `True` if the state is submitted, `False` otherwise
+        """
+        return isinstance(self, Submitted)
+
     def is_skipped(self) -> bool:
         """
         Checks if the state is currently in a skipped state
@@ -225,7 +234,7 @@ class Pending(State):
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
-    color = "#d3d3d3"
+    color = "#7ebdff"
 
     def __init__(
         self,
@@ -249,7 +258,7 @@ class Paused(Pending):
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
-    color = "#800000"
+    color = "#cfd8dc"
 
 
 class Scheduled(Pending):
@@ -269,7 +278,7 @@ class Scheduled(Pending):
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
-    color = "#b0c4de"
+    color = "#ffab00"
 
     def __init__(
         self,
@@ -292,13 +301,31 @@ class _MetaState(State):
     easily identified.
     """
 
-    color = "#b0c4de"
-
     def __init__(
         self, message: str = None, result: Any = NoResult, state: State = None
     ):
         super().__init__(message=message, result=result)
         self.state = state
+
+
+class ClientFailed(_MetaState):
+    """
+    The `ClientFailed` state is used to indicate that the Prefect Client failed
+    to set a task run state, and thus this task run should exit, without triggering any
+    downstream task runs.
+
+    The `ClientFailed` state should be initialized with another state, which it wraps. The
+    wrapped state is the state which the client attempted to set in the database, but failed to
+    for some reason.
+
+    Args:
+        - message (string): a message for the state.
+        - result (Any, optional): Defaults to `None`.
+        - state (State): the `State` state that the task run ended in
+
+    """
+
+    color = "#eb0000"
 
 
 class Submitted(_MetaState):
@@ -320,6 +347,8 @@ class Submitted(_MetaState):
 
     """
 
+    color = "#ffdf5d"
+
 
 class Queued(_MetaState):
     """
@@ -334,8 +363,21 @@ class Queued(_MetaState):
         - result (Any, optional): Defaults to `None`.
         - state (State): the `State` state that has been marked as
             "queued".
+        - start_time (datetime): a time the state is queued until. Defaults to `now`.
 
     """
+
+    color = "#ffea7f"
+
+    def __init__(
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        state: State = None,
+        start_time: datetime.datetime = None,
+    ):
+        super().__init__(message=message, result=result, state=state)
+        self.start_time = start_time or pendulum.now("utc")
 
 
 class Resume(Scheduled):
@@ -351,7 +393,7 @@ class Resume(Scheduled):
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
-    color = "#20B2AA"
+    color = "#fb8532"
 
 
 class Retrying(Scheduled):
@@ -370,7 +412,7 @@ class Retrying(Scheduled):
             if that value isn't found.
     """
 
-    color = "#FFFF00"
+    color = "#f66a0a"
 
     def __init__(
         self,
@@ -407,7 +449,7 @@ class Running(State):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#00FF00"
+    color = "#3d67ff"
 
 
 # -------------------------------------------------------------------
@@ -425,7 +467,7 @@ class Finished(State):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#BA55D3"
+    color = "#003ccb"
 
 
 class Success(Finished):
@@ -438,7 +480,7 @@ class Success(Finished):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#008000"
+    color = "#28a745"
 
 
 class Cached(Success):
@@ -457,7 +499,7 @@ class Cached(Success):
             expires and can no longer be used. Defaults to `None`
     """
 
-    color = "#ffa500"
+    color = "#34d058"
 
     def __init__(
         self,
@@ -495,7 +537,7 @@ class Mapped(Success):
             of itself to map its operation over its inputs. Those copies are the children.
     """
 
-    color = "#97FFFF"
+    color = "#003ccb"
 
     def __init__(
         self,
@@ -521,7 +563,20 @@ class Failed(Finished):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#FF0000"
+    color = "#eb0000"
+
+
+class Aborted(Failed):
+    """
+    Finished state indicating that a user aborted the flow run manually.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+    """
+
+    color = "#c42800"
 
 
 class TimedOut(Failed):
@@ -536,7 +591,7 @@ class TimedOut(Failed):
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
-    color = "#CDC9A5"
+    color = "#ff4e33"
 
     def __init__(
         self,
@@ -558,7 +613,7 @@ class TriggerFailed(Failed):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#F08080"
+    color = "#ff5131"
 
 
 class Skipped(Success):
@@ -571,7 +626,7 @@ class Skipped(Success):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
     """
 
-    color = "#F0FFF0"
+    color = "#62757f"
 
     # note: this does not allow setting "cached" as Success states do
     def __init__(self, message: str = None, result: Any = NoResult):

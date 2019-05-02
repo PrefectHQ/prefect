@@ -124,8 +124,8 @@ class TestCreateFlow:
             assert isinstance(f.result_handler, LocalResultHandler)
 
     def test_create_flow_with_storage(self):
-        f2 = Flow(name="test", storage=prefect.environments.storage.Bytes())
-        assert isinstance(f2.storage, prefect.environments.storage.Bytes)
+        f2 = Flow(name="test", storage=prefect.environments.storage.Memory())
+        assert isinstance(f2.storage, prefect.environments.storage.Memory)
 
     def test_create_flow_with_environment(self):
         f2 = Flow(name="test", environment=prefect.environments.CloudEnvironment())
@@ -322,14 +322,6 @@ def test_calling_a_slugged_task_in_different_flows_is_ok():
         four = t(1, 3)
 
 
-def test_calling_a_slugged_task_twice_warns_error():
-    t = AddTask(slug="add")
-    with Flow(name="test") as f:
-        t.bind(4, 2)
-        with pytest.warns(UserWarning), pytest.raises(ValueError):
-            t2 = t(9, 0)
-
-
 def test_context_manager_is_properly_applied_to_tasks():
     t1 = Task()
     t2 = Task()
@@ -511,18 +503,6 @@ def test_eager_cycle_detection_works():
     assert not prefect.config.flows.eager_edge_validation
 
 
-def test_id_must_be_valid_uuid():
-    f = Flow(name="test")
-
-    with pytest.raises(ValueError):
-        f.id = 1
-
-    with pytest.raises(ValueError):
-        f.id = "1"
-
-    f.id = str(uuid.uuid4())
-
-
 def test_copy():
     with Flow(name="test") as f:
         t1 = Task()
@@ -540,12 +520,6 @@ def test_copy():
     assert len(f2.tasks) == len(f.tasks) - 2
     assert len(f2.edges) == len(f.edges) - 1
     assert f.reference_tasks() == f2.reference_tasks() == set([t1])
-
-
-def test_copy_creates_new_id():
-    f = Flow(name="test")
-    f2 = f.copy()
-    assert f.id != f2.id
 
 
 def test_infer_root_tasks():
@@ -876,6 +850,14 @@ def test_flow_accepts_unserializeable_parameters():
     assert state.result[p].result is value
 
 
+def test_parameters_can_not_be_downstream_dependencies():
+    with Flow(name="test") as f:
+        p = Parameter("x")
+        t = Task()
+        with pytest.raises(ValueError):
+            t.set_downstream(p)
+
+
 def test_validate_cycles():
     f = Flow(name="test")
     t1 = Task()
@@ -1026,9 +1008,20 @@ class TestFlowVisualize:
             )
 
         # one colored node for each mapped result
-        assert 'label="a_nice_task <map>" color="#00800080"' in graph.source
-        assert 'label="a_nice_task <map>" color="#FF000080"' in graph.source
-        assert 'label=a_list_task color="#00800080"' in graph.source
+        assert (
+            'label="a_nice_task <map>" color="{success}80"'.format(
+                success=Success.color
+            )
+            in graph.source
+        )
+        assert (
+            'label="a_nice_task <map>" color="{failed}80"'.format(failed=Failed.color)
+            in graph.source
+        )
+        assert (
+            'label=a_list_task color="{success}80"'.format(success=Success.color)
+            in graph.source
+        )
         assert 'label=8 color="#00000080"' in graph.source
 
         # two edges for each input to add()
@@ -1154,26 +1147,6 @@ class TestCache:
         f.add_edge(t2, t3)
         assert f.root_tasks() == set([t1])
 
-    def test_cache_task_ids(self):
-        f = Flow(name="test")
-        t1 = Task()
-        t2 = Task()
-        t3 = Task()
-        f.add_edge(t1, t2)
-
-        ids = f.task_ids
-
-        # check that cache holds result
-        key = ("task_ids", ())
-        assert f._cache[key] == ids
-
-        # check that cache is read
-        f._cache[key] = 1
-        assert f.task_ids == 1
-
-        f.add_edge(t2, t3)
-        assert len(f.task_ids) == 3
-
     def test_cache_terminal_tasks(self):
         f = Flow(name="test")
         t1 = Task()
@@ -1228,6 +1201,7 @@ class TestCache:
         t1 = Task()
         t2 = Task()
         t3 = Task()
+        t4 = Task()
         f.add_edge(t1, t2)
         f.sorted_tasks()
         key = ("_sorted_tasks", (("root_tasks", ()),))
@@ -1236,7 +1210,7 @@ class TestCache:
 
         f2 = cloudpickle.loads(cloudpickle.dumps(f))
         assert f2.sorted_tasks() == 1
-        f2.add_edge(t2, t3)
+        f2.add_edge(t3, t4)
         assert f2.sorted_tasks() != 1
 
     def test_adding_task_clears_cache(self):
@@ -1398,12 +1372,20 @@ class TestSerialize:
         assert isinstance(f.environment, prefect.environments.CloudEnvironment)
 
     def test_serialize_includes_storage(self):
-        f = Flow(name="test", storage=prefect.environments.storage.Bytes())
+        f = Flow(name="test", storage=prefect.environments.storage.Memory())
         s_no_build = f.serialize()
         s_build = f.serialize(build=True)
 
-        assert s_no_build["storage"]["type"] == "Bytes"
-        assert s_build["storage"]["type"] == "Bytes"
+        assert s_no_build["storage"]["type"] == "Memory"
+        assert s_build["storage"]["type"] == "Memory"
+
+    def test_serialize_adds_flow_to_storage_if_build(self):
+        f = Flow(name="test", storage=prefect.environments.storage.Memory())
+        s_no_build = f.serialize()
+        assert f.name not in f.storage
+
+        s_build = f.serialize(build=True)
+        assert f.name in f.storage
 
     def test_serialize_fails_with_no_storage(self):
         f = Flow(name="test")
@@ -1437,6 +1419,55 @@ class TestFlowRunMethod:
             f.run()
         assert "Cease" in str(exc.value)
         assert t.call_count == 2
+
+    def test_flow_dot_run_doesnt_run_on_schedule(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
+
+            def next(self, n):
+                if self.call_count < 2:
+                    self.call_count += 1
+                    # add small delta to trigger "naptime"
+                    return [pendulum.now("utc").add(seconds=0.05)]
+                else:
+                    raise SyntaxError("Cease scheduling!")
+
+        class StatefulTask(Task):
+            call_count = 0
+
+            def run(self):
+                self.call_count += 1
+
+        t = StatefulTask()
+        schedule = MockSchedule()
+        f = Flow(name="test", tasks=[t], schedule=schedule)
+        state = f.run(run_on_schedule=False)
+        assert t.call_count == 1
+
+    def test_flow_dot_run_responds_to_config(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
+
+            def next(self, n):
+                if self.call_count < 2:
+                    self.call_count += 1
+                    # add small delta to trigger "naptime"
+                    return [pendulum.now("utc").add(seconds=0.05)]
+                else:
+                    raise SyntaxError("Cease scheduling!")
+
+        class StatefulTask(Task):
+            call_count = 0
+
+            def run(self):
+                self.call_count += 1
+
+        t = StatefulTask()
+        schedule = MockSchedule()
+        f = Flow(name="test", tasks=[t], schedule=schedule)
+        with set_temporary_config({"flows.run_on_schedule": False}):
+            state = f.run()
+        assert t.call_count == 1
 
     def test_flow_dot_run_stops_on_schedule(self):
         class MockSchedule(prefect.schedules.Schedule):

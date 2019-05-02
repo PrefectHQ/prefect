@@ -39,3 +39,17 @@ A new `Result` object that clarifies the logic introduced by [PIN-2](PIN-2-Resul
 A proposal for automatically combining tasks to ensure data locality; ultimately declined as a general approach.
 
 **Status:** Declined
+
+
+## [PIN-6: Remove Constant Tasks](PIN-6-Remove-Constant-Tasks.md)
+
+A proposal for removing auto-converting non-task objects into `Constant` Tasks; ultimately declined as the benefits outweigh the costs.
+
+**Status:** Declined
+
+
+## [PIN-7: Storage and Execution](PIN-7-Storage-Execution.md)
+
+A proposal for refactoring environments into `Storage` classes and execution `Environment` classes with specific, loosely coupled interfaces.
+
+**Status:** Approved

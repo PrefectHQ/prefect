@@ -28,6 +28,7 @@ TaskRunInfoResult = NamedTuple(
     [
         ("id", str),
         ("task_id", str),
+        ("task_slug", str),
         ("version", int),
         ("state", "prefect.engine.state.State"),
     ],
@@ -303,7 +304,7 @@ class Client:
         flow: "Flow",
         project_name: str,
         build: bool = True,
-        set_schedule_active: bool = False,
+        set_schedule_active: bool = True,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -313,9 +314,9 @@ class Client:
             - project_name (str): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
-            - set_schedule_active (bool, optional): if `True`, will set the
-                schedule to active in the database and begin scheduling runs (if the Flow has a schedule).
-                Defaults to `False`. This can be changed later.
+            - set_schedule_active (bool, optional): if `False`, will set the
+                schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
+                Defaults to `True`. This can be changed later.
 
         Returns:
             - str: the ID of the newly-deployed flow
@@ -332,12 +333,6 @@ class Client:
         create_mutation = {
             "mutation($input: createFlowInput!)": {"createFlow(input: $input)": {"id"}}
         }
-        schedule_mutation = {
-            "mutation($input: setFlowScheduleStateInput!)": {
-                "setFlowScheduleState(input: $input)": {"id"}
-            }
-        }
-
         query_project = {
             "query": {
                 with_args("project", {"where": {"name": {"_eq": project_name}}}): {
@@ -358,18 +353,11 @@ class Client:
         res = self.graphql(
             create_mutation,
             input=dict(
-                projectId=project[0].id, serializedFlow=flow.serialize(build=build)
+                projectId=project[0].id,
+                serializedFlow=flow.serialize(build=build),
+                setScheduleActive=set_schedule_active,
             ),
         )  # type: Any
-
-        if set_schedule_active:
-            self.graphql(
-                schedule_mutation,
-                input=dict(
-                    flowId=res.data.createFlow.id, setActive=True
-                ),  # type: ignore
-            )  # type: Any
-
         return res.data.createFlow.id
 
     def create_project(self, project_name: str) -> str:
@@ -465,10 +453,10 @@ class Client:
                     "serialized_state": True,
                     # load all task runs except dynamic task runs
                     with_args("task_runs", {"where": {"map_index": {"_eq": -1}}}): {
-                        "id",
-                        "task_id",
-                        "version",
-                        "serialized_state",
+                        "id": True,
+                        "task": {"id": True, "slug": True},
+                        "version": True,
+                        "serialized_state": True,
                     },
                 }
             }
@@ -491,6 +479,9 @@ class Client:
             tr.state = prefect.engine.state.State.deserialize(
                 tr.pop("serialized_state")
             )
+            task_info = tr.pop("task")
+            tr.task_id = task_info["id"]
+            tr.task_slug = task_info["slug"]
             task_runs.append(TaskRunInfoResult(**tr))
 
         result.task_runs = task_runs
@@ -614,6 +605,7 @@ class Client:
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason
         """
+
         mutation = {
             "mutation": {
                 with_args(
@@ -625,7 +617,14 @@ class Client:
                             "mapIndex": -1 if map_index is None else map_index,
                         }
                     },
-                ): {"task_run": {"id", "version", "serialized_state"}, "id": True}
+                ): {
+                    "task_run": {
+                        "id": True,
+                        "version": True,
+                        "serialized_state": True,
+                        "task": {"slug": True},
+                    }
+                }
             }
         }
         result = self.graphql(mutation)  # type: Any
@@ -633,7 +632,11 @@ class Client:
 
         state = prefect.engine.state.State.deserialize(task_run.serialized_state)
         return TaskRunInfoResult(
-            id=task_run.id, task_id=task_id, version=task_run.version, state=state
+            id=task_run.id,
+            task_id=task_id,
+            task_slug=task_run.task.slug,
+            version=task_run.version,
+            state=state,
         )
 
     def set_task_run_state(

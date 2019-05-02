@@ -4,12 +4,13 @@ import tempfile
 from os import path
 from unittest.mock import MagicMock
 
+import cloudpickle
 import pytest
 import yaml
 
 import prefect
 from prefect.environments import CloudEnvironment
-from prefect.environments.storage import Bytes, Docker
+from prefect.environments.storage import Memory, Docker
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -32,35 +33,27 @@ def test_setup_cloud_environment_passes():
 def test_execute_improper_storage():
     environment = CloudEnvironment()
     with pytest.raises(TypeError):
-        environment.execute(storage=Bytes())
+        environment.execute(storage=Memory(), flow_location="")
 
 
 def test_execute_storage_missing_fields():
     environment = CloudEnvironment()
     with pytest.raises(ValueError):
-        environment.execute(storage=Docker())
+        environment.execute(storage=Docker(), flow_location="")
 
 
 def test_execute(monkeypatch):
     environment = CloudEnvironment()
-    storage = Docker(
-        registry_url="test1",
-        image_name="test2",
-        image_tag="test3",
-        flow_file_path="test4",
-    )
+    storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
 
     create_flow_run = MagicMock()
     monkeypatch.setattr(
         "prefect.environments.CloudEnvironment.create_flow_run_job", create_flow_run
     )
 
-    environment.execute(storage=storage)
+    environment.execute(storage=storage, flow_location="")
 
-    assert create_flow_run.call_args[1]["registry_url"] == "test1"
-    assert create_flow_run.call_args[1]["image_name"] == "test2"
-    assert create_flow_run.call_args[1]["image_tag"] == "test3"
-    assert create_flow_run.call_args[1]["flow_file_path"] == "test4"
+    assert create_flow_run.call_args[1]["docker_name"] == "test1/test2:test3"
 
 
 def test_create_flow_run_job(monkeypatch):
@@ -76,10 +69,7 @@ def test_create_flow_run_job(monkeypatch):
 
     with set_temporary_config({"cloud.auth_token": "test"}):
         environment.create_flow_run_job(
-            registry_url="test1",
-            image_name="test2",
-            image_tag="test3",
-            flow_file_path="test4",
+            docker_name="test1/test2:test3", flow_file_path="test4"
         )
 
     assert (
@@ -93,10 +83,7 @@ def test_create_flow_run_job_fails_outside_cluster():
     with pytest.raises(EnvironmentError):
         with set_temporary_config({"cloud.auth_token": "test"}):
             environment.create_flow_run_job(
-                registry_url="test1",
-                image_name="test2",
-                image_tag="test3",
-                flow_file_path="test4",
+                docker_name="test1/test2:test3", flow_file_path="test4"
             )
 
 
@@ -104,7 +91,10 @@ def test_run_flow(monkeypatch):
     environment = CloudEnvironment()
 
     flow_runner = MagicMock()
-    monkeypatch.setattr("prefect.engine.FlowRunner", flow_runner)
+    monkeypatch.setattr(
+        "prefect.engine.get_default_flow_runner_class",
+        MagicMock(return_value=flow_runner),
+    )
 
     kube_cluster = MagicMock()
     monkeypatch.setattr("dask_kubernetes.KubeCluster", kube_cluster)
@@ -113,8 +103,8 @@ def test_run_flow(monkeypatch):
         with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
             flow = prefect.Flow("test")
             flow_path = os.path.join(directory, "flow_env.prefect")
-            with open(flow_path, "w") as f:
-                json.dump(flow.serialize(), f)
+            with open(flow_path, "wb") as f:
+                cloudpickle.dump(flow, f)
 
         with set_temporary_config({"cloud.auth_token": "test"}):
             with prefect.context(
@@ -145,11 +135,7 @@ def test_populate_job_yaml():
     ):
         with prefect.context(flow_run_id="id_test"):
             yaml_obj = environment._populate_job_yaml(
-                yaml_obj=job,
-                registry_url="test1",
-                image_name="test2",
-                image_tag="test3",
-                flow_file_path="test4",
+                yaml_obj=job, docker_name="test1/test2:test3", flow_file_path="test4"
             )
 
     assert yaml_obj["metadata"]["name"] == "prefect-dask-job-{}".format(

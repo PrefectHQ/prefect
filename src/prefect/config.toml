@@ -17,7 +17,7 @@ heartbeat_interval = 30.0
 
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
-level = "DEBUG"
+level = "INFO"
 
 # The log format
 format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
@@ -32,6 +32,9 @@ log_to_cloud = false
 # serializing the flow). Defaults to false because it can affect the performance of
 # large flows.
 eager_edge_validation = false
+# If true, `flow.run` will run on schedule by default.
+# If false, only a single execution will occur (no retries, etc.)
+run_on_schedule = true
 
 
 [tasks]

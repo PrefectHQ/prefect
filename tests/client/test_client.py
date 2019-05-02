@@ -257,7 +257,7 @@ def test_client_deploy(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Bytes())
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
     flow_id = client.deploy(flow, project_name="my-default-project")
     assert flow_id == "long-id"
 
@@ -272,7 +272,7 @@ def test_client_deploy_builds_flow(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Bytes())
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
     flow_id = client.deploy(flow, project_name="my-default-project")
 
     ## extract POST info
@@ -313,30 +313,6 @@ def test_client_deploy_with_bad_proj_name(monkeypatch):
     assert "client.create_project" in str(exc.value)
 
 
-@pytest.mark.parametrize("active", [False, True])
-def test_client_deploy_rejects_setting_active_schedules_for_flows_with_req_params(
-    active, monkeypatch
-):
-    post = MagicMock()
-    monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        client = Client()
-
-    flow = prefect.Flow(name="test", schedule=prefect.schedules.Schedule())
-    flow.add_task(prefect.Parameter("x", required=True))
-
-    with pytest.raises(ClientError) as exc:
-        result = client.deploy(
-            flow, project_name="my-default-project", set_schedule_active=active
-        )
-    assert (
-        str(exc.value)
-        == "Flows with required parameters can not be scheduled automatically."
-    )
-
-
 def test_get_flow_run_info(monkeypatch):
     response = """
 {
@@ -355,7 +331,10 @@ def test_get_flow_run_info(monkeypatch):
         "task_runs":[
             {
                 "id": "da344768-5f5d-4eaf-9bca-83815617f713",
-                "task_id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                "task": {
+                    "id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                    "slug": "da344768-5f5d-4eaf-9bca-83815617f713"
+                    },
                 "version": 0,
                 "serialized_state": {
                     "type": "Pending",
@@ -455,6 +434,9 @@ def test_get_task_run_info(monkeypatch):
                     "message": null,
                     "__version__": "0.3.3+310.gd19b9b7.dirty",
                     "cached_inputs": null
+                },
+                "task": {
+                    "slug": "slug"
                 }
             }
         }

@@ -59,6 +59,11 @@ class MetaStateSchema(BaseStateSchema):
     state = fields.Nested("StateSchema", allow_none=True)
 
 
+class ClientFailedSchema(MetaStateSchema):
+    class Meta:
+        object_class = state.ClientFailed
+
+
 class SubmittedSchema(MetaStateSchema):
     class Meta:
         object_class = state.Submitted
@@ -67,6 +72,8 @@ class SubmittedSchema(MetaStateSchema):
 class QueuedSchema(MetaStateSchema):
     class Meta:
         object_class = state.Queued
+
+    start_time = fields.DateTime(allow_none=True)
 
 
 class ScheduledSchema(PendingSchema):
@@ -139,6 +146,11 @@ class FailedSchema(FinishedSchema):
         object_class = state.Failed
 
 
+class AbortedSchema(FailedSchema):
+    class Meta:
+        object_class = state.Aborted
+
+
 class TimedOutSchema(FinishedSchema):
     class Meta:
         object_class = state.TimedOut
@@ -175,7 +187,9 @@ class StateSchema(OneOfSchema):
 
     # map class name to schema
     type_schemas = {
+        "Aborted": AbortedSchema,
         "Cached": CachedSchema,
+        "ClientFailed": ClientFailedSchema,
         "Failed": FailedSchema,
         "Finished": FinishedSchema,
         "Mapped": MappedSchema,

@@ -1,24 +1,77 @@
+import cloudpickle
+from typing import Any, Dict, Iterable, List, TYPE_CHECKING, Union
+
 import prefect
 from prefect.environments.storage import Storage
 
-# TODO: This is unimplemented as of https://github.com/PrefectHQ/prefect/pull/936
+if TYPE_CHECKING:
+    from prefect.core.flow import Flow
+
+
 class Bytes(Storage):
     """
-    Bytes storage.
+    Bytes Storage class, mainly used for testing.  This class represents the Storage
+    interface for Flows stored directly as bytes.
     """
 
     def __init__(self) -> None:
-        pass
+        self.flows = dict()  # type: Dict[str, bytes]
+        super().__init__()
 
-    def build(self, flow: "prefect.Flow") -> "Storage":
+    def get_flow(self, flow_location: str) -> "Flow":
         """
-        Build the Bytes storage object.
+        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
 
         Args:
-            - flow (prefect.Flow): Flow to be stored
+            - flow_location (str): the location of a flow within this Storage
 
         Returns:
-            - Bytes: a new Bytes storage object that contains information about how and
-                where the flow is stored.
+            - Flow: the requested flow
+
+        Raises:
+            - ValueError: if the flow is not contained in this storage
         """
-        return Bytes()
+        if not flow_location in self.flows:
+            raise ValueError("Flow is not contained in this Storage")
+        flow_bytes = self.flows[flow_location]
+        return cloudpickle.loads(flow_bytes)
+
+    def add_flow(self, flow: "Flow") -> str:
+        """
+        Method for adding a new flow to this Storage object.
+
+        Args:
+            - flow (Flow): a Prefect Flow to add
+
+        Returns:
+            - str: the location of the newly added flow in this Storage object
+
+        Raises:
+            - ValueError: if a flow with the same name is already contained in this storage
+        """
+        if flow.name in self:
+            raise ValueError(
+                'Name conflict: Flow with the name "{}" is already present in this storage.'.format(
+                    flow.name
+                )
+            )
+        self.flows[flow.name] = cloudpickle.dumps(flow)
+        return flow.name
+
+    def __contains__(self, obj: Any) -> bool:
+        """
+        Method for determining whether an object is contained within this storage.
+        """
+        if not isinstance(obj, str):
+            return False
+        return obj in self.flows
+
+    def build(self) -> "Storage":
+        """
+        Build the Storage object.
+
+        Returns:
+            - Storage: a Storage object that contains information about how and where
+                each flow is stored
+        """
+        return self

@@ -1,5 +1,6 @@
 const sidebar50 = require('../api/0.5.0/sidebar')
 const sidebar51 = require('../api/0.5.1/sidebar')
+const sidebar52 = require('../api/0.5.2/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -44,12 +45,14 @@ module.exports = {
         text: 'API Reference',
         items: [
           { text: 'Unreleased', link: '/api/unreleased/' },
+          { text: '0.5.2', link: '/api/0.5.2/' },
           { text: '0.5.1', link: '/api/0.5.1/' },
           { text: '0.5.0', link: '/api/0.5.0/' }
         ]
       }
     ],
     sidebar: {
+      '/api/0.5.2/': sidebar52.sidebar,
       '/api/0.5.1/': sidebar51.sidebar,
       '/api/0.5.0/': sidebar50.sidebar,
       '/api/unreleased/': [
@@ -75,6 +78,11 @@ module.exports = {
           title: 'prefect.engine',
           collapsable: true,
           children: getChildren('docs/api/unreleased', 'engine')
+        },
+        {
+          title: 'prefect.environments',
+          collapsable: true,
+          children: getChildren('docs/api/unreleased', 'environments')
         },
         {
           title: 'prefect.tasks',
