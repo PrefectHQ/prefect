@@ -19,6 +19,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Added an `execute-cloud-flow` CLI command for working with cloud deployed flows - [#971](https://github.com/PrefectHQ/prefect/pull/971)
 - Add new `flows.run_on_schedule` configuration option for affecting the behavior of `flow.run` - [#972](https://github.com/PrefectHQ/prefect/issues/972)
 - Allow for Tasks with `manual_only` triggers to be root tasks - [#667](https://github.com/PrefectHQ/prefect/issues/667)
+- Allow compression of serialized flows [#993](https://github.com/PrefectHQ/prefect/pull/993)
 
 ### Task Library
 
@@ -35,14 +36,13 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Remove `flow.id` and `task.id` attributes - [#940](https://github.com/PrefectHQ/prefect/pull/940)
 - Removed old WIP environments - [#936](https://github.com/PrefectHQ/prefect/pull/936)
-*Note*: Changes from [#936](https://github.com/PrefectHQ/prefect/pull/936) regarding environments don't break any Prefect code because environments weren't used yet outside of Cloud.
+  (_Note_: Changes from [#936](https://github.com/PrefectHQ/prefect/pull/936) regarding environments don't break any Prefect code because environments weren't used yet outside of Cloud.)
 - Update `flow.deploy` and `client.deploy` to use `set_schedule_active` kwarg to match Cloud - [#991](https://github.com/PrefectHQ/prefect/pull/991)
 - Removed `Flow.generate_local_task_ids()` - [#992](#https://github.com/PrefectHQ/prefect/pull/992)
 
 ### Contributors
 
 - None
-
 
 ## 0.5.2 <Badge text="beta" type="success"/>
 
@@ -77,7 +77,6 @@ Released April 19, 2019
 - Remove `prefect make user config` from cli commands - [#904](https://github.com/PrefectHQ/prefect/issues/904)
 - Change `set_schedule_active` keyword in Flow deployments to `set_schedule_inactive` to match Cloud - [#941](https://github.com/PrefectHQ/prefect/pull/941)
 
-
 ### Contributors
 
 - None
@@ -93,6 +92,7 @@ Released April 4, 2019
 - Add ability to use `Cached` states across flow runs in Cloud - [#885](https://github.com/PrefectHQ/prefect/pull/885)
 
 ### Enhancements
+
 - Bump to latest version of `pytest` (4.3) - [#814](https://github.com/PrefectHQ/prefect/issues/814)
 - `Client.deploy` accepts optional `build` kwarg for avoiding building Flow environment - [#876](https://github.com/PrefectHQ/prefect/pull/876)
 - Bump `distributed` to 1.26.1 for enhanced security features - [#878](https://github.com/PrefectHQ/prefect/pull/878)

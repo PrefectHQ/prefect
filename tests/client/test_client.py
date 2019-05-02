@@ -1,5 +1,7 @@
+import base64
 import datetime
 import json
+import lzma
 import os
 import uuid
 from unittest.mock import MagicMock, mock_open
@@ -30,7 +32,7 @@ from prefect.engine.state import (
 )
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
-from prefect.utilities.graphql import GraphQLResult
+from prefect.utilities.graphql import GraphQLResult, decompress
 
 #################################
 ##### Client Tests
@@ -247,10 +249,19 @@ def test_graphql_errors_get_raised(monkeypatch):
     assert "GraphQL issue!" in str(exc.value)
 
 
-def test_client_deploy(monkeypatch):
-    response = {
-        "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
-    }
+@pytest.mark.parametrize("compressed", [True, False])
+def test_client_deploy(monkeypatch, compressed):
+    if compressed:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "createFlowFromCompressedString": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+        }
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
@@ -258,14 +269,25 @@ def test_client_deploy(monkeypatch):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
-    flow_id = client.deploy(flow, project_name="my-default-project")
+    flow_id = client.deploy(
+        flow, project_name="my-default-project", compressed=compressed
+    )
     assert flow_id == "long-id"
 
 
-def test_client_deploy_builds_flow(monkeypatch):
-    response = {
-        "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
-    }
+@pytest.mark.parametrize("compressed", [True, False])
+def test_client_deploy_builds_flow(monkeypatch, compressed):
+    if compressed:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "createFlowFromCompressedString": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+        }
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
@@ -273,17 +295,37 @@ def test_client_deploy_builds_flow(monkeypatch):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
-    flow_id = client.deploy(flow, project_name="my-default-project")
+    flow_id = client.deploy(
+        flow, project_name="my-default-project", compressed=compressed
+    )
 
     ## extract POST info
-    variables = json.loads(post.call_args[1]["json"]["variables"])
-    assert variables["input"]["serializedFlow"]["storage"] is not None
+    if compressed:
+        serialized_flow = decompress(
+            json.loads(post.call_args[1]["json"]["variables"])["input"][
+                "serializedFlow"
+            ]
+        )
+    else:
+        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
+            "serializedFlow"
+        ]
+    assert serialized_flow["storage"] is not None
 
 
-def test_client_deploy_optionally_avoids_building_flow(monkeypatch):
-    response = {
-        "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
-    }
+@pytest.mark.parametrize("compressed", [True, False])
+def test_client_deploy_optionally_avoids_building_flow(monkeypatch, compressed):
+    if compressed:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "createFlowFromCompressedString": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+        }
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
@@ -291,11 +333,22 @@ def test_client_deploy_optionally_avoids_building_flow(monkeypatch):
     ):
         client = Client()
     flow = prefect.Flow(name="test")
-    flow_id = client.deploy(flow, project_name="my-default-project", build=False)
+    flow_id = client.deploy(
+        flow, project_name="my-default-project", build=False, compressed=compressed
+    )
 
     ## extract POST info
-    variables = json.loads(post.call_args[1]["json"]["variables"])
-    assert variables["input"]["serializedFlow"]["storage"] is None
+    if compressed:
+        serialized_flow = decompress(
+            json.loads(post.call_args[1]["json"]["variables"])["input"][
+                "serializedFlow"
+            ]
+        )
+    else:
+        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
+            "serializedFlow"
+        ]
+    assert serialized_flow["storage"] is None
 
 
 def test_client_deploy_with_bad_proj_name(monkeypatch):
