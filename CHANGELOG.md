@@ -38,6 +38,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Removed old WIP environments - [#936](https://github.com/PrefectHQ/prefect/pull/936)
   _Note_: Changes from [#936](https://github.com/PrefectHQ/prefect/pull/936) regarding environments don't break any Prefect code because environments weren't used yet outside of Cloud.
 - Update `flow.deploy` and `client.deploy` to use `set_schedule_active` kwarg to match Cloud - [#991](https://github.com/PrefectHQ/prefect/pull/991)
+- Removed `Flow.generate_local_task_ids()` - [#992](#https://github.com/PrefectHQ/prefect/pull/992)
 
 ### Contributors
 
