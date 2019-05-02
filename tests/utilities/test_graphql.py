@@ -405,3 +405,11 @@ def test_decompress():
     test_str = compress({"test": 42})
     result = decompress(test_str)
     assert isinstance(result, dict)
+
+
+@pytest.mark.parametrize(
+    "obj",
+    ["abc", 42, None, ["testlist", "stilltesting"], {"testing1234": 123}, [1, 2, 3]],
+)
+def test_compression_back_translation(obj):
+    assert decompress(compress(obj)) == obj
