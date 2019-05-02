@@ -286,7 +286,7 @@ def compress(input: Any) -> str:
     encodes again using b64, and decodes.
 
     Args:
-        - dictionary (Any): the dictionary to be compressed
+        - input (Any): the dictionary to be compressed
 
     Returns:
         - str: The string resulting from the compression
