@@ -6,7 +6,7 @@ sidebarDepth: 1
 
 > Why should I choose Prefect over Airflow?
 
-Airflow is a historically important tool in the data engineering ecosystem. It introduced the ability to combine a strict Directed Acyclic Graph (DAG) model with Pythonic flexibility in a way that made it appropriate for a wide variety of use cases. However, Airflow’s applicability is limited by its legacy as a monolithic batch scheduler aimed at data engineers principally concerned with orchestrating third-party systems employed by others in their organizations.
+_Airflow is a historically important tool in the data engineering ecosystem. It introduced the ability to combine a strict Directed Acyclic Graph (DAG) model with Pythonic flexibility in a way that made it appropriate for a wide variety of use cases. However, Airflow’s applicability is limited by its legacy as a monolithic batch scheduler aimed at data engineers principally concerned with orchestrating third-party systems employed by others in their organizations.
 
 Today, many data engineers are working more directly with their analytical counterparts. Compute and storage are cheap, so friction is low and experimentation prevails. Processes are fast, dynamic, and unpredictable. Airflow got many things right, but its core assumptions never anticipated the rich variety of data applications that has emerged. It simply does not have the requisite vocabulary to describe many of those activities.
 
@@ -14,7 +14,7 @@ The seed that would grow into Prefect was first planted all the way back in 2016
 
 We know that questions about how Prefect compares to Airflow are paramount to our users, especially given Prefect’s lineage. We prepared this document to highlight common Airflow issues that the Prefect engine takes specific steps to address. This post is not intended to be an exhaustive tour of Prefect’s features, but rather a guide for users familiar with Airflow that explains Prefect’s analogous approach. We have tried to be balanced and limit discussion of anything not currently available in our open-source repo, and we hope this serves as a helpful overview for the community.
 
-Happy engineering!
+Happy engineering!_
 
 ## Overview
 Airflow was designed to run static, slow-moving workflows on a fixed schedule, and it is a great tool for that purpose. Airflow was also the first successful implementation of _workflows-as-code_, a useful and flexible paradigm. It proved that workflows could be built without resorting to config files or obtuse DAG definitions.
