@@ -12,8 +12,31 @@ from prefect.engine.result_handlers import (
     ResultHandler,
     S3ResultHandler,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
+from prefect.serialization.result_handlers import ResultHandlerSchema, CustomResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
+
+
+class TestCustomSchema:
+    def test_custom_schema_dump_on_dummy_class(self):
+        class Dummy(ResultHandler):
+            def read(self, *args, **kwargs):
+                pass
+            def write(self, *args, **kwargs):
+                pass
+
+        serialized = CustomResultHandlerSchema().dump(Dummy())
+        assert "Dummy" in serialized["type"]
+        assert serialized["__version__"] == prefect.__version__
+
+    def test_custom_schema_roundtrip_on_base_class(self):
+        class Dummy(ResultHandler):
+            def read(self, *args, **kwargs):
+                pass
+            def write(self, *args, **kwargs):
+                pass
+
+        schema = CustomResultHandlerSchema()
+        serialized = schema.load(schema.dump(Dummy()))
 
 
 class TestLocalResultHandler:
