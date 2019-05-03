@@ -12,7 +12,10 @@ from prefect.engine.result_handlers import (
     ResultHandler,
     S3ResultHandler,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema, CustomResultHandlerSchema
+from prefect.serialization.result_handlers import (
+    ResultHandlerSchema,
+    CustomResultHandlerSchema,
+)
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -21,22 +24,55 @@ class TestCustomSchema:
         class Dummy(ResultHandler):
             def read(self, *args, **kwargs):
                 pass
+
             def write(self, *args, **kwargs):
                 pass
 
         serialized = CustomResultHandlerSchema().dump(Dummy())
-        assert "Dummy" in serialized["type"]
+        assert serialized["type"].endswith("Dummy")
+        assert serialized["__version__"] == prefect.__version__
+
+    def test_custom_schema_dump_on_stateful_class(self):
+        class Stateful(ResultHandler):
+            def __init__(self, x):
+                self.x = x
+
+            def read(self, *args, **kwargs):
+                pass
+
+            def write(self, *args, **kwargs):
+                pass
+
+        serialized = CustomResultHandlerSchema().dump(Stateful(42))
+        assert serialized["type"].endswith("Stateful")
         assert serialized["__version__"] == prefect.__version__
 
     def test_custom_schema_roundtrip_on_base_class(self):
         class Dummy(ResultHandler):
             def read(self, *args, **kwargs):
                 pass
+
             def write(self, *args, **kwargs):
                 pass
 
         schema = CustomResultHandlerSchema()
-        serialized = schema.load(schema.dump(Dummy()))
+        obj = schema.load(schema.dump(Dummy()))
+        assert obj.endswith("Dummy")
+
+    def test_custom_schema_roundtrip_on_stateful_class(self):
+        class Stateful(ResultHandler):
+            def __init__(self, x):
+                self.x = x
+
+            def read(self, *args, **kwargs):
+                pass
+
+            def write(self, *args, **kwargs):
+                pass
+
+        schema = CustomResultHandlerSchema()
+        obj = schema.load(schema.dump(Stateful(42)))
+        assert obj.endswith("Stateful")
 
 
 class TestLocalResultHandler:

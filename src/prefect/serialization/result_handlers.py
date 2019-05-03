@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from marshmallow import ValidationError, fields, post_load
 
@@ -29,11 +29,13 @@ class CustomResultHandlerSchema(ObjectSchema):
         object_class = lambda: ResultHandler
         exclude_fields = ["type"]
 
-    type = fields.Function(lambda handler: to_qualified_name(type(handler)), lambda x: x)
+    type = fields.Function(
+        lambda handler: to_qualified_name(type(handler)), lambda x: x
+    )
 
     @post_load
-    def create_object(self, data: dict) -> ResultHandler:
-        from IPython import embed; embed()
+    def create_object(self, data: dict) -> Optional[str]:
+        return data.get("type")
 
 
 class CloudResultHandlerSchema(BaseResultHandlerSchema):
