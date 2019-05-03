@@ -20,6 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add new `flows.run_on_schedule` configuration option for affecting the behavior of `flow.run` - [#972](https://github.com/PrefectHQ/prefect/issues/972)
 - Allow for Tasks with `manual_only` triggers to be root tasks - [#667](https://github.com/PrefectHQ/prefect/issues/667)
 - Allow compression of serialized flows [#993](https://github.com/PrefectHQ/prefect/pull/993)
+- Allow for serialization of user written result handlers - [#623](https://github.com/PrefectHQ/prefect/issues/623)
 
 ### Task Library
 
