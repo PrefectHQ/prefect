@@ -74,6 +74,25 @@ class TestCustomSchema:
         obj = schema.load(schema.dump(Stateful(42)))
         assert obj.endswith("Stateful")
 
+    def test_result_handler_schema_defaults_to_custom(self):
+        class Weird(ResultHandler):
+            def __init__(self, y):
+                self.y = y
+
+            def read(self, *args, **kwargs):
+                return 99
+
+            def write(self, *args, **kwargs):
+                return type(None)
+
+        schema = ResultHandlerSchema()
+        serialized = schema.dump(Weird(dict(y="test")))
+        assert serialized["type"].endswith("Weird")
+        assert serialized["__version__"] == prefect.__version__
+
+        obj = schema.load(serialized)
+        assert obj is None
+
 
 class TestLocalResultHandler:
     def test_serialize_local_result_handler_with_no_dir(self):
