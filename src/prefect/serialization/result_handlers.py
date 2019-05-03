@@ -24,6 +24,18 @@ class BaseResultHandlerSchema(ObjectSchema):
         object_class = ResultHandler
 
 
+class CustomResultHandlerSchema(ObjectSchema):
+    class Meta:
+        object_class = lambda: ResultHandler
+        exclude_fields = ["type"]
+
+    type = fields.Function(lambda handler: to_qualified_name(type(handler)), lambda x: x)
+
+    @post_load
+    def create_object(self, data: dict) -> ResultHandler:
+        from IPython import embed; embed()
+
+
 class CloudResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
         object_class = CloudResultHandler
