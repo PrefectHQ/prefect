@@ -12,8 +12,86 @@ from prefect.engine.result_handlers import (
     ResultHandler,
     S3ResultHandler,
 )
-from prefect.serialization.result_handlers import ResultHandlerSchema
+from prefect.serialization.result_handlers import (
+    ResultHandlerSchema,
+    CustomResultHandlerSchema,
+)
 from prefect.utilities.configuration import set_temporary_config
+
+
+class TestCustomSchema:
+    def test_custom_schema_dump_on_dummy_class(self):
+        class Dummy(ResultHandler):
+            def read(self, *args, **kwargs):
+                pass
+
+            def write(self, *args, **kwargs):
+                pass
+
+        serialized = CustomResultHandlerSchema().dump(Dummy())
+        assert serialized["type"].endswith("Dummy")
+        assert serialized["__version__"] == prefect.__version__
+
+    def test_custom_schema_dump_on_stateful_class(self):
+        class Stateful(ResultHandler):
+            def __init__(self, x):
+                self.x = x
+
+            def read(self, *args, **kwargs):
+                pass
+
+            def write(self, *args, **kwargs):
+                pass
+
+        serialized = CustomResultHandlerSchema().dump(Stateful(42))
+        assert serialized["type"].endswith("Stateful")
+        assert serialized["__version__"] == prefect.__version__
+
+    def test_custom_schema_roundtrip_on_base_class(self):
+        class Dummy(ResultHandler):
+            def read(self, *args, **kwargs):
+                pass
+
+            def write(self, *args, **kwargs):
+                pass
+
+        schema = CustomResultHandlerSchema()
+        obj = schema.load(schema.dump(Dummy()))
+        assert obj is None
+
+    def test_custom_schema_roundtrip_on_stateful_class(self):
+        class Stateful(ResultHandler):
+            def __init__(self, x):
+                self.x = x
+
+            def read(self, *args, **kwargs):
+                pass
+
+            def write(self, *args, **kwargs):
+                pass
+
+        schema = CustomResultHandlerSchema()
+        obj = schema.load(schema.dump(Stateful(42)))
+        assert obj is None
+
+    def test_result_handler_schema_defaults_to_custom(self):
+        class Weird(ResultHandler):
+            def __init__(self, y):
+                self.y = y
+
+            def read(self, *args, **kwargs):
+                return 99
+
+            def write(self, *args, **kwargs):
+                return type(None)
+
+        schema = ResultHandlerSchema()
+        serialized = schema.dump(Weird(dict(y="test")))
+        assert serialized["type"].endswith("Weird")
+        assert serialized["__version__"] == prefect.__version__
+
+        obj = schema.load(serialized)
+        assert obj is None
 
 
 class TestLocalResultHandler:
