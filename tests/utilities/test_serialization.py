@@ -217,13 +217,16 @@ class TestFunctionReferenceField:
 def outer(x, y, z):
     def inner(q):
         return x + y + z + q
+
     return inner
 
 
 class TestStatefulFunctionReferenceField:
     class Schema(marshmallow.Schema):
         f = StatefulFunctionReference(valid_functions=[outer])
-        f_allow_invalid = StatefulFunctionReference(valid_functions=[outer], reject_invalid=False)
+        f_allow_invalid = StatefulFunctionReference(
+            valid_functions=[outer], reject_invalid=False
+        )
         f_none = StatefulFunctionReference(valid_functions=[outer], allow_none=True)
 
     def test_serialize_outer_no_state(self):
@@ -232,7 +235,10 @@ class TestStatefulFunctionReferenceField:
 
     def test_serialize_outer_with_state(self):
         serialized = self.Schema().dump(dict(f=outer(x=1, y=2, z=99)))
-        assert serialized["f"] == "tests.utilities.test_serialization.outer(x=1, y=2, z=99)"
+        assert (
+            serialized["f"]
+            == "tests.utilities.test_serialization.outer(x=1, y=2, z=99)"
+        )
 
     def test_serialize_invalid_fn(self):
         with pytest.raises(marshmallow.ValidationError):
@@ -240,15 +246,19 @@ class TestStatefulFunctionReferenceField:
 
     def test_serialize_invalid_fn_without_validation(self):
         serialized = self.Schema().dump(dict(f_allow_invalid=fn2))
-        assert serialized["f_allow_invalid"] == "tests.utilities.test_serialization.fn2()"
+        assert (
+            serialized["f_allow_invalid"] == "tests.utilities.test_serialization.fn2()"
+        )
 
     def test_deserialize_outer_no_state(self):
         deserialized = self.Schema().load(self.Schema().dump(dict(f=outer)))
         assert deserialized["f"] is outer
 
     def test_deserialize_outer_with_state(self):
-        deserialized = self.Schema().load(self.Schema().dump(dict(f=outer(x=1, y=2, z=99)))
-        assert deserialized["f"](0) == 102
+        deserialized = self.Schema().load(
+            self.Schema().dump(dict(f=outer(x=1, y=2, z=99)))
+        )
+        assert deserialized["f"] is outer
 
     def test_deserialize_invalid_fn(self):
         with pytest.raises(marshmallow.ValidationError):
@@ -258,9 +268,7 @@ class TestStatefulFunctionReferenceField:
         deserialized = self.Schema().load(
             dict(f_allow_invalid="tests.utilities.test_serialization.fn2")
         )
-        assert (
-            deserialized["f_allow_invalid"] == "tests.utilities.test_serialization.fn2"
-        )
+        assert deserialized["f_allow_invalid"] is None
 
     def test_serialize_none(self):
         with pytest.raises(marshmallow.ValidationError):

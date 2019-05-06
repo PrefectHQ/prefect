@@ -16,6 +16,7 @@ import prefect
 from prefect.utilities.serialization import (
     UUID,
     FunctionReference,
+    StatefulFunctionReference,
     JSONCompatible,
     ObjectSchema,
     from_qualified_name,
@@ -87,7 +88,7 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
     inputs = fields.Method("load_inputs", allow_none=True)
     outputs = fields.Method("load_outputs", allow_none=True)
     timeout = fields.Integer(allow_none=True)
-    trigger = FunctionReference(
+    trigger = StatefulFunctionReference(
         valid_functions=[
             prefect.triggers.all_finished,
             prefect.triggers.manual_only,
