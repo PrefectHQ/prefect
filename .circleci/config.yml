@@ -90,6 +90,10 @@ jobs:
           command: apt-get update && apt-get install -y zsh
 
       - run:
+          name: Install graphviz
+          command: apt-get update && apt-get install -y graphviz
+
+      - run:
           name: Install prefect
           command: pip install ".[all_extras]"
 
