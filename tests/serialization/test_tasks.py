@@ -173,16 +173,36 @@ def test_cache_validator_never_use():
     assert t2.cache_validator is prefect.engine.cache_validators.never_use
 
 
+@pytest.mark.parametrize(
+    "validator",
+    [
+        prefect.engine.cache_validators.partial_inputs_only,
+        prefect.engine.cache_validators.partial_parameters_only,
+    ],
+)
+@pytest.mark.parametrize("validate_on", [["x"], ["longer"], ["x", "y"]])
+def test_stateful_trigger(validator, validate_on):
+    with pytest.warns(UserWarning):
+        t = Task(cache_validator=validator(validate_on))
+    serialized = TaskSchema().dump(t)
+    call_sig = "validate_on={}".format(validate_on)
+    assert serialized["cache_validator"].endswith("({})".format(call_sig))
+
+    with pytest.warns(UserWarning):
+        t2 = TaskSchema().load(serialized)
+    assert t2.cache_validator is validator  # no state
+
+
 def test_unknown_cache_validator():
     def hello():
         pass
 
     with pytest.warns(UserWarning):
         t = Task(cache_validator=hello)
-    with pytest.warns(UserWarning):
-        t2 = TaskSchema().load(TaskSchema().dump(t))
-    assert isinstance(t2.cache_validator, str)
-    assert t2.cache_validator.endswith("hello")
+    t2 = TaskSchema().load(TaskSchema().dump(t))
+
+    # falls back to default
+    assert t2.cache_validator is prefect.engine.cache_validators.never_use
 
 
 def test_inputs_outputs():
