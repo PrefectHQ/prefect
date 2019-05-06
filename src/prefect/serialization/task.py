@@ -106,7 +106,7 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
     )
     skip_on_upstream_skip = fields.Boolean(allow_none=True)
     cache_for = fields.TimeDelta(allow_none=True)
-    cache_validator = FunctionReference(
+    cache_validator = StatefulFunctionReference(
         valid_functions=[
             prefect.engine.cache_validators.never_use,
             prefect.engine.cache_validators.duration_only,
