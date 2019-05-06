@@ -57,7 +57,7 @@ class TestCustomSchema:
 
         schema = CustomResultHandlerSchema()
         obj = schema.load(schema.dump(Dummy()))
-        assert obj.endswith("Dummy")
+        assert obj is None
 
     def test_custom_schema_roundtrip_on_stateful_class(self):
         class Stateful(ResultHandler):
@@ -72,7 +72,7 @@ class TestCustomSchema:
 
         schema = CustomResultHandlerSchema()
         obj = schema.load(schema.dump(Stateful(42)))
-        assert obj.endswith("Stateful")
+        assert obj is None
 
     def test_result_handler_schema_defaults_to_custom(self):
         class Weird(ResultHandler):
