@@ -77,7 +77,9 @@ class CloudEnvironment(Environment):
             )
 
             # Create Job
-            batch_client.create_namespaced_job(namespace="default", body=job)
+            batch_client.create_namespaced_job(
+                namespace=prefect.context.get("namespace"), body=job
+            )
 
     def run_flow(self) -> None:
         """
@@ -91,7 +93,9 @@ class CloudEnvironment(Environment):
             worker_pod = yaml.safe_load(pod_file)
             worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
 
-            cluster = KubeCluster.from_dict(worker_pod)
+            cluster = KubeCluster.from_dict(
+                worker_pod, namespace=prefect.context.get("namespace")
+            )
             cluster.adapt(minimum=1, maximum=1)
 
             # Load serialized flow from file and run it with a DaskExecutor
@@ -142,8 +146,9 @@ class CloudEnvironment(Environment):
         env[2]["value"] = prefect.config.cloud.result_handler
         env[3]["value"] = prefect.config.cloud.auth_token
         env[4]["value"] = prefect.context.get("flow_run_id", "")
-        env[5]["value"] = docker_name
-        env[6]["value"] = flow_file_path
+        env[5]["value"] = prefect.context.get("namespace", "")
+        env[6]["value"] = docker_name
+        env[7]["value"] = flow_file_path
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
