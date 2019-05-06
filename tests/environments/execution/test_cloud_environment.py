@@ -133,7 +133,7 @@ def test_populate_job_yaml():
             "cloud.auth_token": "auth_test",
         }
     ):
-        with prefect.context(flow_run_id="id_test"):
+        with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
             yaml_obj = environment._populate_job_yaml(
                 yaml_obj=job, docker_name="test1/test2:test3", flow_file_path="test4"
             )
@@ -154,8 +154,9 @@ def test_populate_job_yaml():
     assert env[2]["value"] == "rh_test"
     assert env[3]["value"] == "auth_test"
     assert env[4]["value"] == "id_test"
-    assert env[5]["value"] == "test1/test2:test3"
-    assert env[6]["value"] == "test4"
+    assert env[5]["value"] == "namespace_test"
+    assert env[6]["value"] == "test1/test2:test3"
+    assert env[7]["value"] == "test4"
 
     assert (
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
