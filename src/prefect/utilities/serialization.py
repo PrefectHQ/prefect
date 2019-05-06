@@ -1,4 +1,5 @@
 import base64
+import inspect
 import json
 import sys
 import types
@@ -330,3 +331,66 @@ class FunctionReference(fields.Field):
         elif value not in self.valid_functions and self.reject_invalid:
             raise ValidationError("Invalid function reference: {}".format(value))
         return self.valid_functions.get(value, value)
+
+
+class StatefulFunctionReference(fields.Field):
+    """
+    Similar to `FunctionField`, Field that stores a reference to a possibly stateful function as a string and reloads it when
+    deserialized.
+
+    Args:
+        - valid_functions (List[Callable]): a list of functions that will be serialized as string
+            references
+        - reject_invalid (bool): if True, functions not in `valid_functions` will be rejected. If False,
+            any value will be allowed, but only functions in `valid_functions` will be deserialized.
+        - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
+
+    """
+
+    def __init__(
+        self, valid_functions: list, reject_invalid: bool = True, **kwargs: Any
+    ):
+        self.valid_functions = {to_qualified_name(f): f for f in valid_functions}
+        self.reject_invalid = reject_invalid
+        super().__init__(**kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):  # type: ignore
+        if value is None and self.allow_none:
+            return None
+
+        try:
+            qual_name = to_qualified_name(value)
+        except:
+            if self.reject_invalid:
+                raise ValidationError("Invalid function reference: {}".format(value))
+            else:
+                return qual_name
+
+        valid_bases = [
+            name for name in self.valid_functions if qual_name.startswith(name)
+        ]
+        if not any(valid_bases) and self.reject_invalid:
+            raise ValidationError("Invalid function reference: {}".format(value))
+        else:
+            base_name = next(filter(None, valid_bases)) if valid_bases else qual_name
+
+        state_kwargs = inspect.getclosurevars(value)[0]
+        call_sig = ", ".join(
+            ["{k}={v}".format(k=k, v=v) for k, v in state_kwargs.items()]
+        )
+        return base_name + "({})".format(call_sig)
+
+    def _deserialize(self, value, attr, data, **kwargs):  # type: ignore
+        """
+        Attempts to return the original function that was serialized, with _no state_.
+
+        If not found, returns `None`.
+        """
+        if value is None and self.allow_none:
+            return None
+
+        base_name = value.split("(")[0]
+        if base_name not in self.valid_functions and self.reject_invalid:
+            raise ValidationError("Invalid function reference: {}".format(value))
+
+        return self.valid_functions.get(base_name)

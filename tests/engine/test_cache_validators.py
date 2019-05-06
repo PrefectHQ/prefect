@@ -13,14 +13,8 @@ from prefect.engine.cache_validators import (
 )
 from prefect.engine.state import Cached
 
-all_validators = [
-    all_inputs,
-    all_parameters,
-    never_use,
-    partial_inputs_only,
-    duration_only,
-    partial_parameters_only,
-]
+all_validators = [all_inputs, all_parameters, never_use, duration_only]
+stateful_validators = [partial_inputs_only, partial_parameters_only]
 
 
 def test_never_use_returns_false():
@@ -31,6 +25,12 @@ def test_never_use_returns_false():
 def test_expired_cache(validator):
     state = Cached(cached_result_expiration=pendulum.now("utc") - timedelta(days=1))
     assert validator(state, None, None) is False
+
+
+@pytest.mark.parametrize("validator", stateful_validators)
+def test_expired_cache_stateful(validator):
+    state = Cached(cached_result_expiration=pendulum.now("utc") - timedelta(days=1))
+    assert validator()(state, None, None) is False
 
 
 class TestDurationOnly:
@@ -74,37 +74,37 @@ class TestAllParameters:
 class TestPartialInputsOnly:
     def test_inputs_validate_with_defaults(self):
         state = Cached(cached_inputs=dict(x=1, s="str"))
-        assert partial_inputs_only(state, dict(x=1, s="str"), None) is True
+        assert partial_inputs_only(None)(state, dict(x=1, s="str"), None) is True
         state = Cached(cached_inputs=dict(x=1, s="str"))
-        assert partial_inputs_only(state, dict(x=1, s="strs"), None) is True
+        assert partial_inputs_only(None)(state, dict(x=1, s="strs"), None) is True
 
     def test_validate_on_kwarg(self):
         state = Cached(cached_inputs=dict(x=1, s="str"))
         assert (
-            partial_inputs_only(state, dict(x=1, s="str"), None, validate_on=["x", "s"])
+            partial_inputs_only(validate_on=["x", "s"])(state, dict(x=1, s="str"), None)
             is True
         )
         state = Cached(cached_inputs=dict(x=1, s="str"))
         assert (
-            partial_inputs_only(
-                state, dict(x=1, s="strs"), None, validate_on=["x", "s"]
+            partial_inputs_only(validate_on=["x", "s"])(
+                state, dict(x=1, s="strs"), None
             )
             is False
         )
         assert (
-            partial_inputs_only(state, dict(x=1, s="strs"), None, validate_on=["x"])
+            partial_inputs_only(validate_on=["x"])(state, dict(x=1, s="strs"), None)
             is True
         )
         assert (
-            partial_inputs_only(state, dict(x=1, s="strs"), None, validate_on=["s"])
+            partial_inputs_only(validate_on=["s"])(state, dict(x=1, s="strs"), None)
             is False
         )
 
     def test_handles_none(self):
         state = Cached(cached_parameters=dict(x=5))
-        assert partial_inputs_only(state, dict(x=5), None, validate_on=["x"]) is False
+        assert partial_inputs_only(validate_on=["x"])(state, dict(x=5), None) is False
         state = Cached(cached_inputs=dict(x=5))
-        assert partial_inputs_only(state, None, None, validate_on=["x"]) is False
+        assert partial_inputs_only(validate_on=["x"])(state, None, None) is False
 
     def test_curried(self):
         state = Cached(cached_inputs=dict(x=1, s="str"))
@@ -116,41 +116,41 @@ class TestPartialInputsOnly:
 class TestPartialParametersOnly:
     def test_parameters_validate_with_defaults(self):
         state = Cached(cached_parameters=dict(x=1, s="str"))
-        assert partial_parameters_only(state, None, dict(x=1, s="str")) is True
+        assert partial_parameters_only()(state, None, dict(x=1, s="str")) is True
         state = Cached(cached_parameters=dict(x=1, s="str"))
-        assert partial_parameters_only(state, None, dict(x=1, s="strs")) is True
+        assert partial_parameters_only()(state, None, dict(x=1, s="strs")) is True
 
     def test_validate_on_kwarg(self):
         state = Cached(cached_parameters=dict(x=1, s="str"))
         assert (
-            partial_parameters_only(
-                state, None, dict(x=1, s="str"), validate_on=["x", "s"]
+            partial_parameters_only(validate_on=["x", "s"])(
+                state, None, dict(x=1, s="str")
             )
             is True
         )
         state = Cached(cached_parameters=dict(x=1, s="str"))
         assert (
-            partial_parameters_only(
-                state, None, dict(x=1, s="strs"), validate_on=["x", "s"]
+            partial_parameters_only(validate_on=["x", "s"])(
+                state, None, dict(x=1, s="strs")
             )
             is False
         )
         assert (
-            partial_parameters_only(state, None, dict(x=1, s="strs"), validate_on=["x"])
+            partial_parameters_only(validate_on=["x"])(state, None, dict(x=1, s="strs"))
             is True
         )
         assert (
-            partial_parameters_only(state, None, dict(x=1, s="strs"), validate_on=["s"])
+            partial_parameters_only(validate_on=["s"])(state, None, dict(x=1, s="strs"))
             is False
         )
 
     def test_handles_none(self):
         state = Cached(cached_inputs=dict(x=5))
         assert (
-            partial_parameters_only(state, None, dict(x=5), validate_on=["x"]) is False
+            partial_parameters_only(validate_on=["x"])(state, None, dict(x=5)) is False
         )
         state = Cached(cached_parameters=dict(x=5))
-        assert partial_parameters_only(state, None, None, validate_on=["x"]) is False
+        assert partial_parameters_only(validate_on=["x"])(state, None, None) is False
 
     def test_curried(self):
         state = Cached(cached_parameters=dict(x=1, s="str"))
