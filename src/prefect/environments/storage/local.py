@@ -14,6 +14,10 @@ class LocalStorage(Storage):
     """
     Local Storage class.  This class represents the Storage
     interface for Flows stored as bytes in the local filesystem.
+
+    Args:
+        - directory (str, optional): the directory the flows will be stored in;
+            defaults to `~/.prefect`
     """
 
     def __init__(self, directory: str = "~/.prefect") -> None:
