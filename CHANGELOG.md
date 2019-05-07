@@ -23,6 +23,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Allow for serialization of user written result handlers - [#623](https://github.com/PrefectHQ/prefect/issues/623)
 - Allow for state to be serialized in certain triggers and cache validators - [#949](https://github.com/PrefectHQ/prefect/issues/949)
 - Add new `filename` keyword to `flow.visualize` for automatically saving visualizations - [#1001](https://github.com/PrefectHQ/prefect/issues/1001)
+- Add new `LocalStorage` option for storing Flows locally - [#1006](https://github.com/PrefectHQ/prefect/pull/1006)
 
 ### Task Library
 

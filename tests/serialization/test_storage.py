@@ -1,11 +1,22 @@
+import pytest
+import tempfile
+
 import prefect
 from prefect.environments import storage
 from prefect.serialization.storage import (
     BaseStorageSchema,
     DockerSchema,
+    LocalSchema,
     MemorySchema,
     BytesSchema,
 )
+
+
+@pytest.mark.parametrize("cls", storage.Storage.__subclasses__())
+def test_serialization_on_all_subclasses(cls):
+    serialized = cls().serialize()
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
 
 
 def test_docker_empty_serialize():
@@ -82,4 +93,27 @@ def test_bytes_roundtrip():
 
     assert "test" in deserialized
     runner = deserialized.get_flow("test")
+    assert runner.run().is_successful()
+
+
+def test_local_empty_serialize():
+    b = storage.LocalStorage()
+    serialized = LocalSchema().dump(b)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["flows"] == dict()
+    assert serialized["directory"].endswith(".prefect/flows")
+
+
+def test_local_roundtrip():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        s = storage.LocalStorage(directory=tmpdir)
+        flow_loc = s.add_flow(prefect.Flow("test"))
+        serialized = LocalSchema().dump(s)
+        deserialized = LocalSchema().load(serialized)
+
+        assert "test" in deserialized
+        runner = deserialized.get_flow(flow_loc)
+
     assert runner.run().is_successful()

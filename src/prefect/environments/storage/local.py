@@ -1,4 +1,6 @@
 import cloudpickle
+import os
+from slugify import slugify
 from typing import Any, Dict, Iterable, List, TYPE_CHECKING, Union
 
 import prefect
@@ -8,17 +10,23 @@ if TYPE_CHECKING:
     from prefect.core.flow import Flow
 
 
-class Bytes(Storage):
+class LocalStorage(Storage):
     """
-    Bytes Storage class, mainly used for testing.  This class represents the Storage
-    interface for Flows stored directly as bytes.
+    Local Storage class.  This class represents the Storage
+    interface for Flows stored as bytes in the local filesystem.
 
-    The main difference between this class and `Memory` storage is that `Bytes`
-    can be serialized and deserialized while preserving all relevant information.
+    Args:
+        - directory (str, optional): the directory the flows will be stored in;
+            defaults to `~/.prefect/flows`.  If it doesn't already exist, it will be
+            created for you.
     """
 
-    def __init__(self) -> None:
-        self.flows = dict()  # type: Dict[str, bytes]
+    def __init__(self, directory: str = "~/.prefect/flows") -> None:
+        self.flows = dict()  # type: Dict[str, str]
+        abs_directory = os.path.abspath(os.path.expanduser(directory))
+        if not os.path.exists(abs_directory):
+            os.makedirs(abs_directory)
+        self.directory = abs_directory
         super().__init__()
 
     def get_flow(self, flow_location: str) -> "Flow":
@@ -27,7 +35,7 @@ class Bytes(Storage):
 
         Args:
             - flow_location (str): the location of a flow within this Storage; in this case,
-                a flow location is simply a Flow's name
+                a file path where a Flow has been serialized to
 
         Returns:
             - Flow: the requested flow
@@ -35,14 +43,16 @@ class Bytes(Storage):
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
-        if not flow_location in self.flows:
+        if not flow_location in self.flows.values():
             raise ValueError("Flow is not contained in this Storage")
-        flow_bytes = self.flows[flow_location]
-        return cloudpickle.loads(flow_bytes)
+
+        with open(flow_location, "rb") as f:
+            flow = cloudpickle.load(f)
+        return flow
 
     def add_flow(self, flow: "Flow") -> str:
         """
-        Method for adding a new flow to this Storage object.
+        Method for storing a new flow as bytes in the local filesytem.
 
         Args:
             - flow (Flow): a Prefect Flow to add
@@ -59,8 +69,14 @@ class Bytes(Storage):
                     flow.name
                 )
             )
-        self.flows[flow.name] = cloudpickle.dumps(flow)
-        return flow.name
+
+        flow_location = os.path.join(
+            self.directory, "{}.prefect".format(slugify(flow.name))
+        )
+        with open(flow_location, "wb") as f:
+            cloudpickle.dump(flow, f)
+        self.flows[flow.name] = flow_location
+        return flow_location
 
     def __contains__(self, obj: Any) -> bool:
         """
