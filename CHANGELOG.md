@@ -6,6 +6,34 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Breaking Changes
+
+ - None
+
+### Contributors
+
+- None
+
+## 0.5.3 <Badge text="beta" type="success"/>
+
+Released May 7, 2019
+
+### Features
+
 - Add new `Storage` and `Environment` specifications - [#936](https://github.com/PrefectHQ/prefect/pull/936), [#956](https://github.com/PrefectHQ/prefect/pull/956)
 
 ### Enhancements
