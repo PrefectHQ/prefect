@@ -12,6 +12,9 @@ class Bytes(Storage):
     """
     Bytes Storage class, mainly used for testing.  This class represents the Storage
     interface for Flows stored directly as bytes.
+
+    The main difference between this class and `Memory` storage is that `Bytes`
+    can be serialized and deserialized while preserving all relevant information.
     """
 
     def __init__(self) -> None:

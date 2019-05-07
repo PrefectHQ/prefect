@@ -12,7 +12,7 @@ from prefect.utilities.configuration import set_temporary_config
 def test_create_local_storage():
     storage = LocalStorage()
     assert storage
-    assert storage.directory.endswith(".prefect")
+    assert storage.directory.endswith(".prefect/flows")
 
 
 def test_create_local_storage_with_custom_dir():
@@ -28,10 +28,10 @@ def test_add_flow_to_storage():
         assert f.name not in storage
 
         res = storage.add_flow(f)
-        assert res.endswith("test.flow")
+        assert res.endswith("test.prefect")
         assert f.name in storage
 
-        with open(os.path.join(tmpdir, "test.flow"), "rb") as f:
+        with open(os.path.join(tmpdir, "test.prefect"), "rb") as f:
             wat = f.read()
 
     assert isinstance(wat, bytes)
