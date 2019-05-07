@@ -2,7 +2,7 @@ import marshmallow
 from marshmallow import fields, post_load
 
 import prefect
-from prefect.environments.storage import Bytes, Memory, Docker, Storage
+from prefect.environments.storage import Bytes, Memory, Docker, LocalStorage, Storage
 from prefect.utilities.serialization import (
     ObjectSchema,
     OneOfSchema,
@@ -20,6 +20,21 @@ class BytesSchema(ObjectSchema):
         object_class = Bytes
 
     flows = fields.Dict(key=fields.Str(), values=BytesField())
+
+    @post_load
+    def create_object(self, data: dict) -> Docker:
+        flows = data.pop("flows", dict())
+        base_obj = super().create_object(data)
+        base_obj.flows = flows
+        return base_obj
+
+
+class LocalSchema(ObjectSchema):
+    class Meta:
+        object_class = LocalStorage
+
+    directory = fields.Str(allow_none=False)
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
 
     @post_load
     def create_object(self, data: dict) -> Docker:
@@ -61,5 +76,6 @@ class StorageSchema(OneOfSchema):
         "Bytes": BytesSchema,
         "Docker": DockerSchema,
         "Memory": MemorySchema,
+        "LocalStorage": LocalSchema,
         "Storage": BaseStorageSchema,
     }
