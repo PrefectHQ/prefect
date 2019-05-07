@@ -2,18 +2,14 @@
 
 
 import click
-import json
-import logging
-import os
-import requests
-import sys
 
 import prefect
-from prefect.client import Client
-from prefect.utilities.graphql import with_args
 
+from .auth import auth as _auth
 from .describe import describe as _describe
+from .execute import execute as _execute
 from .get import get as _get
+from .run import run as _run
 
 
 @click.group()
@@ -23,62 +19,48 @@ def cli():
 
     \b
     Query Commands:
-        get                 List high-level object information
-        describe            Retrieve detailed object descriptions
+        get         List high-level object information
+        describe    Retrieve detailed object descriptions
+        summarize   Aggregate query information
 
     \b
     Execution Commands:
-        execute-flow        Execute a flow's environment
-        execute-cloud-flow  Execute a flow's environment in a Cloud context
+        execute     Execute a flow's environment
+        run         Run a flow
+
+    \b
+    Setup Commands:
+        auth        Handle Prefect Cloud authorization
+
+    \b
+    Miscellaneous Commands:
+        version     Get your current Prefect version
+        config      Output your Prefect config
     """
     pass
 
 
-# TODO: Look into adding `--watch` to all options
-
+cli.add_command(_auth)
 cli.add_command(_describe)
+cli.add_command(_execute)
 cli.add_command(_get)
+cli.add_command(_run)
+
+
+# Miscellaneous Commands
 
 
 @cli.command(hidden=True)
-@click.argument("storage_metadata")
-@click.argument("environment_metadata")
-@click.argument("flow_location")
-def execute_flow(storage_metadata, environment_metadata, flow_location):
-    """"""
-    storage_schema = prefect.serialization.storage.StorageSchema()
-    storage = storage_schema.load(json.loads(storage_metadata))
-
-    environment_schema = prefect.serialization.environment.EnvironmentSchema()
-    environment = environment_schema.load(json.loads(environment_metadata))
-
-    environment.setup(storage)
-    environment.execute(storage, flow_location)
+def version():
+    """
+    Get your current Prefect version
+    """
+    click.echo(prefect.__version__)
 
 
 @cli.command(hidden=True)
-def execute_cloud_flow():
-    flow_run_id = prefect.context.get("flow_run_id")
-    if not flow_run_id:
-        click.echo("Not currently executing a flow within a cloud context.")
-        return
-
-    query = {
-        "query": {
-            with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
-                "flow": {"name": True, "storage": True, "environment": True}
-            }
-        }
-    }
-
-    result = Client().graphql(query)
-
-    flow_data = result.data.flow_run[0].flow
-
-    storage_schema = prefect.serialization.storage.StorageSchema()
-    storage = storage_schema.load(flow_data.storage)
-
-    environment_schema = prefect.serialization.environment.EnvironmentSchema()
-    environment = environment_schema.load(flow_data.environment)
-
-    environment.execute(storage=storage, flow_location=storage.flows[flow_data.name])
+def config():
+    """
+    Output your Prefect config
+    """
+    click.echo(prefect.config.to_dict())
