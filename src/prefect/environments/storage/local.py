@@ -1,5 +1,6 @@
 import cloudpickle
 import os
+from slugify import slugify
 from typing import Any, Dict, Iterable, List, TYPE_CHECKING, Union
 
 import prefect
@@ -17,7 +18,7 @@ class LocalStorage(Storage):
 
     def __init__(self, directory: str = "~/.prefect") -> None:
         self.flows = dict()  # type: Dict[str, str]
-        self.directory = directory
+        self.directory = os.path.abspath(os.path.expanduser(directory))
         super().__init__()
 
     def get_flow(self, flow_location: str) -> "Flow":
@@ -61,7 +62,9 @@ class LocalStorage(Storage):
                 )
             )
 
-        flow_location = os.path.join(self.directory, flow.name, ".flow")
+        flow_location = os.path.join(
+            self.directory, "{}.flow".format(slugify(flow.name))
+        )
         with open(flow_location, "wb") as f:
             cloudpickle.dump(flow, f)
         self.flows[flow.name] = flow_location
