@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from marshmallow import ValidationError, fields, post_load
 
@@ -22,6 +22,21 @@ from prefect.utilities.serialization import (
 class BaseResultHandlerSchema(ObjectSchema):
     class Meta:
         object_class = ResultHandler
+
+
+class CustomResultHandlerSchema(ObjectSchema):
+    class Meta:
+        object_class = lambda: ResultHandler
+        exclude_fields = ["type"]
+
+    type = fields.Function(
+        lambda handler: to_qualified_name(type(handler)), lambda x: x
+    )
+
+    @post_load
+    def create_object(self, data: dict) -> None:
+        """Because we cannot deserialize a custom class, just return `None`"""
+        return None
 
 
 class CloudResultHandlerSchema(BaseResultHandlerSchema):
@@ -71,3 +86,8 @@ class ResultHandlerSchema(OneOfSchema):
         "JSONResultHandler": JSONResultHandlerSchema,
         "LocalResultHandler": LocalResultHandlerSchema,
     }
+
+    def get_obj_type(self, obj: Any) -> str:
+        name = obj.__class__.__name__
+        self.type_schemas.setdefault(name, CustomResultHandlerSchema)
+        return name

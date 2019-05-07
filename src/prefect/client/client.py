@@ -1,3 +1,4 @@
+import base64
 import datetime
 import json
 import logging
@@ -14,6 +15,7 @@ from prefect.utilities.graphql import (
     as_nested_dict,
     parse_graphql,
     with_args,
+    compress,
 )
 
 if TYPE_CHECKING:
@@ -305,6 +307,7 @@ class Client:
         project_name: str,
         build: bool = True,
         set_schedule_active: bool = True,
+        compressed: bool = True,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -317,6 +320,8 @@ class Client:
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
+            - compressed (bool, optional): if `True`, the serialized flow will be; defaults to `True`
+                compressed
 
         Returns:
             - str: the ID of the newly-deployed flow
@@ -329,10 +334,19 @@ class Client:
             raise ClientError(
                 "Flows with required parameters can not be scheduled automatically."
             )
+        if compressed:
+            create_mutation = {
+                "mutation($input: createFlowFromCompressedStringInput!)": {
+                    "createFlowFromCompressedString(input: $input)": {"id"}
+                }
+            }
+        else:
+            create_mutation = {
+                "mutation($input: createFlowInput!)": {
+                    "createFlow(input: $input)": {"id"}
+                }
+            }
 
-        create_mutation = {
-            "mutation($input: createFlowInput!)": {"createFlow(input: $input)": {"id"}}
-        }
         query_project = {
             "query": {
                 with_args("project", {"where": {"name": {"_eq": project_name}}}): {
@@ -350,15 +364,24 @@ class Client:
                 )
             )
 
+        serialized_flow = flow.serialize(build=build)  # type: Any
+        if compressed:
+            serialized_flow = compress(serialized_flow)
         res = self.graphql(
             create_mutation,
             input=dict(
                 projectId=project[0].id,
-                serializedFlow=flow.serialize(build=build),
+                serializedFlow=serialized_flow,
                 setScheduleActive=set_schedule_active,
             ),
         )  # type: Any
-        return res.data.createFlow.id
+
+        flow_id = (
+            res.data.createFlowFromCompressedString.id
+            if compressed
+            else res.data.createFlow.id
+        )
+        return flow_id
 
     def create_project(self, project_name: str) -> str:
         """

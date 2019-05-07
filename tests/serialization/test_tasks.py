@@ -123,14 +123,30 @@ def test_trigger(trigger):
     assert t2.trigger is trigger
 
 
+@pytest.mark.parametrize(
+    "trigger", [prefect.triggers.some_failed, prefect.triggers.some_successful]
+)
+@pytest.mark.parametrize(
+    "bounds", [(1, 5), (0.1, 0.9), (1, None), (0.1, None), (None, 42), (None, 0.5)]
+)
+def test_stateful_trigger(trigger, bounds):
+    kwargs = dict(zip(("at_least", "at_most"), bounds))
+    t = Task(trigger=trigger(**kwargs))
+    serialized = TaskSchema().dump(t)
+    call_sig = ", ".join(["{k}={v}".format(k=k, v=v) for k, v in kwargs.items()])
+    assert serialized["trigger"].endswith("({})".format(call_sig))
+
+    t2 = TaskSchema().load(serialized)
+    assert t2.trigger is trigger  # no state
+
+
 def test_unknown_trigger():
     def hello():
         pass
 
     t = Task(trigger=hello)
     t2 = TaskSchema().load(TaskSchema().dump(t))
-    assert isinstance(t2.trigger, str)
-    assert t2.trigger.endswith("hello")
+    assert t2.trigger is prefect.triggers.all_successful  # falls back to default
 
 
 @pytest.mark.parametrize(
@@ -157,16 +173,36 @@ def test_cache_validator_never_use():
     assert t2.cache_validator is prefect.engine.cache_validators.never_use
 
 
+@pytest.mark.parametrize(
+    "validator",
+    [
+        prefect.engine.cache_validators.partial_inputs_only,
+        prefect.engine.cache_validators.partial_parameters_only,
+    ],
+)
+@pytest.mark.parametrize("validate_on", [["x"], ["longer"], ["x", "y"]])
+def test_stateful_trigger(validator, validate_on):
+    with pytest.warns(UserWarning):
+        t = Task(cache_validator=validator(validate_on))
+    serialized = TaskSchema().dump(t)
+    call_sig = "validate_on={}".format(validate_on)
+    assert serialized["cache_validator"].endswith("({})".format(call_sig))
+
+    with pytest.warns(UserWarning):
+        t2 = TaskSchema().load(serialized)
+    assert t2.cache_validator is validator  # no state
+
+
 def test_unknown_cache_validator():
     def hello():
         pass
 
     with pytest.warns(UserWarning):
         t = Task(cache_validator=hello)
-    with pytest.warns(UserWarning):
-        t2 = TaskSchema().load(TaskSchema().dump(t))
-    assert isinstance(t2.cache_validator, str)
-    assert t2.cache_validator.endswith("hello")
+    t2 = TaskSchema().load(TaskSchema().dump(t))
+
+    # falls back to default
+    assert t2.cache_validator is prefect.engine.cache_validators.never_use
 
 
 def test_inputs_outputs():

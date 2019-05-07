@@ -130,7 +130,7 @@ classes = ["CloudFlowRunner", "CloudTaskRunner", "CloudResultHandler"]
 [pages.environments.storage]
 title = "Storage"
 module = "prefect.environments.storage"
-classes = ["Storage", "Docker", "Memory", "Bytes"]
+classes = ["Storage", "Docker", "LocalStorage", "Memory", "Bytes"]
 
 [pages.environments.execution]
 title = "Execution Environments"
@@ -312,7 +312,7 @@ functions = ["timeout_handler"]
 title = "GraphQL"
 module = "prefect.utilities.graphql"
 classes = ["GraphQLResult", "EnumValue"]
-functions = ["parse_graphql", "parse_graphql_arguments", "with_args"]
+functions = ["parse_graphql", "parse_graphql_arguments", "with_args", "compress", "decompress"]
 
 [pages.utilities.logging]
 title = "Logging"

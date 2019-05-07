@@ -13,10 +13,9 @@ Note that _all_ validators take into account cache expiration.
 
 A cache validator returns `True` if the cache is still valid, and `False` otherwise.
 """
-from typing import Any, Dict, Iterable
+from typing import Any, Callable, Dict, Iterable
 
 import pendulum
-from toolz import curry
 
 import prefect
 
@@ -122,28 +121,17 @@ def all_parameters(
         return False
 
 
-@curry
-def partial_parameters_only(
-    state: "prefect.engine.state.Cached",
-    inputs: Dict[str, Any],
-    parameters: Dict[str, Any],
-    validate_on: Iterable[str] = None,
-) -> bool:
+def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
     """
     Validates the cache based on cache expiration _and_ a subset of parameters (determined by the
     `validate_on` keyword) which were provided on the last successful run.
 
     Args:
-        - state (State): a `Success` state from the last successful Task run which contains the cache
-        - inputs (dict): a `dict` of inputs which were available on the last
-            successful run of the cached Task
-        - parameters (dict): a `dict` of parameters which were available on the
-            last successful run of the cached Task
         - validate_on (list): a `list` of strings specifying the parameter names
             to validate against
 
     Returns:
-        - boolean specifying whether or not the cache should be used
+        - Callable: the actual validation function specifying whether or not the cache should be used
 
     Example:
     ```python
@@ -170,44 +158,56 @@ def partial_parameters_only(
                    task_states={result: state1.result[db_state]})
     ```
     """
-    parameters = parameters or {}
-    if duration_only(state, inputs, parameters) is False:
-        return False
-    elif validate_on is None:
-        return True  # if you dont want to validate on anything, then the cache is valid
-    else:
-        cached = state.cached_parameters or {}
-        partial_provided = {
-            key: value for key, value in parameters.items() if key in validate_on
-        }
-        partial_needed = {
-            key: value for key, value in cached.items() if key in validate_on
-        }
-        return partial_provided == partial_needed
+
+    def _partial_parameters_only(
+        state: "prefect.engine.state.Cached",
+        inputs: Dict[str, Any],
+        parameters: Dict[str, Any],
+    ) -> bool:
+        """
+        The actual cache validation function which will be used.
+
+        Args:
+            - state (State): a `Success` state from the last successful Task run which contains the cache
+            - inputs (dict): a `dict` of inputs which were available on the last
+                successful run of the cached Task
+            - parameters (dict): a `dict` of parameters which were available on the
+                last successful run of the cached Task
+
+        Returns:
+            - boolean specifying whether or not the cache should be used
+        """
+        parameters = parameters or {}
+        if duration_only(state, inputs, parameters) is False:
+            return False
+        elif validate_on is None:
+            return (
+                True
+            )  # if you dont want to validate on anything, then the cache is valid
+        else:
+            cached = state.cached_parameters or {}
+            partial_provided = {
+                key: value for key, value in parameters.items() if key in validate_on
+            }
+            partial_needed = {
+                key: value for key, value in cached.items() if key in validate_on
+            }
+            return partial_provided == partial_needed
+
+    return _partial_parameters_only
 
 
-@curry
-def partial_inputs_only(
-    state: "prefect.engine.state.Cached",
-    inputs: Dict[str, Any],
-    parameters: Dict[str, Any],
-    validate_on: Iterable[str] = None,
-) -> bool:
+def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
     """
     Validates the cache based on cache expiration _and_ a subset of inputs (determined by the
     `validate_on` keyword) which were provided on the last successful run.
 
     Args:
-        - state (State): a `Success` state from the last successful Task run which contains the cache
-        - inputs (dict): a `dict` of inputs which were available on the last
-            successful run of the cached Task
-        - parameters (dict): a `dict` of parameters which were available on the
-            last successful run of the cached Task
         - validate_on (list): a `list` of strings specifying the input names
             to validate against
 
     Returns:
-        - boolean specifying whether or not the cache should be used
+        - Callable: the actual validation function specifying whether or not the cache should be used
 
     Example:
     ```python
@@ -236,17 +236,40 @@ def partial_inputs_only(
     state2 = f.run(task_states={result: state1.result[ans]})
     ```
     """
-    inputs = inputs or {}
-    if duration_only(state, inputs, parameters) is False:
-        return False
-    elif validate_on is None:
-        return True  # if you dont want to validate on anything, then the cache is valid
-    else:
-        cached = state.cached_inputs or {}
-        partial_provided = {
-            key: value for key, value in inputs.items() if key in validate_on
-        }
-        partial_needed = {
-            key: value for key, value in cached.items() if key in validate_on
-        }
-        return partial_provided == partial_needed
+
+    def _partial_inputs_only(
+        state: "prefect.engine.state.Cached",
+        inputs: Dict[str, Any],
+        parameters: Dict[str, Any],
+    ) -> bool:
+        """
+        The actual cache validation function which will be used.
+
+        Args:
+            - state (State): a `Success` state from the last successful Task run which contains the cache
+            - inputs (dict): a `dict` of inputs which were available on the last
+                successful run of the cached Task
+            - parameters (dict): a `dict` of parameters which were available on the
+                last successful run of the cached Task
+
+        Returns:
+            - boolean specifying whether or not the cache should be used
+        """
+        inputs = inputs or {}
+        if duration_only(state, inputs, parameters) is False:
+            return False
+        elif validate_on is None:
+            return (
+                True
+            )  # if you dont want to validate on anything, then the cache is valid
+        else:
+            cached = state.cached_inputs or {}
+            partial_provided = {
+                key: value for key, value in inputs.items() if key in validate_on
+            }
+            partial_needed = {
+                key: value for key, value in cached.items() if key in validate_on
+            }
+            return partial_provided == partial_needed
+
+    return _partial_inputs_only

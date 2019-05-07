@@ -1,4 +1,6 @@
+import base64
 import json
+import gzip
 import re
 import textwrap
 import uuid
@@ -275,3 +277,33 @@ def with_args(field: Any, arguments: Any) -> str:
     parsed_field = parse_graphql(field)
     parsed_arguments = parse_graphql_arguments(arguments)
     return "{field}({arguments})".format(field=parsed_field, arguments=parsed_arguments)
+
+
+def compress(input: Any) -> str:
+    """
+    Convenience function for compressing something before sending
+    it to Cloud. Converts to string, encodes, compresses, 
+    encodes again using b64, and decodes.
+
+    Args:
+        - input (Any): the dictionary to be compressed
+
+    Returns:
+        - str: The string resulting from the compression
+    """
+    return base64.b64encode(gzip.compress(json.dumps(input).encode())).decode()
+
+
+def decompress(string: str) -> Any:
+    """
+    Convenience function for decompressing a string that's been
+    compressed. Base64 decodes the string, decodes it, 
+    decompresses it, and loads.
+
+    Args:
+        - string (str): the string to decompress
+
+    Returns:
+        - Any: The object resulting from the decompression
+    """
+    return json.loads(gzip.decompress(base64.b64decode(string)).decode())
