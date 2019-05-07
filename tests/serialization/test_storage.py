@@ -103,7 +103,7 @@ def test_local_empty_serialize():
     assert serialized
     assert serialized["__version__"] == prefect.__version__
     assert serialized["flows"] == dict()
-    assert serialized["directory"].endswith(".prefect")
+    assert serialized["directory"].endswith(".prefect/flows")
 
 
 def test_local_roundtrip():

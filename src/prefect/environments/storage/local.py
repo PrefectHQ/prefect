@@ -17,12 +17,16 @@ class LocalStorage(Storage):
 
     Args:
         - directory (str, optional): the directory the flows will be stored in;
-            defaults to `~/.prefect`
+            defaults to `~/.prefect/flows`.  If it doesn't already exist, it will be
+            created for you.
     """
 
-    def __init__(self, directory: str = "~/.prefect") -> None:
+    def __init__(self, directory: str = "~/.prefect/flows") -> None:
         self.flows = dict()  # type: Dict[str, str]
-        self.directory = os.path.abspath(os.path.expanduser(directory))
+        abs_directory = os.path.abspath(os.path.expanduser(directory))
+        if not os.path.exists(abs_directory):
+            os.makedirs(abs_directory)
+        self.directory = abs_directory
         super().__init__()
 
     def get_flow(self, flow_location: str) -> "Flow":
@@ -67,7 +71,7 @@ class LocalStorage(Storage):
             )
 
         flow_location = os.path.join(
-            self.directory, "{}.flow".format(slugify(flow.name))
+            self.directory, "{}.prefect".format(slugify(flow.name))
         )
         with open(flow_location, "wb") as f:
             cloudpickle.dump(flow, f)
