@@ -1000,14 +1000,19 @@ class Flow:
 
     # Visualization ------------------------------------------------------------
 
-    def visualize(self, flow_state: "prefect.engine.state.State" = None) -> object:
+    def visualize(
+        self, flow_state: "prefect.engine.state.State" = None, filename: str = None
+    ) -> object:
         """
         Creates graphviz object for representing the current flow; this graphviz
         object will be rendered inline if called from an IPython notebook, otherwise
-        it will be rendered in a new window.
+        it will be rendered in a new window.  If a `filename` is provided, the object
+        will not be rendered and instead saved to the location specified.
 
         Args:
             - flow_state (State, optional): flow state object used to optionally color the nodes
+            - filename (str, optional): a filename specifying a location to save this visualization to; if provided,
+                the visualization will not be rendered automatically
 
         Raises:
             - ImportError: if `graphviz` is not installed
@@ -1093,12 +1098,15 @@ class Flow:
         except Exception:
             pass
 
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            tmp.close()
-            try:
-                graph.render(tmp.name, view=True)
-            finally:
-                os.unlink(tmp.name)
+        if filename:
+            graph.render(filename, view=False)
+        else:
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                tmp.close()
+                try:
+                    graph.render(tmp.name, view=True)
+                finally:
+                    os.unlink(tmp.name)
 
         return graph
 

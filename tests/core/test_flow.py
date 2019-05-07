@@ -963,6 +963,20 @@ class TestFlowVisualize:
         assert "label=a_nice_task" in graph.source
         assert "shape=ellipse" in graph.source
 
+    def test_viz_saves_graph_object_if_filename(self):
+        import graphviz
+
+        f = Flow(name="test")
+        f.add_task(Task(name="a_nice_task"))
+
+        with tempfile.NamedTemporaryFile() as tmp:
+            graph = f.visualize(filename=tmp.name)
+            with open(tmp.name, "r") as f:
+                contents = f.read()
+
+        assert "label=a_nice_task" in contents
+        assert "shape=ellipse" in contents
+
     def test_viz_reflects_mapping(self):
         ipython = MagicMock(
             get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))

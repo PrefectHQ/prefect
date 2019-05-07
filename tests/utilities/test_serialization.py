@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import uuid
 
 import marshmallow
@@ -234,11 +235,14 @@ class TestStatefulFunctionReferenceField:
         assert serialized["f"] == "tests.utilities.test_serialization.outer()"
 
     def test_serialize_outer_with_state(self):
+        """Have to account for order because of Python 3.5"""
         serialized = self.Schema().dump(dict(f=outer(x=1, y=2, z=99)))
-        assert (
-            serialized["f"]
-            == "tests.utilities.test_serialization.outer(x=1, y=2, z=99)"
-        )
+        endings = list(itertools.permutations(["x=1", "y=2", "z=99"]))
+        valid = [
+            "tests.utilities.test_serialization.outer(" + ", ".join(sig) + ")"
+            for sig in endings
+        ]
+        assert serialized["f"] in valid
 
     def test_serialize_invalid_fn(self):
         with pytest.raises(marshmallow.ValidationError):
