@@ -36,6 +36,8 @@ class Docker(Storage):
         - env_vars (dict, optional): a dictionary of environment variables to use when building
         - files (dict, optional): a dictionary of files to copy into the image when building
         - base_url: (str, optional): a URL of a Docker daemon to use when for Docker related functionality
+        - prefect_version (str, optional): an optional branch, tag, or commit specifying the version of prefect
+            you want installed into the container; defaults to `"0.5.3"`
     """
 
     def __init__(
@@ -48,6 +50,7 @@ class Docker(Storage):
         env_vars: dict = None,
         files: dict = None,
         base_url: str = "unix://var/run/docker.sock",
+        prefect_version: str = None,
     ) -> None:
         self.registry_url = registry_url
         self.base_image = base_image
@@ -59,6 +62,7 @@ class Docker(Storage):
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
         self.base_url = base_url
+        self.prefect_version = prefect_version or "0.5.3"
 
         not_absolute = [
             file_path for file_path in self.files if not os.path.isabs(file_path)
@@ -334,7 +338,7 @@ class Docker(Storage):
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
-                RUN pip install git+https://github.com/PrefectHQ/prefect.git@master#egg=prefect[kubernetes]
+                RUN pip install git+https://github.com/PrefectHQ/prefect.git@{version}#egg=prefect[kubernetes]
                 # RUN pip install prefect
 
                 RUN python /root/.prefect/healthcheck.py
@@ -344,6 +348,7 @@ class Docker(Storage):
                     copy_flows=copy_flows,
                     copy_files=copy_files,
                     env_vars=env_vars,
+                    version=self.prefect_version,
                 )
             )
 

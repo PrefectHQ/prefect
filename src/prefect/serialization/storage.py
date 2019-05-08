@@ -52,6 +52,7 @@ class DockerSchema(ObjectSchema):
     image_name = fields.String(allow_none=True)
     image_tag = fields.String(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    prefect_version = fields.String(allow_none=False)
 
     @post_load
     def create_object(self, data: dict) -> Docker:
