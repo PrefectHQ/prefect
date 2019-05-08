@@ -41,6 +41,7 @@ def test_empty_docker_storage():
     assert not storage.python_dependencies
     assert not storage.env_vars
     assert not storage.files
+    assert storage.prefect_version == "0.5.3"
     assert storage.base_url == "unix://var/run/docker.sock"
 
 
@@ -53,6 +54,7 @@ def test_empty_docker_storage():
         image_tag="test5",
         env_vars={"test": "1"},
         base_url="test_url",
+        prefect_version="master",
     )
 
     assert storage.registry_url == "test1"
@@ -62,6 +64,7 @@ def test_empty_docker_storage():
     assert storage.python_dependencies == ["test"]
     assert storage.env_vars == {"test": "1"}
     assert storage.base_url == "test_url"
+    assert storage.prefect_version == "master"
 
 
 def test_files_not_absolute_path():
@@ -183,6 +186,18 @@ def test_create_dockerfile_from_base_image():
             output = dockerfile.read()
 
         assert "FROM python:3.6" in output
+
+
+def test_create_dockerfile_from_prefect_version():
+    storage = Docker(prefect_version="master")
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        storage.create_dockerfile_object(directory=tempdir)
+
+        with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+            output = dockerfile.read()
+
+        assert "prefect.git@master" in output
 
 
 def test_create_dockerfile_with_weird_flow_name():
