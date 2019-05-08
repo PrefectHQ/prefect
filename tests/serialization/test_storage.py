@@ -25,6 +25,7 @@ def test_docker_empty_serialize():
 
     assert serialized
     assert serialized["__version__"] == prefect.__version__
+    assert "prefect_version" in serialized
     assert not serialized["image_name"]
     assert not serialized["image_tag"]
     assert not serialized["registry_url"]
@@ -48,7 +49,9 @@ def test_memory_roundtrip():
 
 
 def test_docker_full_serialize():
-    docker = storage.Docker(registry_url="url", image_name="name", image_tag="tag")
+    docker = storage.Docker(
+        registry_url="url", image_name="name", image_tag="tag", prefect_version="0.5.2"
+    )
     serialized = DockerSchema().dump(docker)
 
     assert serialized
@@ -57,6 +60,7 @@ def test_docker_full_serialize():
     assert serialized["image_tag"] == "tag"
     assert serialized["registry_url"] == "url"
     assert serialized["flows"] == dict()
+    assert serialized["prefect_version"] == "0.5.2"
 
 
 def test_docker_serialize_with_flows():
