@@ -36,6 +36,8 @@ class Docker(Storage):
         - env_vars (dict, optional): a dictionary of environment variables to use when building
         - files (dict, optional): a dictionary of files to copy into the image when building
         - base_url: (str, optional): a URL of a Docker daemon to use when for Docker related functionality
+        - prefect_version (str, optional): an optional branch, tag, or commit specifying the version of prefect
+            you want installed into the container; defaults to `"0.5.3"`
     """
 
     def __init__(
