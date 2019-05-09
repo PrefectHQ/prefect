@@ -52,10 +52,16 @@ class TestCreateBranchInitialization:
         assert getattr(task, attr) == "my-value"
 
     def test_repo_is_required_eventually(self):
-        task = CreateBranch()
+        task = CreateBranch(branch_name="bob")
         with pytest.raises(ValueError) as exc:
             task.run()
         assert "repo" in str(exc.value)
+
+    def test_branch_name_is_required_eventually(self):
+        task = CreateBranch(repo="org/bob")
+        with pytest.raises(ValueError) as exc:
+            task.run()
+        assert "branch name" in str(exc.value)
 
 
 class TestCredentials:
@@ -80,7 +86,7 @@ class TestCredentials:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
                 with pytest.raises(ValueError) as exc:
-                    task.run(repo="org/repo")
+                    task.run(repo="org/repo", branch_name="new")
 
         assert req.get.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
         assert "not found" in str(exc.value)
@@ -106,7 +112,7 @@ class TestCredentials:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(MY_SECRET={"key": 42})):
                 with pytest.raises(ValueError):
-                    task.run(repo="org/repo")
+                    task.run(repo="org/repo", branch_name="new")
 
         assert req.get.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
 

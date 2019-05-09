@@ -116,12 +116,15 @@ class CreateBranch(Task):
                 the one set at initialization
 
         Raises:
-            - ValueError: if a `repo` was never provided, or if the base branch wasn't found
+            - ValueError: if a `repo` or `branch_name` was never provided, or if the base branch wasn't found
             - HTTPError: if the GET request returns a non-200 status code
 
         Returns:
             - dict: dictionary of the response (includes commit hash, etc.)
         """
+        if branch_name is None:
+            raise ValueError("A branch name must be provided.")
+
         if repo is None:
             raise ValueError("A GitHub repository must be provided.")
 
