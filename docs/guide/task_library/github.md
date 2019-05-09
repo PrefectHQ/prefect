@@ -22,3 +22,9 @@ Task for opening / creating new GitHub issues using the v3 version of the GitHub
 Task for retrieving GitHub repository information using the v3 version of the GitHub REST API.
 
 [API Reference](/api/unreleased/tasks/github.html#prefect-tasks-github-prs-getrepoinfo)
+
+## CreateBranch <Badge text="task"/>
+
+Task for creating new branches in a given GitHub repository using the v3 version of the GitHub REST API.
+
+[API Reference](/api/unreleased/tasks/github.html#prefect-tasks-github-prs-createbranch)
