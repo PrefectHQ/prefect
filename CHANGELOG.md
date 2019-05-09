@@ -14,7 +14,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Add task for creating new branches in a GitHub repository - [#1011](https://github.com/PrefectHQ/prefect/pull/1011) 
 
 ### Fixes
 

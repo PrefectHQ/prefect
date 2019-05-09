@@ -102,7 +102,7 @@ class CreateBranch(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("repo", "base", "branch_name")
-    def run(self, repo: str = None, base: str = None, branch_name: str = None) -> None:
+    def run(self, repo: str = None, base: str = None, branch_name: str = None) -> dict:
         """
         Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
         or by using `Task.bind`.
