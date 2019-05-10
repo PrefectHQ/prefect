@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import textwrap
 import uuid
@@ -53,7 +54,11 @@ class Docker(Storage):
         prefect_version: str = None,
     ) -> None:
         self.registry_url = registry_url
-        self.base_image = base_image
+
+        if base_image is None:
+            python_version =
+            self.base_image = "python:3.6"
+
         self.image_name = image_name
         self.image_tag = image_tag
         self.python_dependencies = python_dependencies or []
@@ -169,9 +174,6 @@ class Docker(Storage):
                 where the flow is stored. Image name and tag are generated during the
                 build process.
         """
-        if not self.base_image:
-            self.base_image = "python:3.6"
-
         image_name, image_tag = self.build_image(push=push)
         self.image_name = image_name
         self.image_tag = image_tag
