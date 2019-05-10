@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Add `prefect_version` kwarg to `Docker` storage for controlling the version of prefect installed into your containers - [#1010](https://github.com/PrefectHQ/prefect/pull/1010)
+- Warn users if their Docker storage base image uses a different python version than their local machine - [#999](https://github.com/PrefectHQ/prefect/issues/999)
 
 ### Task Library
 
