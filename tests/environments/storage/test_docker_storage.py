@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 from unittest.mock import MagicMock
 
@@ -35,7 +36,7 @@ def test_empty_docker_storage():
     storage = Docker()
 
     assert not storage.registry_url
-    assert not storage.base_image
+    assert storage.base_image.startswith("python:")
     assert not storage.image_name
     assert not storage.image_tag
     assert not storage.python_dependencies
@@ -45,7 +46,15 @@ def test_empty_docker_storage():
     assert storage.base_url == "unix://var/run/docker.sock"
 
 
-def test_empty_docker_storage():
+@pytest.mark.parametrize("version_info", [(3, 5), (3, 6), (3, 7)])
+def test_docker_init_responds_to_python_version(monkeypatch, version_info):
+    version_mock = MagicMock(major=version_info[0], minor=version_info[1])
+    monkeypatch.setattr(sys, "version_info", version_mock)
+    storage = Docker()
+    assert storage.base_image == "python:{}.{}".format(*version_info)
+
+
+def test_initialized_docker_storage():
     storage = Docker(
         registry_url="test1",
         base_image="test3",
