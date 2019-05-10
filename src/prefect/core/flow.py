@@ -1135,8 +1135,8 @@ class Flow:
                 self.storage.add_flow(self)
             else:
                 warnings.warn(
-                    "This flow is already contained in storage; if you changed your Flow since"
-                    " the last build, you might experience unexpected issues."
+                    "A flow with the same name is already contained in storage; if you changed your Flow since"
+                    " the last build, you might experience unexpected issues and should re-create your storage object."
                 )
             storage = self.storage.build()  # type: Optional[Storage]
         else:
