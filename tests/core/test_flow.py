@@ -1411,7 +1411,7 @@ class TestSerialize:
             f.serialize(build=True)
 
         w = warning.pop()
-        assert "flow is already contained in storage" in str(w.message)
+        assert "already contained in storage" in str(w.message)
 
     def test_serialize_fails_with_no_storage(self):
         f = Flow(name="test")
