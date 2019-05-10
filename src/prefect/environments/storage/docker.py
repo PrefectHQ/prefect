@@ -56,8 +56,12 @@ class Docker(Storage):
         self.registry_url = registry_url
 
         if base_image is None:
-            python_version =
-            self.base_image = "python:3.6"
+            python_version = "{}.{}".format(
+                sys.version_info.major, sys.version_info.minor
+            )
+            self.base_image = "python:{}".format(python_version)
+        else:
+            self.base_image = base_image
 
         self.image_name = image_name
         self.image_tag = image_tag
