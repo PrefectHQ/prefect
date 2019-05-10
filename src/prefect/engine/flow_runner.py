@@ -260,10 +260,11 @@ class FlowRunner(Runner):
             )
             if prefect.context.get("raise_on_exception"):
                 raise exc
-            return Failed(
+            new_state = Failed(
                 message="Unexpected error while running flow: {}".format(repr(exc)),
                 result=exc,
             )
+            state = self.handle_state_change(state or Pending(), new_state)
 
         return state
 
