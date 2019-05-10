@@ -313,15 +313,23 @@ class Docker(Storage):
                 """\
             print('Beginning health check...')
             import cloudpickle
+            import sys
+            import warnings
 
             for flow_file in [{flow_file_paths}]:
                 with open(flow_file, 'rb') as f:
                     flow = cloudpickle.load(f)
+
+            if sys.version_info.minor < {python_version}[1] or sys.version_info.minor > {python_version}[1]:
+                msg = "Your Docker container is using python version {{sys_ver}}, but your Flow was serialized using {{user_ver}}; this could lead to unexpected errors in deployment.".format(sys_ver=(sys.version_info.major, sys.version_info.minor), user_ver={python_version})
+                warnings.warn(msg)
+
             print('Healthcheck: OK')
             """.format(
                     flow_file_paths=", ".join(
                         ["'{}'".format(k) for k in self.flows.values()]
-                    )
+                    ),
+                    python_version=(sys.version_info.major, sys.version_info.minor),
                 )
             )
 
