@@ -142,6 +142,7 @@ def test_populate_job_yaml():
         environment.identifier_label
     )
     assert yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
+    assert yaml_obj["metadata"]["labels"]["flowrunid"] == "id_test"
     assert (
         yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
         == environment.identifier_label
@@ -186,6 +187,7 @@ def test_populate_worker_pod_yaml():
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
 
     assert yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
+    assert yaml_obj["metadata"]["labels"]["flowrunid"] == "id_test"
 
     env = yaml_obj["spec"]["containers"][0]["env"]
 
