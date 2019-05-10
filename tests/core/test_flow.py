@@ -1407,7 +1407,11 @@ class TestSerialize:
         assert f.name not in f.storage
 
         f.serialize(build=True)
-        f.serialize(build=True)
+        with pytest.warns(UserWarning) as warning:
+            f.serialize(build=True)
+
+        w = warning.pop()
+        assert "flow is already contained in storage" in str(w.message)
 
     def test_serialize_fails_with_no_storage(self):
         f = Flow(name="test")

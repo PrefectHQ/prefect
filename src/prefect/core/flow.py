@@ -1133,6 +1133,11 @@ class Flow:
                 raise ValueError("This flow has no storage to build")
             if self.name not in self.storage:
                 self.storage.add_flow(self)
+            else:
+                warnings.warn(
+                    "This flow is already contained in storage; if you changed your Flow since"
+                    " the last build, you might experience unexpected issues."
+                )
             storage = self.storage.build()  # type: Optional[Storage]
         else:
             storage = self.storage
