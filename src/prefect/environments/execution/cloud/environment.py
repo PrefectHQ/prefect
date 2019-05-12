@@ -136,7 +136,7 @@ class CloudEnvironment(Environment):
             self.identifier_label
         )
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flowrunid"] = flow_run_id
+        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
         yaml_obj["spec"]["template"]["metadata"]["labels"][
             "identifier"
         ] = self.identifier_label
@@ -170,7 +170,7 @@ class CloudEnvironment(Environment):
         """
         # set identifier labels
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flowrunid"] = prefect.context.get(
+        yaml_obj["metadata"]["labels"]["flow_run_id"] = prefect.context.get(
             "flow_run_id", "unknown"
         )
 
