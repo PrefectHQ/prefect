@@ -1,3 +1,9 @@
+---
+sidebarDepth: 0
+---
+
+# Visualization with a Flow State Handler
+
 A simple example Flow which stores the current flow visualization to a file
 each time the flow changes state, using a Flow-level state handler.
 
