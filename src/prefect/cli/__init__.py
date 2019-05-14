@@ -12,7 +12,10 @@ from .get import get as _get
 from .run import run as _run
 
 
-@click.group()
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+
+
+@click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
     """
     The Prefect CLI for creating, managing, and inspecting your flows.

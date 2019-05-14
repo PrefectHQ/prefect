@@ -12,12 +12,40 @@ from prefect.utilities.graphql import with_args, EnumValue
 def get():
     """
     Get commands that refer to querying Prefect Cloud metadata.
+
+    \b
+    Usage:
+        $ prefect get [OBJECT]
+
+    \b
+    Arguments:
+        flow-runs   Query flow runs
+        flows       Query flows
+        projects    Query projects
+        tasks       Query tasks
+
+    \b
+    Examples:
+        $ prefect get flows
+        NAME      VERSION   PROJECT NAME   AGE
+        My-Flow   3         My-Project     3 days ago
+
+    \b
+        $ prefect get flows --project New-Proj --all-versions
+        NAME        VERSION   PROJECT NAME   AGE
+        Test-Flow   2         New-Proj       22 hours ago
+        Test-Flow   1         New-Proj       1 month ago
+
+    \b
+        $ prefect get tasks --flow-name Test-Flow
+        NAME          FLOW NAME   FLOW VERSION   AGE          MAPPED   TYPE
+        first_task    Test-Flow   1              5 days ago   False    prefect.tasks.core.function.FunctionTask
+        second_task   Test-Flow   1              5 days ago   True     prefect.tasks.core.function.FunctionTask
     """
     pass
 
 
-# TODO: Age should not be created, due to scheduled runs, should be start time!
-@get.command()
+@get.command(hidden=True)
 @click.option("--name", "-n", help="A flow name to query.")
 @click.option("--version", "-v", type=int, help="A flow version to query.")
 @click.option("--project", "-p", help="The name of a project to query.")
@@ -91,7 +119,7 @@ def flows(name, version, project, limit, all_versions, playground):
     )
 
 
-@get.command()
+@get.command(hidden=True)
 @click.option("--name", "-n", help="A project name to query.")
 @click.option("--playground", is_flag=True, help="Open this query in the playground.")
 def projects(name, playground):
@@ -147,7 +175,7 @@ def projects(name, playground):
     )
 
 
-@get.command()
+@get.command(hidden=True)
 @click.option("--limit", "-l", default=10, help="A limit amount of flow runs to query.")
 @click.option("--flow", "-f", help="Specify a flow's runs to query.")
 @click.option("--project", "-p", help="Specify a project's runs to query.")
@@ -233,7 +261,7 @@ def flow_runs(limit, flow, project, started, playground):
     )
 
 
-@get.command()
+@get.command(hidden=True)
 @click.option("--name", "-n", help="A task name to query")
 @click.option("--flow-name", "-fn", help="A flow name to query")
 @click.option("--flow-version", "-fv", type=int, help="A flow version to query.")

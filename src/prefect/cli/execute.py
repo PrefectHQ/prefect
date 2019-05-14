@@ -12,32 +12,41 @@ from prefect.utilities.graphql import with_args
 def execute():
     """
     Execute flow environments.
+
+    \b
+    Usage:
+        $ prefect execute [OBJECT]
+
+    \b
+    Arguments:
+        local-flow  Execute a local flow's environment
+        cloud-flow  Execute a cloud flow's environment (during deployment)
+
+    \b
+    Examples:
+        $ prefect execute cloud-flow
+
+    \b
+        $ prefect execute local-flow ~/.prefect/flows/my_flow.prefect
     """
     pass
 
 
-@execute.command()
-@click.argument("storage_metadata")
-@click.argument("environment_metadata")
-@click.argument("flow_location")
-def flow(storage_metadata, environment_metadata, flow_location):
+@execute.command(hidden=True)
+def local_flow():
     """
-    Execute a local flow's environment.
+    Execute a flow's environment locally.
     """
-    storage_schema = prefect.serialization.storage.StorageSchema()
-    storage = storage_schema.load(json.loads(storage_metadata))
-
-    environment_schema = prefect.serialization.environment.EnvironmentSchema()
-    environment = environment_schema.load(json.loads(environment_metadata))
-
-    environment.setup(storage)
-    environment.execute(storage, flow_location)
+    pass
 
 
-@execute.command()
+@execute.command(hidden=True)
 def cloud_flow():
     """
     Execute a flow's environment in the context of Prefect Cloud.
+
+    Note: this is a command that runs during Cloud execution of flows and is not meant
+    for local use.
     """
     flow_run_id = prefect.context.get("flow_run_id")
     if not flow_run_id:
