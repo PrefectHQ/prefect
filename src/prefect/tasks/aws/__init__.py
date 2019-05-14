@@ -6,6 +6,12 @@ document with two keys: `"ACCESS_KEY"` and `"SECRET_ACCESS_KEY"`.
 """
 try:
     from prefect.tasks.aws.s3 import S3Download, S3Upload
+    from prefect.tasks.aws.lambda_function import (
+        LambdaCreate,
+        LambdaDelete,
+        LambdaInvoke,
+        LambdaList,
+    )
 except ImportError:
     raise ImportError(
         'Using `prefect.tasks.aws` requires Prefect to be installed with the "aws" extra.'
