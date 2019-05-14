@@ -233,3 +233,65 @@ class OneTimeSchedule(IntervalSchedule):
         super().__init__(
             start_date=start_date, interval=timedelta(days=1), end_date=start_date
         )
+
+
+class UnionSchedule(Schedule):
+    """
+    A schedule formed by adding `timedelta` increments to a start_date.
+
+    IntervalSchedules only support intervals of one minute or greater.
+
+    NOTE: If the `IntervalSchedule` start time is provided with a DST-observing timezone,
+    then the schedule will adjust itself appropriately. Intervals greater than 24
+    hours will follow DST conventions, while intervals of less than 24 hours will
+    follow UTC intervals. For example, an hourly schedule will fire every UTC hour,
+    even across DST boundaries. When clocks are set back, this will result in two
+    runs that *appear* to both be scheduled for 1am local time, even though they are
+    an hour apart in UTC time. For longer intervals, like a daily schedule, the
+    interval schedule will adjust for DST boundaries so that the clock-hour remains
+    constant. This means that a daily schedule that always fires at 9am will observe
+    DST and continue to fire at 9am in the local time zone.
+
+    Note that this behavior is different from the `CronSchedule`.
+
+    Args:
+        - start_date (datetime): first date of schedule
+        - interval (timedelta): interval on which this schedule occurs
+        - end_date (datetime, optional): an optional end date for the schedule
+
+    Raises:
+        - TypeError: if start_date is not a datetime
+        - ValueError: if provided interval is less than one minute
+    """
+
+    def __init__(self, *schedules: Schedule):
+        self.schedules = schedules
+        start_date = min(
+            [s.start_date for s in schedules if s.start_date is not None], default=None
+        )
+        end_date = max(
+            [s.end_date for s in schedules if s.end_date is not None], default=None
+        )
+        super().__init__(start_date=start_date, end_date=end_date)
+
+    def next(self, n: int, after: datetime = None) -> List[datetime]:
+        """
+        Retrieve next scheduled dates.
+
+        Args:
+            - n (int): the number of future scheduled dates to return
+            - after (datetime, optional): the first result will be after this date
+
+        Returns:
+            - list: list of next scheduled dates
+        """
+        if after is None:
+            after = pendulum.now("utc")
+
+        assert isinstance(after, datetime)  # mypy assertion
+        assert isinstance(self.start_date, pendulum.DateTime)  # mypy assertion
+
+        after = pendulum.instance(after)
+        dates = []  # type: List[pendulum.DateTime]
+
+        return dates
