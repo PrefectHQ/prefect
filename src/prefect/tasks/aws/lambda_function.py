@@ -13,7 +13,7 @@ class LambdaCreate(Task):
     Task for creating a Lambda function.
 
     Args:
-        - function_name (str): name of teh Lambda function to create
+        - function_name (str): name of the Lambda function to create
         - runtime (str): the identifier of the function's runtime
         - role (str): the Amazon Resource Name of the function's execution role
         - handler (str): the name of the method within your code that Lambda calls
