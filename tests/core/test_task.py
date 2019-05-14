@@ -92,6 +92,19 @@ class TestCreateTask:
         with pytest.raises(TypeError):
             Task(state_handlers=lambda *a: 1)
 
+    def test_class_creation_rejects_reserved_init_kwargs(self):
+        with pytest.raises(ValueError):
+
+            class BadTask(Task):
+                def __init__(self, name):
+                    pass
+
+        with pytest.raises(ValueError):
+
+            class BadTask(Task):
+                def __init__(self, checkpoint):
+                    pass
+
     def test_class_instantiation_rejects_varargs(self):
         with pytest.raises(ValueError):
 

@@ -21,6 +21,33 @@ if TYPE_CHECKING:
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
 
+def _validate_init_signature(init: Callable) -> None:
+    init_sig = inspect.getfullargspec(init)
+    reserved_kwargs = [
+        "name",
+        "slug",
+        "tags",
+        "max_retries",
+        "retry_delay",
+        "timeout",
+        "trigger",
+        "skip_on_upstream_skip",
+        "cache_for",
+        "cache_validator",
+        "checkpoint",
+        "result_handler",
+        "state_handlers",
+        "on_failure",
+    ]
+    violations = [kw for kw in reserved_kwargs if kw in init_sig.args]
+    if violations:
+        msg = "Custom Tasks cannot have the following initialization argument names: {}.".format(
+            ", ".join(violations)
+        )
+        msg += " These are reserved keyword arguments."
+        raise ValueError(msg)
+
+
 def _validate_run_signature(run: Callable) -> None:
     func = getattr(run, "__wrapped__", run)
     run_sig = inspect.getfullargspec(func)
@@ -47,6 +74,9 @@ class SignatureValidator(type):
     def __new__(cls, name: str, parents: tuple, methods: dict) -> type:
         run = methods.get("run", lambda: None)
         _validate_run_signature(run)
+        if name not in ["Task", "Parameter"]:
+            init = methods.get("__init__", lambda: None)
+            _validate_init_signature(init)
 
         # necessary to ensure classes that inherit from parent class
         # also get passed through __new__
