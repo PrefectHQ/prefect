@@ -8,7 +8,7 @@ def auth():
     """
     pass
 
-
+# TODO: Put in config, then test basic query or something to see if it works, return status
 @auth.command()
 @click.option("--token", "-t", required=True, help="A Prefect Cloud auth token.")
 def add(token):

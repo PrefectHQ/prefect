@@ -16,6 +16,7 @@ def get():
     pass
 
 
+# TODO: Age should not be created, due to scheduled runs, should be start time!
 @get.command()
 @click.option("--name", "-n", help="A flow name to query.")
 @click.option("--version", "-v", type=int, help="A flow version to query.")
@@ -56,7 +57,6 @@ def flows(name, version, project, limit, all_versions, playground):
                 "version": True,
                 "project": {"name": True},
                 "created": True,
-                "schedule_is_active": True,
             }
         }
     }
@@ -77,14 +77,13 @@ def flows(name, version, project, limit, all_versions, playground):
                 item.version,
                 item.project.name,
                 pendulum.parse(item.created).diff_for_humans(),
-                item.schedule_is_active,
             ]
         )
 
     click.echo(
         tabulate(
             output,
-            headers=["NAME", "VERSION", "PROJECT NAME", "AGE", "ACTIVE"],
+            headers=["NAME", "VERSION", "PROJECT NAME", "AGE"],
             tablefmt="plain",
             numalign="left",
             stralign="left",

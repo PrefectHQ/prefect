@@ -50,8 +50,6 @@ def flows(name, version, project, playground):
                 "created": True,
                 "description": True,
                 "parameters": True,
-                "schedule": True,
-                "schedule_is_active": True,
                 "archived": True,
                 "storage": True,
                 "environment": True,
