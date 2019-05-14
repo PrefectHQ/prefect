@@ -11,20 +11,58 @@ from prefect.utilities.graphql import with_args, EnumValue
 def describe():
     """
     Describe commands that render JSON output of Prefect object metadata.
+
+    \b
+    Usage:
+        $ prefect describe [OBJECT]
+
+    \b
+    Arguments:
+        flow-runs   Describe flow runs
+        flows       Describe flows
+        tasks       Describe tasks
+
+    \b
+    Examples:
+        $ prefect describe flows --name My-Flow --version 2
+        {
+            "name": "My-Flow",
+            "version": 2,
+            "project": {
+                "name": "Test-Project"
+            },
+            "created": "2019-05-08T23:04:58.984132+00:00",
+            "description": null,
+            "parameters": [],
+            "archived": false,
+            "storage": {
+                "type": "Docker",
+                "flows": {
+                    "My-Flow": "/root/.prefect/My-Flow.prefect"
+                },
+                "image_tag": "944444e8-8862-4d04-9e36-b81ab15dcaf6",
+                "image_name": "z4f0bb62-8cc1-49d9-bda3-6rf53b865ea5",
+                "__version__": "0.5.3",
+                "registry_url": "myregistry.io/flows/"
+            },
+            "environment": {
+                "type": "CloudEnvironment",
+                "__version__": "0.5.3"
+            }
+        }
     """
     pass
 
 
-@describe.command()
+@describe.command(hidden=True)
 @click.option("--name", "-n", required=True, help="A flow name to query.")
 @click.option("--version", "-v", type=int, help="A flow version to query.")
 @click.option("--project", "-p", help="The name of a project to query.")
 @click.option("--playground", is_flag=True, help="Open this query in the playground.")
 def flows(name, version, project, playground):
     """
-    Describe your Prefect flow.
+    Describe a Prefect flow.
     """
-
     query = {
         "query": {
             with_args(
@@ -71,16 +109,15 @@ def flows(name, version, project, playground):
         click.secho("{} not found".format(name), fg="red")
 
 
-@describe.command()
+@describe.command(hidden=True)
 @click.option("--name", "-n", required=True, help="A flow name to query.")
 @click.option("--version", "-v", type=int, help="A flow version to query.")
 @click.option("--project", "-p", help="The name of a project to query.")
 @click.option("--playground", is_flag=True, help="Open this query in the playground.")
 def tasks(name, version, project, playground):
     """
-    Describe your Prefect flow.
+    Describe tasks from a Prefect flow.
     """
-
     query = {
         "query": {
             with_args(
@@ -134,7 +171,7 @@ def tasks(name, version, project, playground):
         click.secho("No tasks found for flow {}".format(name), fg="red")
 
 
-@describe.command()
+@describe.command(hidden=True)
 @click.option("--name", "-n", required=True, help="A flow run name to query")
 @click.option("--flow-name", "-fn", help="A flow name to query")
 @click.option("--playground", is_flag=True, help="Open this query in the playground.")
