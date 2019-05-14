@@ -151,35 +151,47 @@ def projects(name, playground):
 @click.option("--limit", "-l", default=10, help="A limit amount of flow runs to query.")
 @click.option("--flow", "-f", help="Specify a flow's runs to query.")
 @click.option("--project", "-p", help="Specify a project's runs to query.")
+@click.option("--started", "-s", is_flag=True, help="Only retrieve started flow runs.")
 @click.option("--playground", is_flag=True, help="Open this query in the playground.")
-def flow_runs(limit, flow, project, playground):
+def flow_runs(limit, flow, project, started, playground):
     """
     Query information regarding Prefect flow runs.
     """
+
+    if started:
+        order = {"start_time": EnumValue("desc")}
+
+        where = {
+            "_and": {
+                "flow": {
+                    "_and": {
+                        "name": {"_eq": flow},
+                        "project": {"name": {"_eq": project}},
+                    }
+                },
+                "start_time": {"_is_null": False},
+            }
+        }
+    else:
+        order = {"created": EnumValue("desc")}
+
+        where = {
+            "flow": {
+                "_and": {"name": {"_eq": flow}, "project": {"name": {"_eq": project}}}
+            }
+        }
+
     query = {
         "query": {
             with_args(
-                "flow_run",
-                {
-                    "where": {
-                        "_and": {
-                            "flow": {
-                                "_and": {
-                                    "name": {"_eq": flow},
-                                    "project": {"name": {"_eq": project}},
-                                }
-                            }
-                        }
-                    },
-                    "limit": limit,
-                    "order_by": {"created": EnumValue("desc")},
-                },
+                "flow_run", {"where": where, "limit": limit, "order_by": order}
             ): {
                 "flow": {"name": True},
                 "created": True,
                 "state": True,
                 "name": True,
                 "duration": True,
+                "start_time": True,
             }
         }
     }
@@ -194,20 +206,26 @@ def flow_runs(limit, flow, project, playground):
 
     output = []
     for item in flow_run_data:
+        start_time = (
+            pendulum.parse(item.start_time).to_datetime_string()
+            if item.start_time
+            else None
+        )
         output.append(
             [
                 item.name,
+                item.flow.name,
                 item.state,
                 pendulum.parse(item.created).diff_for_humans(),
+                start_time,
                 item.duration,
-                item.flow.name,
             ]
         )
 
     click.echo(
         tabulate(
             output,
-            headers=["NAME", "STATE", "AGE", "DURATION", "FLOW NAME"],
+            headers=["NAME", "FLOW NAME", "STATE", "AGE", "START TIME", "DURATION"],
             tablefmt="plain",
             numalign="left",
             stralign="left",
