@@ -172,6 +172,8 @@ class LambdaDelete(Task):
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
             which stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
     """
 
     def __init__(
@@ -242,6 +244,8 @@ class LambdaInvoke(Task):
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
             which stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
     """
 
     def __init__(
@@ -340,6 +344,8 @@ class LambdaList(Task):
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
             which stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
     """
 
     def __init__(
