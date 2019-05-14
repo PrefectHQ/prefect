@@ -25,7 +25,7 @@ class LambdaCreate(Task):
         - object_version (str, optional): for versioned S3 objects, the version of the
             deployment package to use
         - description (str, optional): description of Lambda function
-        - timeout (int, optional): Lambda function timeout in seconds, default is 3 seconds
+        - function_timeout (int, optional): Lambda function timeout in seconds, default is 3 seconds
         - memorysize (int, optional): amount of memory that Lambda function has
             access to in MB, must be a multiple of 64 MB, default is 128
         - publish (bool, optional): set to True to publish the first version of the
@@ -66,7 +66,7 @@ class LambdaCreate(Task):
         bucket_key: str = "",
         object_version: str = None,
         description: str = "",
-        timeout: int = 3,
+        function_timeout: int = 3,
         memorysize: int = 128,
         publish: bool = True,
         subnet_ids: list = None,
@@ -95,7 +95,7 @@ class LambdaCreate(Task):
                 self.code["S3ObjectVersion"] = object_version
 
         self.description = description
-        self.timeout_setting = timeout
+        self.function_timeout = function_timeout
         self.memorysize = memorysize
         self.publish = publish
 
@@ -146,7 +146,7 @@ class LambdaCreate(Task):
             Handler=self.handler,
             Code=self.code,
             Description=self.description,
-            Timeout=self.timeout_setting,
+            Timeout=self.function_timeout,
             MemorySize=self.memorysize,
             Publish=self.publish,
             VpcConfig=self.vpc_config,
