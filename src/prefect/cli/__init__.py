@@ -10,6 +10,7 @@ from .describe import describe as _describe
 from .execute import execute as _execute
 from .get import get as _get
 from .run import run as _run
+from .summarize import summarize as _summarize
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -52,6 +53,7 @@ cli.add_command(_describe)
 cli.add_command(_execute)
 cli.add_command(_get)
 cli.add_command(_run)
+cli.add_command(_summarize)
 
 
 # Miscellaneous Commands
