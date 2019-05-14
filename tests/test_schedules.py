@@ -527,3 +527,35 @@ class TestSerialization:
             "interval": 3600000000,
             "__version__": __version__,
         }
+
+
+class TestUnionSchedule:
+    @pytest.fixture
+    def list_of_schedules(self):
+        sd = pendulum.datetime(2000, 1, 1)
+        ed = pendulum.datetime(2010, 1, 1)
+
+        list_sched = []
+        list_sched.append(
+            schedules.IntervalSchedule(
+                interval=timedelta(hours=1), start_date=sd, end_date=ed
+            )
+        )
+
+        sd = pendulum.datetime(2004, 1, 1)
+        ed = pendulum.datetime(2017, 1, 1)
+        list_sched.append(
+            schedules.CronSchedule("0 0 * * *", start_date=sd, end_date=ed)
+        )
+        list_sched.append(schedules.CronSchedule("0 9 * * 1-5"))
+        return list_sched
+
+    def test_initialization(self):
+        s = schedules.UnionSchedule()
+        assert s.start_date is None
+        assert s.end_date is None
+
+    def test_initialization_with_schedules(self, list_of_schedules):
+        s = schedules.UnionSchedule(*list_of_schedules)
+        assert s.start_date == pendulum.datetime(2000, 1, 1)
+        assert s.end_date == pendulum.datetime(2017, 1, 1)
