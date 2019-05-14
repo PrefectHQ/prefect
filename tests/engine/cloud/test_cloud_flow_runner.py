@@ -157,6 +157,25 @@ def test_client_is_always_called_even_during_state_handler_failures(client):
     assert client.get_task_run_info.call_count == 0
 
 
+def test_flow_handlers_are_called_even_when_initialize_run_fails(client):
+    class BadRunner(CloudFlowRunner):
+        def initialize_run(self, *args, **kwargs):
+            raise SyntaxError("bad")
+
+    handler_results = dict(Flow=0)
+
+    def handler(runner, old, new):
+        handler_results["Flow"] += 1
+        return new
+
+    flow = prefect.Flow(name="test", state_handlers=[handler])
+    with prefect.context(flow_run_version=0):
+        BadRunner(flow=flow).run()
+
+    # the flow changed state once: Pending -> Failed
+    assert handler_results["Flow"] == 1
+
+
 @pytest.mark.parametrize(
     "state", [Finished, Success, Skipped, Failed, TimedOut, TriggerFailed]
 )

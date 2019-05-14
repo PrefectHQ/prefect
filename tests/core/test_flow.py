@@ -1401,6 +1401,18 @@ class TestSerialize:
         s_build = f.serialize(build=True)
         assert f.name in f.storage
 
+    def test_serialize_can_be_called_twice(self):
+        f = Flow(name="test", storage=prefect.environments.storage.Memory())
+        s_no_build = f.serialize()
+        assert f.name not in f.storage
+
+        f.serialize(build=True)
+        with pytest.warns(UserWarning) as warning:
+            f.serialize(build=True)
+
+        w = warning.pop()
+        assert "already contained in storage" in str(w.message)
+
     def test_serialize_fails_with_no_storage(self):
         f = Flow(name="test")
         with pytest.raises(ValueError):

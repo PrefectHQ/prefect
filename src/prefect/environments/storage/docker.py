@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import textwrap
 import uuid
@@ -36,6 +37,8 @@ class Docker(Storage):
         - env_vars (dict, optional): a dictionary of environment variables to use when building
         - files (dict, optional): a dictionary of files to copy into the image when building
         - base_url: (str, optional): a URL of a Docker daemon to use when for Docker related functionality
+        - prefect_version (str, optional): an optional branch, tag, or commit specifying the version of prefect
+            you want installed into the container; defaults to `"0.5.3"`
     """
 
     def __init__(
@@ -48,9 +51,18 @@ class Docker(Storage):
         env_vars: dict = None,
         files: dict = None,
         base_url: str = "unix://var/run/docker.sock",
+        prefect_version: str = None,
     ) -> None:
         self.registry_url = registry_url
-        self.base_image = base_image
+
+        if base_image is None:
+            python_version = "{}.{}".format(
+                sys.version_info.major, sys.version_info.minor
+            )
+            self.base_image = "python:{}".format(python_version)
+        else:
+            self.base_image = base_image
+
         self.image_name = image_name
         self.image_tag = image_tag
         self.python_dependencies = python_dependencies or []
@@ -59,6 +71,7 @@ class Docker(Storage):
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
         self.base_url = base_url
+        self.prefect_version = prefect_version or "0.5.3"
 
         not_absolute = [
             file_path for file_path in self.files if not os.path.isabs(file_path)
@@ -165,9 +178,6 @@ class Docker(Storage):
                 where the flow is stored. Image name and tag are generated during the
                 build process.
         """
-        if not self.base_image:
-            self.base_image = "python:3.6"
-
         image_name, image_tag = self.build_image(push=push)
         self.image_name = image_name
         self.image_tag = image_tag
@@ -303,15 +313,23 @@ class Docker(Storage):
                 """\
             print('Beginning health check...')
             import cloudpickle
+            import sys
+            import warnings
 
             for flow_file in [{flow_file_paths}]:
                 with open(flow_file, 'rb') as f:
                     flow = cloudpickle.load(f)
+
+            if sys.version_info.minor < {python_version}[1] or sys.version_info.minor > {python_version}[1]:
+                msg = "Your Docker container is using python version {{sys_ver}}, but your Flow was serialized using {{user_ver}}; this could lead to unexpected errors in deployment.".format(sys_ver=(sys.version_info.major, sys.version_info.minor), user_ver={python_version})
+                warnings.warn(msg)
+
             print('Healthcheck: OK')
             """.format(
                     flow_file_paths=", ".join(
                         ["'{}'".format(k) for k in self.flows.values()]
-                    )
+                    ),
+                    python_version=(sys.version_info.major, sys.version_info.minor),
                 )
             )
 
@@ -334,7 +352,7 @@ class Docker(Storage):
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
-                RUN pip install git+https://github.com/PrefectHQ/prefect.git@master#egg=prefect[kubernetes]
+                RUN pip install git+https://github.com/PrefectHQ/prefect.git@{version}#egg=prefect[kubernetes]
                 # RUN pip install prefect
 
                 RUN python /root/.prefect/healthcheck.py
@@ -344,6 +362,7 @@ class Docker(Storage):
                     copy_flows=copy_flows,
                     copy_files=copy_files,
                     env_vars=env_vars,
+                    version=self.prefect_version,
                 )
             )
 
