@@ -19,9 +19,14 @@ class SlackTask(Task):
         - **kwargs (Any, optional): additional keyword arguments to pass to the base Task initialization
     """
 
-    def __init__(self, message: str = None, webhook_secret: str = None, **kwargs: Any):
+    def __init__(
+        self,
+        message: str = None,
+        webhook_secret: str = "SLACK_WEBHOOK_URL",
+        **kwargs: Any
+    ):
         self.message = message
-        self.webhook_secret = webhook_secret or "SLACK_WEBHOOK_URL"
+        self.webhook_secret = webhook_secret
         super().__init__(**kwargs)
 
     @defaults_from_attrs("message")
