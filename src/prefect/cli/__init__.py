@@ -21,6 +21,10 @@ def cli():
     The Prefect CLI for creating, managing, and inspecting your flows.
 
     \b
+    Note: a Prefect Cloud auth token is required for all Cloud related commands. If a token
+    is not set in your Prefect config.toml then run `prefect auth add` to set it.
+
+    \b
     Query Commands:
         get         List high-level object information
         describe    Retrieve detailed object descriptions
