@@ -42,7 +42,7 @@ class LambdaCreate(Task):
         - kms_key_arn (str, optional): the ARN of the AWS key management service used
             to encrypt your function's environment variables, if not provided, AWS
             Lambda uses a default service key
-        - tags (dict, optional): a list of tags to apply to the function, string
+        - function_tags (dict, optional): a list of tags to apply to the function, string
             to string map
         - tracing_config (str, optional): set to Active to samle and trace a
             subset of incoming requests with Amazon X-Ray
@@ -74,7 +74,7 @@ class LambdaCreate(Task):
         dead_letter_config: dict = None,
         environment_variables: dict = None,
         kms_key_arn: str = "",
-        tags: dict = None,
+        function_tags: dict = None,
         tracing_config: str = "PassThrough",
         layers: list = None,
         aws_credentials_secret: str = "AWS_CREDENTIALS",
@@ -108,7 +108,7 @@ class LambdaCreate(Task):
         self.dead_letter_config = dead_letter_config
         self.environment_variables = environment_variables
         self.kms_key_arn = kms_key_arn
-        self.tags = tags
+        self.function_tags = function_tags
         self.tracing_config = tracing_config
         self.layers = layers
 
@@ -154,7 +154,7 @@ class LambdaCreate(Task):
             Environment={"Variables": self.environment_variables or {}},
             KMSKeyArn=self.kms_key_arn,
             TracingConfig={"Mode": self.tracing_config},
-            Tags=self.tags or {},
+            Tags=self.function_tags or {},
             Layers=self.layers or [],
         )
 
