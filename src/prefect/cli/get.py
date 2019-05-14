@@ -263,7 +263,13 @@ def tasks(name, flow_name, flow_version, project, limit, playground):
                     "limit": limit,
                     "order_by": {"created": EnumValue("desc")},
                 },
-            ): {"name": True, "created": True, "flow": {"name": True}, "type": True}
+            ): {
+                "name": True,
+                "created": True,
+                "flow": {"name": True, "version": True},
+                "mapped": True,
+                "type": True,
+            }
         }
     }
 
@@ -280,8 +286,10 @@ def tasks(name, flow_name, flow_version, project, limit, playground):
         output.append(
             [
                 item.name,
-                pendulum.parse(item.created).diff_for_humans(),
                 item.flow.name,
+                item.flow.version,
+                pendulum.parse(item.created).diff_for_humans(),
+                item.mapped,
                 item.type,
             ]
         )
@@ -289,7 +297,7 @@ def tasks(name, flow_name, flow_version, project, limit, playground):
     click.echo(
         tabulate(
             output,
-            headers=["NAME", "AGE", "FLOW NAME", "TYPE"],
+            headers=["NAME", "FLOW NAME", "FLOW VERSION", "AGE", "MAPPED", "TYPE"],
             tablefmt="plain",
             numalign="left",
             stralign="left",
