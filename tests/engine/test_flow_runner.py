@@ -921,6 +921,20 @@ class TestFlowStateHandlers:
         # the flow changed state twice: Pending -> Running -> Success
         assert handler_results["Flow"] == 2
 
+    def test_flow_handlers_are_called_even_when_initialize_run_fails(self):
+        class BadRunner(FlowRunner):
+            def initialize_run(self, *args, **kwargs):
+                raise SyntaxError("bad")
+
+        def handler(runner, old, new):
+            handler_results["Flow"] += 1
+            return new
+
+        flow = Flow(name="test", state_handlers=[handler])
+        BadRunner(flow=flow).run()
+        # the flow changed state twice: Pending -> Failed
+        assert handler_results["Flow"] == 1
+
     def test_flow_handlers_can_return_none(self):
         flow_handler = MagicMock(side_effect=lambda t, o, n: None)
         flow = Flow(name="test", state_handlers=[flow_handler])

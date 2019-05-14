@@ -129,11 +129,14 @@ class CloudEnvironment(Environment):
         Returns:
             - dict: a dictionary with the yaml values replaced
         """
+        flow_run_id = prefect.context.get("flow_run_id", "unknown")
+
         # set identifier labels
         yaml_obj["metadata"]["name"] = "prefect-dask-job-{}".format(
             self.identifier_label
         )
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
+        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
         yaml_obj["spec"]["template"]["metadata"]["labels"][
             "identifier"
         ] = self.identifier_label
@@ -145,7 +148,7 @@ class CloudEnvironment(Environment):
         env[1]["value"] = prefect.config.cloud.log
         env[2]["value"] = prefect.config.cloud.result_handler
         env[3]["value"] = prefect.config.cloud.auth_token
-        env[4]["value"] = prefect.context.get("flow_run_id", "")
+        env[4]["value"] = flow_run_id
         env[5]["value"] = prefect.context.get("namespace", "")
         env[6]["value"] = docker_name
         env[7]["value"] = flow_file_path
@@ -167,6 +170,9 @@ class CloudEnvironment(Environment):
         """
         # set identifier labels
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
+        yaml_obj["metadata"]["labels"]["flow_run_id"] = prefect.context.get(
+            "flow_run_id", "unknown"
+        )
 
         # set environment variables
         env = yaml_obj["spec"]["containers"][0]["env"]
