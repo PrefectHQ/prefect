@@ -289,12 +289,18 @@ class LambdaInvoke(Task):
         json_context = json.dumps(client_context).encode("utf-8")
         return b64encode(json_context).decode("utf-8")
 
-    @defaults_from_attrs("aws_credentials_secret", "payload")
-    def run(self, payload: str = None, aws_credentials_secret: str = "AWS_CREDENTIALS"):
+    @defaults_from_attrs("function_name", "payload", "aws_credentials_secret")
+    def run(
+        self,
+        function_name: str = None,
+        payload: str = None,
+        aws_credentials_secret: str = "AWS_CREDENTIALS",
+    ):
         """
         Task run method. Invokes Lambda function.
 
         Args:
+            - function_name (str): the name of the Lambda funciton to invoke
             - payload (bytes or seekable file-like object): the JSON provided to
                 Lambda function as input
             - aws_credentials_secret (str, optional): the name of the Prefect Secret
@@ -317,7 +323,7 @@ class LambdaInvoke(Task):
 
         ## invoke lambda function
         response = lambda_client.invoke(
-            FunctionName=self.function_name,
+            FunctionName=function_name,
             InvocationType=self.invocation_type,
             LogType=self.log_type,
             ClientContext=self.client_context,
