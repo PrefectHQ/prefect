@@ -85,6 +85,7 @@ def cloud(name, project, version, watch):
     click.echo("Flow Run ID: {}".format(flow_run_id))
 
     # TODO: Convert to using a subscription and make output prettier
+    # Make this better, gets stuck on submitted if failure. Resource manager will improve this by updating state on infra fail
     if watch:
         current_state = ""
         while True:
