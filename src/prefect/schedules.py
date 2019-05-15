@@ -241,10 +241,29 @@ class UnionSchedule(Schedule):
 
     Both `start_date` and `end_date` are inferred as the min / max (resp.) of
     all provided schedules.  Note that the schedules are not required to all
-    be from the same timezone.
+    be from the same timezone.  If multiple schedules have overlapping dates,
+    only a single run will be created for that date.
 
     Args:
         - schedules (List[Schedule]): a list of schedules to combine
+
+    Example:
+        ```python
+        import pendulum
+        from datetime import timedelta
+
+        from prefect.schedules import CronSchedule, IntervalSchedule, UnionSchedule
+
+        cron = CronSchedule("30 6 * * 1-5", start_date=pendulum.parse("2019-03-14", tz="US/Pacific"))
+        cron.next(2)
+
+        interval = IntervalSchedule(start_date=pendulum.parse("2019-03-14", tz="US/Eastern"), interval=timedelta(minutes=30, hours=1))
+        interval.next(2)
+
+        union = UnionSchedule([cron, interval])
+        union.next(4)
+        ```
+
     """
 
     def __init__(self, schedules: List[Schedule] = None):
