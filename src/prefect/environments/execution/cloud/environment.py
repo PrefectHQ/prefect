@@ -83,19 +83,31 @@ class CloudEnvironment(Environment):
         from kubernetes import client
 
         docker_creds = Secret("DOCKER_REGISTRY_CREDENTIALS").get()
+        assert isinstance(docker_creds, dict)
+
         v1 = client.CoreV1Api()
-        data = {  # type: ignore
-            k: base64.b64encode(v.encode()).decode()
-            for k, v in docker_creds.items()  # type: ignore
+        cred_payload = {
+            "auths": {
+                docker_creds["docker-server"]: {
+                    "Username": docker_creds["docker-username"],
+                    "Password": docker_creds["docker-password"],
+                    "Email": docker_creds["docker-email"],
+                }
+            }
         }
-        namespace = prefect.context.get("namespace", "unknown")
+        data = {
+            ".dockerconfigjson": base64.b64encode(
+                json.dumps(cred_payload).encode()
+            ).decode()
+        }
+        namespace = prefect.context.get("namespace", "default")
         name = namespace + "-docker"
         secret = client.V1Secret(
             api_version="v1",
             data=data,
             kind="Secret",
             metadata=dict(name=name, namespace=namespace),
-            type="docker-registry",
+            type="kubernetes.io/dockerconfigjson",
         )
         v1.create_namespaced_secret(namespace, body=secret)
 
