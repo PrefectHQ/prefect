@@ -254,14 +254,23 @@ class UnionSchedule(Schedule):
 
         from prefect.schedules import CronSchedule, IntervalSchedule, UnionSchedule
 
-        cron = CronSchedule("30 6 * * 1-5", start_date=pendulum.parse("2019-03-14", tz="US/Pacific"))
+        cron = CronSchedule("0 * * * *", start_date=pendulum.now("US/Eastern"))
         cron.next(2)
+        # [DateTime(2019, 5, 15, 19, 0, 0, tzinfo=Timezone('US/Eastern')),
+        # DateTime(2019, 5, 15, 20, 0, 0, tzinfo=Timezone('US/Eastern'))]
 
-        interval = IntervalSchedule(start_date=pendulum.parse("2019-03-14", tz="US/Eastern"), interval=timedelta(minutes=30, hours=1))
+        first_cron = cron.next(1)[0]
+        interval = IntervalSchedule(start_date=first_cron.in_timezone("US/Pacific"), interval=timedelta(minutes=30))
         interval.next(2)
+        # [DateTime(2019, 5, 15, 16, 0, 0, tzinfo=Timezone('US/Pacific')),
+        # DateTime(2019, 5, 15, 16, 30, 0, tzinfo=Timezone('US/Pacific'))]
 
         union = UnionSchedule([cron, interval])
         union.next(4)
+        # [DateTime(2019, 5, 15, 19, 0, 0, tzinfo=Timezone('US/Eastern')),
+        # DateTime(2019, 5, 15, 16, 30, 0, tzinfo=Timezone('US/Pacific')),
+        # DateTime(2019, 5, 15, 20, 0, 0, tzinfo=Timezone('US/Eastern')),
+        # DateTime(2019, 5, 15, 17, 30, 0, tzinfo=Timezone('US/Pacific'))]
         ```
 
     """
