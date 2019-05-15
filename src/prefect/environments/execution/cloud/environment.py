@@ -1,8 +1,10 @@
+import base64
 import json
 import logging
 import time
 import uuid
 from os import path
+from slugify import slugify
 from typing import Any, List
 
 import cloudpickle
@@ -10,6 +12,7 @@ import docker
 import yaml
 
 import prefect
+from prefect.client import Secret
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Docker
 
@@ -21,14 +24,39 @@ class CloudEnvironment(Environment):
 
     *Note*: This environment is not currently customizable. This may be subject to change.
 
-    There are no set up requirements, and `execute` creates a single job that has the role
+    If pulling from a private docker registry, `setup` will ensure the appropriate
+    kubernetes secret exists; `execute` creates a single job that has the role
     of spinning up a dask executor and running the flow. The job created in the execute
     function does have the requirement in that it needs to have an `identifier_label`
     set with a UUID so resources can be cleaned up independently of other deployments.
+
+    Args:
+        - private (bool, optional): a boolean specifying whether your Flow's Docker container will be in a private
+            Docker registry; if so, requires a `DOCKER_REGISTRY_CREDENTIALS` Prefect Secret to be set.
+            Defaults to `False`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, private: bool = False) -> None:
         self.identifier_label = str(uuid.uuid4())
+        self.private = private
+
+    def setup(self, storage: "Docker") -> None:  # type: ignore
+        if self.private:
+            from kubernetes import client, config
+
+            # Verify environment is running in cluster
+            try:
+                config.load_incluster_config()
+            except config.config_exception.ConfigException:
+                raise EnvironmentError("Environment not currently inside a cluster")
+
+            v1_client = client.CoreV1Api()
+            namespace = prefect.context.get("namespace", "")
+            secrets = v1_client.list_namespaced_secret(namespace=namespace, watch=False)
+            if not [
+                secret for secret in secrets.items if secret.type == "docker-registry"
+            ]:
+                self._create_namespaced_secret()
 
     def execute(  # type: ignore
         self, storage: "Docker", flow_location: str, **kwargs: Any
@@ -50,6 +78,26 @@ class CloudEnvironment(Environment):
             raise TypeError("CloudEnvironment requires a Docker storage option")
 
         self.create_flow_run_job(docker_name=storage.name, flow_file_path=flow_location)
+
+    def _create_namespaced_secret(self) -> None:
+        from kubernetes import client
+
+        docker_creds = Secret("DOCKER_REGISTRY_CREDENTIALS").get()
+        v1 = client.CoreV1Api()
+        data = {  # type: ignore
+            k: base64.b64encode(v.encode()).decode()
+            for k, v in docker_creds.items()  # type: ignore
+        }
+        namespace = prefect.context.get("namespace", "unknown")
+        name = namespace + "-docker"
+        secret = client.V1Secret(
+            api_version="v1",
+            data=data,
+            kind="Secret",
+            metadata=dict(name=name, namespace=namespace),
+            type="docker-registry",
+        )
+        v1.create_namespaced_secret(namespace, body=secret)
 
     def create_flow_run_job(self, docker_name: str, flow_file_path: str) -> None:
         """
@@ -130,6 +178,7 @@ class CloudEnvironment(Environment):
             - dict: a dictionary with the yaml values replaced
         """
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
+        namespace = prefect.context.get("namespace", "unknown")
 
         # set identifier labels
         yaml_obj["metadata"]["name"] = "prefect-dask-job-{}".format(
@@ -143,6 +192,10 @@ class CloudEnvironment(Environment):
 
         # set environment variables
         env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+        if self.private:
+            pod_spec = yaml_obj["spec"]["template"]["spec"]
+            pod_spec["imagePullSecrets"] = []
+            pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
 
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.log
@@ -182,6 +235,12 @@ class CloudEnvironment(Environment):
         env[2]["value"] = prefect.config.cloud.result_handler
         env[3]["value"] = prefect.config.cloud.auth_token
         env[4]["value"] = prefect.context.get("flow_run_id", "")
+
+        if self.private:
+            namespace = prefect.context.get("namespace", "")
+            pod_spec = yaml_obj["spec"]
+            pod_spec["imagePullSecrets"] = []
+            pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
 
         # set image
         yaml_obj["spec"]["containers"][0]["image"] = prefect.context.get(
