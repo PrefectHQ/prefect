@@ -40,7 +40,7 @@ class CloudEnvironment(Environment):
         self.identifier_label = str(uuid.uuid4())
         self.private = private
 
-    def setup(self, storage: "Docker") -> None:
+    def setup(self, storage: "Docker") -> None:  # type: ignore
         if self.private:
             from kubernetes import client, config
 
@@ -80,10 +80,13 @@ class CloudEnvironment(Environment):
         self.create_flow_run_job(docker_name=storage.name, flow_file_path=flow_location)
 
     def _create_namespaced_secret(self) -> None:
+        from kubernetes import client
+
         docker_creds = Secret("DOCKER_REGISTRY_CREDENTIALS").get()
         v1 = client.CoreV1Api()
-        data = {
-            k: base64.b64encode(v.encode()).decode() for k, v in docker_creds.items()
+        data = {  # type: ignore
+            k: base64.b64encode(v.encode()).decode()
+            for k, v in docker_creds.items()  # type: ignore
         }
         namespace = prefect.context.get("namespace", "unknown")
         name = namespace + "-docker"
