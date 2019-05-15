@@ -1,3 +1,5 @@
+from marshmallow import fields
+
 import prefect
 from prefect.environments import CloudEnvironment, Environment, LocalEnvironment
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema
@@ -16,6 +18,8 @@ class LocalEnvironmentSchema(ObjectSchema):
 class CloudEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = CloudEnvironment
+
+    private = fields.Boolean(allow_none=False)
 
 
 class EnvironmentSchema(OneOfSchema):
