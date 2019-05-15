@@ -100,7 +100,7 @@ class CloudEnvironment(Environment):
                 json.dumps(cred_payload).encode()
             ).decode()
         }
-        namespace = prefect.context.get("namespace", "default")
+        namespace = prefect.context.get("namespace", "unknown")
         name = namespace + "-docker"
         secret = client.V1Secret(
             api_version="v1",
