@@ -293,5 +293,19 @@ class UnionSchedule(Schedule):
 
         after = pendulum.instance(after)
         dates = []  # type: List[pendulum.DateTime]
+        candidates = {
+            idx: s.next(1, after=after) for idx, s in enumerate(self.schedules)
+        }
+
+        while len(dates) < n:
+            dates.append(min(candidates.values()))
+
+            ## get next date for all dates whose current values agree with the current minimum
+            updates = {
+                i: self.schedules[i].next(1, after=dates[-1])
+                for i, val in candidates.items()
+                if val == dates[-1]
+            }
+            candidates.update(updates)
 
         return dates
