@@ -237,7 +237,7 @@ class CloudEnvironment(Environment):
         env[4]["value"] = prefect.context.get("flow_run_id", "")
 
         if self.private:
-            namespace = prefect.get("namespace", "")
+            namespace = prefect.context.get("namespace", "")
             pod_spec = yaml_obj["spec"]
             pod_spec["imagePullSecrets"] = []
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
