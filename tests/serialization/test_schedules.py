@@ -143,3 +143,22 @@ def test_deserialize_schedule_with_overridden_interval():
     with pytest.raises(ValueError) as exc:
         schema.load(serialized)
     assert "Interval can not be less than one minute." in str(exc.value)
+
+
+def test_serialize_union_schedule(cron_schedule, interval_schedule):
+    schedule = schedules.UnionSchedule([cron_schedule, interval_schedule])
+    schema = schemas.UnionScheduleSchema()
+    serialized = schema.dump(schedule)
+    assert serialized["schedules"] == [
+        cron_schedule.serialize(),
+        interval_schedule.serialize(),
+    ]
+
+
+def test_roundtrip_serialization_of_union_schedule(cron_schedule, interval_schedule):
+    schedule = schedules.UnionSchedule([cron_schedule, interval_schedule])
+    schema = schemas.UnionScheduleSchema()
+    new = schema.load(schema.dump(schedule))
+    assert isinstance(new, schedules.UnionSchedule)
+    assert len(new.schedules) == 2
+    assert [type(s) for s in new.schedules] == [type(s) for s in schedule.schedules]

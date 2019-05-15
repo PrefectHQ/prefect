@@ -264,7 +264,8 @@ class UnionSchedule(Schedule):
         - ValueError: if provided interval is less than one minute
     """
 
-    def __init__(self, *schedules: Schedule):
+    def __init__(self, schedules: List[Schedule] = None):
+        schedules = schedules or []
         self.schedules = schedules
         start_date = min(
             [s.start_date for s in schedules if s.start_date is not None], default=None
