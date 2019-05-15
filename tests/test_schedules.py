@@ -556,7 +556,7 @@ class TestUnionSchedule:
         assert s.end_date is None
 
     def test_initialization_with_schedules(self, list_of_schedules):
-        s = schedules.UnionSchedule(*list_of_schedules)
+        s = schedules.UnionSchedule(list_of_schedules)
         assert s.start_date == pendulum.datetime(2000, 1, 1)
         assert s.end_date == pendulum.datetime(2017, 1, 1)
 
@@ -565,7 +565,7 @@ class TestUnionSchedule:
         now = pendulum.now("UTC")
         s = schedules.IntervalSchedule(start_date, timedelta(days=1))
         t = schedules.OneTimeSchedule(start_date=now.add(hours=1))
-        main = schedules.UnionSchedule(s, t)
+        main = schedules.UnionSchedule([s, t])
         assert main.next(2) == [now.add(hours=1), s.next(1)[0]]
 
     def test_next_n_with_no_next(self):
@@ -573,14 +573,14 @@ class TestUnionSchedule:
         now = pendulum.now("UTC")
         s = schedules.IntervalSchedule(start_date, timedelta(days=1))
         t = schedules.OneTimeSchedule(start_date=now.add(hours=-1))
-        main = schedules.UnionSchedule(s, t)
+        main = schedules.UnionSchedule([s, t])
         assert main.next(2) == s.next(2)
 
     def test_next_n_with_repeated_schedule_values(self):
         start_date = pendulum.datetime(2018, 1, 1)
         now = pendulum.now("UTC")
         s = schedules.IntervalSchedule(start_date, timedelta(days=1))
-        main = schedules.UnionSchedule(s, s, s, s)
+        main = schedules.UnionSchedule([s, s, s, s])
         assert main.next(3) == s.next(3)
 
     def test_next_n_with_different_timezones(self):
@@ -590,6 +590,6 @@ class TestUnionSchedule:
         west = schedules.CronSchedule(
             "30 6 * * 1-5", start_date=pendulum.parse("2019-03-14", tz="US/Pacific")
         )
-        main = schedules.UnionSchedule(east, west)
+        main = schedules.UnionSchedule([east, west])
         expected = [east.next(1)[0], west.next(1)[0], east.next(2)[1], west.next(2)[1]]
         assert main.next(4) == expected
