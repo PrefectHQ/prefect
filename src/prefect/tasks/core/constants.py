@@ -12,17 +12,17 @@ import prefect
 
 class Constant(prefect.Task):
     """
-    The Constant class represents a single value in the flow graph. If a `name`
-    isn't provided, defaults to "Constant[(type(value))]".
+    The Constant class represents a single value in the flow graph.
 
     Args:
         - value (Any): a constant value
+        - name (str): a name for the constant; defaults to "Constant[(type(value))]"
+            if not provided
         - **kwargs (Any): kwargs to pass to the Task constructor
     """
 
-    def __init__(self, value: Any, **kwargs: Any):
+    def __init__(self, value: Any, name: str = None, **kwargs: Any):
         self.value = value
-        name = kwargs.pop("name", None)
 
         # set the name from the value
         if name is None:

@@ -18,6 +18,7 @@ class FunctionTask(prefect.Task):
 
     Args:
         - fn (callable): the function to be the task's `run` method
+        - name (str, optional): the name of this task
         - **kwargs: keyword arguments which will be passed to the Task
             constructor
 
@@ -34,12 +35,11 @@ class FunctionTask(prefect.Task):
     ```
     """
 
-    def __init__(self, fn: Callable, **kwargs: Any):
+    def __init__(self, fn: Callable, name: str = None, **kwargs: Any):
         if not callable(fn):
             raise TypeError("fn must be callable.")
 
         # set the name from the fn
-        name = kwargs.pop("name", None)
         if name is None:
             name = getattr(fn, "__name__", type(self).__name__)
 
