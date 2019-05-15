@@ -241,8 +241,8 @@ class UnionSchedule(Schedule):
 
     Both `start_date` and `end_date` are inferred as the min / max (resp.) of
     all provided schedules.  Note that the schedules are not required to all
-    be from the same timezone.  If multiple schedules have overlapping dates,
-    only a single run will be created for that date.
+    be from the same timezone.  Only unique dates will be used if multiple
+    overlapping schedules are provided.
 
     Args:
         - schedules (List[Schedule]): a list of schedules to combine
