@@ -195,8 +195,8 @@ class Docker(Storage):
         Returns:
             - tuple: generated UUID strings `image_name`, `image_tag`
         """
-        image_name = str(uuid.uuid4())
-        image_tag = str(uuid.uuid4())
+        image_name = self.image_name or str(uuid.uuid4())
+        image_tag = self.image_tag or str(uuid.uuid4())
 
         # Make temporary directory to hold serialized flow, healthcheck script, and dockerfile
         with tempfile.TemporaryDirectory() as tempdir:
