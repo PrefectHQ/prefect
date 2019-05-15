@@ -194,7 +194,8 @@ class CloudEnvironment(Environment):
         env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
         if self.private:
             pod_spec = yaml_obj["spec"]["template"]["spec"]
-            pod_spec["imagePullSecrets"] = {"name": namespace + "-docker"}
+            pod_spec["imagePullSecrets"] = []
+            pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
 
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.log
