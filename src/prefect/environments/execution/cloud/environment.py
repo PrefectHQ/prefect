@@ -236,6 +236,12 @@ class CloudEnvironment(Environment):
         env[3]["value"] = prefect.config.cloud.auth_token
         env[4]["value"] = prefect.context.get("flow_run_id", "")
 
+        if self.private:
+            namespace = prefect.get("namespace", "")
+            pod_spec = yaml_obj["spec"]
+            pod_spec["imagePullSecrets"] = []
+            pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
+
         # set image
         yaml_obj["spec"]["containers"][0]["image"] = prefect.context.get(
             "image", "daskdev/dask:latest"
