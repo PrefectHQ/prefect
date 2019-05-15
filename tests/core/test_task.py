@@ -1,8 +1,10 @@
+import inspect
 import json
 import logging
 import uuid
 from datetime import timedelta
 from typing import Any, Union
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -91,6 +93,31 @@ class TestCreateTask:
     def test_create_task_illegal_handler(self):
         with pytest.raises(TypeError):
             Task(state_handlers=lambda *a: 1)
+
+    def test_class_creation_rejects_reserved_init_kwargs(self):
+        with pytest.raises(ValueError):
+
+            class BadTask(Task):
+                def __init__(self, name):
+                    pass
+
+        with pytest.raises(ValueError):
+
+            class BadTask(Task):
+                def __init__(self, checkpoint):
+                    pass
+
+    @pytest.mark.parametrize(
+        "arg", [a for a in inspect.getfullargspec(Task.__init__).args if a != "self"]
+    )
+    def test_validator_validates_all_task_init_kwargs(self, arg, monkeypatch):
+        monkeypatch.setattr(
+            "prefect.core.task.inspect.getfullargspec",
+            MagicMock(return_value=MagicMock(args=[arg])),
+        )
+        with pytest.raises(ValueError) as exc:
+            prefect.core.task._validate_init_signature(lambda: None)
+        assert arg in str(exc.value)
 
     def test_class_instantiation_rejects_varargs(self):
         with pytest.raises(ValueError):
