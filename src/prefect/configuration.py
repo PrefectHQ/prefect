@@ -378,7 +378,9 @@ def load_configuration(
     if user_config_path and os.path.isfile(str(interpolate_env_vars(user_config_path))):
         user_config = load_toml(user_config_path)
         # merge user config into default config
-        default_config = cast(dict, collections.merge_dicts(default_config, user_config))
+        default_config = cast(
+            dict, collections.merge_dicts(default_config, user_config)
+        )
 
     # interpolate after user config has already been merged
     config = interpolate_config(default_config, env_var_prefix=env_var_prefix)
