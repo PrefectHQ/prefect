@@ -29,12 +29,13 @@ class RemoteHandler(logging.StreamHandler):
 
     def emit(self, record) -> None:  # type: ignore
         try:
+            from prefect.client import Client
+
             if self.errored_out is True:
                 return
             if self.client is None:
-                from prefect.client import Client
-
                 self.client = Client()  # type: ignore
+
             assert isinstance(self.client, Client)  # mypy assert
             r = self.client.post(path="", server=self.logger_server, **record.__dict__)
         except:
