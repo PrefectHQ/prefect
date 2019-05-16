@@ -30,6 +30,53 @@ def test_setup_cloud_environment_passes():
     assert environment
 
 
+def test_setup_doesnt_pass_if_private_registry(monkeypatch):
+    environment = CloudEnvironment(private_registry=True)
+
+    config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", config)
+
+    v1 = MagicMock()
+    v1.list_namespaced_secret.return_value = MagicMock(items=[])
+    monkeypatch.setattr(
+        "kubernetes.client", MagicMock(CoreV1Api=MagicMock(return_value=v1))
+    )
+
+    create_secret = MagicMock()
+    monkeypatch.setattr(
+        "prefect.environments.CloudEnvironment._create_namespaced_secret", create_secret
+    )
+    with set_temporary_config({"cloud.auth_token": "test"}):
+        environment.setup(storage=Docker())
+
+    assert create_secret.called
+
+
+def test_create_secret_isnt_called_if_exists(monkeypatch):
+    environment = CloudEnvironment(private_registry=True)
+
+    config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", config)
+
+    secret = MagicMock()
+    secret.metadata.name = "foo-docker"
+    v1 = MagicMock()
+    v1.list_namespaced_secret.return_value = MagicMock(items=[secret])
+    monkeypatch.setattr(
+        "kubernetes.client", MagicMock(CoreV1Api=MagicMock(return_value=v1))
+    )
+
+    create_secret = MagicMock()
+    monkeypatch.setattr(
+        "prefect.environments.CloudEnvironment._create_namespaced_secret", create_secret
+    )
+    with set_temporary_config({"cloud.auth_token": "test"}):
+        with prefect.context(namespace="foo"):
+            environment.setup(storage=Docker())
+
+    assert not create_secret.called
+
+
 def test_execute_improper_storage():
     environment = CloudEnvironment()
     with pytest.raises(TypeError):
@@ -198,3 +245,29 @@ def test_populate_worker_pod_yaml():
     assert env[4]["value"] == "id_test"
 
     assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
+
+
+def test_populate_worker_pod_yaml_with_private_registry():
+    environment = CloudEnvironment(private_registry=True)
+
+    file_path = os.path.dirname(
+        prefect.environments.execution.cloud.environment.__file__
+    )
+
+    with open(path.join(file_path, "worker_pod.yaml")) as pod_file:
+        pod = yaml.safe_load(pod_file)
+
+    with set_temporary_config(
+        {
+            "cloud.graphql": "gql_test",
+            "cloud.log": "log_test",
+            "cloud.result_handler": "rh_test",
+            "cloud.auth_token": "auth_test",
+        }
+    ):
+        with prefect.context(
+            flow_run_id="id_test", image="my_image", namespace="foo-man"
+        ):
+            yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
+
+    yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="foo-man-docker")

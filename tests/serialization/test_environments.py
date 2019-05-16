@@ -22,14 +22,14 @@ def test_serialize_cloud_environment():
     assert serialized["__version__"] == prefect.__version__
 
 
-def test_serialize_cloud_environment_with_private():
-    env = environments.CloudEnvironment(private=True)
+def test_serialize_cloud_environment_with_private_registry():
+    env = environments.CloudEnvironment(private_registry=True)
 
     schema = CloudEnvironmentSchema()
     serialized = schema.dump(env)
     assert serialized
     assert serialized["__version__"] == prefect.__version__
-    assert serialized["private"] is True
+    assert serialized["private_registry"] is True
 
     new = schema.load(serialized)
-    assert new.private is True
+    assert new.private_registry is True

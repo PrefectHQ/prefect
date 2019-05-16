@@ -19,7 +19,7 @@ class CloudEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = CloudEnvironment
 
-    private = fields.Boolean(allow_none=False)
+    private_registry = fields.Boolean(allow_none=False)
 
 
 class EnvironmentSchema(OneOfSchema):
