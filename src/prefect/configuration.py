@@ -252,7 +252,7 @@ def validate_config(config: Config) -> None:
 # Load configuration ----------------------------------------------------------
 
 
-def load_toml(path: str):
+def load_toml(path: str) -> dict:
     """
     Loads a config dictionary from TOML
     """
@@ -350,7 +350,9 @@ def interpolate_config(config: dict, env_var_prefix: str = None) -> Config:
     return cast(Config, collections.flatdict_to_dict(flat_config, dct_class=Config))
 
 
-def load_configuration(path, user_config_path=None, env_var_prefix=None):
+def load_configuration(
+    path: str, user_config_path: str = None, env_var_prefix: str = None
+) -> Config:
     """
     Loads a configuration from a known location.
 
@@ -372,12 +374,11 @@ def load_configuration(path, user_config_path=None, env_var_prefix=None):
     # load user config
     if not user_config_path:
         user_config_path = default_config.get("user_config_path", None)
-    if user_config_path and os.path.isfile(interpolate_env_vars(user_config_path)):
+
+    if user_config_path and os.path.isfile(str(interpolate_env_vars(user_config_path))):
         user_config = load_toml(user_config_path)
         # merge user config into default config
-        default_config = cast(
-            Config, collections.merge_dicts(default_config, user_config)
-        )
+        default_config = collections.merge_dicts(default_config, user_config)
 
     # interpolate after user config has already been merged
     config = interpolate_config(default_config, env_var_prefix=env_var_prefix)
