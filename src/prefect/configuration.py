@@ -351,6 +351,20 @@ def interpolate_config(config: dict, env_var_prefix: str = None) -> Config:
 
 
 def load_configuration(path, user_config_path=None, env_var_prefix=None):
+    """
+    Loads a configuration from a known location.
+
+    Args:
+        - path (str): the path to the TOML configuration file
+        - user_config_path (str): an optional path to a user config file. If not provided,
+            the main config will be checked for a `user_config_path` key. If a user config
+            is provided, it will be used to update the main config prior to interpolation
+        - env_var_prefix (str): any env vars matching this prefix will be used to create
+            configuration values
+
+    Returns:
+        - Config
+    """
 
     # load default config
     default_config = load_toml(path)
