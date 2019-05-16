@@ -31,17 +31,17 @@ class CloudEnvironment(Environment):
     set with a UUID so resources can be cleaned up independently of other deployments.
 
     Args:
-        - private (bool, optional): a boolean specifying whether your Flow's Docker container will be in a private
+        - private_registry (bool, optional): a boolean specifying whether your Flow's Docker container will be in a private
             Docker registry; if so, requires a `DOCKER_REGISTRY_CREDENTIALS` Prefect Secret to be set.
             Defaults to `False`.
     """
 
-    def __init__(self, private: bool = False) -> None:
+    def __init__(self, private_registry: bool = False) -> None:
         self.identifier_label = str(uuid.uuid4())
-        self.private = private
+        self.private_registry = private_registry
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
-        if self.private:
+        if self.private_registry:
             from kubernetes import client, config
 
             # Verify environment is running in cluster
@@ -207,7 +207,7 @@ class CloudEnvironment(Environment):
 
         # set environment variables
         env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
-        if self.private:
+        if self.private_registry:
             pod_spec = yaml_obj["spec"]["template"]["spec"]
             pod_spec["imagePullSecrets"] = []
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
@@ -251,7 +251,7 @@ class CloudEnvironment(Environment):
         env[3]["value"] = prefect.config.cloud.auth_token
         env[4]["value"] = prefect.context.get("flow_run_id", "")
 
-        if self.private:
+        if self.private_registry:
             namespace = prefect.context.get("namespace", "")
             pod_spec = yaml_obj["spec"]
             pod_spec["imagePullSecrets"] = []
