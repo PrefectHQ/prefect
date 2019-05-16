@@ -17,12 +17,13 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- Add task for creating new branches in a GitHub repository - [#1011](https://github.com/PrefectHQ/prefect/pull/1011) 
+- Add task for creating new branches in a GitHub repository - [#1011](https://github.com/PrefectHQ/prefect/pull/1011)
 - Add tasks to create, delete, invoke, and list AWS Lambda functions [#1009](https://github.com/PrefectHQ/prefect/issues/1009)
 
 ### Fixes
 
 - Ensure that state change handlers are called even when unexpected initialization errors occur - [#1015](https://github.com/PrefectHQ/prefect/pull/1015)
+- Fix an issue where a mypy assert relied on an unavailable import - [#1034](https://github.com/PrefectHQ/prefect/pull/1034)
 
 ### Breaking Changes
 
