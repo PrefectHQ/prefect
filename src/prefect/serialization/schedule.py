@@ -46,7 +46,9 @@ class UnionScheduleSchema(ObjectSchema):
 
     start_date = DateTimeTZ(required=True)
     end_date = DateTimeTZ(allow_none=True)
-    schedules = fields.Nested("ScheduleSchema", many=True)
+    schedules = fields.Nested(
+        "prefect.serialization.schedule.ScheduleSchema", many=True
+    )
 
     @post_load
     def create_object(self, data: dict) -> prefect.schedules.UnionSchedule:
