@@ -50,11 +50,14 @@ class CloudEnvironment(Environment):
             except config.config_exception.ConfigException:
                 raise EnvironmentError("Environment not currently inside a cluster")
 
-            v1_client = client.CoreV1Api()
+            v1 = client.CoreV1Api()
             namespace = prefect.context.get("namespace", "")
-            secrets = v1_client.list_namespaced_secret(namespace=namespace, watch=False)
+            secret_name = namespace + "-docker"
+            secrets = v1.list_namespaced_secret(namespace=namespace, watch=False)
             if not [
-                secret for secret in secrets.items if secret.type == "docker-registry"
+                secret
+                for secret in secrets.items
+                if secret.metadata.name == secret_name
             ]:
                 self._create_namespaced_secret()
 
