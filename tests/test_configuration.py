@@ -115,21 +115,22 @@ def test_config_file_path():
 
 @pytest.fixture
 def config(test_config_file_path, monkeypatch):
-    environ = os.environ.copy()
-    environ["PREFECT__ENV_VARS__NEW_KEY"] = "TEST"
-    environ["PREFECT__ENV_VARS__TWICE__NESTED__NEW_KEY"] = "TEST"
-    environ["PREFECT__ENV_VARS__TRUE"] = "true"
-    environ["PREFECT__ENV_VARS__FALSE"] = "false"
-    environ["PREFECT__ENV_VARS__INT"] = "10"
-    environ["PREFECT__ENV_VARS__NEGATIVE_INT"] = "-10"
-    environ["PREFECT__ENV_VARS__FLOAT"] = "7.5"
-    environ["PREFECT__ENV_VARS__NEGATIVE_FLOAT"] = "-7.5"
-    environ["PREFECT__ENV_VARS__ESCAPED_CHARACTERS"] = r"line 1\nline 2\rand 3\tand 4"
 
-    monkeypatch.setattr("os.environ", environ)
+    monkeypatch.setenv("PREFECT_TEST__ENV_VARS__NEW_KEY", "TEST")
+    monkeypatch.setenv("PREFECT_TEST__ENV_VARS__TWICE__NESTED__NEW_KEY", "TEST")
+    monkeypatch.setenv("PREFECT_TEST__ENV_VARS__TRUE", "true")
+    monkeypatch.setenv("PREFECT_TEST__ENV_VARS__FALSE", "false")
+    monkeypatch.setenv("PREFECT_TEST__ENV_VARS__INT", "10")
+    monkeypatch.setenv("PREFECT_TEST__ENV_VARS__NEGATIVE_INT", "-10")
+    monkeypatch.setenv("PREFECT_TEST__ENV_VARS__FLOAT", "7.5")
+    monkeypatch.setenv("PREFECT_TEST__ENV_VARS__NEGATIVE_FLOAT", "-7.5")
+    monkeypatch.setenv("PATH", "1/2/3")
+    monkeypatch.setenv(
+        "PREFECT_TEST__ENV_VARS__ESCAPED_CHARACTERS", r"line 1\nline 2\rand 3\tand 4"
+    )
 
     yield configuration.load_configuration(
-        test_config_file_path, env_var_prefix="PREFECT"
+        test_config_file_path, env_var_prefix="PREFECT_TEST"
     )
 
 
@@ -143,7 +144,7 @@ def test_keys(config):
 def test_repr(config):
     assert (
         repr(config)
-        == "<Config: 'all_caps', 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets', 'tasks', 'user_config_path'>"
+        == "<Config: 'all_caps', 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets', 'tasks'>"
     )
     assert repr(config.general) == "<Config: 'nested', 'x', 'y'>"
 
@@ -234,14 +235,6 @@ def test_env_var_creates_nested_keys(config):
 
 def test_env_var_escaped(config):
     assert config.env_vars.escaped_characters == "line 1\nline 2\rand 3\tand 4"
-
-
-def test_env_var_newline_declared_inline(config):
-    result = subprocess.check_output(
-        r'PREFECT__ENV_VARS__X="line 1\nline 2\rand 3\tand 4" python -c "import prefect; print(prefect.config.env_vars.x)"',
-        shell=True,
-    )
-    assert result.strip() == b"line 1\nline 2\rand 3\tand 4"
 
 
 def test_copy_leaves_values_mutable(config):
