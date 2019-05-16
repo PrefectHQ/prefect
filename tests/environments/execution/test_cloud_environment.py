@@ -30,8 +30,8 @@ def test_setup_cloud_environment_passes():
     assert environment
 
 
-def test_setup_doesnt_pass_if_private(monkeypatch):
-    environment = CloudEnvironment(private=True)
+def test_setup_doesnt_pass_if_private_registry(monkeypatch):
+    environment = CloudEnvironment(private_registry=True)
 
     config = MagicMock()
     monkeypatch.setattr("kubernetes.config", config)
@@ -53,7 +53,7 @@ def test_setup_doesnt_pass_if_private(monkeypatch):
 
 
 def test_create_secret_isnt_called_if_exists(monkeypatch):
-    environment = CloudEnvironment(private=True)
+    environment = CloudEnvironment(private_registry=True)
 
     config = MagicMock()
     monkeypatch.setattr("kubernetes.config", config)
@@ -247,8 +247,8 @@ def test_populate_worker_pod_yaml():
     assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
 
 
-def test_populate_worker_pod_yaml_with_private():
-    environment = CloudEnvironment(private=True)
+def test_populate_worker_pod_yaml_with_private_registry():
+    environment = CloudEnvironment(private_registry=True)
 
     file_path = os.path.dirname(
         prefect.environments.execution.cloud.environment.__file__
