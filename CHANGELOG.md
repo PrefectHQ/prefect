@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Allow for Cloud users to securely pull Docker images from private registries - [#1028](https://github.com/PrefectHQ/prefect/pull/1028)
 
 ### Enhancements
 
