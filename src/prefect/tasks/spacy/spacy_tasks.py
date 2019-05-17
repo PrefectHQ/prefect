@@ -94,6 +94,9 @@ class SpacyTagger(Task):
             - Tagger: spaCy Tagger object
 
         """
+        if nlp is None:
+            raise ValueError("A spaCy pipeline must be provided")
+
         return nlp.tagger
 
 
@@ -126,6 +129,9 @@ class SpacyParser(Task):
             - Parser: spaCy Parser object
 
         """
+        if nlp is None:
+            raise ValueError("A spaCy pipeline must be provided")
+
         return nlp.parser
 
 
@@ -158,6 +164,9 @@ class SpacyNER(Task):
             - NER: spaCy NER object
 
         """
+        if nlp is None:
+            raise ValueError("A spaCy pipeline must be provided")
+
         return nlp.entity
 
 
@@ -195,6 +204,9 @@ class SpacyComponent(Task):
             - Component: spaCy pipeline component object
 
         """
+
+        if nlp is None:
+            raise ValueError("A spaCy pipeline must be provided")
 
         ## iterate through pipeline to find object
         for name, component in nlp.pipeline:

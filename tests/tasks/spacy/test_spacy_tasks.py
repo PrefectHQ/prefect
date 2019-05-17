@@ -38,6 +38,13 @@ class TestSpacyTagger:
         tagger = task.run()
         assert tagger == "tagger"
 
+    def test_nlp_model_provided(self):
+        task = SpacyTagger()
+        with pytest.raises(ValueError) as exc:
+            task.run()
+
+        assert "A spaCy pipeline must be provided" == str(exc.value)
+
 
 class TestSpacyParser:
     def test_initialization(self):
@@ -50,6 +57,13 @@ class TestSpacyParser:
         task = SpacyParser(nlp=mock)
         parser = task.run()
         assert parser == "parser"
+
+    def test_nlp_model_provided(self):
+        task = SpacyParser()
+        with pytest.raises(ValueError) as exc:
+            task.run()
+
+        assert "A spaCy pipeline must be provided" == str(exc.value)
 
 
 class TestSpacyNER:
@@ -64,6 +78,13 @@ class TestSpacyNER:
         ner = task.run()
         assert ner == "entity"
 
+    def test_nlp_model_provided(self):
+        task = SpacyNER()
+        with pytest.raises(ValueError) as exc:
+            task.run()
+
+        assert "A spaCy pipeline must be provided" == str(exc.value)
+
 
 class TestSpacyComponent:
     def test_initialization(self):
@@ -76,3 +97,10 @@ class TestSpacyComponent:
         task = SpacyComponent(component_name="component2", nlp=mock)
         component = task.run()
         assert component == 2
+
+    def test_nlp_model_provided(self):
+        task = SpacyComponent()
+        with pytest.raises(ValueError) as exc:
+            task.run()
+
+        assert "A spaCy pipeline must be provided" == str(exc.value)
