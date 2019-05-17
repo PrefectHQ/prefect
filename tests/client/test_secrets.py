@@ -18,10 +18,12 @@ def test_create_secret():
     assert secret
 
 
-def test_secret_get_none():
+def test_secret_raises_if_doesnt_exist():
     secret = Secret(name="test")
     with set_temporary_config({"cloud.use_local_secrets": True}):
-        assert secret.get() is None
+        with pytest.raises(ValueError) as exc:
+            secret.get()
+    assert "not found" in str(exc.value)
 
 
 def test_secret_value_pulled_from_context():
@@ -29,7 +31,8 @@ def test_secret_value_pulled_from_context():
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(test=42)):
             assert secret.get() == 42
-        assert secret.get() is None
+        with pytest.raises(ValueError):
+            secret.get()
 
 
 def test_secret_value_depends_on_use_local_secrets():
