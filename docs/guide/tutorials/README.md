@@ -20,14 +20,22 @@ Can your data engineering framework do this?
 
 Visualize your Prefect flows with `flow.visualize()`
 
-## [Advanced Features](advanced-mapping.md)<Badge text="advanced" type="warn"/><Badge text="0.3.2+"/>
+## [Local Debugging](local-debugging.md)
+
+Learn some useful tips and tricks for how to debug common situations!
+
+## [Advanced Features](advanced-mapping.md)<Badge text="advanced" type="warn"/>
 
 Dynamically create large numbers of tasks using `task.map()`! Using a real-world web-scraping project as an example, walks through the more advanced features of Prefect including advanced parameter usage, task mapping, and parallelism.
 
-## [Prefect Slack Integration](slack-notifications.md)<Badge text="0.3.2+"/>
+## [Prefect Slack Integration](slack-notifications.md)
 
 Install the Prefect Slack integration and get real time notifications on the state of your tasks and flows -- all within the convenience of Slack!
 
 ## [Prefect Deployment: Dask](dask-cluster.md)
 
 Learn how to deploy your Prefect flow to a Dask cluster.
+
+## [Prefect Deployment: Logging](custom-logs.md)
+
+Learn how to customize and enhance your Prefect logs.

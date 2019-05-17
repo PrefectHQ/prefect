@@ -8,7 +8,7 @@ Whether you're running Prefect locally with `Flow.run()` or experimenting with y
 
 ### Use a FlowRunner for stateless execution
 
-If your problem is related to retries, or if you want to run your flow off-schedule, consider using a `FlowRunner` directly:
+If your problem is related to retries, or if you want to run your flow off-schedule, you might first consider rerunning your flow with `run_on_schedule=False`.  This can be accomplished via environment variable (`PREFECT__FLOWS__RUN_ON_SCHEDULE=false`) or keyword (`flow.run(run_on_schedule=False)`).  If you instead want to implement a single Flow run yourself consider using a `FlowRunner` directly:
 ```python
 from prefect.engine.flow_runner import FlowRunner
 
@@ -220,13 +220,13 @@ If we have a complex dependency graph, `flow.replace` can be a real timesaver fo
 Note that `flow.replace` preserves edges - this means the old and new tasks need to have the exact same call signature.
 :::
 
-### Locally check your Flow's environment
+### Locally check your Flow's `Docker` storage
 
-Another reason a Flow might unexpectedly break in production (or fail to run at all) is if its environment is broken (e.g., if you forget a Python dependency in defining your `DockerEnvironment` for the Flow).  Luckily, checking `DockerEnvironment`s locally is easy!  Let's walk through an example:
+Another reason a Flow might unexpectedly break in production (or fail to run at all) is if its storage is broken (e.g., if you forget a Python dependency in defining your `Docker` storage for the Flow).  Luckily, checking your Flow's storage locally is easy!  Let's walk through an example:
 
 ```python
 from prefect import task, Flow
-from prefect.environments import DockerEnvironment
+from prefect.environments.storage import Docker
 
 # import a non-prefect package used for scraping reddit
 import praw
@@ -242,16 +242,16 @@ def whoami():
     return reddit.user.me()
 
 
-env = DockerEnvironment(base_image="python:3.6", registry_url="http://my.personal.registry")
-flow = Flow("reddit-flow", environment=env, tasks=[whoami])
+storage = Docker(base_image="python:3.6", registry_url="http://my.personal.registry")
+flow = Flow("reddit-flow", storage=storage, tasks=[whoami])
 ```
 
-If you were to deploy this Flow to Cloud, you wouldn't hear from it again.  Why?  Let's find out - first, build the `DockerEnvironment` locally _without_ pushing to a registry:
+If you were to deploy this Flow to Cloud, you wouldn't hear from it again.  Why?  Let's find out - first, build the `Docker` storage locally _without_ pushing to a registry:
 
 ```python
 # note that this will require either a valid registry_url, or no registry_url
 # push=False is important here; otherwise your local image will be deleted
-built_env = env.build(flow, push=False)
+built_storage = flow.storage.build(push=False)
 ```
 
 Note the Image ID contained in the second to last line of Docker output:
@@ -260,35 +260,40 @@ Note the Image ID contained in the second to last line of Docker output:
 Successfully built 0f3b0851148b # your ID will be different
 ```
 
-Now we have a Docker container on our local machine which contains a `LocalEnvironment` containing our flow. To access it, we simply connect to the container via:
+Now we have a Docker container on our local machine which contains our flow. To access it, we first identify where the flow is stored:
+```python
+built_storage.flows
+# {"reddit-flow": "/root/.prefect/reddit-flow.prefect"}
+```
+
+and then simply connect to the container via:
 
 ```
 # connect to an interactive python session running in the container
 docker run -it 0f3b0851148b python
 ```
 
-and then load the environment from a file:
+Finally, we can use `cloudpickle` to deserialize the file into a `Flow` object:
 
 ```python
-from prefect.utilities.environments import from_file
+import cloudpickle
 
-local_env = from_file('/root/.prefect/flow_env.prefect')
-flow = local_env.deserialize_flow_from_bytes(local_env.serialized_flow)
+
+with open("/root/.prefect/reddit-flow.prefect", "rb") as f:
+    flow = cloudpickle.load(f)
 ```
 
 Which will result in a very explicit traceback!
 
 ```
 Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-  File "/usr/local/lib/python3.6/site-packages/prefect/environments.py", line 167, in deserialize_flow_from_bytes
     flow = cloudpickle.loads(decrypted_pickle)
   File "/usr/local/lib/python3.6/site-packages/cloudpickle/cloudpickle.py", line 944, in subimport
     __import__(name)
 ModuleNotFoundError: No module named 'praw'
 ```
 
-In this particular case, we forgot to include `praw` in our `python_dependencies` for the `DockerEnvironment`; in general, this is one way to ensure your Flow makes it through the deployment process uncorrupted.
+In this particular case, we forgot to include `praw` in our `python_dependencies` for the `Docker` storage; in general, this is one way to ensure your Flow makes it through the deployment process uncorrupted.
 
 ::: tip The More You Know
 We actually found this process to be so useful, we've automated it for you! Prefect now performs a "health check" prior to pushing your Docker image, which essentially runs the above code and ensures your Flow is deserializable inside its container.  However, the mechanics by which this occurs is still useful to know.
