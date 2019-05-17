@@ -266,29 +266,63 @@ def test_create_dockerfile_from_everything():
             assert "COPY other.flow /root/.prefect/other.prefect" in output
 
 
-def test_pull_image(monkeypatch):
+def test_pull_image(capsys, monkeypatch):
     storage = Docker(base_image="python:3.6")
 
-    pull = MagicMock(return_value=[{"progress": "test"}])
-    monkeypatch.setattr(
-        "docker.APIClient", MagicMock(pull=MagicMock(return_value=pull))
-    )
+    client = MagicMock()
+    client.pull.return_value = [{"progress": "test", "status": "100"}]
+    monkeypatch.setattr("docker.APIClient", MagicMock(return_value=client))
 
     storage.pull_image()
-    assert storage
+    captured = capsys.readouterr()
+    printed_lines = [line for line in captured.out.split("\n") if line != ""]
+
+    assert any(["100 test\r" in line for line in printed_lines])
 
 
-def test_push_image(monkeypatch):
+def test_pull_image_raises_if_error_encountered(monkeypatch):
     storage = Docker(base_image="python:3.6")
 
-    push = MagicMock(return_value=[{"progress": "test"}])
-    monkeypatch.setattr(
-        "docker.APIClient", MagicMock(push=MagicMock(return_value=push))
-    )
+    client = MagicMock()
+    client.pull.return_value = [
+        {"progress": "test"},
+        {"error": "you know nothing jon snow"},
+    ]
+    monkeypatch.setattr("docker.APIClient", MagicMock(return_value=client))
+
+    with pytest.raises(InterruptedError) as exc:
+        storage.pull_image()
+    assert "you know nothing jon snow" in str(exc.value)
+
+
+def test_push_image(capsys, monkeypatch):
+    storage = Docker(base_image="python:3.6")
+
+    client = MagicMock()
+    client.push.return_value = [{"progress": "test", "status": "100"}]
+    monkeypatch.setattr("docker.APIClient", MagicMock(return_value=client))
 
     storage.push_image(image_name="test", image_tag="test")
 
-    assert storage
+    captured = capsys.readouterr()
+    printed_lines = [line for line in captured.out.split("\n") if line != ""]
+
+    assert any(["100 test\r" in line for line in printed_lines])
+
+
+def test_push_image_raises_if_error_encountered(monkeypatch):
+    storage = Docker(base_image="python:3.6")
+
+    client = MagicMock()
+    client.push.return_value = [
+        {"progress": "test"},
+        {"error": "you know nothing jon snow"},
+    ]
+    monkeypatch.setattr("docker.APIClient", MagicMock(return_value=client))
+
+    with pytest.raises(InterruptedError) as exc:
+        storage.push_image(image_name="test", image_tag="test")
+    assert "you know nothing jon snow" in str(exc.value)
 
 
 def test_parse_output():

@@ -177,6 +177,9 @@ class Docker(Storage):
             - Docker: a new Docker storage object that contains information about how and
                 where the flow is stored. Image name and tag are generated during the
                 build process.
+
+        Raises:
+            - InterruptedError: if either pushing or pulling the image fails
         """
         image_name, image_tag = self.build_image(push=push)
         self.image_name = image_name
@@ -194,6 +197,9 @@ class Docker(Storage):
 
         Returns:
             - tuple: generated UUID strings `image_name`, `image_tag`
+
+        Raises:
+            - InterruptedError: if either pushing or pulling the image fails
         """
         image_name = self.image_name or str(uuid.uuid4())
         image_tag = self.image_tag or str(uuid.uuid4())
@@ -378,11 +384,16 @@ class Docker(Storage):
         In order for the docker python library to use a base image it must be pulled
         from either the main docker registry or a separate registry that must be set as
         `registry_url` on this class.
+
+        Raises:
+            - InterruptedError: if either pulling the image fails
         """
         client = docker.APIClient(base_url=self.base_url, version="auto")
 
         output = client.pull(self.base_image, stream=True, decode=True)
         for line in output:
+            if line.get("error"):
+                raise InterruptedError(line.get("error"))
             if line.get("progress"):
                 print(line.get("status"), line.get("progress"), end="\r")
         print("")
@@ -393,6 +404,9 @@ class Docker(Storage):
         Args:
             - image_name (str): Name for the image
             - image_tag (str): Tag for the image
+
+        Raises:
+            - InterruptedError: if either pushing the image fails
         """
         client = docker.APIClient(base_url=self.base_url, version="auto")
 
@@ -400,6 +414,8 @@ class Docker(Storage):
 
         output = client.push(image_name, tag=image_tag, stream=True, decode=True)
         for line in output:
+            if line.get("error"):
+                raise InterruptedError(line.get("error"))
             if line.get("progress"):
                 print(line.get("status"), line.get("progress"), end="\r")
         print("")
