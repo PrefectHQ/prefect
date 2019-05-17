@@ -177,6 +177,9 @@ class Docker(Storage):
             - Docker: a new Docker storage object that contains information about how and
                 where the flow is stored. Image name and tag are generated during the
                 build process.
+
+        Raises:
+            - InterruptedError: if either pushing or pulling the image fails
         """
         image_name, image_tag = self.build_image(push=push)
         self.image_name = image_name
