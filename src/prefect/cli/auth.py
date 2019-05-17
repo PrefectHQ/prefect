@@ -30,16 +30,24 @@ def auth():
 
 
 @auth.command(hidden=True)
-@click.option("--token", "-t", required=True, help="A Prefect Cloud auth token.")
+@click.option(
+    "--token", "-t", required=True, help="A Prefect Cloud auth token.", hidden=True
+)
 @click.option(
     "--config-path",
     "-c",
     default="~/.prefect/config.toml",
     help="Path to your Prefect config.toml",
+    hidden=True,
 )
 def add(token, config_path):
     """
     Add a new Prefect Cloud auth token to use for Cloud communication.
+
+    \b
+    Options:
+        --token, -t         TEXT    A Prefect Cloud auth token                                          [required]
+        --config-path, -c   TEXT    Path to a Prefect config.toml, defaults to `~/.prefect/config.toml`
     """
     abs_directory = os.path.abspath(os.path.expanduser(config_path))
     if not os.path.exists(abs_directory):
