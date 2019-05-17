@@ -30,11 +30,13 @@ class SpacyNLP(Task):
         text: str = u"",
         nlp=None,
         spacy_model_name: str = "en_core_web_sm",
-        disable: list = [],
-        component_cfg: dict = {},
+        disable: list = None,
+        component_cfg: dict = None,
         **kwargs
     ):
         self.text = text
+        self.disable = disable or []
+        self.component_cfg = component_cfg or {}
 
         ## load spacy model
         if nlp:
@@ -42,7 +44,9 @@ class SpacyNLP(Task):
         else:
             try:
                 self.nlp = spacy.load(
-                    spacy_model_name, disable=disable, component_cfg=component_cfg
+                    spacy_model_name,
+                    disable=self.disable,
+                    component_cfg=self.component_cfg,
                 )
             except IOError:
                 raise ValueError("spaCy model %s not found." % spacy_model_name)
