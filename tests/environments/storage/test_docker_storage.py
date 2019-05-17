@@ -77,7 +77,7 @@ def test_initialized_docker_storage():
         image_tag="test5",
         env_vars={"test": "1"},
         base_url="test_url",
-        prefect_version="master",
+        prefect_version="my-branch",
     )
 
     assert storage.registry_url == "test1"
@@ -87,7 +87,7 @@ def test_initialized_docker_storage():
     assert storage.python_dependencies == ["test"]
     assert storage.env_vars == {"test": "1"}
     assert storage.base_url == "test_url"
-    assert storage.prefect_version == "master"
+    assert storage.prefect_version == "my-branch"
 
 
 def test_files_not_absolute_path():
