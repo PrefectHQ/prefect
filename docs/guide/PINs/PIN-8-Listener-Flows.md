@@ -3,8 +3,6 @@ title: 'PIN-8: Event-Driven Flows'
 sidebarDepth: 0
 ---
 
-
-
 # PIN 8: Event-Driven/Streaming Flow Execution via Listeners
 
 Date: March 31, 2019
@@ -56,7 +54,6 @@ In that vein, it's important to note that Prefect is not a stream processor. It'
 - processing messages from Kafka
 - running a model with dedicated hardware (such as a GPU)
 - running a model with dedicated infrastructure (such as a cluster)
-
 
 ## Proposal
 
