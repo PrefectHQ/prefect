@@ -383,6 +383,8 @@ class Docker(Storage):
 
         output = client.pull(self.base_image, stream=True, decode=True)
         for line in output:
+            if line.get("error"):
+                raise InterruptedError(line.get("error"))
             if line.get("progress"):
                 print(line.get("status"), line.get("progress"), end="\r")
         print("")
@@ -400,6 +402,8 @@ class Docker(Storage):
 
         output = client.push(image_name, tag=image_tag, stream=True, decode=True)
         for line in output:
+            if line.get("error"):
+                raise InterruptedError(line.get("error"))
             if line.get("progress"):
                 print(line.get("status"), line.get("progress"), end="\r")
         print("")
