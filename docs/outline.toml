@@ -34,6 +34,7 @@ classes = [
             "Schedule",
             "IntervalSchedule",
             "CronSchedule",
+            "UnionSchedule",
         ]
 
 [pages.core.edge]

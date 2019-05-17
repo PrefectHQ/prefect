@@ -31,17 +31,17 @@ class CloudEnvironment(Environment):
     set with a UUID so resources can be cleaned up independently of other deployments.
 
     Args:
-        - private (bool, optional): a boolean specifying whether your Flow's Docker container will be in a private
+        - private_registry (bool, optional): a boolean specifying whether your Flow's Docker container will be in a private
             Docker registry; if so, requires a `DOCKER_REGISTRY_CREDENTIALS` Prefect Secret to be set.
             Defaults to `False`.
     """
 
-    def __init__(self, private: bool = False) -> None:
+    def __init__(self, private_registry: bool = False) -> None:
         self.identifier_label = str(uuid.uuid4())
-        self.private = private
+        self.private_registry = private_registry
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
-        if self.private:
+        if self.private_registry:
             from kubernetes import client, config
 
             # Verify environment is running in cluster
@@ -50,11 +50,14 @@ class CloudEnvironment(Environment):
             except config.config_exception.ConfigException:
                 raise EnvironmentError("Environment not currently inside a cluster")
 
-            v1_client = client.CoreV1Api()
+            v1 = client.CoreV1Api()
             namespace = prefect.context.get("namespace", "")
-            secrets = v1_client.list_namespaced_secret(namespace=namespace, watch=False)
+            secret_name = namespace + "-docker"
+            secrets = v1.list_namespaced_secret(namespace=namespace, watch=False)
             if not [
-                secret for secret in secrets.items if secret.type == "docker-registry"
+                secret
+                for secret in secrets.items
+                if secret.metadata.name == secret_name
             ]:
                 self._create_namespaced_secret()
 
@@ -83,10 +86,22 @@ class CloudEnvironment(Environment):
         from kubernetes import client
 
         docker_creds = Secret("DOCKER_REGISTRY_CREDENTIALS").get()
+        assert isinstance(docker_creds, dict)
+
         v1 = client.CoreV1Api()
-        data = {  # type: ignore
-            k: base64.b64encode(v.encode()).decode()
-            for k, v in docker_creds.items()  # type: ignore
+        cred_payload = {
+            "auths": {
+                docker_creds["docker-server"]: {
+                    "Username": docker_creds["docker-username"],
+                    "Password": docker_creds["docker-password"],
+                    "Email": docker_creds["docker-email"],
+                }
+            }
+        }
+        data = {
+            ".dockerconfigjson": base64.b64encode(
+                json.dumps(cred_payload).encode()
+            ).decode()
         }
         namespace = prefect.context.get("namespace", "unknown")
         name = namespace + "-docker"
@@ -95,7 +110,7 @@ class CloudEnvironment(Environment):
             data=data,
             kind="Secret",
             metadata=dict(name=name, namespace=namespace),
-            type="docker-registry",
+            type="kubernetes.io/dockerconfigjson",
         )
         v1.create_namespaced_secret(namespace, body=secret)
 
@@ -192,7 +207,7 @@ class CloudEnvironment(Environment):
 
         # set environment variables
         env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
-        if self.private:
+        if self.private_registry:
             pod_spec = yaml_obj["spec"]["template"]["spec"]
             pod_spec["imagePullSecrets"] = []
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
@@ -236,7 +251,7 @@ class CloudEnvironment(Environment):
         env[3]["value"] = prefect.config.cloud.auth_token
         env[4]["value"] = prefect.context.get("flow_run_id", "")
 
-        if self.private:
+        if self.private_registry:
             namespace = prefect.context.get("namespace", "")
             pod_spec = yaml_obj["spec"]
             pod_spec["imagePullSecrets"] = []

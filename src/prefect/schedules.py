@@ -233,3 +233,93 @@ class OneTimeSchedule(IntervalSchedule):
         super().__init__(
             start_date=start_date, interval=timedelta(days=1), end_date=start_date
         )
+
+
+class UnionSchedule(Schedule):
+    """
+    A schedule formed by combining multiple other schedules.
+
+    Both `start_date` and `end_date` are inferred as the min / max (resp.) of
+    all provided schedules.  Note that the schedules are not required to all
+    be from the same timezone.  Only unique dates will be used if multiple
+    overlapping schedules are provided.
+
+    Args:
+        - schedules (List[Schedule]): a list of schedules to combine
+
+    Example:
+        ```python
+        import pendulum
+        from datetime import timedelta
+
+        from prefect.schedules import CronSchedule, IntervalSchedule, UnionSchedule
+
+        cron = CronSchedule("0 * * * *", start_date=pendulum.now("US/Eastern"))
+        cron.next(2)
+        # [DateTime(2019, 5, 15, 19, 0, 0, tzinfo=Timezone('US/Eastern')),
+        # DateTime(2019, 5, 15, 20, 0, 0, tzinfo=Timezone('US/Eastern'))]
+
+        first_cron = cron.next(1)[0]
+        interval = IntervalSchedule(start_date=first_cron.in_timezone("US/Pacific"), interval=timedelta(minutes=30))
+        interval.next(2)
+        # [DateTime(2019, 5, 15, 16, 0, 0, tzinfo=Timezone('US/Pacific')),
+        # DateTime(2019, 5, 15, 16, 30, 0, tzinfo=Timezone('US/Pacific'))]
+
+        union = UnionSchedule([cron, interval])
+        union.next(4)
+        # [DateTime(2019, 5, 15, 19, 0, 0, tzinfo=Timezone('US/Eastern')),
+        # DateTime(2019, 5, 15, 16, 30, 0, tzinfo=Timezone('US/Pacific')),
+        # DateTime(2019, 5, 15, 20, 0, 0, tzinfo=Timezone('US/Eastern')),
+        # DateTime(2019, 5, 15, 17, 30, 0, tzinfo=Timezone('US/Pacific'))]
+        ```
+
+    """
+
+    def __init__(self, schedules: List[Schedule] = None):
+        schedules = schedules or []
+        self.schedules = schedules
+        start_date = min(  # type: ignore
+            [s.start_date for s in schedules if s.start_date is not None], default=None
+        )
+        end_date = max(  # type: ignore
+            [s.end_date for s in schedules if s.end_date is not None], default=None
+        )
+        super().__init__(start_date=start_date, end_date=end_date)
+
+    def next(self, n: int, after: datetime = None) -> List[datetime]:
+        """
+        Retrieve next scheduled dates.
+
+        Args:
+            - n (int): the number of future scheduled dates to return
+            - after (datetime, optional): the first result will be after this date
+
+        Returns:
+            - list: list of next scheduled dates
+        """
+        if after is None:
+            after = pendulum.now("utc")
+
+        assert isinstance(after, datetime)  # mypy assertion
+        assert isinstance(self.start_date, pendulum.DateTime)  # mypy assertion
+
+        after = pendulum.instance(after)
+        dates = []  # type: List[pendulum.DateTime]
+        default = pendulum.instance(datetime.max)
+        candidates = {
+            idx: next(iter(s.next(1, after=after)), default)
+            for idx, s in enumerate(self.schedules)
+        }
+
+        while len(dates) < n:
+            dates.append(min(candidates.values()))
+
+            ## get next date for all dates whose current values agree with the current minimum
+            updates = {
+                i: next(iter(self.schedules[i].next(1, after=dates[-1])), default)
+                for i, val in candidates.items()
+                if val == dates[-1]
+            }
+            candidates.update(updates)
+
+        return dates

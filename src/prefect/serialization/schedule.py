@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
 import marshmallow
-from marshmallow import fields
+from marshmallow import fields, post_load
 
 import prefect
 from prefect.utilities.serialization import (
@@ -40,6 +40,23 @@ class OneTimeScheduleSchema(ObjectSchema):
     start_date = DateTimeTZ(required=True)
 
 
+class UnionScheduleSchema(ObjectSchema):
+    class Meta:
+        object_class = prefect.schedules.UnionSchedule
+
+    start_date = DateTimeTZ(required=True)
+    end_date = DateTimeTZ(allow_none=True)
+    schedules = fields.Nested(
+        "prefect.serialization.schedule.ScheduleSchema", many=True
+    )
+
+    @post_load
+    def create_object(self, data: dict) -> prefect.schedules.UnionSchedule:
+        schedules = data.pop("schedules", [])
+        base_obj = super().create_object({"schedules": schedules})
+        return base_obj
+
+
 class ScheduleSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -50,4 +67,5 @@ class ScheduleSchema(OneOfSchema):
         "IntervalSchedule": IntervalScheduleSchema,
         "CronSchedule": CronScheduleSchema,
         "OneTimeSchedule": OneTimeScheduleSchema,
+        "UnionSchedule": UnionScheduleSchema,
     }

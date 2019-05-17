@@ -38,7 +38,8 @@ class Docker(Storage):
         - files (dict, optional): a dictionary of files to copy into the image when building
         - base_url: (str, optional): a URL of a Docker daemon to use when for Docker related functionality
         - prefect_version (str, optional): an optional branch, tag, or commit specifying the version of prefect
-            you want installed into the container; defaults to `"0.5.3"`
+            you want installed into the container; defaults to the version you are currently using or `"master"` if your version is ahead of
+            the latest tag
     """
 
     def __init__(
@@ -71,7 +72,12 @@ class Docker(Storage):
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
         self.base_url = base_url
-        self.prefect_version = prefect_version or "0.5.3"
+
+        version = prefect.__version__.split("+")
+        if prefect_version is None:
+            self.prefect_version = "master" if len(version) > 1 else version[0]
+        else:
+            self.prefect_version = prefect_version
 
         not_absolute = [
             file_path for file_path in self.files if not os.path.isabs(file_path)
@@ -177,6 +183,9 @@ class Docker(Storage):
             - Docker: a new Docker storage object that contains information about how and
                 where the flow is stored. Image name and tag are generated during the
                 build process.
+
+        Raises:
+            - InterruptedError: if either pushing or pulling the image fails
         """
         image_name, image_tag = self.build_image(push=push)
         self.image_name = image_name
@@ -194,9 +203,12 @@ class Docker(Storage):
 
         Returns:
             - tuple: generated UUID strings `image_name`, `image_tag`
+
+        Raises:
+            - InterruptedError: if either pushing or pulling the image fails
         """
-        image_name = str(uuid.uuid4())
-        image_tag = str(uuid.uuid4())
+        image_name = self.image_name or str(uuid.uuid4())
+        image_tag = self.image_tag or str(uuid.uuid4())
 
         # Make temporary directory to hold serialized flow, healthcheck script, and dockerfile
         with tempfile.TemporaryDirectory() as tempdir:
@@ -378,11 +390,16 @@ class Docker(Storage):
         In order for the docker python library to use a base image it must be pulled
         from either the main docker registry or a separate registry that must be set as
         `registry_url` on this class.
+
+        Raises:
+            - InterruptedError: if either pulling the image fails
         """
         client = docker.APIClient(base_url=self.base_url, version="auto")
 
         output = client.pull(self.base_image, stream=True, decode=True)
         for line in output:
+            if line.get("error"):
+                raise InterruptedError(line.get("error"))
             if line.get("progress"):
                 print(line.get("status"), line.get("progress"), end="\r")
         print("")
@@ -393,6 +410,9 @@ class Docker(Storage):
         Args:
             - image_name (str): Name for the image
             - image_tag (str): Tag for the image
+
+        Raises:
+            - InterruptedError: if either pushing the image fails
         """
         client = docker.APIClient(base_url=self.base_url, version="auto")
 
@@ -400,6 +420,8 @@ class Docker(Storage):
 
         output = client.push(image_name, tag=image_tag, stream=True, decode=True)
         for line in output:
+            if line.get("error"):
+                raise InterruptedError(line.get("error"))
             if line.get("progress"):
                 print(line.get("status"), line.get("progress"), end="\r")
         print("")

@@ -527,3 +527,69 @@ class TestSerialization:
             "interval": 3600000000,
             "__version__": __version__,
         }
+
+
+class TestUnionSchedule:
+    @pytest.fixture
+    def list_of_schedules(self):
+        sd = pendulum.datetime(2000, 1, 1)
+        ed = pendulum.datetime(2010, 1, 1)
+
+        list_sched = []
+        list_sched.append(
+            schedules.IntervalSchedule(
+                interval=timedelta(hours=1), start_date=sd, end_date=ed
+            )
+        )
+
+        sd = pendulum.datetime(2004, 1, 1)
+        ed = pendulum.datetime(2017, 1, 1)
+        list_sched.append(
+            schedules.CronSchedule("0 0 * * *", start_date=sd, end_date=ed)
+        )
+        list_sched.append(schedules.CronSchedule("0 9 * * 1-5"))
+        return list_sched
+
+    def test_initialization(self):
+        s = schedules.UnionSchedule()
+        assert s.start_date is None
+        assert s.end_date is None
+
+    def test_initialization_with_schedules(self, list_of_schedules):
+        s = schedules.UnionSchedule(list_of_schedules)
+        assert s.start_date == pendulum.datetime(2000, 1, 1)
+        assert s.end_date == pendulum.datetime(2017, 1, 1)
+
+    def test_next_n(self):
+        start_date = pendulum.datetime(2018, 1, 1)
+        now = pendulum.now("UTC")
+        s = schedules.IntervalSchedule(start_date, timedelta(days=1))
+        t = schedules.OneTimeSchedule(start_date=now.add(hours=1))
+        main = schedules.UnionSchedule([s, t])
+        assert main.next(2) == [now.add(hours=1), s.next(1)[0]]
+
+    def test_next_n_with_no_next(self):
+        start_date = pendulum.datetime(2018, 1, 1)
+        now = pendulum.now("UTC")
+        s = schedules.IntervalSchedule(start_date, timedelta(days=1))
+        t = schedules.OneTimeSchedule(start_date=now.add(hours=-1))
+        main = schedules.UnionSchedule([s, t])
+        assert main.next(2) == s.next(2)
+
+    def test_next_n_with_repeated_schedule_values(self):
+        start_date = pendulum.datetime(2018, 1, 1)
+        now = pendulum.now("UTC")
+        s = schedules.IntervalSchedule(start_date, timedelta(days=1))
+        main = schedules.UnionSchedule([s, s, s, s])
+        assert main.next(3) == s.next(3)
+
+    def test_next_n_with_different_timezones(self):
+        east = schedules.CronSchedule(
+            "0 9 * * 1-5", start_date=pendulum.parse("2019-03-14", tz="US/Eastern")
+        )
+        west = schedules.CronSchedule(
+            "30 6 * * 1-5", start_date=pendulum.parse("2019-03-14", tz="US/Pacific")
+        )
+        main = schedules.UnionSchedule([east, west])
+        expected = [east.next(1)[0], west.next(1)[0], east.next(2)[1], west.next(2)[1]]
+        assert main.next(4) == expected
