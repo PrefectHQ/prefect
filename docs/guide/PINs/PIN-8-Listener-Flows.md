@@ -1,5 +1,5 @@
 ---
-title: 'PIN-5: Event-Driven Flows'
+title: 'PIN-8: Event-Driven Flows'
 sidebarDepth: 0
 ---
 
