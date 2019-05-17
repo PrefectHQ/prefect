@@ -46,15 +46,30 @@ def get():
 
 
 @get.command(hidden=True)
-@click.option("--name", "-n", help="A flow name to query.")
-@click.option("--version", "-v", type=int, help="A flow version to query.")
-@click.option("--project", "-p", help="The name of a project to query.")
-@click.option("--limit", "-l", default=10, help="A limit amount of tasks to query.")
-@click.option("--all-versions", is_flag=True, help="Query all flow versions.")
-@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+@click.option("--name", "-n", help="A flow name to query.", hidden=True)
+@click.option("--version", "-v", type=int, help="A flow version to query.", hidden=True)
+@click.option("--project", "-p", help="The name of a project to query.", hidden=True)
+@click.option(
+    "--limit", "-l", default=10, help="A limit amount of flows to query.", hidden=True
+)
+@click.option(
+    "--all-versions", is_flag=True, help="Query all flow versions.", hidden=True
+)
+@click.option(
+    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
+)
 def flows(name, version, project, limit, all_versions, playground):
     """
     Query information regarding your Prefect flows.
+
+    \b
+    Options:
+        --name, -n      TEXT    A flow name to query
+        --version, -v   TEXT    A flow version to query
+        --project, -p   TEXT    The name of a project to query
+        --limit, -l     INTEGER A limit amount of flows to query, defaults to 10
+        --all-versions          Output all versions of a flow, default shows most recent
+        --playground            Open query in a GraphQL Playground
     """
 
     distinct_on = EnumValue("name")
@@ -120,11 +135,18 @@ def flows(name, version, project, limit, all_versions, playground):
 
 
 @get.command(hidden=True)
-@click.option("--name", "-n", help="A project name to query.")
-@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+@click.option("--name", "-n", help="A project name to query.", hidden=True)
+@click.option(
+    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
+)
 def projects(name, playground):
     """
     Query information regarding your Prefect projects.
+
+    \b
+    Options:
+        --name, -n      TEXT    A project name to query
+        --playground            Open query in a GraphQL Playground
     """
     query = {
         "query": {
@@ -176,14 +198,36 @@ def projects(name, playground):
 
 
 @get.command(hidden=True)
-@click.option("--limit", "-l", default=10, help="A limit amount of flow runs to query.")
-@click.option("--flow", "-f", help="Specify a flow's runs to query.")
-@click.option("--project", "-p", help="Specify a project's runs to query.")
-@click.option("--started", "-s", is_flag=True, help="Only retrieve started flow runs.")
-@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+@click.option(
+    "--limit",
+    "-l",
+    default=10,
+    help="A limit amount of flow runs to query.",
+    hidden=True,
+)
+@click.option("--flow", "-f", help="Specify a flow's runs to query.", hidden=True)
+@click.option("--project", "-p", help="Specify a project's runs to query.", hidden=True)
+@click.option(
+    "--started",
+    "-s",
+    is_flag=True,
+    help="Only retrieve started flow runs.",
+    hidden=True,
+)
+@click.option(
+    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
+)
 def flow_runs(limit, flow, project, started, playground):
     """
     Query information regarding Prefect flow runs.
+
+    \b
+    Options:
+        --limit, l          INTEGER A limit amount of flow runs to query, defaults to 10
+        --flow, -f          TEXT    Name of a flow to query for runs
+        --project, -p       TEXT    Name of a project to query
+        --started, -s               Only retrieve started flow runs, default shows `Scheduled` runs
+        --playground, -p            Open query in a GraphQL Playground
     """
 
     if started:
@@ -262,15 +306,30 @@ def flow_runs(limit, flow, project, started, playground):
 
 
 @get.command(hidden=True)
-@click.option("--name", "-n", help="A task name to query")
-@click.option("--flow-name", "-fn", help="A flow name to query")
-@click.option("--flow-version", "-fv", type=int, help="A flow version to query.")
-@click.option("--project", "-p", help="The name of a project to query.")
-@click.option("--limit", "-l", default=10, help="A limit amount of tasks to query.")
-@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+@click.option("--name", "-n", help="A task name to query", hidden=True)
+@click.option("--flow-name", "-fn", help="A flow name to query", hidden=True)
+@click.option(
+    "--flow-version", "-fv", type=int, help="A flow version to query.", hidden=True
+)
+@click.option("--project", "-p", help="The name of a project to query.", hidden=True)
+@click.option(
+    "--limit", "-l", default=10, help="A limit amount of tasks to query.", hidden=True
+)
+@click.option(
+    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
+)
 def tasks(name, flow_name, flow_version, project, limit, playground):
     """
     Query information regarding your Prefect tasks.
+
+    \b
+    Options:
+        --name, -n          TEXT    A task name to query
+        --flow-name, -fn    TEXT    A flow name to query
+        --flow-version, -fx INTEGER A flow version to query
+        --project, -p       TEXT    The name of a project to query
+        --limit, -l         INTEGER A limit amount of tasks to query, defaults to 10
+        --playground                Open query in a GraphQL playground
     """
 
     query = {

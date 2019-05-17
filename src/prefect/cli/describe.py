@@ -55,13 +55,22 @@ def describe():
 
 
 @describe.command(hidden=True)
-@click.option("--name", "-n", required=True, help="A flow name to query.")
-@click.option("--version", "-v", type=int, help="A flow version to query.")
-@click.option("--project", "-p", help="The name of a project to query.")
-@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+@click.option("--name", "-n", required=True, help="A flow name to query.", hidden=True)
+@click.option("--version", "-v", type=int, help="A flow version to query.", hidden=True)
+@click.option("--project", "-p", help="The name of a project to query.", hidden=True)
+@click.option(
+    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
+)
 def flows(name, version, project, playground):
     """
     Describe a Prefect flow.
+
+    \b
+    Options:
+        --name, -n      TEXT    A flow name to query                [required]
+        --version, -v   INTEGER A flow version to query
+        --project, -p   TEXT    The name of a project to query
+        --playground            Open query in a GraphQL Playground
     """
     query = {
         "query": {
@@ -110,13 +119,23 @@ def flows(name, version, project, playground):
 
 
 @describe.command(hidden=True)
-@click.option("--name", "-n", required=True, help="A flow name to query.")
-@click.option("--version", "-v", type=int, help="A flow version to query.")
-@click.option("--project", "-p", help="The name of a project to query.")
-@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+@click.option("--name", "-n", required=True, help="A flow name to query.", hidden=True)
+@click.option("--version", "-v", type=int, help="A flow version to query.", hidden=True)
+@click.option("--project", "-p", help="The name of a project to query.", hidden=True)
+@click.option(
+    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
+)
 def tasks(name, version, project, playground):
     """
-    Describe tasks from a Prefect flow.
+    Describe tasks from a Prefect flow. This command is similar to `prefect describe flow`
+    but instead of flow metadata it outputs task metadata.
+
+    \b
+    Options:
+        --name, -n      TEXT    A flow name to query                [required]
+        --version, -v   INTEGER A flow version to query
+        --project, -p   TEXT    The name of a project to query
+        --playground            Open query in a GraphQL Playground
     """
     query = {
         "query": {
@@ -172,12 +191,22 @@ def tasks(name, version, project, playground):
 
 
 @describe.command(hidden=True)
-@click.option("--name", "-n", required=True, help="A flow run name to query")
-@click.option("--flow-name", "-fn", help="A flow name to query")
-@click.option("--playground", is_flag=True, help="Open this query in the playground.")
+@click.option(
+    "--name", "-n", required=True, help="A flow run name to query", hidden=True
+)
+@click.option("--flow-name", "-fn", help="A flow name to query", hidden=True)
+@click.option(
+    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
+)
 def flow_runs(name, flow_name, playground):
     """
     Describe a Prefect flow run.
+
+    \b
+    Options:
+        --name, -n          TEXT    A flow run name to query            [required]
+        --flow-name, -fn    TEXT    A flow name to query
+        --playground                Open query in a GraphQL Playground
     """
     query = {
         "query": {

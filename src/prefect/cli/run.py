@@ -35,17 +35,34 @@ def run():
 
 
 @run.command(hidden=True)
-@click.option("--name", "-n", required=True, help="The name of a flow to run.")
 @click.option(
-    "--project", "-p", required=True, help="The project that contains the flow."
+    "--name", "-n", required=True, help="The name of a flow to run.", hidden=True
 )
-@click.option("--version", "-v", type=int, help="A flow version to run.")
 @click.option(
-    "--watch", "-w", is_flag=True, help="Watch current state of the flow run."
+    "--project",
+    "-p",
+    required=True,
+    help="The project that contains the flow.",
+    hidden=True,
+)
+@click.option("--version", "-v", type=int, help="A flow version to run.", hidden=True)
+@click.option(
+    "--watch",
+    "-w",
+    is_flag=True,
+    help="Watch current state of the flow run.",
+    hidden=True,
 )
 def cloud(name, project, version, watch):
     """
     Run a deployed flow in Prefect Cloud.
+
+    \b
+    Options:
+        --name, -n      TEXT    The name of a flow to run                                       [required]
+        --project, -p   TEXT    The name of a project that contains the flow                    [required]
+        --version, -v   INTEGER A flow version to run
+        --watch, -w             Watch current state of the flow run, stream output to stdout
     """
 
     query = {
@@ -85,7 +102,6 @@ def cloud(name, project, version, watch):
     click.echo("Flow Run ID: {}".format(flow_run_id))
 
     # TODO: Convert to using a subscription and make output prettier
-    # Make this better, gets stuck on submitted if failure. Resource manager will improve this by updating state on infra fail
     if watch:
         current_state = ""
         while True:
