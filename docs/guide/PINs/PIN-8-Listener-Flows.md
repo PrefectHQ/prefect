@@ -3,7 +3,7 @@ title: 'PIN-8: Event-Driven Flows'
 sidebarDepth: 0
 ---
 
-# PIN 8: Event-Driven/Streaming Flow Execution via Listeners
+# PIN 8: Event-Driven/Long-Running Flow Execution via Listeners
 
 Date: March 31, 2019
 Author: Jeremiah Lowin
@@ -74,6 +74,8 @@ When `ListenerFlowRunner.run()` is called, the runner enters a `Listening` state
 
 Each event is passed into a separate call of the `FlowRunner.run()` superclass method as the appropriately defined parameter value. Each of these "runs" represents a completely distinct processing of an event, and is therefore independently retry-able. The runner no longer defines success or failure from its tasks, but rather from whether it encounters an error in the listener.
 
+The superclass `run()` can be called in the FlowRunner's executor, allowing asynchronous execution.
+
 Each event therefore triggers a completely new flow run, but from a long-running process that replaces some of the latency of spinning up new architecture.
 
 Here is pseudocode for the process:
@@ -100,8 +102,8 @@ def run(self, *args, parameters, context, **kwargs):
             # acknowledge the event
             event.ack()
 
-            # run the flow
-            super().run(*args, parameters, context=context, **kwargs)
+            # run the flow in the executor
+            executor.submit(super().run, *args, parameters, context=context, **kwargs))
 
     except StopIteration:
         return Success("listener exhausted successfully.")
