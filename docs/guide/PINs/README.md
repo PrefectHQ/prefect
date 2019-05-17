@@ -12,13 +12,11 @@ Introducing PINs for recording Prefect decisions.
 
 **Status:** Approved
 
-
 ## [PIN-2: Implementation of Result Handlers and State Metadata](PIN-2-Result-Handlers.md)
 
 Adding metadata to `States` in order to track task results and serialization methods.
 
 **Status:** Approved
-
 
 ## [PIN-3: Agent-Environment Model for Flow Execution](PIN-3-Agent-Environment.md)
 
@@ -26,13 +24,11 @@ A description of a more complex and executable `Environment` object.
 
 **Status:** Approved
 
-
 ## [PIN-4: Result Objects for Tracking and Serializing Task Outputs](PIN-4-Result-Objects.md)
 
 A new `Result` object that clarifies the logic introduced by [PIN-2](PIN-2-Result-Handlers.md).
 
 **Status:** Approved
-
 
 ## [PIN-5: Ability to Combine Tasks](PIN-5-Combining-Tasks.md)
 
@@ -40,16 +36,20 @@ A proposal for automatically combining tasks to ensure data locality; ultimately
 
 **Status:** Declined
 
-
 ## [PIN-6: Remove Constant Tasks](PIN-6-Remove-Constant-Tasks.md)
 
 A proposal for removing auto-converting non-task objects into `Constant` Tasks; ultimately declined as the benefits outweigh the costs.
 
 **Status:** Declined
 
-
 ## [PIN-7: Storage and Execution](PIN-7-Storage-Execution.md)
 
 A proposal for refactoring environments into `Storage` classes and execution `Environment` classes with specific, loosely coupled interfaces.
 
 **Status:** Approved
+
+## [PIN-8: Event-Driven / Listener Flows](PIN-8-Listener-Flows.md)
+
+A proposal for kicking off flow runs in response to events that arrive in an irregular stream.
+
+**Status:** Pending
