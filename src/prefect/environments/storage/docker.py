@@ -38,7 +38,8 @@ class Docker(Storage):
         - files (dict, optional): a dictionary of files to copy into the image when building
         - base_url: (str, optional): a URL of a Docker daemon to use when for Docker related functionality
         - prefect_version (str, optional): an optional branch, tag, or commit specifying the version of prefect
-            you want installed into the container; defaults to `"0.5.3"`
+            you want installed into the container; defaults to the version you are currently using or `"master"` if your version is ahead of
+            the latest tag
     """
 
     def __init__(
@@ -71,7 +72,12 @@ class Docker(Storage):
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
         self.base_url = base_url
-        self.prefect_version = prefect_version or "0.5.3"
+
+        version = prefect.__version__.split("+")
+        if prefect_version is None:
+            self.prefect_version = "master" if len(version) > 1 else version[0]
+        else:
+            self.prefect_version = prefect_version
 
         not_absolute = [
             file_path for file_path in self.files if not os.path.isabs(file_path)
