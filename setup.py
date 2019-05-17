@@ -18,6 +18,7 @@ extras = {
     ],
     "kubernetes": ["kubernetes >= 8.0.1, < 9.0", "dask-kubernetes == 0.7.0"],
     "rss": ["feedparser >= 5.0.1, < 6.0"],
+    "spacy": ["spacy >= 2.0.0, < 3.0.0"],
     "templates": ["jinja2 >= 2.0, < 3.0"],
     "viz": ["graphviz >= 0.8.3"],
     "twitter": ["tweepy >= 3.5, < 4.0"],
