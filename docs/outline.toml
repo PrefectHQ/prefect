@@ -225,6 +225,11 @@ title = "RSS Tasks"
 module = "prefect.tasks.rss"
 classes = ["ParseRSSFeed"]
 
+[pages.tasks.spacy]
+title = "spaCy Tasks"
+module = "prefect.tasks.spacy"
+classes = ["SpacyNLP", "SpacyTagger", "SpacyParser", "SpacyNER", "SpacyComponent"]
+
 [pages.tasks.sqlite]
 title = "SQLite Tasks"
 module = "prefect.tasks.database"
