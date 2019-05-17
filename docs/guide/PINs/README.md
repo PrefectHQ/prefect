@@ -50,6 +50,6 @@ A proposal for refactoring environments into `Storage` classes and execution `En
 
 ## [PIN-8: Event-Driven / Listener Flows](PIN-8-Listener-Flows.md)
 
-A proposal for kicking off flow runs in response to events that arrive in an irregular stream.
+A proposal for event-driven or long-running flows that run in response to events that arrive in an irregular stream.
 
 **Status:** Pending
