@@ -52,4 +52,4 @@ A proposal for refactoring environments into `Storage` classes and execution `En
 
 A proposal for event-driven or long-running flows that run in response to events that arrive in an irregular stream.
 
-**Status:** Pending
+**Status:** Proposed
