@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, MagicMock
 
 import pytest
 
@@ -24,6 +24,12 @@ class TestSpacyNLP:
                 text="This is some text", spacy_model_name="not_a_spacy_model"
             )
         assert "not_a_spacy_model" in str(exc.value)
+
+    def test_text_passed_to_run(self):
+        nlp = MagicMock()
+        task = SpacyNLP(text="This is some text", nlp=nlp)
+        task.run()
+        assert nlp.call_args[0][0] == "This is some text"
 
 
 class TestSpacyTagger:
