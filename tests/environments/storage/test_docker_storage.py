@@ -42,7 +42,7 @@ def test_empty_docker_storage():
     assert not storage.python_dependencies
     assert not storage.env_vars
     assert not storage.files
-    assert storage.prefect_version == "0.5.3"
+    assert storage.prefect_version
     assert storage.base_url == "unix://var/run/docker.sock"
 
 
@@ -54,6 +54,20 @@ def test_docker_init_responds_to_python_version(monkeypatch, version_info):
     assert storage.base_image == "python:{}.{}".format(*version_info)
 
 
+@pytest.mark.parametrize(
+    "version",
+    [
+        ("0.5.3", "0.5.3"),
+        ("0.5.3+114.g35bc7ba4", "master"),
+        ("0.5.2+999.gr34343.dirty", "master"),
+    ],
+)
+def test_docker_init_responds_to_prefect_version(monkeypatch, version):
+    monkeypatch.setattr(prefect, "__version__", version[0])
+    storage = Docker()
+    assert storage.prefect_version == version[1]
+
+
 def test_initialized_docker_storage():
     storage = Docker(
         registry_url="test1",
@@ -63,7 +77,7 @@ def test_initialized_docker_storage():
         image_tag="test5",
         env_vars={"test": "1"},
         base_url="test_url",
-        prefect_version="master",
+        prefect_version="my-branch",
     )
 
     assert storage.registry_url == "test1"
@@ -73,7 +87,7 @@ def test_initialized_docker_storage():
     assert storage.python_dependencies == ["test"]
     assert storage.env_vars == {"test": "1"}
     assert storage.base_url == "test_url"
-    assert storage.prefect_version == "master"
+    assert storage.prefect_version == "my-branch"
 
 
 def test_files_not_absolute_path():
