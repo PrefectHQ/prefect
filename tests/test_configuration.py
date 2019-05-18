@@ -269,7 +269,7 @@ class TestUserConfig:
             )
             user_config.seek(0)
             config = configuration.load_configuration(
-                test_config_file_path, user_config.name
+                path=test_config_file_path, user_config_path=user_config.name
             )
 
             # check that user values are loaded
