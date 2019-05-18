@@ -4,30 +4,37 @@ jobs:
   # Check formatting
   # ----------------------------------
 
-  check_formatting:
+  check_black_formatting:
     docker:
       - image: python:3.6
     steps:
       - checkout
+
       - run:
           name: Install Black
           command: pip install black
+
+      - run:
+          name: Run Black
+          command: black --check .
+
+  check_mypy_typing:
+    docker:
+      - image: python:3.6
+    steps:
+      - checkout
 
       - run:
           name: Install mypy
           command: pip install mypy mypy_extensions
 
       - run:
-          name: Run Black
-          command: black --check .
-
-      - run:
           name: Run mypy
           command: mypy src/
 
-# test a standard install of prefect
-# is importable in python 3.5.2
-# there was a typing bug in 3.5.2 that this attempts to catch
+  # test a standard install of prefect
+  # is importable in python 3.5.2
+  # there was a typing bug in 3.5.2 that this attempts to catch
   test-py352-import-prefect:
     docker:
       - image: python:3.5.2
@@ -43,9 +50,9 @@ jobs:
           name: Test Prefect imports cleanly
           command: python -c "import prefect"
 
-# test a standard install of prefect
-# this ensures we correctly capture all ImportError sitautions
-# caused by many package dependency options
+  # test a standard install of prefect
+  # this ensures we correctly capture all ImportError sitautions
+  # caused by many package dependency options
   test-vanilla-prefect:
     docker:
       - image: python:3.6
@@ -72,7 +79,7 @@ jobs:
       - run:
           name: Upload Coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python
-          
+
   # ----------------------------------
   # Run unit tests in Python 3.5-3.7
   # ----------------------------------
@@ -113,7 +120,7 @@ jobs:
   test-3.7:
     docker:
       - image: python:3.7
-    steps: 
+    steps:
       - checkout
       - setup_remote_docker
       - run:
@@ -147,7 +154,7 @@ jobs:
           command: conda create -n airflow python=3.6 pip -y
 
       - run:
-          name: Install Airflow 
+          name: Install Airflow
           command: source activate airflow && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow && source deactivate
 
       - run:
@@ -163,7 +170,7 @@ jobs:
           command: bash <(curl -s https://codecov.io/bash) -cF python
 
   build_image:
-    docker: 
+    docker:
       - image: docker
     steps:
       - setup_remote_docker
@@ -181,20 +188,29 @@ jobs:
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect
 
-
 workflows:
   version: 2
-  run_all:
+
+  'Run unit tests':
     jobs:
-      - check_formatting
-      - test-vanilla-prefect
-      - test-py352-import-prefect
       - test-3.5
       - test-3.6
       - test-3.7
+
+  'Check code style':
+    jobs:
+      - check_black_formatting
+      - check_mypy_typing
+
+  'Run compatibility tests':
+    jobs:
+      - test-vanilla-prefect
+      - test-py352-import-prefect
       - test-airflow
+
+  'Build docker images':
+    jobs:
       - build_image:
           filters:
-                branches:
-                  only:
-                    master
+            branches:
+              only: master
