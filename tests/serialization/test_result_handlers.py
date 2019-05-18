@@ -174,7 +174,8 @@ class TestGCSResultHandler:
             "sys.modules",
             {"google.cloud": MagicMock(), "google.oauth2.service_account": MagicMock()},
         ):
-            yield
+            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS="")):
+                yield
 
     def test_serialize(self, google_client):
         handler = GCSResultHandler(bucket="my-bucket")

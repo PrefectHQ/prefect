@@ -41,7 +41,7 @@ def test_secret_value_depends_on_use_local_secrets():
         with prefect.context(secrets=dict(test=42)):
             with pytest.raises(AuthorizationError) as exc:
                 secret.get()
-            assert "Client.login" in str(exc.value)
+    assert "Client.login" in str(exc.value)
 
 
 def test_secrets_use_client(monkeypatch):
@@ -61,7 +61,8 @@ def test_local_secrets_auto_load_json_strings():
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(test='{"x": 42}')):
             assert secret.get() == {"x": 42}
-        assert secret.get() is None
+        with pytest.raises(ValueError):
+            secret.get()
 
 
 def test_secrets_raise_if_in_flow_context():
