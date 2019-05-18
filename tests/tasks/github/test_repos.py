@@ -127,7 +127,7 @@ def test_base_name_is_filtered_for(monkeypatch):
     monkeypatch.setattr("prefect.tasks.github.repos.requests", req)
 
     with set_temporary_config({"cloud.use_local_secrets": True}):
-        with prefect.context(secrets=dict(MY_SECRET={"key": 42})):
+        with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
             task.run(repo="org/repo")
 
     assert req.post.call_args[1]["json"] == {
