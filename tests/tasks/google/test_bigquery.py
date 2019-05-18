@@ -303,7 +303,11 @@ class TestCreateBigQueryTableInitialization:
         )
         task = CreateBigQueryTable()
         with pytest.raises(prefect.engine.signals.SUCCESS) as exc:
-            task.run()
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                with prefect.context(
+                    secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})
+                ):
+                    task.run()
 
         assert "already exists" in str(exc.value)
 
