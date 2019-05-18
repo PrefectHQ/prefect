@@ -51,7 +51,7 @@ class State:
         if self.message:
             return '<{}: "{}">'.format(type(self).__name__, self.message)
         else:
-            return '<{}()>'.format(type(self).__name__)
+            return "<{}()>".format(type(self).__name__)
 
     def __eq__(self, other: object) -> bool:
         """
