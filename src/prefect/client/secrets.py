@@ -35,11 +35,12 @@ class Secret:
         JSON documents to avoid ambiguous behavior.
 
         Returns:
-            - Any: the value of the secret; if not found, returns `None`
+            - Any: the value of the secret; if not found, raises an error
 
         Raises:
-            - ValueError: if `.get()` is called within a Flow building context
-            - ValueError: if `use_local_secrets=False` and the Client fails to retrieve your secret
+            - ValueError: if `.get()` is called within a Flow building context, or if `use_local_secrets=True`
+                and your Secret doesn't exist
+            - ClientError: if `use_local_secrets=False` and the Client fails to retrieve your secret
         """
         if isinstance(prefect.context.get("flow"), prefect.core.flow.Flow):
             raise ValueError(
@@ -48,7 +49,10 @@ class Secret:
 
         if prefect.config.cloud.use_local_secrets is True:
             secrets = prefect.context.get("secrets", {})
-            value = secrets.get(self.name)
+            try:
+                value = secrets[self.name]
+            except KeyError:
+                raise ValueError("Secret {} was not found.".format(self.name)) from None
             try:
                 return json.loads(value)
             except (json.JSONDecodeError, TypeError):

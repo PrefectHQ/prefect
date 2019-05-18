@@ -14,6 +14,13 @@ from prefect.tasks.kubernetes import (
 from prefect.utilities.configuration import set_temporary_config
 
 
+@pytest.fixture(autouse=True)
+def kube_secret():
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
+            yield
+
+
 class TestCreateNamespacedDeploymentTask:
     def test_empty_initialization(self):
         task = CreateNamespacedDeployment()
@@ -49,14 +56,14 @@ class TestCreateNamespacedDeploymentTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_body_value_is_replaced(self, monkeypatch):
         task = CreateNamespacedDeployment(body={"test": "a"})
@@ -106,7 +113,9 @@ class TestCreateNamespacedDeploymentTask:
             MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
         )
 
-        task.run(body={"test": "a"})
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
+                task.run(body={"test": "a"})
         assert extensionsapi.create_namespaced_deployment.call_args[1]["body"] == {
             "test": "a"
         }
@@ -193,14 +202,14 @@ class TestDeleteNamespacedDeploymentTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_kube_kwargs_value_is_replaced(self, monkeypatch):
         task = DeleteNamespacedDeployment(
@@ -275,14 +284,14 @@ class TestListNamespacedDeploymentTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_kube_kwargs_value_is_replaced(self, monkeypatch):
         task = ListNamespacedDeployment(kube_kwargs={"test": "a"})
@@ -374,14 +383,14 @@ class TestPatchNamespacedDeploymentTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_body_value_is_replaced(self, monkeypatch):
         task = PatchNamespacedDeployment(body={"test": "a"}, deployment_name="test")
@@ -521,14 +530,14 @@ class TestReadNamespacedDeploymentTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_kube_kwargs_value_is_replaced(self, monkeypatch):
         task = ReadNamespacedDeployment(
@@ -626,14 +635,14 @@ class TestReplaceNamespacedDeploymentTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.deployment.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_body_value_is_replaced(self, monkeypatch):
         task = ReplaceNamespacedDeployment(body={"test": "a"}, deployment_name="test")
