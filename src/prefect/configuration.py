@@ -9,6 +9,7 @@ import toml
 from prefect.utilities import collections
 
 DEFAULT_CONFIG = os.path.join(os.path.dirname(__file__), "config.toml")
+USER_CONFIG = os.getenv("PREFECT__USER_CONFIG_PATH", "~/.prefect/config.toml")
 ENV_VAR_PREFIX = "PREFECT"
 INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 
@@ -358,8 +359,7 @@ def load_configuration(
 
     Args:
         - path (str): the path to the TOML configuration file
-        - user_config_path (str): an optional path to a user config file. If not provided,
-            the main config will be checked for a `user_config_path` key. If a user config
+        - user_config_path (str): an optional path to a user config file. If a user config
             is provided, it will be used to update the main config prior to interpolation
         - env_var_prefix (str): any env vars matching this prefix will be used to create
             configuration values
@@ -372,9 +372,6 @@ def load_configuration(
     default_config = load_toml(path)
 
     # load user config
-    if not user_config_path:
-        user_config_path = default_config.get("user_config_path", None)
-
     if user_config_path and os.path.isfile(str(interpolate_env_vars(user_config_path))):
         user_config = load_toml(user_config_path)
         # merge user config into default config
@@ -389,4 +386,6 @@ def load_configuration(
     return config
 
 
-config = load_configuration(path=DEFAULT_CONFIG, env_var_prefix=ENV_VAR_PREFIX)
+config = load_configuration(
+    path=DEFAULT_CONFIG, user_config_path=USER_CONFIG, env_var_prefix=ENV_VAR_PREFIX
+)
