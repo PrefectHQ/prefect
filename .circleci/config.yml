@@ -32,9 +32,9 @@ jobs:
           name: Run mypy
           command: mypy src/
 
-# test a standard install of prefect
-# is importable in python 3.5.2
-# there was a typing bug in 3.5.2 that this attempts to catch
+  # test a standard install of prefect
+  # is importable in python 3.5.2
+  # there was a typing bug in 3.5.2 that this attempts to catch
   test-py352-import-prefect:
     docker:
       - image: python:3.5.2
@@ -50,9 +50,9 @@ jobs:
           name: Test Prefect imports cleanly
           command: python -c "import prefect"
 
-# test a standard install of prefect
-# this ensures we correctly capture all ImportError sitautions
-# caused by many package dependency options
+  # test a standard install of prefect
+  # this ensures we correctly capture all ImportError sitautions
+  # caused by many package dependency options
   test-vanilla-prefect:
     docker:
       - image: python:3.6
@@ -188,31 +188,29 @@ jobs:
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect
 
-
 workflows:
   version: 2
 
-  unit_tests:
+  'Run unit tests':
     jobs:
       - test-3.5
       - test-3.6
       - test-3.7
 
-  check_code_style:
+  'Check code style':
     jobs:
       - check_black_formatting
       - check_mypy_typing
 
-  specialized_tests:
+  'Run specialized tests':
     jobs:
       - test-vanilla-prefect
       - test-py352-import-prefect
       - test-airflow
 
-  build_docker_images:
+  'Build docker images':
     jobs:
       - build_image:
           filters:
-                branches:
-                  only:
-                    master
+            branches:
+              only: master
