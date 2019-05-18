@@ -202,7 +202,7 @@ workflows:
       - check_black_formatting
       - check_mypy_typing
 
-  'Run specialized tests':
+  'Run compatibility tests':
     jobs:
       - test-vanilla-prefect
       - test-py352-import-prefect
