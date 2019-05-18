@@ -157,7 +157,7 @@ class TestGCSResultHandler:
         assert blob.upload_from_string.called
         assert isinstance(blob.upload_from_string.call_args[0][0], str)
 
-    def test_gcs_handler_is_pickleable(self, monkeypatch):
+    def test_gcs_handler_is_pickleable(self, google_client, monkeypatch):
         class gcs_bucket:
             def __init__(self, *args, **kwargs):
                 pass
@@ -165,18 +165,9 @@ class TestGCSResultHandler:
             def __getstate__(self):
                 raise ValueError("I cannot be pickled.")
 
-        client = MagicMock(bucket=gcs_bucket)
-        storage = MagicMock(Client=MagicMock(return_value=client))
-        with patch.dict(
-            "sys.modules",
-            {
-                "google.cloud": MagicMock(storage=storage),
-                "google.oauth2.service_account": MagicMock(),
-            },
-        ):
-            handler = GCSResultHandler("foo")
-            res = cloudpickle.loads(cloudpickle.dumps(handler))
-            assert isinstance(res, GCSResultHandler)
+        handler = GCSResultHandler("foo")
+        res = cloudpickle.loads(cloudpickle.dumps(handler))
+        assert isinstance(res, GCSResultHandler)
 
 
 @pytest.mark.xfail(raises=ImportError)
