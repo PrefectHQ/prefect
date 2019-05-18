@@ -1,6 +1,3 @@
-# the location of the user's config file
-user_config_path = "$HOME/.prefect/config.toml"
-
 # debug mode
 debug = false
 
