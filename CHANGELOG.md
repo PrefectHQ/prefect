@@ -32,6 +32,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Breaking Changes
 
 - Changed the signature of `configuration.load_configuration()` - [#1037](https://github.com/PrefectHQ/prefect/pull/1037)
+- Local Secrets now raise `ValueError`s when not found in context - [#1047](https://github.com/PrefectHQ/prefect/pull/1047)
 
 ### Contributors
 
