@@ -16,6 +16,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add flow run id to k8s labels on Cloud Environment jobs / pods for easier filtering in deployment - [#1016](https://github.com/PrefectHQ/prefect/pull/1016)
 - Allow for `SlackTask` to pull the Slack webhook URL from a custom named Secret - [#1023](https://github.com/PrefectHQ/prefect/pull/1023)
 - Raise informative errors when Docker storage push / pull fails - [#1029](https://github.com/PrefectHQ/prefect/issues/1029)
+- Standardized `__expr__`s for various classes, to remove inconsistencies
 
 ### Task Library
 
