@@ -18,7 +18,7 @@ class Executor:
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
 
     def __repr__(self) -> str:
-        return "<{}: {}>".format(type(self).__name__, type(self).__name__)
+        return "<Executor: {}>".format(type(self).__name__)
 
     @contextmanager
     def start(self) -> Iterator[None]:
