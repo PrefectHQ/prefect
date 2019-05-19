@@ -101,6 +101,9 @@ class Runner:
         self.state_handlers = state_handlers or []
         self.logger = logging.get_logger(type(self).__name__)
 
+    def __repr__(self) -> str:
+        return '<"Runner">'
+
     def _heartbeat(self) -> None:
         pass
 
