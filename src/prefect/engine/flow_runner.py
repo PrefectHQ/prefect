@@ -94,6 +94,9 @@ class FlowRunner(Runner):
         self.task_runner_cls = task_runner_cls
         super().__init__(state_handlers=state_handlers)
 
+    def __repr__(self) -> str:
+        return "<{}: {}>".format(type(self).__name__, self.flow.name)
+
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
         A special state handler that the FlowRunner uses to call its flow's state handlers.
