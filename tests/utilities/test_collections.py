@@ -351,4 +351,4 @@ def test_graphql_result_has_nice_repr():
 def test_graphql_repr_falls_back_to_dict_repr():
     gql = {"flow_run": Pending("test")}
     res = as_nested_dict(gql, GraphQLResult)
-    assert repr(res) == """{'flow_run': Pending("test")}"""
+    assert repr(res) == """{'flow_run': <Pending: "test">}"""

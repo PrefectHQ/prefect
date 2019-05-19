@@ -61,6 +61,9 @@ class CloudFlowRunner(FlowRunner):
             flow=flow, task_runner_cls=CloudTaskRunner, state_handlers=state_handlers
         )
 
+    def __repr__(self) -> str:
+        return "<{}: {}>".format(type(self).__name__, self.flow.name)
+
     def _heartbeat(self) -> None:
         try:
             flow_run_id = prefect.context.get("flow_run_id")
