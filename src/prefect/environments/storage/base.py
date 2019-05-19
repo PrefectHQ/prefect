@@ -15,6 +15,9 @@ class Storage(metaclass=ABCMeta):
     def __init__(self) -> None:
         pass
 
+    def __repr__(self) -> str:
+        return "<Storage: {}>".format(type(self).__name__)
+
     def get_env_runner(self, flow_location: str) -> Any:
         """
         Given a `flow_location` within this Storage object, returns something with a
