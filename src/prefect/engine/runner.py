@@ -102,9 +102,7 @@ class Runner:
         self.logger = logging.get_logger(type(self).__name__)
 
     def __repr__(self) -> str:
-        return "<{}: {}>".format(
-            type(self).__name__, type(self.state_handlers).__name__
-        )
+        return "<{}: iterable>".format(type(self).__name__)
 
     def _heartbeat(self) -> None:
         pass

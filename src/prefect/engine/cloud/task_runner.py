@@ -48,9 +48,6 @@ class CloudTaskRunner(TaskRunner):
             task=task, state_handlers=state_handlers, result_handler=result_handler
         )
 
-    def __repr__(self) -> str:
-        return "<{}: {}>".format(type(self).__name__, self.task.name)
-
     def _heartbeat(self) -> None:
         try:
             task_run_id = self.task_run_id  # type: ignore
