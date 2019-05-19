@@ -38,7 +38,7 @@ class Environment:
         pass
 
     def __repr__(self) -> str:
-        return "<{}: {}>".format(type(self).__name__, type(self).__name__)
+        return "<Environment: {}>".format(type(self).__name__)
 
     def setup(self, storage: "Storage") -> None:
         """
