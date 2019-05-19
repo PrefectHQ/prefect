@@ -181,7 +181,7 @@ def test_cache_validator_never_use():
     ],
 )
 @pytest.mark.parametrize("validate_on", [["x"], ["longer"], ["x", "y"]])
-def test_stateful_trigger(validator, validate_on):
+def test_stateful_validators(validator, validate_on):
     with pytest.warns(UserWarning):
         t = Task(cache_validator=validator(validate_on))
     serialized = TaskSchema().dump(t)
