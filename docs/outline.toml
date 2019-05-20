@@ -221,6 +221,11 @@ title = "Notification Tasks"
 module = "prefect.tasks.notifications"
 classes = ["EmailTask", "SlackTask"]
 
+[pages.tasks.postgres]
+title = "Postgres Tasks"
+module = "prefect.tasks.postgres"
+classes = ["ExecuteTask", "FetchTask"]
+
 [pages.tasks.rss]
 title = "RSS Tasks"
 module = "prefect.tasks.rss"
