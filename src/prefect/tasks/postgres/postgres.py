@@ -9,10 +9,10 @@ class ExecuteTask(Task):
         Task for executing a query against a Postgres database.
 
         Args:
-            - db_name (str):
-            - user (str):
-            - password (str):
-            - host (str):
+            - db_name (str): name of Postgres database
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate
+            - host (str): database host address
             - port (int, optional): port used to connect to Postgres database, defaults to 5432 if not provided
             - query (str, optional): query to execute against database
             - data (tuple, optional): values to use in query, must be specified using placeholder is query string
@@ -93,10 +93,10 @@ class FetchTask(Task):
         Task for fetching results of query from Postgres database.
 
         Args:
-            - db_name (str):
-            - user (str):
-            - password (str):
-            - host (str):
+            - db_name (str): name of Postgres database
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate
+            - host (str): database host address
             - port (int, optional): port used to connect to Postgres database, defaults to 5432 if not provided
             - fetch (str, optional): one | many | all, used to determine how many results to fetch from executed query
             - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
