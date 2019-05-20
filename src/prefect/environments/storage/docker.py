@@ -40,6 +40,7 @@ class Docker(Storage):
         - prefect_version (str, optional): an optional branch, tag, or commit specifying the version of prefect
             you want installed into the container; defaults to the version you are currently using or `"master"` if your version is ahead of
             the latest tag
+        - local_image(bool, optional): an optional flag whether or not to use a local docker image, if True then a pull will not be attempted
     """
 
     def __init__(
@@ -53,6 +54,7 @@ class Docker(Storage):
         files: dict = None,
         base_url: str = "unix://var/run/docker.sock",
         prefect_version: str = None,
+        local_image: bool = False,
     ) -> None:
         self.registry_url = registry_url
 
@@ -72,6 +74,7 @@ class Docker(Storage):
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
         self.base_url = base_url
+        self.local_image = local_image
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
@@ -214,7 +217,7 @@ class Docker(Storage):
         with tempfile.TemporaryDirectory() as tempdir:
 
             # Build the dockerfile
-            if self.base_image:
+            if self.base_image and not self.local_image:
                 self.pull_image()
 
             self.create_dockerfile_object(directory=tempdir)
