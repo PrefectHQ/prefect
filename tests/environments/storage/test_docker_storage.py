@@ -44,6 +44,7 @@ def test_empty_docker_storage():
     assert not storage.files
     assert storage.prefect_version
     assert storage.base_url == "unix://var/run/docker.sock"
+    assert not storage.local_image
 
 
 @pytest.mark.parametrize("version_info", [(3, 5), (3, 6), (3, 7)])
@@ -78,6 +79,7 @@ def test_initialized_docker_storage():
         env_vars={"test": "1"},
         base_url="test_url",
         prefect_version="my-branch",
+        local_image=True,
     )
 
     assert storage.registry_url == "test1"
@@ -88,6 +90,7 @@ def test_initialized_docker_storage():
     assert storage.env_vars == {"test": "1"}
     assert storage.base_url == "test_url"
     assert storage.prefect_version == "my-branch"
+    assert storage.local_image
 
 
 def test_files_not_absolute_path():

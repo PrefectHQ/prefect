@@ -54,7 +54,7 @@ class Docker(Storage):
         files: dict = None,
         base_url: str = "unix://var/run/docker.sock",
         prefect_version: str = None,
-        local_image: bool = False
+        local_image: bool = False,
     ) -> None:
         self.registry_url = registry_url
 
