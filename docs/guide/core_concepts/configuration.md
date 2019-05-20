@@ -22,13 +22,10 @@ Prefect will do its best to detect the type of your environment variable and cas
 
 ## User configuration
 
-In addition to environment variables, users can provide a custom configuration file. Any values in the custom configuration will be loaded *on top* of the default values, meaning the user configuration only needs to contain values you want to change.
+In addition to environment variables, users can provide a custom configuration file. Any values in the custom configuration will be loaded *on top* of the default values, but prior to interpolation, meaning the user configuration only needs to contain values you want to change.
 
-Prefect will look for the user configuration at a location specified by `prefect.config.user_config_path`. By default, this is `$HOME/.prefect/config.toml`.
+By default, Prefect will look for a user configuration file at `$HOME/.prefect/config.toml`, but you can change that location by setting the environment variable `PREFECT__USER_CONFIG_PATH` appropriately. Please note the double-underscore (`__`) in the variable name; this ensures that it will be available at runtime as `prefect.config.user_config_path`.
 
-::: tip Changing the user config location
-Since you shouldn't change the default settings directly, if you want to change the configuration location, set an environment variable `PREFECT__USER_CONFIG_PATH` appropriately.
-:::
 
 ### Configuration precedence
 

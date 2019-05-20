@@ -9,6 +9,7 @@ import toml
 from prefect.utilities import collections
 
 DEFAULT_CONFIG = os.path.join(os.path.dirname(__file__), "config.toml")
+USER_CONFIG = os.getenv("PREFECT__USER_CONFIG_PATH", "~/.prefect/config.toml")
 ENV_VAR_PREFIX = "PREFECT"
 INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 
@@ -165,7 +166,7 @@ def string_to_type(val: str) -> Union[bool, int, float, str]:
     return val
 
 
-def interpolate_env_var(env_var: str) -> Optional[Union[bool, int, float, str]]:
+def interpolate_env_vars(env_var: str) -> Optional[Union[bool, int, float, str]]:
     """
     Expands (potentially nested) env vars by repeatedly applying
     `expandvars` and `expanduser` until interpolation stops having
@@ -196,7 +197,7 @@ def create_user_config(dest_path: str, source_path: str = DEFAULT_CONFIG) -> Non
     """
     Copies the default configuration to a user-customizable file at `dest_path`
     """
-    dest_path = cast(str, interpolate_env_var(dest_path))
+    dest_path = cast(str, interpolate_env_vars(dest_path))
     if os.path.isfile(dest_path):
         raise ValueError("File already exists: {}".format(dest_path))
     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
@@ -252,17 +253,20 @@ def validate_config(config: Config) -> None:
 # Load configuration ----------------------------------------------------------
 
 
-def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) -> Config:
+def load_toml(path: str) -> dict:
     """
-    Loads a configuration file from a path, optionally merging it into an existing
-    configuration.
+    Loads a config dictionary from TOML
     """
-
-    # load the configuration file
-    config = {
+    return {
         key.lower(): value
-        for key, value in toml.load(cast(str, interpolate_env_var(path))).items()
+        for key, value in toml.load(cast(str, interpolate_env_vars(path))).items()
     }
+
+
+def interpolate_config(config: dict, env_var_prefix: str = None) -> Config:
+    """
+    Processes a config dictionary, such as the one loaded from `load_toml`.
+    """
 
     # toml supports nested dicts, so we work with a flattened representation to do any
     # requested interpolation
@@ -273,10 +277,9 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
     #     [ENV_VAR_PREFIX]__[Section]__[Optional Sub-Sections...]__[Key] = Value
     # and if it does, add it to the config file.
 
-    env = cast(dict, env or os.environ)
     if env_var_prefix:
 
-        for env_var in env:
+        for env_var, env_var_value in os.environ.items():
             if env_var.startswith(env_var_prefix + "__"):
 
                 # strip the prefix off the env var
@@ -289,19 +292,19 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
                 # env vars with escaped characters are interpreted as literal "\", which
                 # Python helpfully escapes with a second "\". This step makes sure that
                 # escaped characters are properly interpreted.
-                value = cast(str, env.get(env_var)).encode().decode("unicode_escape")
+                value = cast(str, env_var_value.encode().decode("unicode_escape"))
 
                 # place the env var in the flat config as a compound key
                 config_option = collections.CompoundKey(
                     env_var_option.lower().split("__")
                 )
                 flat_config[config_option] = string_to_type(
-                    cast(str, interpolate_env_var(value))
+                    cast(str, interpolate_env_vars(value))
                 )
 
     # interpolate any env vars referenced
     for k, v in list(flat_config.items()):
-        flat_config[k] = interpolate_env_var(v)
+        flat_config[k] = interpolate_env_vars(v)
 
     # --------------------- Interpolate other config keys -----------------
     # TOML doesn't support references to other keys... but we do!
@@ -349,43 +352,40 @@ def load_config_file(path: str, env_var_prefix: str = None, env: dict = None) ->
 
 
 def load_configuration(
-    config_path: str,
-    env_var_prefix: str = None,
-    merge_into_config: Config = None,
-    env: dict = None,
+    path: str, user_config_path: str = None, env_var_prefix: str = None
 ) -> Config:
     """
-    Given a `config_path` with a toml configuration file, returns a Config object.
+    Loads a configuration from a known location.
 
     Args:
-        - config_path (str): the path to the toml configuration file
-        - env_var_prefix (str): if provided, environment variables starting with this prefix
-            will be added as configuration settings.
-        - merge_into_config (Config): if provided, the configuration loaded from
-            `config_path` will be merged into a copy of this configuration file. The merged
-            Config is returned.
+        - path (str): the path to the TOML configuration file
+        - user_config_path (str): an optional path to a user config file. If a user config
+            is provided, it will be used to update the main config prior to interpolation
+        - env_var_prefix (str): any env vars matching this prefix will be used to create
+            configuration values
+
+    Returns:
+        - Config
     """
 
     # load default config
-    config = load_config_file(config_path, env_var_prefix=env_var_prefix or "", env=env)
+    default_config = load_toml(path)
 
-    if merge_into_config is not None:
-        config = cast(Config, collections.merge_dicts(merge_into_config, config))
+    # load user config
+    if user_config_path and os.path.isfile(str(interpolate_env_vars(user_config_path))):
+        user_config = load_toml(user_config_path)
+        # merge user config into default config
+        default_config = cast(
+            dict, collections.merge_dicts(default_config, user_config)
+        )
 
+    # interpolate after user config has already been merged
+    config = interpolate_config(default_config, env_var_prefix=env_var_prefix)
+    config = process_task_defaults(config)
     validate_config(config)
-
     return config
 
 
-config = load_configuration(config_path=DEFAULT_CONFIG, env_var_prefix=ENV_VAR_PREFIX)
-
-# if user config exists, load and merge it with default config
-user_config_path = config.get("user_config_path", None)
-if user_config_path and os.path.isfile(user_config_path):
-    config = load_configuration(
-        config_path=user_config_path,
-        env_var_prefix=ENV_VAR_PREFIX,
-        merge_into_config=config,
-    )
-
-config = process_task_defaults(config)
+config = load_configuration(
+    path=DEFAULT_CONFIG, user_config_path=USER_CONFIG, env_var_prefix=ENV_VAR_PREFIX
+)

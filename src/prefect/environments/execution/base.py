@@ -37,6 +37,9 @@ class Environment:
     def __init__(self) -> None:
         pass
 
+    def __repr__(self) -> str:
+        return "<Environment: {}>".format(type(self).__name__)
+
     def setup(self, storage: "Storage") -> None:
         """
         Sets up any infrastructure needed for this environment
