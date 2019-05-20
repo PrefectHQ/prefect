@@ -158,7 +158,8 @@ def test_slack_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
     monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
     new_state = Failed(message="1", result=0)
     with set_temporary_config({"cloud.use_local_secrets": True}):
-        assert slack_notifier(Task(), "", new_state) is new_state
+        with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="")):
+            assert slack_notifier(Task(), "", new_state) is new_state
 
 
 def test_slack_notifier_ignores_ignore_states(monkeypatch):
@@ -179,7 +180,8 @@ def test_slack_notifier_ignores_ignore_states(monkeypatch):
     for state in all_states:
         s = state()
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            returned = slack_notifier(Task(), "", s, ignore_states=[State])
+            with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="")):
+                returned = slack_notifier(Task(), "", s, ignore_states=[State])
         assert returned is s
         assert ok.called is False
 
@@ -205,7 +207,8 @@ def test_slack_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state)
     monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
     handler = slack_notifier(ignore_states=[Finished])
     with set_temporary_config({"cloud.use_local_secrets": True}):
-        returned = handler(Task(), "", state)
+        with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="")):
+            returned = handler(Task(), "", state)
     assert returned is state
     assert ok.called is not state.is_finished()
 
@@ -231,7 +234,8 @@ def test_slack_notifier_is_curried_and_uses_only_states(monkeypatch, state):
     monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
     handler = slack_notifier(only_states=[TriggerFailed])
     with set_temporary_config({"cloud.use_local_secrets": True}):
-        returned = handler(Task(), "", state)
+        with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="")):
+            returned = handler(Task(), "", state)
     assert returned is state
     assert ok.called is isinstance(state, TriggerFailed)
 
@@ -277,9 +281,10 @@ def test_gmail_notifier_is_curried_and_uses_only_states(monkeypatch, state):
     sendmail = MagicMock()
     smtp.SMTP_SSL.return_value.sendmail = sendmail
     monkeypatch.setattr(prefect.utilities.notifications, "smtplib", smtp)
-    monkeypatch.setattr(prefect.config.cloud, "use_local_secrets", True)
-    handler = gmail_notifier(only_states=[TriggerFailed])
-    returned = handler(Task(), "", state)
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(EMAIL_USERNAME="", EMAIL_PASSWORD="")):
+            handler = gmail_notifier(only_states=[TriggerFailed])
+            returned = handler(Task(), "", state)
     assert returned is state
     assert sendmail.called is isinstance(state, TriggerFailed)
 
@@ -300,10 +305,11 @@ def test_gmail_notifier_ignores_ignore_states(monkeypatch):
     smtp = MagicMock()
     sendmail = MagicMock()
     smtp.SMTP_SSL.return_value.sendmail = sendmail
-    monkeypatch.setattr(prefect.config.cloud, "use_local_secrets", True)
     monkeypatch.setattr(prefect.utilities.notifications, "smtplib", smtp)
     for state in all_states:
         s = state()
-        returned = gmail_notifier(Task(), "", s, ignore_states=[State])
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(EMAIL_USERNAME="", EMAIL_PASSWORD="")):
+                returned = gmail_notifier(Task(), "", s, ignore_states=[State])
         assert returned is s
         assert sendmail.called is False

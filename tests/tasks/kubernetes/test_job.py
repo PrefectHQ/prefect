@@ -14,6 +14,13 @@ from prefect.tasks.kubernetes import (
 from prefect.utilities.configuration import set_temporary_config
 
 
+@pytest.fixture(autouse=True)
+def kube_secret():
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
+            yield
+
+
 class TestCreateNamespacedJobTask:
     def test_empty_initialization(self):
         task = CreateNamespacedJob()
@@ -49,14 +56,14 @@ class TestCreateNamespacedJobTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.job.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.job.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_body_value_is_replaced(self, monkeypatch):
         task = CreateNamespacedJob(body={"test": "a"})
@@ -189,14 +196,14 @@ class TestDeleteNamespacedJobTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.job.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.job.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_kube_kwargs_value_is_replaced(self, monkeypatch):
         task = DeleteNamespacedJob(job_name="test", kube_kwargs={"test": "a"})
@@ -267,14 +274,14 @@ class TestListNamespacedJobTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.job.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.job.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_kube_kwargs_value_is_replaced(self, monkeypatch):
         task = ListNamespacedJob(kube_kwargs={"test": "a"})
@@ -366,14 +373,14 @@ class TestPatchNamespacedJobTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.job.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.job.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_body_value_is_replaced(self, monkeypatch):
         task = PatchNamespacedJob(body={"test": "a"}, job_name="test")
@@ -509,14 +516,14 @@ class TestReadNamespacedJobTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.job.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.job.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_kube_kwargs_value_is_replaced(self, monkeypatch):
         task = ReadNamespacedJob(job_name="test", kube_kwargs={"test": "a"})
@@ -608,14 +615,14 @@ class TestReplaceNamespacedJobTask:
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.job.client", client)
 
+        api_key = {}
         conf_call = MagicMock()
+        conf_call.return_value.api_key = api_key
         monkeypatch.setattr(
             "prefect.tasks.kubernetes.job.client.Configuration", conf_call
         )
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
-                task.run()
-        assert conf_call.called
+        task.run()
+        assert api_key == {"authorization": "test_key"}
 
     def test_body_value_is_replaced(self, monkeypatch):
         task = ReplaceNamespacedJob(body={"test": "a"}, job_name="test")

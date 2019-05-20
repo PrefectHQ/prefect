@@ -1,13 +1,10 @@
-# the location of the user's config file
-user_config_path = "$HOME/.prefect/config.toml"
-
 # debug mode
 debug = false
 
 
 [cloud]
 # the Prefect Server address
-api = "http://api-staging.prefect.io"
+api = "https://api.prefect.io"
 graphql = "${cloud.api}/graphql/alpha"
 log = "${cloud.api}/log"
 result_handler = "${cloud.api}/result-handler"
