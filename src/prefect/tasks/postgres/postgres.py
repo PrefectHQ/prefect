@@ -12,7 +12,7 @@ class ExecuteTask(Task):
             - db_name (str):
             - user (str):
             - password (str):
-            - db_host (str):
+            - host (str):
             - port (int, optional): port used to connect to Postgres database, defaults to 5432 if not provided
             - query (str, optional): query to execute against database
             - data (tuple, optional): values to use in query, must be specified using placeholder is query string
@@ -96,8 +96,10 @@ class FetchTask(Task):
             - db_name (str):
             - user (str):
             - password (str):
-            - db_host (str):
+            - host (str):
             - port (int, optional): port used to connect to Postgres database, defaults to 5432 if not provided
+            - fetch (str, optional): one | many | all, used to determine how many results to fetch from executed query
+            - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
             - query (str, optional): query to execute against database
             - data (tuple, optional): values to use in query, must be specified using placeholder is query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
@@ -149,6 +151,7 @@ class FetchTask(Task):
             - query (str, optional): query to execute against database
             - data (tuple, optional): values to use in query, must be specified using placeholder is query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
+
         Returns:
             - records (tuple or list of tuples): records from provided query
         """
