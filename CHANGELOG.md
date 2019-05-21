@@ -24,6 +24,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add task for creating new branches in a GitHub repository - [#1011](https://github.com/PrefectHQ/prefect/pull/1011)
 - Add tasks to create, delete, invoke, and list AWS Lambda functions [#1009](https://github.com/PrefectHQ/prefect/issues/1009)
 - Add tasks for integration with spaCy pipelines [#1018](https://github.com/PrefectHQ/prefect/issues/1018)
+- Add task for waiting on a Docker container to run and optionally raising for nonzero exit code - [#1061](https://github.com/PrefectHQ/prefect/pull/1061)
 
 ### Fixes
 
