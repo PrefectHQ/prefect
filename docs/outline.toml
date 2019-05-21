@@ -224,7 +224,7 @@ classes = ["EmailTask", "SlackTask"]
 [pages.tasks.postgres]
 title = "Postgres Tasks"
 module = "prefect.tasks.postgres"
-classes = ["ExecuteTask", "FetchTask"]
+classes = ["PostgresExecute", "PostgresFetch"]
 
 [pages.tasks.rss]
 title = "RSS Tasks"

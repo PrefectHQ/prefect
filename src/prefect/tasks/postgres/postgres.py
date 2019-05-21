@@ -4,7 +4,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 import psycopg2 as pg
 
 
-class ExecuteTask(Task):
+class PostgresExecute(Task):
     """
         Task for executing a query against a Postgres database.
 
@@ -88,7 +88,7 @@ class ExecuteTask(Task):
             raise error
 
 
-class FetchTask(Task):
+class PostgresFetch(Task):
     """
         Task for fetching results of query from Postgres database.
 
