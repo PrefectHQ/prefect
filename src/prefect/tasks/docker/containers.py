@@ -149,7 +149,7 @@ class GetContainerLogs(Task):
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        return client.logs(container=container_id)
+        return client.logs(container=container_id).decode()
 
 
 class ListContainers(Task):
@@ -365,6 +365,8 @@ class WaitOnContainer(Task):
         if raise_on_exit_code and (
             (result.get("Error") is not None) or result.get("StatusCode")
         ):
+            logs = client.logs(container_id)
+            self.logger.error(logs.decode())
             raise FAIL(
                 "{id} failed with exit code {code}: {msg}".format(
                     id=container_id,
