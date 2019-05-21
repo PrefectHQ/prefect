@@ -204,6 +204,11 @@ def IntervalSchedule(
         - TypeError: if start_date is not a datetime
         - ValueError: if provided interval is less than one minute
     """
+    warnings.warn(
+        "The IntervalSchedule is deprecated and will be removed from "
+        "Prefect. Use an IntervalClock instead.",
+        DeprecationWarning,
+    )
     return Schedule(
         clocks=[
             prefect.schedules.clocks.IntervalClock(
@@ -238,6 +243,11 @@ def CronSchedule(
         - ValueError: if the cron string is invalid
     """
 
+    warnings.warn(
+        "The CronSchedule is deprecated and will be removed from "
+        "Prefect. Use a CronClock instead.",
+        DeprecationWarning,
+    )
     return Schedule(
         clocks=[
             prefect.schedules.clocks.CronClock(
