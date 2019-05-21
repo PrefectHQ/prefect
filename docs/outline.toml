@@ -208,7 +208,8 @@ classes = [
         "GetContainerLogs",
         "ListContainers",
         "StartContainer",
-        "StopContainer"
+        "StopContainer",
+        "WaitOnContainer"
         ]
 
 [pages.tasks.google]
