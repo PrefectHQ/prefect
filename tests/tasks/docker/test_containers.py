@@ -297,7 +297,7 @@ class TestWaitOnContainerTask:
         api.return_value.wait.return_value = {}
 
         task.run()
-        assert api.return_value.stop.call_args[1]["container"] == "test"
+        assert api.return_value.wait.call_args[1]["container"] == "test"
 
     def test_container_id_run_value_is_used(self, monkeypatch):
         task = WaitOnContainer(container_id="init")
@@ -307,7 +307,7 @@ class TestWaitOnContainerTask:
         api.return_value.wait.return_value = {}
 
         task.run(container_id="test")
-        assert api.return_value.stop.call_args[1]["container"] == "test"
+        assert api.return_value.wait.call_args[1]["container"] == "test"
 
     def test_raises_for_nonzero_status(self, monkeypatch):
         task = WaitOnContainer(container_id="noise")
