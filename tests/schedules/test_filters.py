@@ -37,7 +37,7 @@ def test_between(test_dates):
         ((11, 1, 7, 1), True),
     ],
 )
-def test_between_dates_same_year(test_dates):
+def test_between_dates(test_dates):
     dt = pendulum.datetime(2019, 6, 1)
     filter_fn = filters.between_dates(*test_dates[0])
     assert filter_fn(dt) is test_dates[1]
