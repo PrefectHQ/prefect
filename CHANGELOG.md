@@ -31,6 +31,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Ensure that state change handlers are called even when unexpected initialization errors occur - [#1015](https://github.com/PrefectHQ/prefect/pull/1015)
 - Fix an issue where a mypy assert relied on an unavailable import - [#1034](https://github.com/PrefectHQ/prefect/pull/1034)
 - Fix an issue where user configurations were loaded after config interpolation had already taken place - [#1037](https://github.com/PrefectHQ/prefect/pull/1037)
+- Fix an issue with saving a flow visualization to a file from a notebook - [#1056](https://github.com/PrefectHQ/prefect/pull/1056)
 
 ### Breaking Changes
 
@@ -41,6 +42,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - [Zach Angell](https://github.com/zangell44)
 - [Nanda H Krishna](https://nandahkrishna.me)
+- [Brett Naul](https://github.com/bnaul)
 
 ## 0.5.3 <Badge text="beta" type="success"/>
 
