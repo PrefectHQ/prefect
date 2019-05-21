@@ -294,6 +294,7 @@ class TestWaitOnContainerTask:
 
         api = MagicMock()
         monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        api.return_value.wait.return_value = {}
 
         task.run()
         assert api.return_value.stop.call_args[1]["container"] == "test"
@@ -303,6 +304,7 @@ class TestWaitOnContainerTask:
 
         api = MagicMock()
         monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        api.return_value.wait.return_value = {}
 
         task.run(container_id="test")
         assert api.return_value.stop.call_args[1]["container"] == "test"
