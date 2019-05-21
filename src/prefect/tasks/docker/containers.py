@@ -365,8 +365,11 @@ class WaitOnContainer(Task):
         if raise_on_exit_code and (
             (result.get("Error") is not None) or result.get("StatusCode")
         ):
-            logs = client.logs(container_id)
-            self.logger.error(logs.decode())
+            try:
+                logs = client.logs(container_id)
+                self.logger.error(logs.decode())
+            except Exception as exc:
+                self.logger.error(exc)
             raise FAIL(
                 "{id} failed with exit code {code}: {msg}".format(
                     id=container_id,
