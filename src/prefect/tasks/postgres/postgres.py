@@ -56,6 +56,10 @@ class PostgresExecute(Task):
 
         Returns:
             - None
+
+        Raises:
+            - ValueError: if query parameter is None or a blank string
+            - DatabaseError: if exception occurs when executing the query
         """
         if not query:
             raise ValueError("A query string must be provided")
@@ -154,6 +158,10 @@ class PostgresFetch(Task):
 
         Returns:
             - records (tuple or list of tuples): records from provided query
+
+        Raises:
+            - ValueError: if query parameter is None or a blank string
+            - DatabaseError: if exception occurs when executing the query
         """
         if not query:
             raise ValueError("A query string must be provided")
