@@ -27,14 +27,42 @@ title = "Secrets"
 module = "prefect.client"
 classes = ["Secret"]
 
-[pages.schedules]
+[pages.schedules.schedules]
 title = "Schedules"
-module = "prefect.schedules"
+module = "prefect.schedules.schedules"
 classes = [
             "Schedule",
             "IntervalSchedule",
             "CronSchedule",
-            "UnionSchedule",
+        ]
+
+[pages.schedules.clocks]
+title = "Clocks"
+module = "prefect.schedules.clocks"
+functions = [
+            "Clock",
+            "IntervalClock",
+            "CronClock",
+            "DatesClock",
+        ]
+
+[pages.schedules.filters]
+title = "Filters"
+module = "prefect.schedules.filters"
+functions = [
+            "between",
+            "between_dates",
+            "between_times",
+            "is_weekday",
+            "is_weekend",
+        ]
+
+[pages.schedules.adjustments]
+title = "Adjustments"
+module = "prefect.schedules.adjustments"
+functions = [
+            "add",
+            "next_weekday",
         ]
 
 [pages.core.edge]
