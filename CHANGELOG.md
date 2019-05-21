@@ -8,6 +8,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add new `UnionSchedule` for combining multiple schedules, allowing for complex schedule specifications - [#428](https://github.com/PrefectHQ/prefect/issues/428)
 - Allow for Cloud users to securely pull Docker images from private registries - [#1028](https://github.com/PrefectHQ/prefect/pull/1028)
+- Add the Prefect CLI for working with core objects both locally and in cloud - [#1059](https://github.com/PrefectHQ/prefect/pull/1059)
 
 ### Enhancements
 
@@ -36,6 +37,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Changed the signature of `configuration.load_configuration()` - [#1037](https://github.com/PrefectHQ/prefect/pull/1037)
 - Local Secrets now raise `ValueError`s when not found in context - [#1047](https://github.com/PrefectHQ/prefect/pull/1047)
+- The CLI command `prefect execute-flow` and `prefect execute-cloud-flow` no longer exist - [#1059](https://github.com/PrefectHQ/prefect/pull/1059)
 
 ### Contributors
 
