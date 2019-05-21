@@ -232,17 +232,14 @@ class TestStatefulFunctionReferenceField:
 
     def test_serialize_outer_no_state(self):
         serialized = self.Schema().dump(dict(f=outer))
-        assert serialized["f"] == "tests.utilities.test_serialization.outer()"
+        assert serialized["f"]["fn"] == "tests.utilities.test_serialization.outer"
+        assert not serialized["f"]["kwargs"]
 
     def test_serialize_outer_with_state(self):
         """Have to account for order because of Python 3.5"""
         serialized = self.Schema().dump(dict(f=outer(x=1, y=2, z=99)))
-        endings = list(itertools.permutations(["x=1", "y=2", "z=99"]))
-        valid = [
-            "tests.utilities.test_serialization.outer(" + ", ".join(sig) + ")"
-            for sig in endings
-        ]
-        assert serialized["f"] in valid
+        assert serialized["f"]["fn"] == "tests.utilities.test_serialization.outer"
+        assert serialized["f"]["kwargs"] == {"x": 1, "y": 2, "z": 99}
 
     def test_serialize_invalid_fn(self):
         with pytest.raises(marshmallow.ValidationError):
@@ -251,8 +248,10 @@ class TestStatefulFunctionReferenceField:
     def test_serialize_invalid_fn_without_validation(self):
         serialized = self.Schema().dump(dict(f_allow_invalid=fn2))
         assert (
-            serialized["f_allow_invalid"] == "tests.utilities.test_serialization.fn2()"
+            serialized["f_allow_invalid"]["fn"]
+            == "tests.utilities.test_serialization.fn2"
         )
+        assert not serialized["f_allow_invalid"]["kwargs"]
 
     def test_deserialize_outer_no_state(self):
         deserialized = self.Schema().load(self.Schema().dump(dict(f=outer)))
@@ -262,15 +261,15 @@ class TestStatefulFunctionReferenceField:
         deserialized = self.Schema().load(
             self.Schema().dump(dict(f=outer(x=1, y=2, z=99)))
         )
-        assert deserialized["f"] is outer
+        assert deserialized["f"](100) == outer(x=1, y=2, z=99)(100)
 
     def test_deserialize_invalid_fn(self):
         with pytest.raises(marshmallow.ValidationError):
-            self.Schema().load({"f": "hello"})
+            self.Schema().load({"f": {"fn": "hello"}})
 
     def test_deserialize_invalid_fn_without_validation(self):
         deserialized = self.Schema().load(
-            dict(f_allow_invalid="tests.utilities.test_serialization.fn2")
+            dict(f_allow_invalid=dict(fn="tests.utilities.test_serialization.fn2"))
         )
         assert deserialized["f_allow_invalid"] is None
 
