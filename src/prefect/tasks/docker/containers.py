@@ -312,7 +312,7 @@ class WaitOnContainer(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - raise_for_exit_code (bool, optional): whether to raise a `FAIL` signal for a nonzero exit code;
+        - raise_on_exit_code (bool, optional): whether to raise a `FAIL` signal for a nonzero exit code;
             defaults to `True`
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task
             constructor
@@ -322,21 +322,21 @@ class WaitOnContainer(Task):
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        raise_for_exit_code: bool = True,
+        raise_on_exit_code: bool = True,
         **kwargs: Any
     ):
         self.container_id = container_id
         self.docker_server_url = docker_server_url
-        self.raise_for_exit_code = raise_for_exit_code
+        self.raise_on_exit_code = raise_on_exit_code
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("container_id", "docker_server_url", "raise_for_exit_code")
+    @defaults_from_attrs("container_id", "docker_server_url", "raise_on_exit_code")
     def run(
         self,
         container_id: str = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
-        raise_for_exit_code: bool = True,
+        raise_on_exit_code: bool = True,
     ) -> None:
         """
         Task run method.
@@ -346,7 +346,7 @@ class WaitOnContainer(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - raise_for_exit_code (bool, optional): whether to raise a `FAIL` signal for a nonzero exit code;
+            - raise_on_exit_code (bool, optional): whether to raise a `FAIL` signal for a nonzero exit code;
                 defaults to `True`
 
         Returns:
@@ -354,7 +354,7 @@ class WaitOnContainer(Task):
 
         Raises:
             - ValueError: if `container_id` is `None`
-            - FAIL: if `raise_for_exit_code` is `True` and the container exits with a nonzero exit code
+            - FAIL: if `raise_on_exit_code` is `True` and the container exits with a nonzero exit code
         """
         if not container_id:
             raise ValueError("A container id must be provided.")
@@ -362,7 +362,7 @@ class WaitOnContainer(Task):
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         result = client.wait(container=container_id)
-        if raise_for_exit_code and (
+        if raise_on_exit_code and (
             (result.get("Error") is not None) or result.get("StatusCode")
         ):
             raise FAIL(
