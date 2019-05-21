@@ -2,12 +2,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from prefect.engine.signals import FAIL
 from prefect.tasks.docker import (
     CreateContainer,
     GetContainerLogs,
     ListContainers,
     StartContainer,
     StopContainer,
+    WaitOnContainer,
 )
 
 
@@ -260,3 +262,78 @@ class TestStopContainerTask:
 
         task.run(container_id="test")
         assert api.return_value.stop.call_args[1]["container"] == "test"
+
+
+class TestWaitOnContainerTask:
+    def test_empty_initialization(self):
+        task = WaitOnContainer()
+        assert not task.container_id
+        assert task.docker_server_url == "unix:///var/run/docker.sock"
+        assert task.raise_on_exit_code is True
+
+    def test_filled_initialization(self):
+        task = WaitOnContainer(
+            container_id="test", docker_server_url="test", raise_on_exit_code=False
+        )
+        assert task.container_id == "test"
+        assert task.docker_server_url == "test"
+        assert task.raise_on_exit_code is False
+
+    def test_empty_container_id_raises_error(self):
+        task = WaitOnContainer()
+        with pytest.raises(ValueError):
+            task.run()
+
+    def test_invalid_container_id_raises_error(self):
+        task = WaitOnContainer()
+        with pytest.raises(ValueError):
+            task.run(container_id=None)
+
+    def test_container_id_init_value_is_used(self, monkeypatch):
+        task = WaitOnContainer(container_id="test")
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        api.return_value.wait.return_value = {}
+
+        task.run()
+        assert api.return_value.wait.call_args[1]["container"] == "test"
+
+    def test_container_id_run_value_is_used(self, monkeypatch):
+        task = WaitOnContainer(container_id="init")
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        api.return_value.wait.return_value = {}
+
+        task.run(container_id="test")
+        assert api.return_value.wait.call_args[1]["container"] == "test"
+
+    def test_raises_for_nonzero_status(self, monkeypatch):
+        task = WaitOnContainer(container_id="noise")
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        api.return_value.wait.return_value = {"StatusCode": 1}
+
+        with pytest.raises(FAIL):
+            task.run()
+
+    def test_raises_for_error(self, monkeypatch):
+        task = WaitOnContainer(container_id="noise")
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        api.return_value.wait.return_value = {"Error": "oops!"}
+
+        with pytest.raises(FAIL):
+            task.run()
+
+    def test_doesnt_raise_for_nonzero_status(self, monkeypatch):
+        task = WaitOnContainer(container_id="noise", raise_on_exit_code=False)
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        api.return_value.wait.return_value = {"StatusCode": 1, "Error": "oops!"}
+
+        task.run()
