@@ -1090,23 +1090,20 @@ class Flow:
                     style=style,
                 )
 
-        try:
-            from IPython import get_ipython
-
-            if get_ipython().config.get("IPKernelApp") is not None:
-                return graph
-        except Exception:
-            pass
-
         if filename:
             graph.render(filename, view=False)
         else:
-            with tempfile.NamedTemporaryFile(delete=False) as tmp:
-                tmp.close()
-                try:
-                    graph.render(tmp.name, view=True)
-                finally:
-                    os.unlink(tmp.name)
+            try:
+                from IPython import get_ipython
+
+                assert get_ipython().config.get("IPKernelApp") is not None
+            except Exception:
+                with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                    tmp.close()
+                    try:
+                        graph.render(tmp.name, view=True)
+                    finally:
+                        os.unlink(tmp.name)
 
         return graph
 
