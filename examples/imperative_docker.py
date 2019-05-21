@@ -10,7 +10,7 @@ from prefect.triggers import always_run
 
 container = CreateContainer(
     image_name="prefecthq/prefect",
-    command='''python -c "from prefect import Flow; f = Flow('empty'); f.run()"''',
+    command='''python -c "from prefect import Flow; f = Flow("empty"); f.run()"''',
 )
 start = StartContainer()
 logs = GetContainerLogs(trigger=always_run)
@@ -32,4 +32,4 @@ flow_state = flow.run()
 print("=" * 30)
 print("Container Logs")
 print("=" * 30)
-print(flow_state.result[logs].result.decode())
+print(flow_state.result[logs].result)
