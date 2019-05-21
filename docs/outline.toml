@@ -6,16 +6,16 @@ extension = ".md"
 title = "Triggers"
 module = "prefect.triggers"
 functions = [
-            "all_finished",
-            "manual_only",
-            "always_run",
-            "all_successful",
-            "all_failed",
-            "any_successful",
-            "any_failed",
-            "some_failed",
-            "some_successful",
-        ]
+    "all_finished",
+    "manual_only",
+    "always_run",
+    "all_successful",
+    "all_failed",
+    "any_successful",
+    "any_failed",
+    "some_failed",
+    "some_successful",
+]
 
 [pages.client.client]
 title = "Client"
@@ -31,39 +31,41 @@ classes = ["Secret"]
 title = "Schedules"
 module = "prefect.schedules.schedules"
 classes = [
-            "Schedule",
-            "IntervalSchedule",
-            "CronSchedule",
-        ]
+    "Schedule",
+]
+functions = [
+    "IntervalSchedule",
+    "CronSchedule",
+]
 
 [pages.schedules.clocks]
 title = "Clocks"
 module = "prefect.schedules.clocks"
-functions = [
-            "Clock",
-            "IntervalClock",
-            "CronClock",
-            "DatesClock",
-        ]
+classes = [
+    "Clock",
+    "IntervalClock",
+    "CronClock",
+    "DatesClock",
+]
 
 [pages.schedules.filters]
 title = "Filters"
 module = "prefect.schedules.filters"
 functions = [
-            "between",
-            "between_dates",
-            "between_times",
-            "is_weekday",
-            "is_weekend",
-        ]
+    "between",
+    "between_dates",
+    "between_times",
+    "is_weekday",
+    "is_weekend",
+]
 
 [pages.schedules.adjustments]
 title = "Adjustments"
 module = "prefect.schedules.adjustments"
 functions = [
-            "add",
-            "next_weekday",
-        ]
+    "add",
+    "next_weekday",
+]
 
 [pages.core.edge]
 title = "Edge"
