@@ -28,7 +28,7 @@ class PostgresExecute(Task):
         password: str,
         host: str,
         port: int = 5432,
-        query: str = "",
+        query: str = None,
         data: tuple = None,
         commit: bool = False,
         **kwargs
@@ -44,7 +44,7 @@ class PostgresExecute(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("query", "data", "commit")
-    def run(self, query: str = "", data: tuple = None, commit: bool = False):
+    def run(self, query: str = None, data: tuple = None, commit: bool = False):
         """
         Task run method. Executes a query against Postgres database.
 
@@ -57,7 +57,7 @@ class PostgresExecute(Task):
         Returns:
             - None
         """
-        if query == "":
+        if not query:
             raise ValueError("A query string must be provided")
 
         ## connect to database, open cursor
@@ -116,7 +116,7 @@ class PostgresFetch(Task):
         port: int = 5432,
         fetch: str = "one",
         fetch_count: int = 10,
-        query: str = "",
+        query: str = None,
         data: tuple = None,
         commit: bool = False,
         **kwargs
@@ -138,7 +138,7 @@ class PostgresFetch(Task):
         self,
         fetch: str = "one",
         fetch_count: int = 10,
-        query: str = "",
+        query: str = None,
         data: tuple = None,
         commit: bool = False,
     ):
@@ -155,7 +155,7 @@ class PostgresFetch(Task):
         Returns:
             - records (tuple or list of tuples): records from provided query
         """
-        if query == "":
+        if not query:
             raise ValueError("A query string must be provided")
 
         if fetch not in {"one", "many", "all"}:
