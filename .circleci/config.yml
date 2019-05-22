@@ -44,7 +44,7 @@ jobs:
 
       - run:
           name: Run documentation tests
-          command: pytest -rfEsx -k "generate_docs" -rfEsx
+          command: pytest -rfEsx -k "generate_docs"
 
   # test a standard install of prefect
   # is importable in python 3.5.2
