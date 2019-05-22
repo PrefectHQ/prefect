@@ -30,4 +30,5 @@ from prefect.tasks.docker.containers import (
     ListContainers,
     StartContainer,
     StopContainer,
+    WaitOnContainer,
 )
