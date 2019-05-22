@@ -564,9 +564,9 @@ class TestUnionSchedule:
         start_date = pendulum.datetime(2018, 1, 1)
         now = pendulum.now("UTC")
         s = schedules.IntervalSchedule(start_date, timedelta(days=1))
-        t = schedules.OneTimeSchedule(start_date=now.add(hours=1))
+        t = schedules.OneTimeSchedule(start_date=s.next(1)[0].add(minutes=-1))
         main = schedules.UnionSchedule([s, t])
-        assert main.next(2) == [now.add(hours=1), s.next(1)[0]]
+        assert main.next(2) == [t.next(1)[0], s.next(1)[0]]
 
     def test_next_n_with_no_next(self):
         start_date = pendulum.datetime(2018, 1, 1)
@@ -591,5 +591,12 @@ class TestUnionSchedule:
             "30 6 * * 1-5", start_date=pendulum.parse("2019-03-14", tz="US/Pacific")
         )
         main = schedules.UnionSchedule([east, west])
-        expected = [east.next(1)[0], west.next(1)[0], east.next(2)[1], west.next(2)[1]]
-        assert main.next(4) == expected
+
+        after = max(west.next(1)[0], east.next(1)[0])
+        expected = [
+            east.next(1, after)[0],
+            west.next(1, after)[0],
+            east.next(2, after)[1],
+            west.next(2, after)[1],
+        ]
+        assert main.next(4, after) == expected
