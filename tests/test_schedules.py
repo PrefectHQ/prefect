@@ -592,11 +592,13 @@ class TestUnionSchedule:
         )
         main = schedules.UnionSchedule([east, west])
 
-        after = max(west.next(1)[0], east.next(1)[0])
         expected = [
-            east.next(1, after)[0],
-            west.next(1, after)[0],
-            east.next(2, after)[1],
-            west.next(2, after)[1],
+            east.next(1)[0],
+            west.next(1)[0],
+            east.next(2)[1],
+            west.next(2)[1],
+            east.next(3)[2],
         ]
-        assert main.next(4, after) == expected
+
+        # there is an edge case if this test runs between 9-9:30AM EST
+        assert main.next(4) in [expected[:4], expected[1:]]
