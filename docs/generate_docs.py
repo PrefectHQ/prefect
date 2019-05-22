@@ -45,6 +45,8 @@ def patch_imports():
             __all__ = []
 
             def __getattr__(self, attr):
+                if attr == "__code__":
+                    return None
                 return MagicMock()
 
         def patched_import(*args, **kwargs):
