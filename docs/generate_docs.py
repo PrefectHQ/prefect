@@ -40,11 +40,11 @@ outline_config = toml.load(OUTLINE_PATH)
 def patch_imports():
     try:
 
-        def patched_import(name, globals={}, locals={}, fromlist=[], level=-1):
+        def patched_import(*args, **kwargs):
             try:
-                return real_import(name, globals, locals, fromlist, level)
+                return real_import(*args, **kwargs)
             except ImportError:
-                return MagicMock(name=name)
+                return MagicMock(name=args[0])
 
         # swap
         real_import, builtins.__import__ = builtins.__import__, patched_import
