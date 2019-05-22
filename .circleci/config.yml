@@ -211,10 +211,11 @@ workflows:
       - test-3.6
       - test-3.7
 
-  'Check code style':
+  'Check code style and docs':
     jobs:
       - check_black_formatting
       - check_mypy_typing
+      - check_documentation
 
   'Run compatibility tests':
     jobs:
