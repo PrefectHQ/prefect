@@ -22,6 +22,7 @@ import textwrap
 import warnings
 from contextlib import contextmanager
 from functools import partial
+from types import ModuleType
 from unittest.mock import MagicMock
 
 import pendulum
@@ -40,11 +41,17 @@ outline_config = toml.load(OUTLINE_PATH)
 def patch_imports():
     try:
 
+        class EmptyModule(ModuleType):
+            __all__ = []
+
+            def __getattr__(self, attr):
+                return MagicMock()
+
         def patched_import(*args, **kwargs):
             try:
                 return real_import(*args, **kwargs)
             except ImportError:
-                return MagicMock(name=args[0])
+                return EmptyModule(name=args[0])
 
         # swap
         real_import, builtins.__import__ = builtins.__import__, patched_import
