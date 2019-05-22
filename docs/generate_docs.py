@@ -21,7 +21,6 @@ import textwrap
 import warnings
 from functools import partial
 
-import nbformat as nbf
 import pendulum
 import toml
 import toolz
@@ -277,6 +276,8 @@ def create_tutorial_notebooks(tutorial):
     assert (
         os.path.basename(os.getcwd()) == "docs"
     ), "Only run this utility from inside the docs/ directory!"
+
+    import nbformat as nbf
 
     os.makedirs(".vuepress/public/notebooks", exist_ok=True)
     text = open(tutorial, "r").read()
