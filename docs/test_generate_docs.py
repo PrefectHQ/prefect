@@ -13,7 +13,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 try:
     from generate_docs import (
-        OUTLINE,
+        load_outline,
         create_absolute_path,
         format_doc,
         format_lists,
@@ -22,7 +22,11 @@ try:
         get_call_signature,
         get_class_methods,
         get_source,
+        patch_imports,
     )
+
+    with patch_imports():
+        OUTLINE = load_outline()
 except ImportError:
     pytestmark = pytest.skip(
         "Documentation requirements not installed.", allow_module_level=True
@@ -34,7 +38,7 @@ pytestmark = pytest.mark.formatting
 
 
 def consistency_check(obj, obj_name):
-    patt = re.compile("(?<=>`)(.*?)(?=[\(|`:])")
+    patt = re.compile(r"(?<=>`)(.*?)(?=[\(|`:])")
     doc = format_doc(obj)
     try:
         arg_list_index = doc.index("**Args**:")
@@ -427,7 +431,7 @@ def test_format_doc_escapes_asteriks_inside_tables():
         pass
 
     res = format_doc(my_doc, in_table=True)
-    assert res.count(">\*<") == 2
+    assert res.count(r">\*<") == 2
 
 
 @pytest.mark.parametrize(
