@@ -13,7 +13,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 try:
     from generate_docs import (
-        OUTLINE,
+        load_outline,
         create_absolute_path,
         format_doc,
         format_lists,
@@ -22,7 +22,11 @@ try:
         get_call_signature,
         get_class_methods,
         get_source,
+        patch_imports,
     )
+
+    with patch_imports():
+        OUTLINE = load_outline()
 except ImportError:
     pytestmark = pytest.skip(
         "Documentation requirements not installed.", allow_module_level=True
