@@ -166,7 +166,7 @@ class TestCloudResultHandler:
         assert obj._client is None
 
 
-@pytest.mark.xfail(raises=ImportError)
+@pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")
 class TestGCSResultHandler:
     @pytest.fixture
     def google_client(self, monkeypatch):
@@ -214,7 +214,7 @@ class TestJSONResultHandler:
         assert handler.write(3) == "3"
 
 
-@pytest.mark.xfail(raises=ImportError)
+@pytest.mark.xfail(raises=ImportError, reason="aws extras not installed.")
 class TestS3ResultHandler:
     @pytest.fixture
     def s3_client(self, monkeypatch):
