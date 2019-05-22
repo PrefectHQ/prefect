@@ -11,26 +11,21 @@ from prefect import Task, task
 from prefect.engine.state import State
 from prefect.utilities.tasks import defaults_from_attrs
 
-try:
-    from generate_docs import (
-        load_outline,
-        create_absolute_path,
-        format_doc,
-        format_lists,
-        format_signature,
-        format_subheader,
-        get_call_signature,
-        get_class_methods,
-        get_source,
-        patch_imports,
-    )
+from generate_docs import (
+    load_outline,
+    create_absolute_path,
+    format_doc,
+    format_lists,
+    format_signature,
+    format_subheader,
+    get_call_signature,
+    get_class_methods,
+    get_source,
+    patch_imports,
+)
 
-    with patch_imports():
-        OUTLINE = load_outline()
-except ImportError:
-    pytestmark = pytest.skip(
-        "Documentation requirements not installed.", allow_module_level=True
-    )
+with patch_imports():
+    OUTLINE = load_outline()
 
 
 pytest.mark.skipif(sys.version_info < (3, 6))
