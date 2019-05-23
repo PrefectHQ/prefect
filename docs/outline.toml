@@ -52,11 +52,12 @@ classes = [
 title = "Filters"
 module = "prefect.schedules.filters"
 functions = [
-    "between",
+    "between_datetimes",
     "between_dates",
     "between_times",
     "is_weekday",
     "is_weekend",
+    "is_month_end"
 ]
 
 [pages.schedules.adjustments]

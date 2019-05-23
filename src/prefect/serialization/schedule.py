@@ -14,11 +14,12 @@ from prefect.utilities.serialization import (
 
 
 FILTERS = [
-    prefect.schedules.filters.between,
+    prefect.schedules.filters.between_datetimes,
     prefect.schedules.filters.between_dates,
     prefect.schedules.filters.between_times,
     prefect.schedules.filters.is_weekday,
     prefect.schedules.filters.is_weekend,
+    prefect.schedules.filters.is_month_end,
 ]
 
 ADJUSTMENTS = [

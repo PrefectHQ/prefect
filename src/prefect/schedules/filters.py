@@ -11,7 +11,7 @@ from typing import Callable
 import pendulum
 
 
-def between(start: datetime, end: datetime) -> Callable[[datetime], bool]:
+def between_datetimes(start: datetime, end: datetime) -> Callable[[datetime], bool]:
     """
     Filter that allows events between a start time and end time
 
@@ -96,6 +96,20 @@ def is_weekday(dt: datetime) -> bool:
         - bool: True if the date is a weekday; False otherwise
     """
     return pendulum.instance(dt).weekday() < 5
+
+
+def is_month_end(dt: datetime) -> bool:
+    """
+    Filter that only allows events on the last day of the month
+
+    Args:
+        - dt (datetime): the candidate datetime
+
+    Returns:
+        - bool: True if the date is a month-end; False otherwise
+    """
+    pdt = pendulum.instance(dt)
+    return pdt.month != pdt.add(days=1).month
 
 
 def is_weekend(dt: datetime) -> bool:

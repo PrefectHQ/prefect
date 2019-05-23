@@ -60,7 +60,7 @@ Note that this behavior is different from the `IntervalClock`.
 
 #### Date clocks
 
-For more ad-hoc schedules, Prefect supplies a `DatesClock` that can be instantiated with all the events it should fire.
+For more ad-hoc schedules, Prefect provides a `DatesClock` that only fires on specific, user-provided dates.
 
 ```python
 from datetime import timedelta
@@ -78,11 +78,12 @@ schedule.next(2)
 
 Prefect provides a variety of event filters, including:
 
-- `between` (allows events between two dates)
-- `between_times` (allows events between two times)
-- `between_dates` (allows events between two calendar dates)
+- `between_datetimes` (allows events between two specific datetimes)
+- `between_times` (allows events between two times, for example 9am and 5pm)
+- `between_dates` (allows events between two calendar dates, such as January 1 and March 31)
 - `is_weekday` (allows events on weekdays)
 - `is_weekend` (allows events on weekends)
+- `is_month_end` (allows events on month-end)
 
 Filters can be provided to schedules in three different ways:
 
@@ -118,8 +119,8 @@ schedules.Schedule(
     # fire every day
     clocks=[clocks.IntervalClock(timedelta(days=1))],
 
-    # only allow events on July 4
-    filters=[filters.between_dates(7, 4, 7, 4)],
+    # filtered for month ends
+    filters=[filters.is_month_end],
 
     # and run on the next weekday
     adjustments=[adjustments.next_weekday]

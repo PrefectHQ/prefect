@@ -20,9 +20,9 @@ import prefect.schedules.filters as filters
         ),
     ],
 )
-def test_between(test_dates):
+def test_between_datetimes(test_dates):
     dt = pendulum.datetime(2019, 1, 1, 6)
-    filter_fn = filters.between(test_dates[0], test_dates[1])
+    filter_fn = filters.between_datetimes(test_dates[0], test_dates[1])
     assert filter_fn(dt) is test_dates[2]
 
 
@@ -66,3 +66,18 @@ def test_is_weekday(dt):
 @pytest.mark.parametrize("dt", [pendulum.datetime(2019, 1, i) for i in range(1, 10)])
 def test_is_weekend(dt):
     assert filters.is_weekend(dt) == (dt.weekday() > 4)
+
+
+@pytest.mark.parametrize(
+    "dates",
+    [
+        (pendulum.datetime(2019, 1, 20), False),
+        (pendulum.datetime(2019, 1, 31), True),
+        (pendulum.datetime(2019, 2, 27), False),
+        (pendulum.datetime(2019, 2, 28), True),
+        (pendulum.datetime(2020, 2, 28), False),
+        (pendulum.datetime(2020, 2, 29), True),
+    ],
+)
+def test_is_month_end(dates):
+    assert filters.is_month_end(dates[0]) is dates[1]
