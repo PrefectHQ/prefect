@@ -216,6 +216,11 @@ class TaskRunner(Runner):
                     state, upstream_states=upstream_states
                 )
 
+                # check if any upstream tasks skipped (and if we need to skip)
+                state = self.check_upstream_skipped(
+                    state, upstream_states=upstream_states
+                )
+
                 # if the task is mapped, process the mapped children and exit
                 if mapped:
                     state = self.run_mapped_task(
@@ -233,11 +238,6 @@ class TaskRunner(Runner):
                         )
                     )
                     raise ENDRUN(state)
-
-                # check if any upstream tasks skipped (and if we need to skip)
-                state = self.check_upstream_skipped(
-                    state, upstream_states=upstream_states
-                )
 
                 # retrieve task inputs from upstream and also explicitly passed inputs
                 task_inputs = self.get_task_inputs(
@@ -336,8 +336,12 @@ class TaskRunner(Runner):
         """
 
         all_states = set()  # type: Set[State]
-        for upstream_state in upstream_states.values():
-            if isinstance(upstream_state, Mapped):
+        for edge, upstream_state in upstream_states.items():
+
+            # if the upstream state is Mapped, and this task is also mapped,
+            # we want each individual child to determine if it should
+            # skip or not based on its upstream parent in the mapping
+            if isinstance(upstream_state, Mapped) and not edge.mapped:
                 all_states.update(upstream_state.map_states)
             else:
                 all_states.add(upstream_state)
