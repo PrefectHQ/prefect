@@ -215,3 +215,27 @@ def test_start_date_and_end_date_missing():
     s = schedules.Schedule(clocks=[])
     assert s.start_date is None
     assert s.end_date is None
+
+
+def test_with_clocks_with_different_timezones():
+    east = clocks.CronClock(
+        "0 9 * * 1-5", start_date=pendulum.parse("2019-03-14", tz="US/Eastern")
+    )
+    west = clocks.CronClock(
+        "30 6 * * 1-5", start_date=pendulum.parse("2019-03-14", tz="US/Pacific")
+    )
+    s = schedules.Schedule(clocks=[east, west])
+
+    after = pendulum.datetime(2019, 5, 1)
+    next_east = list(itertools.islice(east.events(after=after), 3))
+    next_west = list(itertools.islice(west.events(after=after), 3))
+    expected = [
+        next_east[0],
+        next_west[0],
+        next_east[1],
+        next_west[1],
+        next_east[2],
+        next_west[2],
+    ]
+
+    assert s.next(6, after) == expected
