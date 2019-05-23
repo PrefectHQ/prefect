@@ -6,9 +6,10 @@ Prefect assumes that flows can be run at any time, for any reason. However, it i
 
 ## Design
 
-Prefect `Schedules` have three components: 
-- a `clock` that emits events. For example, an `IntervalClock` might emit an event every hour; a `CronClock` could emit an event according to a cron string. A single schedule may include multiple clocks. 
-- `filters` that decide whether an event should be included or not. For example, a filter might be set that only allows events on weekdays, or only during business hours. 
+Prefect `Schedules` have three components:
+
+- a `clock` that emits events. For example, an `IntervalClock` might emit an event every hour; a `CronClock` could emit an event according to a cron string. A single schedule may include multiple clocks.
+- `filters` that decide whether an event should be included or not. For example, a filter might be set that only allows events on weekdays, or only during business hours.
 - `adjustments` that can be used to modify events that pass the filters. For example, an adjustment could advance an event to the next business day, or the last business day of the month.
 
 These three components allow users to combine simple functions into complex behavior.
@@ -76,16 +77,18 @@ schedule.next(2)
 ### Filters
 
 Prefect provides a variety of event filters, including:
-    - `between` (allows events between two dates)
-    - `between_times` (allows events between two times)
-    - `between_dates` (allows events between two calendar dates)
-    - `is_weekday` (allows events on weekdays)
-    - `is_weekend` (allows events on weekends)
+
+- `between` (allows events between two dates)
+- `between_times` (allows events between two times)
+- `between_dates` (allows events between two calendar dates)
+- `is_weekday` (allows events on weekdays)
+- `is_weekend` (allows events on weekends)
 
 Filters can be provided to schedules in three different ways:
-    - `filters`: ALL filters must return `True` for the event to be included
-    - `or_filters`: AT LEAST ONE filter must return `True` for the even to be included
-    - `not_filters`: NO filters can return `True` for the event to be included
+
+- `filters`: ALL filters must return `True` for the event to be included
+- `or_filters`: AT LEAST ONE filter must return `True` for the even to be included
+- `not_filters`: NO filters can return `True` for the event to be included
 
 ```python
 schedules.Schedule(
@@ -106,5 +109,19 @@ schedules.Schedule(
 ### Adjustments
 
 Adjustments allow schedules to modify dates that are emitted by clocks and pass a filter bank:
-    - `add` (adds an interval to the date)
-    - `next_weekday` (advances the date to the next weekday)
+
+- `add` (adds an interval to the date)
+- `next_weekday` (advances the date to the next weekday)
+
+```python
+schedules.Schedule(
+    # fire every day
+    clocks=[clocks.IntervalClock(timedelta(days=1))],
+
+    # only allow events on July 4
+    filters=[filters.between_dates(7, 4, 7, 4)],
+
+    # and run on the next weekday
+    adjustments=[adjustments.next_weekday]
+    )
+```
