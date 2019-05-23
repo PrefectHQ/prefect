@@ -110,7 +110,7 @@ def test_result_handlers_must_implement_read_and_write_to_work():
     assert "abstract methods write" in str(exc.value)
 
 
-@pytest.mark.xfail(raises=ImportError)
+@pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")
 class TestGCSResultHandler:
     @pytest.fixture
     def google_client(self, monkeypatch):
@@ -170,7 +170,7 @@ class TestGCSResultHandler:
         assert isinstance(res, GCSResultHandler)
 
 
-@pytest.mark.xfail(raises=ImportError)
+@pytest.mark.xfail(raises=ImportError, reason="aws extras not installed.")
 class TestS3ResultHandler:
     @pytest.fixture
     def s3_client(self, monkeypatch):

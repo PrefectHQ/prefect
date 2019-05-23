@@ -32,6 +32,20 @@ jobs:
           name: Run mypy
           command: mypy src/
 
+  check_documentation:
+    docker:
+      - image: python:3.6
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install prefect
+          command: pip install -e ".[dev]"
+
+      - run:
+          name: Run documentation tests
+          command: pytest -rfEsx -k "generate_docs"
+
   # test a standard install of prefect
   # is importable in python 3.5.2
   # there was a typing bug in 3.5.2 that this attempts to catch
@@ -74,7 +88,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -k "not examples" --cov=prefect .
+          command: pytest -rfEsx --skip-formatting --cov=prefect .
 
       - run:
           name: Upload Coverage
@@ -106,7 +120,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest --cov=prefect .
+          command: pytest -rfEsx --skip-formatting --cov=prefect .
 
       - run:
           name: Upload Coverage
@@ -137,7 +151,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest .
+          command: pytest -rfEsx .
 
   test-airflow:
     docker:
@@ -163,7 +177,7 @@ jobs:
 
       - run:
           name: Run tests w/ airflow
-          command: pytest --airflow --cov=prefect .
+          command: pytest -rfEsx --airflow --cov=prefect .
 
       - run:
           name: Upload Coverage
@@ -197,10 +211,11 @@ workflows:
       - test-3.6
       - test-3.7
 
-  'Check code style':
+  'Check code style and docs':
     jobs:
       - check_black_formatting
       - check_mypy_typing
+      - check_documentation
 
   'Run compatibility tests':
     jobs:
