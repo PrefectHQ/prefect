@@ -6,7 +6,10 @@ Prefect assumes that flows can be run at any time, for any reason. However, it i
 
 ## Design
 
-Prefect `Schedules` have three components: - a `clock` that emit events. For example, an `IntervalClock` might emit an event every hour; a `CronClock` could emit an event according to a cron string. A single schedule may include multiple clocks. - `filters` that decide whether an event should be included or not. For example, a filter might be set that only allows events on weekdays, or only during business hours. - `adjustments` that can be used to modify events that pass the filters. For example, an adjustment could advance an event to the next business day, or the last business day of the month.
+Prefect `Schedules` have three components: 
+- a `clock` that emits events. For example, an `IntervalClock` might emit an event every hour; a `CronClock` could emit an event according to a cron string. A single schedule may include multiple clocks. 
+- `filters` that decide whether an event should be included or not. For example, a filter might be set that only allows events on weekdays, or only during business hours. 
+- `adjustments` that can be used to modify events that pass the filters. For example, an adjustment could advance an event to the next business day, or the last business day of the month.
 
 These three components allow users to combine simple functions into complex behavior.
 
