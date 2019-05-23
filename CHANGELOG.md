@@ -19,6 +19,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Raise informative errors when Docker storage push / pull fails - [#1029](https://github.com/PrefectHQ/prefect/issues/1029)
 - Standardized `__repr__`s for various classes, to remove inconsistencies  - [#617](https://github.com/PrefectHQ/prefect/issues/617)
 - Allow for use of local images in Docekr storage - [#1052](https://github.com/PrefectHQ/prefect/pull/1052)
+- Allow for doc tests and doc generation to run without installing `all_extras` - [#1057](https://github.com/PrefectHQ/prefect/issues/1057)
 
 ### Task Library
 

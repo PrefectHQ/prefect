@@ -11,6 +11,7 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
 
 On a development installation of Prefect, simply run `python generate_docs.py` from inside the `docs/` folder.
 """
+import builtins
 import importlib
 import inspect
 import os
@@ -19,9 +20,10 @@ import shutil
 import subprocess
 import textwrap
 import warnings
+from contextlib import contextmanager
 from functools import partial
+from unittest.mock import MagicMock
 
-import nbformat as nbf
 import pendulum
 import toml
 import toolz
@@ -32,6 +34,23 @@ from tokenizer import format_code
 
 OUTLINE_PATH = os.path.join(os.path.dirname(__file__), "outline.toml")
 outline_config = toml.load(OUTLINE_PATH)
+
+
+@contextmanager
+def patch_imports():
+    try:
+
+        def patched_import(*args, **kwargs):
+            try:
+                return real_import(*args, **kwargs)
+            except Exception:
+                return MagicMock(name=args[0])
+
+        # swap
+        real_import, builtins.__import__ = builtins.__import__, patched_import
+        yield
+    finally:
+        builtins.__import__ = real_import
 
 
 def load_outline(
@@ -60,9 +79,6 @@ def load_outline(
         else:
             OUTLINE.extend(load_outline(data, prefix=fname))
     return OUTLINE
-
-
-OUTLINE = load_outline()
 
 
 @toolz.curry
@@ -141,7 +157,7 @@ def format_doc(obj, in_table=False):
             block = block[block.startswith("python") and 6 :].lstrip("\n")
             block = (
                 '<pre class="language-python"><code class="language-python">'
-                + format_code(block).replace("\n", "<br>").replace("*", "\*")
+                + format_code(block).replace("\n", "<br>").replace("*", r"\*")
                 + "</code></pre>"
             )
         cleaned = cleaned.replace(f"$CODEBLOCK{num}", block.rstrip(" "))
@@ -278,6 +294,8 @@ def create_tutorial_notebooks(tutorial):
         os.path.basename(os.getcwd()) == "docs"
     ), "Only run this utility from inside the docs/ directory!"
 
+    import nbformat as nbf
+
     os.makedirs(".vuepress/public/notebooks", exist_ok=True)
     text = open(tutorial, "r").read()
     code_blocks = re.findall(r"```(.*?)```", text, re.DOTALL)
@@ -294,139 +312,141 @@ def create_tutorial_notebooks(tutorial):
 
 if __name__ == "__main__":
 
-    assert (
-        os.path.basename(os.getcwd()) == "docs"
-    ), "Only run this script from inside the docs/ directory!"
+    with patch_imports():
+        OUTLINE = load_outline()
+        assert (
+            os.path.basename(os.getcwd()) == "docs"
+        ), "Only run this script from inside the docs/ directory!"
 
-    GIT_SHA = os.getenv("GIT_SHA", "n/a")
-    SHORT_SHA = GIT_SHA[:7]
-    auto_generated_footer = (
-        '<p class="auto-gen">This documentation was auto-generated from commit '
-        "<a href='https://github.com/PrefectHQ/prefect/commit/{git_sha}'>{short_sha}</a> "
-        "</br>by Prefect {version} on {timestamp}</p>".format(
-            short_sha=SHORT_SHA,
-            git_sha=GIT_SHA,
-            version=prefect.__version__,
-            timestamp=pendulum.now("utc").format("MMMM D, YYYY [at] HH:mm [UTC]"),
+        GIT_SHA = os.getenv("GIT_SHA", "n/a")
+        SHORT_SHA = GIT_SHA[:7]
+        auto_generated_footer = (
+            '<p class="auto-gen">This documentation was auto-generated from commit '
+            "<a href='https://github.com/PrefectHQ/prefect/commit/{git_sha}'>{short_sha}</a> "
+            "</br>by Prefect {version} on {timestamp}</p>".format(
+                short_sha=SHORT_SHA,
+                git_sha=GIT_SHA,
+                version=prefect.__version__,
+                timestamp=pendulum.now("utc").format("MMMM D, YYYY [at] HH:mm [UTC]"),
+            )
         )
-    )
 
-    front_matter = textwrap.dedent(
-        """
-        ---
-        sidebarDepth: 2
-        editLink: false
-        ---
-        """
-    ).lstrip()
-
-    shutil.rmtree("api/unreleased", ignore_errors=True)
-    os.makedirs("api/unreleased", exist_ok=True)
-
-    ## write link to hosted coverage reports
-    with open("api/unreleased/coverage.md", "w+") as f:
-        f.write(
-            textwrap.dedent(
-                """
-            ---
-            title: Test Coverage
-            ---
-
-            # Unit test coverage report
-
-            To view test coverage reports, <a href="https://codecov.io/gh/PrefectHQ/prefect">click here</a>.
+        front_matter = textwrap.dedent(
             """
-            ).lstrip()
-        )
-
-    ## UPDATE README
-    with open("api/unreleased/README.md", "w+") as f:
-        f.write(
-            textwrap.dedent(
-                """
             ---
-            sidebarDepth: 0
+            sidebarDepth: 2
             editLink: false
             ---
             """
-            ).lstrip()
-        )
+        ).lstrip()
 
-        api_reference_section = textwrap.dedent(
-            """
+        shutil.rmtree("api/unreleased", ignore_errors=True)
+        os.makedirs("api/unreleased", exist_ok=True)
 
-            <div align="center" style="margin-bottom:40px;">
-            <img src="/assets/wordmark-color-horizontal.svg"  width=600 >
-            </div>
+        ## write link to hosted coverage reports
+        with open("api/unreleased/coverage.md", "w+") as f:
+            f.write(
+                textwrap.dedent(
+                    """
+                ---
+                title: Test Coverage
+                ---
 
-            # API Reference
+                # Unit test coverage report
 
-            This API reference is automatically generated from Prefect's source code and unit-tested to ensure it's up to date.
-
-            """
-        )
-
-        with open("../README.md", "r") as g:
-            readme = g.read()
-            index = readme.index("## Hello, world!")
-            readme = "\n".join([api_reference_section, readme[index:]])
-            f.write(readme)
-            f.write(auto_generated_footer)
-
-    ## UPDATE CHANGELOG
-    with open("api/unreleased/changelog.md", "w+") as f:
-        f.write(
-            textwrap.dedent(
+                To view test coverage reports, <a href="https://codecov.io/gh/PrefectHQ/prefect">click here</a>.
                 """
-            ---
-            sidebarDepth: 1
-            editLink: false
-            ---
-            """
-            ).lstrip()
-        )
-        with open("../CHANGELOG.md", "r") as g:
-            changelog = g.read()
-            f.write(changelog)
-            f.write(auto_generated_footer)
+                ).lstrip()
+            )
 
-    for page in OUTLINE:
-        # collect what to document
-        fname, classes, fns = (
-            page["page"],
-            page.get("classes", []),
-            page.get("functions", []),
-        )
-        fname = f"api/unreleased/{fname}"
-        directory = os.path.dirname(fname)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-        with open(fname, "w") as f:
-            # PAGE TITLE / SETUP
-            f.write(front_matter)
-            title = page.get("title")
-            if title:  # this would be a good place to have assignments
-                f.write(f"# {title}\n---\n")
+        ## UPDATE README
+        with open("api/unreleased/README.md", "w+") as f:
+            f.write(
+                textwrap.dedent(
+                    """
+                ---
+                sidebarDepth: 0
+                editLink: false
+                ---
+                """
+                ).lstrip()
+            )
 
-            top_doc_obj = page.get("top-level-doc")
-            if top_doc_obj is not None:
-                top_doc = inspect.getdoc(top_doc_obj)
-                if top_doc is not None:
-                    f.write(top_doc + "\n")
-            for obj in classes:
-                f.write(format_subheader(obj))
+            api_reference_section = textwrap.dedent(
+                """
 
-                f.write(format_doc(obj) + "\n\n")
-                if type(obj) == toolz.functoolz.curry:
-                    f.write("\n")
-                    continue
+                <div align="center" style="margin-bottom:40px;">
+                <img src="/assets/wordmark-color-horizontal.svg"  width=600 >
+                </div>
 
-                public_members = get_class_methods(obj)
-                f.write(create_methods_table(public_members, title="methods:"))
-                f.write("\n---\n<br>\n\n")
+                # API Reference
 
-            if fns:
-                f.write("\n## Functions\n")
-            f.write(create_methods_table(fns, title="top-level functions:"))
-            f.write("\n")
-            f.write(auto_generated_footer)
+                This API reference is automatically generated from Prefect's source code and unit-tested to ensure it's up to date.
+
+                """
+            )
+
+            with open("../README.md", "r") as g:
+                readme = g.read()
+                index = readme.index("## Hello, world!")
+                readme = "\n".join([api_reference_section, readme[index:]])
+                f.write(readme)
+                f.write(auto_generated_footer)
+
+        ## UPDATE CHANGELOG
+        with open("api/unreleased/changelog.md", "w+") as f:
+            f.write(
+                textwrap.dedent(
+                    """
+                ---
+                sidebarDepth: 1
+                editLink: false
+                ---
+                """
+                ).lstrip()
+            )
+            with open("../CHANGELOG.md", "r") as g:
+                changelog = g.read()
+                f.write(changelog)
+                f.write(auto_generated_footer)
+
+        for page in OUTLINE:
+            # collect what to document
+            fname, classes, fns = (
+                page["page"],
+                page.get("classes", []),
+                page.get("functions", []),
+            )
+            fname = f"api/unreleased/{fname}"
+            directory = os.path.dirname(fname)
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+            with open(fname, "w") as f:
+                # PAGE TITLE / SETUP
+                f.write(front_matter)
+                title = page.get("title")
+                if title:  # this would be a good place to have assignments
+                    f.write(f"# {title}\n---\n")
+
+                top_doc_obj = page.get("top-level-doc")
+                if top_doc_obj is not None:
+                    top_doc = inspect.getdoc(top_doc_obj)
+                    if top_doc is not None:
+                        f.write(top_doc + "\n")
+                for obj in classes:
+                    f.write(format_subheader(obj))
+
+                    f.write(format_doc(obj) + "\n\n")
+                    if type(obj) == toolz.functoolz.curry:
+                        f.write("\n")
+                        continue
+
+                    public_members = get_class_methods(obj)
+                    f.write(create_methods_table(public_members, title="methods:"))
+                    f.write("\n---\n<br>\n\n")
+
+                if fns:
+                    f.write("\n## Functions\n")
+                f.write(create_methods_table(fns, title="top-level functions:"))
+                f.write("\n")
+                f.write(auto_generated_footer)
