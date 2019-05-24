@@ -892,9 +892,8 @@ class Flow:
                         sub_state.is_cached() for sub_state in s.map_states
                     ):
                         cached_sub_states = [
-                            sub_state
+                            sub_state if sub_state.is_cached() else None
                             for sub_state in s.map_states
-                            if sub_state.is_cached()
                         ]
                         cached_tasks.update(
                             {
