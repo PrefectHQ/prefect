@@ -225,6 +225,50 @@ def test_map_skips_return_exception_as_result(executor):
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
+def test_upstream_skip_signals_are_handled_properly(executor):
+    @task
+    def skip_task():
+        raise prefect.engine.signals.SKIP("Not going to run.")
+
+    @task
+    def add(x):
+        return x + 1
+
+    with Flow(name="test") as f:
+        res = add.map(skip_task)
+
+    s = f.run(executor=executor)
+    m = s.result[res]
+    assert s.is_successful()
+    assert m.is_skipped()
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_upstream_skipped_states_are_handled_properly(executor):
+    @task
+    def skip_task():
+        pass
+
+    @task
+    def add(x):
+        return x + 1
+
+    with Flow(name="test") as f:
+        res = add.map(skip_task)
+
+    s = f.run(
+        executor=executor, task_states={skip_task: prefect.engine.state.Skipped()}
+    )
+    m = s.result[res]
+    assert s.is_successful()
+    assert m.is_skipped()
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_skips_dont_leak_out(executor):
     ll = ListTask()
 
