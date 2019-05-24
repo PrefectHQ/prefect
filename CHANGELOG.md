@@ -35,6 +35,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix an issue where user configurations were loaded after config interpolation had already taken place - [#1037](https://github.com/PrefectHQ/prefect/pull/1037)
 - Fix an issue with saving a flow visualization to a file from a notebook - [#1056](https://github.com/PrefectHQ/prefect/pull/1056)
 - Fix an issue in which mapped tasks incorrectly tried to run when their upstream was skipped - [#1068](https://github.com/PrefectHQ/prefect/issues/1068)
+- Fix an issue in which mapped tasks were not using their caches locally - [#1067](https://github.com/PrefectHQ/prefect/issues/1067)
 
 ### Breaking Changes
 
