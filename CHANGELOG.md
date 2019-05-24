@@ -27,6 +27,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add tasks for integration with spaCy pipelines [#1018](https://github.com/PrefectHQ/prefect/issues/1018)
 - Add tasks for querying Postgres database [#1022](https://github.com/PrefectHQ/prefect/issues/1022)
 - Add task for waiting on a Docker container to run and optionally raising for nonzero exit code - [#1061](https://github.com/PrefectHQ/prefect/pull/1061)
+- Add tasks for communicating with Redis [#1021](https://github.com/PrefectHQ/prefect/issues/1021)
 
 ### Fixes
 
